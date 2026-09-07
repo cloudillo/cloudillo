@@ -125,7 +125,8 @@ export function useDocInfo(resId: string | undefined, appToken?: string): DocInf
 							fileId,
 							state: 'loading',
 							isCrossOwner: false,
-							canRename: false
+							canRename: false,
+							canPost: false
 						}
 			)
 			;(async function () {

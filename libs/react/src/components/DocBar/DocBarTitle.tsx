@@ -26,7 +26,7 @@ export interface DocBarTitleProps {
 	className?: string
 	/** The tenant owning the CONTENT. Shown only when `showOwner`. */
 	owner?: { idTag?: string; name?: string; profilePic?: string }
-	/** Driven by `DocInfo.isCrossOwner` — a document served here but owned elsewhere. */
+	/** Driven by `DocInfo.isCrossOwner` — a document whose owner is not the signed-in viewer. */
 	showOwner?: boolean
 	title?: string
 	/**

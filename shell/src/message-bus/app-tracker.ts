@@ -41,6 +41,10 @@ export interface AppConnection {
 	refId?: string
 	/** Source file ID for cross-document token refresh of embedded apps */
 	via?: string
+	/** A shell-hosted embed (feed card, site island), not the document's own editor.
+	 *  It carries the real resId for token minting, but must not be handed anything
+	 *  addressed to the editor — a pending import above all, which is consumed once. */
+	embed?: boolean
 	/** Launch params as serialized query string */
 	params?: string
 }
@@ -67,6 +71,8 @@ export interface RegisterAppOptions {
 	refId?: string
 	/** Guest display name (for comment attribution) */
 	displayName?: string
+	/** See {@link AppConnection.embed} */
+	embed?: boolean
 	/** Launch params as serialized query string */
 	params?: string
 }
@@ -86,6 +92,15 @@ export interface PendingRegistration {
 	ancestors?: string[]
 	/** Launch params as serialized query string */
 	params?: string
+	/**
+	 * The document the iframe was opened on, when the entry is keyed by an
+	 * `_embed:<nonce>` handshake key rather than by the resId itself. The
+	 * connection is registered on this, never on the key — a key read as a
+	 * resId mints against an owner tag of `_embed`.
+	 */
+	resId?: string
+	/** See {@link AppConnection.embed} */
+	embed?: boolean
 }
 
 // ============================================
@@ -127,6 +142,7 @@ export class AppTracker {
 			window: options.window,
 			appName: options.appName,
 			resId: options.resId,
+			embed: options.embed,
 			idTag: options.idTag,
 			access: options.access || 'write',
 			initialized: false,

@@ -216,7 +216,11 @@ function cleanup(): void {
 	}
 }
 
-// Start cleanup interval
-setInterval(cleanup, CLEANUP_INTERVAL)
+// Start cleanup interval. Unref'd because this module runs at import time: under node
+// (jest) a bare interval holds the event loop open, so any suite that reaches a handler
+// importing this leaves its worker to be force-killed. A no-op in the browser, where the
+// handle is a plain number.
+const cleanupTimer = setInterval(cleanup, CLEANUP_INTERVAL)
+;(cleanupTimer as unknown as { unref?: () => void }).unref?.()
 
 // vim: ts=4

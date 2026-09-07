@@ -519,9 +519,18 @@ export const tDocInfo = T.struct({
 	fileName: T.optional(T.string),
 	/** The tenant owning the CONTENT — differs from the serving context for pinned/placed docs. */
 	owner: T.optional(tDocOwner),
-	/** true → show the owner chip and the cross-owner marker. */
+	/** true → the content owner is not the viewer, so the owner chip is shown. NOT a provenance
+	 *  signal: a community's own document is served by the context it belongs to and still sets
+	 *  this. Apps must not infer `FileView.upstream` from it. */
 	isCrossOwner: T.boolean,
-	canRename: T.boolean
+	canRename: T.boolean,
+	/** The viewer may share this document to their feed: a signed-in identity plus write access
+	 *  to a local row that ORIGINATES here. Deliberately not the `canRename` rule — rename is
+	 *  record authority and reaches a mirrored copy, while a post is a claim about what the
+	 *  audience can reach, and a mirror is a link the author cannot widen. False for a
+	 *  share-link guest. Optional so a DocInfo from an older shell still decodes; every shell
+	 *  producer sets it explicitly. */
+	canPost: T.optional(T.boolean)
 })
 export type DocInfo = T.TypeOf<typeof tDocInfo>
 
@@ -1244,6 +1253,39 @@ export const tImportCompleteNotify = msg('import:complete.notify', {
 export type ImportCompleteNotify = T.TypeOf<typeof tImportCompleteNotify>
 
 // ============================================
+// FEED POST MESSAGES
+// ============================================
+
+/**
+ * App asks the shell to share the document it is showing as a feed post
+ * Direction: app -> shell
+ *
+ * Plain request/response rather than the ACK + push pattern `share:create` uses:
+ * fulfilling this navigates the shell to the feed, which unmounts the requesting
+ * iframe — there would be nobody left to receive a push.
+ *
+ * Deliberately carries NO fileId: the shell derives the document from the
+ * connection's resId, the same rule `doc:rename.req` states. And deliberately no
+ * `...tRelayed`, as `share:create.req`, so an embedded document cannot post on
+ * its host's behalf.
+ */
+export const tFeedPostReq = msg('feed:post.req', {
+	id: T.number
+})
+export type FeedPostReq = T.TypeOf<typeof tFeedPostReq>
+
+/**
+ * Shell reports whether the composer was opened
+ * Direction: shell -> app
+ */
+export const tFeedPostRes = msg('feed:post.res', {
+	replyTo: T.number,
+	ok: T.boolean,
+	error: T.optional(T.string)
+})
+export type FeedPostRes = T.TypeOf<typeof tFeedPostRes>
+
+// ============================================
 // UNION OF ALL MESSAGES
 // ============================================
 
@@ -1338,6 +1380,10 @@ export const tCloudilloMessage = T.taggedUnion('type')({
 	'site:publish.res': tSitePublishRes,
 	'site:mount.req': tSiteMountReq,
 	'site:mount.res': tSiteMountRes,
+
+	// Feed post messages
+	'feed:post.req': tFeedPostReq,
+	'feed:post.res': tFeedPostRes,
 
 	// Import messages
 	'import:data.push': tImportDataPush,

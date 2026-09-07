@@ -24,9 +24,8 @@ import Fullscreen from 'yet-another-react-lightbox/plugins/fullscreen'
 import Zoom from 'yet-another-react-lightbox/plugins/zoom'
 
 import { version } from '../../package.json'
-import { getShellBus } from '../message-bus/shell-bus.js'
-import type { ShellEmbedRegistration } from '../shell-embed.js'
-import { useShellEmbed } from '../shell-embed.js'
+import { AppLoadingIndicator } from '../apps/AppLoadingIndicator.js'
+import { registerShellEmbed, releaseShellEmbed, useShellEmbed } from '../shell-embed.js'
 import type { SiteIslandProps } from './island-registry.js'
 import { registerSiteIsland } from './island-registry.js'
 
@@ -147,19 +146,6 @@ const tEmbedProps = T.struct({
 	height: T.optional(tAnyValue)
 })
 
-/** `key` is the per-mount `_embed:<nonce>` handshake key, not the document's resId. */
-function registerEmbed(key: string, registration: ShellEmbedRegistration): void {
-	getShellBus()?.setPendingRegistration(key, registration)
-}
-
-function releaseEmbed(key: string): void {
-	// Never consumed means the iframe never booted; leaving it would hand the
-	// next claimant of this key a registration it did not open. The key is per
-	// mount, so this can never drop an entry a sibling embed of the same document
-	// is still waiting on.
-	getShellBus()?.getAppTracker().consumePendingRegistration(key)
-}
-
 /**
  * A live document inside a published page.
  *
@@ -168,13 +154,15 @@ function releaseEmbed(key: string): void {
  * `null` and the reader keeps the publisher's placeholder.
  */
 function SiteDocumentEmbedIsland({ props }: SiteIslandProps) {
-	const { t } = useTranslation()
 	const { api } = useApi()
 	const embedProps = islandProps(tEmbedProps, props)
 	const fileId = embedProps?.fileId ?? ''
 	const contentType = embedProps?.contentType ?? ''
 	const navState = embedProps?.navState
 	const height = sitePositiveInt(embedProps?.height) ?? DEFAULT_EMBED_HEIGHT
+	// A published page has no expand/collapse to reset the mount with, so without this
+	// a transient slow load needs a full reload to recover.
+	const [attempt, setAttempt] = React.useState(0)
 
 	const embed = useShellEmbed(
 		api?.idTag && fileId && contentType
@@ -184,34 +172,45 @@ function SiteDocumentEmbedIsland({ props }: SiteIslandProps) {
 					access: 'read',
 					navState,
 					version,
-					register: registerEmbed,
-					release: releaseEmbed
+					retryKey: attempt,
+					register: registerShellEmbed,
+					release: releaseShellEmbed
 				}
 			: null
 	)
 
-	if (embed.status === 'error') {
-		return (
-			<div className="c-panel p-2">
-				{t('Failed to load document: {{error}}', { error: embed.error })}
-			</div>
-		)
-	}
-	if (!embed.iframeSrc) return null
+	if (!embed.iframeSrc && embed.stage !== 'error') return null
 
 	// The marked element carries the authored height as an inline style, but
 	// only when the block had one — this wrapper is what guarantees the iframe
-	// a box in either case.
+	// a box in either case. `pos-relative`: the indicator overlays that box.
 	return (
-		<div className="w-100" style={{ height: `${height}px` }}>
-			<DocumentEmbedIframe
-				src={embed.iframeSrc}
-				className="w-100 h-100 border-0"
-				// A published page is read-only, so there is no editor click to
-				// protect: the embed is live from the first paint, exactly as
-				// the Notillo editor renders one when `isEditable` is false.
-				active
+		<div className="w-100 pos-relative" style={{ height: `${height}px` }}>
+			<AppLoadingIndicator
+				stage={embed.stage}
+				errorCode={embed.errorCode}
+				errorMessage={embed.error}
+				subtle={embed.stage === 'syncing'}
+				onRetry={() => setAttempt((n) => n + 1)}
 			/>
+			{/* Dropped on error: the overlay is opaque, so a mounted bundle behind it
+			    is invisible work — and its own retry loops keep running. */}
+			{embed.iframeSrc && embed.stage !== 'error' && (
+				<DocumentEmbedIframe
+					// A fresh element per boot: the memoised iframe otherwise merely
+					// navigates, leaving the pre-retry document's relay live to report
+					// readiness against the new mount (see `useShellEmbed`).
+					key={embed.iframeSrc}
+					src={embed.iframeSrc}
+					className="w-100 h-100 border-0"
+					// A published page is read-only, so there is no editor click to
+					// protect: the embed is live from the first paint, exactly as
+					// the Notillo editor renders one when `isEditable` is false.
+					active
+					onAppReady={embed.onAppReady}
+					onAppError={embed.onAppError}
+				/>
+			)}
 		</div>
 	)
 }

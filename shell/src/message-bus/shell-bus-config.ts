@@ -37,7 +37,7 @@ export async function mintAppToken(
 	resId: string,
 	access: 'read' | 'comment' | 'write'
 ): Promise<{ token: string; tokenLifetime: number | undefined } | undefined> {
-	// resId is `<ownerIdTag>:<fileId>`, or a bare fileId on our own node.
+	// resId is `<srcIdTag>:<fileId>`, or a bare fileId on our own node.
 	const colon = resId.indexOf(':')
 	const targetTag = colon > 0 ? resId.slice(0, colon) : authIdTag
 	const fileId = colon > 0 ? resId.slice(colon + 1) : resId

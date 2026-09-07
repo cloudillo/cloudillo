@@ -12,7 +12,7 @@ import { type DocBarSubItem, DocBarTitle } from './DocBarTitle.js'
 export interface DocBarProps extends React.HTMLAttributes<HTMLElement> {
 	/** The tenant owning the CONTENT. Shown only when `showOwner`. */
 	owner?: { idTag?: string; name?: string; profilePic?: string }
-	/** Driven by `DocInfo.isCrossOwner`. */
+	/** Driven by `DocInfo.isCrossOwner` — a document whose owner is not the signed-in viewer. */
 	showOwner?: boolean
 	title?: string
 	/** Resolution state of the document; drives the title placeholder. */

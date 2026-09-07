@@ -3,8 +3,8 @@
 
 /**
  * The DocBar's document-identity rules, with no React and no context imports, so
- * they can be tested directly (`shell` has no `@testing-library/react`, and the
- * context barrel pulls in CSS jest cannot parse). {@link useDocInfo} owns the
+ * they can be tested directly in the node-environment suite (the context barrel
+ * pulls in CSS nothing in the jest config maps). {@link useDocInfo} owns the
  * wiring — which client, when to refetch — and delegates every decision here.
  */
 
@@ -12,7 +12,8 @@ import type { ApiClient, DocInfo, FileView } from '@cloudillo/core'
 
 import { fileIdFromResId, idTagFromResId } from '../message-bus/handlers/resId.js'
 import { isMissingError, isPermissionError } from '../utils.js'
-import { canManageFile, isCrossOwnerFile, scopeFileToTenant } from './files/utils.js'
+import { isSameDoc } from './feed/live-doc.js'
+import { canManageFile, canWrite, isCrossOwnerFile, resolveAccessLevel } from './files/utils.js'
 
 export interface RowResult {
 	row?: FileView
@@ -57,9 +58,11 @@ export interface ResolveDocInfoInput {
 	/** The origin row from the owner's node. Display only — never renamed. */
 	remoteRow?: FileView
 	authIdTag?: string
-	/** The context whose node was asked for the local row */
+	/** The context whose node was asked for the local row. Two uses: it is the node
+	 *  `localRowIsTarget` judges the local row against (`isSameDoc` below), and — when no
+	 *  local row resolved — it decides whether the resId names somebody else's node. */
 	contextIdTag?: string
-	/** Roles held on `contextIdTag` */
+	/** Roles held on the context whose node was asked for the local row */
 	contextRoles: string[]
 }
 
@@ -80,20 +83,47 @@ export function resolveDocInfo({
 	// and its name is the one this user chose. The origin is a display fallback.
 	const row = localRow ?? remoteRow
 	const hasLocalRow = !!localRow
-	const ownerIdTag = row?.owner?.idTag ?? idTagFromResId(resId)
-	const isCrossOwner = isCrossOwnerFile(ownerIdTag, contextIdTag, false)
+	// Provenance RELATIVE TO US: where the canonical copy lives, when it is not this node.
+	//
+	// With a local row, `upstream` says it directly. Without one, whatever we have came from
+	// another node — the origin's own row, or nothing at all — so the canonical copy is either
+	// further upstream still (the origin had itself mirrored it: @cycling.club serving a row
+	// @bob.me owns) or the origin node named by the resId. Either way it is not us, and hiding
+	// the owner chip on a document we could not fetch is the worse failure.
+	const resIdTag = idTagFromResId(resId)
+	const upstreamIdTag = localRow
+		? localRow.upstream?.idTag
+		: (remoteRow?.upstream?.idTag ??
+			(resIdTag && resIdTag !== contextIdTag ? resIdTag : undefined))
+	/** Provenance only: the canonical copy lives on another node. Rename authority — NOT the
+	 *  owner chip, which asks a different question (below). */
+	const isMirrored = isCrossOwnerFile(upstreamIdTag, false)
+
+	/*
+	 * The row came back for a bare fileId asked of the CONTEXT node, and fileIds are
+	 * node-local: an unrelated local row with the same id would otherwise be renamed, and
+	 * posted, in place of the document the resId names. Same rule `FeedPostHost` applies —
+	 * restated here so the DocBar cannot offer an action that gate will refuse.
+	 *
+	 * Skipped when either half is unknown: a bare-fileId resId names this node by
+	 * definition, and with no `contextIdTag` there is nothing to compare against (the row
+	 * fetch itself needs a context client, so this cannot be reached with a row in hand).
+	 */
+	const localRowIsTarget =
+		!resIdTag || !contextIdTag || isSameDoc(localRow, { srcIdTag: resIdTag }, contextIdTag)
 
 	/*
 	 * Rename targets the LOCAL row on the LOCAL node, so only standing on the node
 	 * serving that row decides it — never the origin's.
 	 *
-	 * A pinned or placed foreign-owned row is this user's own copy, but
-	 * `canManageFile` answers about the ORIGIN's ownership and would refuse it —
-	 * unrenamable here while the Files app renames it happily (its ContextMenu
-	 * gates Rename on "not remote browsing"). So a local copy qualifies on the
-	 * strength of being local, and same-owner rows go through the shared
-	 * predicate. Both branches are narrower than what the backend accepts; the 403
-	 * toast on the write itself is the real backstop.
+	 * A mirrored (pinned or placed) row is this user's own local copy, and the
+	 * Files app renames it happily (its ContextMenu gates Rename on "not remote
+	 * browsing"). `canManageFile` mostly agrees — the ABAC ownership branch is not
+	 * upstream-gated — but it holds no answer for a mirrored row we did not place
+	 * ourselves, so a local copy qualifies on the strength of being local and
+	 * rows that originate here go through the shared predicate. Both branches are
+	 * narrower than what the backend accepts; the 403 toast on the write itself is
+	 * the real backstop.
 	 *
 	 * A visitor with no signed-in identity never renames anything: a share-link
 	 * guest reads the row with a file-scoped token, and the cross-owner arm would
@@ -102,14 +132,38 @@ export function resolveDocInfo({
 	const canRename =
 		!!authIdTag &&
 		hasLocalRow &&
-		(isCrossOwner ||
-			canManageFile(
-				scopeFileToTenant(localRow as FileView, authIdTag, contextIdTag),
-				authIdTag,
-				contextRoles
-			))
+		localRowIsTarget &&
+		(isMirrored || canManageFile(localRow as FileView, authIdTag, contextRoles))
 
-	const owner = row?.owner ?? (ownerIdTag ? { idTag: ownerIdTag } : undefined)
+	/*
+	 * NOT `canRename`. Rename is record authority and reaches a mirrored copy; posting is a
+	 * claim about what the AUDIENCE can reach. A row whose canonical copy lives upstream is a
+	 * link this author cannot widen — `ComposePanel`'s visibility notice is gated on
+	 * `!row.upstream` for exactly that reason — and a read-only grantee would publish a link
+	 * most of their followers cannot open. So: a local row, originating here, that we may write.
+	 */
+	const canPost =
+		!!authIdTag &&
+		hasLocalRow &&
+		localRowIsTarget &&
+		!upstreamIdTag &&
+		canWrite(resolveAccessLevel(localRow as FileView, authIdTag, contextRoles))
+
+	/*
+	 * Attribution, not authority. On a mirrored row `owner` is the LOCAL record holder: an
+	 * accepted share leaves `files.owner_tag` NULL and the API resolves that to the SERVING
+	 * TENANT (us), while a pin/place stamps whoever placed it. Either way it is never the
+	 * author, so the origin profile is the only honest answer for the chip.
+	 */
+	const ownerProfile = row?.upstream ?? row?.owner
+	const ownerIdTag = ownerProfile?.idTag ?? resIdTag
+	const owner = ownerProfile ?? (ownerIdTag ? { idTag: ownerIdTag } : undefined)
+	/*
+	 * The chip answers "whose document is this?" for the VIEWER, so it is not the provenance
+	 * test above: a community's own document is served by the context it belongs to and still
+	 * is not ours. A visitor with no identity has nothing to compare against and always sees it.
+	 */
+	const isCrossOwner = !!ownerIdTag && ownerIdTag !== authIdTag
 
 	return {
 		resId,
@@ -129,7 +183,8 @@ export function resolveDocInfo({
 						: undefined
 		},
 		isCrossOwner,
-		canRename
+		canRename,
+		canPost
 	}
 }
 

@@ -19,5 +19,7 @@
 	"you": "te",
 	"guest": "vendég",
 	"1 collaborator": "1 közreműködő",
-	"{{count}} collaborators": "{{count}} közreműködő"
+	"{{count}} collaborators": "{{count}} közreműködő",
+	"Share to feed": "Megosztás a hírfolyamban",
+	"Could not share this document": "Nem sikerült megosztani ezt a dokumentumot"
 }

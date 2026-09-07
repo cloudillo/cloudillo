@@ -98,6 +98,20 @@ export function initDocumentHandlers(bus: ShellMessageBus): void {
 			return
 		}
 
+		// Defence in depth behind the dispatch gate; see EMBED_ALLOWED_MESSAGES in shell-bus.ts.
+		if (connection.embed) {
+			console.warn('[Document] Pick request from an embed connection')
+			bus.sendResponse(
+				appWindow,
+				'doc:pick.ack',
+				msg.id,
+				false,
+				undefined,
+				'Cannot pick a document from an embedded document'
+			)
+			return
+		}
+
 		if (!openDocPickerCallback) {
 			console.error('[Document] No document picker callback registered')
 			bus.sendResponse(

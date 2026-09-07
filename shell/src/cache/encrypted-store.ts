@@ -18,7 +18,10 @@ import type { CachedRecordBase, OfflineQuerySpec, StoreConfig } from './types.js
 const DB_NAME = DATA_CACHE_DB
 // v2: `files` moved from viewer-context keying to owner keying (store dropped and recreated,
 // metadata regenerated on the first list call). v3: unused `profiles`/`meta` stores dropped.
-const DB_VERSION = 3
+// v4: `files` re-keyed again, from the owner profile to the tenant that SERVED the listing,
+// so every `ownerIdTag` index entry written before this is filed under a tenant no reader
+// queries.
+const DB_VERSION = 4
 
 // Fraction of the origin's *quota* above which eviction switches to its aggressive target.
 // Relative, not an absolute byte ceiling: most of the origin's bytes are the SW blob cache and
@@ -90,6 +93,13 @@ function openDB(): Promise<IDBDatabase> {
 			for (const dead of ['profiles', 'meta']) {
 				if (db.objectStoreNames.contains(dead)) db.deleteObjectStore(dead)
 			}
+		}
+
+		// v3 → v4: `files` index keys moved from the owner profile to the tenant that served
+		// the listing (`cacheFiles` in file-cache.ts), so every existing row is filed under a
+		// tenant no reader queries. Drop and recreate; it repopulates on the next list call.
+		if (oldVersion < 4 && db.objectStoreNames.contains('files')) {
+			db.deleteObjectStore('files')
 		}
 
 		for (const config of STORE_CONFIGS) {

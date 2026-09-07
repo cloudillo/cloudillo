@@ -220,6 +220,58 @@
 	flex: 0 0 auto;
 }
 
+/* A live collaborative document shared as a post (`POST` / `LDOC`). */
+.c-live-doc-card {
+	border: 1px solid var(--col-container);
+	border-radius: var(--bd-radius, 0.25rem);
+	background: var(--col-surface);
+	overflow: hidden;
+}
+
+.c-live-doc-head {
+	padding: 0.5rem;
+}
+
+.c-live-doc-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 2rem;
+	height: 2rem;
+	flex: 0 0 auto;
+	color: var(--col-primary);
+	font-size: 1.5rem;
+}
+
+.c-live-doc-title {
+	font-weight: 600;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.c-live-doc-meta {
+	font-size: 0.85em;
+	opacity: 0.7;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* `aria-disabled`, not `:disabled`: the control stays focusable so its title — the only
+   statement of why it is inert — is reachable by keyboard and screen reader. */
+.c-live-doc-head [aria-disabled='true'] {
+	opacity: 0.5;
+	cursor: default;
+}
+
+/* The inline app iframe. Height is set from the component — a text document has
+   no aspect ratio to derive one from. */
+.c-live-doc-embed {
+	width: 100%;
+	border-top: 1px solid var(--col-container);
+}
+
 /* Permalinked post, pinned above the feed (`/app/:ctx/feed/:actionId`). */
 .c-feed-focused {
 	padding: 0.5rem;

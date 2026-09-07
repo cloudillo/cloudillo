@@ -114,6 +114,27 @@ export const getVisibilityOptions = (t: TFunction): VisibilityOption[] => [
 ]
 
 /**
+ * The same rungs `getVisibilityOptions` lists, most private first — keep the two in step.
+ * `null` and `'D'` are one rung (both mean Direct); `'D'` is absent here because
+ * {@link visibilityRank} normalises it.
+ */
+const VISIBILITY_ORDER: FileVisibility[] = [null, 'C', 'F', 'V', 'P']
+
+/**
+ * Where a visibility sits on that ladder. `-1` for `undefined` or anything unrecognised — a
+ * value we cannot place must never read as "most private".
+ *
+ * The POST vocabulary (`Visibility` in `shell/src/apps/feed/VisibilitySelector.tsx`) is a
+ * SUBSET of this file ladder, and `ComposePanel` compares a document's visibility against a
+ * post's on it. A new post visibility must therefore be added to `VISIBILITY_ORDER` too, or
+ * it ranks `-1` and the access notice silently stops firing.
+ */
+export function visibilityRank(v: string | null | undefined): number {
+	if (v === undefined) return -1
+	return VISIBILITY_ORDER.indexOf((v === 'D' ? null : v) as FileVisibility)
+}
+
+/**
  * Get visibility option by value (normalized: null and 'D' both mean Direct)
  */
 export function getVisibilityOption(t: TFunction, visibility: FileVisibility): VisibilityOption {
@@ -274,49 +295,84 @@ export function sharePermVariant(perm: string): 'warning' | 'accent' | 'primary'
 }
 
 /**
- * The subset of a file the permission predicates below actually read. Kept structural so callers
- * holding a core `FileView` (whose `createdAt` may be a `Date`) can pass it without a cast.
+ * Authority (`owner`) plus provenance (`upstream`) — what the predicates below read. Kept
+ * structural so callers holding a core `FileView` (whose `createdAt` may be a `Date`) can pass it
+ * without a cast.
  */
-export type FileOwnership = Pick<File, 'owner' | 'creator'>
+export type FileOwnership = Pick<File, 'owner' | 'upstream'>
+
+/** What the predicates judge: ownership plus the level the serving node reported. */
+export type ScopedFile = FileOwnership & Pick<File, 'accessLevel'>
+
+/** A row that originates on the node serving it — the backend's `upstream_tag IS NULL`. */
+const isLocalRow = (file: FileOwnership) => !file.upstream?.idTag
+
+/** Mirrors `share_access::leader_over_local_row` (crates/cloudillo-core/src/share_access.rs):
+ *  leadership is authority over what THIS node hosts, never over a foreign owner's row that
+ *  merely sits here as a Pin/Place copy or an FSHR mirror. */
+const leaderOverLocalRow = (file: FileOwnership, scopeRoles: string[]) =>
+	isLocalRow(file) && scopeRoles.includes('leader')
 
 /**
- * Check if the current user can manage a file (change visibility, sharing, etc.)
+ * The level the server would report, filling in the two rungs `GET /files/{id}/metadata` skips for
+ * a same-tenant caller on a locally originating row (crates/cloudillo-file/src/handler.rs:2500-2536):
+ * `get_access_level`'s owner shortcut and role ladder. Returns the server's own answer whenever it
+ * sent one; `undefined` on a mirrored row we have no answer for — a refusal is not a grant.
  *
- * A user can manage a file if:
- * - They are the file owner (for shared files with explicit owner_tag)
- * - They have leader or moderator role in the current context (for tenant-owned files)
+ * PRECONDITION, and the reason the `accessLevel` shortcut comes first: `file.accessLevel` and
+ * `scopeRoles` must both describe the SAME node. The shortcut is deliberate — a node that serves a
+ * mirrored row is authoritative about its own copy, which is what the record predicates act on — but
+ * it means a row carrying one node's cached level judged against another node's roles reads as a
+ * grant. Callers that may hold a foreign answer strip it first: `deriveFileOwnerScope` below and
+ * `ContextMenu.tsx` both clear `accessLevel` on cross-context rows.
+ */
+export function resolveAccessLevel(
+	file: ScopedFile,
+	authIdTag: string | undefined,
+	scopeRoles: string[]
+): FileAccessLevel | undefined {
+	if (file.accessLevel !== undefined) return file.accessLevel
+	if (!isLocalRow(file)) return undefined
+	if (authIdTag && file.owner?.idTag === authIdTag) return 'admin'
+	if (scopeRoles.includes('leader')) return 'admin'
+	if (scopeRoles.some((r) => r === 'moderator' || r === 'contributor')) return 'write'
+	// `role_access_level` matches these three explicitly — testing "the role slice is non-empty"
+	// is what would hand a federated stranger Read.
+	if (scopeRoles.some((r) => r === 'public' || r === 'follower' || r === 'supporter'))
+		return 'read'
+	return undefined
+}
+
+/**
+ * Whether the current user may rename / move / hide / delete / tag a file.
+ *
+ * Mirrors the ABAC ownership branch for `file:update|delete|write` (crates/cloudillo-core/src/
+ * abac.rs:615-635). Record authority, deliberately NOT upstream-gated: the placer of a Pin row
+ * keeps rename/move/hide/delete/tag over their own copy.
  */
 export function canManageFile(
-	file: FileOwnership,
+	file: ScopedFile,
 	authIdTag: string | undefined,
-	contextRoles: string[]
+	scopeRoles: string[]
 ): boolean {
-	// Tenant-owned files (no explicit owner) can be managed by the context user
-	if (!file.owner?.idTag) return true
-	// File owner can always manage (for shared files with explicit owner)
-	if (file.owner.idTag === authIdTag) return true
-	// Leader/moderator roles can manage in community context
-	if (contextRoles.some((r) => r === 'leader' || r === 'moderator')) return true
-	return false
+	// Not redundant with `resolveAccessLevel`'s owner branch: that one is gated on `isLocalRow`,
+	// and record authority over a mirrored copy is exactly what this branch keeps.
+	if (authIdTag && file.owner?.idTag === authIdTag) return true
+	return canWrite(resolveAccessLevel(file, authIdTag, scopeRoles))
 }
 
 /**
  * Check if the current user can create, change or revoke shares on a file.
  *
- * Deliberately stricter than {@link canManageFile}: the backend's `is_share_manager`
- * (crates/cloudillo-core/src/share_access.rs) requires ownership standing, not merely write access,
- * so a moderator who did not create the file — and a plain `W` grantee — can rename or delete it but
- * cannot re-share it. An ownerless (tenant-owned) file is manageable only by its creator or a
- * context leader, unlike `canManageFile` where the whole context qualifies.
+ * Mirrors `is_share_manager` (crates/cloudillo-core/src/share_access.rs:74-82). The owner test and
+ * the creator rule are gone from the backend: the owner of a local row already resolves to
+ * `'admin'` through {@link resolveAccessLevel}, and a mirrored row's local owner gets record
+ * authority ({@link canManageFile}) but no share management — the record-vs-content split.
  *
- * The `leader` branch fires only on a TENANT-OWNED row: the backend's
- * `leader_over_tenant_row = is_leader(roles) && owner_id_tag == tenant_id_tag`. Leadership is
- * authority over the tenant's own content, never over a foreign owner's row that merely sits here as
- * a Pin/Place copy. Callers must still pass the roles they hold on the node that SERVES the row —
- * what `useFileOwnerScope` derives — and `contextIdTag` names that node, so both the leader and the
- * creator branch need it.
+ * Callers must pass the roles they hold on the node that SERVES the row — what
+ * `useFileOwnerScope` derives — never the active context's when the two differ.
  *
- * The `'A'` (admin) grant reaches us as `accessLevel === 'admin'` on SAME-OWNER rows only; on
+ * The `'A'` (admin) grant reaches us as `accessLevel === 'admin'` on same-node rows only; on
  * cross-owner ones {@link deriveFileOwnerScope} strips `accessLevel`. Two things recover it:
  * {@link hasAdminGrant}, which sees only this file's OWN `'U'` entries and is therefore blind to a
  * grant inherited from a parent folder, and `api.files.getMetadata`, which asks the serving node for
@@ -326,59 +382,39 @@ export function canManageFile(
 export function canManageShares(
 	file: ScopedFile,
 	authIdTag: string | undefined,
-	contextIdTag: string | undefined,
-	contextRoles: string[]
+	scopeRoles: string[]
 ): boolean {
-	// Backend gate 0: is_share_manager rejects on access == None ahead of every standing test
-	// (cloudillo-rs crates/cloudillo-core/src/share_access.rs). Leadership and ownership never
-	// substitute for reachability.
-	if (file.accessLevel === 'none') return false
-	// The explicit 'A' grant, resolved server-side into the level itself. Owner and leader also
-	// land here, but keep their own branches: `deriveFileOwnerScope` clears `accessLevel` on
-	// cross-owner rows, where those two still hold.
-	if (file.accessLevel === 'admin') return true
-	if (authIdTag && file.owner?.idTag === authIdTag) return true
-	// `owner == tenant` in backend terms; the ownerless case is the same thing, back-filled by the
-	// meta adapter's `effective_owner`. Leadership is authority over the tenant's OWN content, never
-	// over a foreign owner's row that merely sits here (Pin/Place). Same boundary
-	// `file_access::role_access_level` draws.
-	const tenantOwned = !file.owner?.idTag || file.owner.idTag === contextIdTag
-	if (!tenantOwned) return false
-	if (contextRoles.includes('leader')) return true
-	if (authIdTag && file.creator?.idTag === authIdTag) return true
-	return false
+	const level = resolveAccessLevel(file, authIdTag, scopeRoles)
+	// Backend gate 0: is_share_manager rejects on access == None ahead of every standing test.
+	// Leadership never substitutes for reachability.
+	if (level === 'none') return false
+	return leaderOverLocalRow(file, scopeRoles) || level === 'admin'
 }
 
 /**
  * Highest level this caller may hand out on `file`. Mirrors the backend's `grant_ceiling`
- * (crates/cloudillo-core/src/share_access.rs): ownership-derived standing is already Admin;
- * everyone else is capped at what they hold, which is what stops the `Read`-level creator of a
- * tenant-owned file — a share manager by the creator rule — from minting a `write` grant.
+ * (crates/cloudillo-core/src/share_access.rs:121).
  *
- * The `?? 'admin'` fallback is deliberate: {@link deriveFileOwnerScope} strips `accessLevel` on
- * cross-owner rows, and restricting the menu on a guess would lock out a legitimate manager. The
- * server still enforces the real ceiling, and `shareLinkErrorMessage` explains the refusal.
+ * The `?? 'admin'` fallback stays deliberate: on a mirrored row we hold no answer, and restricting
+ * the menu on a guess would lock out a legitimate manager. The server still enforces the real
+ * ceiling, and `shareLinkErrorMessage` explains the refusal.
  */
 export function shareGrantCeiling(
 	file: ScopedFile,
 	authIdTag: string | undefined,
-	contextIdTag: string | undefined,
-	contextRoles: string[]
+	scopeRoles: string[]
 ): FileAccessLevel {
-	if (authIdTag && file.owner?.idTag === authIdTag) return 'admin'
-	const tenantOwned = !file.owner?.idTag || file.owner.idTag === contextIdTag
-	if (tenantOwned && contextRoles.includes('leader')) return 'admin'
-	return file.accessLevel ?? 'admin'
+	if (leaderOverLocalRow(file, scopeRoles)) return 'admin'
+	return resolveAccessLevel(file, authIdTag, scopeRoles) ?? 'admin'
 }
 
 /** The same ceiling in the 3-valued link vocabulary — a link never carries admin. */
 export function linkGrantCeiling(
 	file: ScopedFile,
 	authIdTag: string | undefined,
-	contextIdTag: string | undefined,
-	contextRoles: string[]
+	scopeRoles: string[]
 ): SharePermLevel {
-	const ceiling = shareGrantCeiling(file, authIdTag, contextIdTag, contextRoles)
+	const ceiling = shareGrantCeiling(file, authIdTag, scopeRoles)
 	if (ceiling === 'admin' || ceiling === 'write') return 'WRITE'
 	if (ceiling === 'comment') return 'COMMENT'
 	return 'READ'
@@ -392,26 +428,26 @@ export function levelsAboveCeiling(ceiling: SharePermLevel): SharePermLevel[] {
 }
 
 /**
- * Mirrors the backend `is_share_reader` (crates/cloudillo-core/src/share_access.rs): any caller with
- * Write access may ENUMERATE a file's share entries, even though only a share manager may change
- * them.
- * Kept separate from {@link canManageShares} so a moderator sees who a file is shared with instead
- * of being told they cannot share it.
- *
- * `compute_file_access_levels` (crates/cloudillo-file/src/filter.rs) fills `accessLevel` on EVERY
- * `GET /api/files` row, so the {@link canManageFile} fallback below only applies to `File` objects
- * the shell built itself and to `GET /api/files/{id}/metadata` responses, where the backend
- * deliberately skips the computation for same-tenant callers.
+ * Mirrors the backend `is_share_reader` (crates/cloudillo-core/src/share_access.rs:88-90) composed
+ * with the manager test: any caller with Write access may ENUMERATE a file's share entries, even
+ * though only a share manager may change them. Kept separate from {@link canManageShares} so a
+ * writer who cannot re-share still sees who a file is shared with.
  */
 export function canReadShares(
 	file: ScopedFile,
 	authIdTag: string | undefined,
-	contextIdTag: string | undefined,
-	contextRoles: string[]
+	scopeRoles: string[]
 ): boolean {
-	if (canManageShares(file, authIdTag, contextIdTag, contextRoles)) return true
-	if (file.accessLevel !== undefined) return canWrite(file.accessLevel)
-	return canManageFile(file, authIdTag, contextRoles)
+	if (canManageShares(file, authIdTag, scopeRoles)) return true
+	// An answer, whatever it says, is the serving node's decision about its own copy — including
+	// the explicit 'none' that `is_share_manager`'s gate 0 refuses on. Record authority does not
+	// overrule it.
+	const level = resolveAccessLevel(file, authIdTag, scopeRoles)
+	if (level !== undefined) return canWrite(level)
+	// No answer at all: the same rung `canManageFile` keeps for a mirrored copy. The placer of a
+	// Pin row may SEE who their own copy is shared with even though `resolveAccessLevel` holds no
+	// content answer for it. Managing those shares still needs `canManageShares` above.
+	return canManageFile(file, authIdTag, scopeRoles)
 }
 
 /** How far useFileOwnerScope's lookup of the owner's node has got */
@@ -426,9 +462,6 @@ export function isOwnerSettled(status: OwnerLookupStatus): boolean {
 	return status === 'ready' || status === 'failed'
 }
 
-/** What the scope reads off a file: ownership plus the remote-browsing access level */
-export type ScopedFile = FileOwnership & Pick<File, 'accessLevel'>
-
 /** An already-decided node's tenant and the roles held there - see `FileOwnerScopeOverride` */
 export interface FileOwnerScopeOverrideInput {
 	idTag: string | undefined
@@ -442,31 +475,27 @@ export interface FileOwnerScopeOverrideInput {
 }
 
 /**
- * Whether a row belongs to a tenant other than the active context - the one flag both this module
- * and `useFileOwnerScope`'s effect branch on, so it lives in one place. An override names the node
- * outright (remote browsing); without one, a foreign-owned file needs its own proxy token before
+ * Whether a row's canonical copy lives on another node - the one flag this module and
+ * `useFileOwnerScope`'s effect branch on, so it lives in one place. An override names the node
+ * outright (remote browsing); without one, a mirrored row needs its own proxy token before
  * anything can be said about our standing there.
  */
-export function isCrossOwnerFile(
-	ownerIdTag: string | undefined,
-	contextIdTag: string | undefined,
-	hasOverride: boolean
-): boolean {
-	return !hasOverride && !!ownerIdTag && !!contextIdTag && ownerIdTag !== contextIdTag
+export function isCrossOwnerFile(upstreamIdTag: string | undefined, hasOverride: boolean): boolean {
+	return !hasOverride && !!upstreamIdTag
 }
 
 /**
- * An ownerless row belongs to whichever tenant served it. Name that tenant explicitly unless it is
- * us, so `canManageFile`'s ownerless short-circuit cannot vouch for a node we hold no roles on.
- * Cross-owner rows already name their owner, so this is a no-op for them.
+ * The node that SERVES a row — what the `<idTag>` half of a resId must name.
+ *
+ * `remoteOwner` is only for remote browsing, where the rows on screen come from another
+ * node's listing while the active context is still ours: those rows originate there, so
+ * they carry no `upstream` and the context fallback would address the wrong node.
  */
-export function scopeFileToTenant(
-	file: ScopedFile,
-	authIdTag: string | undefined,
-	scopeIdTag: string | undefined
-): ScopedFile {
-	if (file.owner?.idTag || !scopeIdTag || scopeIdTag === authIdTag) return file
-	return { ...file, owner: { idTag: scopeIdTag } }
+export function fileSrcIdTag(
+	file: Pick<File, 'upstream'>,
+	opts: { remoteOwner?: string | null; contextIdTag?: string; authIdTag?: string }
+): string | undefined {
+	return file.upstream?.idTag || opts.remoteOwner || opts.contextIdTag || opts.authIdTag
 }
 
 export interface FileOwnerScopeInput {
@@ -474,9 +503,9 @@ export interface FileOwnerScopeInput {
 	authIdTag: string | undefined
 	/** The active context, i.e. the node currently being browsed */
 	contextIdTag: string | undefined
-	/** How far the proxy-token lookup for a cross-owner file has got */
+	/** How far the proxy-token lookup for a mirrored file's upstream node has got */
 	ownerStatus: OwnerLookupStatus
-	/** Roles the proxy token reported on the OWNER's node. Empty until it lands. */
+	/** Roles the proxy token reported on the UPSTREAM node. Empty until it lands. */
 	ownerRoles: string[]
 	/** Roles held on the active context */
 	contextRoles: string[]
@@ -486,12 +515,13 @@ export interface FileOwnerScopeInput {
 
 export interface FileOwnerScopeDerivation {
 	isCrossOwner: boolean
-	/** Owner known but the active context is not: grant nothing and point at no node */
+	/** Upstream known but the active context is not: grant nothing and point at no node */
 	scopeUnresolved: boolean
-	ownerIdTag: string | undefined
+	/** Where the canonical copy lives, when it is not this node */
+	upstreamIdTag: string | undefined
 	scopeIdTag: string | undefined
 	scopeRoles: string[]
-	/** `file`, with an ownerless row back-filled to the scope tenant. What the predicates judge. */
+	/** `file`, with a mirrored row's `accessLevel` stripped. What the predicates judge. */
 	scopedFile: ScopedFile
 	/** {@link shareGrantCeiling} for this scope — the highest level any share or link may carry */
 	grantCeiling: FileAccessLevel
@@ -510,10 +540,11 @@ export interface FileOwnerScopeDerivation {
 
 /**
  * Everything `useFileOwnerScope` decides that is not an effect. Lifted out of the hook so the rules
- * can be tested without a React renderer (`shell` has no `@testing-library/react`); the hook keeps
- * the token fetch and delegates every derivation here.
+ * can be tested without a React renderer: they live in a `.test.ts` suite, which
+ * `shell/jest.config.cjs` runs under `node`, with no DOM. The hook keeps the token fetch and
+ * delegates every derivation here.
  *
- * THE rule: a cross-owner file's standing comes from the OWNER's node, never from the active
+ * THE rule: a cross-context file's standing comes from the UPSTREAM node, never from the active
  * context, and while that answer is missing or refused nothing is granted. Falling back to
  * `contextIdTag`/`contextRoles` in either case re-introduces the cross-tenant role leak.
  */
@@ -526,33 +557,28 @@ export function deriveFileOwnerScope({
 	contextRoles,
 	override
 }: FileOwnerScopeInput): FileOwnerScopeDerivation {
-	const ownerIdTag = file.owner?.idTag
-	// An override that names no tenant decides nothing: with no scopeIdTag the back-fill below is
-	// skipped, and canManageFile's ownerless short-circuit would vouch for a node we cannot name.
-	const scopeUnresolved = override ? !override.idTag : !!ownerIdTag && !contextIdTag
-	const isCrossOwner = isCrossOwnerFile(ownerIdTag, contextIdTag, !!override)
+	const upstreamIdTag = file.upstream?.idTag
+	// An override that names no tenant decides nothing, so point at no node and grant nothing.
+	const scopeUnresolved = override ? !override.idTag : !!upstreamIdTag && !contextIdTag
+	const isCrossOwner = isCrossOwnerFile(upstreamIdTag, !!override)
 
-	const scopeIdTag = isCrossOwner ? ownerIdTag : override ? override.idTag : contextIdTag
+	const scopeIdTag = isCrossOwner ? upstreamIdTag : override ? override.idTag : contextIdTag
 	const scopeRoles = isCrossOwner ? ownerRoles : override ? override.roles : contextRoles
 
-	// Cross-owner: `accessLevel` is the ACTIVE context's answer about a row the OWNER's node
-	// decides, so it cannot vouch for standing there. Otherwise name the serving tenant.
-	const scopedFile: ScopedFile = isCrossOwner
-		? { ...file, accessLevel: undefined }
-		: scopeFileToTenant(file, authIdTag, scopeIdTag)
+	// Cross-context: `accessLevel` is the ACTIVE context's answer about a row the UPSTREAM node
+	// decides, so it cannot vouch for standing there.
+	const scopedFile: ScopedFile = isCrossOwner ? { ...file, accessLevel: undefined } : file
 
 	return {
 		isCrossOwner,
 		scopeUnresolved,
-		ownerIdTag,
+		upstreamIdTag,
 		scopeIdTag,
 		scopeRoles,
 		scopedFile,
-		grantCeiling: shareGrantCeiling(scopedFile, authIdTag, scopeIdTag, scopeRoles),
-		canManageShares:
-			!scopeUnresolved && canManageShares(scopedFile, authIdTag, scopeIdTag, scopeRoles),
-		canReadShares:
-			!scopeUnresolved && canReadShares(scopedFile, authIdTag, scopeIdTag, scopeRoles),
+		grantCeiling: shareGrantCeiling(scopedFile, authIdTag, scopeRoles),
+		canManageShares: !scopeUnresolved && canManageShares(scopedFile, authIdTag, scopeRoles),
+		canReadShares: !scopeUnresolved && canReadShares(scopedFile, authIdTag, scopeRoles),
 		canManageFile: !scopeUnresolved && canManageFile(scopedFile, authIdTag, scopeRoles),
 		// `status` is still 'idle' on the render where isCrossOwner first becomes true, so both
 		// states count as "not settled". An override says so for itself.

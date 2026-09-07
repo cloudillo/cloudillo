@@ -7,6 +7,11 @@
  * Handles embed:open.req messages from apps.
  * Obtains scoped tokens via cross-document token exchange and
  * returns embed URLs with nonces for token isolation.
+ *
+ * The pending registration this mints is consumed by the *relayed* branch of
+ * `handlers/auth.ts`, which registers no connection — so nothing here needs the `embed`
+ * marker `registerShellEmbed` (`shell/src/shell-embed.ts`) sets. If this path ever grows a
+ * registering branch, `embed: true` belongs on the entry.
  */
 
 import { createApiClient, type EmbedOpenReq } from '@cloudillo/core'
@@ -49,6 +54,20 @@ export function initEmbedHandlers(bus: ShellMessageBus): void {
 				false,
 				undefined,
 				'App not initialized'
+			)
+			return
+		}
+
+		// Defence in depth behind the dispatch gate; see EMBED_ALLOWED_MESSAGES in shell-bus.ts.
+		if (connection.embed) {
+			console.warn('[Embed] Open request from an embed connection')
+			bus.sendResponse(
+				appWindow,
+				'embed:open.res',
+				msg.id,
+				false,
+				undefined,
+				'Cannot embed from an embedded document'
 			)
 			return
 		}
@@ -145,6 +164,7 @@ export function initEmbedHandlers(bus: ShellMessageBus): void {
 			bus.setPendingRegistration(`_embed:${nonce}`, {
 				token: tokenResult.token,
 				access: requestedAccess,
+				resId: `${idTag}:${targetFileId}`,
 				idTag,
 				// Resolved from the target's content type above, not from the embedding
 				// app — the same value `embedUrl` picks the bundle by, so handlers

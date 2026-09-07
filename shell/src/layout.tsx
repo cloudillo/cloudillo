@@ -41,6 +41,7 @@ import { type DirtyDocSummary, listDirtyDocs, wipeLocalData } from './auth/wipe-
 import { BusinessCardDialog } from './components/BusinessCard/BusinessCardDialog.js'
 import { CameraCaptureDialog } from './components/CameraCapture/index.js'
 import { DocumentPicker } from './components/DocumentPicker/index.js'
+import { FeedPostHost } from './components/FeedPostHost.js'
 import { GuestOwnerBanner } from './components/GuestOwnerBanner.js'
 import { HandChip } from './components/HandChip.js'
 import { MediaPicker } from './components/MediaPicker/index.js'
@@ -722,6 +723,7 @@ export function Layout() {
 					<ShareCreate />
 					<DocumentPicker />
 					<QrScanner />
+					<FeedPostHost />
 					<CameraCaptureDialog />
 				</CtxProvider>
 			</WsBusRoot>

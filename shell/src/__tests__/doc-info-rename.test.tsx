@@ -116,7 +116,9 @@ function row(fileId: string, fileName: string) {
 		status: 'A',
 		contentType: 'cloudillo/quillo',
 		fileName,
-		createdAt: '2026-01-01T00:00:00Z'
+		createdAt: '2026-01-01T00:00:00Z',
+		// The backend back-fills `owner` to the serving tenant, so an "own" row always names us
+		owner: { idTag: ME }
 	}
 }
 

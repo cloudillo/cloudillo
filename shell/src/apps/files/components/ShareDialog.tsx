@@ -177,13 +177,12 @@ export function ShareDialog({
 	const isImmutable = file.fileTp === 'BLOB' || file.fileTp == null
 	/*
 	 * The backend caps every mint and widen at the caller's own access (`ensure_grant_within`), so a
-	 * Read-level creator of a tenant-owned file may manage its shares but hand out nothing above
-	 * 'read'. Offering the level anyway produces a menu entry that 403s.
+	 * Read-level share manager may manage a file's shares but hand out nothing above 'read'.
+	 * Offering the level anyway produces a menu entry that 403s.
 	 */
 	const ceiling = linkGrantCeiling(
 		authoritativeLevel ? { ...scopedFile, accessLevel: authoritativeLevel } : scopedFile,
 		auth?.idTag,
-		scopeIdTag,
 		scopeRoles
 	)
 	const disabledLevels: PermLevel[] = React.useMemo(
@@ -614,8 +613,8 @@ export function ShareDialog({
 		[open, onClose]
 	)
 
-	// Same substitution useFileOwnerScope makes for the predicates: an ownerless row belongs to the
-	// tenant that served it, not to whoever is looking at it.
+	// The owner profile the dialog labels "Owner". The backend back-fills `owner` to the serving
+	// tenant, so the fallbacks only cover rows the shell built itself.
 	const ownerIdTag = file.owner?.idTag ?? scopeIdTag ?? auth?.idTag
 
 	React.useEffect(

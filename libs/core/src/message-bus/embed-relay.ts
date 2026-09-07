@@ -46,6 +46,11 @@ const BROADCAST_TYPES = new Set(['theme:update'])
  * The rest is what an activated embed genuinely needs to be a working document:
  * the auth handshake, the CRDT client id and offline cache, the pickers an
  * editable embed opens, and `embed:open.req` for a further nesting level.
+ *
+ * `EMBED_ALLOWED_MESSAGES` in `shell/src/message-bus/shell-bus.ts` is the same idea
+ * for a shell-hosted embed, which is its own connection rather than one riding on a
+ * host app's. Different trust boundary, so the two sets legitimately differ — but a
+ * new message type wants a decision in both.
  */
 const RELAY_UP_TYPES = new Set([
 	'auth:init.req',

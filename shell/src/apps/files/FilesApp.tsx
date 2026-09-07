@@ -53,6 +53,7 @@ import {
 } from './components/index.js'
 import {
 	buildFileFilterParams,
+	convertFileView,
 	useFileList,
 	useFileNavigation,
 	useKeyboardShortcuts,
@@ -61,7 +62,7 @@ import {
 } from './hooks/index.js'
 import type { File, FileOps, ViewMode } from './types.js'
 import { isFileProcessing } from './types.js'
-import { canWrite } from './utils.js'
+import { canWrite, fileSrcIdTag } from './utils.js'
 
 export function FilesApp() {
 	const navigate = useNavigate()
@@ -220,8 +221,8 @@ export function FilesApp() {
 						idTag: remoteOwner ?? undefined,
 						roles: remoteRoles,
 						// The row is the remote node's whether or not its token has landed. Dropping
-						// the override meanwhile re-judged it against the LOCAL context, where an
-						// ownerless row short-circuits canManageFile to `true`.
+						// the override meanwhile re-judges it against the LOCAL context, whose
+						// roles say nothing about standing on the node being browsed.
 						resolving: !remoteApi
 					}
 				: undefined,
@@ -257,9 +258,33 @@ export function FilesApp() {
 		})
 	}, [fileListData, viewMode])
 
+	// A metadata edit changes a row that is already loaded, so patch it. refresh() resets
+	// useInfiniteScroll: it blanks the list, drops every page past the first and the scroll
+	// position with them. Only a row appearing or disappearing is worth that.
+	const patchFile = React.useCallback(
+		function patchFile(fileId: string, patch: Partial<File> | ((file: File) => Partial<File>)) {
+			if (!fileListData.getData().some((f) => f.fileId === fileId)) {
+				// Not in this list — only a refetch can show what changed.
+				fileListData.refresh()
+				return
+			}
+			// Merged against the CURRENT row inside the updater, not against the render-time
+			// snapshot: a FILE_ID_GENERATED or fileViewUpdateAtom patch landing while the API
+			// call was in flight would otherwise be rolled back.
+			fileListData.setFileData(fileId, (current) => ({
+				...current,
+				...(typeof patch === 'function' ? patch(current) : patch)
+			}))
+		},
+		[fileListData]
+	)
+
 	// Multi-select state
 	const multiSelect = useMultiSelect({
-		files: files
+		files: files,
+		// Search and tags too: `pruneOnFilesChange` bails on an empty list, so filtering down
+		// to zero results would otherwise preserve the old selection invisibly.
+		resetKey: `${viewMode}:${currentFolderId ?? ''}:${remoteOwner ?? ''}:${debouncedSearchQuery}:${selectedTags.slice().sort().join(',')}`
 	})
 
 	// Get the first selected file for the details panel
@@ -412,8 +437,13 @@ export function FilesApp() {
 			access?: 'read' | 'comment' | 'write',
 			params?: string
 		) {
-			// For tenant-owned files (no explicit owner), use contextIdTag as the owner in the path
-			const ownerTag = file.owner?.idTag || contextIdTag || auth?.idTag
+			// `contextIdTag` is still OUR context while remote-browsing — that is a query
+			// param, not a context switch — so the browsed node has to be passed explicitly.
+			const srcIdTag = fileSrcIdTag(file, {
+				remoteOwner: isRemoteBrowsing ? remoteOwner : undefined,
+				contextIdTag,
+				authIdTag: auth?.idTag
+			})
 			const query: QueryInit = {}
 			if (access && access !== 'write') query.access = access
 			if (params) {
@@ -421,7 +451,7 @@ export function FilesApp() {
 					query[k] = v
 				}
 			}
-			navigate(appPath(urlContextIdTag, appName, `${ownerTag}:${file.fileId}`, query))
+			navigate(appPath(urlContextIdTag, appName, `${srcIdTag}:${file.fileId}`, query))
 		}
 
 		return {
@@ -481,7 +511,7 @@ export function FilesApp() {
 					await api.files.update(fileId, { fileName })
 					setRenameFileId(undefined)
 					setRenameFileName(undefined)
-					fileListData.refresh()
+					patchFile(fileId, { fileName })
 				} catch (err) {
 					console.error('Failed to rename file', err)
 					toast.error(
@@ -568,17 +598,31 @@ export function FilesApp() {
 			toggleStarred: async function toggleStarred(fileId: string) {
 				if (!api) return
 				const file = fileListData.getData()?.find((f) => f.fileId === fileId)
-				const isStarred = file?.userData?.starred ?? false
-				await api.files.setStarred(fileId, !isStarred)
-				fileListData.refresh()
+				const starred = !(file?.userData?.starred ?? false)
+				try {
+					await api.files.setStarred(fileId, starred)
+				} catch (err) {
+					console.error('Failed to change starred state', err)
+					toast.error(t('Failed to change starred state'))
+					return
+				}
+				// Un-starring in the starred view removes the row: only a refetch can do that.
+				if (viewMode === 'starred' && !starred) fileListData.refresh()
+				else patchFile(fileId, (f) => ({ userData: { ...f.userData, starred } }))
 			},
 
 			togglePinned: async function togglePinned(fileId: string) {
 				if (!api) return
 				const file = fileListData.getData()?.find((f) => f.fileId === fileId)
-				const isPinned = file?.userData?.pinned ?? false
-				await api.files.setPinned(fileId, !isPinned)
-				fileListData.refresh()
+				const pinned = !(file?.userData?.pinned ?? false)
+				try {
+					await api.files.setPinned(fileId, pinned)
+				} catch (err) {
+					console.error('Failed to change pinned state', err)
+					toast.error(t('Failed to change pinned state'))
+					return
+				}
+				patchFile(fileId, (f) => ({ userData: { ...f.userData, pinned } }))
 			},
 
 			// Batch operations for multi-select
@@ -627,8 +671,31 @@ export function FilesApp() {
 				starred: boolean
 			) {
 				if (!api || fileIds.length === 0) return
-				await Promise.all(fileIds.map((id) => api.files.setStarred(id, starred)))
-				fileListData.refresh()
+				// Per-id outcomes: `Promise.all` would abandon the rows that DID succeed on the
+				// server, leaving the list disagreeing with the backend until a refresh.
+				const results = await Promise.allSettled(
+					fileIds.map((id) => api.files.setStarred(id, starred))
+				)
+				const done = fileIds.filter((_, i) => results[i].status === 'fulfilled')
+				// Nothing succeeded on the server, so nothing here has to change.
+				if (done.length > 0) {
+					if (viewMode === 'starred' && !starred) {
+						// Un-starring in the starred view removes the rows: only a refetch
+						// can do that.
+						fileListData.refresh()
+					} else {
+						for (const id of done) {
+							patchFile(id, (f) => ({ userData: { ...f.userData, starred } }))
+						}
+					}
+				}
+				if (done.length < fileIds.length) {
+					console.error(
+						'Failed to change starred state for some files',
+						results.filter((r) => r.status === 'rejected')
+					)
+					toast.error(t('Failed to change starred state'))
+				}
 			},
 
 			togglePinnedBatch: async function togglePinnedBatch(
@@ -636,8 +703,20 @@ export function FilesApp() {
 				pinned: boolean
 			) {
 				if (!api || fileIds.length === 0) return
-				await Promise.all(fileIds.map((id) => api.files.setPinned(id, pinned)))
-				fileListData.refresh()
+				const results = await Promise.allSettled(
+					fileIds.map((id) => api.files.setPinned(id, pinned))
+				)
+				const done = fileIds.filter((_, i) => results[i].status === 'fulfilled')
+				for (const id of done) {
+					patchFile(id, (f) => ({ userData: { ...f.userData, pinned } }))
+				}
+				if (done.length < fileIds.length) {
+					console.error(
+						'Failed to change pinned state for some files',
+						results.filter((r) => r.status === 'rejected')
+					)
+					toast.error(t('Failed to change pinned state'))
+				}
 			},
 
 			// `scopedApi` is the file's own node when the caller knows it differs from ours - see
@@ -650,7 +729,11 @@ export function FilesApp() {
 				// happens. Unhandled, the dropdown just closes and nothing changes.
 				try {
 					await target.files.update(fileId, { visibility })
-					fileListData.refresh()
+					// Only our own node's row is the one this list renders. A `scopedApi` write
+					// changed the canonical copy upstream and left the local mirror alone, so
+					// patching it here would show a value the next listing contradicts.
+					if (target === api) patchFile(fileId, { visibility })
+					else fileListData.refresh()
 				} catch (err) {
 					console.error('Failed to change visibility', err)
 					toast.error(
@@ -687,9 +770,36 @@ export function FilesApp() {
 			doRefreshFile: async function doRefreshFile(fileId: string) {
 				if (!api) return
 				try {
-					await api.files.refresh(fileId)
+					const res = await api.files.refresh(fileId)
+					// `unreachable` means the source never answered: the row came back
+					// untouched, so there is nothing to patch and nothing to celebrate.
+					if (res.refreshStatus === 'unreachable') {
+						toast.error(
+							t("{{host}} couldn't be reached. We'll keep trying.", {
+								host: res.upstream?.idTag ?? res.owner?.idTag ?? ''
+							})
+						)
+						return
+					}
 					toast.success(t('File metadata refreshed'))
-					fileListData.refresh()
+					const r = convertFileView(res)
+					// Only what POST /files/:id/refresh reconciles. A blanket spread would
+					// overwrite every field `convertFileView` materialises unconditionally —
+					// userData above all, which this response does not carry.
+					patchFile(fileId, {
+						fileName: r.fileName,
+						contentType: r.contentType,
+						fileTp: r.fileTp,
+						tags: r.tags,
+						preset: r.preset,
+						// Only when the response actually carries one: it is the per-user
+						// CACHED level, NULL on a pre-v30 row, while the listing always
+						// computes one (`compute_file_access_levels`). Spreading `undefined`
+						// here strips the row's Share/visibility affordances until a refetch.
+						...(r.accessLevel !== undefined ? { accessLevel: r.accessLevel } : {}),
+						brokenAt: r.brokenAt,
+						brokenReason: r.brokenReason
+					})
 				} catch (err) {
 					console.error('Failed to refresh file metadata', err)
 					toast.error(t('Failed to refresh file metadata'))
@@ -701,10 +811,14 @@ export function FilesApp() {
 		api,
 		appConfig,
 		contextIdTag,
+		isRemoteBrowsing,
+		remoteOwner,
 		urlContextIdTag,
 		navigate,
 		t,
 		fileListData,
+		patchFile,
+		viewMode,
 		dialog,
 		toast,
 		multiSelect

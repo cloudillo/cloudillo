@@ -857,7 +857,11 @@ export class ApiClient {
 
 		/** POST /files/:fileId/refresh - Reconcile a cross-context file row with its source. */
 		refresh: (fileId: string) =>
-			this.request('POST', `/files/${encodeURIComponent(fileId)}/refresh`, Types.tFileView),
+			this.request(
+				'POST',
+				`/files/${encodeURIComponent(fileId)}/refresh`,
+				Types.tFileRefreshResult
+			),
 
 		/** GET /files/:fileId/shares - List share entries for a file */
 		listShares: (fileId: string) =>

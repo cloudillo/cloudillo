@@ -1603,6 +1603,12 @@ body.cl-site-preboot {
 	pointer-events: none;
 }
 
+/* A document that is already painting: hint at the pending sync, never cover it. */
+.c-app-loading--subtle {
+	background: transparent;
+	pointer-events: none;
+}
+
 .c-app-loading__icon {
 	color: color-mix(in lch, var(--col-on-container), transparent 35%);
 }

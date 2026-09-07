@@ -46,6 +46,8 @@ import {
 	tEmbedOpenRes,
 	tEmbedViewStatePush,
 	tEmbedViewStateSet,
+	tFeedPostReq,
+	tFeedPostRes,
 	tImportCompleteNotify,
 	tImportDataPush,
 	tMediaFileResolvedPush,
@@ -147,6 +149,8 @@ export const MESSAGE_REGISTRY: Record<MessageType, MessageAccessRule> = {
 	'site:publish.res': ['shell>app', false, tSitePublishRes],
 	'site:mount.req': ['app>shell', true, tSiteMountReq],
 	'site:mount.res': ['shell>app', false, tSiteMountRes],
+	'feed:post.req': ['app>shell', true, tFeedPostReq],
+	'feed:post.res': ['shell>app', false, tFeedPostRes],
 	'import:data.push': ['shell>app', false, tImportDataPush],
 	'import:complete.notify': ['app>shell', true, tImportCompleteNotify]
 }

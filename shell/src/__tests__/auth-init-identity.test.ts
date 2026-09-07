@@ -22,6 +22,7 @@ interface PendingRegistration {
 	idTag?: string
 	token?: string
 	displayName?: string
+	resId?: string
 }
 
 interface Response {
@@ -42,6 +43,8 @@ interface BusOpts {
 
 function createBus({ pending = new Map(), authState, connection }: BusOpts) {
 	const responses: Response[] = []
+	const getAccessTokenCalls: string[] = []
+	const registered: Record<string, unknown>[] = []
 
 	let handler: ((msg: unknown, source: unknown) => Promise<void>) | undefined
 
@@ -56,13 +59,19 @@ function createBus({ pending = new Map(), authState, connection }: BusOpts) {
 				pending.delete(resId)
 				return entry
 			},
-			registerApp: (info: Record<string, unknown>) => ({ ...info, initialized: false }),
+			registerApp: (info: Record<string, unknown>) => {
+				registered.push(info)
+				return { ...info, initialized: false }
+			},
 			markInitialized: () => {}
 		}),
 		getAuthState: () => authState ?? undefined,
 		getThemeState: () => ({ darkMode: false }),
 		getLanguage: () => 'en',
-		getAccessToken: async () => ({ token: 'minted-token', tokenLifetime: 300 }),
+		getAccessToken: async (resId: string) => {
+			getAccessTokenCalls.push(resId)
+			return { token: 'minted-token', tokenLifetime: 300 }
+		},
 		sendResponse: (
 			_win: unknown,
 			type: string,
@@ -80,6 +89,8 @@ function createBus({ pending = new Map(), authState, connection }: BusOpts) {
 
 	return {
 		responses,
+		getAccessTokenCalls,
+		registered,
 		async init(resId: string, appName = 'quillo') {
 			await handler?.({ id: 1, payload: { appName, resId } }, {} as Window)
 		}
@@ -151,6 +162,58 @@ describe('auth:init.res identity — relayed embed', () => {
 	})
 })
 
+/**
+ * A shell-hosted embed — a feed card or a site island — is not nested inside another
+ * app, so it registers here rather than down the relayed branch above. Its pending
+ * entry is keyed by the `_embed:<nonce>` handshake key but carries the real document
+ * in `resId`, and that attested value is what the connection must record: the token
+ * has to mint against the document, while `connection.embed` is the only thing left
+ * that tells the editor-only handlers (doc:info, doc:rename, share, feed:post) that
+ * this is an inline preview.
+ */
+describe('auth:init.res — the embed flag', () => {
+	it('takes the attested pending resId over the app’s own claim, and flags it', async () => {
+		const bus = createBus({
+			pending: new Map([
+				[
+					'_embed:n1',
+					{
+						resId: '@team.example.com:f1~abc',
+						idTag: '@team.example.com',
+						token: 'embed-token',
+						embed: true,
+						access: 'read' as const
+					}
+				]
+			]),
+			authState: SIGNED_IN
+		})
+
+		await bus.init('_embed:n1')
+
+		expect(bus.responses[0]).toMatchObject({ type: 'auth:init.res', ok: true })
+		expect(bus.registered[0]).toMatchObject({
+			resId: '@team.example.com:f1~abc',
+			embed: true,
+			access: 'read'
+		})
+	})
+
+	it('leaves a normal container mount unflagged', async () => {
+		const bus = createBus({
+			pending: new Map([['@user.example.com:file-a', { access: 'write' as const }]]),
+			authState: SIGNED_IN
+		})
+
+		await bus.init('@user.example.com:file-a')
+
+		expect(bus.registered[0]).toMatchObject({
+			resId: '@user.example.com:file-a',
+			embed: false
+		})
+	})
+})
+
 describe('auth:init.res identity — normal mount', () => {
 	it('flags a signed-in user', async () => {
 		const bus = createBus({
@@ -200,6 +263,34 @@ describe('auth:init.res identity — normal mount', () => {
 			idTag: '@owner.example.com',
 			authenticated: false
 		})
+	})
+
+	/**
+	 * A shell-mounted embed (`shell/src/shell-embed.ts`) has no connection yet and
+	 * no pre-provided token: it keys its pending entry by an `_embed:<nonce>`
+	 * handshake key and carries the document in `resId`. Minting against the key
+	 * would ask for a proxy token for an owner tag of `_embed` — a 400.
+	 */
+	it('mints against the pending resId, not the _embed handshake key', async () => {
+		const bus = createBus({
+			pending: new Map([
+				[
+					'_embed:shell-1',
+					{
+						resId: 'home.w9.hu:BcY5',
+						idTag: 'home.w9.hu',
+						embed: true,
+						access: 'read' as const
+					}
+				]
+			]),
+			authState: SIGNED_IN
+		})
+
+		await bus.init('_embed:shell-1')
+
+		expect(bus.getAccessTokenCalls).toEqual(['home.w9.hu:BcY5'])
+		expect(bus.responses[0].data).toMatchObject({ token: 'minted-token' })
 	})
 })
 

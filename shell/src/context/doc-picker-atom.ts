@@ -40,6 +40,12 @@ export interface DocPickerResult {
 	fileTp?: string
 	/** App ID resolved from content type */
 	appId?: string
+	/** The node that holds the document: `upstream` for a mirrored row, else the browsed node.
+	 *  What a resId's `<idTag>` half must be — NOT an owner profile. */
+	srcIdTag?: string
+	/** The viewer may write this row — what a live-document feed post requires
+	 *  (`canPost` in shell/src/apps/doc-info.ts). Absent when the surface cannot decide. */
+	canWrite?: boolean
 }
 
 /**

@@ -61,7 +61,7 @@ export function buildFileFilterParams(input: FileFilterParamsInput): Types.ListF
 	return params
 }
 
-function convertFileView(f: Types.FileView): File {
+export function convertFileView(f: Types.FileView): File {
 	return {
 		...f,
 		preset: f.preset || '',
@@ -99,6 +99,7 @@ function convertFileView(f: Types.FileView): File {
 				}
 			: undefined,
 		owner: f.owner ? { ...f.owner, name: f.owner.name || '' } : undefined,
+		upstream: f.upstream ? { ...f.upstream, name: f.upstream.name || '' } : undefined,
 		variantId: undefined
 	}
 }
@@ -333,7 +334,7 @@ export function useFileList(options?: UseFileListOptions) {
 				// page is no longer used - infinite scroll handles loading
 			}
 
-			function setFileData(fileId: string, file: File) {
+			function setFileData(fileId: string, file: File | ((prev: File) => File)) {
 				updateItem((f) => f.fileId === fileId, file)
 			}
 

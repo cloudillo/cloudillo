@@ -20,6 +20,10 @@ export interface DocumentEmbedIframeProps {
 		aspectRatio?: [number, number],
 		aspectFixed?: boolean
 	) => void
+	/** The embedded app reported a loading stage (`app:ready.notify`). */
+	onAppReady?: (stage?: string) => void
+	/** The embedded app reported a fatal error (`app:error.notify`), e.g. 4403 = access denied. */
+	onAppError?: (code: number, message?: string) => void
 }
 
 export interface DocumentEmbedIframeRef {
@@ -29,14 +33,28 @@ export interface DocumentEmbedIframeRef {
 
 export const DocumentEmbedIframe = React.memo(
 	React.forwardRef<DocumentEmbedIframeRef, DocumentEmbedIframeProps>(function DocumentEmbedIframe(
-		{ src, className, active, onActivate, onDeactivate, onViewStateChange },
+		{
+			src,
+			className,
+			active,
+			onActivate,
+			onDeactivate,
+			onViewStateChange,
+			onAppReady,
+			onAppError
+		},
 		ref
 	) {
 		const iframeRef = React.useRef<HTMLIFrameElement | null>(null)
 		const relayRef = React.useRef<EmbedRelayHandle | null>(null)
 		const cleanupRef = React.useRef<(() => void) | null>(null)
+		// Kept in refs, like `onViewStateChange`: `setIframeRef` is a `useCallback([])`.
 		const onViewStateChangeRef = React.useRef(onViewStateChange)
 		onViewStateChangeRef.current = onViewStateChange
+		const onAppReadyRef = React.useRef(onAppReady)
+		onAppReadyRef.current = onAppReady
+		const onAppErrorRef = React.useRef(onAppError)
+		onAppErrorRef.current = onAppError
 
 		// Expose sendViewState via ref
 		React.useImperativeHandle(
@@ -63,6 +81,22 @@ export const DocumentEmbedIframe = React.memo(
 			if (el) {
 				const relay = setupEmbedRelay(el, {
 					onChildNotification: (type, payload) => {
+						if (type === 'app:ready.notify') {
+							onAppReadyRef.current?.(
+								(payload as { stage?: string } | undefined)?.stage
+							)
+							return
+						}
+						if (type === 'app:error.notify') {
+							const p = payload as { code?: unknown; message?: unknown } | undefined
+							if (typeof p?.code === 'number') {
+								onAppErrorRef.current?.(
+									p.code,
+									typeof p.message === 'string' ? p.message : undefined
+								)
+							}
+							return
+						}
 						if (type === 'embed:viewstate.push' && payload) {
 							const p = payload as {
 								viewState: string

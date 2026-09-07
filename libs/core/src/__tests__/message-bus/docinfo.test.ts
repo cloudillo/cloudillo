@@ -18,7 +18,8 @@ const READY_INFO: DocInfo = {
 	state: 'ready',
 	fileName: 'Notes.md',
 	isCrossOwner: false,
-	canRename: true
+	canRename: true,
+	canPost: true
 }
 
 describe('tDocInfo', () => {

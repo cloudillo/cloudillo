@@ -59,11 +59,14 @@ export function clearDocInfoResolver(resolver: DocInfoResolver): void {
 /**
  * Initialize document info handlers on the shell bus
  *
- * Embeds are deliberately NOT served: an embed connection's `resId` is the
- * `_embed:<nonce>` handshake key rather than a document, so `doc:info.req` from
- * one answers `Document not found` by design — and no `doc:info.push` is ever
- * aimed at an embed iframe either. The DocBar hides itself there (`parseAppHash`
- * in `@cloudillo/core`), which is the other half of the same decision.
+ * Embeds are deliberately NOT served. An embed connection's `resId` IS a real
+ * document — `handlers/auth.ts` registers it on the attested `pending.resId` so
+ * tokens mint — so what refuses them is an explicit decision, not the shape of the
+ * resId: the dispatch gate in `shell-bus.ts` (`EMBED_ALLOWED_MESSAGES`, which also
+ * carries the rationale), backed by the `connection.embed` guard in each handler
+ * below. No `doc:info.push` is ever aimed at an embed iframe either. The DocBar
+ * hides itself there (`parseAppHash` in `@cloudillo/core`), which is the other half
+ * of the same decision.
  */
 export function initDocInfoHandlers(bus: ShellMessageBus): void {
 	bus.on('doc:info.req', async (msg: DocInfoReq, source) => {
@@ -84,6 +87,20 @@ export function initDocInfoHandlers(bus: ShellMessageBus): void {
 				false,
 				undefined,
 				'App not initialized'
+			)
+			return
+		}
+
+		// Defence in depth behind the dispatch gate; see EMBED_ALLOWED_MESSAGES in shell-bus.ts.
+		if (connection.embed) {
+			console.warn('[DocInfo] Info request from an embed connection')
+			bus.sendResponse(
+				appWindow,
+				'doc:info.res',
+				msg.id,
+				false,
+				undefined,
+				'Document not found'
 			)
 			return
 		}
@@ -159,6 +176,20 @@ export function initDocInfoHandlers(bus: ShellMessageBus): void {
 				false,
 				undefined,
 				'App not initialized'
+			)
+			return
+		}
+
+		// Defence in depth behind the dispatch gate; see EMBED_ALLOWED_MESSAGES in shell-bus.ts.
+		if (connection.embed) {
+			console.warn('[DocInfo] Rename request from an embed connection')
+			bus.sendResponse(
+				appWindow,
+				'doc:rename.res',
+				msg.id,
+				false,
+				undefined,
+				'Rename is not available to embedded content'
 			)
 			return
 		}

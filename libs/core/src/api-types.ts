@@ -582,7 +582,7 @@ export interface ListFilesQuery {
 	fileName?: string // Substring search in file name
 	ownerIdTag?: string // Filter by owner idTag
 	notOwnerIdTag?: string // Exclude files by this owner idTag
-	localOnly?: boolean // Only tenant-owned files (owner_tag IS NULL); excludes remote/federated copies
+	localOnly?: boolean // Only locally originating files (upstream_tag IS NULL); excludes remote/federated copies
 	createdAfter?: string | number
 	createdBefore?: string | number
 	pinned?: boolean // Filter by pinned status (user-specific)
@@ -628,6 +628,9 @@ export const tFileView = T.struct({
 			dim: T.optional(T.tuple(T.number, T.number)) // Image dimensions [width, height]
 		})
 	),
+	/** The profile with owner authority — record authority (rename/move/delete/tag) and, on a
+	 *  locally originating row, Admin content access. Falls back to the serving tenant, so it is
+	 *  effectively always present. NOT a cross-context signal — use `upstream`. */
 	owner: T.optional(
 		T.struct({
 			idTag: T.string,
@@ -636,7 +639,9 @@ export const tFileView = T.struct({
 			type: T.optional(T.string)
 		})
 	),
-	creator: T.optional(
+	/** Where the canonical copy lives. Absent ⇒ the row originates on the serving node. The only
+	 *  reliable cross-context test (backend `FileRef.upstream_id_tag`). */
+	upstream: T.optional(
 		T.struct({
 			idTag: T.string,
 			name: T.optional(T.string),
@@ -654,6 +659,15 @@ export const tFileView = T.struct({
 	brokenReason: T.optional(T.literal('revoked', 'deleted', 'unreachable'))
 })
 export type FileView = T.TypeOf<typeof tFileView>
+
+/** `POST /files/:id/refresh` — the reconciled `FileView` (serde-flattened) plus an optional
+ *  transient-outcome hint. `'unreachable'` means the source did not answer and NOTHING was
+ *  reconciled: the row came back exactly as it was on disk. */
+export const tFileRefreshResult = T.intersection(
+	tFileView,
+	T.struct({ refreshStatus: T.optional(T.string) })
+)
+export type FileRefreshResult = T.TypeOf<typeof tFileRefreshResult>
 
 /*
 export const tListFilesResult = T.struct({

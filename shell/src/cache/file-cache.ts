@@ -4,11 +4,17 @@
 /**
  * File-specific cache operations: index field extraction and offline query mapping.
  *
- * Records are keyed by the file's owner (`f.owner.idTag`) rather than the
- * viewer's current context. The owner is context-invariant — the same
- * physical file reached from personal, community, or share-link contexts
- * resolves to the same cache row. Callers pass a `fallbackOwnerIdTag` for
- * rare cases where `f.owner` is absent from the API response.
+ * Records are keyed by the TENANT THAT SERVED THE LISTING, which is what
+ * `createCachedFileFetchPage` also queries by. The cache's whole job is to
+ * reproduce one tenant's `GET /api/files` listing offline, and a mirrored row
+ * (`upstream` set) is still that tenant's row, so it must be filed with the rest
+ * of its listing — keying it by `upstream.idTag` files it under a tenant no
+ * reader queries. Dedupe is not an alternative motive: `fileId` is node-local,
+ * so two tenants' rows can never collide.
+ *
+ * NOT `f.owner`: since backend migration 49 that is the profile with owner
+ * AUTHORITY, so a community member's own file carries the member's idTag while
+ * being served by the community.
  */
 
 import type { FileView } from '@cloudillo/core'
@@ -34,29 +40,17 @@ export function extractFileIndexFields(f: FileView): Record<string, unknown> {
 }
 
 /**
- * Cache a batch of file records keyed by owner.
- * `fallbackOwnerIdTag` is used only when a file lacks an `owner` field in
- * the API response (the runtype marks it optional).
+ * Cache a batch of file records under the tenant that served them — mirrored rows
+ * included, see the module doc.
  */
-export async function cacheFiles(fallbackOwnerIdTag: string, files: FileView[]): Promise<void> {
-	let warnedFallback = false
+export async function cacheFiles(scopeIdTag: string, files: FileView[]): Promise<void> {
 	await putRecords(
 		STORE,
-		files.map((f) => {
-			const ownerIdTag = f.owner?.idTag ?? fallbackOwnerIdTag
-			if (!f.owner?.idTag && !warnedFallback) {
-				console.warn(
-					'[Cache] FileView missing owner.idTag — using fallback owner',
-					f.fileId
-				)
-				warnedFallback = true
-			}
-			return {
-				indexFields: { ...extractFileIndexFields(f), ownerIdTag },
-				payload: f,
-				cacheKey: `${ownerIdTag}:${f.fileId}`
-			}
-		})
+		files.map((f) => ({
+			indexFields: { ...extractFileIndexFields(f), ownerIdTag: scopeIdTag },
+			payload: f,
+			cacheKey: `${scopeIdTag}:${f.fileId}`
+		}))
 	)
 }
 
@@ -64,7 +58,7 @@ export async function cacheFiles(fallbackOwnerIdTag: string, files: FileView[]):
  * Build an offline query spec from file list parameters.
  */
 export function buildFileOfflineQuery(
-	ownerIdTag: string,
+	srcIdTag: string,
 	params: {
 		parentId?: string | null
 		fileTp?: string
@@ -76,50 +70,50 @@ export function buildFileOfflineQuery(
 	if (params.starred) {
 		return {
 			indexName: 'by-owner-starred',
-			range: IDBKeyRange.only([ownerIdTag, 1])
+			range: IDBKeyRange.only([srcIdTag, 1])
 		}
 	}
 
 	if (params.pinned) {
 		return {
 			indexName: 'by-owner-pinned',
-			range: IDBKeyRange.only([ownerIdTag, 1])
+			range: IDBKeyRange.only([srcIdTag, 1])
 		}
 	}
 
 	if (params.contentType) {
 		return {
 			indexName: 'by-owner-content-type',
-			range: IDBKeyRange.only([ownerIdTag, params.contentType])
+			range: IDBKeyRange.only([srcIdTag, params.contentType])
 		}
 	}
 
 	if (params.fileTp) {
 		// Handle comma-separated fileTp (e.g., "CRDT,RTDB")
-		// For compound types, fall back to owner-level query + client filter
+		// For compound types, fall back to a node-level query + client filter
 		if (params.fileTp.includes(',')) {
 			return {
 				indexName: 'by-owner',
-				range: IDBKeyRange.only(ownerIdTag)
+				range: IDBKeyRange.only(srcIdTag)
 			}
 		}
 		return {
 			indexName: 'by-owner-type',
-			range: IDBKeyRange.only([ownerIdTag, params.fileTp])
+			range: IDBKeyRange.only([srcIdTag, params.fileTp])
 		}
 	}
 
 	if (params.parentId !== undefined) {
 		return {
 			indexName: 'by-owner-parent',
-			range: IDBKeyRange.only([ownerIdTag, params.parentId ?? '__root__'])
+			range: IDBKeyRange.only([srcIdTag, params.parentId ?? '__root__'])
 		}
 	}
 
-	// Default: all files for owner, newest first
+	// Default: all files for the serving node, newest first
 	return {
 		indexName: 'by-owner-created',
-		range: IDBKeyRange.bound([ownerIdTag], [ownerIdTag, '￿']),
+		range: IDBKeyRange.bound([srcIdTag], [srcIdTag, '￿']),
 		direction: 'prev'
 	}
 }
@@ -128,7 +122,7 @@ export function buildFileOfflineQuery(
  * Query cached files with the given parameters.
  */
 export async function queryCachedFiles(
-	ownerIdTag: string,
+	srcIdTag: string,
 	params: {
 		parentId?: string | null
 		fileTp?: string
@@ -138,7 +132,7 @@ export async function queryCachedFiles(
 	},
 	limit?: number
 ): Promise<FileView[]> {
-	const query = buildFileOfflineQuery(ownerIdTag, params)
+	const query = buildFileOfflineQuery(srcIdTag, params)
 	let results = await queryRecords<FileView>(STORE, query, limit)
 
 	// Client-side filter for compound fileTp
@@ -151,11 +145,11 @@ export async function queryCachedFiles(
 }
 
 /**
- * Look up a single cached file by its fileId. `ownerIdTag` is the file's
- * canonical owner (see module doc).
+ * Look up a single cached file by its fileId. `srcIdTag` is the tenant that
+ * served the listing the row was cached from (see module doc).
  */
-export async function getCachedFile(ownerIdTag: string, fileId: string): Promise<FileView | null> {
-	return getRecord<FileView>(STORE, `${ownerIdTag}:${fileId}`)
+export async function getCachedFile(srcIdTag: string, fileId: string): Promise<FileView | null> {
+	return getRecord<FileView>(STORE, `${srcIdTag}:${fileId}`)
 }
 
 // vim: ts=4

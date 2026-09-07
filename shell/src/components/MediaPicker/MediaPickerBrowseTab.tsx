@@ -31,7 +31,7 @@ import {
 	LuX as IcX
 } from 'react-icons/lu'
 
-import { canManageFile, canManageShares, scopeFileToTenant } from '../../apps/files/utils.js'
+import { canManageFile, canManageShares } from '../../apps/files/utils.js'
 import { activeContextAtom, contextRolesAtom, useApiContext } from '../../context/index.js'
 import type { MediaPickerResult } from '../../context/media-picker-atom.js'
 import { isPermissionError } from '../../utils.js'
@@ -189,13 +189,11 @@ export function MediaPickerBrowseTab({
 	 * `requirePublic` mode the action is always "Make public", document or not.
 	 */
 	const canUnlock = useCallback(
-		(file: FileView) => {
-			const scoped = scopeFileToTenant(file, auth?.idTag, idTag)
-			return documentFileId && !requirePublic
-				? canManageShares(scoped, auth?.idTag, idTag, browseRoles)
-				: canManageFile(scoped, auth?.idTag, browseRoles)
-		},
-		[documentFileId, requirePublic, auth?.idTag, idTag, browseRoles]
+		(file: FileView) =>
+			documentFileId && !requirePublic
+				? canManageShares(file, auth?.idTag, browseRoles)
+				: canManageFile(file, auth?.idTag, browseRoles),
+		[documentFileId, requirePublic, auth?.idTag, browseRoles]
 	)
 
 	const {

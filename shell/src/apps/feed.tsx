@@ -73,6 +73,7 @@ import {
 import { feedPath, profilePath } from '../routes.js'
 import { handleEditablePaste } from '../utils/editablePaste.js'
 import { useWsBus } from '../ws-bus.js'
+import { type DocPostIntent, pendingDocPostAtom } from './feed/doc-post-intent.js'
 import {
 	type AudienceTarget,
 	CommentBadge,
@@ -90,6 +91,8 @@ import {
 	useFeedPosts,
 	useUnreadPosts
 } from './feed/index.js'
+import { LiveDocCard } from './feed/LiveDocCard.js'
+import { parseLiveDocContent } from './feed/live-doc.js'
 import { Document, hasPlayableVariant, Images, renderPostContent, Video } from './feed/PostMedia.js'
 import { pendingQuoteAtom } from './feed/quote-intent.js'
 import { getVisibilityMeta } from './feed/VisibilitySelector.js'
@@ -569,7 +572,25 @@ function Post({
 	const [tab, setTab] = React.useState<undefined | 'CMNT' | 'LIKE' | 'SHRE'>(undefined)
 	// Engagement info dialog (who reacted / reposted). `undefined` = closed.
 	const [engagementTab, setEngagementTab] = React.useState<string | undefined>(undefined)
-	if (typeof action.content != 'string' && action.content !== undefined) return null
+	// `POST:LDOC` carries an object in `content`: a live-document reference plus the
+	// author's commentary. Anything else non-string is still unrenderable.
+	// A fresh object every render would re-fire LiveDocCard's row fetch each time.
+	const liveDoc = React.useMemo(
+		() => (action.subType === 'LDOC' ? parseLiveDocContent(action.content) : undefined),
+		[action.subType, action.content]
+	)
+	const bodyText = liveDoc
+		? liveDoc.text
+		: typeof action.content === 'string'
+			? action.content
+			: undefined
+	// A malformed LDOC payload degrades to a post with no body, never to a hole in the feed.
+	if (
+		action.subType !== 'LDOC' &&
+		typeof action.content != 'string' &&
+		action.content !== undefined
+	)
+		return null
 
 	// Repost routing. A REPOST wraps an original (`subjectAction`). A pure boost
 	// (no commentary) is a transparent attribution wrapper: engagement targets
@@ -738,7 +759,8 @@ function Post({
 					<TimeFormat time={action.createdAt} />
 				</div>
 				<div className="d-flex flex-column g-2">
-					{!!action.content && renderPostContent(action.content)}
+					{!!bodyText && renderPostContent(bodyText)}
+					{!isRepost && liveDoc && <LiveDocCard docRef={liveDoc} width={width} />}
 					{!isRepost &&
 						!!action.attachments?.length &&
 						(action.subType === 'VIDEO' ? (
@@ -1240,7 +1262,9 @@ export function FeedApp() {
 	const [composeMedia, setComposeMedia] = React.useState<
 		'image' | 'camera' | 'video' | undefined
 	>()
+	const [composeDoc, setComposeDoc] = React.useState<DocPostIntent | undefined>()
 	const [pendingQuote, setPendingQuote] = useAtom(pendingQuoteAtom)
+	const [pendingDocPost, setPendingDocPost] = useAtom(pendingDocPostAtom)
 	const widthRef = React.useRef<HTMLDivElement>(null)
 	const [width, setWidth] = React.useState(0)
 	// The real scroll container (Fcd.Content's inner .c-fcd-content-scroll div),
@@ -1467,8 +1491,15 @@ export function FeedApp() {
 	const feedTags = React.useMemo(() => {
 		const tagCounts = new Map<string, number>()
 		for (const post of feed) {
-			if (typeof post.content !== 'string') continue
-			const matches = post.content.match(/#[\p{L}\p{N}_]+/gu)
+			// An LDOC post keeps its commentary in `content.text`, not in `content`.
+			const text =
+				post.subType === 'LDOC'
+					? parseLiveDocContent(post.content)?.text
+					: typeof post.content === 'string'
+						? post.content
+						: undefined
+			if (!text) continue
+			const matches = text.match(/#[\p{L}\p{N}_]+/gu)
 			if (!matches) continue
 			for (const match of matches) {
 				const tag = match.slice(1)
@@ -1797,6 +1828,7 @@ export function FeedApp() {
 		setEditingDraft(undefined)
 		setQuoteAction(undefined)
 		setQuoteTarget(undefined)
+		setComposeDoc(undefined)
 		setComposeOpen(true)
 	}
 
@@ -1808,6 +1840,17 @@ export function FeedApp() {
 		setEditingDraft(undefined)
 		setQuoteAction(original)
 		setQuoteTarget(target)
+		setComposeDoc(undefined)
+		setViewMode('feed')
+		setComposeOpen(true)
+	}, [])
+
+	const handleDocPost = React.useCallback(function handleDocPost(doc: DocPostIntent) {
+		setComposeMedia(undefined)
+		setEditingDraft(undefined)
+		setQuoteAction(undefined)
+		setQuoteTarget(undefined)
+		setComposeDoc(doc)
 		setViewMode('feed')
 		setComposeOpen(true)
 	}, [])
@@ -1821,12 +1864,21 @@ export function FeedApp() {
 		setPendingQuote(undefined)
 	}, [pendingQuote, handleQuote, setPendingQuote])
 
+	// Same one-shot handshake for a document handed over by an editor's
+	// "Share to feed" button (the `feed:post` bus command sets the atom).
+	React.useEffect(() => {
+		if (!pendingDocPost) return
+		handleDocPost(pendingDocPost)
+		setPendingDocPost(undefined)
+	}, [pendingDocPost, handleDocPost, setPendingDocPost])
+
 	function handleComposeClose() {
 		setComposeOpen(false)
 		setComposeMedia(undefined)
 		setEditingDraft(undefined)
 		setQuoteAction(undefined)
 		setQuoteTarget(undefined)
+		setComposeDoc(undefined)
 	}
 
 	function handleViewSelect(v: 'unread' | 'drafts') {
@@ -1844,6 +1896,10 @@ export function FeedApp() {
 	}
 
 	function handleEditDraft(draft: ActionView) {
+		setComposeMedia(undefined)
+		setQuoteAction(undefined)
+		setQuoteTarget(undefined)
+		setComposeDoc(undefined)
 		setEditingDraft(draft)
 		setComposeOpen(true)
 		setViewMode('feed')
@@ -1905,6 +1961,7 @@ export function FeedApp() {
 						onSubmit={onSubmit}
 						idTag={contextIdTag !== auth?.idTag ? contextIdTag : undefined}
 						initialMedia={composeMedia}
+						initialDoc={composeDoc}
 						draft={editingDraft}
 						quotedAction={quoteAction}
 						target={quoteTarget}

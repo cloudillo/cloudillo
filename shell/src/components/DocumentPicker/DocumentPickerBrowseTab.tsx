@@ -21,7 +21,7 @@ import {
 } from 'react-icons/lu'
 
 import { getFileIcon } from '../../apps/files/icons.js'
-import { canManageFile, scopeFileToTenant } from '../../apps/files/utils.js'
+import { canManageFile, canWrite, resolveAccessLevel } from '../../apps/files/utils.js'
 import type { DocPickerResult } from '../../context/doc-picker-atom.js'
 import { activeContextAtom, contextRolesAtom, useApiContext } from '../../context/index.js'
 import { isPermissionError, useAppConfig } from '../../utils.js'
@@ -137,9 +137,16 @@ export function DocumentPickerBrowseTab({
 
 	// Offering an action the server will refuse just produces a dead embed.
 	const canUnlock = useCallback(
-		(file: FileView) =>
-			canManageFile(scopeFileToTenant(file, auth?.idTag, idTag), auth?.idTag, browseRoles),
-		[auth?.idTag, idTag, browseRoles]
+		(file: FileView) => canManageFile(file, auth?.idTag, browseRoles),
+		[auth?.idTag, browseRoles]
+	)
+
+	// A caller may need more than "you can see it" — sharing a document to the feed is a
+	// claim about a row the author can widen, so it needs write. See `canPost` in
+	// `shell/src/apps/doc-info.ts`.
+	const isWritable = useCallback(
+		(file: FileView) => canWrite(resolveAccessLevel(file, auth?.idTag, browseRoles)),
+		[auth?.idTag, browseRoles]
 	)
 
 	// Never automatic: the author asks for it per document, on a file they own.
@@ -205,10 +212,14 @@ export function DocumentPickerBrowseTab({
 				fileName: file.fileName,
 				contentType: file.contentType,
 				fileTp: file.fileTp,
-				appId
+				appId,
+				// The node that serves the row. `localOnly: true` above means there are no
+				// mirrored rows in this listing, so the browsed node is always the answer.
+				srcIdTag: idTag,
+				canWrite: isWritable(file)
 			})
 		},
-		[handleFolderClick, onSelect, appConfig?.mime, isBlocked]
+		[handleFolderClick, onSelect, appConfig?.mime, isBlocked, isWritable, idTag]
 	)
 
 	// Handle double click
@@ -230,10 +241,14 @@ export function DocumentPickerBrowseTab({
 				fileName: file.fileName,
 				contentType: file.contentType,
 				fileTp: file.fileTp,
-				appId
+				appId,
+				// The node that serves the row. `localOnly: true` above means there are no
+				// mirrored rows in this listing, so the browsed node is always the answer.
+				srcIdTag: idTag,
+				canWrite: isWritable(file)
 			})
 		},
-		[handleFolderClick, onDoubleClick, appConfig?.mime, isBlocked]
+		[handleFolderClick, onDoubleClick, appConfig?.mime, isBlocked, isWritable, idTag]
 	)
 
 	return (

@@ -16,12 +16,15 @@ export type FileVisibility = 'D' | 'P' | 'V' | '2' | 'F' | 'C' | null
 export interface File {
 	fileId: string
 	fileName: string
+	/** The profile with owner authority. Falls back to the serving tenant, so effectively always
+	 *  present — NOT a cross-context signal, use `upstream` for that. */
 	owner?: {
 		idTag: string
 		name?: string
 		profilePic?: string
 	}
-	creator?: {
+	/** Where the canonical copy lives. Absent ⇒ the row originates on the serving node. */
+	upstream?: {
 		idTag: string
 		name?: string
 		profilePic?: string

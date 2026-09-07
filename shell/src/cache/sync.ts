@@ -39,15 +39,15 @@ function cacheWritable(): boolean {
 /**
  * Cache files in the background (non-blocking).
  *
- * Files are keyed in the cache by the owner's idTag (see file-cache.ts).
- * The `fallbackOwnerIdTag` parameter is used only when an API response
- * comes back without an `owner` field — pass the active viewing context
- * as the fallback for backwards compatibility.
+ * `scopeIdTag` is the tenant that SERVED the listing — what `cacheFiles` keys by and
+ * what `createCachedFileFetchPage` queries by. Not the row's `owner` (authority since
+ * backend migration 49) and not its `upstream`: a mirrored row is still this tenant's
+ * row and belongs with the rest of its listing. See the module doc in file-cache.ts.
  */
-export function cacheFilesAsync(fallbackOwnerIdTag: string, files: FileView[]): void {
+export function cacheFilesAsync(scopeIdTag: string, files: FileView[]): void {
 	if (files.length === 0 || !cacheWritable()) return
-	enqueueWrite(() => cacheFiles(fallbackOwnerIdTag, files))
-	maybeEvict(fallbackOwnerIdTag)
+	enqueueWrite(() => cacheFiles(scopeIdTag, files))
+	maybeEvict(scopeIdTag)
 }
 
 /**

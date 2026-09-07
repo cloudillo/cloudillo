@@ -21,11 +21,15 @@
 
 import * as React from 'react'
 
+import { getShellBus } from './message-bus/shell-bus.js'
+
 export type ShellEmbedAccess = 'read' | 'comment' | 'write'
 
 /** What the shell records so the iframe's `auth:init.req` can be answered. */
 export interface ShellEmbedRegistration {
 	access: ShellEmbedAccess
+	/** `<srcIdTag>:<fileId>` of the embedded document — what the shell mints the token against. */
+	resId: string
 	/** Owner tenant of the embedded document — the app's `bus.idTag` for a guest. */
 	idTag: string
 	/** Which bundle was launched. Handlers treat the recorded name as attested. */
@@ -33,8 +37,23 @@ export interface ShellEmbedRegistration {
 	navState?: string
 }
 
+/** `key` is the per-mount `_embed:<nonce>` handshake key, not the document's resId. */
+export function registerShellEmbed(key: string, registration: ShellEmbedRegistration): void {
+	// Stamped here rather than at each call site: every entry this function creates IS an
+	// embed, and a future caller cannot forget it.
+	getShellBus()?.setPendingRegistration(key, { ...registration, embed: true })
+}
+
+export function releaseShellEmbed(key: string): void {
+	// Never consumed means the iframe never booted; leaving it would hand the
+	// next claimant of this key a registration it did not open. The key is per
+	// mount, so this can never drop an entry a sibling embed of the same document
+	// is still waiting on.
+	getShellBus()?.getAppTracker().consumePendingRegistration(key)
+}
+
 export interface ShellEmbedOptions {
-	/** `<ownerIdTag>:<fileId>`. The iframe reads it back out of its location hash. */
+	/** `<srcIdTag>:<fileId>`. The iframe reads it back out of its location hash. */
 	resId: string
 	/** The target document's content type; picks the bundle. */
 	contentType: string
@@ -43,6 +62,9 @@ export interface ShellEmbedOptions {
 	navState?: string
 	/** Shell build version, for the `?v=` cache buster on the bundle URL. */
 	version?: string
+	/** Bump to force a fresh mount: a new registration key, a new iframe, timers reset.
+	 *  The only escape from the boot timeout on a surface with no collapse to toggle. */
+	retryKey?: string | number
 	/**
 	 * Records the pending registration the iframe's first init consumes.
 	 *
@@ -54,10 +76,21 @@ export interface ShellEmbedOptions {
 	release?: (key: string) => void
 }
 
+/** Assignable to `LoadingStage` from `shell/src/apps/AppLoadingIndicator.tsx`. */
+export type ShellEmbedStage = 'connecting' | 'syncing' | 'ready' | 'error'
+
 export interface ShellEmbedState {
-	status: 'loading' | 'ready' | 'error'
+	/** What the embed box should show right now. */
+	stage: ShellEmbedStage
 	iframeSrc?: string
+	/** Fallback error text (malformed resId, or the app's own message). */
 	error?: string
+	/** App error code — 4401/4403/4404 — for `<AppLoadingIndicator errorCode>`. */
+	errorCode?: number
+	/** Pass to `<DocumentEmbedIframe onAppReady>`. Stable identity. */
+	onAppReady: (stage?: string) => void
+	/** Pass to `<DocumentEmbedIframe onAppError>`. Stable identity. */
+	onAppError: (code: number, message?: string) => void
 }
 
 /** A bundle directory name, and nothing that could be read as a path. */
@@ -66,8 +99,22 @@ const APP_NAME_RE = /^[a-z0-9][a-z0-9-]*$/
 /** The bundle that renders anything without an app of its own. */
 const GENERIC_VIEWER = 'view'
 
-/** Serial for `embedRegistrationKey`. Uniqueness within one document is all it needs. */
-let embedSerial = 0
+/**
+ * How long an embedded app may stay silent before the box calls it a failure, and the
+ * ceiling on `'syncing'`.
+ *
+ * Its own budget, deliberately not shared with `LOADING_TIMEOUT_MS` in
+ * `shell/src/apps/index.tsx`. It is what covers the apps that report nothing at all:
+ * an RTDB-only app (notillo, taskillo) never emits `app:error.notify`, and neither
+ * does a bundle that fails to boot.
+ *
+ * `bus.init()` emits `'auth'` on every handshake, but only the Yjs apps and notillo go on
+ * to report `'synced'` — the `view` bundle, taskillo, formillo, mapillo and scanillo stop
+ * at `'auth'`. So `'syncing'` needs a ceiling, and this is it for everyone: no per-bundle
+ * list to keep in step with which apps happen to report sync. The stage only shows the
+ * subtle corner spinner over a fully readable document, so waiting it out costs nothing.
+ */
+export const EMBED_LOADING_TIMEOUT_MS = 15000
 
 /**
  * A registration key for one mount of one embed. **Per mount, never per resId** —
@@ -76,11 +123,14 @@ let embedSerial = 0
  * fight over a single entry.
  *
  * The `_embed:<nonce>` shape is the one `handlers/embed.ts` already mints, and is
- * what `parseAppHash` splits a `<ownerTag>:<fileId>:_embed:<nonce>` hash on.
+ * what `parseAppHash` splits a `<srcIdTag>:<fileId>:_embed:<nonce>` hash on.
+ *
+ * Unguessable, not merely unique: `handlers/auth.ts` binds the consuming connection to this
+ * entry's `resId`, so a key another iframe could predict is a token for a document it was
+ * never opened on.
  */
 function embedRegistrationKey(): string {
-	embedSerial += 1
-	return `_embed:shell-${embedSerial}`
+	return `_embed:shell-${crypto.randomUUID()}`
 }
 
 /**
@@ -106,20 +156,81 @@ export function shellEmbedAppName(contentType: string): string {
  * bootable. Pass `null` while the caller is still missing an input.
  */
 export function useShellEmbed(options: ShellEmbedOptions | null): ShellEmbedState {
-	const [state, setState] = React.useState<ShellEmbedState>({ status: 'loading' })
+	type EmbedStatus = Omit<ShellEmbedState, 'onAppReady' | 'onAppError'>
+	const [state, setState] = React.useState<EmbedStatus>({ stage: 'connecting' })
+	const timerRef = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+	const syncTimerRef = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
-	// Callbacks and navState change identity freely; only these four decide
-	// which document is being embedded, so only they may reload the iframe.
+	// Callbacks and navState change identity freely; only these decide which document is
+	// being embedded — plus `retryKey`, the caller's explicit "start over".
 	const key = options
-		? `${options.resId}|${options.contentType}|${options.access ?? 'read'}|${options.version ?? ''}`
+		? `${options.resId}|${options.contentType}|${options.access ?? 'read'}|${options.version ?? ''}|${options.retryKey ?? ''}`
 		: null
 	const optionsRef = React.useRef(options)
 	optionsRef.current = options
 
+	/*
+	 * Which mount a report belongs to.
+	 *
+	 * After a `retryKey` bump the previous document is still alive — the relay filters on
+	 * `iframe.contentWindow`, and the element survives a `src` change — so its late
+	 * `app:ready.notify` would otherwise land on the NEW mount, clearing its boot timeout
+	 * and painting a dead retry as ready. Each mount's callbacks capture the `iframeSrc`
+	 * they were made for and drop anything reported against an older one. Callers must
+	 * therefore key the iframe on `iframeSrc` (`LiveDocCard`, `island-components`), so the
+	 * pre-retry element is a separate instance still holding the older callbacks.
+	 */
+	const srcRef = React.useRef<string | undefined>(undefined)
+	// In an effect, not the render body: a ref write during render is the pattern React
+	// disallows, and effects flush before the browser can deliver the next `postMessage`
+	// task, so the guard below still names the newest mount by the time it runs.
+	React.useEffect(() => {
+		srcRef.current = state.iframeSrc
+	}, [state.iframeSrc])
+	const mountSrc = state.iframeSrc
+
+	// A late `app:ready.notify` must never clear an error the app already reported,
+	// hence the functional update reading the stage it is moving away from.
+	const onAppReady = React.useCallback(
+		(stage?: string) => {
+			if (mountSrc !== srcRef.current) return
+			// Any report at all proves the bundle booted, so the boot timeout is done.
+			clearTimeout(timerRef.current)
+			if (stage === 'auth') {
+				setState((s) => (s.stage === 'connecting' ? { ...s, stage: 'syncing' } : s))
+				clearTimeout(syncTimerRef.current)
+				syncTimerRef.current = setTimeout(() => {
+					setState((s) => (s.stage === 'syncing' ? { ...s, stage: 'ready' } : s))
+				}, EMBED_LOADING_TIMEOUT_MS)
+				return
+			}
+			clearTimeout(syncTimerRef.current)
+			setState((s) =>
+				s.stage === 'connecting' || s.stage === 'syncing' ? { ...s, stage: 'ready' } : s
+			)
+		},
+		[mountSrc]
+	)
+
+	const onAppError = React.useCallback(
+		(code: number, message?: string) => {
+			if (mountSrc !== srcRef.current) return
+			clearTimeout(timerRef.current)
+			clearTimeout(syncTimerRef.current)
+			setState((s) => ({
+				...s,
+				stage: 'error',
+				errorCode: code,
+				error: message || undefined
+			}))
+		},
+		[mountSrc]
+	)
+
 	React.useEffect(() => {
 		const opts = optionsRef.current
 		if (!opts || !key) {
-			setState({ status: 'loading' })
+			setState({ stage: 'connecting' })
 			return
 		}
 		// Captured here, not read off the ref at cleanup time: the ref is reassigned
@@ -134,7 +245,7 @@ export function useShellEmbed(options: ShellEmbedOptions | null): ShellEmbedStat
 		const idTag = colon > 0 ? opts.resId.slice(0, colon) : ''
 		const fileId = colon > 0 ? opts.resId.slice(colon + 1) : ''
 		if (!idTag || !fileId) {
-			setState({ status: 'error', error: 'Embed needs an <ownerIdTag>:<fileId> resId' })
+			setState({ stage: 'error', error: 'Embed needs an <srcIdTag>:<fileId> resId' })
 			return
 		}
 
@@ -146,23 +257,33 @@ export function useShellEmbed(options: ShellEmbedOptions | null): ShellEmbedStat
 		// send its init before a later effect would have run.
 		opts.register(registrationKey, {
 			access: opts.access ?? 'read',
+			resId: opts.resId,
 			idTag,
 			appName,
 			navState: opts.navState
 		})
 
 		const version = encodeURIComponent(opts.version ?? '1')
-		// `<ownerTag>:<fileId>:_embed:<nonce>`, the same composition
+		// `<srcIdTag>:<fileId>:_embed:<nonce>`, the same composition
 		// `useDocumentEmbed` (`@cloudillo/react`) uses.
 		setState({
-			status: 'ready',
+			stage: 'connecting',
 			iframeSrc: `/apps/${appName}/?v=${version}#${opts.resId}:${registrationKey}`
 		})
+		// No `errorCode` and no message: `AppLoadingIndicator` then falls back to its
+		// own generic text, which keeps this module i18n-free.
+		timerRef.current = setTimeout(() => {
+			setState((s) => (s.stage === 'connecting' ? { ...s, stage: 'error' } : s))
+		}, EMBED_LOADING_TIMEOUT_MS)
 
-		return () => release?.(registrationKey)
+		return () => {
+			clearTimeout(timerRef.current)
+			clearTimeout(syncTimerRef.current)
+			release?.(registrationKey)
+		}
 	}, [key])
 
-	return state
+	return { ...state, onAppReady, onAppError }
 }
 
 // vim: ts=4

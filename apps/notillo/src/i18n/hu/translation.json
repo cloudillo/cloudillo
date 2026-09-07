@@ -256,5 +256,7 @@
 	"Nothing to list yet": "Még nincs mit felsorolni",
 	"Draft": "Piszkozat",
 	"New child type": "Új aloldal típusa",
-	"Page (default)": "Oldal (alapértelmezett)"
+	"Page (default)": "Oldal (alapértelmezett)",
+	"Share to feed": "Megosztás a hírfolyamban",
+	"Could not share this document": "Nem sikerült megosztani ezt a dokumentumot"
 }

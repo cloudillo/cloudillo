@@ -6,11 +6,7 @@ import { useAtom } from 'jotai'
 import * as React from 'react'
 import { useNavigate, useNavigationType, useSearchParams } from 'react-router-dom'
 
-import {
-	useApiContext,
-	useContextAwareApi,
-	useCurrentContextIdTag
-} from '../../../context/index.js'
+import { useApiContext, useContextAwareApi } from '../../../context/index.js'
 import { fileNavStackAtom } from '../atoms.js'
 import type { File, ViewMode } from '../types.js'
 import { MANAGED_FOLDER_ID, TRASH_FOLDER_ID, VIEW_MODES } from '../types.js'
@@ -32,7 +28,6 @@ export function useFileNavigation() {
 	// token lands. None of the other deps move on token arrival.
 	const { api, authenticated } = useContextAwareApi()
 	const { getTokenFor, getClientFor } = useApiContext()
-	const contextIdTag = useCurrentContextIdTag()
 	const [breadcrumbs, setBreadcrumbs] = React.useState<BreadcrumbItem[]>([])
 	const [navStack, setNavStack] = useAtom(fileNavStackAtom)
 	const [remoteApi, setRemoteApi] = React.useState<ApiClient | null>(null)
@@ -308,15 +303,13 @@ export function useFileNavigation() {
 				}
 			])
 
-			if (
-				folder.owner?.idTag &&
-				folder.owner.idTag !== contextIdTag &&
-				folder.owner.idTag !== remoteOwner
-			) {
+			// Only a MIRRORED folder points at another node; a row that originates here is
+			// browsed in place however it is owned.
+			if (folder.upstream?.idTag && folder.upstream.idTag !== remoteOwner) {
 				// Entering a shared folder (new remote context or from own files) — browse mode.
 				const params = new URLSearchParams()
 				params.set('parentId', folder.fileId)
-				params.set('remoteOwner', folder.owner.idTag)
+				params.set('remoteOwner', folder.upstream.idTag)
 				params.set('shareRoot', folder.fileId)
 				_navigate({ search: params.toString() })
 			} else {
@@ -328,7 +321,6 @@ export function useFileNavigation() {
 			remoteOwner,
 			shareRoot,
 			viewMode,
-			contextIdTag,
 			setNavStack,
 			navigateToFolder,
 			_navigate

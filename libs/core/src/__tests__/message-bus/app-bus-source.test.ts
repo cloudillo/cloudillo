@@ -172,7 +172,8 @@ describe('AppBus message source validation', () => {
 						state: 'ready',
 						fileName: 'Not your document',
 						isCrossOwner: false,
-						canRename: true
+						canRename: true,
+						canPost: true
 					}
 				}
 			})

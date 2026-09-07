@@ -12,8 +12,10 @@
 
 import { type DocInfo, getAppBus, parseAppHash } from '@cloudillo/core'
 import * as React from 'react'
+import { LuShare2 as IcShare } from 'react-icons/lu'
 import type { Awareness } from 'y-protocols/awareness'
 
+import { Button } from './components/Button/Button.js'
 import { DocBar, type DocBarSubItem } from './components/DocBar/index.js'
 import { useToast } from './components/Toast/index.js'
 import { useLibTranslation } from './i18n.js'
@@ -30,6 +32,10 @@ export interface UseDocBarReturn {
 	/** Resolution state of the document. `undefined` until the shell's first push. */
 	state?: DocInfo['state']
 	canRename: boolean
+	/** The viewer may share this document to their feed: a signed-in identity plus write access
+	 *  to a local row that ORIGINATES here. Not the rename rule — rename reaches a mirrored
+	 *  copy, a post cannot widen one. False for a guest. */
+	canPost: boolean
 	rename(name: string): Promise<void>
 	renaming: boolean
 	/** True in an embedded document, where no chrome of any kind belongs. */
@@ -111,6 +117,7 @@ export function useDocBar(): UseDocBarReturn {
 		title: pendingTitle ?? info?.fileName,
 		state: info?.state,
 		canRename: !!info?.canRename,
+		canPost: !!info?.canPost,
 		rename,
 		renaming,
 		hidden
@@ -156,7 +163,9 @@ export function AppDocBar({
 	maxAvatars,
 	children
 }: AppDocBarProps) {
-	const { info, title, state, canRename, rename, renaming, hidden } = useDocBar()
+	const { info, title, state, canRename, canPost, rename, renaming, hidden } = useDocBar()
+	const { t } = useLibTranslation()
+	const { error: toastError } = useToast()
 	// An app that computed the roster once — RTDB apps do, and so does any Yjs app
 	// that needs presence outside the bar — provides it here. Only without a
 	// provider does the bar subscribe on its own, and never in an embed.
@@ -185,6 +194,29 @@ export function AppDocBar({
 			presence={users}
 			maxAvatars={maxAvatars}
 		>
+			{/* An embedded document never gets here — `hidden` returned above. A
+			    document that has not resolved yet has nothing to post, and a
+			    share-link guest has no feed to post it to: the click would only
+			    navigate them out of the document they were sent. */}
+			{state === 'ready' && canPost && (
+				<Button
+					kind="link"
+					icon={<IcShare />}
+					title={t('Share to feed')}
+					aria-label={t('Share to feed')}
+					onClick={() =>
+						getAppBus()
+							.postToFeed()
+							.catch((err: Error) => {
+								// The wire message is a protocol string, not UI copy — log it,
+								// never toast it. The toast needs an app-mounted <Toasts/> sink;
+								// the log always lands.
+								console.error('[DocBar] Share to feed failed', err)
+								toastError(t('Could not share this document'))
+							})
+					}
+				/>
+			)}
 			{children}
 		</DocBar>
 	)

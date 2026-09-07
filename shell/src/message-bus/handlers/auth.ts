@@ -127,7 +127,14 @@ export function initAuthHandlers(bus: ShellMessageBus): void {
 				// that string itself, while handlers reading `connection.appName` treat
 				// the recorded name as attested.
 				appName: pending.appName,
-				resId: msg.payload.resId,
+				// The pending entry is shell-created, so its resId is attested;
+				// `msg.payload.resId` is the app's own claim and, for an embed, the
+				// `_embed:<nonce>` handshake key rather than a document.
+				resId: pending.resId ?? msg.payload.resId,
+				// Set by whoever created the pending entry — never inferred from another
+				// field, or a future registration path silently flips an editor into an
+				// embed (losing its DocBar, share button and queued import) or back.
+				embed: !!pending.embed,
 				access: pending.access || 'write',
 				idTag: pending.idTag,
 				token: pending.token,

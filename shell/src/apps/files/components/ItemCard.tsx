@@ -173,11 +173,11 @@ export const ItemCard = React.memo(function ItemCard({
 	const brokenSubtitle = !isBroken
 		? null
 		: file.brokenReason === 'revoked'
-			? t('No longer shared with you by {{idTag}}.', { idTag: file.owner?.idTag ?? '' })
+			? t('No longer shared with you by {{idTag}}.', { idTag: file.upstream?.idTag ?? '' })
 			: file.brokenReason === 'deleted'
 				? t('The owner deleted this file.')
 				: t("{{host}} couldn't be reached. We'll keep trying.", {
-						host: file.owner?.idTag ?? ''
+						host: file.upstream?.idTag ?? ''
 					})
 
 	function handleStarClick(evt: React.MouseEvent) {
@@ -281,14 +281,10 @@ export const ItemCard = React.memo(function ItemCard({
 					)}
 					<span className="c-file-card-meta-right">
 						{(() => {
-							// Prefer owner when it differs from the current context — for
-							// cross-context (pinned/placed) rows the owner is the meaningful
-							// "from where" signal; the creator may be the local user.
-							// Fall back to creator for normal rows.
-							const attribution =
-								file.owner && file.owner.idTag !== contextIdTag
-									? file.owner
-									: file.creator || file.owner
+							// Prefer the upstream node — on a mirrored (pinned/placed) row it is
+							// the meaningful "from where" signal, and it is never the active
+							// context. Otherwise attribute to the owner.
+							const attribution = file.upstream ?? file.owner
 							if (!attribution) return null
 							if (attribution.idTag === contextIdTag) return null
 							return (

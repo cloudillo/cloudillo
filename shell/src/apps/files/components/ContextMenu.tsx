@@ -51,7 +51,8 @@ import {
 	getVisibilityDropdownOptions,
 	getVisibilityIcon,
 	getVisibilityOption,
-	scopeFileToTenant,
+	isCrossOwnerFile,
+	resolveAccessLevel,
 	toAppAccess
 } from '../utils.js'
 
@@ -62,6 +63,8 @@ export interface ContextMenuPosition {
 
 interface PickUpOpts {
 	activeContextIdTag: string
+	authIdTag: string | undefined
+	scopeRoles: string[]
 	selectedFiles: File[]
 	inTrash: boolean
 	isManagedView: boolean
@@ -79,7 +82,8 @@ function doPickUp(opts: PickUpOpts) {
 	const items: FileHandItem[] = opts.selectedFiles.map((f) => ({
 		type: 'file' as const,
 		id: f.fileId,
-		idTag: f.owner?.idTag ?? ctxIdTag,
+		// The node holding the blob: the upstream node for a mirrored row, else the serving context
+		idTag: f.upstream?.idTag ?? ctxIdTag,
 		sourceContext: ctxIdTag,
 		sourceParentId: opts.isManagedView
 			? MANAGED_FOLDER_ID
@@ -90,7 +94,18 @@ function doPickUp(opts: PickUpOpts) {
 		fileTp: f.fileTp,
 		contentType: f.contentType,
 		brokenAt: f.brokenAt,
-		inTrash: opts.inTrash
+		inTrash: opts.inTrash,
+		// The same substitution the menu makes above, but per row so a mixed multi-select is
+		// judged correctly: a mirrored row's cached `accessLevel` is the ACTIVE context's
+		// answer about a row the upstream node decides, and `scopeRoles` is empty there, so
+		// judging the two together would read a foreign grant as ours. See `resolveAccessLevel`.
+		writable: canWrite(
+			resolveAccessLevel(
+				isCrossOwnerFile(f.upstream?.idTag, false) ? { ...f, accessLevel: undefined } : f,
+				opts.authIdTag,
+				opts.scopeRoles
+			)
+		)
 	}))
 
 	const reduced = prefersReducedMotion()
@@ -208,27 +223,15 @@ export function ContextMenu({
 	 * roles on a cross-owner row, since the `leader` short-circuit inside canManageShares is judged
 	 * against the node that SERVES the row.
 	 */
-	const isCrossOwner = Boolean(file.owner?.idTag && file.owner.idTag !== contextIdTag)
-	// The same two substitutions useFileOwnerScope makes, so the menu's approximation can only be
-	// narrower than what the dialog will allow, never wider:
-	//  - cross-owner: drop the ACTIVE context's cached accessLevel, which is not the owner node's
-	//    answer (an 'A' grant recorded locally would otherwise open the full share UI, then 403);
-	//  - ownerless: name the serving tenant, so canManageFile's short-circuit cannot vouch for a
-	//    node we hold no roles on.
-	const scopedFile = isCrossOwner
-		? { ...file, accessLevel: undefined }
-		: scopeFileToTenant(file, auth?.idTag, contextIdTag)
-	const canShare =
-		isSingleSelect &&
-		canManageShares(
-			scopedFile,
-			auth?.idTag,
-			contextIdTag,
-			isCrossOwner ? [] : (activeContext?.roles ?? [])
-		)
-	const canManage =
-		isSingleSelect &&
-		canManageFile(scopedFile, auth?.idTag, isCrossOwner ? [] : (activeContext?.roles ?? []))
+	const isCrossOwner = isCrossOwnerFile(file.upstream?.idTag, false)
+	// The same substitution useFileOwnerScope makes, so the menu's approximation can only be
+	// narrower than what the dialog will allow, never wider: on a mirrored row drop the ACTIVE
+	// context's cached accessLevel, which is not the upstream node's answer (an 'A' grant recorded
+	// locally would otherwise open the full share UI, then 403).
+	const scopedFile = isCrossOwner ? { ...file, accessLevel: undefined } : file
+	const scopeRoles = isCrossOwner ? [] : (activeContext?.roles ?? [])
+	const canShare = isSingleSelect && canManageShares(scopedFile, auth?.idTag, scopeRoles)
+	const canManage = isSingleSelect && canManageFile(scopedFile, auth?.idTag, scopeRoles)
 	const currentVisibility = getVisibilityOption(t, file.visibility ?? null)
 	const visibilityDropdownOptions = getVisibilityDropdownOptions(t)
 
@@ -245,6 +248,8 @@ export function ContextMenu({
 				onClick={handleAction(() =>
 					doPickUp({
 						activeContextIdTag: activeContext.idTag,
+						authIdTag: auth?.idTag,
+						scopeRoles,
 						selectedFiles,
 						inTrash,
 						isManagedView,
@@ -465,18 +470,14 @@ export function ContextMenu({
 				/>
 			)}
 
-			{/* Refresh metadata - only for cross-context (remote) file rows */}
-			{!isRemoteBrowsing &&
-				!isManagedView &&
-				isSingleSelect &&
-				file.owner?.idTag &&
-				file.owner.idTag !== activeContext?.idTag && (
-					<Item
-						icon={<IcRefresh />}
-						label={t('Refresh metadata')}
-						onClick={handleAction(() => fileOps.doRefreshFile?.(file.fileId))}
-					/>
-				)}
+			{/* Refresh metadata - only for mirrored rows, whose canonical copy lives elsewhere */}
+			{!isRemoteBrowsing && !isManagedView && isSingleSelect && file.upstream?.idTag && (
+				<Item
+					icon={<IcRefresh />}
+					label={t('Refresh metadata')}
+					onClick={handleAction(() => fileOps.doRefreshFile?.(file.fileId))}
+				/>
+			)}
 
 			{!isRemoteBrowsing && !isManagedView && <Divider />}
 
@@ -489,14 +490,14 @@ export function ContextMenu({
 				/>
 			)}
 
-			{/* Duplicate - only for single CRDT/RTDB files owned by this context.
-			    Remote-owned files would create an empty record because content
-			    (CRDT/RTDB data) lives on the owner's node and is not transferred. */}
+			{/* Duplicate - only for single CRDT/RTDB rows that originate here. A mirrored row
+			    would create an empty record because content (CRDT/RTDB data) lives on the
+			    upstream node and is not transferred. */}
 			{!isRemoteBrowsing &&
 				!isManagedView &&
 				isSingleSelect &&
 				(file.fileTp === 'CRDT' || file.fileTp === 'RTDB') &&
-				(!file.owner?.idTag || file.owner.idTag === activeContext?.idTag) && (
+				!file.upstream?.idTag && (
 					<Item
 						icon={<IcDuplicate />}
 						label={t('Duplicate')}

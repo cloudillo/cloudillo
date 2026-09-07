@@ -9,6 +9,8 @@ import { Link } from 'react-router-dom'
 
 import { useCtx } from '../../context/index.js'
 import { profilePath } from '../../routes.js'
+import { LiveDocCard } from './LiveDocCard.js'
+import { parseLiveDocContent } from './live-doc.js'
 import { Document, Images, renderPostContent, Video } from './PostMedia.js'
 
 export interface EmbeddedPostCardProps {
@@ -42,7 +44,21 @@ export function EmbeddedPostCard({
 	const [overflowing, setOverflowing] = React.useState(false)
 
 	const fileIdTag = srcTag ?? subjectAction.issuer.idTag
-	const content = typeof subjectAction.content === 'string' ? subjectAction.content : ''
+	// A quoted `POST:LDOC` keeps its commentary in `content.text`; extending the
+	// local rather than the render keeps the overflow measurement below correct.
+	// Memoized: a fresh object every render would re-fire LiveDocCard's row fetch each time.
+	const liveDoc = React.useMemo(
+		() =>
+			subjectAction.subType === 'LDOC'
+				? parseLiveDocContent(subjectAction.content)
+				: undefined,
+		[subjectAction.subType, subjectAction.content]
+	)
+	const content = liveDoc
+		? (liveDoc.text ?? '')
+		: typeof subjectAction.content === 'string'
+			? subjectAction.content
+			: ''
 
 	React.useEffect(() => {
 		const el = contentRef.current
@@ -81,6 +97,8 @@ export function EmbeddedPostCard({
 				}
 			>
 				{!!content && renderPostContent(content)}
+				{/* Never an iframe inside a quote inset. */}
+				{liveDoc && <LiveDocCard docRef={liveDoc} width={width * 0.85} collapsedOnly />}
 				{!!subjectAction.attachments?.length &&
 					(subjectAction.subType === 'VIDEO' ? (
 						<Video attachments={subjectAction.attachments} idTag={fileIdTag} />

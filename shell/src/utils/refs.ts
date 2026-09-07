@@ -3,8 +3,8 @@
 
 /**
  * Share-link (ref) rules shared by ShareDialog, DetailsPanel and ShareCreate. Pure and React-free so
- * the three surfaces cannot drift and so they can be tested without a renderer (`shell` has no
- * `@testing-library/react`).
+ * the three surfaces cannot drift and so they can be tested without a renderer: these rules live in
+ * a `.test.ts` suite, which `shell/jest.config.cjs` runs under `node`, with no DOM.
  */
 
 import { FetchError, type Ref } from '@cloudillo/core'

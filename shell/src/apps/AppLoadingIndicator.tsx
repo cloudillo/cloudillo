@@ -28,10 +28,14 @@ interface AppLoadingIndicatorProps {
 	errorMessage?: string
 	/** Error code from CRDT/backend (used for localized error messages) */
 	errorCode?: number
+	/** Overlay a mounted document without hiding it — a small corner spinner, not a full box. */
+	subtle?: boolean
 }
 
 // Delay before showing the loading indicator (300ms per UX best practices)
 const SHOW_DELAY_MS = 300
+// Must match `transition: opacity 200ms` on `.c-app-loading` in shell/src/style.css
+const FADE_MS = 200
 
 function getErrorText(
 	code: number | undefined,
@@ -57,7 +61,8 @@ export function AppLoadingIndicator({
 	stage,
 	onRetry,
 	errorMessage,
-	errorCode
+	errorCode,
+	subtle
 }: AppLoadingIndicatorProps) {
 	const { t } = useTranslation()
 	const [visible, setVisible] = React.useState(false)
@@ -67,17 +72,20 @@ export function AppLoadingIndicator({
 	React.useEffect(() => {
 		if (stage === 'ready') {
 			// Fade out if currently visible
-			if (visible) {
-				setFadingOut(true)
-				// Hide after fade animation completes
-				const timer = setTimeout(() => {
-					setVisible(false)
-					setFadingOut(false)
-				}, 200)
-				return () => clearTimeout(timer)
-			}
-			return
+			if (!visible) return
+			setFadingOut(true)
+			const timer = setTimeout(() => {
+				setVisible(false)
+				setFadingOut(false)
+			}, FADE_MS)
+			return () => clearTimeout(timer)
 		}
+
+		// A stage leaving 'ready' — the app reports `notifyReady('auth')` and only then
+		// fails — aborts the fade timer above via this effect's own cleanup, so the reset
+		// has to happen here too. Without it the overlay stays mounted at opacity 0 and
+		// the reader gets a blank box instead of the error.
+		setFadingOut(false)
 
 		// Show after delay for non-ready states
 		const timer = setTimeout(() => {
@@ -106,15 +114,24 @@ export function AppLoadingIndicator({
 
 	const stageText = getStageText()
 	const isError = stage === 'error'
+	// An error is never a corner hint: it keeps the full box even in subtle mode.
+	const isSubtle = !!subtle && !isError
 
 	return (
 		<div
+			// A live region whose role is swapped on a MOUNTED node is not reliably
+			// re-registered, so the error would go unannounced. A changing key remounts it as
+			// a fresh region. `aria-live` is redundant next to `role="alert"`; kept explicit
+			// so both states read the same.
+			key={isError ? 'error' : 'status'}
 			className={mergeClasses(
-				'c-app-loading pos-absolute top-0 left-0 right-0 bottom-0 d-flex flex-column align-items-center justify-content-center z-2',
+				isSubtle
+					? 'c-app-loading c-app-loading--subtle pos-absolute top-0 right-0 c-hbox g-2 align-items-center z-2 p-1 m-1'
+					: 'c-app-loading pos-absolute top-0 left-0 right-0 bottom-0 d-flex flex-column align-items-center justify-content-center z-2',
 				fadingOut && 'c-app-loading--fade-out'
 			)}
-			role="status"
-			aria-live="polite"
+			role={isError ? 'alert' : 'status'}
+			aria-live={isError ? 'assertive' : 'polite'}
 		>
 			{isError ? (
 				<>
@@ -133,7 +150,10 @@ export function AppLoadingIndicator({
 				</>
 			) : (
 				<>
-					<LoadingSpinner size="xl" className="mb-3" />
+					<LoadingSpinner
+						size={isSubtle ? 'sm' : 'xl'}
+						className={isSubtle ? undefined : 'mb-3'}
+					/>
 					{stageText && <p className="c-app-loading__text">{stageText}</p>}
 				</>
 			)}

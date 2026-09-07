@@ -141,7 +141,9 @@ export function initLifecycleHandlers(bus: ShellMessageBus): void {
 		// Deliver pending import data when app reaches 'synced' stage
 		if (stage === 'synced') {
 			const conn = bus.getAppTracker().getApp(appWindow)
-			if (conn?.resId) {
+			// Never to an embed: it holds the document's resId only so tokens mint correctly,
+			// and consuming the import here would take it from the editor that queued it.
+			if (conn?.resId && !conn.embed) {
 				deliverPendingImport(bus, appWindow, conn.resId)
 			}
 		}

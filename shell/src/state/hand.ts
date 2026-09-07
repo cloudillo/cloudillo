@@ -6,7 +6,7 @@ import { atom } from 'jotai'
 export interface FileHandItem {
 	type: 'file'
 	id: string // fileId in sourceContext's database
-	idTag: string // owner.idTag — canonical host of the content
+	idTag: string // the node holding the blob: upstream for a mirrored row, else the serving context
 	sourceContext: string // listing-context idTag the row was picked up from
 	sourceParentId?: string | null // parent folder at pick-up time. null = root, undefined = unknown (legacy)
 	label: string // last-known fileName
@@ -15,6 +15,7 @@ export interface FileHandItem {
 	contentType?: string
 	brokenAt?: string // tombstone state
 	inTrash?: boolean // captured at pick-up time when picked from trash view
+	writable?: boolean // may the holder write this row? undefined = unknown
 }
 
 interface HandState {

@@ -11,17 +11,24 @@ import {
 	isAdminPerm,
 	levelsAboveCeiling,
 	linkGrantCeiling,
-	scopeFileToTenant,
+	resolveAccessLevel,
 	shareGrantCeiling,
 	toAppAccess,
-	toSharePermChar
+	toSharePermChar,
+	visibilityRank
 } from '../apps/files/utils.js'
 
 const TENANT = 'community.example'
 const ME = 'alice.example'
 const OTHER = 'bob.example'
 
-function file(owner?: string, creator?: string): File {
+/**
+ * `owner` is AUTHORITY (back-filled to the serving tenant, so effectively always present);
+ * `upstream` is PROVENANCE — set only on a mirrored row, whose canonical copy lives elsewhere.
+ * The two were swapped and renamed in backend migration 49; nothing here reads `owner` as a
+ * cross-context signal any more.
+ */
+function file(owner?: string, upstream?: string): File {
 	return {
 		fileId: 'f1',
 		fileName: 'doc',
@@ -29,213 +36,206 @@ function file(owner?: string, creator?: string): File {
 		createdAt: '2026-01-01T00:00:00Z',
 		preset: '',
 		owner: owner ? { idTag: owner } : undefined,
-		creator: creator ? { idTag: creator } : undefined
+		upstream: upstream ? { idTag: upstream } : undefined
 	}
 }
 
+/*
+ * Mirrors `get_access_level`'s owner shortcut and role ladder
+ * (../cloudillo-rs/crates/cloudillo-core/src/file_access.rs), both gated on
+ * `upstream_id_tag.is_none()`. It exists because `GET /api/files/{id}/metadata` deliberately SKIPS
+ * the computation for a same-tenant caller on a locally originating row.
+ */
+describe('resolveAccessLevel', () => {
+	it('returns the server`s own answer whenever one arrived', () => {
+		// ...even one that contradicts the ladder: the server saw grants we cannot
+		expect(resolveAccessLevel({ ...file(OTHER), accessLevel: 'read' }, ME, ['leader'])).toBe(
+			'read'
+		)
+		expect(resolveAccessLevel({ ...file(ME), accessLevel: 'none' }, ME, [])).toBe('none')
+	})
+
+	/*
+	 * ...including on a MIRRORED row: the serving node is authoritative about its own copy, which
+	 * is what the record predicates act on. That is also why a caller holding a FOREIGN node's
+	 * answer must strip it first, as `deriveFileOwnerScope` does - otherwise it reads as a grant.
+	 */
+	it('returns the served answer for a mirrored row', () => {
+		expect(resolveAccessLevel({ ...file(ME, OTHER), accessLevel: 'write' }, ME, [])).toBe(
+			'write'
+		)
+	})
+
+	it('gives the owner of a locally originating row admin', () => {
+		expect(resolveAccessLevel(file(ME), ME, [])).toBe('admin')
+	})
+
+	it('walks the role ladder on a locally originating row', () => {
+		expect(resolveAccessLevel(file(TENANT), ME, ['leader'])).toBe('admin')
+		expect(resolveAccessLevel(file(TENANT), ME, ['moderator'])).toBe('write')
+		expect(resolveAccessLevel(file(TENANT), ME, ['contributor'])).toBe('write')
+		expect(resolveAccessLevel(file(TENANT), ME, ['supporter'])).toBe('read')
+		expect(resolveAccessLevel(file(TENANT), ME, ['follower'])).toBe('read')
+		// Not "has any role": only the three rungs `role_access_level` names
+		expect(resolveAccessLevel(file(TENANT), ME, ['public'])).toBe('read')
+		expect(resolveAccessLevel(file(TENANT), ME, ['blocked'])).toBeUndefined()
+		// No roles at all is no standing, not read access
+		expect(resolveAccessLevel(file(TENANT), ME, [])).toBeUndefined()
+	})
+
+	/*
+	 * A mirrored row's standing is the UPSTREAM node's to decide, and `deriveFileOwnerScope` strips
+	 * the active context's cached level before we get here. Neither ownership nor leadership may
+	 * fill that in - a refusal is not a grant.
+	 */
+	it('answers nothing about a mirrored row it was sent no level for', () => {
+		expect(resolveAccessLevel(file(ME, OTHER), ME, ['leader'])).toBeUndefined()
+		expect(resolveAccessLevel(file(TENANT, OTHER), ME, ['leader'])).toBeUndefined()
+	})
+})
+
 // Mirrors the `is_share_manager` table in ../cloudillo-rs/crates/cloudillo-core/src/share_access.rs.
-// The explicit 'A' share grant arrives as `accessLevel: 'admin'` on ordinary list rows, so it IS
-// reproducible here — for same-owner rows. It stays invisible on CROSS-OWNER rows, where
-// `deriveFileOwnerScope` strips `accessLevel`; there `hasAdminGrant` recovers it from entries the
-// ShareDialog already fetched.
+// The owner test and the creator rule are GONE from the backend: the owner of a locally originating
+// row already resolves to 'admin' through the ladder above, so a separate branch would only widen it
+// onto mirrored rows, which is exactly the split this file pins.
 describe('canManageShares', () => {
-	it('allows a leader over the serving tenant`s OWN rows, and only those', () => {
-		expect(canManageShares(file(TENANT, OTHER), ME, TENANT, ['leader'])).toBe(true)
-		// `leader_over_tenant_row = is_leader(roles) && owner_id_tag == tenant_id_tag`: leadership is
-		// authority over the tenant's own content, never over a foreign owner's row that merely sits
-		// here as a Pin/Place copy. The roles passed are the ones held on the SERVING node, which is
-		// what useFileOwnerScope derives; passing the wrong node's roles is the caller's bug.
-		expect(canManageShares(file(OTHER, OTHER), ME, TENANT, ['leader'])).toBe(false)
+	/*
+	 * The deliberate widening in the ownership cleanup. `leader_over_local_row = is_leader(roles)
+	 * && upstream.is_none()` no longer requires `owner == tenant`, so a community leader manages
+	 * shares on a MEMBER's own file - it is still the community's own content, hosted here.
+	 */
+	it('allows a leader over a member-owned row that originates here', () => {
+		expect(canManageShares(file(OTHER), ME, ['leader'])).toBe(true)
+		expect(canManageShares(file(TENANT), ME, ['leader'])).toBe(true)
 	})
 
-	it('allows the file owner', () => {
-		expect(canManageShares(file(ME, OTHER), ME, TENANT, [])).toBe(true)
+	/*
+	 * ...and the other half: leadership is authority over what THIS node hosts, never over a
+	 * foreign owner's row that merely sits here as a Pin/Place copy or an FSHR mirror.
+	 */
+	it('refuses a leader over a mirrored row', () => {
+		expect(canManageShares(file(OTHER, OTHER), ME, ['leader'])).toBe(false)
+		// Even one we own ourselves - see the record-vs-content split below
+		expect(canManageShares(file(ME, OTHER), ME, ['leader'])).toBe(false)
 	})
 
-	it('allows the creator of a tenant-owned file', () => {
-		expect(canManageShares(file(TENANT, ME), ME, TENANT, ['contributor'])).toBe(true)
+	/*
+	 * The owner of a locally originating row, with NO accessLevel on it - the
+	 * `GET /files/{id}/metadata` skip path. Nothing but `resolveAccessLevel` recovers this now that
+	 * the owner branch is gone from the predicate.
+	 */
+	it('allows the owner of a local row even when the server sent no level', () => {
+		expect(canManageShares(file(ME), ME, [])).toBe(true)
 	})
 
-	it('rejects the creator when the file is owned by someone else', () => {
-		expect(canManageShares(file(OTHER, ME), ME, TENANT, ['contributor'])).toBe(false)
+	/*
+	 * THE record-vs-content split. A Pin placer / FSHR recipient owns the local RECORD - rename,
+	 * move, hide, delete, tag (the ABAC ownership branch, deliberately not upstream-gated) - but the
+	 * share set belongs to the node holding the canonical copy.
+	 */
+	it('refuses the owner of a mirrored row, who still holds record authority', () => {
+		const pinned = file(ME, OTHER)
+		expect(canManageFile(pinned, ME, [])).toBe(true)
+		expect(canManageShares(pinned, ME, [])).toBe(false)
 	})
 
-	it('rejects a moderator who is neither owner nor creator', () => {
-		expect(canManageShares(file(TENANT, OTHER), ME, TENANT, ['moderator'])).toBe(false)
+	it('rejects a moderator, who has write but not share management', () => {
+		expect(canManageShares(file(TENANT), ME, ['moderator'])).toBe(false)
+		expect(canManageShares(file(TENANT), ME, ['contributor'])).toBe(false)
 	})
 
-	it('rejects a plain member', () => {
-		expect(canManageShares(file(TENANT, OTHER), ME, TENANT, [])).toBe(false)
-	})
-
-	it('rejects an anonymous caller even on a tenant-owned file', () => {
-		expect(canManageShares(file(TENANT, undefined), undefined, TENANT, [])).toBe(false)
-	})
-
-	it('treats an ownerless file as tenant-owned, so only its creator qualifies', () => {
-		expect(canManageShares(file(undefined, ME), ME, TENANT, [])).toBe(true)
-		expect(canManageShares(file(undefined, OTHER), ME, TENANT, [])).toBe(false)
+	it('rejects a plain member and an anonymous caller', () => {
+		expect(canManageShares(file(TENANT), ME, [])).toBe(false)
+		expect(canManageShares(file(TENANT), undefined, [])).toBe(false)
 	})
 
 	// The roles argument is load-bearing: the predicate cannot tell which node they came from, so
 	// the CALLER must pass the ones held on the node that will serve the request. The active
 	// context's roles for a file served elsewhere open the full share UI and then 403.
-	it('grants nothing of its own on a foreign file - the caller owns the roles argument', () => {
-		const foreign = file(OTHER, OTHER)
-		// Judged against the owner's node, where the proxy token grants us nothing
-		expect(canManageShares(foreign, ME, OTHER, [])).toBe(false)
-	})
-
-	// ...and the flip side: real standing on the owner's node still qualifies
-	it('honours a leader role granted by the owner`s own node', () => {
-		expect(canManageShares(file(OTHER, OTHER), ME, OTHER, ['leader'])).toBe(true)
+	it('grants nothing of its own on a mirrored file - the caller owns the roles argument', () => {
+		expect(canManageShares(file(OTHER, OTHER), ME, [])).toBe(false)
 	})
 
 	/*
-	 * ContextMenu's approximation of useFileOwnerScope. The menu will not fetch a proxy token per
-	 * row on right-click, so for a CROSS-OWNER row it passes `[]` instead of the active context's
-	 * roles. That is now belt-and-braces rather than the only thing preventing the false affordance:
-	 * the leader branch is itself confined to tenant-owned rows, so a foreign-owned row is refused
-	 * either way. Both readings of the same row stay pinned here.
-	 */
-	it('offers nothing on a foreign-owned row, with or without the leader role', () => {
-		const foreign = file(OTHER, OTHER)
-		// The ACTIVE context's roles, judged against a foreign owner - refused by the tenant-owned
-		// gate even though the role itself is real somewhere
-		expect(canManageShares(foreign, ME, TENANT, ['leader'])).toBe(false)
-		// What ContextMenu passes, matching what the dialog will conclude
-		expect(canManageShares(foreign, ME, TENANT, [])).toBe(false)
-	})
-
-	it('still recognises our own file while a community context is active', () => {
-		// Cross-owner by idTag, so ContextMenu withholds the roles - and the owner branch, which
-		// needs none, still fires. This is why withholding them is safe.
-		expect(canManageShares(file(ME, OTHER), ME, TENANT, [])).toBe(true)
-	})
-
-	/*
-	 * Backend gate 0: `is_share_manager` returns false on `access == AccessLevel::None` BEFORE it
-	 * looks at is_leader / has_admin_grant / owner == subject
-	 * (cloudillo-rs crates/cloudillo-core/src/share_access.rs:71). Reachability is not something
-	 * leadership or ownership can substitute for; without this gate the predicate offers "Share…"
-	 * on a row the server would refuse outright.
+	 * Backend gate 0: `is_share_manager` returns false on `access == AccessLevel::None` BEFORE the
+	 * leader test (cloudillo-rs crates/cloudillo-core/src/share_access.rs:75). Reachability is not
+	 * something leadership can substitute for; without this gate the predicate offers "Share…" on a
+	 * row the server would refuse outright.
 	 */
 	it('rejects an unreachable row whatever the standing', () => {
-		const unreachable = { ...file(ME, ME), accessLevel: 'none' as const }
-		expect(canManageShares(unreachable, ME, TENANT, [])).toBe(false)
-		expect(canManageShares(unreachable, ME, TENANT, ['leader'])).toBe(false)
-		expect(
-			canManageShares({ ...file(TENANT, ME), accessLevel: 'none' }, ME, TENANT, ['leader'])
-		).toBe(false)
-	})
-
-	it('is unaffected when the access level is absent or write', () => {
-		expect(canManageShares(file(ME, OTHER), ME, TENANT, [])).toBe(true)
-		expect(canManageShares({ ...file(ME, OTHER), accessLevel: 'write' }, ME, TENANT, [])).toBe(
-			true
-		)
-		expect(
-			canManageShares({ ...file(TENANT, OTHER), accessLevel: 'write' }, ME, TENANT, [])
-		).toBe(false)
-	})
-
-	it('gives a remote tenant`s file no standing from roles held elsewhere', () => {
-		// Ownerless on the remote node: nothing in the file names the tenant, so the caller must
-		// pass the browsed tenant's idTag or a leader role from home leaks straight through.
-		expect(canManageShares(file(undefined, OTHER), ME, 'remote.example', [])).toBe(false)
-		// Ownerless === tenant-owned (the backend's `effective_owner`), so leadership DOES apply
-		expect(canManageShares(file(undefined, OTHER), ME, TENANT, ['leader'])).toBe(true)
-		/*
-		 * ...and an ownerless row stays "tenant-owned" whatever tenant is named, so the predicate
-		 * alone cannot tell a remote node's own file from ours. Naming the serving tenant as the
-		 * owner is what closes it - `scopeFileToTenant`, which every caller judging a foreign node
-		 * runs first. A leader role held at HOME then confers nothing there.
-		 */
-		const remote = scopeFileToTenant(file(undefined, OTHER), ME, 'remote.example')
-		expect(canManageShares(remote, ME, TENANT, ['leader'])).toBe(false)
-		// ...while real leadership on that node still qualifies
-		expect(canManageShares(remote, ME, 'remote.example', ['leader'])).toBe(true)
+		const unreachable = { ...file(ME), accessLevel: 'none' as const }
+		expect(canManageShares(unreachable, ME, [])).toBe(false)
+		expect(canManageShares(unreachable, ME, ['leader'])).toBe(false)
 	})
 
 	/*
 	 * The 'A' grant, which the backend resolves into the access level itself
-	 * (`AccessLevel::from_perm_char('A') == Admin`) and reports on every `GET /api/files` row.
-	 * Without it an admin grantee is a false negative until the ShareDialog's `hasAdminGrant` runs.
+	 * (`AccessLevel::from_perm_char('A') == Admin`) and reports on every `GET /api/files` row. It is
+	 * the only standing that reaches ACROSS the mirror.
 	 */
-	it("recognises an 'A' grantee who is neither owner, creator nor leader", () => {
+	it("recognises an 'A' grantee on a mirrored row", () => {
 		const granted = { ...file(OTHER, OTHER), accessLevel: 'admin' as const }
-		expect(canManageShares(granted, ME, TENANT, [])).toBe(true)
-		// ...on the owner's own node too, where they hold no roles at all.
-		expect(canManageShares(granted, ME, OTHER, [])).toBe(true)
+		expect(canManageShares(granted, ME, [])).toBe(true)
 		// A plain write grant on the same row still confers nothing.
-		expect(canManageShares({ ...granted, accessLevel: 'write' }, ME, TENANT, [])).toBe(false)
-	})
-
-	it("does not let 'admin' override the unreachable gate", () => {
-		// Gate 0 runs first; 'none' and 'admin' are mutually exclusive server-side, but the
-		// ordering is what makes that safe rather than incidental.
-		expect(
-			canManageShares({ ...file(ME, ME), accessLevel: 'none' }, ME, TENANT, ['leader'])
-		).toBe(false)
+		expect(canManageShares({ ...granted, accessLevel: 'write' }, ME, [])).toBe(false)
 	})
 
 	/*
-	 * Why `hasAdminGrant` survives: `deriveFileOwnerScope` (utils.ts) hands cross-owner rows to
-	 * this predicate with `accessLevel: undefined`, because the ACTIVE context's cached level is
-	 * not the OWNER node's answer. The 'admin' branch above is therefore invisible there, and the
+	 * Why `hasAdminGrant` survives: `deriveFileOwnerScope` (utils.ts) hands mirrored rows to this
+	 * predicate with `accessLevel: undefined`, because the ACTIVE context's cached level is not the
+	 * UPSTREAM node's answer. The 'admin' branch above is therefore invisible there, and the
 	 * ShareDialog's `hasAdminGrant` fallback is the only thing that recovers the grant.
 	 */
-	it('cannot see an admin grant once the cross-owner scope has stripped the level', () => {
+	it('cannot see an admin grant once the cross-context scope has stripped the level', () => {
 		const stripped = { ...file(OTHER, OTHER), accessLevel: undefined }
-		expect(canManageShares(stripped, ME, TENANT, [])).toBe(false)
+		expect(canManageShares(stripped, ME, [])).toBe(false)
 		expect(hasAdminGrant([{ subjectType: 'U', subjectId: ME, permission: 'A' }], ME)).toBe(true)
 	})
 })
 
 /*
- * Mirrors `grant_ceiling` (cloudillo-rs crates/cloudillo-core/src/share_access.rs): being a share
- * MANAGER says nothing about how much access one may hand out. `ensure_grant_within` caps every
- * mint and widen at the caller's own level, so the creator rule cannot be used to escalate.
+ * Mirrors `grant_ceiling` (cloudillo-rs crates/cloudillo-core/src/share_access.rs:121): being a
+ * share MANAGER says nothing about how much access one may hand out. `ensure_grant_within` caps
+ * every mint and widen at the caller's own level.
  */
 describe('shareGrantCeiling / linkGrantCeiling', () => {
-	it('gives the owner everything', () => {
-		expect(shareGrantCeiling(file(ME, OTHER), ME, TENANT, [])).toBe('admin')
+	it('gives the owner of a local row everything', () => {
+		expect(shareGrantCeiling(file(ME), ME, [])).toBe('admin')
 		// ...capped into the link vocabulary, which has no admin
-		expect(linkGrantCeiling(file(ME, OTHER), ME, TENANT, [])).toBe('WRITE')
+		expect(linkGrantCeiling(file(ME), ME, [])).toBe('WRITE')
 	})
 
-	it('gives a leader everything over the tenant`s OWN row', () => {
-		expect(shareGrantCeiling(file(TENANT, OTHER), ME, TENANT, ['leader'])).toBe('admin')
-		// ...and an ownerless row is the same row
-		expect(shareGrantCeiling(file(undefined, OTHER), ME, TENANT, ['leader'])).toBe('admin')
+	it('gives a leader everything over a row that originates here', () => {
+		expect(shareGrantCeiling(file(TENANT), ME, ['leader'])).toBe('admin')
+		// ...including a member's own file - the same widening canManageShares got
+		expect(shareGrantCeiling(file(OTHER), ME, ['leader'])).toBe('admin')
 	})
 
-	// The other half of `leader_over_tenant_row`: over foreign content a leader is judged on their
-	// own access alone, exactly as `grant_ceiling(access, false, false)` does.
-	it('falls back to the file`s own level for a leader over a foreign-owned row', () => {
+	// The other half of `leader_over_local_row`: over a mirrored row a leader is judged on their
+	// own access alone, exactly as `grant_ceiling(access, false)` does.
+	it('falls back to the row`s own level for a leader over a mirrored row', () => {
 		const pinned = { ...file(OTHER, OTHER), accessLevel: 'comment' as const }
-		expect(shareGrantCeiling(pinned, ME, TENANT, ['leader'])).toBe('comment')
-		expect(linkGrantCeiling(pinned, ME, TENANT, ['leader'])).toBe('COMMENT')
+		expect(shareGrantCeiling(pinned, ME, ['leader'])).toBe('comment')
+		expect(linkGrantCeiling(pinned, ME, ['leader'])).toBe('COMMENT')
 	})
 
-	// THE case the ceiling exists for: a Read-level creator manages the shares (creator rule) but
-	// may not mint a write grant and redeem it.
-	it('caps a Read-level creator of a tenant-owned file at read', () => {
-		const f = { ...file(TENANT, ME), accessLevel: 'read' as const }
-		expect(canManageShares(f, ME, TENANT, [])).toBe(true)
-		expect(shareGrantCeiling(f, ME, TENANT, [])).toBe('read')
-		expect(linkGrantCeiling(f, ME, TENANT, [])).toBe('READ')
+	// THE case the ceiling exists for: a Read-level share manager may not mint a write grant and
+	// redeem it. On a local row the server's own level still caps the ladder.
+	it('caps a Read-level caller at read', () => {
+		const f = { ...file(TENANT, OTHER), accessLevel: 'read' as const }
+		expect(shareGrantCeiling(f, ME, [])).toBe('read')
+		expect(linkGrantCeiling(f, ME, [])).toBe('READ')
 	})
 
 	/*
 	 * An absent level means "not computed", not "no access": `deriveFileOwnerScope` strips it on
-	 * cross-owner rows. Guessing low there would grey out the menu for a legitimate manager, so the
+	 * mirrored rows. Guessing low there would grey out the menu for a legitimate manager, so the
 	 * fallback is unrestricted and the SERVER stays the enforcer - its refusal is what
 	 * `shareLinkErrorMessage` explains.
 	 */
 	it('is unrestricted when the level is unknown', () => {
-		expect(shareGrantCeiling(file(OTHER, OTHER), ME, TENANT, [])).toBe('admin')
-		expect(linkGrantCeiling(file(OTHER, OTHER), ME, TENANT, [])).toBe('WRITE')
+		expect(shareGrantCeiling(file(OTHER, OTHER), ME, [])).toBe('admin')
+		expect(linkGrantCeiling(file(OTHER, OTHER), ME, [])).toBe('WRITE')
 	})
 
 	it('reports the levels a ceiling forbids', () => {
@@ -245,121 +245,77 @@ describe('shareGrantCeiling / linkGrantCeiling', () => {
 	})
 })
 
-// canManageFile stays looser on purpose: the backend did not tighten rename /
-// delete / visibility, so moderators and non-creator members keep those.
+// canManageFile is the ABAC ownership branch for `file:update|delete|write`
+// (crates/cloudillo-core/src/abac.rs:615-635), deliberately NOT upstream-gated, plus plain write
+// access. It is looser than canManageShares in one direction and stricter in another.
 describe('canManageFile vs canManageShares', () => {
 	it('lets a moderator manage but not re-share a community file', () => {
-		const f = file(TENANT, OTHER)
+		const f = file(TENANT)
 		expect(canManageFile(f, ME, ['moderator'])).toBe(true)
-		expect(canManageShares(f, ME, TENANT, ['moderator'])).toBe(false)
-	})
-
-	it('lets any context member manage but not re-share an ownerless file', () => {
-		const f = file(undefined, OTHER)
-		expect(canManageFile(f, ME, [])).toBe(true)
-		expect(canManageShares(f, ME, TENANT, [])).toBe(false)
-	})
-
-	// Both are now judged against the SCOPE - the node in `api` - not the active context. The
-	// roles argument is the only thing that carries that, so a moderator role held on the wrong
-	// node must never be passed here; useFileOwnerScope is what gets it right.
-	it('judges canManageFile against the scope roles it is handed', () => {
-		const f = file(OTHER, OTHER)
-		// Moderator on the owner's node: rename/delete/visibility are allowed there
-		expect(canManageFile(f, ME, ['moderator'])).toBe(true)
-		// No standing on that node: the visibility dropdown must not render
-		expect(canManageFile(f, ME, [])).toBe(false)
+		expect(canManageShares(f, ME, ['moderator'])).toBe(false)
 	})
 
 	/*
-	 * ContextMenu withholds the active context's roles from canManageFile too, for the same reason
-	 * it withholds them from canManageShares: a leader of TENANT looking at a row owned by OTHER was
-	 * offered a visibility change the menu cannot even route (it holds no owner-scoped client) and
-	 * that DetailsPanel, which resolves OTHER's roles, hides.
+	 * The old predicate short-circuited to `true` on an "ownerless" row, so every plain member got
+	 * Rename, the Visibility dropdown and editable Tags on every community file - all three 403.
+	 * There is no ownerless row any more, and no short-circuit.
 	 */
-	it('offers no visibility standing on a foreign-owned row when the leader role is withheld', () => {
-		const foreign = file(OTHER, OTHER)
-		// The ACTIVE context's roles, judged against a foreign owner - the wrong node's answer
-		expect(canManageFile(foreign, ME, ['leader'])).toBe(true)
-		// What ContextMenu passes
-		expect(canManageFile(foreign, ME, [])).toBe(false)
-		// ...and our own file is unaffected: the owner branch needs no roles
-		expect(canManageFile(file(ME, OTHER), ME, [])).toBe(true)
+	it('refuses a community row to a plain member', () => {
+		expect(canManageFile(file(TENANT), ME, [])).toBe(false)
+	})
+
+	// Both are judged against the SCOPE - the node in `api` - not the active context. The roles
+	// argument is the only thing that carries that, so a moderator role held on the wrong node must
+	// never be passed here; useFileOwnerScope is what gets it right.
+	it('judges canManageFile against the scope roles it is handed', () => {
+		const local = file(OTHER)
+		expect(canManageFile(local, ME, ['moderator'])).toBe(true)
+		expect(canManageFile(local, ME, [])).toBe(false)
+	})
+
+	// ...and roles say nothing at all about a mirrored row, whose level the upstream node owns.
+	it('grants nothing from roles on a mirrored row', () => {
+		expect(canManageFile(file(OTHER, OTHER), ME, ['leader'])).toBe(false)
+		// A real grant from that node does carry through
+		expect(canManageFile({ ...file(OTHER, OTHER), accessLevel: 'write' }, ME, [])).toBe(true)
 	})
 })
 
 /*
- * canManageFile short-circuits to `true` on an ownerless file - "owned by the tenant we are
- * talking to", which is right for our OWN node and wrong for anyone else's. A remote tenant serves
- * its own files with no owner tag, so while remote-browsing every row came back manageable no
- * matter what roles were held there: the full visibility/rename UI, then a 403.
- *
- * The predicate is not the place to fix that - ContextMenu depends on the ownerless branch - so the
- * callers that judge a FOREIGN node (useFileOwnerScope, MediaPickerBrowseTab's canUnlock) fill in
- * the serving tenant as an explicit owner first. These pin both halves of that substitution.
+ * The single most important consequence of the swap: on a community, a MEMBER's own file has
+ * `owner = member ≠ context`. Every old `owner?.idTag !== contextIdTag` test read that as
+ * cross-context - stripping accessLevel, firing a proxy-token probe at the member's node and
+ * building a resId with the wrong owner half. `upstream` is the only provenance signal.
  */
-describe('ownerless files across nodes', () => {
-	it('grants an ownerless file to a roleless caller - the local-node case', () => {
-		expect(canManageFile(file(undefined, OTHER), ME, [])).toBe(true)
+describe('a member-owned row on a community', () => {
+	const memberFile = file(OTHER)
+
+	it('is judged by the community`s own roles, not treated as foreign', () => {
+		expect(canManageFile(memberFile, ME, ['moderator'])).toBe(true)
+		expect(canManageShares(memberFile, ME, ['leader'])).toBe(true)
+		expect(shareGrantCeiling(memberFile, ME, ['leader'])).toBe('admin')
 	})
 
-	it('refuses the same file once the serving tenant is named as its owner', () => {
-		const scoped = { ...file(undefined, OTHER), owner: { idTag: OTHER } }
-		expect(canManageFile(scoped, ME, [])).toBe(false)
-		expect(canManageShares(scoped, ME, OTHER, [])).toBe(false)
-	})
-
-	// The substitution must not hand out anything the roles do not already carry
-	it('still allows a caller with standing on that foreign node', () => {
-		const scoped = { ...file(undefined, OTHER), owner: { idTag: OTHER } }
-		expect(canManageFile(scoped, ME, ['moderator'])).toBe(true)
-		expect(canManageShares(scoped, ME, OTHER, ['leader'])).toBe(true)
-	})
-
-	// ...and the owner themselves is unaffected either way
-	it('leaves our own ownerless file alone when the tenant is us', () => {
-		const scoped = { ...file(undefined, ME), owner: { idTag: ME } }
-		expect(canManageFile(scoped, ME, [])).toBe(true)
-	})
-})
-
-// The substitution itself, shared by deriveFileOwnerScope, ContextMenu and MediaPickerBrowseTab so
-// all three judge a foreign node the same way.
-describe('scopeFileToTenant', () => {
-	it('leaves a row that already names its owner alone', () => {
-		const owned = file(OTHER, OTHER)
-		expect(scopeFileToTenant(owned, ME, TENANT)).toBe(owned)
-	})
-
-	it('leaves an ownerless row alone when the serving tenant is us', () => {
-		const ownerless = file(undefined, ME)
-		expect(scopeFileToTenant(ownerless, ME, ME)).toBe(ownerless)
-		// ...and with no tenant to name there is nothing to substitute
-		expect(scopeFileToTenant(ownerless, ME, undefined)).toBe(ownerless)
-	})
-
-	it('names a foreign serving tenant as the owner', () => {
-		const scoped = scopeFileToTenant(file(undefined, OTHER), ME, TENANT)
-		expect(scoped.owner).toEqual({ idTag: TENANT })
-		// ...which is exactly what closes canManageFile's ownerless short-circuit
-		expect(canManageFile(scoped, ME, [])).toBe(false)
+	it('is refused to a caller with no standing on that community', () => {
+		expect(canManageFile(memberFile, ME, [])).toBe(false)
+		expect(canManageShares(memberFile, ME, [])).toBe(false)
 	})
 })
 
 /*
  * ContextMenu approximates useFileOwnerScope without mounting it (the hook fetches a proxy token
  * per file, which the menu will not do on every right-click). The hook strips `accessLevel` on a
- * cross-owner row because the ACTIVE context's cached level is not the owner node's answer — and
+ * mirrored row because the ACTIVE context's cached level is not the upstream node's answer — and
  * once `accessLevel: 'admin'` started arriving on ordinary rows, a menu that skipped the strip
- * offered "Share…" on a foreign-owned pinned copy, then opened a dialog that refused it.
+ * offered "Share…" on a pinned copy, then opened a dialog that refused it.
  */
-describe('ContextMenu`s cross-owner accessLevel strip', () => {
+describe('ContextMenu`s mirrored-row accessLevel strip', () => {
 	it('needs the local `admin` level stripped before it agrees with the dialog', () => {
 		const pinned = { ...file(OTHER, OTHER), accessLevel: 'admin' as const }
-		// What the menu would conclude passing the row raw, even with the roles withheld
-		expect(canManageShares(pinned, ME, TENANT, [])).toBe(true)
+		// What the menu would conclude passing the row raw
+		expect(canManageShares(pinned, ME, [])).toBe(true)
 		// What it concludes now, matching deriveFileOwnerScope and therefore the dialog
-		expect(canManageShares({ ...pinned, accessLevel: undefined }, ME, TENANT, [])).toBe(false)
+		expect(canManageShares({ ...pinned, accessLevel: undefined }, ME, [])).toBe(false)
 	})
 })
 
@@ -371,40 +327,50 @@ describe('canReadShares', () => {
 	}
 
 	it('passes anyone who can manage the shares', () => {
-		expect(canReadShares(file(ME, OTHER), ME, TENANT, [])).toBe(true)
+		expect(canReadShares(file(ME), ME, [])).toBe(true)
 	})
 
-	it('passes a `W` grantee who cannot manage them', () => {
+	it('passes a `W` grantee on a mirrored row who cannot manage them', () => {
 		const f = withAccess(file(OTHER, OTHER), 'write')
-		expect(canManageShares(f, ME, OTHER, [])).toBe(false)
-		expect(canReadShares(f, ME, OTHER, [])).toBe(true)
+		expect(canManageShares(f, ME, [])).toBe(false)
+		expect(canReadShares(f, ME, [])).toBe(true)
 	})
 
 	it('rejects a read-only grantee', () => {
-		expect(canReadShares(withAccess(file(OTHER, OTHER), 'read'), ME, OTHER, [])).toBe(false)
+		expect(canReadShares(withAccess(file(OTHER, OTHER), 'read'), ME, [])).toBe(false)
 	})
 
 	// 'admin' outranks 'write', so it passes twice over: canManageShares admits it outright, and
 	// the canWrite() fallback would too.
 	it("passes an 'A' grantee", () => {
-		expect(canReadShares(withAccess(file(OTHER, OTHER), 'admin'), ME, OTHER, [])).toBe(true)
+		expect(canReadShares(withAccess(file(OTHER, OTHER), 'admin'), ME, [])).toBe(true)
 	})
 
-	// `is_share_reader` requires Write, not Read (share_access.rs:86) - comment access is not enough
+	// `is_share_reader` requires Write, not Read (share_access.rs:88) - comment access is not enough
 	// to enumerate, and 'none' is refused by canManageShares' gate 0 as well.
 	it('rejects comment and unreachable access', () => {
-		expect(canReadShares(withAccess(file(OTHER, OTHER), 'comment'), ME, OTHER, [])).toBe(false)
-		expect(canReadShares(withAccess(file(OTHER, OTHER), 'none'), ME, OTHER, [])).toBe(false)
-		// ...even for the owner, since gate 0 fires ahead of the ownership test
-		expect(canReadShares(withAccess(file(ME, ME), 'none'), ME, TENANT, ['leader'])).toBe(false)
+		expect(canReadShares(withAccess(file(OTHER, OTHER), 'comment'), ME, [])).toBe(false)
+		expect(canReadShares(withAccess(file(OTHER, OTHER), 'none'), ME, [])).toBe(false)
+		// ...even for the owner, since gate 0 fires ahead of everything
+		expect(canReadShares(withAccess(file(ME), 'none'), ME, ['leader'])).toBe(false)
+	})
+
+	// Record authority, the same rung canManageFile keeps: the placer of a Pin row may SEE who
+	// their own copy is shared with even though resolveAccessLevel holds no content answer for a
+	// mirrored row. Managing those shares is still the upstream node's call.
+	it('passes the owner of a mirrored row it was sent no level for', () => {
+		const f = file(ME, OTHER)
+		expect(resolveAccessLevel(f, ME, [])).toBeUndefined()
+		expect(canManageShares(f, ME, [])).toBe(false)
+		expect(canReadShares(f, ME, [])).toBe(true)
 	})
 
 	// `compute_file_access_levels` fills accessLevel on every list row; it is absent only on rows the
-	// shell built itself and on metadata responses, where the rename/delete standing is the best
-	// proxy we have for "has write access".
-	it('falls back to canManageFile when accessLevel is absent', () => {
-		expect(canReadShares(file(TENANT, OTHER), ME, TENANT, ['moderator'])).toBe(true)
-		expect(canReadShares(file(OTHER, OTHER), ME, OTHER, [])).toBe(false)
+	// shell built itself and on metadata responses, where `resolveAccessLevel`'s ladder fills it in.
+	it('falls back to the role ladder when accessLevel is absent', () => {
+		expect(canReadShares(file(TENANT), ME, ['moderator'])).toBe(true)
+		expect(canReadShares(file(TENANT), ME, [])).toBe(false)
+		expect(canReadShares(file(OTHER, OTHER), ME, [])).toBe(false)
 	})
 })
 
@@ -419,11 +385,10 @@ describe('isAdminPerm', () => {
 })
 
 /*
- * The cross-owner fallback: `deriveFileOwnerScope` strips `accessLevel` on rows whose owner is
- * not the active context, so `canManageShares`' 'admin' branch cannot fire there. This recovers
- * the grant from entries the caller has already fetched — ShareDialog is the only place that has
- * them, which is why a cross-owner 'A' grant still reads as a false negative at every entry point
- * before the dialog opens.
+ * The cross-context fallback: `deriveFileOwnerScope` strips `accessLevel` on mirrored rows, so
+ * `canManageShares`' 'admin' branch cannot fire there. This recovers the grant from entries the
+ * caller has already fetched — ShareDialog is the only place that has them, which is why a mirrored
+ * 'A' grant still reads as a false negative at every entry point before the dialog opens.
  */
 describe('hasAdminGrant', () => {
 	type GrantEntry = NonNullable<Parameters<typeof hasAdminGrant>[0]>[number]
@@ -470,8 +435,8 @@ describe('canWrite', () => {
 		expect(canWrite('none')).toBe(false)
 	})
 
-	// An absent level means "not computed", not "no access" — the callers that care branch on it
-	// separately (canReadShares falls back to canManageFile).
+	// An absent level means "not computed", not "no access" — `resolveAccessLevel` is what fills it
+	// in where it legitimately can.
 	it('rejects an absent level', () => {
 		expect(canWrite(undefined)).toBe(false)
 	})
@@ -518,6 +483,31 @@ describe('toSharePermChar', () => {
 
 	it('accepts a String object, as the runtype decoder can produce', () => {
 		expect(toSharePermChar(new String('A'))).toBe('A')
+	})
+})
+
+/**
+ * The POST vocabulary (`Visibility` in `shell/src/apps/feed/VisibilitySelector.tsx`) is a
+ * subset of the FILE ladder, and `ComposePanel` compares a document's visibility against a
+ * post's on this one function. Nothing in the type system pins the two together, so this does.
+ */
+describe('visibilityRank', () => {
+	it.each(['P', 'C', 'F'])('places the post visibility %s on the file ladder', (v) => {
+		expect(visibilityRank(v)).toBeGreaterThanOrEqual(0)
+	})
+
+	it('orders public above followers above connected above direct', () => {
+		expect(visibilityRank('P')).toBeGreaterThan(visibilityRank('F'))
+		expect(visibilityRank('F')).toBeGreaterThan(visibilityRank('C'))
+		expect(visibilityRank('C')).toBeGreaterThan(visibilityRank(null))
+	})
+
+	it("normalises 'D' onto the same rung as null", () => {
+		expect(visibilityRank('D')).toBe(visibilityRank(null))
+	})
+
+	it.each([undefined, 'X'])('refuses to place %s', (v) => {
+		expect(visibilityRank(v)).toBe(-1)
 	})
 })
 

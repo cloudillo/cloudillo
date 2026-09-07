@@ -7,6 +7,10 @@ import type { File } from '../types.js'
 
 export interface UseMultiSelectOptions {
 	files: File[]
+	/** Identity of the list being shown — view, folder, node, search and tags. Changing it
+	 *  clears the selection outright, which id-pruning cannot do while the new list is
+	 *  still empty. */
+	resetKey?: string
 }
 
 export interface UseMultiSelectResult {
@@ -21,7 +25,7 @@ export interface UseMultiSelectResult {
 	getSelectedFiles: () => File[]
 }
 
-export function useMultiSelect({ files }: UseMultiSelectOptions): UseMultiSelectResult {
+export function useMultiSelect({ files, resetKey }: UseMultiSelectOptions): UseMultiSelectResult {
 	const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set())
 	const [anchorId, setAnchorId] = React.useState<string | undefined>()
 
@@ -29,13 +33,30 @@ export function useMultiSelect({ files }: UseMultiSelectOptions): UseMultiSelect
 	// This avoids infinite loops when the files array reference changes but content is the same
 	const filesKey = React.useMemo(() => files.map((f) => f.fileId).join(','), [files])
 
-	// Clear selection when files actually change (based on IDs, not reference)
+	// Drop only the ids that left the list - a mutation refetch must not lose the selection.
+	// While the list is empty (the blank tick refresh() causes) keep everything: nothing with
+	// no row renders anyway, since every accessor derives from `files`.
 	React.useEffect(
-		function clearOnFilesChange() {
+		function pruneOnFilesChange() {
+			if (files.length === 0) return
+			const ids = new Set(files.map((f) => f.fileId))
+			setSelectedIds((prev) => {
+				const next = new Set([...prev].filter((id) => ids.has(id)))
+				return next.size === prev.size ? prev : next
+			})
+			setAnchorId((prev) => (prev !== undefined && !ids.has(prev) ? undefined : prev))
+		},
+		[filesKey]
+	)
+
+	// Navigating somewhere else drops the selection outright — the prune above cannot,
+	// since the new list may still be empty. Fires once on mount, harmlessly.
+	React.useEffect(
+		function clearOnListChange() {
 			setSelectedIds(new Set())
 			setAnchorId(undefined)
 		},
-		[filesKey]
+		[resetKey]
 	)
 
 	const isSelected = React.useCallback(

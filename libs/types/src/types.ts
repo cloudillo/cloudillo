@@ -385,10 +385,27 @@ export const tFollowAction = T.struct({
 export type FollowAction = T.TypeOf<typeof tFollowAction>
 
 // Posts
+
+/** Body of a `POST` with `subType: 'LDOC'` — a reference to a live collaborative document. */
+export const tLiveDocPostContent = T.struct({
+	/** '<idTag>:<fileId>' — fully qualified so a federated reader can address the node
+	 *  that SERVES the document without guessing. The idTag half names that node, never
+	 *  an owner profile. Same grammar as a route resId. */
+	doc: T.string,
+	/** Picks the app bundle. Sanitised by `shellEmbedAppName` before it reaches a URL. */
+	contentType: T.string,
+	/** fileName at post time. Display fallback when the row cannot be fetched. */
+	title: T.optional(T.string),
+	/** The author's commentary — the prose half of the post. */
+	text: T.optional(T.string)
+})
+export type LiveDocPostContent = T.TypeOf<typeof tLiveDocPostContent>
+
 export const tPostAction = T.struct({
 	type: T.literal('POST'),
 	subType: T.string,
-	content: T.string,
+	/** Plain text, except for `subType: 'LDOC'`, where it is a {@link LiveDocPostContent} object. */
+	content: T.union(T.string, tLiveDocPostContent),
 	attachments: T.optional(T.array(T.string)),
 	parentId: T.undefinedValue,
 	audience: T.optional(T.string),

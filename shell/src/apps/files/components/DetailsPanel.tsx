@@ -164,7 +164,7 @@ export function DetailsPanel({
 	// Which node holds this file and whose roles decide what we may do with it. Shared with the
 	// ShareDialog this panel opens - see useFileOwnerScope for why they must not derive it twice.
 	const scope = useFileOwnerScope(file, ownerScope)
-	const { api, isCrossOwner, ownerIdTag: fileOwnerIdTag } = scope
+	const { api, isCrossOwner, upstreamIdTag } = scope
 	// `resolving` is not enough: the owner branch of canManageFile/canManageShares needs no roles,
 	// so an own file reads as manageable while `api` is still null. Requiring the client too is what
 	// stops the affordance rendering before the node it targets exists.
@@ -289,8 +289,9 @@ export function DetailsPanel({
 		[api, canSeeShares, file.fileId]
 	)
 
-	// An ownerless row belongs to the tenant that served it, which `scopeIdTag` names - and `api`
-	// below is that tenant's client, so a local idTag here would be looked up on the remote node.
+	// The owner profile to render. The backend back-fills `owner` to the serving tenant, so the
+	// fallbacks only cover rows the shell built itself - and `api` below is the scope tenant's
+	// client, so `scopeIdTag` is what it can actually look up.
 	const ownerIdTag = file.owner?.idTag ?? scope.scopeIdTag ?? contextIdTag
 
 	React.useEffect(
@@ -322,7 +323,7 @@ export function DetailsPanel({
 
 			// Key by api source so switching between local/remote with the
 			// same fileId doesn't return a path from the wrong context.
-			const cacheKey = `${ownerScope ? 'remote' : isCrossOwner ? `owner:${fileOwnerIdTag}` : 'local'}:${file.fileId}`
+			const cacheKey = `${ownerScope ? 'remote' : isCrossOwner ? `upstream:${upstreamIdTag}` : 'local'}:${file.fileId}`
 
 			// Use path already on the file if present (from a withPath listing).
 			if (file.path) {
@@ -358,7 +359,7 @@ export function DetailsPanel({
 				cancelled = true
 			}
 		},
-		[api, ownerScope, isCrossOwner, fileOwnerIdTag, file.fileId, file.path]
+		[api, ownerScope, isCrossOwner, upstreamIdTag, file.fileId, file.path]
 	)
 
 	function copyShareLink(refId: string) {
@@ -369,9 +370,9 @@ export function DetailsPanel({
 
 	const VisibilityIcon = getVisibilityIcon(file.visibility ?? null)
 
-	// The host that serves the thumbnail is the one holding the file, not the one we are browsing
-	// from: `scopeIdTag` is the remote tenant while remote-browsing an ownerless row.
-	const thumbIdTag = fileOwnerIdTag || scope.scopeIdTag || contextIdTag
+	// The host that serves the thumbnail is the one holding the blob - the upstream node for a
+	// mirrored row, otherwise whichever tenant the scope points at.
+	const thumbIdTag = upstreamIdTag || scope.scopeIdTag || contextIdTag
 
 	const sharedPeopleCount = allPeople?.length ?? 0
 	const sharedLinkCount = shareRefs?.length ?? 0

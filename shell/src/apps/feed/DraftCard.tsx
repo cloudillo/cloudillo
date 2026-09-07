@@ -18,6 +18,8 @@ import {
 	LuVideo as IcVideo
 } from 'react-icons/lu'
 
+import { parseLiveDocContent } from './live-doc.js'
+
 export interface DraftCardProps {
 	draft: ActionView
 	onEdit: (draft: ActionView) => void
@@ -41,12 +43,16 @@ export function DraftCard({
 	// For scheduled drafts, the backend stores publish_at in created_at
 	const publishAt = isScheduled ? new Date(draft.createdAt) : undefined
 	const isOverdue = isScheduled && publishAt && publishAt.getTime() < Date.now()
-	const contentPreview =
+	// An LDOC draft keeps its commentary in `content.text`; without this it falls
+	// through to the "no text" branch even when the author wrote something.
+	const draftText =
 		typeof draft.content === 'string'
-			? draft.content.length > 120
-				? draft.content.slice(0, 120) + '...'
-				: draft.content
-			: undefined
+			? draft.content
+			: draft.subType === 'LDOC'
+				? parseLiveDocContent(draft.content)?.text
+				: undefined
+	const contentPreview =
+		draftText && draftText.length > 120 ? draftText.slice(0, 120) + '...' : draftText
 	const attachmentCount = draft.attachments?.length ?? 0
 
 	async function handlePublishNow() {
@@ -140,10 +146,15 @@ export function DraftCard({
 			<div>
 				{contentPreview ? (
 					<p style={{ margin: 0 }}>{contentPreview}</p>
-				) : attachmentCount > 0 ? (
+				) : attachmentCount > 0 || draft.subType === 'LDOC' ? (
 					<p style={{ margin: 0, opacity: 0.6, fontStyle: 'italic' }}>
-						({t('No text')} - {attachmentCount}{' '}
-						{draft.subType === 'VIDEO' ? (
+						({t('No text')} - {attachmentCount > 0 ? `${attachmentCount} ` : ''}
+						{draft.subType === 'LDOC' ? (
+							<>
+								<IcDocument style={{ verticalAlign: 'text-bottom' }} />{' '}
+								{t('live document')}
+							</>
+						) : draft.subType === 'VIDEO' ? (
 							<>
 								<IcVideo style={{ verticalAlign: 'text-bottom' }} /> {t('video')}
 							</>

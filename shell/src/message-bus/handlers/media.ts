@@ -95,6 +95,20 @@ export function initMediaHandlers(bus: ShellMessageBus): void {
 			return
 		}
 
+		// Defence in depth behind the dispatch gate; see EMBED_ALLOWED_MESSAGES in shell-bus.ts.
+		if (connection.embed) {
+			console.warn('[Media] Pick request from an embed connection')
+			bus.sendResponse(
+				appWindow,
+				'media:pick.ack',
+				msg.id,
+				false,
+				undefined,
+				'Cannot pick media from an embedded document'
+			)
+			return
+		}
+
 		if (!openMediaPickerCallback) {
 			console.error('[Media] No media picker callback registered')
 			// Send error ACK

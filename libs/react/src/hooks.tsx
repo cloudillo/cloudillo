@@ -440,8 +440,10 @@ export interface UseInfiniteScrollReturn<T> {
 	reset: () => void
 	/** Function to prepend items (for real-time updates) */
 	prepend: (newItems: T[]) => void
-	/** Function to patch in-place: replaces the first item matching `match` with `next` */
-	updateItem: (match: (item: T) => boolean, next: T) => void
+	/** Function to patch in-place: replaces the first item matching `match` with `next`, or with
+	 *  `next(prev)` so a caller can merge against the CURRENT item rather than a render-time
+	 *  snapshot. */
+	updateItem: (match: (item: T) => boolean, next: T | ((prev: T) => T)) => void
 	/** Ref to attach to scroll sentinel element */
 	sentinelRef: React.RefObject<HTMLDivElement | null>
 }
@@ -621,16 +623,18 @@ export function useInfiniteScroll<T>(
 		setItems((prev) => [...newItems, ...prev])
 	}, [])
 
-	// Replace the first item matching `match` with `next` (no-op if not present)
-	const updateItem = React.useCallback((match: (item: T) => boolean, next: T) => {
-		setItems((prev) => {
-			const idx = prev.findIndex(match)
-			if (idx < 0) return prev
-			const copy = prev.slice()
-			copy[idx] = next
-			return copy
-		})
-	}, [])
+	const updateItem = React.useCallback(
+		(match: (item: T) => boolean, next: T | ((prev: T) => T)) => {
+			setItems((prev) => {
+				const idx = prev.findIndex(match)
+				if (idx < 0) return prev
+				const copy = prev.slice()
+				copy[idx] = typeof next === 'function' ? (next as (p: T) => T)(prev[idx]) : next
+				return copy
+			})
+		},
+		[]
+	)
 
 	// IntersectionObserver for scroll detection
 	React.useEffect(() => {

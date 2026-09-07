@@ -18,17 +18,18 @@ import { deriveFileOwnerScope, isCrossOwnerFile } from '../utils.js'
 export interface FileOwnerScope {
 	/** The node that actually holds the file, and the only one whose answers count */
 	api: ApiClient | null
-	/** True when the file belongs to a tenant other than the active context */
+	/** True when the file's canonical copy lives on another node */
 	isCrossOwner: boolean
-	ownerIdTag: string | undefined
-	/** The tenant whose standing decides what we may do: the owner, else the active context */
+	/** Where the canonical copy lives, when it is not this node */
+	upstreamIdTag: string | undefined
+	/** The tenant whose standing decides what we may do: the upstream node, else the active context */
 	scopeIdTag: string | undefined
 	/** Which node holds the profile picture blobs for these rows. Addresses an <img>, grants nothing */
 	profileSrcTag: string | undefined
 	/** Roles we hold ON `scopeIdTag` - NOT the active context's roles when cross-owner */
 	scopeRoles: string[]
-	/** The file the predicates actually judged: an ownerless row back-filled to `scopeIdTag`, a
-	 *  cross-owner one with the active context's `accessLevel` stripped */
+	/** The file the predicates actually judged: a mirrored row with the active context's
+	 *  `accessLevel` stripped, otherwise the row as it arrived */
 	scopedFile: ScopedFile
 	/** The highest level a share or link may carry here - the backend's `grant_ceiling` */
 	grantCeiling: FileAccessLevel
@@ -75,8 +76,8 @@ export interface FileOwnerScopeOverride {
 	roles: string[]
 	/**
 	 * The node is decided but `api` has not landed yet. Set it rather than dropping the override:
-	 * without one the row is re-judged against the ACTIVE context, where an ownerless row
-	 * short-circuits canManageFile to `true`.
+	 * without one the row is re-judged against the ACTIVE context, whose roles say nothing about
+	 * the node being browsed.
 	 */
 	resolving?: boolean
 }
@@ -105,10 +106,10 @@ export function useFileOwnerScope(
 	const [auth] = useAuth()
 	const [activeContext] = useAtom(activeContextAtom)
 
-	const ownerIdTag = file.owner?.idTag
+	const upstreamIdTag = file.upstream?.idTag
 	// The one flag the EFFECT below branches on; deriveFileOwnerScope recomputes it from the same
 	// helper, so the two cannot drift.
-	const isCrossOwner = isCrossOwnerFile(ownerIdTag, contextIdTag, !!override)
+	const isCrossOwner = isCrossOwnerFile(upstreamIdTag, !!override)
 
 	const [ownerState, setOwnerState] = React.useState<OwnerState>(() =>
 		// 'idle' would make `resolving` false on the first render, before the effect below has run.
@@ -120,21 +121,21 @@ export function useFileOwnerScope(
 
 	React.useEffect(
 		function acquireOwnerApi() {
-			if (!isCrossOwner || !ownerIdTag) {
+			if (!isCrossOwner || !upstreamIdTag) {
 				setOwnerState({ status: 'idle', api: null, roles: [] })
 				return
 			}
-			// Unconditional WITHIN this branch, before any await: `ownerIdTag` changing from one
-			// foreign tenant to another keeps `isCrossOwner` true, and the previous owner's client
-			// and roles must not survive into the new owner's render.
+			// Unconditional WITHIN this branch, before any await: `upstreamIdTag` changing from one
+			// foreign tenant to another keeps `isCrossOwner` true, and the previous node's client
+			// and roles must not survive into the new one's render.
 			setOwnerState({ status: 'loading', api: null, roles: [] })
 			let cancelled = false
 			;(async function () {
 				try {
-					const tokenResult = await getTokenFor(ownerIdTag, { explicit: true })
+					const tokenResult = await getTokenFor(upstreamIdTag, { explicit: true })
 					if (cancelled) return
 					const client = tokenResult
-						? getClientFor(ownerIdTag, { token: tokenResult.token })
+						? getClientFor(upstreamIdTag, { token: tokenResult.token })
 						: null
 					if (!cancelled) {
 						// No token means no client, which is a refusal and not a result.
@@ -152,7 +153,7 @@ export function useFileOwnerScope(
 				cancelled = true
 			}
 		},
-		[isCrossOwner, ownerIdTag, getTokenFor, getClientFor]
+		[isCrossOwner, upstreamIdTag, getTokenFor, getClientFor]
 	)
 
 	// Memoized because DetailsPanel and ShareDialog both use `api` as an effect dependency: a fresh
@@ -197,7 +198,7 @@ export function useFileOwnerScope(
 		return {
 			api,
 			isCrossOwner: derived.isCrossOwner,
-			ownerIdTag: derived.ownerIdTag,
+			upstreamIdTag: derived.upstreamIdTag,
 			scopeIdTag: derived.scopeIdTag,
 			profileSrcTag: derived.profileSrcTag,
 			scopeRoles: derived.scopeRoles,

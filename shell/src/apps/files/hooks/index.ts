@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-export { buildFileFilterParams, useFileList } from './useFileList.js'
+export { buildFileFilterParams, convertFileView, useFileList } from './useFileList.js'
 export { useFileNavigation } from './useFileNavigation.js'
 export type { FileOwnerScope } from './useFileOwnerScope.js'
 export { useFileOwnerScope } from './useFileOwnerScope.js'

@@ -582,7 +582,8 @@ export class AppMessageBus extends MessageBusBase {
 		return i > 0 ? this.state.resId?.slice(i + 1) : undefined
 	}
 
-	/** Owner tag part of {@link resId} — the tenant serving the document. */
+	/** Owner tag part of {@link resId} — the tenant serving the document. Published API,
+	 *  hence the name; the shell calls the same value `srcIdTag`. */
 	get ownerTag(): string | undefined {
 		const i = this.state.resId?.indexOf(':') ?? -1
 		return i > 0 ? this.state.resId?.slice(0, i) : undefined
@@ -1973,6 +1974,29 @@ export class AppMessageBus extends MessageBusBase {
 			this.pendingShareSessions.delete(sessionId)
 			throw error
 		}
+	}
+
+	/**
+	 * Ask the shell to share the current document as a feed post
+	 *
+	 * Plain request/response, not `requestShareLink`'s ACK + push: the shell
+	 * answers by navigating to the feed, which unmounts this iframe, so a later
+	 * push would arrive nowhere. Resolving means the composer was opened, not
+	 * that anything was posted — the user still writes and sends it.
+	 *
+	 * The document is deliberately not named: the shell derives it from the
+	 * connection, so an app cannot aim a post at another file.
+	 */
+	async postToFeed(): Promise<void> {
+		if (!this.initialized) {
+			throw new Error('AppBus not initialized. Call init() first.')
+		}
+
+		this.log('Requesting feed post for the current document')
+
+		await this.sendRequest<undefined>((id) => {
+			this.sendToShell(this.createRequest('feed:post.req', id))
+		})
 	}
 
 	/**

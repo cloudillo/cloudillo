@@ -82,6 +82,20 @@ export function initShareHandlers(bus: ShellMessageBus): void {
 			return
 		}
 
+		// Defence in depth behind the dispatch gate; see EMBED_ALLOWED_MESSAGES in shell-bus.ts.
+		if (connection.embed) {
+			console.warn('[Share] Create request from an embed connection')
+			bus.sendResponse(
+				appWindow,
+				'share:create.ack',
+				msg.id,
+				false,
+				undefined,
+				'Cannot share from an embedded document'
+			)
+			return
+		}
+
 		if (!openShareCreateCallback) {
 			console.error('[Share] No share create callback registered')
 			bus.sendResponse(

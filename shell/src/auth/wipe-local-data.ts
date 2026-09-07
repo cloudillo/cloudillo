@@ -89,9 +89,11 @@ export async function listDirtyDocs(): Promise<DirtyDocSummary[]> {
 
 	const out: DirtyDocSummary[] = []
 	for (const docId of dirty) {
-		// docId format: `<ownerTag>:<fileId>` (see openYDoc in
-		// libs/react/src/hooks.tsx). The file cache is owner-keyed, so the
-		// docId prefix is the right lookup key.
+		// docId format: `<servingTag>:<fileId>` (see openYDoc in
+		// libs/react/src/hooks.tsx). The file cache is keyed by the tenant that
+		// served the listing, so this prefix only finds rows that ORIGINATE on
+		// that node — a mirrored doc misses and degrades to showing its fileId.
+		// A `by-file-id` index on the `files` store is the fix if that matters.
 		const colon = docId.indexOf(':')
 		const ownerIdTag = colon > 0 ? docId.slice(0, colon) : ''
 		const fileId = colon > 0 ? docId.slice(colon + 1) : docId

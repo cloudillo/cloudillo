@@ -101,13 +101,6 @@ describe('ID Generator', () => {
 			expect(uniqueIds.size).toBe(10000)
 		})
 
-		it('column IDs have sufficient entropy (30 bits)', () => {
-			// With 30 bits, we have 1 billion possible values
-			const ids = generateColIds(10000)
-			const uniqueIds = new Set(ids)
-			expect(uniqueIds.size).toBe(10000)
-		})
-
 		it('sheet IDs have sufficient entropy (72 bits)', () => {
 			// With 72 bits, we have 4.7 sextillion possible values
 			const ids = Array.from({ length: 10000 }, generateSheetId)

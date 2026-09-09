@@ -28,14 +28,14 @@
 		"@symbion/opalui": "^0.15.0",
 		"@types/jest": "^30.0.0",
 		"@types/react": "^19.2.18",
-		"@types/react-dom": "^19.2.4",
+		"@types/react-dom": "^19.2.7",
 		"cross-env": "^10.1.0",
 		"esbuild": "^0.28.2",
-		"i18next": "^26.4.0",
+		"i18next": "^26.4.2",
 		"i18next-scanner": "^4.6.0",
 		"i18next-scanner-typescript": "^1.2.1",
-		"jest": "^30.4.2",
-		"lucide": "^1.33.0",
+		"jest": "^30.5.1",
+		"lucide": "^1.43.0",
 		"quill": "^2.0.3",
 		"quill-cursors": "^5.0.0",
 		"quill-delta": "^5.1.0",
@@ -54,6 +54,6 @@
 		"yjs": "^13.6.32"
 	},
 	"dependencies": {
-		"marked": "^18.0.10"
+		"marked": "^18.0.12"
 	}
 }

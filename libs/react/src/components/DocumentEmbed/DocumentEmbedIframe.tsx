@@ -5,7 +5,7 @@
  * Renders a sandboxed iframe for an embedded document and manages the embed relay.
  */
 
-import { type EmbedRelayHandle, setupEmbedRelay } from '@cloudillo/core'
+import { APP_SANDBOX, type EmbedRelayHandle, setupEmbedRelay } from '@cloudillo/core'
 import * as React from 'react'
 
 export interface DocumentEmbedIframeProps {
@@ -145,7 +145,7 @@ export const DocumentEmbedIframe = React.memo(
 				ref={setIframeRef}
 				src={src}
 				className={className}
-				sandbox="allow-scripts allow-forms allow-downloads allow-popups allow-popups-to-escape-sandbox"
+				sandbox={APP_SANDBOX}
 				loading="lazy"
 				style={{ pointerEvents: active ? 'auto' : 'none' }}
 				onDoubleClick={(e) => {

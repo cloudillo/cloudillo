@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { delay } from '@cloudillo/core'
+import { APP_SANDBOX, delay, resolveAppUrl } from '@cloudillo/core'
 import { jwtRemainingSeconds } from '@cloudillo/core/jwt'
 import { mergeClasses, useApi, useAuth, useDialog, useToast } from '@cloudillo/react'
 import { useSetAtom } from 'jotai'
@@ -16,10 +16,9 @@ import { offAppTitle, onAppError, onAppReady, onAppTitle } from '../message-bus/
 import { getShellBus, type InitAppData } from '../message-bus/shell-bus.js'
 import { filesPath } from '../routes.js'
 import { documentTitleAtom } from '../title.js'
-import { type TrustLevel, useAppConfig } from '../utils.js'
+import { normalizeTrust, type TrustLevel, useAppConfig } from '../utils.js'
 import { AppLoadingIndicator, type LoadingStage } from './AppLoadingIndicator.js'
 import type { AccessConflict } from './access-conflict.js'
-import { APP_SANDBOX, normalizeTrust } from './iframe-policy.js'
 import { useAppToken } from './useAppToken.js'
 import { useDocInfo } from './useDocInfo.js'
 import { useIdentityPush } from './useIdentityPush.js'
@@ -31,6 +30,7 @@ interface MicrofrontendContainerProps {
 	className?: string
 	app: string
 	resId?: string
+	/** Root-relative bundle path; `resolveAppUrl` makes it absolute on the API domain. */
 	appUrl: string
 	trust?: TrustLevel | boolean
 	access?: 'read' | 'comment' | 'write'
@@ -107,7 +107,9 @@ export function MicrofrontendContainer({
 
 	// Boolean flag that only transitions once (false → true)
 	// This prevents effect re-runs on token renewal (api/auth object changes)
-	const isReady = !!(api && (auth !== undefined || providedToken))
+	// `api.idTag`, not just `api`: it is the origin the bundle URL is built on
+	// (`resolveAppUrl` below), and an empty one yields `https://cl-o./apps/…`.
+	const isReady = !!(api?.idTag && (auth !== undefined || providedToken))
 
 	// `providedToken` lets `isReady` flip while `auth` is still `undefined`, so a
 	// share-link mount can initialise the app as an anonymous visitor and — since
@@ -190,7 +192,7 @@ export function MicrofrontendContainer({
 			const currentRequestToken = requestTokenRef.current
 
 			if (
-				currentApi &&
+				currentApi?.idTag &&
 				(currentAuth !== undefined || currentProvidedToken) &&
 				currentRequestToken
 			) {
@@ -388,7 +390,9 @@ export function MicrofrontendContainer({
 				}
 
 				iframeElement?.addEventListener('load', onMicrofrontendLoad)
-				setUrl(`${appUrl}?v=${version}#${resId}`)
+				// The bundle is a static asset of OUR node, so this is the home api's
+				// idTag — never `currentContextIdTag`, the node the document lives on.
+				setUrl(`${resolveAppUrl(currentApi.idTag, appUrl)}?v=${version}#${resId}`)
 
 				// Cleanup on unmount or when core dependencies change (app, resId, retryCount)
 				return () => {
@@ -434,6 +438,11 @@ export function MicrofrontendContainer({
 			/>
 			{/* clipboard-read/clipboard-write are required for in-app context-menu */}
 			{/* copy/paste (Fortune Sheet and others use the async Clipboard API for menu actions) */}
+			{/* Bundles load from the API domain, so shell storage is already out of reach: */}
+			{/* `swKey` is a host-only cookie (`../pwa/cookie.ts` writes no `Domain=`) and the */}
+			{/* ServiceWorker registration is scoped to the shell host. The sandbox's opaque */}
+			{/* origin is what keeps apps off the SW API entirely — and why bundles cannot be */}
+			{/* SW-cached (see `shell/sw/cache-strategy.ts`). */}
 			<iframe
 				ref={ref}
 				src={url}

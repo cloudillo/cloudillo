@@ -43,21 +43,20 @@ class ClImageBlot extends BlockEmbed {
 		node.setAttribute('data-file-id', value.fileId)
 		node.setAttribute('alt', value.alt || '')
 
-		// Construct src URL from fileId
+		// No owner tag — or a fileId `getFileUrl` refuses — means no src, and the
+		// `.ql-cl-image:not([src])` placeholder in `quillo.css` shows instead: a
+		// root-relative `/api/files/…` would now resolve against `cl-o.<home idTag>`, a live
+		// API on the *viewer's* node, where a node-local fileId can name an unrelated file.
 		const variant = 'vis.sd' // Default variant for rich text display
-		if (ClImageBlot.ownerTag) {
-			node.setAttribute(
-				'src',
-				getFileUrl(
+		const src = ClImageBlot.ownerTag
+			? getFileUrl(
 					ClImageBlot.ownerTag,
 					value.fileId,
 					variant,
 					ClImageBlot.token ? { token: ClImageBlot.token } : undefined
 				)
-			)
-		} else {
-			node.setAttribute('src', `/api/files/${value.fileId}?variant=${variant}`)
-		}
+			: undefined
+		if (src) node.setAttribute('src', src)
 
 		// Apply optional width (data attribute = stable source of truth,
 		// HTML width attribute = visual display; avoid style.width which

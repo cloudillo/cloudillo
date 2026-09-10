@@ -6,6 +6,12 @@ import { bytesToBase64 } from '@cloudillo/core/base64'
 import { atom, useAtom } from 'jotai'
 import * as React from 'react'
 
+/** A transparent 1×1 GIF. The `src` for a slide whose URL `getFileUrl` refused: it keeps
+ *  the array index-aligned with `lbIndex` the way `''` did, but `<img src="">` resolves to
+ *  the document URL and refetches the shell's own HTML, and a data: URI fetches nothing. */
+export const BLANK_IMAGE_SRC =
+	'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=='
+
 // Run async tasks with a bounded concurrency so a large fan-out (federated
 // probes, per-group hydration, proxy-token fetches) doesn't fire every request
 // at once (rate-limit safety).
@@ -97,12 +103,23 @@ export function coerceSettingValue(
 ////////////////////
 
 /**
- * Trust levels for microfrontend apps:
- * - 'trusted': First-party apps with full storage access (allow-same-origin)
- * - 'semi-trusted': Verified third-party apps with storage access (allow-same-origin)
- * - 'untrusted': Unverified apps with sandboxed storage (no allow-same-origin, opaque origin)
+ * How far a microfrontend app is trusted — 'trusted' (first-party), 'semi-trusted'
+ * (verified third-party), 'untrusted' (everything else).
+ *
+ * A **presentation and policy** label only: it becomes a CSS class on the app container
+ * (`shell/src/apps/index.tsx`, `mergeClasses('c-app …', trustLevel, …)`). It does **not**
+ * reach the sandbox. Every level gets the same `APP_SANDBOX` from
+ * `libs/core/src/iframe-sandbox.ts`, which never grants `allow-same-origin` — see that
+ * file for why.
  */
 export type TrustLevel = 'trusted' | 'semi-trusted' | 'untrusted'
+
+/** Booleans are the legacy spelling of trusted/untrusted; a TrustLevel passes through. */
+export function normalizeTrust(trust: TrustLevel | boolean | undefined): TrustLevel {
+	if (trust === true) return 'trusted'
+	if (trust === false || trust === undefined) return 'untrusted'
+	return trust
+}
 
 export interface AppConfig {
 	id: string

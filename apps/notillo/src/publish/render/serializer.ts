@@ -366,15 +366,15 @@ function managedImage(
 	// the aspect ratio that `width`/`height` exist to reserve.
 	const intrinsic = variants[variants.length - 1]
 
-	const srcset =
-		variants.length > 1
-			? variants
-					.map(
-						(variant) =>
-							`${getFileUrl(idTag, fileId, variant.variant)} ${variant.width}w`
-					)
-					.join(', ')
-			: undefined
+	// Filtered, not just mapped: this is the one call site where a refused `getFileUrl` lands
+	// in a template literal rather than `attr()` — `undefined` would ship as `"undefined 640w"`.
+	const srcsetEntries = variants
+		.map((variant) => {
+			const url = getFileUrl(idTag, fileId, variant.variant)
+			return url ? `${url} ${variant.width}w` : undefined
+		})
+		.filter((entry): entry is string => entry !== undefined)
+	const srcset = srcsetEntries.length > 1 ? srcsetEntries.join(', ') : undefined
 
 	return (
 		`<img${attr('data-cl-file', fileId)}` +
@@ -458,9 +458,14 @@ function renderImage(block: NotilloSourceBlock, opts: SiteSerializerOptions): st
 	const ref = parseSiteFileRef(props?.url)
 
 	if (ref && opts.ownerIdTag) {
+		const lightboxSrc = getFileUrl(opts.ownerIdTag, ref.fileId, LIGHTBOX_IMAGE_VARIANT)
+		// A fileId `getFileUrl` refuses has no URL at ANY variant, so the block goes —
+		// the same answer `renderMedia` gives an unresolvable href, and better than a
+		// `src`-less `<img>` wearing a lightbox island that can never open.
+		if (lightboxSrc === undefined) return ''
 		const island = islandProps({
 			fileId: ref.fileId,
-			src: getFileUrl(opts.ownerIdTag, ref.fileId, LIGHTBOX_IMAGE_VARIANT),
+			src: lightboxSrc,
 			alt
 		})
 		return figure(

@@ -19,8 +19,10 @@
  * `buildRtdbUrl` emits `?access=read` and the backend forces guest read-only access.
  */
 
+import { appBundleUrl } from '@cloudillo/core'
 import * as React from 'react'
 
+import { shellEmbedAppName } from './app-name.js'
 import { getShellBus } from './message-bus/shell-bus.js'
 
 export type ShellEmbedAccess = 'read' | 'comment' | 'write'
@@ -55,6 +57,19 @@ export function releaseShellEmbed(key: string): void {
 export interface ShellEmbedOptions {
 	/** `<srcIdTag>:<fileId>`. The iframe reads it back out of its location hash. */
 	resId: string
+	/**
+	 * The **home** node's idTag — the origin app bundles are served from. Not the
+	 * `<srcIdTag>` half of `resId`, which names the node the *document* lives on.
+	 *
+	 * On a published-site route this must be the *page owner's* idTag: the page carries
+	 * a CSP (`content_security_policy` in `cloudillo-rs`, `crates/cloudillo-site/src/
+	 * cache.rs`) whose `frame-src` is `'self' https://cl-o.<page owner idTag>`. Any other
+	 * value gives an iframe the browser blocks silently — no load event, no error event,
+	 * so `useShellEmbed` just sits at `'connecting'` until the boot timer errors out.
+	 * The one site caller, `shell/src/site/island-components.tsx`, passes `api.idTag`
+	 * for both halves, so the invariant holds by construction today.
+	 */
+	idTag: string
 	/** The target document's content type; picks the bundle. */
 	contentType: string
 	/** Defaults to `read` — the only level a published page ever asks for. */
@@ -93,12 +108,6 @@ export interface ShellEmbedState {
 	onAppError: (code: number, message?: string) => void
 }
 
-/** A bundle directory name, and nothing that could be read as a path. */
-const APP_NAME_RE = /^[a-z0-9][a-z0-9-]*$/
-
-/** The bundle that renders anything without an app of its own. */
-const GENERIC_VIEWER = 'view'
-
 /**
  * How long an embedded app may stay silent before the box calls it a failure, and the
  * ceiling on `'syncing'`.
@@ -134,24 +143,6 @@ function embedRegistrationKey(): string {
 }
 
 /**
- * Which bundle serves a content type. `cloudillo/quillo` → `quillo`, anything
- * else → the generic viewer.
- *
- * The suffix is **validated, not just sliced.** A published page's `documentEmbed`
- * island carries its `contentType` in author-controlled `data-props`, and the
- * result of this call is both interpolated into the iframe's `/apps/<name>/` src
- * and recorded as the `appName` the shell's handlers treat as attested. Without
- * the check, a stored `cloudillo/../../~/settings/security` would frame an
- * arbitrary same-origin shell route. Anything unrecognised falls back to the
- * viewer, which is the same answer an unknown app already got.
- */
-export function shellEmbedAppName(contentType: string): string {
-	if (!contentType.startsWith('cloudillo/')) return GENERIC_VIEWER
-	const name = contentType.slice('cloudillo/'.length)
-	return APP_NAME_RE.test(name) ? name : GENERIC_VIEWER
-}
-
-/**
  * The iframe src for an embedded document, plus the registration that makes it
  * bootable. Pass `null` while the caller is still missing an input.
  */
@@ -164,7 +155,7 @@ export function useShellEmbed(options: ShellEmbedOptions | null): ShellEmbedStat
 	// Callbacks and navState change identity freely; only these decide which document is
 	// being embedded — plus `retryKey`, the caller's explicit "start over".
 	const key = options
-		? `${options.resId}|${options.contentType}|${options.access ?? 'read'}|${options.version ?? ''}|${options.retryKey ?? ''}`
+		? `${options.resId}|${options.idTag}|${options.contentType}|${options.access ?? 'read'}|${options.version ?? ''}|${options.retryKey ?? ''}`
 		: null
 	const optionsRef = React.useRef(options)
 	optionsRef.current = options
@@ -268,7 +259,8 @@ export function useShellEmbed(options: ShellEmbedOptions | null): ShellEmbedStat
 		// `useDocumentEmbed` (`@cloudillo/react`) uses.
 		setState({
 			stage: 'connecting',
-			iframeSrc: `/apps/${appName}/?v=${version}#${opts.resId}:${registrationKey}`
+			// `opts.idTag` is the home node; the local `idTag` is the document owner.
+			iframeSrc: `${appBundleUrl(opts.idTag, appName)}?v=${version}#${opts.resId}:${registrationKey}`
 		})
 		// No `errorCode` and no message: `AppLoadingIndicator` then falls back to its
 		// own generic text, which keeps this module i18n-free.

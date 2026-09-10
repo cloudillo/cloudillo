@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next'
 import { LuImage as IcImage } from 'react-icons/lu'
 
 import { useCurrentContextIdTag } from '../../context/index.js'
+import { BLANK_IMAGE_SRC } from '../../utils.js'
 import { ActiveFilters } from './components/ActiveFilters.js'
 import { GalleryGrid } from './components/GalleryGrid.js'
 import { GallerySidebar } from './components/GallerySidebar.js'
@@ -57,8 +58,10 @@ export function GalleryApp() {
 				const idTag = contextIdTag || auth?.idTag || ''
 				const fileId = f.fileId
 				return {
-					// Grid preview: use vis.sd (640px) for good quality thumbnails
-					src: getFileUrl(idTag, fileId, 'vis.sd'),
+					// Grid preview: use vis.sd (640px) for good quality thumbnails.
+					// A refused fileId becomes a blank tile rather than a dropped one, so
+					// the grid stays index-aligned with `files`.
+					src: getFileUrl(idTag, fileId, 'vis.sd') ?? BLANK_IMAGE_SRC,
 					// Lightbox fullscreen: use vis.hd (1920px) for high quality
 					fullSrc: getFileUrl(idTag, fileId, 'vis.hd'),
 					width: f.x?.dim?.[0] || 100,

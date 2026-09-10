@@ -26,6 +26,7 @@ import 'react-photo-album/rows.css'
 
 import { ImageWithRetry, useRetriedImageUrl } from '../../components/ImageWithRetry.js'
 import { ctxBase, viewPath } from '../../routes.js'
+import { BLANK_IMAGE_SRC } from '../../utils.js'
 
 //////////////////////
 // Image formatting //
@@ -57,11 +58,14 @@ export function Images({ width, attachments, idTag }: ImagesProps) {
 		() =>
 			idTag
 				? attachments?.map((im) => ({
-						src: getFileUrl(
-							idTag,
-							im.fileId,
-							getOptimalImageVariant('fullscreen', im.localVariants)
-						),
+						// A refused fileId becomes a blank slide rather than a dropped one,
+						// so `lbIndex` still indexes the attachments.
+						src:
+							getFileUrl(
+								idTag,
+								im.fileId,
+								getOptimalImageVariant('fullscreen', im.localVariants)
+							) ?? BLANK_IMAGE_SRC,
 						width: im.dim?.[0] || 100,
 						height: im.dim?.[1] || 100
 					}))

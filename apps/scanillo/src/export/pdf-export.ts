@@ -73,6 +73,7 @@ async function processPage(
 ): Promise<Blob> {
 	const sourceFileId = page.originalFileId ?? page.fileId
 	const url = getFileUrl(ownerTag, sourceFileId, 'orig', { token })
+	if (!url) throw new Error(`Invalid file id: ${sourceFileId}`)
 	const imageData = await fetchImageAsBase64(url)
 
 	let canvas = await base64ToCanvas(imageData)

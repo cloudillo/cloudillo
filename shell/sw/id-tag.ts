@@ -55,10 +55,16 @@ export async function ensureIdTag(): Promise<string | undefined> {
  * keeps `https://cl-o.${targetTag}/...` from being steered somewhere else entirely
  * by a crafted value. It bounds the shape only — it cannot say whether the tenant is
  * one we actually federate with.
+ *
+ * Kept byte-for-byte in step with `isIdTag` / `ID_TAG_RE` in `libs/types/src/types.ts`.
+ * This worker is a separate build that must not pull in `@cloudillo/types`, so the two
+ * are duplicated on purpose and must be changed together.
  */
 export function isValidIdTag(tag: string): boolean {
 	if (tag.length > 253) return false
-	return /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/i.test(tag)
+	return /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)+$/.test(
+		tag
+	)
 }
 
 // vim: ts=4

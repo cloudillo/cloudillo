@@ -585,6 +585,16 @@ describe('hostile input', () => {
 		}
 	})
 
+	// A fileId `getFileUrl` refuses has no URL at any variant, so the whole block goes —
+	// not a `src`-less `<img>` wearing a lightbox island that can never open.
+	it('should emit no image at all for a refused fileId', () => {
+		const html = renderBlocks([block({ t: 'img', pr: { url: 'cl-file:img:../x' } })], {
+			ownerIdTag: OWNER,
+			resolveFile: variants(imageVariants)
+		})
+		expect(html).toBe('')
+	})
+
 	it('should emit no media link for an unvouchable url', () => {
 		const html = renderBlocks([block({ t: 'vid', pr: { url: 'javascript:alert(1)' } })])
 		expect(html).toBe('')

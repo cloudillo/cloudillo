@@ -4,20 +4,12 @@
 import { jest } from '@jest/globals'
 import { act, renderHook } from '@testing-library/react'
 
-import {
-	EMBED_LOADING_TIMEOUT_MS,
-	type ShellEmbedOptions,
-	shellEmbedAppName,
-	useShellEmbed
-} from '../shell-embed.js'
+import { shellEmbedAppName } from '../app-name.js'
+import { EMBED_LOADING_TIMEOUT_MS, type ShellEmbedOptions, useShellEmbed } from '../shell-embed.js'
 
-// The `contentType` reaching this function is **author-controlled**: a published
-// page's `documentEmbed` island carries it in `data-props`, which is markup the
-// document's author wrote. The answer is then interpolated into the embed iframe's
-// `/apps/<name>/` src *and* recorded as the `appName` the shell's handlers treat as
-// attested. So the suffix has to be validated as a bundle name, not merely sliced
-// off — otherwise a stored `cloudillo/../../~/settings/security` frames an arbitrary
-// same-origin shell route inside the reader's session.
+// The `contentType` reaching this function is **author-controlled** — a published page's
+// `documentEmbed` island carries it in `data-props`. Hence validated, not merely sliced:
+// see `shell/src/app-name.ts` for what an unvalidated suffix would frame.
 
 describe('shellEmbedAppName', () => {
 	it('should name the bundle for a real app content type', () => {
@@ -74,6 +66,8 @@ describe('useShellEmbed', () => {
 	function options(over: Partial<ShellEmbedOptions> = {}): ShellEmbedOptions {
 		return {
 			resId: 'bob.org:f1',
+			// The home node — deliberately not `bob.org`, the document's owner.
+			idTag: 'alice.example',
 			contentType: 'cloudillo/notillo',
 			register: jest.fn(),
 			release: jest.fn(),
@@ -97,7 +91,9 @@ describe('useShellEmbed', () => {
 		expect(key).toMatch(/^_embed:/)
 		// `<ownerTag>:<fileId>:_embed:<nonce>` — the app reads the document half for
 		// file URLs, the shell matches the init on the `_embed:` half.
-		expect(result.current.iframeSrc).toBe(`/apps/notillo/?v=1#bob.org:f1:${key}`)
+		expect(result.current.iframeSrc).toBe(
+			`https://cl-o.alice.example/apps/notillo/index.html?v=1#bob.org:f1:${key}`
+		)
 		expect(opts.register).toHaveBeenCalledWith(key, {
 			access: 'read',
 			// The document, not the `_embed:` key it is filed under — that is what
@@ -190,6 +186,8 @@ describe('useShellEmbed app lifecycle', () => {
 	function options(over: Partial<ShellEmbedOptions> = {}): ShellEmbedOptions {
 		return {
 			resId: 'bob.org:f1',
+			// The home node — deliberately not `bob.org`, the document's owner.
+			idTag: 'alice.example',
 			contentType: 'cloudillo/notillo',
 			register: jest.fn(),
 			release: jest.fn(),

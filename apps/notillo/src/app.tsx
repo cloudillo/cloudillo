@@ -329,6 +329,8 @@ export function NotilloApp() {
 			const variant =
 				ref.kind === 'img' ? 'vis.hd' : ref.kind === 'vid' ? 'vid.hd' : undefined
 			const resolvedUrl = getFileUrl(notillo.ownerTag, ref.fileId, variant, tokenOpt)
+			// An unresolvable fileId is handed back unchanged, as an unparseable ref is.
+			if (!resolvedUrl) return url
 
 			// Fetch and convert unsupported formats to PNG
 			const resp = await fetch(resolvedUrl)

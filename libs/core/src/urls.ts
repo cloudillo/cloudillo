@@ -1,28 +1,114 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { isFileId, isIdTag } from '@cloudillo/types'
+
+/** Keys already reported by `getFileUrl`. A refusal is a static property of the id, so
+ *  warning once keeps a bad thumbnail in a grid from filling the console on every render.
+ *  ponytail: unbounded, but it only ever holds ids that FAILED validation — a set that
+ *  grows is itself the signal that something is wrong. */
+const warnedFileUrls = new Set<string>()
+
 /**
  * Build the base URL for a Cloudillo instance
+ *
+ * idTags are ASCII DNS names — an internationalised domain arrives already in its punycode
+ * (`xn--…`) form, so nothing here needs to survive Unicode.
+ *
+ * This **escapes; it does not validate** — it is not a trust boundary. Only the characters
+ * that can change the origin are percent-encoded (an `@` would otherwise turn `cl-o.foo`
+ * into userinfo and hand the host to whatever follows); throwing would turn a broken image
+ * into a crashed render. So a malformed tag yields not a host but a string the URL parser
+ * *rejects*: `%` is a forbidden domain code point. `fetch` rejects and `<img>` fires `error`
+ * — but `new URL(...)` and `new WebSocket(...)` throw synchronously, so **callers that
+ * re-parse the result must guard**.
+ *
+ * The shape check is `isIdTag` (`libs/types/src/types.ts`, duplicated for the worker build
+ * in `shell/sw/id-tag.ts`); {@link getFileUrl} is the validating entry point for federated
+ * input, answering `undefined` rather than a URL.
+ *
  * @param idTag - Identity tag of the tenant
  * @returns Base URL like "https://cl-o.alice.cloudillo.net"
  */
 export function getInstanceUrl(idTag: string): string {
-	return `https://cl-o.${idTag}`
+	return `https://cl-o.${idTag.replace(/[/?#\\@:]/g, (c) => encodeURIComponent(c))}`
+}
+
+/**
+ * Absolutise an app-bundle URL against the node's API domain.
+ *
+ * Bundles are served from `https://cl-o.<idTag>/apps/<id>/`, never the app domain: an app
+ * iframe must not reach the shell's origin — its session token, `swKey` cookie or
+ * ServiceWorker registration. Manifests declare the path root-relative.
+ *
+ * Anything that is not an absolute `http(s)` URL is a path on the node — a protocol-relative
+ * `//host/x` included, which is why the prefix is glued on rather than resolved: `//host/x`
+ * must stay a *path*, not a jump to another origin.
+ *
+ * The move is safe because the API domain serves the bundles' asset roots too: the backend
+ * routes `/apps/{*path}` *and* `/fonts/{*path}` there (`api_asset_handler`,
+ * `crates/cloudillo/src/routes/mod.rs`), so the origin-absolute `url('/fonts/…')` in
+ * `@cloudillo/fonts` still resolves from inside a bundle.
+ *
+ * @param idTag - The node serving **this shell** — the one `useApi()` resolved from
+ *   `/.well-known/cloudillo/id-tag`, or the owner's node on a published site — never a
+ *   context/community tenant: the bundle is that node's own static asset.
+ */
+export function resolveAppUrl(idTag: string, url: string): string {
+	if (/^https?:\/\//i.test(url)) return url
+	return `${getInstanceUrl(idTag)}${url.startsWith('/') ? url : `/${url}`}`
+}
+
+/**
+ * The bundle URL of a built-in app on a node.
+ *
+ * `/index.html` explicitly, not the trailing-slash form: the app manifests use that shape,
+ * and two shapes for one document are two HTTP cache keys — the only cache bundles now get,
+ * since an opaque-origin document is never a ServiceWorker client.
+ *
+ * @param idTag - The node serving **this shell**, as for {@link resolveAppUrl}
+ */
+export function appBundleUrl(idTag: string, appName: string): string {
+	return resolveAppUrl(idTag, `/apps/${appName}/index.html`)
 }
 
 /**
  * Build URL for file access with optional variant
+ *
+ * Both halves reach here from federated sources — a feed post's `docRef`, an object out of
+ * a peer-written Yjs doc — and every caller passes opaque ids, never paths. So both are
+ * validated as such (`isIdTag`, `isFileId`) rather than escaped: a `../` in the fileId would
+ * otherwise be normalized into an arbitrary path on the owner's API host with the viewer's
+ * scoped token appended, and a `?` or `#` would rewrite the query string this function then
+ * appends.
+ *
+ * An invalid id yields **no URL** rather than a mangled path — the same "no URL, visible
+ * error" contract the image renderers use (`ImageRenderer` in ideallo/prezillo turn an
+ * undefined URL into the `'error'` load state).
+ *
  * @param idTag - Identity tag of the tenant
  * @param fileId - File ID
  * @param variant - Optional variant (e.g., "vis.sd", "vis.tn", "vid.hd")
- * @returns Full file URL
+ * @returns Full file URL, or undefined if either half is not a valid single path segment
  */
 export function getFileUrl(
 	idTag: string,
 	fileId: string,
 	variant?: string,
 	opts?: { token?: string }
-): string {
+): string | undefined {
+	// The plain regexes, not the runtypes: this runs once per thumbnail in a grid, and
+	// `validateSync` allocates a result object per call for the same `FILE_ID_RE` test.
+	if (!isIdTag(idTag) || !isFileId(fileId)) {
+		// Silence is the trap: every renderer turns "no URL" into a blank box, so a drift
+		// between `FILE_ID_RE` and the backend's id generator (a separate repo) is invisible.
+		const key = `${idTag}:${fileId}`
+		if (!warnedFileUrls.has(key)) {
+			warnedFileUrls.add(key)
+			console.warn(`[Cloudillo] Refusing file URL for ${key}: not a valid idTag/fileId`)
+		}
+		return undefined
+	}
 	const base = `${getInstanceUrl(idTag)}/api/files/${fileId}`
 	const params = new URLSearchParams()
 	if (variant) params.append('variant', variant)
@@ -55,8 +141,8 @@ export function getWsUrl(idTag: string): string {
  * (`wss://cl-o.{idTag}`). A document with no owner tag is owned by the viewer,
  * so the viewer's own identity is the correct host.
  *
- * NEVER fall back to `window.location.host`: apps run in iframes served from
- * the *app* domain, which deliberately does not expose `/ws/*`.
+ * NEVER fall back to `window.location.host`: inside an app iframe that is the bundle's
+ * host (`cl-o.<home idTag>`), which need not be the node the *document* lives on.
  *
  * @param ownerTag - Owner tenant of the document, if it is remote
  * @param ownIdTag - The viewer's own identity tag (`bus.idTag`)

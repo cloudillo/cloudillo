@@ -44,9 +44,11 @@ jest.unstable_mockModule('@cloudillo/core', async () => {
 	const { idHue } = await import('../../../core/lib/utils.js')
 	const fileUtils = await import('../../../core/lib/file-utils.js')
 	const presence = await import('../../../core/lib/presence.js')
+	// Bare, no `@`: the sigil is a route/display shorthand the shell strips before the tag
+	// reaches the bus (`ctx.tsx`); with the `@`, `getFileUrl` refuses the tag as not DNS-shaped.
 	const bus = {
-		ownerTag: '@node.example',
-		idTag: '@node.example',
+		ownerTag: 'node.example',
+		idTag: 'node.example',
 		accessToken: undefined
 	}
 	return {

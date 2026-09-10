@@ -17,6 +17,7 @@ import type { MediaPickReq } from '@cloudillo/core'
 
 import { registerPendingTempId } from '../../services/file-id-resolver.js'
 import type { ShellMessageBus } from '../shell-bus.js'
+import { idTagFromResId } from './resId.js'
 
 /**
  * Media picker options passed to the component
@@ -134,8 +135,7 @@ export function initMediaHandlers(bus: ShellMessageBus): void {
 		// This allows the app to know the dialog is opening without timing out
 		bus.sendResponse(appWindow, 'media:pick.ack', msg.id, true, { sessionId })
 
-		// Extract context idTag from resId (format: "contextIdTag:fileId")
-		const contextIdTag = connection.resId?.match(/^([a-zA-Z0-9-.]+):/)?.[1] || connection.idTag
+		const contextIdTag = idTagFromResId(connection.resId) || connection.idTag
 
 		// Open the modal and wait for result
 		// When result arrives, send push notification (no timeout on user interaction)

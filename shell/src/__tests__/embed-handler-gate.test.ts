@@ -28,34 +28,44 @@ type AppConnection = import('../message-bus/app-tracker.js').AppConnection
 interface Response {
 	type: string
 	ok: boolean
+	data?: Record<string, unknown>
 	error?: string
 }
 
-/** A bus stub whose `validateSource` always attests `connection`. */
-function createBus(connection: Partial<AppConnection>) {
+/**
+ * A bus stub whose `validateSource` always attests `connection`.
+ *
+ * `api` overrides what `getApi()` answers with. `null` — the default — is the "guard held"
+ * probe: reaching `getApi` at all means the request got through, and it is the call that
+ * mints a context-scoped token / drives the cross-document exchange.
+ */
+function createBus(connection: Partial<AppConnection>, api: unknown = null) {
 	const responses: Response[] = []
 	const handlers = new Map<string, (msg: unknown, source: unknown) => Promise<void>>()
-	// Reaching this at all means the guard let the request through: it is the call that
-	// mints a context-scoped token / drives the cross-document exchange.
-	const getApi = jest.fn(() => null)
+	const getApi = jest.fn(() => api)
 
 	const bus = {
 		on(type: string, fn: (msg: unknown, source: unknown) => Promise<void>) {
 			handlers.set(type, fn)
 		},
 		getAppTracker: () => ({
-			validateSource: () => ({ access: 'write', initialized: true, ...connection })
+			validateSource: () => ({ access: 'write', initialized: true, ...connection }),
+			// The embed-token store is real, so `resetAppTracker` clears it between tests.
+			getEmbedToken: (fileId: string) => getAppTracker().getEmbedToken(fileId),
+			storeEmbedToken: (fileId: string, token: string) =>
+				getAppTracker().storeEmbedToken(fileId, token)
 		}),
 		getApi,
+		setPendingRegistration: () => {},
 		sendResponse: (
 			_win: unknown,
 			type: string,
 			_id: unknown,
 			ok: boolean,
-			_data?: Record<string, unknown>,
+			data?: Record<string, unknown>,
 			error?: string
 		) => {
-			responses.push({ type, ok, error })
+			responses.push({ type, ok, data, error })
 		}
 	}
 
@@ -80,6 +90,7 @@ describe('the embed guard on the picker and nested-embed handlers', () => {
 	const picker = jest.fn()
 
 	beforeEach(() => {
+		resetAppTracker()
 		error = jest.spyOn(console, 'error').mockImplementation(() => {})
 		warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
 		picker.mockClear()
@@ -92,6 +103,7 @@ describe('the embed guard on the picker and nested-embed handlers', () => {
 		warn.mockRestore()
 		setDocPickerCallback(null)
 		setMediaPickerCallback(null)
+		resetAppTracker()
 	})
 
 	/*
@@ -163,6 +175,63 @@ describe('the embed guard on the picker and nested-embed handlers', () => {
 			`Cannot pick a document from an embedded document`
 		)
 		expect(bus.responses[0]?.type ?? ack).toBeTruthy()
+	})
+
+	/*
+	 * The bundle URL and the document tenant come from DIFFERENT nodes, and both halves
+	 * are asserted here because the two are one line apart in `handlers/embed.ts` and the
+	 * wrong one is always in scope: `contextIdTag` names the community node the document
+	 * lives on, while the bundle is a static asset of the node serving *this* shell.
+	 * Swapping them loads a community's bundle — or, on a node that has none, nothing.
+	 */
+	it('serves the bundle from the home node while the document stays on the context node', async () => {
+		const api = {
+			idTag: 'home.example',
+			auth: { getAccessTokenVia: async () => ({ token: 't' }) }
+		}
+		// No `embed` flag, no `token`: `viaApi` stays `api` itself, so nothing here
+		// reaches `createApiClient`.
+		const bus = createBus({ resId: 'community.tld:f1' }, api)
+
+		await bus.send('embed:open.req', {
+			targetFileId: 'f2',
+			targetContentType: 'cloudillo/quillo',
+			sourceFileId: 'f1'
+		})
+
+		expect(bus.responses[0]).toMatchObject({
+			type: 'embed:open.res',
+			ok: true,
+			data: {
+				embedUrl: 'https://cl-o.home.example/apps/quillo/index.html',
+				resId: 'community.tld:f2'
+			}
+		})
+	})
+
+	/*
+	 * `targetContentType` is the embedding app's own string. Sliced rather than validated,
+	 * its suffix would both frame an arbitrary path on the home API origin and become the
+	 * `appName` handlers/settings.ts namespaces the user's per-app settings by.
+	 */
+	it('falls back to the viewer for a content type that could be read as a path', async () => {
+		const api = {
+			idTag: 'home.example',
+			auth: { getAccessTokenVia: async () => ({ token: 't' }) }
+		}
+		const bus = createBus({ resId: 'community.tld:f1' }, api)
+
+		await bus.send('embed:open.req', {
+			targetFileId: 'f2',
+			targetContentType: 'cloudillo/../../api/files/x',
+			sourceFileId: 'f1'
+		})
+
+		expect(bus.responses[0]).toMatchObject({
+			type: 'embed:open.res',
+			ok: true,
+			data: { embedUrl: 'https://cl-o.home.example/apps/view/index.html' }
+		})
 	})
 })
 

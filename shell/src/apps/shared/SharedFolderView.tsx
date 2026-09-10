@@ -402,7 +402,12 @@ export function SharedFolderView({
 	function handleDownload(file: FileView) {
 		// No ?token= — the SW injects the installed scoped token as an
 		// Authorization header on this header-less anchor-download GET.
-		triggerDownload(getFileUrl(idTag, file.fileId), file.fileName)
+		const url = getFileUrl(idTag, file.fileId)
+		if (!url) {
+			toast.error(t('Download failed. Please try again.'))
+			return
+		}
+		triggerDownload(url, file.fileName)
 	}
 
 	async function handleDelete(file: FileView) {

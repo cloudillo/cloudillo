@@ -178,14 +178,23 @@ export function MediaViewer({ file, idTag, token, onBack, onDownload }: MediaVie
 		}
 	}
 
+	// A fileId `getFileUrl` refuses has no viewer URL, so all three viewer branches below
+	// fall through to the final block rather than render a broken one — that block names
+	// the refusal as the cause, since the download route builds the same URL and fails too.
+	// `posterUrl` is the exception: `poster` is optional and React omits it when undefined.
+	// The three flags are mutually exclusive, so at most one branch runs and one URL is used.
+	const url = getFileUrl(idTag, fileId, isImage ? 'vis.hd' : isVideo ? 'vid.hd' : undefined, {
+		token
+	})
+	const posterUrl = isVideo ? getFileUrl(idTag, fileId, 'vis.sd', { token }) : undefined
+
 	// Render image viewer using Lightbox
-	if (isImage) {
-		const imageUrl = getFileUrl(idTag, fileId, 'vis.hd', { token })
+	if (isImage && url) {
 		return (
 			<Lightbox
 				open={true}
 				close={onBack}
-				slides={[{ src: imageUrl, alt: file.fileName }]}
+				slides={[{ src: url, alt: file.fileName }]}
 				plugins={[Fullscreen, Zoom]}
 				zoom={{ scrollToZoom: true }}
 				render={{
@@ -213,10 +222,7 @@ export function MediaViewer({ file, idTag, token, onBack, onDownload }: MediaVie
 	}
 
 	// Render video viewer
-	if (isVideo) {
-		const videoUrl = getFileUrl(idTag, fileId, 'vid.hd', { token })
-		const posterUrl = getFileUrl(idTag, fileId, 'vis.sd', { token })
-
+	if (isVideo && url) {
 		return (
 			<div className="c-file-viewer">
 				<div className={mergeClasses('c-file-viewer-toolbar', !toolbarVisible && 'hidden')}>
@@ -241,7 +247,7 @@ export function MediaViewer({ file, idTag, token, onBack, onDownload }: MediaVie
 							autoPlay
 							poster={posterUrl}
 						>
-							<source src={videoUrl} />
+							<source src={url} />
 							{t('Your browser does not support video playback')}
 						</video>
 					</div>
@@ -251,10 +257,10 @@ export function MediaViewer({ file, idTag, token, onBack, onDownload }: MediaVie
 	}
 
 	// Render PDF viewer
-	if (isPdf) {
+	if (isPdf && url) {
 		return (
 			<PdfViewer
-				url={getFileUrl(idTag, fileId, undefined, { token })}
+				url={url}
 				fileName={file.fileName}
 				onBack={onBack}
 				onDownload={handleDownload}
@@ -275,11 +281,17 @@ export function MediaViewer({ file, idTag, token, onBack, onDownload }: MediaVie
 			<div className="c-file-viewer-content">
 				<div className="c-file-viewer-error">
 					<h2>{file.fileName}</h2>
-					<p className="text-secondary">{contentType}</p>
-					<Button variant="primary" onClick={handleDownload}>
-						<IcDownload />
-						{t('Download')}
-					</Button>
+					{/* No URL is not an unsupported type: `getFileUrl` refused the id, so
+					    the download below cannot work either. Say that instead. */}
+					<p className="text-secondary">
+						{url ? contentType : t('This file cannot be opened')}
+					</p>
+					{url && (
+						<Button variant="primary" onClick={handleDownload}>
+							<IcDownload />
+							{t('Download')}
+						</Button>
+					)}
 				</div>
 			</div>
 		</div>

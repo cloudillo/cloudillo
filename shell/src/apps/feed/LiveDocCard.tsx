@@ -9,13 +9,14 @@
  * real app **inside the card**, so the reader keeps their feed scroll position.
  */
 
-import { Button, DocumentEmbedIframe } from '@cloudillo/react'
+import { Button, DocumentEmbedIframe, useApi } from '@cloudillo/react'
 import { useAtomValue } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { LuExternalLink as IcExternal } from 'react-icons/lu'
 import { useNavigate } from 'react-router-dom'
 
+import { shellEmbedAppName } from '../../app-name.js'
 import {
 	activeContextAtom,
 	useContextAwareApi,
@@ -26,12 +27,7 @@ import { getIcon } from '../../icon-registry.js'
 import { getHandlersForContentType } from '../../manifest-registry.js'
 import { TrustBanner } from '../../profile/TrustBanner.js'
 import { appPath } from '../../routes.js'
-import {
-	registerShellEmbed,
-	releaseShellEmbed,
-	shellEmbedAppName,
-	useShellEmbed
-} from '../../shell-embed.js'
+import { registerShellEmbed, releaseShellEmbed, useShellEmbed } from '../../shell-embed.js'
 import { AppLoadingIndicator } from '../AppLoadingIndicator.js'
 import { fetchRow } from '../doc-info.js'
 import { isSameDoc, type LiveDocRef } from './live-doc.js'
@@ -55,6 +51,8 @@ export function LiveDocCard({ docRef, width, collapsedOnly, className }: LiveDoc
 	// The document is served by the node the reader is *browsing*, which is the community
 	// in a community feed — `useApi()` is always the user's own node.
 	const { api } = useContextAwareApi()
+	// The app *bundle*, unlike the document, is a static asset of our own node.
+	const { api: homeApi } = useApi()
 	const ctx = useCtx()
 	const navigate = useNavigate()
 	const [expanded, setExpanded] = React.useState(false)
@@ -102,9 +100,10 @@ export function LiveDocCard({ docRef, width, collapsedOnly, className }: LiveDoc
 
 	// `null` while untrusted: nothing registers, so nothing mints.
 	const embed = useShellEmbed(
-		expanded && trusted
+		expanded && trusted && homeApi?.idTag
 			? {
 					resId: docRef.doc,
+					idTag: homeApi.idTag,
 					contentType: docRef.contentType,
 					// Editing happens on the full page. Always.
 					access: 'read',
@@ -117,6 +116,13 @@ export function LiveDocCard({ docRef, width, collapsedOnly, className }: LiveDoc
 
 	const title = rowTitle ?? docRef.title ?? docRef.fileId
 	const typeLabel = manifest ? t('{{app}} document', { app: manifest.name }) : t('document')
+	const expandLabel = expanded ? t('Collapse') : t('Open document')
+	// The visible text stays put so a card does not reflow when `apiAtom` lands; the reason
+	// rides on the accessible name and the tooltip instead.
+	const expandBlocked = !expanded && !homeApi?.idTag
+	const expandTitle = expandBlocked
+		? t('{{action}} — still starting up, try again in a moment', { action: expandLabel })
+		: expandLabel
 
 	return (
 		<div
@@ -135,11 +141,23 @@ export function LiveDocCard({ docRef, width, collapsedOnly, className }: LiveDoc
 					<Button
 						kind="link"
 						variant="primary"
-						onClick={() => setExpanded(!expanded)}
+						// Expanding needs our own idTag for the bundle URL, and `useApi()`
+						// has none until boot writes `apiAtom`; without it `useShellEmbed`
+						// parks at 'connecting' with no boot timer — a spinner that never
+						// times out. Collapsing needs nothing, so a card stays closable if
+						// `apiAtom` clears while it is open. `aria-disabled`, like the
+						// sibling button: a `disabled` button takes no focus, and
+						// `.c-live-doc-head [aria-disabled='true']` in `feed.css` dims it.
+						onClick={() => {
+							if (expandBlocked) return
+							setExpanded(!expanded)
+						}}
+						aria-disabled={expandBlocked}
 						aria-expanded={expanded}
-						title={expanded ? t('Collapse') : t('Open document')}
+						title={expandTitle}
+						aria-label={expandTitle}
 					>
-						{expanded ? t('Collapse') : t('Open document')}
+						{expandLabel}
 					</Button>
 				)}
 				{/* A collapsed-only card has no expand button, so an untrusted node's TrustBanner is

@@ -505,13 +505,23 @@ function PageDetail({
 
 		const sourceFileId = page.originalFileId ?? page.fileId
 		const url = getFileUrl(ownerTag, sourceFileId, 'orig', { token })
+		// A refused fileId has nothing to reprocess — but the previous page's processed
+		// image is still on screen, so clear it rather than show it under this header.
+		if (!url) {
+			setProcessedUrl(null)
+			setProcessing(false)
+			return
+		}
 		let cancelled = false
 		let objectUrl: string | null = null
 
 		setProcessedUrl(null)
 		setProcessing(true)
 
-		async function process() {
+		// An arrow bound to a const, not a `function` declaration: TypeScript only carries a
+		// control-flow narrowing into a closure created at a point where it holds, and a
+		// hoisted declaration has no such point — `url` would be possibly-undefined inside.
+		const process = async () => {
 			try {
 				// Load original image into canvas
 				const img = new Image()
@@ -983,6 +993,7 @@ export function ScanilloApp() {
 				const url = getFileUrl(scanillo.ownerTag, result.fileId, 'orig', {
 					token: scanillo.token
 				})
+				if (!url) throw new Error('Invalid file id')
 				const resp = await fetch(url)
 				const blob = await resp.blob()
 
@@ -1378,6 +1389,7 @@ export function ScanilloApp() {
 			const url = getFileUrl(scanillo.ownerTag, sourceFileId, 'orig', {
 				token: scanillo.token
 			})
+			if (!url) throw new Error('Invalid file id')
 			const resp = await fetch(url)
 			const blob = await resp.blob()
 

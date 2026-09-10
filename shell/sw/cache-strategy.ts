@@ -31,24 +31,23 @@ export function getCacheStrategy(pathname: string): CacheStrategy {
 
 	// Versioned assets, fonts, sounds, favicons: immutable / long-lived. The manifest
 	// and the icons match the first pattern now that they are versioned too.
+	//
+	// No `/apps/<name>/…` here on purpose: bundles live on the API domain and `index.ts`
+	// only calls us for same-origin GETs, so no bundle request reaches this function.
+	// Their only cache is now `asset_cache_control` in cloudillo-rs
+	// (`crates/cloudillo/src/routes/static_files.rs`). Offline app loading went with it:
+	// an app iframe is sandboxed without `allow-same-origin` (`APP_SANDBOX`), so its
+	// document has an opaque origin and is never a ServiceWorker client. Restoring it
+	// would mean relaxing that sandbox — the one thing it exists to prevent.
 	if (
 		/^\/assets-[^/]+\//.test(pathname) || // /assets-1.2.3/*
-		/^\/apps\/[^/]+\/assets-[^/]+\//.test(pathname) || // /apps/quillo/assets-1.0.0/*
 		pathname.startsWith('/fonts/') ||
 		pathname.startsWith('/sounds/') ||
 		/^\/favicon\./.test(pathname) // /favicon.svg, /favicon.ico
 	)
 		return 'cache-first'
 
-	// HTML: try network first so updates land quickly
-	if (
-		pathname === '/' ||
-		pathname === '/index.html' ||
-		/^\/apps\/[^/]+\/index\.html$/.test(pathname)
-	)
-		return 'network-first'
-
-	// Everything else: network-first as a safe default
+	// HTML and everything else unclassified: network first so updates land quickly
 	return 'network-first'
 }
 // vim: ts=4

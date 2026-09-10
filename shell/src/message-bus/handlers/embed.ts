@@ -14,24 +14,14 @@
  * registering branch, `embed: true` belongs on the entry.
  */
 
-import { createApiClient, type EmbedOpenReq } from '@cloudillo/core'
+import { appBundleUrl, createApiClient, type EmbedOpenReq } from '@cloudillo/core'
 
+import { shellEmbedAppName } from '../../app-name.js'
 import { getAccessSuffix } from '../app-tracker.js'
 import type { ShellMessageBus } from '../shell-bus.js'
 import { idTagFromResId } from './resId.js'
 
 const MAX_EMBED_DEPTH = 3
-
-/**
- * Resolve contentType to app name from the MIME mapping
- */
-function resolveAppName(contentType: string): string | undefined {
-	// Extract app name from cloudillo/* content types
-	if (contentType.startsWith('cloudillo/')) {
-		return contentType.slice('cloudillo/'.length)
-	}
-	return undefined
-}
 
 /**
  * Initialize embed message handlers on the shell bus
@@ -115,7 +105,9 @@ export function initEmbedHandlers(bus: ShellMessageBus): void {
 
 		try {
 			const api = bus.getApi()
-			if (!api) {
+			// The idTag too, not just the client: an empty one would build the bundle URL
+			// as `https://cl-o./apps/<name>/index.html`.
+			if (!api?.idTag) {
 				throw new Error('API client not available')
 			}
 
@@ -150,13 +142,14 @@ export function initEmbedHandlers(bus: ShellMessageBus): void {
 			// Generate nonce for pending registration
 			const nonce = `embed-${Date.now()}-${Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => b.toString(16).padStart(2, '0')).join('')}`
 
-			// Resolve app name from content type
-			const appName = resolveAppName(targetContentType)
+			const appName = shellEmbedAppName(targetContentType)
 
 			const idTag = contextIdTag
 
-			// Build embed URL (direct app URL, not shell route)
-			const embedUrl = appName ? `/apps/${appName}/` : `/apps/view/`
+			// A direct app URL, not a shell route. The bundle is a static asset of the
+			// node serving the shell, so the home api's idTag — NOT `contextIdTag`,
+			// which names the community/owner node the *document* lives on.
+			const embedUrl = appBundleUrl(api.idTag, appName)
 
 			// Set pending registration so the embedded app can init
 			// Key includes _embed: prefix to match the resId the app reads from hash
@@ -166,10 +159,11 @@ export function initEmbedHandlers(bus: ShellMessageBus): void {
 				access: requestedAccess,
 				resId: `${idTag}:${targetFileId}`,
 				idTag,
-				// Resolved from the target's content type above, not from the embedding
-				// app — the same value `embedUrl` picks the bundle by, so handlers
+				// Validated against the bundle-name pattern above — never taken from the
+				// embedding app unchecked, with unrecognised content types falling back to
+				// the viewer. The same value `embedUrl` picks the bundle by, so handlers
 				// reading `connection.appName` get an attested name.
-				appName: appName ?? 'view',
+				appName,
 				displayName: connection?.displayName,
 				navState,
 				params,

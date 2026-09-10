@@ -105,6 +105,11 @@ export async function preloadImages(
 				return
 			}
 			const url = getFileUrl(ownerTag, fileId, IMAGE_VARIANT, token ? { token } : undefined)
+			// Skip a fileId `getFileUrl` refuses, as an absent owner tag is skipped
+			if (!url) {
+				console.warn(`Cannot load image ${fileId}: invalid file id`)
+				return
+			}
 			const dataUrl = await fetchImageAsDataURL(url)
 			cache.set(fileId, dataUrl)
 		} catch (error) {

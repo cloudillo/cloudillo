@@ -168,6 +168,7 @@ function SiteDocumentEmbedIsland({ props }: SiteIslandProps) {
 		api?.idTag && fileId && contentType
 			? {
 					resId: `${api.idTag}:${fileId}`,
+					idTag: api.idTag,
 					contentType,
 					access: 'read',
 					navState,

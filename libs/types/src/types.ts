@@ -5,6 +5,43 @@ import * as T from '@symbion/runtype'
 
 export * from './format-version.js'
 
+/** A fileId as it may appear in a resId: one path segment, and nothing that could be
+ *  read as a path. The leading class excludes '.', so '.', '..' and '.foo' are all out
+ *  while dots inside an id stay legal; ':' is legal after the first character because
+ *  only the FIRST colon of a resId splits it (see `fileIdFromResId`). Guards remote-peer
+ *  input (`parseLiveDocContent`), whose fileId half reaches `appPath` and a token mint,
+ *  and `getFileUrl`, whose result is fetched with the viewer's scoped token.
+ *
+ *  This is the single definition — `shell/src/message-bus/handlers/resId.ts` re-exports
+ *  `isFileId` from here.
+ *
+ *  `tFileId` is only useful where it is *validated*: `T.decode()` does not run
+ *  `matches()` validators, so using it as a struct field would be cosmetic. Reach for
+ *  `T.validateSync(tFileId, x)` (or plain `isFileId`) instead. */
+export const FILE_ID_RE = /^[A-Za-z0-9_~][A-Za-z0-9._~:-]*$/
+
+export const tFileId = T.string.matches(FILE_ID_RE)
+export type FileId = T.TypeOf<typeof tFileId>
+
+export function isFileId(fileId: string | undefined): fileId is string {
+	return !!fileId && FILE_ID_RE.test(fileId)
+}
+
+/** A DNS-shaped idTag: dot-separated labels of alphanumerics and inner hyphens, and nothing
+ *  that could be read as a path segment. Stricter than the ad-hoc copy in `apps/index.tsx`,
+ *  deliberately: this one guards remote-peer input (`parseLiveDocContent`), where `.`, `..`
+ *  and `-a.tld` all reach `appPath` and a token mint. */
+export const ID_TAG_RE =
+	/^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)+$/
+
+/** Is this the `<idTag>` half of a resId, and nothing that could be read as a path?
+ *  Kept byte-for-byte in step with `isValidIdTag` in `shell/sw/id-tag.ts` — the worker is
+ *  a separate build that must not pull in `@cloudillo/types`, so the two are duplicated
+ *  on purpose and must be changed together. */
+export function isIdTag(idTag: string | undefined): idTag is string {
+	return !!idTag && idTag.length <= 253 && ID_TAG_RE.test(idTag)
+}
+
 // Profile connection status: true = connected, 'R' = request pending, undefined = not connected
 export const tProfileConnectionStatus = T.union(T.boolean, T.literal('R'))
 export type ProfileConnectionStatus = T.TypeOf<typeof tProfileConnectionStatus>
@@ -1072,6 +1109,10 @@ class SiteNavTargetType extends T.Type<string> {
 	async validate(v: string, opts: T.DecoderOpts): Promise<T.Result<string, T.RTError>> {
 		return this.validateBase(v, opts)
 	}
+
+	validateSync(v: string, opts: T.DecoderOpts): T.Result<string, T.RTError> {
+		return this.validateBaseSync(v, opts)
+	}
 }
 
 export const tSiteNavTarget: T.Type<string> = new SiteNavTargetType()
@@ -1176,6 +1217,10 @@ class SiteNavListType extends T.Type<SiteNavItem[]> {
 		opts: T.DecoderOpts
 	): Promise<T.Result<SiteNavItem[], T.RTError>> {
 		return this.validateBase(v, opts)
+	}
+
+	validateSync(v: SiteNavItem[], opts: T.DecoderOpts): T.Result<SiteNavItem[], T.RTError> {
+		return this.validateBaseSync(v, opts)
 	}
 }
 

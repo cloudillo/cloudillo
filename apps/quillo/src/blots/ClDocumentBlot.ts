@@ -10,7 +10,7 @@
  * Delta format: { insert: { 'cl-document': { fileId, appId, contentType, width?, height? } } }
  */
 
-import { getAppBus, setupEmbedRelay } from '@cloudillo/core'
+import { APP_SANDBOX, getAppBus, setupEmbedRelay } from '@cloudillo/core'
 import Quill from 'quill'
 
 /** Typed base class for Quill block embed blots */
@@ -119,9 +119,7 @@ class ClDocumentBlot extends BlockEmbed {
 				? `${result.resId}:_embed:${result.nonce}`
 				: `_embed:${result.nonce}`
 			iframe.src = `${result.embedUrl}?v=1#${hash}`
-			iframe.sandbox.add('allow-scripts')
-			iframe.sandbox.add('allow-forms')
-			iframe.sandbox.add('allow-downloads')
+			iframe.setAttribute('sandbox', APP_SANDBOX)
 			iframe.setAttribute('loading', 'lazy')
 			node.appendChild(iframe)
 			// In read-only mode the iframe is immediately interactive,

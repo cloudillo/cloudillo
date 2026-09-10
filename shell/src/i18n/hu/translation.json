@@ -2097,11 +2097,13 @@
 	"{{app}} document": "{{app}} dokumentum",
 	"Collapse": "Összecsukás",
 	"Open document": "Dokumentum megnyitása",
+	"{{action}} — still starting up, try again in a moment": "{{action}} — még indul, próbáld újra egy pillanat múlva",
 	"Open on its own page": "Megnyitás saját oldalán",
 	"Decide whether to identify yourself to {{idTag}} first": "Előbb döntsd el, hogy azonosítod-e magad {{idTag}} felé",
 	"This document cannot be opened anonymously.": "Ez a dokumentum nem nyitható meg névtelenül.",
 	"Taller": "Magasabb",
 	"Shorter": "Alacsonyabb",
 	"Failed to change starred state": "A csillagozás módosítása sikertelen",
-	"Failed to change pinned state": "A rögzítés módosítása sikertelen"
+	"Failed to change pinned state": "A rögzítés módosítása sikertelen",
+	"This file cannot be opened": "Ez a fájl nem nyitható meg"
 }

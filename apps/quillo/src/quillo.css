@@ -338,7 +338,7 @@ body {
 	clear: both;
 }
 
-/* Loading state (before image loads) */
+/* Placeholder: before the image loads, and permanently when `ClImageBlot` built no src */
 .ql-cl-image:not([src]),
 .ql-cl-image[src=''] {
 	min-width: 200px;

@@ -225,16 +225,18 @@ export const NotilloEditor = React.memo(
 				if (!ref) return url
 
 				const tokenOpt = token ? { token } : undefined
+				// An unresolvable fileId falls back to the unchanged url, as an
+				// unparseable ref does — the media then fails to load visibly.
 				if (ref.kind === 'img') {
 					const px = containerWidthRef.current * (globalThis.devicePixelRatio || 1)
 					const variant = getImageVariantForDisplaySize(px, px)
-					return getFileUrl(ownerTag, ref.fileId, variant, tokenOpt)
+					return getFileUrl(ownerTag, ref.fileId, variant, tokenOpt) ?? url
 				}
 				if (ref.kind === 'vid') {
-					return getFileUrl(ownerTag, ref.fileId, 'vid.hd', tokenOpt)
+					return getFileUrl(ownerTag, ref.fileId, 'vid.hd', tokenOpt) ?? url
 				}
 				// 'aud' or unknown kind — no variant
-				return getFileUrl(ownerTag, ref.fileId, undefined, tokenOpt)
+				return getFileUrl(ownerTag, ref.fileId, undefined, tokenOpt) ?? url
 			},
 			[ownerTag, token]
 		)

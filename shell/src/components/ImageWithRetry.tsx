@@ -76,10 +76,13 @@ export function useRetriedImageUrl(
  * retry, renders an OpalUI skeleton (sized via `skeletonStyle` so the
  * surrounding layout doesn't shift) while loading, and falls back to an error
  * state with a manual retry button once `maxAttempts` is exceeded.
+ *
+ * An undefined `src` is the error state, not the loading one: `getFileUrl` returns
+ * undefined for a fileId it refuses, and that never resolves into a URL by waiting.
  */
 export interface ImageWithRetryProps
 	extends Omit<React.ImgHTMLAttributes<HTMLImageElement>, 'src'> {
-	src: string
+	src: string | undefined
 	maxAttempts?: number
 	skeletonClassName?: string
 	skeletonStyle?: React.CSSProperties
@@ -95,7 +98,7 @@ export function ImageWithRetry({
 	const { t } = useTranslation()
 	const { activeSrc, errored, retry } = useRetriedImageUrl(src, { maxAttempts })
 
-	if (errored) {
+	if (errored || !src) {
 		const retryLabel = t('Retry')
 		return (
 			<div
@@ -113,15 +116,18 @@ export function ImageWithRetry({
 					role="img"
 					aria-label={imgProps.alt || t('Image failed to load')}
 				/>
-				<button
-					type="button"
-					className="c-button link sm"
-					onClick={retry}
-					aria-label={retryLabel}
-					title={retryLabel}
-				>
-					<IcRetry size={16} aria-hidden="true" />
-				</button>
+				{/* Nothing to retry when there was never a URL. */}
+				{errored && (
+					<button
+						type="button"
+						className="c-button link sm"
+						onClick={retry}
+						aria-label={retryLabel}
+						title={retryLabel}
+					>
+						<IcRetry size={16} aria-hidden="true" />
+					</button>
+				)}
 			</div>
 		)
 	}

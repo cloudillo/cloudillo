@@ -870,6 +870,11 @@ function updatePairingBadges(
 			backgroundPicker.classList.add('hidden')
 		}
 	})
-})()
+})().catch((err) => {
+	// Same guard as `useCloudilloEditor` (libs/react/src/hooks.tsx) - see there for why an
+	// unhandled init rejection parks the editor on its loading screen, and why code 0.
+	console.error('[Quillo] Failed to initialise:', err)
+	getAppBus().notifyError(0, (err as Error).message)
+})
 
 // vim: ts=4

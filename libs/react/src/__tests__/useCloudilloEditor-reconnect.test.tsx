@@ -15,7 +15,7 @@
 import { jest } from '@jest/globals'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import * as React from 'react'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, useNavigate } from 'react-router-dom'
 
 const destroyProvider = jest.fn()
 const destroyPersistence = jest.fn()
@@ -125,6 +125,107 @@ describe('useCloudilloEditor across an identity change', () => {
 		// A different user must not keep editing on the previous one's connection.
 		await waitFor(() => expect(openYDoc).toHaveBeenCalledTimes(2))
 		expect(destroyProvider).toHaveBeenCalled()
+	})
+})
+
+/*
+ * `initDoc()` is invoked bare, so anything `openYDoc` throws used to become an unhandled
+ * rejection: `synced` stayed false, `error` stayed null, and the editor sat on its loading
+ * screen with nothing in the UI. A malformed owner tag in the location hash is one way in —
+ * `getCrdtUrl` yields a string `new WebSocket` throws on, synchronously inside the
+ * `WebsocketProvider` constructor y-websocket's `setupWS` calls.
+ */
+describe('useCloudilloEditor when the document fails to open', () => {
+	let stopShell: (() => void) | undefined
+	let error: ReturnType<typeof jest.spyOn>
+
+	beforeEach(() => {
+		openYDoc.mockClear()
+		error = jest.spyOn(console, 'error').mockImplementation(() => {})
+	})
+
+	afterEach(() => {
+		error.mockRestore()
+		stopShell?.()
+		stopShell = undefined
+		resetAppBus()
+	})
+
+	it('surfaces the failure as `error` instead of hanging on the loading screen', async () => {
+		openYDoc.mockImplementationOnce(async () => {
+			throw new Error('SyntaxError: failed to construct WebSocket')
+		})
+		stopShell = actAsShell({ idTag: '@alice.example', authenticated: true, theme: 'default' })
+
+		const { result } = renderHook(() => useCloudilloEditor('testapp'), { wrapper })
+
+		await waitFor(() => expect(result.current.error).not.toBeNull())
+		expect(result.current.synced).toBe(false)
+		// Outside the 4400-4499 CRDT close-code band, which names a server refusal.
+		expect(result.current.error?.code).toBe(0)
+		expect(result.current.error?.reason).toContain('WebSocket')
+		// `setProvider` only runs once the NEW `openYDoc` resolves, so a failure must
+		// leave nothing behind — a destroyed provider here is a dead socket that
+		// awareness/presence consumers would happily keep writing to.
+		expect(result.current.provider).toBeUndefined()
+	})
+
+	// The effect never reset its own state, so a failed document kept showing its error
+	// after navigating to a healthy one — and a stale `synced === true` would have
+	// reported the new document ready before its own `sync` fired.
+	it('clears the error when the document changes', async () => {
+		openYDoc.mockImplementationOnce(async () => {
+			throw new Error('SyntaxError: failed to construct WebSocket')
+		})
+		stopShell = actAsShell({ idTag: '@alice.example', authenticated: true, theme: 'default' })
+
+		const { result } = renderHook(
+			() => ({ editor: useCloudilloEditor('testapp'), navigate: useNavigate() }),
+			{ wrapper }
+		)
+		await waitFor(() => expect(result.current.editor.error).not.toBeNull())
+
+		// The next document opens cleanly — the failed one's error must not follow it.
+		await act(async () => {
+			result.current.navigate('/#@owner.example:file-2')
+			await flush()
+		})
+
+		await waitFor(() => expect(result.current.editor.error).toBeNull())
+		expect(openYDoc).toHaveBeenCalledTimes(2)
+		// A FRESH doc, not the one the first document was opened on. `openYDoc` attaches
+		// persistence and a provider without clearing what it is handed, so reusing the
+		// instance merges the two documents into each other, in both directions.
+		expect(openYDoc.mock.calls[0][0]).not.toBe(openYDoc.mock.calls[1][0])
+		// ...and the cleanup of the OUTGOING doc must not have taken the incoming one with
+		// it: the cleanup destroys only a doc the render body has already superseded.
+		expect((openYDoc.mock.calls[1][0] as { isDestroyed: boolean }).isDestroyed).toBe(false)
+	})
+
+	it('reuses the doc across a StrictMode remount', async () => {
+		stopShell = actAsShell({ idTag: '@alice.example', authenticated: true, theme: 'default' })
+
+		const { result } = renderHook(() => useCloudilloEditor('testapp'), {
+			wrapper: ({ children }) => <React.StrictMode>{wrapper({ children })}</React.StrictMode>
+		})
+		await waitFor(() => expect(result.current.synced).toBe(true))
+
+		// StrictMode's throwaway unmount must not destroy the doc the remount is handed.
+		expect((openYDoc.mock.calls[0][0] as { isDestroyed: boolean }).isDestroyed).toBe(false)
+	})
+
+	it('leaves the doc alive on unmount', async () => {
+		stopShell = actAsShell({ idTag: '@alice.example', authenticated: true, theme: 'default' })
+
+		const { result, unmount } = renderHook(() => useCloudilloEditor('testapp'), { wrapper })
+		await waitFor(() => expect(result.current.synced).toBe(true))
+		const doc = openYDoc.mock.calls[0][0] as { isDestroyed: boolean }
+
+		unmount()
+
+		// Deliberate: nothing superseded it, and a StrictMode remount is indistinguishable
+		// from this at teardown. GC takes it with the component.
+		expect(doc.isDestroyed).toBe(false)
 	})
 })
 

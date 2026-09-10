@@ -279,13 +279,44 @@ export function useCloudilloEditor(appName: string) {
 	const location = useLocation()
 	const docId = location.hash.slice(1)
 	const cl = useCloudillo(appName)
-	const [yDoc, _setYDoc] = React.useState<Y.Doc>(new Y.Doc())
+	// One Y.Doc per document: `openYDoc` attaches persistence and a provider to whatever doc
+	// it is handed without clearing it, so reusing an instance across a docId change merges
+	// the two documents into each other. A keyed ref rather than render-phase `useState`
+	// because `new Y.Doc()` is a side effect, and a retried render must reuse the doc the
+	// discarded one minted rather than mint a second. `superseded` lives on the entry so each
+	// effect run reasons about its own doc instead of reading the ref back at teardown.
+	//
+	// ponytail: correct only while `docId` arrives synchronously. Feeding this hook a
+	// `useDeferredValue`/transition-ed docId would let a discarded render flip `superseded`
+	// on the committed entry. Upgrade path if that ever happens: mint the doc inside the
+	// effect and return `Y.Doc | undefined`, which is a breaking change for the three
+	// consumers (apps/{ideallo,prezillo}/src/hooks/use*Document.ts, apps/calcillo/src/app.tsx).
+	const docKey = `${cl.idTag ?? ''}|${docId}`
+	const docRef = React.useRef<{ key: string; doc: Y.Doc; superseded: boolean } | undefined>(
+		undefined
+	)
+	if (docRef.current?.key !== docKey) {
+		// The render that replaces an entry is the one that knows it is finished with it.
+		if (docRef.current) docRef.current.superseded = true
+		docRef.current = { key: docKey, doc: new Y.Doc(), superseded: false }
+	}
+	const docEntry = docRef.current
+	const yDoc = docEntry.doc
 	const [provider, setProvider] = React.useState<WebsocketProvider | undefined>(undefined)
 	const [synced, setSynced] = React.useState(false)
 	const [error, setError] = React.useState<{ code: number; reason?: string } | null>(null)
 
 	React.useEffect(
 		function () {
+			// A dep change means a DIFFERENT document (or identity), and nothing the previous
+			// one left behind describes it: a stale error outlives navigating away, a stale
+			// `synced === true` reports the new document ready before it is, and the stale
+			// provider — already destroyed by the cleanup — would have awareness/presence
+			// consumers writing to a dead socket whenever the new document fails to open.
+			setError(null)
+			setSynced(false)
+			setProvider(undefined)
+
 			// Track if cleanup has run to prevent state updates after unmount
 			let isMounted = true
 			let currentProvider: WebsocketProvider | undefined
@@ -346,7 +377,16 @@ export function useCloudilloEditor(appName: string) {
 							provider.on('sync', handleSync)
 						}
 					}
-				})()
+				})().catch((err) => {
+					// Without this the rejection is unhandled and the editor sits on its
+					// loading screen forever: `synced` never flips, `error` stays null. A
+					// malformed owner tag in the hash is one way in — `getCrdtUrl` yields a
+					// string `new WebSocket` throws on, inside the provider constructor.
+					console.error('[Cloudillo] Failed to open document:', err)
+					// Code 0, outside the 4400-4499 band `handleConnectionClose` reports:
+					// those are CRDT server close codes and callers may yet map them.
+					if (isMounted) setError({ code: 0, reason: (err as Error).message })
+				})
 			}
 
 			// Cleanup function
@@ -371,12 +411,20 @@ export function useCloudilloEditor(appName: string) {
 				if (currentProvider) {
 					currentProvider.destroy()
 				}
+
+				// Only a doc a later render has explicitly finished with. On unmount — and
+				// on a StrictMode remount — nothing superseded it and the next effect run
+				// will be handed it, so destroying here would hand that run a dead document.
+				// A doc with no provider and no persistence holds nothing but memory.
+				if (docEntry.superseded) yDoc.destroy()
 			}
 		},
 		// Primitives, deliberately — NOT `cl`. `useCloudillo` returns a fresh
 		// object whenever the identity changes, so depending on it would tear down
 		// the Y.Doc and reconnect the provider on a bare `authenticated` flip.
-		[cl.idTag, docId]
+		// `docEntry` changes exactly when the other two do, so it adds no re-runs; it is
+		// listed to make the value the closure captures honest.
+		[cl.idTag, docId, docEntry]
 	)
 
 	return {

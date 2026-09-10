@@ -12,7 +12,7 @@
  * - Automatic variant selection based on display size
  */
 
-import { getFileUrl, getImageVariantForDisplaySize } from '@cloudillo/core'
+import { useFileImage } from '@cloudillo/react'
 import * as React from 'react'
 
 import type { ImageObject } from '../crdt/index.js'
@@ -33,8 +33,6 @@ export interface ImageRendererProps {
 	}
 }
 
-type LoadState = 'loading' | 'loaded' | 'error'
-
 export function ImageRenderer({ object, ownerTag, token, scale = 1, bounds }: ImageRendererProps) {
 	// Use bounds if provided, otherwise use object properties
 	const x = bounds?.x ?? object.x
@@ -43,52 +41,18 @@ export function ImageRenderer({ object, ownerTag, token, scale = 1, bounds }: Im
 	const height = bounds?.height ?? object.height
 	const { fileId } = object
 
-	const [loadState, setLoadState] = React.useState<LoadState>('loading')
-
-	// Compute optimal variant based on display size (canvas size * zoom)
-	const variant = React.useMemo(() => {
-		const displayWidth = width * scale
-		const displayHeight = height * scale
-		return getImageVariantForDisplaySize(displayWidth, displayHeight)
-	}, [width, height, scale])
-
-	// Construct image URL using proper Cloudillo URL helpers
-	const imageUrl = React.useMemo(() => {
-		if (ownerTag) {
-			return getFileUrl(ownerTag, fileId, variant, token ? { token } : undefined)
-		}
-		// Fallback to relative URL when ownerTag is not available
-		return `/api/files/${fileId}?variant=${variant}`
-	}, [fileId, ownerTag, variant, token])
-
-	const handleLoad = React.useCallback(() => {
-		setLoadState('loaded')
-	}, [])
-
-	const handleError = React.useCallback(() => {
-		setLoadState('error')
-	}, [])
-
-	React.useEffect(() => {
-		setLoadState('loading')
-	}, [imageUrl])
-
-	// Check if image is already cached/loaded on mount
-	// This fixes images appearing as white rectangles after scrolling back into view
-	// because SVG <image> elements may not fire onLoad for cached images
-	React.useLayoutEffect(() => {
-		// Probe the image URL to check if it's already in browser cache
-		const img = new Image()
-		img.src = imageUrl
-		if (img.complete && img.naturalWidth > 0) {
-			setLoadState('loaded')
-		}
-	}, [imageUrl])
+	const { url: imageUrl, state } = useFileImage(
+		ownerTag,
+		fileId,
+		width * scale,
+		height * scale,
+		token
+	)
 
 	return (
 		<g className="prezillo-image">
 			{/* Loading placeholder */}
-			{loadState === 'loading' && (
+			{state === 'loading' && (
 				<rect
 					x={x}
 					y={y}
@@ -102,7 +66,7 @@ export function ImageRenderer({ object, ownerTag, token, scale = 1, bounds }: Im
 			)}
 
 			{/* Error state */}
-			{loadState === 'error' && (
+			{state === 'error' && (
 				<g>
 					<rect
 						x={x}
@@ -150,21 +114,21 @@ export function ImageRenderer({ object, ownerTag, token, scale = 1, bounds }: Im
 			)}
 
 			{/* The actual image */}
-			<image
-				href={imageUrl}
-				x={x}
-				y={y}
-				width={width}
-				height={height}
-				preserveAspectRatio="xMidYMid slice"
-				onLoad={handleLoad}
-				onError={handleError}
-				style={{
-					display: loadState === 'error' ? 'none' : 'block',
-					opacity: loadState === 'loaded' ? 1 : 0,
-					transition: 'opacity 0.15s ease-in'
-				}}
-			/>
+			{imageUrl && (
+				<image
+					href={imageUrl}
+					x={x}
+					y={y}
+					width={width}
+					height={height}
+					preserveAspectRatio="xMidYMid slice"
+					style={{
+						display: state === 'error' ? 'none' : 'block',
+						opacity: state === 'loaded' ? 1 : 0,
+						transition: 'opacity 0.15s ease-in'
+					}}
+				/>
+			)}
 		</g>
 	)
 }

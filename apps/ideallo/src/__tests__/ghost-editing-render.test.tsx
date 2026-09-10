@@ -3,9 +3,8 @@
 
 /**
  * The ghost layer renders the SAME ObjectRenderer the committed layer does, so it needs the same
- * context: without `ownerTag`/`token` an image ghost falls back to a relative `/api/files` URL,
- * and ideallo runs sandboxed on the app origin, which does not serve that path - so every remote
- * drag of an image showed all the other peers a "failed to load" box.
+ * context: without `ownerTag`/`token` an image ghost has no owner to resolve against and draws a
+ * "failed to load" box - which every remote drag of an image once showed all the other peers.
  */
 
 import { render } from '@testing-library/react'
@@ -58,10 +57,11 @@ describe('GhostEditing', () => {
 		expect(href).toContain('token=tok123')
 	})
 
-	// The standalone case still renders; it simply has no owner to resolve against
-	it('falls back to a relative URL with no owner', () => {
-		const node = renderGhosts({})
-		expect(node?.getAttribute('href')).toContain('/api/files/file-42')
+	// No owner, no <image> at all: a relative `/api/files` path resolves against the
+	// bundle's origin, which is the *viewer's* own node, and a node-local fileId there can
+	// name an unrelated file of theirs. The error box is the honest render.
+	it('renders no image at all with no owner', () => {
+		expect(renderGhosts({})).toBeNull()
 	})
 })
 

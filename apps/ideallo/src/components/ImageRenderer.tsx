@@ -12,7 +12,7 @@
  * - Automatic variant selection based on display size
  */
 
-import { getFileUrl, getImageVariantForDisplaySize } from '@cloudillo/core'
+import { useFileImage } from '@cloudillo/react'
 import * as React from 'react'
 
 import type { ImageObject } from '../crdt/index.js'
@@ -31,8 +31,6 @@ export interface ImageRendererProps {
 	isEraserHovered?: boolean
 }
 
-type LoadState = 'loading' | 'loaded' | 'error'
-
 export function ImageRenderer({
 	object,
 	ownerTag,
@@ -42,7 +40,13 @@ export function ImageRenderer({
 	isEraserHovered
 }: ImageRendererProps) {
 	const { x, y, width, height, fileId, style } = object
-	const [loadState, setLoadState] = React.useState<LoadState>('loading')
+	const { url: imageUrl, state } = useFileImage(
+		ownerTag,
+		fileId,
+		width * scale,
+		height * scale,
+		token
+	)
 
 	const rounded = (object.cornerRadius ?? 0) > 0
 	const hasBorder = isPaintSet(style.strokeColor) && style.strokeWidth > 0
@@ -63,45 +67,16 @@ export function ImageRenderer({
 
 	// Calculate hover filter - only apply when image is fully loaded to avoid flickering
 	const hoverFilter =
-		loadState === 'loaded' && isHovered
+		state === 'loaded' && isHovered
 			? 'drop-shadow(0 0 6px var(--c-primary, #3b82f6)) drop-shadow(0 0 2px var(--c-primary, #3b82f6))'
-			: loadState === 'loaded' && isEraserHovered
+			: state === 'loaded' && isEraserHovered
 				? 'drop-shadow(0 0 6px #ef4444) drop-shadow(0 0 2px #ef4444)'
 				: undefined
-
-	// Compute optimal variant based on display size (canvas size * zoom)
-	const variant = React.useMemo(() => {
-		const displayWidth = width * scale
-		const displayHeight = height * scale
-		return getImageVariantForDisplaySize(displayWidth, displayHeight)
-	}, [width, height, scale])
-
-	// Construct image URL using proper Cloudillo URL helpers
-	const imageUrl = React.useMemo(() => {
-		if (ownerTag) {
-			return getFileUrl(ownerTag, fileId, variant, token ? { token } : undefined)
-		}
-		// Fallback to relative URL when ownerTag is not available
-		return `/api/files/${fileId}?variant=${variant}`
-	}, [fileId, ownerTag, token, variant])
-
-	const handleLoad = React.useCallback(() => {
-		setLoadState('loaded')
-	}, [])
-
-	const handleError = React.useCallback(() => {
-		setLoadState('error')
-	}, [])
-
-	// Reset load state when fileId changes
-	React.useEffect(() => {
-		setLoadState('loading')
-	}, [fileId])
 
 	return (
 		<g className="ideallo-image" opacity={style.opacity}>
 			{/* Loading placeholder */}
-			{loadState === 'loading' && (
+			{state === 'loading' && (
 				<rect
 					x={x}
 					y={y}
@@ -115,7 +90,7 @@ export function ImageRenderer({
 			)}
 
 			{/* Error state */}
-			{loadState === 'error' && (
+			{state === 'error' && (
 				<g>
 					<rect
 						x={x}
@@ -172,23 +147,23 @@ export function ImageRenderer({
 			)}
 
 			{/* The actual image */}
-			<image
-				href={imageUrl}
-				x={x}
-				y={y}
-				width={width}
-				height={height}
-				preserveAspectRatio="xMidYMid slice"
-				clipPath={rounded ? `url(#${clipId})` : undefined}
-				onLoad={handleLoad}
-				onError={handleError}
-				style={{
-					display: loadState === 'error' ? 'none' : 'block',
-					opacity: loadState === 'loaded' ? 1 : 0,
-					transition: 'opacity 0.15s ease-in',
-					filter: hoverFilter
-				}}
-			/>
+			{imageUrl && (
+				<image
+					href={imageUrl}
+					x={x}
+					y={y}
+					width={width}
+					height={height}
+					preserveAspectRatio="xMidYMid slice"
+					clipPath={rounded ? `url(#${clipId})` : undefined}
+					style={{
+						display: state === 'error' ? 'none' : 'block',
+						opacity: state === 'loaded' ? 1 : 0,
+						transition: 'opacity 0.15s ease-in',
+						filter: hoverFilter
+					}}
+				/>
+			)}
 
 			{/* The optional border, drawn OVER the image so a rounded edge is not covered by it */}
 			{hasBorder && (

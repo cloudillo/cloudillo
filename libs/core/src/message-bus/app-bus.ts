@@ -486,6 +486,7 @@ export class AppMessageBus extends MessageBusBase {
 		theme: 'glass'
 	}
 	private isEmbed = false
+	private ownAppName?: string
 	/**
 	 * Handshake key for an embed ('_embed:<nonce>'), kept apart from {@link state}.resId
 	 * so the app still knows the real document it was launched for.
@@ -589,6 +590,17 @@ export class AppMessageBus extends MessageBusBase {
 		return i > 0 ? this.state.resId?.slice(0, i) : undefined
 	}
 
+	/** The name this app passed to {@link init}, lowercased — the `<appId>` half of a `cl:`
+	 *  reference. Some apps init with a display-cased name (`'Calcillo'`) while `<appId>` in a
+	 *  reference and in `appConfig.apps` is the lowercase manifest id, and the shell resolves
+	 *  the app case-sensitively. The **raw** value still goes out in `auth:init.req` — the
+	 *  shell scopes per-app settings by it, so changing that would orphan stored settings.
+	 *  Lowercase is enough while every app id is a single `*illo` word; pass the
+	 *  manifest id explicitly if that stops being true. */
+	get appName(): string | undefined {
+		return this.ownAppName?.toLowerCase()
+	}
+
 	/** Last document info pushed by the shell, if any */
 	get docInfo(): DocInfo | undefined {
 		return this.lastDocInfo
@@ -615,6 +627,7 @@ export class AppMessageBus extends MessageBusBase {
 			return this.getState()
 		}
 
+		this.ownAppName = appName
 		this.config.contextName = `AppBus:${appName}`
 
 		// resId and auth handshake key are separate things: the shell keys the

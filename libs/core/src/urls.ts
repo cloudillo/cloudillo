@@ -5,7 +5,7 @@ import { isFileId, isIdTag } from '@cloudillo/types'
 
 /** Keys already reported by `getFileUrl`. A refusal is a static property of the id, so
  *  warning once keeps a bad thumbnail in a grid from filling the console on every render.
- *  ponytail: unbounded, but it only ever holds ids that FAILED validation — a set that
+ *  Unbounded, but it only ever holds ids that FAILED validation — a set that
  *  grows is itself the signal that something is wrong. */
 const warnedFileUrls = new Set<string>()
 
@@ -384,6 +384,16 @@ export function getImageVariantForDisplaySize(displayWidth: number, displayHeigh
 	if (maxDimension <= VARIANT_SIZE_THRESHOLDS['vis.md']) return 'vis.md'
 	if (maxDimension <= VARIANT_SIZE_THRESHOLDS['vis.hd']) return 'vis.hd'
 	return 'vis.xd'
+}
+
+/**
+ * The short, portable document reference: `cl:<appId>/<ownerIdTag>:<fileId>[?nav=…]`.
+ * The owner is embedded in the resId, so the recipient resolves it in their own home —
+ * which is why no context is carried. The single writer of this format: `buildRef` in
+ * the shell and `AppDocBar` in `@cloudillo/react` both call it.
+ */
+export function docRef(appId: string, resId: string, nav?: string | null): string {
+	return `cl:${appId}/${resId}${nav ? `?nav=${encodeURIComponent(nav)}` : ''}`
 }
 
 // vim: ts=4

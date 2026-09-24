@@ -206,6 +206,57 @@ export function useOutsideClick<T extends HTMLElement>(
 }
 
 /**
+ * Dismiss on a click outside every one of `targets`, the way every popover surface in
+ * the library does it: capture phase on `document`, so no handler underneath sees the
+ * click, and the click is swallowed rather than also activating whatever sat behind
+ * the surface.
+ *
+ * `isTrusted` is the load-bearing guard: a synthetic click is a menu item doing its
+ * job, and `preventDefault()` on one cancels the very default action it was dispatched
+ * for — it silently killed calcillo's Export-to-JSON and quillo's Import Markdown.
+ *
+ * Inert while every target is null, which is how a closed popover opts out.
+ */
+export function useOutsideDismiss(
+	targets: (HTMLElement | null | undefined)[],
+	onDismiss: () => void,
+	{ closeOnContextMenu = false }: { closeOnContextMenu?: boolean } = {}
+): void {
+	// Read through refs so a target swapping identity does not re-subscribe, and the
+	// handler always sees the current values.
+	const targetsRef = React.useRef(targets)
+	const onDismissRef = React.useRef(onDismiss)
+	targetsRef.current = targets
+	onDismissRef.current = onDismiss
+
+	const enabled = targets.some(Boolean)
+
+	React.useEffect(() => {
+		if (!enabled) return
+
+		function handleOutside(evt: MouseEvent) {
+			if (!evt.isTrusted) return
+			const target = evt.target as Node
+			if (targetsRef.current.some((el) => el?.contains(target))) return
+			// A right-click is deliberately let through unswallowed: it is how the
+			// next context menu opens.
+			if (evt.type === 'click') {
+				evt.preventDefault()
+				evt.stopPropagation()
+			}
+			onDismissRef.current()
+		}
+
+		document.addEventListener('click', handleOutside, true)
+		if (closeOnContextMenu) document.addEventListener('contextmenu', handleOutside, true)
+		return () => {
+			document.removeEventListener('click', handleOutside, true)
+			if (closeOnContextMenu) document.removeEventListener('contextmenu', handleOutside, true)
+		}
+	}, [enabled, closeOnContextMenu])
+}
+
+/**
  * Responsive breakpoint scale, matching OpalUI's bands (`local/opalui/src/layout.css`).
  *
  * Kept in `rem`, not px: OpalUI 0.15.0 made every band font-relative, so a px

@@ -5,6 +5,7 @@ import * as React from 'react'
 import { createPortal } from 'react-dom'
 import { usePopper } from 'react-popper'
 
+import { useOutsideDismiss } from '../hooks.js'
 import type { Elevation } from '../types.js'
 import { mergeClasses } from '../utils.js'
 
@@ -37,27 +38,7 @@ export function Popper({
 		strategy: 'fixed'
 	})
 
-	React.useEffect(() => {
-		if (!popperEl) return
-
-		function handleClickOutside(evt: MouseEvent) {
-			// Same exemption as `Dropdown`: a synthetic click is a menu item doing
-			// its job, and `preventDefault()` on one cancels the very default
-			// action it was dispatched for (blob download, file picker). No shell
-			// Popper menu triggers one yet, but the trap is identical.
-			if (!evt.isTrusted) return
-			if (!(evt.target instanceof Node) || !popperEl?.contains(evt.target)) {
-				evt.stopPropagation()
-				evt.preventDefault()
-				setIsOpen(false)
-			}
-		}
-
-		document.addEventListener('click', handleClickOutside, true)
-		return () => {
-			document.removeEventListener('click', handleClickOutside, true)
-		}
-	}, [popperEl])
+	useOutsideDismiss([popperEl], () => setIsOpen(false))
 
 	return (
 		<details

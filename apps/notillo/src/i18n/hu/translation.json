@@ -258,5 +258,8 @@
 	"New child type": "Új aloldal típusa",
 	"Page (default)": "Oldal (alapértelmezett)",
 	"Share to feed": "Megosztás a hírfolyamban",
+	"Copy reference": "Hivatkozás másolása",
+	"Reference copied": "Hivatkozás másolva",
+	"Failed to copy reference": "A hivatkozás másolása nem sikerült",
 	"Could not share this document": "Nem sikerült megosztani ezt a dokumentumot"
 }

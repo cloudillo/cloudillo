@@ -808,6 +808,15 @@
 	overflow: hidden;
 }
 
+.c-menu-backdrop {
+	position: fixed;
+	inset: 0;
+	background: transparent;
+	/* iOS only delivers clicks to elements that look clickable */
+	cursor: pointer;
+	z-index: calc(var(--z-popover, 1000) - 1);
+}
+
 .c-menu-item {
 	display: flex;
 	align-items: center;
@@ -2006,6 +2015,55 @@
 	display: flex;
 	align-items: center;
 	gap: var(--space-1);
+}
+
+/* One chrome for every action in the bar, whoever renders it: the built-in copy and
+   share buttons, an app's own, and the `DocBarMenu` trigger. Needed because OpalUI
+   nests `.icon` and `.small` under `.c-button` — a `kind="link"` button drops both
+   silently, so the row otherwise mixes bare 16px glyphs (built-ins), bare 20px ones
+   (apps passing `size={20}`) and one full 40px plate (the menu trigger).
+
+   `min-width` rather than `width`: a text action would grow instead of squashing. */
+.c-docbar-actions .c-link,
+.c-docbar-actions .c-button.link {
+	--docbar-action-size: var(--size-sm);
+	justify-content: center;
+	min-width: var(--docbar-action-size);
+	height: var(--docbar-action-size);
+	padding: 0 var(--space-1);
+	border-radius: var(--radius-control);
+}
+
+/* On the element, not via `font-size`: these buttons may carry a text badge, whose
+   size must not follow the glyph's. Overrides react-icons' `size` attribute, so an
+   app setting its own stays in step. */
+.c-docbar-actions .c-link > svg,
+.c-docbar-actions .c-button.link > svg {
+	width: 1.25rem;
+	height: 1.25rem;
+}
+
+/* A plate, not `.c-link`'s 1px hop — which is invisible on a glyph this size and
+   leaves the hit area unmarked. Same plate `.c-button.link` already hovers with. */
+.c-docbar-actions .c-link:hover:not([disabled]) {
+	transform: none;
+	background: var(--col-container-low);
+}
+
+/* A toggle has to look toggled: the app-side ones are `aria-pressed`, which neither
+   base class styles. Mirrors `.c-button.link.active`. */
+.c-docbar-actions .c-link[aria-pressed='true'],
+.c-docbar-actions .c-button.link[aria-pressed='true'] {
+	background: var(--col-container-primary);
+	color: var(--col-primary);
+}
+
+/* 32px clears WCAG 2.5.8's 24px, but not a thumb. */
+@media (pointer: coarse) {
+	.c-docbar-actions .c-link,
+	.c-docbar-actions .c-button.link {
+		--docbar-action-size: 2.75rem;
+	}
 }
 
 /* The overflow menu's popper. `.c-popper` supplies the surface; the padding and

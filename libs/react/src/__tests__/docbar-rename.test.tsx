@@ -47,7 +47,7 @@ function pushDocInfo(info: DocInfo) {
  * mock does not define fails to link.
  */
 jest.unstable_mockModule('@cloudillo/core', async () => {
-	const { getCrdtUrl, getFileUrl } = await import('../../../core/lib/urls.js')
+	const { docRef, getCrdtUrl, getFileUrl } = await import('../../../core/lib/urls.js')
 	// `delay` for `Button`, which the Share action in `AppDocBar` pulls into the graph.
 	const { delay, idHue } = await import('../../../core/lib/utils.js')
 	const fileUtils = await import('../../../core/lib/file-utils.js')
@@ -70,6 +70,7 @@ jest.unstable_mockModule('@cloudillo/core', async () => {
 		...presence,
 		...fileUtils,
 		delay,
+		docRef,
 		getCrdtUrl,
 		getFileUrl,
 		idHue,

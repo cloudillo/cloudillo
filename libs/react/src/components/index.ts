@@ -151,6 +151,7 @@ export {
 	useMenuKeyboard,
 	useMergedRefs,
 	useOutsideClick,
+	useOutsideDismiss,
 	usePrefersReducedMotion
 } from './hooks.js'
 export type { LoadMoreTriggerProps } from './InfiniteScroll/index.js'

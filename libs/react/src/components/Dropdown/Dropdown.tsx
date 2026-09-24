@@ -5,7 +5,7 @@ import * as React from 'react'
 import { createPortal } from 'react-dom'
 import { usePopper } from 'react-popper'
 
-import { useMenuKeyboard } from '../hooks.js'
+import { useMenuKeyboard, useOutsideDismiss } from '../hooks.js'
 import type { Elevation } from '../types.js'
 import { createComponent, mergeClasses } from '../utils.js'
 
@@ -58,21 +58,10 @@ export const Dropdown = createComponent<HTMLDetailsElement, DropdownProps>(
 			strategy: 'fixed'
 		})
 
+		useOutsideDismiss([popperEl], () => setIsOpen(false))
+
 		React.useEffect(() => {
 			if (!popperEl) return
-			function handleClickOutside(evt: MouseEvent) {
-				// Synthetic clicks are the menu item doing its job, not the user
-				// dismissing the menu. `preventDefault()` on one of those cancels
-				// the very default action it was dispatched for — it silently
-				// killed calcillo's Export-to-JSON (`a.click()` on a blob URL) and
-				// quillo's Import Markdown (`input.click()` opening the picker).
-				if (!evt.isTrusted) return
-				if (!(evt.target instanceof Node) || !popperEl?.contains(evt.target)) {
-					evt.stopPropagation()
-					evt.preventDefault()
-					setIsOpen(false)
-				}
-			}
 			function handleKeyDown(evt: KeyboardEvent) {
 				if (evt.key !== 'Escape') return
 				evt.stopImmediatePropagation()
@@ -82,10 +71,8 @@ export const Dropdown = createComponent<HTMLDetailsElement, DropdownProps>(
 				// it back on the trigger rather than dropping it on `<body>`.
 				popperRef?.focus()
 			}
-			document.addEventListener('click', handleClickOutside, true)
 			document.addEventListener('keydown', handleKeyDown, true)
 			return () => {
-				document.removeEventListener('click', handleClickOutside, true)
 				document.removeEventListener('keydown', handleKeyDown, true)
 			}
 		}, [popperEl, popperRef])

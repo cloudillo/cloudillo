@@ -5,7 +5,7 @@ import * as React from 'react'
 import { createPortal } from 'react-dom'
 import { usePopper } from 'react-popper'
 
-import { useEscapeKey, useMenuKeyboard, useMergedRefs } from '../hooks.js'
+import { useEscapeKey, useMenuKeyboard, useMergedRefs, useOutsideDismiss } from '../hooks.js'
 import { createComponent, mergeClasses } from '../utils.js'
 
 export interface MenuPosition {
@@ -26,6 +26,10 @@ export const Menu = createComponent<HTMLDivElement, MenuProps>(
 		// Also as state, so the keyboard hook re-runs once the node exists.
 		const [menuEl, setMenuEl] = React.useState<HTMLDivElement | null>(null)
 		const [adjustedPosition, setAdjustedPosition] = React.useState(position)
+		// Touch taps often never reach the document-level click listener (they land in an
+		// app iframe, or iOS sends no click on non-clickable targets), so on coarse pointers
+		// a transparent backdrop catches the dismissing tap instead.
+		const [coarse] = React.useState(() => !!window.matchMedia?.('(pointer: coarse)').matches)
 
 		// Combine refs using shared hook
 		const mergedRef = useMergedRefs(ref, menuRef, setMenuEl)
@@ -56,21 +60,15 @@ export const Menu = createComponent<HTMLDivElement, MenuProps>(
 			[position]
 		)
 
-		// Close on outside click — custom handler to also allow clicks in submenu portals
-		React.useEffect(() => {
-			function handleClick(evt: MouseEvent) {
-				const target = evt.target as Node
-				// Allow clicks inside the menu itself
-				if (menuRef.current?.contains(target)) return
-				// Allow clicks inside submenu portals (rendered as siblings in popper-container)
-				const popper = document.getElementById('popper-container')
-				if (popper?.contains(target)) return
-				onClose()
-			}
-
-			document.addEventListener('mousedown', handleClick)
-			return () => document.removeEventListener('mousedown', handleClick)
-		}, [onClose])
+		// Close on outside click. `#popper-container` is exempt alongside the menu
+		// itself, so clicks in submenu portals (rendered as siblings there) count as
+		// inside. It is a static shell element, so the render-time lookup is safe.
+		// Contract (same as Popper/Dropdown): the dismissing click is consumed, so it
+		// does not also activate whatever was under it; a right-click closes the menu
+		// but passes through, so it can open the next context menu.
+		useOutsideDismiss([menuEl, document.getElementById('popper-container')], onClose, {
+			closeOnContextMenu: true
+		})
 
 		// Close on Escape using shared hook
 		useEscapeKey(onClose)
@@ -101,7 +99,22 @@ export const Menu = createComponent<HTMLDivElement, MenuProps>(
 
 		// Render in portal to escape stacking context issues
 		const portalContainer = document.getElementById('popper-container') || document.body
-		return createPortal(menuElement, portalContainer)
+		return createPortal(
+			<>
+				{coarse && (
+					<div
+						className="c-menu-backdrop"
+						aria-hidden="true"
+						onClick={onClose}
+						// Swallow only: the long-press that opened the menu can deliver its
+						// own `contextmenu` here, which must not close it again.
+						onContextMenu={(evt) => evt.preventDefault()}
+					/>
+				)}
+				{menuElement}
+			</>,
+			portalContainer
+		)
 	}
 )
 

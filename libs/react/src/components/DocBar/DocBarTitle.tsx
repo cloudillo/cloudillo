@@ -42,6 +42,12 @@ export interface DocBarTitleProps {
 	renaming?: boolean
 	/** The item inside the document you are looking at — notillo's current page. */
 	sub?: DocBarSubItem
+	/**
+	 * Actions on the document's IDENTITY, sitting with its name — copying the
+	 * reference to it, and nothing else so far. Before the `sub` crumb on purpose:
+	 * after it they would read as scoped to the page rather than to the document.
+	 */
+	titleActions?: React.ReactNode
 	/** Hide the owner's name, keeping the picture. Set on narrow viewports. */
 	compact?: boolean
 }
@@ -188,6 +194,7 @@ export function DocBarTitle({
 	onRename,
 	renaming,
 	sub,
+	titleActions,
 	compact
 }: DocBarTitleProps) {
 	const { t } = useLibTranslation()
@@ -260,6 +267,9 @@ export function DocBarTitle({
 					/>
 				)}
 			</div>
+			{/* `.c-docbar-actions` for the chrome: one look for every action in the bar,
+			    wherever it sits. */}
+			{titleActions && <div className="c-docbar-actions">{titleActions}</div>}
 			{sub && (
 				<>
 					<IcSep className="c-docbar-sep" aria-hidden="true" />

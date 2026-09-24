@@ -10,9 +10,9 @@
  * directly instead.
  */
 
-import { type DocInfo, getAppBus, parseAppHash } from '@cloudillo/core'
+import { type DocInfo, docRef, getAppBus, parseAppHash } from '@cloudillo/core'
 import * as React from 'react'
-import { LuShare2 as IcShare } from 'react-icons/lu'
+import { LuLink as IcRef, LuShare2 as IcShare } from 'react-icons/lu'
 import type { Awareness } from 'y-protocols/awareness'
 
 import { Button } from './components/Button/Button.js'
@@ -165,7 +165,7 @@ export function AppDocBar({
 }: AppDocBarProps) {
 	const { info, title, state, canRename, canPost, rename, renaming, hidden } = useDocBar()
 	const { t } = useLibTranslation()
-	const { error: toastError } = useToast()
+	const { success: toastSuccess, error: toastError } = useToast()
 	// An app that computed the roster once — RTDB apps do, and so does any Yjs app
 	// that needs presence outside the bar — provides it here. Only without a
 	// provider does the bar subscribe on its own, and never in an embed.
@@ -189,6 +189,37 @@ export function AppDocBar({
 			onRename={rename}
 			renaming={renaming}
 			sub={sub}
+			// With the name, not in the trailing cluster: what it copies is the
+			// document's identity, while the trailing cluster is the app's own actions.
+			//
+			// `docRef` is the same writer the shell's `buildRef` uses for a document
+			// route. Built here rather than asked of the shell — one getter beats a new
+			// message type. No `?nav=`: an app never pushes it back into the shell URL.
+			//
+			// `immediate` keeps the clipboard write inside the click's user-activation
+			// window — `Button` otherwise defers the handler past its press animation,
+			// which Safari and Firefox reject as a user-gesture-less clipboard write.
+			titleActions={
+				state === 'ready' &&
+				info?.resId && (
+					<Button
+						kind="link"
+						immediate
+						icon={<IcRef />}
+						title={t('Copy reference')}
+						aria-label={t('Copy reference')}
+						onClick={() =>
+							navigator.clipboard
+								.writeText(docRef(getAppBus().appName ?? '', info.resId))
+								.then(() => toastSuccess(t('Reference copied')))
+								.catch((err: Error) => {
+									console.error('[DocBar] Copy reference failed', err)
+									toastError(t('Failed to copy reference'))
+								})
+						}
+					/>
+				)
+			}
 			start={start}
 			subActions={subActions}
 			presence={users}

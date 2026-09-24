@@ -20,6 +20,8 @@ export {
 	favoriteCommunitiesAtom,
 	favoritesAtom,
 	fileViewUpdateAtom,
+	previewCommunityAtom,
+	recentCommunitiesAtom,
 	sessionTrustAtom,
 	storedTrustAtom
 } from './atoms'
@@ -35,17 +37,19 @@ export type { GuestFileType } from './guest-document'
 export { isGuestDocumentPath, useGuestDocument } from './guest-document'
 // Hooks
 export {
+	contextToolAllowed,
 	isContextLeader,
 	LEADER_ONLY_APPS,
 	loadIdpEnabled,
 	useApiContext,
 	useCommunitiesList,
 	useContextSwitch,
+	useContextSwitchNav,
 	useCurrentContextIdTag,
 	useSidebar
 } from './hooks'
 // Components
-export { Sidebar } from './sidebar'
+export { ContextTools, Sidebar } from './sidebar'
 // Trust
 export { useProfileTrust, useProfileTrustBootstrap } from './trust'
 // Types

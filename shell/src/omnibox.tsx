@@ -41,29 +41,25 @@ import {
 	LuSearch as IcSearch
 } from 'react-icons/lu'
 import { usePopper } from 'react-popper'
-import { useLocation, useMatch, useNavigate } from 'react-router-dom'
+import { useMatch, useNavigate } from 'react-router-dom'
 
 import {
 	activeContextAtom,
 	communitiesAtom,
+	contextIdpEnabledAtom,
+	contextToolAllowed,
 	isContextLeader,
 	LEADER_ONLY_APPS,
 	useContextAwareApi,
 	useCtx,
 	useCurrentContextIdTag
 } from './context/index.js'
-import { getPartAddressing } from './manifest-registry.js'
+import { COMMAND_ONLY_MENU, getPartAddressing } from './manifest-registry.js'
 import { deriveMode } from './omnibox-mode.js'
-import { buildRef, canShareRoute, resolveRef } from './refs.js'
+import { resolveRef } from './refs.js'
 import { contextPath, profilePath, scopePath, sectionMatch } from './routes.js'
 import { SearchResultRow } from './SearchResultRow.js'
-import {
-	lastQueryAtom,
-	openOmniboxAtom,
-	pushRecentAtom,
-	recentSearchesAtom,
-	useSearch
-} from './search.js'
+import { lastQueryAtom, pushRecentAtom, recentSearchesAtom, useSearch } from './search.js'
 import {
 	FTS_CACHE_LIMIT,
 	FTS_CACHE_TTL_MS,
@@ -86,6 +82,16 @@ interface BreadcrumbSegment {
 }
 
 /**
+ * Everywhere you can jump to: the user's configured app menu plus `COMMAND_ONLY_MENU`,
+ * the fixed chrome that is deliberately not pinnable (context tools, Messages) and so
+ * is absent from `appConfig.menu`. The `/` palette is the only keyboard route to it.
+ */
+function useCommandMenu(): MenuItem[] {
+	const [appConfig] = useAppConfig()
+	return React.useMemo(() => [...(appConfig?.menu ?? []), ...COMMAND_ONLY_MENU], [appConfig])
+}
+
+/**
  * Compose the live `Context › App › Document` breadcrumb segments for the
  * current route. Empty segments are dropped.
  *
@@ -96,7 +102,7 @@ interface BreadcrumbSegment {
 function useBreadcrumb(): BreadcrumbSegment[] {
 	const { i18n } = useTranslation()
 	const [auth] = useAuth()
-	const [appConfig] = useAppConfig()
+	const commandMenu = useCommandMenu()
 	const activeContext = useAtomValue(activeContextAtom)
 	const communities = useAtomValue(communitiesAtom)
 	const titleState = useAtomValue(documentTitleAtom)
@@ -129,7 +135,7 @@ function useBreadcrumb(): BreadcrumbSegment[] {
 
 	// AppLabel: menu item matched by appId; fall back to the appId. Matched on `id`, not on
 	// `path` — menu paths are context-relative templates, not routes.
-	const menuItem = appId ? appConfig?.menu.find((it) => it.id === appId) : undefined
+	const menuItem = appId ? commandMenu.find((it) => it.id === appId) : undefined
 	const appLabel = menuItem ? menuItem.trans?.[i18n.language] || menuItem.label : appId
 
 	// DocTitle: from the atom, but only when it belongs to the current resId.
@@ -160,53 +166,6 @@ export function DocumentTitleSync() {
 			: 'Cloudillo'
 	}, [segments])
 	return null
-}
-
-/**
- * Idle header state: a single collapsed-field placeholder — magnifier plus
- * label — that opens the omnibox input, plus a copy button (shareable routes
- * only) yielding a portable `cl:` reference.
- *
- * No `Context › App › Document` crumb trail here: that lives in each app's
- * DocBar, which can also rename the document and show who else is in it.
- * `useBreadcrumb` stays because the browser-tab title still carries the full
- * trail via {@link DocumentTitleSync}.
- */
-export function OmniboxIdle() {
-	const { t } = useTranslation()
-	const location = useLocation()
-	const openOmnibox = useSetAtom(openOmniboxAtom)
-	const toast = useToast()
-	const canShare = canShareRoute(location.pathname)
-
-	async function copyRef() {
-		const ref = buildRef(location.pathname, location.search)
-		try {
-			await navigator.clipboard.writeText(ref)
-			toast.success(t('Reference copied'))
-		} catch (err) {
-			console.error('[Omnibox] Failed to copy reference:', err)
-			toast.error(t('Failed to copy reference'))
-		}
-	}
-
-	return (
-		<div className="c-hbox align-items-center g-1" style={{ minWidth: 0 }}>
-			<button type="button" className="c-omnibox-placeholder" onClick={() => openOmnibox()}>
-				<IcSearch size={16} />
-				{t('Search')}
-			</button>
-			{canShare && (
-				<Button
-					className="icon c-omnibox-copy flex-shrink-0"
-					onClick={copyRef}
-					aria-label={t('Copy reference')}
-				>
-					<IcRef />
-				</Button>
-			)}
-		</div>
-	)
 }
 
 // ============================================
@@ -251,6 +210,8 @@ export function Omnibox() {
 	// `ctxApi` above.
 	const contextIdTag = useCurrentContextIdTag()
 	const activeContext = useAtomValue(activeContextAtom)
+	const contextIdpEnabled = useAtomValue(contextIdpEnabledAtom)
+	const commandMenu = useCommandMenu()
 
 	const query = search.query ?? ''
 	// A guest has no profile surface: the `@` hotkey is disabled in `layout.tsx` and
@@ -439,15 +400,16 @@ export function Omnibox() {
 		}
 		if (mode === 'command') {
 			const filter = query.startsWith('/') ? query.slice(1).toLowerCase() : ''
-			const menu = appConfig?.menu ?? []
 			const leaderHere = isContextLeader(activeContext, auth?.idTag)
-			return menu
+			return commandMenu
 				.filter((item) => {
 					// Same visibility rule as the desktop Menu component.
 					const allowed =
 						(!!auth && (!item.perm || auth.roles?.includes(item.perm))) || item.public
 					if (!allowed) return false
 					if (LEADER_ONLY_APPS.has(item.id) && !leaderHere) return false
+					if (!contextToolAllowed(item.id, activeContext, auth?.idTag, contextIdpEnabled))
+						return false
 					if (!filter) return true
 					const label = (item.trans?.[i18n.language] || item.label).toLowerCase()
 					return label.includes(filter) || item.id.toLowerCase().includes(filter)
@@ -477,7 +439,8 @@ export function Omnibox() {
 		query,
 		pristine,
 		recent,
-		appConfig,
+		commandMenu,
+		contextIdpEnabled,
 		auth,
 		activeContext,
 		i18n.language,

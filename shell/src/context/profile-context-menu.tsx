@@ -163,13 +163,13 @@ export function ProfileContextMenu({
 					{isPinned ? (
 						<Item
 							icon={<IcPinOff />}
-							label={t('Unpin from sidebar')}
+							label={t('Unpin')}
 							onClick={handleAction(handleTogglePin)}
 						/>
 					) : (
 						<Item
 							icon={<IcPin />}
-							label={t('Pin to sidebar')}
+							label={t('Pin')}
 							onClick={handleAction(handleTogglePin)}
 						/>
 					)}

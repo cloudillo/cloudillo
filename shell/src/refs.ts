@@ -21,6 +21,8 @@
  * Pure module — no React, no shell state — so it is unit-testable in isolation.
  */
 
+import { docRef } from '@cloudillo/core'
+
 import { contextPath, HOME_BASE } from './routes.js'
 
 /**
@@ -49,9 +51,7 @@ export function buildRef(pathname: string, search = ''): string {
 		const resId = m[3]
 		if (resId.includes(':')) {
 			// Short, portable form. Drop context + access; preserve nav.
-			const nav = params.get('nav')
-			const suffix = nav ? `?nav=${encodeURIComponent(nav)}` : ''
-			return `cl:${appId}/${resId}${suffix}`
+			return docRef(appId, resId, params.get('nav'))
 		}
 	}
 
@@ -112,16 +112,6 @@ export function resolveRef(input: string): string | null {
  */
 export function isRefLike(input: string): boolean {
 	return /^(cl:|https?:\/\/)/i.test(input.trim())
-}
-
-/**
- * True for routes that can be shared (gates the breadcrumb copy button):
- * app pages/documents and profiles. False for login/onboarding/etc.
- */
-export function canShareRoute(pathname: string): boolean {
-	// Raw pathname, not the route tree: this module stays React-free. Segment 1 is whatever
-	// context the route names.
-	return /^\/[^/]+\/(app|profile)(\/|$)/.test(pathname)
 }
 
 // vim: ts=4

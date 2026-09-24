@@ -60,7 +60,9 @@ export function HandChip() {
 
 	if (isDormant) {
 		return (
-			<li className="c-nav-item pos-relative">
+			// Bare `<li>`: `c-nav-item` on the wrapper *and* the button applies
+			// OpalUI's nav-item margin twice. It belongs on the button.
+			<li className="pos-relative">
 				<button
 					type="button"
 					className="c-nav-item c-hbox align-items-center g-1 c-hand-chip-dormant"

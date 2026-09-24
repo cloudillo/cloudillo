@@ -19,7 +19,7 @@
 
 import { jest } from '@jest/globals'
 import { act, fireEvent, render, screen } from '@testing-library/react'
-import { atom, createStore, Provider } from 'jotai'
+import { atom, createStore, Provider, useSetAtom } from 'jotai'
 import * as React from 'react'
 
 const HOME = 'user.example.com'
@@ -109,8 +109,16 @@ jest.unstable_mockModule('react-router-dom', () => ({
 }))
 
 jest.unstable_mockModule('../context/index', () => ({
-	activeContextAtom: atom(undefined),
+	activeContextAtom: atom<{ idTag: string; type: string } | undefined>(undefined),
 	communitiesAtom: atom([]),
+	contextIdpEnabledAtom: atom<Record<string, boolean | 'unknown'>>({}),
+	// The idp rule of the real helper, so the IdP test sees the live atom reach it.
+	contextToolAllowed: (
+		id: string,
+		ctx: { idTag: string } | undefined,
+		_authIdTag: string | undefined,
+		idpEnabled: Record<string, boolean | 'unknown'>
+	) => id !== 'idp' || (!!ctx && idpEnabled[ctx.idTag] === true),
 	isContextLeader: () => true,
 	LEADER_ONLY_APPS: new Set<string>(),
 	useContextAwareApi: () => CTX_API,
@@ -123,32 +131,50 @@ jest.unstable_mockModule('../SearchResultRow', () => ({
 }))
 
 // Only the site built-in matters here; it is what `getPartAddressing` returns for a published container.
+// `COMMAND_ONLY_MENU` is the real list's shape: the fixed chrome that is absent from
+// `appConfig.menu` because it is not pinnable, and so reachable only through `/`.
 jest.unstable_mockModule('../manifest-registry', () => ({
 	getPartAddressing: (contentType?: string) =>
-		contentType === SITE_MIME ? { kind: 'sitePath' } : undefined
+		contentType === SITE_MIME ? { kind: 'sitePath' } : undefined,
+	COMMAND_ONLY_MENU: [
+		{ id: 'communities', label: 'Communities', path: 'communities' },
+		{ id: 'users', label: 'People', path: 'users' },
+		{ id: 'settings', label: 'Settings', path: 'settings' },
+		{ id: 'idp', label: 'IDP', path: 'idp' },
+		{ id: 'site-admin', label: 'Server', path: '/~/site-admin', perm: 'SADM' },
+		{ id: 'messages', label: 'Messages', path: 'app/messages' }
+	]
 }))
 
 jest.unstable_mockModule('../utils', () => ({
 	useAppConfig: () => APP_CONFIG
 }))
 
-const { Omnibox, OmniboxIdle } = await import('../omnibox.js')
-const { lastQueryAtom, pushRecentAtom, recentSearchesAtom, RECENT_LIMIT, toggleOmniboxAtom } =
-	await import('../search.js')
+const { Omnibox } = await import('../omnibox.js')
+const {
+	lastQueryAtom,
+	openOmniboxAtom,
+	pushRecentAtom,
+	recentSearchesAtom,
+	RECENT_LIMIT,
+	toggleOmniboxAtom
+} = await import('../search.js')
 const { useSearch } = await import('../search.js')
+const { activeContextAtom, contextIdpEnabledAtom } = await import('../context/index.js')
 
 /**
  * Mirrors `layout.tsx`: the omnibox exists only while `query` is defined, so "the box
- * closed" is observable as the probe taking over — and the idle header carries the
- * mouse route back into the box.
+ * closed" is observable as the probe taking over — and the header's search icon carries
+ * the mouse route back into the box.
  */
 function Harness() {
 	const [search] = useSearch()
+	const openOmnibox = useSetAtom(openOmniboxAtom)
 	if (search.query == undefined) {
 		return (
 			<>
 				<div data-testid="closed" />
-				<OmniboxIdle />
+				<button type="button" aria-label="Search" onClick={() => openOmnibox()} />
 			</>
 		)
 	}
@@ -459,6 +485,63 @@ describe('the recents list itself', () => {
 		for (let i = 0; i < RECENT_LIMIT + 3; i++) store.set(pushRecentAtom, `q${i}`)
 		expect(store.get(recentSearchesAtom)).toHaveLength(RECENT_LIMIT)
 		expect(store.get(recentSearchesAtom)[0]).toBe(`q${RECENT_LIMIT + 2}`)
+	})
+})
+
+describe('the `/` command palette', () => {
+	/** Open the box and switch it into command mode. */
+	function openCommand(store = createStore()) {
+		store.set(toggleOmniboxAtom)
+		renderOmnibox(store)
+		type('/')
+		return store
+	}
+
+	// These are not in `appConfig.menu`: they are fixed chrome, deliberately kept out
+	// of the pinnable rail slots, so `/` is the only keyboard route to them.
+	it('lists the fixed chrome alongside the configured apps', () => {
+		openCommand()
+
+		expect(screen.getByText('Settings')).toBeTruthy()
+		expect(screen.getByText('Messages')).toBeTruthy()
+		expect(screen.getByText('Communities')).toBeTruthy()
+		expect(screen.getByText('Files')).toBeTruthy()
+	})
+
+	it('navigates to a chrome entry through the context base', () => {
+		openCommand()
+		fireEvent.click(screen.getByText('Messages'))
+
+		expect(navigated).toEqual(['/~/app/messages'])
+	})
+
+	// `SADM`-gated, and this auth has no roles.
+	it('withholds Server from a user without the permission', () => {
+		openCommand()
+
+		expect(screen.queryByText('Server')).toBeNull()
+	})
+
+	// `'unknown'` is a transient lookup failure, not a yes — it must not offer the page.
+	it('withholds IDP until the context says its IdP is on', () => {
+		const store = createStore()
+		store.set(activeContextAtom, {
+			idTag: HOME,
+			name: HOME,
+			type: 'me',
+			roles: [],
+			permissions: []
+		})
+		store.set(contextIdpEnabledAtom, { [HOME]: 'unknown' })
+		openCommand(store)
+		type('/idp')
+
+		expect(screen.queryByText('IDP')).toBeNull()
+
+		act(() => {
+			store.set(contextIdpEnabledAtom, { [HOME]: true })
+		})
+		expect(screen.getByText('IDP')).toBeTruthy()
 	})
 })
 

@@ -30,6 +30,7 @@ import {
 	LuCopy as IcCopy,
 	LuPencil as IcEdit,
 	LuFilter as IcFilter,
+	LuLink as IcRef,
 	LuUserPlus as IcFollow,
 	LuUserCheck as IcFollowsYou,
 	LuMessageCircle as IcMessage,
@@ -61,6 +62,7 @@ import {
 	useProfileTrust
 } from '../context/index.js'
 import { ImageUpload } from '../image.js'
+import { buildRef } from '../refs.js'
 import type { CtxBase } from '../routes.js'
 import { messagesPath, profilePath } from '../routes.js'
 import { coerceSettingValue } from '../utils.js'
@@ -490,6 +492,7 @@ export function ProfilePage({
 	const { t } = useTranslation()
 	const [auth, setAuth] = useAuth()
 	const toast = useToast()
+	const location = useLocation()
 	const [activeContext, setActiveContext] = useAtom(activeContextAtom)
 	const { getClientFor } = useApiContext()
 	const setCommunities = useSetAtom(communitiesAtom)
@@ -734,6 +737,23 @@ export function ProfilePage({
 		setEditMode(false)
 	}
 
+	// The `cl:` reference to this profile route — the sibling of `copyIdTag`,
+	// which copies the bare idTag. This route has no `AppDocBar` to carry it.
+	async function copyRef() {
+		try {
+			// `me` only resolves for the copier — spell out whose profile it is.
+			const path = location.pathname.replace(
+				/^(\/[^/]+\/profile\/)me(?=\/|$)/,
+				`$1${profile.idTag}`
+			)
+			await navigator.clipboard.writeText(buildRef(path, location.search))
+			toast.success(t('Reference copied'))
+		} catch (err) {
+			console.error('[Profile] Failed to copy reference:', err)
+			toast.error(t('Failed to copy reference'))
+		}
+	}
+
 	async function copyIdTag() {
 		try {
 			await navigator.clipboard.writeText(profile.idTag)
@@ -847,6 +867,10 @@ export function ProfilePage({
 								<IdentityTag idTag={profile.idTag} />
 								<Button
 									kind="link"
+									// Keeps the clipboard write inside the click's user-activation
+									// window: `Button` otherwise defers the handler past its press
+									// animation, and Safari and Firefox refuse the write there.
+									immediate
 									icon={<IcCopy />}
 									aria-label={t('Copy identity tag')}
 									onClick={copyIdTag}
@@ -865,6 +889,15 @@ export function ProfilePage({
 						</div>
 						<div className="flex-fill" />
 						<div className="c-hbox g-2 align-items-start mt-2 me-2">
+							<Button
+								kind="link"
+								// Same user-activation window as the idTag copy above.
+								immediate
+								icon={<IcRef />}
+								aria-label={t('Copy reference')}
+								title={t('Copy reference')}
+								onClick={copyRef}
+							/>
 							{canAccessSettings &&
 								(editMode ? (
 									<>

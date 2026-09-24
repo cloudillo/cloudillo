@@ -14,13 +14,14 @@ import {
 	getApiClient,
 	setApiToken
 } from '@cloudillo/core'
-import { apiAtom, authAtom, useApi, useAuth } from '@cloudillo/react'
+import { apiAtom, authAtom, useApi, useAuth, useIsDesktop, useToast } from '@cloudillo/react'
 import { useAtom, useAtomValue, useSetAtom, useStore } from 'jotai'
 import * as React from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
+import { useLocation, useMatch, useNavigate } from 'react-router-dom'
 
 import { seedCommunityFromHome } from '../read-position.js'
-import { ctxBase, feedPath } from '../routes.js'
+import { CTX_SECTION_MATCH, ctxBase, feedPath, isContextSegment, rebase } from '../routes.js'
 import {
 	activeContextAtom,
 	communitiesAtom,
@@ -34,6 +35,7 @@ import {
 	recentCommunitiesAtom,
 	recentContextsAtom,
 	sidebarAtom,
+	sidebarOpenAtom,
 	totalUnreadCountAtom
 } from './atoms'
 import { effectiveTrust, mayUseContextToken } from './trust-gate.js'
@@ -98,6 +100,26 @@ export function isContextLeader(
 	if (!activeContext) return true
 	if (authIdTag && activeContext.idTag === authIdTag) return true
 	return (activeContext.roles ?? []).includes('leader')
+}
+
+/** Context-dependent visibility shared by the sidebar tools and the omnibox. */
+export function contextToolAllowed(
+	id: string,
+	activeContext: ActiveContext | null | undefined,
+	authIdTag: string | undefined,
+	idpEnabled: Record<string, boolean | 'unknown'>
+): boolean {
+	switch (id) {
+		// A community's settings are for its leaders only.
+		case 'settings':
+			return activeContext?.type !== 'community' || isContextLeader(activeContext, authIdTag)
+		// `=== true` on purpose: the atom is three-state, and neither 'unknown' (a transient
+		// lookup failure) nor a missing entry may offer the IdP page. See contextIdpEnabledAtom.
+		case 'idp':
+			return !!activeContext && idpEnabled[activeContext.idTag] === true
+		default:
+			return true
+	}
 }
 
 /** What `getTokenFor` resolves to: the proxy token and the roles it reports, or a refusal. */
@@ -600,16 +622,18 @@ export function useCommunitiesList() {
 	)
 
 	/**
-	 * Reorder pinned communities (with backend sync)
+	 * Pin `idTag` at `index` in the pinned strip — what a drag from the community
+	 * popup onto a chosen slot does. Filtering first makes the same call correct for
+	 * both "pin a new one" and "move one that is already pinned".
 	 */
-	const reorderFavorites = React.useCallback(
-		(fromIndex: number, toIndex: number) => {
-			const result = [...store.get(favoritesAtom)]
-			const [removed] = result.splice(fromIndex, 1)
-			result.splice(toIndex, 0, removed)
-			setFavorites(result)
-			// Save to backend (async, non-blocking)
-			savePinnedCommunities(result)
+	const pinCommunityAt = React.useCallback(
+		(idTag: string, index: number) => {
+			const prev = store.get(favoritesAtom)
+			const without = prev.filter((id) => id !== idTag)
+			const at = Math.max(0, Math.min(index, without.length))
+			const next = [...without.slice(0, at), idTag, ...without.slice(at)]
+			setFavorites(next)
+			savePinnedCommunities(next)
 		},
 		[store, setFavorites, savePinnedCommunities]
 	)
@@ -684,7 +708,7 @@ export function useCommunitiesList() {
 		loadCommunities,
 		toggleFavorite,
 		pinCommunities,
-		reorderFavorites,
+		pinCommunityAt,
 		setShowInHome,
 		addCommunity,
 		removeCommunity,
@@ -702,18 +726,11 @@ export function useCommunitiesList() {
  */
 export function useSidebar() {
 	const [sidebar, setSidebar] = useAtom(sidebarAtom)
+	const [isOpen, setIsOpen] = useAtom(sidebarOpenAtom)
 
-	const open = React.useCallback(() => {
-		setSidebar((prev) => ({ ...prev, isOpen: true }))
-	}, [setSidebar])
-
-	const close = React.useCallback(() => {
-		setSidebar((prev) => ({ ...prev, isOpen: false }))
-	}, [setSidebar])
-
-	const toggle = React.useCallback(() => {
-		setSidebar((prev) => ({ ...prev, isOpen: !prev.isOpen }))
-	}, [setSidebar])
+	const open = React.useCallback(() => setIsOpen(true), [setIsOpen])
+	const close = React.useCallback(() => setIsOpen(false), [setIsOpen])
+	const toggle = React.useCallback(() => setIsOpen((prev) => !prev), [setIsOpen])
 
 	const pin = React.useCallback(() => {
 		setSidebar((prev) => ({ ...prev, isPinned: true }))
@@ -724,7 +741,8 @@ export function useSidebar() {
 	}, [setSidebar])
 
 	return {
-		...sidebar,
+		isOpen,
+		isPinned: sidebar.isPinned,
 		open,
 		close,
 		toggle,
@@ -796,6 +814,84 @@ export function useContextSwitch() {
 		isSwitching,
 		lastSwitch
 	}
+}
+
+/**
+ * Switch context and stay on the same page — the behaviour behind every context chip,
+ * shared by the top-bar strip and the mobile community sheet.
+ *
+ * Whatever section the URL names rides along; the route tree decides whether it resolves
+ * in the new context. Falls back to the default feed when the current URL is not a context
+ * route at all, or when the target context's IDP is disabled (or unknown — we have no
+ * token to ask the foreign server yet).
+ */
+export function useContextSwitchNav(): (idTag: string) => void {
+	const { t } = useTranslation()
+	const [auth] = useAuth()
+	const contextIdpEnabled = useAtomValue(contextIdpEnabledAtom)
+	const { switchTo } = useContextSwitch()
+	const { close } = useSidebar()
+	const { error: toastError } = useToast()
+	const location = useLocation()
+	const isDesktop = useIsDesktop()
+	// Segment 2 of a context route, `undefined` on anything else (`/login`, `/s/:refId`,
+	// a bare `/~`) — the pattern matches any two segments, so the sigil test is what rules
+	// those out. Only two sections need naming below; the rest ride along byte-for-byte
+	// through `rebase`, so the switcher stays ignorant of the section registry.
+	const sectionMatch = useMatch(CTX_SECTION_MATCH)
+	const section = isContextSegment(sectionMatch?.params.contextIdTag)
+		? sectionMatch?.params.section
+		: undefined
+
+	return React.useCallback(
+		(idTag: string) => {
+			const base = ctxBase(idTag, auth?.idTag)
+			const defaultDestination = feedPath(base)
+
+			let destination = defaultDestination
+			if (section) {
+				// IDP is per-tenant; fall back to feed when the target context's IDP
+				// is disabled, not yet loaded (missing entry) or 'unknown' (a transient
+				// lookup failure). `!== true` covers all three on purpose — see
+				// contextIdpEnabledAtom. Unlike IdpGuard, nothing is ejected here.
+				if (section === 'idp' && contextIdpEnabled[idTag] !== true) {
+					destination = defaultDestination
+				} else {
+					// `/search` keeps its query string: `q`/`type` are the search
+					// itself, and dropping them would land on an empty page. No other
+					// section carries state that survives a context switch — an app's
+					// launch params name resources in the old context.
+					const query = section === 'search' ? location.search : ''
+					// `rebase` on the raw pathname, not the match's splat param: the
+					// splat is decoded, so a `%`-escaped resId would come back raw.
+					destination = rebase(location.pathname, base) + query
+				}
+			}
+
+			switchTo(idTag, destination).catch((err) => {
+				console.error('Failed to switch context:', err)
+				toastError(t('Failed to switch context. Please try again.'))
+			})
+
+			// On mobile `isOpen` is the community sheet; close it after the user
+			// picks a context so it doesn't cover the destination view.
+			if (!isDesktop) {
+				close()
+			}
+		},
+		[
+			switchTo,
+			section,
+			location.pathname,
+			location.search,
+			toastError,
+			t,
+			auth?.idTag,
+			contextIdpEnabled,
+			isDesktop,
+			close
+		]
+	)
 }
 
 /**

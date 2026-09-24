@@ -78,6 +78,8 @@ jest.unstable_mockModule('react-router-dom', () => ({
 jest.unstable_mockModule('../context/index', () => ({
 	activeContextAtom: atom(undefined),
 	communitiesAtom: atom([]),
+	contextIdpEnabledAtom: atom<Record<string, boolean | 'unknown'>>({}),
+	contextToolAllowed: () => true,
 	isContextLeader: () => true,
 	LEADER_ONLY_APPS: new Set<string>(),
 	useContextAwareApi: () => CTX_API,

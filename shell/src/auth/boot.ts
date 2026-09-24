@@ -113,8 +113,8 @@ function resolveInitialRoute(config: AppConfigState, onboarding?: string): strin
 	const menuPath = config?.menu?.find((m) => m.id === config.defaultMenu)?.path
 	return (
 		(onboarding && `/onboarding/${onboarding}`) ||
-		// `scopePath`, not a `/app/` string replace: a default menu entry of `settings` or
-		// `communities` must get a context too.
+		// `scopePath`, not a `/app/` string replace: menu paths are context-relative
+		// templates, so they only become a route once a context is prefixed.
 		(menuPath && scopePath(HOME_BASE, menuPath)) ||
 		feedPath(HOME_BASE)
 	)

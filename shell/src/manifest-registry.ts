@@ -23,11 +23,19 @@ import type { AppConfigState, MenuItem } from './utils.js'
 // All registered manifests
 export const allManifests: AppManifest[] = [...shellManifests, ...bundledManifests]
 
-// Shell navigation items (not apps — communities, users, settings, etc.).
-//
-// `path` is a context-RELATIVE template: `scopePath(ctx.base, path)` turns it into a real
-// route. An absolute one passes through unscoped — see `site-admin` below.
-const SHELL_MENU: MenuItem[] = [
+/**
+ * The sidebar's bottom block: things that act on the *active context* rather than
+ * being apps in it. Deliberately NOT part of `getAllMenuItems()` — they are fixed
+ * chrome, so they never compete with real apps for the four pinned rail slots.
+ *
+ * Who sees which entry is decided at render time in `context/sidebar.tsx`; this list
+ * only says what they are. It is rendered on both breakpoints — the `lg`+ rail and the
+ * mobile drawer — since these are the only route to People, Communities, IdP and Server.
+ *
+ * `path` is a context-RELATIVE template: `scopePath(ctx.base, path)` turns it into a real
+ * route. An absolute one passes through unscoped — see `site-admin` below.
+ */
+export const CONTEXT_MENU: MenuItem[] = [
 	{
 		id: 'communities',
 		icon: getIcon('users'),
@@ -68,15 +76,6 @@ const SHELL_MENU: MenuItem[] = [
 	}
 ]
 
-// Shell menu item default order values
-const SHELL_MENU_ORDER: Record<string, number> = {
-	communities: 30,
-	users: 70,
-	settings: 80,
-	idp: 90,
-	'site-admin': 100
-}
-
 /**
  * contentType → `/app/<id>`. NOT a menu path: its consumers (`search-target.ts`,
  * `apps/shared.tsx`, `FilesApp`) keep only the last segment, so it stays absolute while the
@@ -111,6 +110,19 @@ function manifestToMenuItem(m: AppManifest): MenuItem {
 	}
 }
 
+/**
+ * Fixed chrome that is not pinnable but is still somewhere you can jump to: the
+ * context tools plus the apps the header renders as a permanent icon. Not part of
+ * `getAllMenuItems()` — the App Menu Configurator must not hand these out as pins —
+ * but the omnibox `/` palette lists them, since it is the only keyboard route to them.
+ */
+const CHROME_APPS = new Set(['messages'])
+
+export const COMMAND_ONLY_MENU: MenuItem[] = [
+	...CONTEXT_MENU,
+	...allManifests.filter((m) => CHROME_APPS.has(m.id)).map(manifestToMenuItem)
+]
+
 export function buildAppConfig(manifests: AppManifest[]): AppConfigState {
 	// Build app config entries for external apps
 	const apps = manifests
@@ -124,19 +136,10 @@ export function buildAppConfig(manifests: AppManifest[]): AppConfigState {
 	// Build MIME map
 	const mime = buildMimeMap(manifests)
 
-	// Build menu from app manifests that have defaultOrder + shell menu items
-	const appMenuItems = manifests
+	const menu = manifests
 		.filter((m) => m.defaultOrder != null)
-		.map((m) => ({ item: manifestToMenuItem(m), order: m.defaultOrder! }))
-
-	const shellMenuItems = SHELL_MENU.map((item) => ({
-		item,
-		order: SHELL_MENU_ORDER[item.id] ?? 100
-	}))
-
-	const menu = [...appMenuItems, ...shellMenuItems]
-		.sort((a, b) => a.order - b.order)
-		.map((entry) => entry.item)
+		.sort((a, b) => a.defaultOrder! - b.defaultOrder!)
+		.map(manifestToMenuItem)
 
 	const defaultMenu = manifests
 		.filter((m) => m.defaultOrder != null)
@@ -148,12 +151,12 @@ export function buildAppConfig(manifests: AppManifest[]): AppConfigState {
 export const appConfig = buildAppConfig(allManifests)
 
 /**
- * Returns all configurable menu items (app manifests + shell items).
- * Used by the App Menu Configurator in settings.
+ * Returns all configurable menu items — app manifests only. The context tools
+ * (`CONTEXT_MENU`) and the fixed chrome (messages, communities) are not pinnable,
+ * so they are not in the pool the App Menu Configurator hands out.
  */
 export function getAllMenuItems(): MenuItem[] {
-	const appItems = allManifests.filter((m) => m.defaultOrder != null).map(manifestToMenuItem)
-	return [...appItems, ...SHELL_MENU]
+	return allManifests.filter((m) => m.defaultOrder != null).map(manifestToMenuItem)
 }
 
 /**
@@ -171,7 +174,10 @@ export function applyMenuConfig(
 		(ids ?? []).map((id) => itemMap.get(id)).filter((item): item is MenuItem => item != null)
 
 	const menu = [...resolveItems(menuSetting.main), ...resolveItems(menuSetting.extra)]
-	const defaultMenu = menuSetting.main[0] ?? baseConfig.defaultMenu
+	// From the resolved list, not `menuSetting.main[0]`: a stored pin that is no longer in the
+	// pool (`communities`, `settings`, `messages`, …) is dropped above, and naming it here
+	// would leave `defaultMenu` pointing at nothing in `menu`.
+	const defaultMenu = menu[0]?.id ?? baseConfig.defaultMenu
 
 	return { ...baseConfig, menu, defaultMenu }
 }

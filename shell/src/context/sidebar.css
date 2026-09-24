@@ -1,7 +1,6 @@
 /**
- * Context Switcher Sidebar Styles
- *
- * Discord/Slack-style sidebar for multi-context switching
+ * App rail styles (lg+). Below lg the rail is hidden: apps live in the bottom
+ * dock and contexts in the community sheet (see style.css).
  * Uses OpalUI sidebar component as base
  */
 
@@ -21,7 +20,6 @@
 	width: var(--sidebar-width) !important;
 	min-width: var(--sidebar-min-width) !important;
 	max-width: var(--sidebar-max-width) !important;
-	/* Keep z-index above backdrop (99) - OpalUI default is 400 */
 	z-index: 100 !important;
 }
 
@@ -30,36 +28,80 @@
 	.c-sidebar.left {
 		bottom: 0 !important;
 		transform: translateX(0) !important;
+		/* Relaxes OpalUI's `.c-sidebar { overflow: hidden }` so rail overhangs
+		   (badges, focus rings) may paint outside the 5rem column. */
+		overflow: visible !important;
 	}
 }
 
-/* Header */
-.c-sidebar-header {
+/* Scoped through `.c-sidebar`: the apps section carries `.c-nav`, whose own
+   `display: flex` is loaded after this file. */
+.c-sidebar .c-sidebar-apps {
 	display: flex;
 	flex-direction: column;
-	align-items: center;
+	align-items: stretch;
+	min-height: 0;
+	flex: 1;
+	padding: 0.5rem 0;
+	/* Safe to scroll: the "Other" flyout is portaled out of the rail, so
+	   nothing here can clip it. */
+	overflow-y: auto;
+}
+
+/* Rail items: icon over label, tap-target sized, label truncating rather than
+   clipping — Hungarian ("Beállítások", "Galéria") is the width test. */
+.c-sidebar-apps .c-nav-link,
+.c-sidebar-context-tools .c-nav-link {
+	flex-direction: column;
 	justify-content: center;
-	padding: 0.5rem;
-	border-bottom: var(--border-w-lg) solid var(--col-outline);
-}
-
-.c-sidebar-header h6 {
-	margin: 0;
-	font-weight: 600;
-	font-size: 0.625rem;
-	text-align: center;
-}
-
-.c-sidebar-header-actions {
-	display: flex;
-	align-items: center;
 	gap: 0.25rem;
-	margin-top: 0.25rem;
+	/* The icons are react-icons at their default `1em`, so this is what sizes
+	   them (16px → 24px). `.c-badge` sets its own font-size and is unaffected. */
+	font-size: 1.5rem;
+	min-height: 3.75rem;
+	padding: 0.375rem 0.25rem;
+	width: 100%;
 }
 
-.c-sidebar-loading-spinner {
-	color: var(--col-primary);
-	animation: spin 1s linear infinite;
+.c-sidebar-apps .c-nav-label,
+.c-sidebar-context-tools .c-nav-label {
+	font-size: 0.75rem;
+	line-height: 1.1;
+	text-align: center;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	max-width: 100%;
+}
+
+/* Hairline above the split Other button on the rail. */
+.c-sidebar-apps .c-nav-divider {
+	flex: none;
+	height: 1px;
+	margin: 0.25rem 0.75rem;
+	background: var(--col-outline);
+}
+
+/* Split Other button, stacked: recent app on top, a compact "▦ Other" row below. */
+.c-sidebar-apps .c-nav-split {
+	flex-direction: column;
+	flex: none;
+	margin: 0.25rem;
+}
+
+.c-sidebar-apps .c-nav-split:not(.single) .c-nav-split-more {
+	flex-direction: row;
+	gap: 0.25rem;
+	min-height: 2.25rem;
+	font-size: 1rem;
+}
+
+/* Context-scoped tools (People / Communities / <community> settings / IdP / Server) sit at
+   the bottom of the rail. The community sheet restyles them as a row (style.css). */
+.c-sidebar-context-tools {
+	margin-top: auto;
+	padding-top: 0.5rem;
+	border-top: var(--border-w-lg) solid var(--col-outline);
 }
 
 /* Small inline spinner shown beside a sidebar item that is awaiting a
@@ -73,353 +115,15 @@
 	font-size: 0.75rem;
 }
 
-@keyframes spin {
-	from {
-		transform: rotate(0deg);
-	}
-	to {
-		transform: rotate(360deg);
-	}
-}
-
-.c-sidebar-pin {
-	background: none;
-	border: none;
-	padding: 0.25rem;
-	cursor: pointer;
-	color: lch(from var(--col-on) l c h / var(--op-disabled));
-	transition: color 0.2s;
-}
-
-.c-sidebar-pin:hover {
-	color: var(--col-on);
-}
-
-/* Sections */
-.c-sidebar-section {
-	padding: 0.5rem 0;
-	border-bottom: var(--border-w-lg) solid var(--col-outline);
-}
-
-.c-sidebar-section:last-of-type {
-	border-bottom: none;
-	flex: 1;
-	overflow-y: auto;
-}
-
-.c-sidebar-section-header {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	gap: 0.25rem;
-	padding: 0.5rem 0.25rem;
-	font-size: 0.625rem;
-	font-weight: 600;
-	text-transform: uppercase;
-	color: lch(from var(--col-on) l c h / var(--op-disabled));
-}
-
-/* List items - vertical layout (Discord/Slack style) */
-.c-sidebar-item {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	gap: 0.25rem;
-	padding: 0.5rem 0.25rem;
-	cursor: pointer;
-	transition: background 0.2s;
-	position: relative;
-}
-
-.c-sidebar-item:hover {
-	background: lch(from var(--col-surface) l c h / var(--op-hover));
-}
-
-.c-sidebar-item.active {
-	background: lch(from var(--col-primary) l c h / 0.15);
-}
-
-.c-sidebar-item.active::before {
-	content: '';
-	position: absolute;
-	left: 0;
-	top: 50%;
-	transform: translateY(-50%);
-	width: 4px;
-	height: 70%;
-	background: var(--col-primary);
-	border-radius: 0 2px 2px 0;
-}
-
-/* User's profile item */
-.c-sidebar-item-me {
-	font-weight: 600;
-}
-
-/* Avatar */
-.c-sidebar-item-avatar {
-	flex-shrink: 0;
-	width: 3rem;
-	height: 3rem;
-	border-radius: 50%;
-	overflow: hidden;
-	transition: border-radius 0.2s;
-}
-
-.c-sidebar-item:hover .c-sidebar-item-avatar {
-	border-radius: 35%;
-}
-
-.c-sidebar-item-avatar-wrap {
-	position: relative;
-	display: inline-flex;
-}
-
-.c-sidebar-item.active .c-sidebar-item-avatar {
-	border-radius: 35%;
-}
-
-/* Make the profile picture fill the avatar so the container's clip
-   (and its hover rounded-square animation) defines the shape.
-   Chain includes .c-profile-card to outweigh the global
-   `.c-profile-card .picture` rule in libs/react/src/components.css. */
-.c-sidebar-item-avatar .c-profile-card,
-.c-sidebar-item-avatar .c-profile-card .picture {
-	width: 100%;
-	height: 100%;
-}
-
-.c-sidebar-item-avatar .c-profile-card .picture {
-	border-radius: 0; /* container's overflow:hidden + border-radius defines the shape */
-	object-fit: cover; /* crop non-square images instead of distorting */
-}
-
-/* Info */
-.c-sidebar-item-info {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	gap: 0.125rem;
-	width: 100%;
-}
-
-.c-sidebar-item-name {
-	font-size: 0.625rem;
-	font-weight: 500;
-	text-align: center;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	max-width: 100%;
-}
-
-.c-sidebar-item-subtitle {
-	font-size: 0.5rem;
-	color: lch(from var(--col-on) l c h / var(--op-disabled));
-	text-align: center;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	max-width: 100%;
-}
-
-/* Preview-slot variant for the active unpinned community */
-.c-sidebar-section-preview {
-	border-top: 1px solid var(--col-outline);
-}
-
-.c-sidebar-item.preview .c-sidebar-item-avatar {
-	border: 2px dashed var(--col-on-container);
-	border-radius: 35%;
-}
-
-/* Pin/unpin overlay button — visible always on preview, on hover/focus elsewhere */
-.c-sidebar-item-pin-overlay {
-	position: absolute;
-	top: 0.25rem;
-	right: 0.25rem;
-	width: 22px;
-	height: 22px;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	padding: 0;
-	background: var(--col-container);
-	color: var(--col-on-container);
-	border: 1px solid var(--col-outline);
-	border-radius: 50%;
-	cursor: pointer;
-	opacity: 0;
-	transition:
-		opacity 0.2s,
-		background 0.2s;
-	z-index: 1;
-}
-
-.c-sidebar-item:hover .c-sidebar-item-pin-overlay,
-.c-sidebar-item:focus-within .c-sidebar-item-pin-overlay,
-.c-sidebar-item-pin-overlay:focus,
-.c-sidebar-item.preview .c-sidebar-item-pin-overlay {
-	opacity: 1;
-}
-
-.c-sidebar-item-pin-overlay:hover {
-	background: lch(from var(--col-container) l c h / var(--op-hover));
-}
-
-@media (prefers-reduced-motion: reduce) {
-	.c-sidebar-item-pin-overlay {
-		transition: none;
-	}
-}
-
-/* Favorite button */
-.c-sidebar-item-favorite {
-	position: absolute;
-	top: 0.25rem;
-	right: 0.25rem;
-	background: none;
-	border: none;
-	padding: 0.125rem;
-	cursor: pointer;
-	color: lch(from var(--col-on) l c h / var(--op-disabled));
-	transition: color 0.2s;
-	flex-shrink: 0;
-	font-size: 0.75rem;
-}
-
-.c-sidebar-item-favorite:hover {
-	color: var(--col-warning);
-}
-
-.c-sidebar-item-favorite .filled {
-	color: var(--col-warning);
-	fill: var(--col-warning);
-}
-
-/* Footer */
-.c-sidebar-footer {
-	padding: 0.5rem 0.25rem;
-	border-top: var(--border-w-lg) solid var(--col-outline);
-}
-
-.c-sidebar-add-button {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	justify-content: center;
-	gap: 0.25rem;
-	width: 100%;
-	padding: 0.5rem 0.25rem;
-	background: lch(from var(--col-surface) l c h / var(--op-hover));
-	border: none;
-	border-radius: var(--border-radius-md);
-	cursor: pointer;
-	transition: all 0.2s;
-	font-size: 0.625rem;
-	color: var(--col-on);
-}
-
-.c-sidebar-add-button:hover {
-	background: lch(from var(--col-primary) l c h / var(--op-active));
-	border-color: var(--col-primary);
-	color: var(--col-primary);
-}
-
 /* Switching state */
 .c-sidebar.switching {
 	pointer-events: none;
 	opacity: 0.6;
 }
 
-/* Drag-and-drop for reordering pinned communities */
-.c-sidebar-item[draggable='true'] {
-	cursor: grab;
-}
-
-.c-sidebar-item[draggable='true']:active {
-	cursor: grabbing;
-}
-
-.c-sidebar-item.dragging {
-	opacity: 0.5;
-}
-
-.c-sidebar-item.dragging.active::before {
-	display: none;
-}
-
-.c-sidebar-item.drag-over::after {
-	content: '';
-	position: absolute;
-	top: 0;
-	left: 0;
-	right: 0;
-	height: 2px;
-	background: var(--col-primary);
-	pointer-events: none;
-}
-
-/* Drop zone after last item */
-.c-sidebar-drop-zone {
-	position: relative;
-	height: 0.5rem;
-	transition: height 0.2s;
-}
-
-.c-sidebar-drop-zone.drag-over {
-	height: 3rem;
-}
-
-.c-sidebar-drop-zone.drag-over::after {
-	content: '';
-	position: absolute;
-	top: 0;
-	left: 0;
-	right: 0;
-	height: 2px;
-	background: var(--col-primary);
-	pointer-events: none;
-}
-
-/* Unread badge */
-.c-sidebar-item-info .c-badge {
-	position: absolute;
-	top: 0;
-	right: 50%;
-	transform: translateX(50%);
-	font-size: 0.5rem;
-	min-width: 1rem;
-	height: 1rem;
-	padding: 0 0.25rem;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-}
-
-/* Below lg: drawer mode */
+/* Below lg: no rail at all. */
 @media (width < 72rem) {
 	.c-sidebar.left {
-		bottom: var(--shell-bottom-nav-height) !important;
-		transform: translateX(-100%) !important; /* Hidden by default on mobile */
-		transition: transform 0.3s ease;
-	}
-
-	.c-sidebar.left.open {
-		transform: translateX(0) !important; /* Show when open */
-	}
-}
-
-/* Backdrop - override OpalUI defaults */
-/* Must be BELOW sidebar and header, but ABOVE content */
-.c-sidebar-backdrop {
-	z-index: 9 !important; /* Below header (10) and sidebar (100) */
-	top: var(--shell-header-height) !important; /* Covers app toolbars too */
-	bottom: 0 !important;
-}
-
-@media (width < 72rem) {
-	.c-sidebar-backdrop {
-		bottom: var(--shell-bottom-nav-height) !important;
+		display: none !important;
 	}
 }

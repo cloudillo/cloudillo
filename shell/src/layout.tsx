@@ -22,7 +22,9 @@ import {
 	LuLogIn as IcLogin,
 	LuLogOut as IcLogout,
 	LuMenu as IcMenu,
+	LuMessagesSquare as IcMessages,
 	LuQrCode as IcQrCode,
+	LuSearch as IcSearch,
 	LuSettings as IcSettings,
 	LuUser as IcUser
 } from 'react-icons/lu'
@@ -62,6 +64,8 @@ import { UnknownContextBanner } from './context/unknown-context-banner.js'
 import { CommunityVerifyIdpBanner } from './context/verify-idp-banner.js'
 import { ErrorBoundary } from './ErrorBoundary.js'
 import { idpRoutes } from './idp/index.js'
+import { CommunitySheet } from './layout/CommunitySheet.js'
+import { ContextBar } from './layout/ContextBar.js'
 import { Menu } from './layout/Menu.js'
 import { Toasts } from './layout/Toasts.js'
 import { CloudilloLogo } from './logo.js'
@@ -75,7 +79,7 @@ import { useNotifications } from './notifications/state'
 import { useActionNotifications } from './notifications/useActionNotifications.js'
 import { useDbMaintenanceNotifications } from './notifications/useDbMaintenanceNotifications.js'
 import { useSearchReindexNotifications } from './notifications/useSearchReindexNotifications.js'
-import { DocumentTitleSync, Omnibox, OmniboxIdle } from './omnibox.js'
+import { DocumentTitleSync, Omnibox } from './omnibox.js'
 import { onboardingRoutes } from './onboarding/index.js'
 import { authedProfileRoutes, profileRoutes } from './profile/profile.js'
 import usePWA, {
@@ -85,11 +89,11 @@ import usePWA, {
 	setCurrentAuthToken,
 	type UsePWA
 } from './pwa.js'
-import { useGlobalUnreadProbe } from './read-position.js'
+import { unreadCountAtom, useGlobalUnreadProbe } from './read-position.js'
 import { ContextGuard, RequireAuth } from './route-guards.js'
-import { profilePath, settingsPath } from './routes.js'
+import { ctxBase, messagesPath, profilePath, settingsPath } from './routes.js'
 import { SearchPage } from './SearchPage.js'
-import { toggleOmniboxAtom, useSearch } from './search.js'
+import { openOmniboxAtom, toggleOmniboxAtom, useSearch } from './search.js'
 import { settingsRoutes } from './settings/index.js'
 import { isSiteDocument } from './site/detect.js'
 import { SitePage } from './site/SitePage.js'
@@ -121,6 +125,7 @@ function Header({ inert }: { inert?: boolean }) {
 	// Write-only: the toggle reads the last query itself, so the keydown effect's deps
 	// stay stable while the user types.
 	const toggleOmnibox = useSetAtom(toggleOmniboxAtom)
+	const openOmnibox = useSetAtom(openOmniboxAtom)
 	const { api, setIdTag } = useApi()
 	const { t, i18n } = useTranslation()
 	const location = useLocation()
@@ -141,8 +146,12 @@ function Header({ inert }: { inert?: boolean }) {
 	const [extraMenuPortalMobile, setExtraMenuPortalMobile] = React.useState<HTMLDivElement | null>(
 		null
 	)
-	const [extraMenuPortalDesktop, setExtraMenuPortalDesktop] =
-		React.useState<HTMLDivElement | null>(null)
+	const unreadCounts = useAtomValue(unreadCountAtom)
+	// Conversations with anything unread — consistent across DMs (per-message counts)
+	// and groups (0/1 dots). See read-position.ts.
+	const unreadConversations = Object.entries(unreadCounts).filter(
+		([k, v]) => k.startsWith('msg:') && v > 0
+	).length
 
 	// Ctrl+K / Cmd+K toggles the omnibox; a bare `/` or `@` (GitHub-style) opens
 	// it pre-filled in command / profile-search mode.
@@ -279,11 +288,6 @@ function Header({ inert }: { inert?: boolean }) {
 
 	return (
 		<>
-			{/* Portal container for extra menu on desktop - rendered before nav-top */}
-			<div
-				ref={setExtraMenuPortalDesktop}
-				className="c-extra-menu-portal-desktop sm-hide md-hide"
-			/>
 			<nav
 				inert={inert}
 				className="c-nav nav-top justify-content-between border-radius-0 mb-2 g-1"
@@ -306,26 +310,70 @@ function Header({ inert }: { inert?: boolean }) {
 					>
 						<CloudilloLogo style={{ height: 32 }} />
 					</li>
+					{/* Renders null — it only keeps `document.title` in step with the route. */}
 					<DocumentTitleSync />
 					{/* Guests too: they may search the owner's public content, minus
 					    profiles — see `Omnibox`. */}
-					<li
-						className={mergeClasses(
-							'c-nav-item',
-							search.query != undefined && 'flex-fill'
-						)}
-						style={{ minWidth: 0 }}
-					>
-						{search.query == undefined ? <OmniboxIdle /> : <Omnibox />}
-					</li>
+					{search.query != undefined && (
+						<li className="c-nav-item flex-fill" style={{ minWidth: 0 }}>
+							<Omnibox />
+						</li>
+					)}
 				</ul>
-				{search.query == undefined && (
-					<ul className="c-nav-group g-3 sm-hide md-hide">
-						<Menu inert={inert} extraMenuPortal={extraMenuPortalDesktop} />
-					</ul>
-				)}
+				{/* Context tier; hidden while the omnibox is open — the input takes the row. */}
+				{search.query == undefined && <ContextBar />}
 				<ul className="c-nav-group c-hbox">
 					{auth && <HandChip />}
+					{/* The `<li>`s here are bare: `c-nav-item` belongs on the
+					    interactive child, and OpalUI's margin rule matches both
+					    `.c-nav-group > .c-nav-item` and `.c-nav-group > li > .c-nav-item`
+					    — carrying it on the wrapper too spaces every icon twice. */}
+					<li>
+						<Button
+							kind="nav-item"
+							onClick={() => openOmnibox()}
+							aria-label={t('Search')}
+						>
+							<IcSearch />
+						</Button>
+					</li>
+					{auth && (
+						<li className="sm-hide md-hide">
+							{/* Always the user's own settings, never the URL's context —
+							    a community's own settings live on the rail. */}
+							<Link
+								className="c-nav-item"
+								to={settingsPath(ctxBase(auth.idTag, auth.idTag))}
+								aria-label={t('My settings')}
+								title={t('My settings')}
+							>
+								<IcSettings />
+							</Link>
+						</li>
+					)}
+					{auth && (
+						<li>
+							<Link
+								className="c-nav-item"
+								to={messagesPath(urlContext)}
+								aria-label={t('Messages')}
+								title={t('Messages')}
+							>
+								<span style={{ position: 'relative', display: 'inline-flex' }}>
+									<IcMessages />
+									{unreadConversations > 0 && (
+										<span
+											className="c-badge accent positioned tr"
+											role="status"
+											aria-label={t('Unread messages')}
+										>
+											{unreadConversations}
+										</span>
+									)}
+								</span>
+							</Link>
+						</li>
+					)}
 					{auth && !location.pathname.startsWith('/onboarding/') && (
 						<NotificationPopover />
 					)}
@@ -352,7 +400,12 @@ function Header({ inert }: { inert?: boolean }) {
 									</Button>
 								</li>
 								<li>
-									<Link className="c-nav-item" to={settingsPath(urlContext)}>
+									{/* This is the *account* menu, so its Settings is the account's —
+									    a community's own settings live on the rail (ContextTools). */}
+									<Link
+										className="c-nav-item"
+										to={settingsPath(ctxBase(auth.idTag, auth.idTag))}
+									>
 										<IcSettings />
 										{t('Settings')}
 									</Link>
@@ -436,12 +489,18 @@ function Header({ inert }: { inert?: boolean }) {
 				<>
 					{/* Portal container for extra menu - rendered before nav-bottom to avoid stacking issues */}
 					<div ref={setExtraMenuPortalMobile} className="c-extra-menu-portal lg-hide" />
+					{auth && <CommunitySheet />}
 					<nav
 						inert={inert}
 						className="c-nav nav-bottom w-100 border-radius-0 justify-content-center flex-order-end lg-hide"
 						aria-label={t('Mobile navigation')}
 					>
-						<Menu vertical inert={inert} extraMenuPortal={extraMenuPortalMobile} />
+						<Menu
+							vertical
+							sidebarToggle
+							inert={inert}
+							extraMenuPortal={extraMenuPortalMobile}
+						/>
 					</nav>
 				</>
 			)}
@@ -694,14 +753,9 @@ export function Layout() {
 			<WsBusRoot>
 				{/* Everything below reads the URL's context through `useCtx()`. */}
 				<CtxProvider>
-					{auth && <Sidebar />}
+					<Sidebar />
 					<Header inert={dialog.isOpen} />
-					<div
-						className={mergeClasses(
-							'c-layout',
-							sidebar.isPinned && auth && 'with-sidebar'
-						)}
-					>
+					<div className={mergeClasses('c-layout', sidebar.isPinned && 'with-sidebar')}>
 						<ErrorBoundary>
 							<div
 								id="main-content"

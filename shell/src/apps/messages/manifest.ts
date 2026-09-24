@@ -10,8 +10,9 @@ export const manifest: AppManifest = {
 	name: 'Messages',
 	version: pkg.version,
 	kind: 'internal',
+	// No `defaultOrder`: messages is fixed chrome (the header's 💬 icon at every
+	// breakpoint), not a pinnable app-menu slot.
 	icon: 'messages-square',
-	defaultOrder: 40,
 	translations: {
 		hu: { name: 'Üzenetek' }
 	}

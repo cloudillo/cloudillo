@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { buildRef, canShareRoute, isRefLike, resolveRef } from '../refs.js'
+import { buildRef, isRefLike, resolveRef } from '../refs.js'
 
 describe('buildRef / resolveRef round-trips', () => {
 	it('round-trips a document route', () => {
@@ -96,18 +96,5 @@ describe('isRefLike', () => {
 		expect(isRefLike('/~/app/quillo/x:y')).toBe(false)
 		expect(isRefLike('bob.example.com')).toBe(false)
 		expect(isRefLike('hello')).toBe(false)
-	})
-})
-
-describe('canShareRoute', () => {
-	it('is true for app and profile routes', () => {
-		expect(canShareRoute('/~/app/quillo/x:y')).toBe(true)
-		expect(canShareRoute('/@comm.tld/profile/alice.tld')).toBe(true)
-	})
-
-	it('is false for transient routes', () => {
-		expect(canShareRoute('/login')).toBe(false)
-		expect(canShareRoute('/onboarding/intro')).toBe(false)
-		expect(canShareRoute('/~/settings')).toBe(false)
 	})
 })

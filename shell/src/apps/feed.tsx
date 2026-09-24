@@ -30,7 +30,7 @@ import {
 	LuUsersRound as IcCommunities,
 	LuLock as IcDirect,
 	LuSave as IcDraft,
-	LuFilter as IcFilter,
+	LuMenu as IcMenu,
 	LuBookmark as IcFollowing,
 	LuImage as IcImage,
 	LuUser as IcMine,
@@ -1946,7 +1946,7 @@ export function FeedApp() {
 							className="md-hide lg-hide"
 							onClick={() => setShowFilter(true)}
 						>
-							<IcFilter />
+							<IcMenu />
 						</Button>
 					</div>
 				}

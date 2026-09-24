@@ -107,6 +107,12 @@ export const sidebarAtom = atomWithStorage<SidebarState>('cloudillo:sidebar', {
 })
 
 /**
+ * Whether the sidebar / mobile sheet is open. Kept out of `sidebarAtom` so it is never
+ * persisted: a reload must not reopen the sheet. A stored `isOpen` is ignored.
+ */
+export const sidebarOpenAtom = atom(false)
+
+/**
  * Last context switch event
  * Used for analytics and debugging
  */

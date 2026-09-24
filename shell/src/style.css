@@ -24,9 +24,8 @@ textarea:focus-visible {
 	outline-offset: 0;
 }
 
-/* Nav items and sidebar items — use inset focus ring */
+/* Nav items — use inset focus ring */
 .c-nav-link:focus-visible,
-.c-sidebar-item:focus-visible,
 summary:focus-visible {
 	outline-offset: -2px;
 	border-radius: var(--bd-radius, 0.25rem);
@@ -38,47 +37,6 @@ summary:focus-visible {
 	font-weight: 500;
 	margin: 0;
 	font-family: 'Oswald', sans-serif;
-}
-
-/* Idle header: a magnifier-plus-label placeholder that opens the omnibox, and
- * nothing else — the `Context › App › Document` crumb trail lives in each app's
- * DocBar (libs/react components.css). The inline padding and gap line the label
- * up with the focused field's input text, so expanding does not shift it. */
-.c-omnibox-placeholder {
-	font-family: 'Roboto', sans-serif;
-	font-weight: 400;
-	font-size: 0.9rem;
-	opacity: 0.6;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-	min-height: 2.5rem;
-	display: flex;
-	align-items: center;
-	gap: 0.4rem;
-	padding-block: 0.2rem;
-	padding-inline: 0.6rem 0.4rem;
-	background: none;
-	border: none;
-	border-radius: var(--bd-radius, 0.25rem);
-	color: inherit;
-	cursor: pointer;
-	text-align: left;
-}
-.c-omnibox-placeholder:hover {
-	background: rgb(127 127 127 / 0.12);
-}
-
-/* Copy-reference button: a quiet affordance next to the title, no fill. */
-.c-omnibox-copy {
-	background: none;
-	border: none;
-	color: inherit;
-	opacity: 0.55;
-}
-.c-omnibox-copy:hover {
-	background: rgb(127 127 127 / 0.12);
-	opacity: 1;
 }
 
 /* Magnifier inside the field's leading padding. Shared by the header omnibox and the
@@ -481,36 +439,23 @@ body {
 	}
 }
 
-.c-menu-ex {
-	position: relative;
+/* The "Other" overflow flyout on the desktop rail. Positioned by popper against
+   the rail button (see shell/src/layout/Menu.tsx), so this only has to size the
+   grid — `.c-popper high` supplies the surface, shadow and z-index. The mobile
+   variant is the slide-up sheet under `.c-extra-menu-portal` further down. */
+.c-menu-ex-flyout {
+	width: 16rem;
+	max-height: 18rem;
+	overflow-y: auto;
+	padding: 0.5rem;
 
-	.c-nav {
-		position: absolute;
-		left: 0;
-		right: 0;
-		padding: 1rem;
-		max-width: calc(20rem + 2rem);
-		max-height: calc(16rem + 2rem);
-		overflow-y: auto;
-		margin: 0 auto;
+	.c-extra-menu {
 		flex-flow: row wrap;
-		z-index: var(--z-dropdown);
-		transition:
-			transform 0.3s ease,
-			visibility 0s 0.3s;
-		visibility: hidden;
+	}
 
-		&.open {
-			transform: translate(0, 0);
-			visibility: visible;
-			transition:
-				transform 0.3s ease,
-				visibility 0s 0s;
-		}
-		.c-nav-link {
-			height: 4rem;
-			justify-content: center;
-		}
+	.c-nav-link {
+		height: 4rem;
+		justify-content: center;
 	}
 }
 
@@ -526,15 +471,408 @@ body {
 	& > .c-nav-group > .c-nav-link > .c-nav-label {
 		font-size: 0.83rem;
 	}
+}
 
-	.c-menu-ex .c-nav {
-		top: calc(var(--shell-header-height) + 0.5rem);
-		transform: translate(0, -10rem);
+/* ── Context strip (top bar) ─────────────────────────────────────────────────
+   The parent navigation tier: which identity's data am I acting on. Chips are
+   rounded squares, the way the sidebar already draws a context avatar; the
+   account-menu avatar stays a circle, and deliberately shares no class with
+   these — shape is what tells "a context" from "me, the signed-in user".
 
-		&.open {
-			transform: translate(0, 0);
-		}
+   State is never carried by shape alone: the active chip also gets a filled
+   pill and `aria-current`. */
+.c-ctx-bar {
+	display: flex;
+	align-items: center;
+	/* Sits flush after the logo rather than floating mid-row: the header <nav>
+	   is `justify-content-between` and the strip is content-sized, so it needs
+	   to take the slack itself. `min-width: 0` keeps the right group on screen. */
+	flex: 1 1 auto;
+	justify-content: flex-start;
+	min-width: 0;
+	/* `clip` with a margin, not `hidden`: a chip at either edge of the strip must be
+	   able to paint its `:focus-visible` shadow and its 2px `.drag-over` marker, both
+	   of which sit just outside the row. A chip that genuinely overflows is still
+	   clipped rather than escaping the header. */
+	overflow: clip;
+	overflow-clip-margin: 0.375rem;
+}
+
+.c-ctx-chip {
+	display: flex;
+	align-items: center;
+	gap: 0.375rem;
+	flex-shrink: 0;
+	padding: 0.25rem 0.5rem 0.25rem 0.25rem;
+	border-radius: 999px;
+	color: var(--col-on);
+	cursor: pointer;
+	position: relative;
+	transition: background-color 0.2s;
+
+	&:hover {
+		background: var(--col-container-low);
 	}
+
+	&.active {
+		background: lch(from var(--col-primary) l c h / 0.25);
+		color: var(--col-primary);
+		font-weight: 600;
+	}
+
+	&.static {
+		cursor: default;
+	}
+
+	&.dragging {
+		opacity: 0.5;
+	}
+
+	&[draggable='true'] {
+		cursor: grab;
+	}
+
+	&[draggable='true']:active {
+		cursor: grabbing;
+	}
+
+	&.drag-over::before {
+		content: '';
+		position: absolute;
+		inset-block: 0.125rem;
+		inset-inline-start: -0.125rem;
+		width: 2px;
+		background: var(--col-primary);
+	}
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: 0 0 var(--sh-focus) var(--col-focus);
+	}
+}
+
+/* The personal tile is icon-only, so the pill tint alone does not read as
+   active. `outline` rather than `box-shadow`: it must not fight the chip's
+   own `:focus-visible` shadow. */
+.c-ctx-chip.active .c-ctx-chip-avatar-img {
+	outline: 2px solid var(--col-primary);
+	outline-offset: 1px;
+}
+
+/* Two jobs, two elements. The
+   outer box only positions: the unread badge hangs outside it by design
+   (`.c-badge.positioned.tr` is `translate(-75%, -50%)`) and the pending spinner takes
+   a corner, so it must not clip. The clip lives on `-img` below. */
+.c-ctx-chip-avatar {
+	position: relative;
+	display: inline-flex;
+	flex-shrink: 0;
+	width: 2.25rem;
+	height: 2.25rem;
+
+	.c-sidebar-pending-indicator {
+		position: absolute;
+		inset-block-end: 0;
+		inset-inline-start: 0;
+	}
+}
+
+.c-ctx-chip-avatar-img {
+	width: 100%;
+	height: 100%;
+	border-radius: 35%;
+	overflow: hidden;
+
+	.c-profile-card,
+	.c-profile-card .picture {
+		width: 100%;
+		height: 100%;
+	}
+
+	.c-profile-card .picture {
+		border-radius: 0;
+		object-fit: cover;
+	}
+}
+
+.c-ctx-chip-name {
+	/* A cap, not a scroll: a long (or Hungarian) name ellipsises, and the chip
+	   *count* cap is what pushes the rest into the [▦] overflow. */
+	max-inline-size: 9ch;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	font-size: 0.83rem;
+}
+
+.c-ctx-chip.preview .c-ctx-chip-avatar-img {
+	border: 2px dashed var(--col-on-container);
+}
+
+.c-ctx-chip-pin {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0.125rem;
+	background: none;
+	border: none;
+	color: var(--col-on-container);
+	cursor: pointer;
+}
+
+.c-ctx-drop-zone {
+	width: 0.25rem;
+	align-self: stretch;
+	border-radius: 2px;
+	flex-shrink: 0;
+
+	&.drag-over {
+		width: 0.5rem;
+		background: var(--col-primary);
+	}
+}
+
+.c-ctx-overflow {
+	position: relative;
+	flex-shrink: 0;
+	padding: 0.375rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.c-ctx-chip {
+		transition: none;
+	}
+}
+
+/* The [▦] popup. Rendered through the library's `Menu` surface (portal, outside click
+   closes via `useOutsideDismiss`, Escape closes) with `role="dialog"`, because it holds
+   a search field and pin toggles rather than a list of one-shot commands. The body is
+   `.c-community-finder`, which does its own scrolling. */
+.c-community-popup {
+	display: flex;
+	flex-direction: column;
+	padding: 0.5rem;
+	width: min(26rem, calc(100vw - 2rem));
+	max-height: min(32rem, calc(100vh - 6rem));
+}
+
+/* Shared by the popup and the mobile sheet (layout/CommunityFinder.tsx). DOM order is
+   pinned → search → list → footer; the sheet flips it so the search and the pinned
+   row sit next to the thumb, above the dock. */
+.c-community-finder {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+	flex: 1 1 auto;
+	min-height: 0;
+
+	h6 {
+		margin: 0 0 0.25rem;
+		font-size: 0.625rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		color: lch(from var(--col-on) l c h / var(--op-disabled));
+	}
+}
+
+.c-community-finder-list {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow-y: auto;
+}
+
+.c-community-finder-rows {
+	display: flex;
+	flex-direction: column;
+}
+
+/* Bottom-anchored: the first section and the first row sit right above the search
+   field, and a column-reverse scroller starts at its bottom. */
+.c-community-finder.sheet {
+	flex-direction: column-reverse;
+
+	.c-community-finder-list,
+	.c-community-finder-rows {
+		flex-direction: column-reverse;
+	}
+}
+
+.c-community-finder-footer {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+	padding-top: 0.5rem;
+	border-top: 1px solid var(--col-outline);
+	font-size: 0.83rem;
+}
+
+.c-community-finder.sheet .c-community-finder-footer {
+	padding-top: 0;
+	padding-bottom: 0.5rem;
+	border-top: none;
+	border-bottom: 1px solid var(--col-outline);
+}
+
+/* ContextTools as a compact row inside the sheet. */
+.c-community-finder .c-sidebar-context-tools {
+	display: flex;
+	margin: 0;
+	padding: 0;
+	border: none;
+
+	.c-nav-link {
+		flex: 1 1 0;
+		min-width: 0;
+		flex-direction: column;
+		gap: 0.25rem;
+		font-size: 1.25rem;
+		min-height: 3.25rem;
+	}
+
+	.c-nav-label {
+		font-size: 0.75rem;
+		max-width: 100%;
+		overflow: hidden;
+		white-space: nowrap;
+		text-overflow: ellipsis;
+	}
+}
+
+.c-community-card {
+	display: flex;
+	align-items: center;
+	gap: 0.25rem;
+	border-radius: var(--radius-md);
+
+	&.active {
+		background: lch(from var(--col-primary) l c h / 0.15);
+	}
+
+	&[draggable='true'] {
+		cursor: grab;
+	}
+}
+
+.c-community-card-main {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	flex: 1 1 auto;
+	min-width: 0;
+	min-height: 3.25rem;
+	padding: 0.375rem 0.5rem;
+	background: none;
+	border: none;
+	border-radius: inherit;
+	color: inherit;
+	font: inherit;
+	text-align: start;
+	cursor: pointer;
+
+	&:hover {
+		background: var(--col-container-low);
+	}
+
+	&:focus-visible {
+		outline-offset: -2px;
+	}
+
+	.c-ctx-chip-avatar {
+		width: 2.5rem;
+		height: 2.5rem;
+	}
+}
+
+.c-community-card-text {
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.c-community-card-name,
+.c-community-card-sub {
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+.c-community-card-name {
+	font-weight: 500;
+}
+
+.c-community-card-sub {
+	font-size: 0.75rem;
+}
+
+.c-community-card-action {
+	flex: none;
+	justify-content: center;
+	width: 2.75rem;
+	height: 2.75rem;
+	padding: 0;
+	font-size: 1.125rem;
+}
+
+/* Sheet only: 'me' + pinned communities, a horizontal snap scroller. */
+.c-community-pinned {
+	display: flex;
+	gap: 0.5rem;
+	flex: none;
+	overflow-x: auto;
+	scroll-snap-type: x proximity;
+	scrollbar-width: none;
+	/* Room for the badges hanging off the avatars. */
+	padding: 0.5rem 0.25rem 0;
+}
+
+.c-community-pinned::-webkit-scrollbar {
+	display: none;
+}
+
+.c-community-pinned-item {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 0.25rem;
+	flex: none;
+	width: 4rem;
+	padding: 0.25rem 0;
+	background: none;
+	border: none;
+	border-radius: var(--radius-md);
+	color: inherit;
+	font: inherit;
+	cursor: pointer;
+	scroll-snap-align: start;
+	/* Long-press opens the context menu, not the OS callout. */
+	-webkit-touch-callout: none;
+	user-select: none;
+
+	.c-ctx-chip-avatar {
+		width: 2.75rem;
+		height: 2.75rem;
+	}
+
+	&.active {
+		background: lch(from var(--col-primary) l c h / 0.15);
+	}
+
+	&.active .c-ctx-chip-avatar-img {
+		outline: 2px solid var(--col-primary);
+		outline-offset: 1px;
+	}
+}
+
+.c-community-pinned-name {
+	max-width: 100%;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	font-size: 0.75rem;
 }
 
 /* Owner attribution strip for guests — its own row under the header, so the
@@ -1083,55 +1421,98 @@ body.cl-site-preboot {
 	justify-content: center;
 }
 
-/* Desktop extra menu portal - positioned below nav-top */
-.c-extra-menu-portal-desktop {
-	position: fixed;
-	top: calc(var(--shell-header-height) + 0.5rem);
-	left: 0;
-	right: 0;
-	z-index: var(--z-popover);
-	overflow: hidden;
-	pointer-events: none; /* Prevent stealing mouse events when hidden */
-}
-
-.c-extra-menu-portal-desktop .c-extra-menu {
-	padding: 1rem;
-	max-width: calc(20rem + 2rem);
-	margin: 0 auto;
-	flex-flow: row wrap;
-	transform: translateY(-100%);
-	transition: transform 0.3s ease;
-}
-
-.c-extra-menu-portal-desktop .c-extra-menu.open {
-	transform: translateY(0);
-	pointer-events: auto; /* Enable interactions when visible */
-}
-
-.c-extra-menu-portal-desktop .c-extra-menu .c-nav-link {
-	height: 4rem;
-	justify-content: center;
-}
-
 .c-nav.nav-bottom {
 	z-index: var(--z-fixed);
 
-	.c-menu-ex .c-nav {
-		bottom: calc(var(--shell-bottom-nav-height) + 0.5rem);
-		transform: translate(0, 10rem);
-
-		&.open {
-			transform: translate(0, 0);
-		}
-	}
+	/* Flexible slots with a 44px floor: context island + 3 apps + split fits a 360px phone. */
 	.c-nav-link {
-		width: 4rem;
+		flex: 1 1 0;
+		min-width: 2.75rem;
+		max-width: 4rem;
 	}
 	/* Ensure active state takes precedence over sticky hover on mobile */
 	.c-nav-link.active,
 	.c-nav-link.active:hover {
 		color: var(--col-primary);
 	}
+
+	/* Two floating islands — context | apps — each its own surface. */
+	.c-nav-island {
+		display: flex;
+		align-self: stretch;
+		padding: 0.25rem 0.5rem;
+		background: var(--col-container);
+		border: 1px solid var(--col-outline);
+		border-radius: var(--radius-xl);
+		box-shadow: var(--shadow-md);
+	}
+	.c-nav-apps {
+		/* Grows to fill the dock and spreads its items evenly, up to a width where
+		   wider gaps stop reading as one group; past it the pair stays centred. */
+		flex: 1 1 auto;
+		min-width: 0;
+		max-width: 28rem;
+		justify-content: space-evenly;
+	}
+
+	/* Context switch: its own island opens the drawer. The separate shape, not a
+	   tint or chevron, says it is not a destination. Shares the dock's spare width
+	   with the app island, so the two grow together. */
+	.c-ctx-toggle {
+		flex: 1 1 0;
+		min-width: 4.5rem;
+		max-width: 6rem;
+	}
+	.c-ctx-toggle .c-nav-label {
+		max-width: 100%;
+		overflow: hidden;
+		white-space: nowrap;
+		text-overflow: ellipsis;
+	}
+	.c-nav-divider {
+		flex: none;
+		align-self: center;
+		width: 1px;
+		height: 2rem;
+		margin-inline: 0.25rem;
+		background: var(--col-outline);
+	}
+
+	.c-nav-split {
+		flex: 1 1 0;
+		min-width: 5.5rem;
+		max-width: 6.75rem;
+	}
+	.c-nav-split.single {
+		min-width: 2.75rem;
+		max-width: 4rem;
+	}
+	.c-nav-split .c-nav-link {
+		max-width: none;
+	}
+	.c-nav-split-more {
+		flex: none;
+		width: 2.75rem;
+	}
+	.c-nav-split.single .c-nav-split-more {
+		flex: 1 1 0;
+		width: auto;
+	}
+	.c-nav-split:not(.single) .c-nav-split-more .c-nav-label {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+}
+
+/* Split Other button — recent app + ▦, grouped by the preceding .c-nav-divider and
+   adjacency, not a fill. Row on the bottom bar, stacked on the desktop rail
+   (context/sidebar.css). */
+.c-nav-split {
+	display: flex;
 }
 
 /* Below lg: use fixed positioning for bottom nav for reliability */
@@ -1141,13 +1522,17 @@ body.cl-site-preboot {
 		bottom: 0;
 		left: 0;
 		right: 0;
-		background: var(--col-container);
-		backdrop-filter: blur(10px);
-		-webkit-backdrop-filter: blur(10px);
-		border-top: 1px solid var(--col-outline);
+		/* A transparent dock: the islands carry the surfaces. */
+		background: none;
+		backdrop-filter: none;
+		-webkit-backdrop-filter: none;
 		z-index: var(--z-fixed);
+		gap: 0.5rem;
 		/* Account for safe area on devices with home indicator */
-		padding-bottom: env(safe-area-inset-bottom, 0);
+		padding: 0.375rem 0.5rem calc(0.375rem + env(safe-area-inset-bottom, 0));
+		/* The islands fill exactly the band everything else reserves. */
+		height: calc(var(--shell-bottom-nav-height) + env(safe-area-inset-bottom, 0));
+		box-sizing: border-box;
 	}
 
 	/* Extra menu portal container - positioned before nav-bottom in DOM */
@@ -1161,7 +1546,7 @@ body.cl-site-preboot {
 		pointer-events: none; /* Prevent stealing mouse events when hidden */
 	}
 
-	/* Extra menu - completely separate styles from .c-menu-ex */
+	/* Mobile slide-up sheet — separate from the desktop `.c-menu-ex-flyout`. */
 	.c-extra-menu-portal .c-extra-menu {
 		padding: 1rem;
 		max-width: calc(20rem + 2rem);
@@ -1179,6 +1564,64 @@ body.cl-site-preboot {
 	.c-extra-menu-portal .c-extra-menu .c-nav-link {
 		height: 4rem;
 		justify-content: center;
+	}
+
+	/* The community sheet the context island opens (layout/CommunitySheet.tsx). The
+	   dock stays visible below it; `--kb-inset` lifts it above the virtual keyboard. */
+	.c-community-sheet-backdrop {
+		position: fixed;
+		inset: 0 0 var(--shell-bottom-nav-height);
+		z-index: var(--z-popover);
+		background: lch(0 0 0 / 0.3);
+	}
+
+	/* Clips the slide-in at the dock's top edge, so the sheet comes out from behind the
+	   dock rather than over it (the same trick as `.c-extra-menu-portal`). The padding
+	   is the gap to the dock and room for the sheet's shadow. */
+	.c-community-sheet-clip {
+		position: fixed;
+		inset: 1rem 0 calc(var(--shell-bottom-nav-height) + var(--kb-inset, 0px));
+		display: flex;
+		flex-direction: column;
+		justify-content: flex-end;
+		padding: 0.5rem;
+		overflow: hidden;
+		pointer-events: none;
+		z-index: var(--z-popover);
+	}
+
+	.c-community-sheet {
+		display: flex;
+		flex-direction: column;
+		width: 100%;
+		max-width: 28rem;
+		min-height: 0;
+		margin-inline: auto;
+		padding: 0.5rem;
+		pointer-events: auto;
+		background: var(--col-container);
+		color: var(--col-on-container);
+		border: 1px solid var(--col-outline);
+		border-radius: var(--radius-xl);
+		box-shadow: var(--shadow-md);
+		animation: c-community-sheet-in 0.3s ease;
+	}
+
+	.c-community-sheet:focus {
+		outline: none;
+	}
+}
+
+@keyframes c-community-sheet-in {
+	from {
+		/* 100% plus the clip box's bottom padding: starts fully hidden behind the dock. */
+		transform: translateY(calc(100% + 0.5rem));
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.c-community-sheet {
+		animation: none;
 	}
 }
 
@@ -1698,7 +2141,7 @@ body.cl-site-preboot {
 :root {
 	--shell-sidebar-width: 5rem;
 	--shell-header-height: 3.5rem;
-	--shell-bottom-nav-height: 4rem;
+	--shell-bottom-nav-height: 4.5rem;
 	/* The published site's second chrome row (`.c-site-bar`). Read by the Rust
 	   wrapper as well as by React — see the site chrome section above. Shorter
 	   than the header: it carries one line of text and no controls. */

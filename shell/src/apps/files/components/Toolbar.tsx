@@ -14,7 +14,7 @@ import {
 	LuArrowLeft as IcArrowLeft,
 	LuArrowUp as IcArrowUp,
 	LuTrash2 as IcEmptyTrash,
-	LuFilter as IcFilter,
+	LuMenu as IcMenu,
 	LuLayoutGrid as IcGrid,
 	LuList as IcList,
 	LuFolderPlus as IcNewFolder,
@@ -80,7 +80,7 @@ export function Toolbar({
 					onClick={onShowFilter}
 					title={t('Filter')}
 				>
-					<IcFilter />
+					<IcMenu />
 				</button>
 			)}
 			{onGoBack && (

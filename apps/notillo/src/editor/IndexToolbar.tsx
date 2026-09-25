@@ -38,7 +38,8 @@ import {
 	type ComponentProps,
 	useBlockNoteEditor,
 	useComponentsContext,
-	useEditorState
+	useEditorState,
+	usePortalElement
 } from '@blocknote/react'
 import type { SiteListingLayout, SiteListingQuery, SiteListingSort } from '@cloudillo/core'
 import * as React from 'react'
@@ -133,6 +134,7 @@ function selectItems<V>(
 export function IndexToolbarItems() {
 	const { t } = useTranslation()
 	const Components = useComponentsContext()!
+	const portalElement = usePortalElement()
 	const editor = useBlockNoteEditor<BlockSchema, InlineContentSchema, StyleSchema>()
 	const { pages } = useNotilloEditor()
 
@@ -214,6 +216,7 @@ export function IndexToolbarItems() {
 		<>
 			<Components.FormattingToolbar.Select
 				className="bn-select"
+				portalElement={portalElement}
 				items={selectItems(
 					LISTING_SOURCES,
 					query.source,
@@ -225,12 +228,14 @@ export function IndexToolbarItems() {
 			{query.source === 'tag' && (
 				<Components.FormattingToolbar.Select
 					className="bn-select"
+					portalElement={portalElement}
 					items={tagItemsFor(query.tag ?? '')}
 				/>
 			)}
 			{query.source === 'subtree' && (
 				<Components.FormattingToolbar.Select
 					className="bn-select"
+					portalElement={portalElement}
 					items={selectItems(
 						DEPTHS,
 						query.depth ?? 0,
@@ -242,6 +247,7 @@ export function IndexToolbarItems() {
 			)}
 			<Components.FormattingToolbar.Select
 				className="bn-select"
+				portalElement={portalElement}
 				items={selectItems(
 					LISTING_SORTS,
 					query.sort,
@@ -252,6 +258,7 @@ export function IndexToolbarItems() {
 			/>
 			<Components.FormattingToolbar.Select
 				className="bn-select"
+				portalElement={portalElement}
 				items={selectItems(
 					LISTING_LAYOUTS,
 					query.layout,
@@ -262,6 +269,7 @@ export function IndexToolbarItems() {
 			/>
 			<Components.FormattingToolbar.Select
 				className="bn-select"
+				portalElement={portalElement}
 				items={selectItems(
 					LIMITS,
 					query.limit ?? 0,

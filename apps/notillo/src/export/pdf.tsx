@@ -10,7 +10,10 @@ export async function exportPdf(
 	resolveFileUrl?: (url: string) => Promise<string | Blob>
 ) {
 	const [{ PDFExporter, pdfDefaultSchemaMappings }, { pdf, Text, View, Image }] =
-		await Promise.all([import('@blocknote/xl-pdf-exporter'), import('@react-pdf/renderer')])
+		await Promise.all([
+			import('@blocknote/xl-pdf-exporter/react-pdf'),
+			import('@react-pdf/renderer')
+		])
 
 	const PIXELS_PER_POINT = 0.75
 

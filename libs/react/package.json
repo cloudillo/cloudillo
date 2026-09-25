@@ -1,6 +1,6 @@
 {
 	"name": "@cloudillo/react",
-	"version": "0.8.18",
+	"version": "0.8.19",
 	"description": "React hooks and component library for Cloudillo apps — auth, real-time data, i18n, and OpalUI integration",
 	"keywords": [
 		"cloudillo",

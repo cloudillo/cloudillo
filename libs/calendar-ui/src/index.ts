@@ -3,6 +3,8 @@
 
 export { MonthView } from './components/MonthView.js'
 export { WeekView } from './components/WeekView.js'
+export type { MiniCalendarProps } from './MiniCalendar.js'
+export { MiniCalendar } from './MiniCalendar.js'
 export type { CalendarEvent, CalendarViewProps, EventPatch, EventPatchScope } from './types.js'
 export type { WeekStart } from './utils/dates.js'
 export { localeFirstDay } from './utils/dates.js'

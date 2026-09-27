@@ -659,4 +659,87 @@
 	}
 }
 
+/* --- Mini calendar (month navigator) ---------------------------------- */
+
+.c-cal-mini {
+	display: flex;
+	flex-direction: column;
+	padding: 0.5rem;
+	font-size: 0.75rem;
+}
+
+.c-cal-mini__nav {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding-bottom: 0.25rem;
+	font-size: 0.875rem;
+}
+
+.c-cal-mini__step {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 2rem;
+	min-height: 2rem;
+	border: 0;
+	border-radius: 50%;
+	background: transparent;
+	color: inherit;
+	cursor: pointer;
+	padding: 0;
+}
+
+.c-cal-mini__step:hover,
+.c-cal-mini__cell:hover {
+	background: lch(from var(--col-on) l c h / 0.08);
+}
+
+.c-cal-mini__grid {
+	display: grid;
+	grid-template-columns: repeat(7, 1fr);
+	gap: 1px;
+}
+
+.c-cal-mini__cell {
+	aspect-ratio: 1 / 1;
+	min-width: 1.75rem;
+	min-height: 1.75rem;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 50%;
+	cursor: pointer;
+	border: 1px solid transparent;
+	background: transparent;
+	color: inherit;
+	padding: 0;
+}
+
+.c-cal-mini__step:focus-visible,
+.c-cal-mini__cell:focus-visible {
+	outline: 2px solid var(--col-focus, var(--col-primary));
+	outline-offset: 1px;
+}
+
+.c-cal-mini__cell.other-month {
+	opacity: 0.35;
+}
+
+.c-cal-mini__cell.today {
+	border-color: var(--col-primary);
+	font-weight: 600;
+}
+
+.c-cal-mini__cell.selected {
+	background: var(--col-primary);
+	color: var(--col-on-primary);
+}
+
+.c-cal-mini__header {
+	font-size: 0.7rem;
+	text-align: center;
+	opacity: 0.6;
+}
+
 /* vim: ts=4 */

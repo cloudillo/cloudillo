@@ -1,0 +1,25 @@
+// Design-system lint: raw structural JSX tags and
+// `title=` on interactive elements. Enabled per folder via `overrides` in biome.jsonc.
+// Escape hatch: `// biome-ignore lint/plugin/no-raw-intrinsic: ds-allow: <reason>`
+// Regexes are full-match and must not capture: a capture group counts as a Grit variable.
+language js
+
+or {
+	or {
+		JsxOpeningElement(name=$name),
+		JsxSelfClosingElement(name=$name)
+	} where {
+		$name <: r"(?:div|span|p|label|ul|ol|li|h[1-6]|button|a|input|select|textarea|form|header|footer|section|nav|table|tr|td|img|small|svg)",
+		register_diagnostic(span=$name, message="Raw intrinsic element: use a @cloudillo/react component.", severity="error")
+	},
+	or {
+		JsxOpeningElement(name=$el, attributes=$attrs),
+		JsxSelfClosingElement(name=$el, attributes=$attrs)
+	} where {
+		$el <: r"(?:button|a|input|select|textarea|Button|Link)",
+		$attrs <: contains JsxAttribute(name=$attr) where {
+			$attr <: "title",
+			register_diagnostic(span=$attr, message="`title=` on an interactive element: use Tooltip (or the icon-only Button's aria-label).", severity="error")
+		}
+	}
+}

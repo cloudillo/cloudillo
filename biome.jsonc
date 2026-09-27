@@ -98,6 +98,12 @@
 					}
 				}
 			}
+		},
+		{
+			// Design-system lint on the whole shell.
+			// `shell/src/ui/**` is the one chrome layer allowed raw tags.
+			"includes": ["shell/src/**", "!shell/src/ui/**", "!**/__tests__/**"],
+			"plugins": ["biome-plugins/no-raw-intrinsic.grit"]
 		}
 	],
 

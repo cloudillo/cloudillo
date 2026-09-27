@@ -1,6 +1,6 @@
 {
 	"name": "@cloudillo/notillo-app",
-	"version": "0.8.18",
+	"version": "0.8.19",
 	"private": true,
 	"description": "Notillo wiki app",
 	"type": "module",

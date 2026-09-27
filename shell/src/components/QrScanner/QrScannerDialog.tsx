@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button } from '@cloudillo/react'
+import { Alert, Button, HBox, ImmersiveOverlay, Text, VBox } from '@cloudillo/react'
 import QrScanner from 'qr-scanner'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -10,8 +10,6 @@ import { LuX as IcClose } from 'react-icons/lu'
 import { parseCloudilloUri } from '../../utils/cloudillo-uri.js'
 import { ApproveQrLoginView } from './ApproveQrLoginView.js'
 import { useQrScanner } from './state.js'
-
-import './qr-scanner.css'
 
 export interface QrScannerDialogProps {
 	onScan: (idTag: string) => void
@@ -88,24 +86,42 @@ export function QrScannerDialog({ onScan }: QrScannerDialogProps) {
 	if (!open) return null
 
 	return (
-		<div className="qr-scanner-overlay" onClick={handleClose}>
+		<ImmersiveOverlay
+			open
+			onClose={handleClose}
+			aria-label={t('Scan QR Code')}
+			controls={
+				!qrLoginData && (
+					<HBox align="center" justify="between" className="w-100">
+						<Text>{t('Scan QR Code')}</Text>
+						<Button onClick={handleClose} icon={<IcClose />} aria-label={t('Close')} />
+					</HBox>
+				)
+			}
+		>
 			{qrLoginData ? (
 				<ApproveQrLoginView loginCode={qrLoginData.loginCode} onDone={handleClose} />
 			) : (
-				<>
-					<div className="qr-scanner-header">
-						<h3>{t('Scan QR Code')}</h3>
-						<Button className="icon" onClick={handleClose}>
-							<IcClose color="#fff" />
-						</Button>
-					</div>
-					<video ref={videoRef} onClick={(e) => e.stopPropagation()} />
-					<div className="qr-scanner-status">
-						{error && <p className="text-error">{error}</p>}
-					</div>
-				</>
+				<VBox align="center" gap={3} padding={3} className="w-100">
+					{/* Media surface: driven by the qr-scanner lib */}
+					<video
+						ref={videoRef}
+						style={{
+							width: '100%',
+							maxWidth: 480,
+							maxHeight: '60vh',
+							borderRadius: 12,
+							objectFit: 'cover'
+						}}
+					/>
+					{error && (
+						<Alert color="error" inverse compact>
+							{error}
+						</Alert>
+					)}
+				</VBox>
 			)}
-		</div>
+		</ImmersiveOverlay>
 	)
 }
 

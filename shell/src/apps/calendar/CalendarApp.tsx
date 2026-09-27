@@ -1,7 +1,17 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button, Fcd, Menu, MenuDivider, MenuItem, useIsMobile, useToast } from '@cloudillo/react'
+import {
+	Button,
+	EmptyState,
+	Fcd,
+	HBox,
+	Menu,
+	MenuDivider,
+	MenuItem,
+	useIsMobile,
+	useToast
+} from '@cloudillo/react'
 import dayjs from 'dayjs'
 import { useAtom } from 'jotai'
 import * as React from 'react'
@@ -49,8 +59,6 @@ import {
 import { useCalendars, useEventRange, useRecurringScopeOps, useTaskList } from './hooks/index.js'
 import type { CalendarView } from './types.js'
 import { calendarSupports } from './utils.js'
-
-import './calendar.css'
 
 export function CalendarApp() {
 	const { t, i18n } = useTranslation()
@@ -516,9 +524,9 @@ export function CalendarApp() {
 
 	return (
 		<>
-			<Fcd.Container fluid detailsMode="overlay" className="c-cal-app">
+			<Fcd.Container fluid detailsMode="overlay" detailsWidth="22rem">
 				<Fcd.Filter
-					className={`c-cal-app__filter${sidebarOpen ? '' : ' collapsed'}`}
+					collapsed={!sidebarOpen}
 					isVisible={sidebarOpen}
 					hide={() => setSidebarOpen(false)}
 				>
@@ -526,6 +534,7 @@ export function CalendarApp() {
 						calendars={calendars}
 						visible={visibleCalendars}
 						currentDate={currentDate}
+						firstDayOfWeek={firstDayOfWeek}
 						onToggle={handleToggleCalendar}
 						onEdit={openEditCalendar}
 						onDelete={handleDeleteCalendar}
@@ -535,7 +544,7 @@ export function CalendarApp() {
 				</Fcd.Filter>
 
 				<Fcd.Content
-					className="c-cal-app__content"
+					layout="column"
 					header={
 						<CalendarToolbar
 							currentDate={currentDate}
@@ -545,22 +554,20 @@ export function CalendarApp() {
 							onViewChange={handleViewChange}
 							onSearchChange={setSearchQuery}
 							lead={
-								<button
-									type="button"
-									className="c-link"
+								<Button
+									variant="ghost"
+									size="sm"
 									onClick={() => setSidebarOpen((v) => !v)}
 									aria-label={t('Toggle calendars')}
-									aria-pressed={sidebarOpen}
-									title={t('Toggle calendars')}
-								>
-									<IcSidebar />
-								</button>
+									pressed={sidebarOpen}
+									icon={<IcSidebar />}
+								/>
 							}
 							trail={
-								<div className="d-flex align-items-center g-1">
+								<HBox gap={1} align="center">
 									<Button
-										variant="primary"
-										size="small"
+										color="primary"
+										size="sm"
 										disabled={noCalendars || !!calsError}
 										onClick={
 											view === 'tasks' ? openCreateTask : openCreateEvent
@@ -569,46 +576,51 @@ export function CalendarApp() {
 									>
 										{view === 'tasks' ? t('New task') : t('New event')}
 									</Button>
-									<button
-										type="button"
-										className="c-link"
+									<Button
+										variant="ghost"
+										size="sm"
+										immediate
 										onClick={openToolbarMenu}
 										aria-label={t('More actions')}
 										aria-haspopup="menu"
 										aria-expanded={!!toolbarMenu}
-										title={t('More actions')}
-									>
-										<IcMore />
-									</button>
-								</div>
+										icon={<IcMore />}
+									/>
+								</HBox>
 							}
 						/>
 					}
 				>
 					{calsError ? (
-						<div className="c-vbox align-items-center justify-content-center p-4 g-3 text-center flex-fill">
-							<h3 className="m-0">
-								{calsDenied
+						<EmptyState
+							fill
+							color={calsDenied ? 'warning' : 'error'}
+							title={
+								calsDenied
 									? t('Calendars are not available here')
-									: t('Failed to load calendars')}
-							</h3>
-							<p className="c-hint">
-								{calsDenied
+									: t('Failed to load calendars')
+							}
+							description={
+								calsDenied
 									? t('You do not have permission to use calendars here.')
-									: calsError.message}
-							</p>
-						</div>
+									: calsError.message
+							}
+						/>
 					) : noCalendars ? (
-						<div className="c-vbox align-items-center justify-content-center p-4 g-3 text-center flex-fill">
-							<h3 className="m-0">{t('No calendars yet')}</h3>
-							<p className="c-hint">
-								{t('Create a calendar to start adding events and tasks.')}
-							</p>
-							<Button variant="primary" onClick={openCreateCalendar}>
-								<IcNewCal className="me-1" />
-								{t('New calendar')}
-							</Button>
-						</div>
+						<EmptyState
+							fill
+							title={t('No calendars yet')}
+							description={t('Create a calendar to start adding events and tasks.')}
+							actions={
+								<Button
+									color="primary"
+									onClick={openCreateCalendar}
+									icon={<IcNewCal />}
+								>
+									{t('New calendar')}
+								</Button>
+							}
+						/>
 					) : view === 'tasks' ? (
 						<TaskList
 							tasks={tasks.objects}

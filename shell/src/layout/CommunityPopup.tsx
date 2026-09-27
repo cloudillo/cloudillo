@@ -8,7 +8,7 @@
  * The body is `CommunityFinder`, shared with the mobile community sheet.
  */
 
-import { Button, Menu as PopupSurface, useAuth } from '@cloudillo/react'
+import { Badge, BadgeAnchor, Button, Menu as PopupSurface, useAuth } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -22,9 +22,8 @@ export interface CommunityPopupProps {
 	overflowUnread: boolean
 	/** Trigger label (aria-label + title). Defaults to "All communities". */
 	label?: string
-	/** Omit both to render non-draggable cards. */
-	onDragStartRow?: (idTag: string) => void
-	onDragEndRow?: () => void
+	/** Rendered inside a `SortableGroup`: cards drag onto the context strip. */
+	draggable?: boolean
 }
 
 export function CommunityPopup({
@@ -32,8 +31,7 @@ export function CommunityPopup({
 	overflowCount,
 	overflowUnread,
 	label,
-	onDragStartRow,
-	onDragEndRow
+	draggable
 }: CommunityPopupProps) {
 	const { t } = useTranslation()
 	const [auth] = useAuth()
@@ -49,6 +47,8 @@ export function CommunityPopup({
 
 	if (!auth) return null
 
+	const title = label ?? t('All communities')
+
 	return (
 		<>
 			<Button
@@ -56,29 +56,34 @@ export function CommunityPopup({
 				kind="nav-link"
 				className="c-ctx-overflow"
 				onClick={() => (position ? close() : open())}
-				aria-label={label ?? t('All communities')}
-				title={label ?? t('All communities')}
+				aria-label={
+					overflowCount > 0
+						? `${title}, ${t('{{count}} more communities', { count: overflowCount })}`
+						: title
+				}
 				aria-expanded={!!position}
 				aria-haspopup="dialog"
 			>
-				{icon}
-				{overflowCount > 0 && (
-					<span className="c-badge positioned tr" aria-hidden="true">
-						{overflowCount}
-					</span>
-				)}
-				{overflowUnread && (
-					<span
-						className="c-badge dot accent positioned br"
-						role="status"
-						aria-label={t('New content')}
-					/>
-				)}
-				{overflowCount > 0 && (
-					<span className="sr-only">
-						{t('{{count}} more communities', { count: overflowCount })}
-					</span>
-				)}
+				<BadgeAnchor
+					badge={
+						overflowCount > 0 && (
+							<Badge size="sm" aria-hidden="true">
+								{overflowCount}
+							</Badge>
+						)
+					}
+				>
+					<BadgeAnchor
+						position="bottom-end"
+						badge={
+							overflowUnread && (
+								<Badge dot color="accent" aria-label={t('New content')} />
+							)
+						}
+					>
+						{icon}
+					</BadgeAnchor>
+				</BadgeAnchor>
 			</Button>
 			{position && (
 				<PopupSurface
@@ -88,12 +93,7 @@ export function CommunityPopup({
 					aria-label={t('All communities')}
 					className="c-community-popup"
 				>
-					<CommunityFinder
-						variant="popup"
-						onDone={close}
-						onDragStartRow={onDragStartRow}
-						onDragEndRow={onDragEndRow}
-					/>
+					<CommunityFinder variant="popup" onDone={close} draggable={draggable} />
 				</PopupSurface>
 			)}
 		</>

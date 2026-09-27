@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { EmptyState, SkeletonCard, useApi } from '@cloudillo/react'
+import { EmptyState, SkeletonCard, useApi, VBox } from '@cloudillo/react'
 import type { ActionView } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -72,17 +72,17 @@ export function DraftsPanel({ onEdit, onPublished }: DraftsPanelProps) {
 
 	if (isLoading) {
 		return (
-			<div className="c-vbox g-2 p-2">
+			<VBox gap={2} className="p-2">
 				<SkeletonCard lines={2} />
 				<SkeletonCard lines={2} />
-			</div>
+			</VBox>
 		)
 	}
 
 	if (drafts.length === 0) {
 		return (
 			<EmptyState
-				icon={<IcDraft style={{ fontSize: '2.5rem' }} />}
+				icon={<IcDraft />}
 				title={t('No drafts or scheduled posts')}
 				description={t('Posts you save or schedule will appear here.')}
 			/>
@@ -90,7 +90,7 @@ export function DraftsPanel({ onEdit, onPublished }: DraftsPanelProps) {
 	}
 
 	return (
-		<div className="c-vbox g-1">
+		<VBox gap={1}>
 			{drafts.map((draft) => (
 				<DraftCard
 					key={draft.actionId}
@@ -101,7 +101,7 @@ export function DraftsPanel({ onEdit, onPublished }: DraftsPanelProps) {
 					onUnscheduled={handleUnscheduled}
 				/>
 			))}
-		</div>
+		</VBox>
 	)
 }
 

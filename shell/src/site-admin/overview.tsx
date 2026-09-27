@@ -2,7 +2,18 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import type { TenantView } from '@cloudillo/core'
-import { Button, Card, useApi, useAuth } from '@cloudillo/react'
+import {
+	Alert,
+	Button,
+	Card,
+	Grid,
+	HBox,
+	Panel,
+	Text,
+	useApi,
+	useAuth,
+	VBox
+} from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -10,19 +21,12 @@ import {
 	LuCheck as IcCheck,
 	LuUsersRound as IcCommunity,
 	LuX as IcError,
-	LuShieldCheck as IcIdps,
 	LuAtSign as IcInvitations,
 	LuMail as IcMail,
-	LuNetwork as IcProxy,
-	LuServer as IcServer,
 	LuSettings as IcSettings,
-	LuHardDrive as IcStorage,
-	LuUser as IcTenant,
 	LuUser as IcUser,
-	LuUsers as IcUsers,
-	LuTriangleAlert as IcWarning
+	LuUsers as IcUsers
 } from 'react-icons/lu'
-import { useNavigate } from 'react-router-dom'
 
 import { HOME_BASE, settingsPath, siteAdminPath } from '../routes.js'
 import { useSettings } from '../settings/settings.js'
@@ -38,7 +42,6 @@ interface Ref {
 
 export function AdminOverview() {
 	const { t } = useTranslation()
-	const navigate = useNavigate()
 	const { api } = useApi()
 	const [auth] = useAuth()
 
@@ -96,65 +99,44 @@ export function AdminOverview() {
 		<>
 			{/* Critical Setup Warnings - only show after settings are loaded */}
 			{emailSettingsLoaded && !emailConfigured && (
-				<div
-					className="c-panel animate-fade-slide-up"
-					style={{ borderLeft: '4px solid var(--col-warning)' }}
-				>
-					<div className="c-hbox py-2">
-						<IcWarning className="me-3 text-warning" size={24} />
-						<div className="flex-fill">
-							<div className="font-medium">{t('Email Not Configured')}</div>
-							<div className="c-hint small">
-								{t('Password resets and email notifications will not work')}
-							</div>
-						</div>
-						<Button variant="primary" onClick={() => navigate(siteAdminPath('email'))}>
+				<Alert
+					color="warning"
+					className="animate-fade-slide-up"
+					title={t('Email Not Configured')}
+					actions={
+						<Button color="primary" href={siteAdminPath('email')}>
 							{t('Configure')}
 						</Button>
-					</div>
-				</div>
+					}
+				>
+					{t('Password resets and email notifications will not work')}
+				</Alert>
 			)}
 
 			{/* Stats Overview */}
-			<div className="c-panel animate-fade-slide-up stagger-1">
-				<h4 className="pb-3">{t('Overview')}</h4>
-
-				<div
-					style={{
-						display: 'grid',
-						gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
-						gap: '1rem'
-					}}
-				>
+			<Panel title={t('Overview')} className="animate-fade-slide-up stagger-1">
+				<Grid min="140px" gap={3}>
 					{/* Profiles card with breakdown */}
-					<Card className="text-center">
-						<div className="mb-1">
-							<IcUsers size={20} className="text-muted" />
-						</div>
-						<div style={{ fontSize: '1.75rem', fontWeight: 600, lineHeight: 1.2 }}>
-							{loading ? '...' : tenants.length}
-						</div>
-						<div className="c-hint small mt-1">{t('Profiles')}</div>
-						{!loading && (
-							<div
-								className="c-hbox g-3 mt-2 small text-muted"
-								style={{ justifyContent: 'center' }}
-							>
-								<span className="c-hbox g-1">
-									<IcUser size={14} />
-									{personalProfiles.length}
-								</span>
-								<span className="c-hbox g-1">
-									<IcCommunity size={14} />
-									{communityProfiles.length}
-								</span>
-							</div>
-						)}
-					</Card>
 					<StatCard
-						value={loading ? '...' : String(pendingInvitations.length)}
+						value={loading ? '...' : tenants.length}
+						label={t('Profiles')}
+						icon={<IcUsers size={20} />}
+					>
+						{!loading && (
+							<HBox gap={3} justify="center" className="mt-2">
+								<Text size="sm" emphasis="muted">
+									<IcUser size={14} /> {personalProfiles.length}
+								</Text>
+								<Text size="sm" emphasis="muted">
+									<IcCommunity size={14} /> {communityProfiles.length}
+								</Text>
+							</HBox>
+						)}
+					</StatCard>
+					<StatCard
+						value={loading ? '...' : pendingInvitations.length}
 						label={t('Pending Invitations')}
-						icon={<IcInvitations size={20} className="text-muted" />}
+						icon={<IcInvitations size={20} />}
 					/>
 					<StatCard
 						value={
@@ -167,84 +149,29 @@ export function AdminOverview() {
 							)
 						}
 						label={t('Email')}
-						icon={<IcMail size={20} className="text-muted" />}
+						icon={<IcMail size={20} />}
 					/>
-				</div>
-			</div>
+				</Grid>
+			</Panel>
 
 			{/* Personal Settings Link */}
 			<Card
-				interactive
 				className="animate-fade-slide-up stagger-2"
 				// `AdminOverview` only ever renders under `~` — the SiteAdmin chrome
 				// redirects any other context.
-				onClick={() => navigate(settingsPath(HOME_BASE))}
+				href={settingsPath(HOME_BASE)}
 			>
-				<div className="c-hbox align-items-center p-2">
-					<IcSettings className="text-primary me-3" size={24} />
-					<div className="flex-fill">
-						<div className="font-medium">{t('Personal Settings')}</div>
-						<div className="c-hint small">
+				<HBox gap={3} align="center" className="p-2">
+					<IcSettings className="text-primary" size={24} />
+					<VBox className="flex-fill">
+						<Text weight="medium">{t('Personal Settings')}</Text>
+						<Text size="sm" emphasis="muted">
 							{t('Configure your personal account settings')}
-						</div>
-					</div>
+						</Text>
+					</VBox>
 					<IcArrow className="text-muted" />
-				</div>
+				</HBox>
 			</Card>
-
-			{/* Quick Actions */}
-			<div className="c-panel animate-fade-slide-up stagger-3">
-				<h4 className="pb-3">{t('Administration')}</h4>
-
-				<div
-					style={{
-						display: 'grid',
-						gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
-						gap: '1rem'
-					}}
-				>
-					<QuickActionCard
-						icon={<IcInvitations size={28} />}
-						label={t('Invitations')}
-						onClick={() => navigate(siteAdminPath('invitations'))}
-					/>
-					<QuickActionCard
-						icon={<IcUsers size={28} />}
-						label={t('Users & Communities')}
-						onClick={() => navigate(siteAdminPath('tenants'))}
-					/>
-					<QuickActionCard
-						icon={<IcIdps size={28} />}
-						label={t('Suggested Providers')}
-						onClick={() => navigate(siteAdminPath('idps'))}
-					/>
-					<QuickActionCard
-						icon={<IcServer size={28} />}
-						label={t('Server')}
-						onClick={() => navigate(siteAdminPath('server'))}
-					/>
-					<QuickActionCard
-						icon={<IcStorage size={28} />}
-						label={t('Storage')}
-						onClick={() => navigate(siteAdminPath('storage'))}
-					/>
-					<QuickActionCard
-						icon={<IcMail size={28} />}
-						label={t('Email')}
-						onClick={() => navigate(siteAdminPath('email'))}
-					/>
-					<QuickActionCard
-						icon={<IcProxy size={28} />}
-						label={t('Reverse Proxy')}
-						onClick={() => navigate(siteAdminPath('proxy-sites'))}
-					/>
-					<QuickActionCard
-						icon={<IcTenant size={28} />}
-						label={t('Default Policies')}
-						onClick={() => navigate(siteAdminPath('tenant'))}
-					/>
-				</div>
-			</div>
 		</>
 	)
 }
@@ -253,29 +180,22 @@ interface StatCardProps {
 	value: React.ReactNode
 	label: string
 	icon: React.ReactNode
+	children?: React.ReactNode
 }
 
-function StatCard({ value, label, icon }: StatCardProps) {
+function StatCard({ value, label, icon, children }: StatCardProps) {
 	return (
-		<Card className="text-center">
-			<div className="mb-1">{icon}</div>
-			<div style={{ fontSize: '1.75rem', fontWeight: 600, lineHeight: 1.2 }}>{value}</div>
-			<div className="c-hint small mt-1">{label}</div>
-		</Card>
-	)
-}
-
-interface QuickActionCardProps {
-	icon: React.ReactNode
-	label: string
-	onClick: () => void
-}
-
-function QuickActionCard({ icon, label, onClick }: QuickActionCardProps) {
-	return (
-		<Card interactive className="text-center" onClick={onClick}>
-			<div className="mb-2 text-primary">{icon}</div>
-			<div className="small">{label}</div>
+		<Card>
+			<VBox align="center" gap={1}>
+				<Text emphasis="muted">{icon}</Text>
+				<Text size="2xl" weight="semibold">
+					{value}
+				</Text>
+				<Text size="sm" emphasis="muted">
+					{label}
+				</Text>
+				{children}
+			</VBox>
 		</Card>
 	)
 }

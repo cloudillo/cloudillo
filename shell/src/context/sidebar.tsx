@@ -8,9 +8,7 @@
  * (`layout/CommunitySheet.tsx`), so the rail is hidden by CSS.
  */
 
-import './sidebar.css'
-
-import { mergeClasses, useAuth } from '@cloudillo/react'
+import { mergeClasses, Nav, Text, useAuth, VBox } from '@cloudillo/react'
 import { useAtomValue } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -56,7 +54,7 @@ export function ContextTools({ onNavigate }: { onNavigate?: () => void }) {
 	if (!items.length) return null
 
 	return (
-		<div className="c-sidebar-context-tools">
+		<VBox className="c-sidebar-context-tools">
 			{items.map((item) => {
 				const label = item.trans?.[i18n.language] || item.label
 				// The context's own name is what the 5rem slot can actually carry;
@@ -74,16 +72,13 @@ export function ContextTools({ onNavigate }: { onNavigate?: () => void }) {
 								? t('{{name}} settings', { name: contextName })
 								: undefined
 						}
-						title={
-							isCtxSettings ? t('{{name}} settings', { name: contextName }) : label
-						}
 					>
 						{item.icon && React.createElement(item.icon)}
-						<span className="c-nav-label">{isCtxSettings ? contextName : label}</span>
+						<Text className="c-nav-label">{isCtxSettings ? contextName : label}</Text>
 					</NavLink>
 				)
 			})}
-		</div>
+		</VBox>
 	)
 }
 
@@ -107,11 +102,11 @@ export const Sidebar = React.memo(function Sidebar({ className }: SidebarProps) 
 				className
 			)}
 		>
-			<nav className="c-sidebar-apps c-nav vertical" aria-label={t('Main navigation')}>
+			<Nav as="nav" vertical className="c-sidebar-apps" aria-label={t('Main navigation')}>
 				<Menu vertical />
 				{/* Guests get the public apps only — no People/Communities tools. */}
 				{auth && <ContextTools />}
-			</nav>
+			</Nav>
 		</aside>
 	)
 })

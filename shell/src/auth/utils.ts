@@ -31,26 +31,6 @@ export function rateLimitMessage(err: unknown, t: TFunction): string | undefined
 	return undefined
 }
 
-export type PasswordStrength = {
-	score: number
-	label: string
-	percent: number
-}
-
-export function passwordStrength(password: string, t: TFunction): PasswordStrength {
-	if (!password || password.length < 8) return { score: 0, label: t('Too short'), percent: 0 }
-
-	let score = 1
-	if (password.length >= 12) score++
-	if (/[a-z]/.test(password) && /[A-Z]/.test(password)) score++
-	if (/\d/.test(password)) score++
-	if (/[^a-zA-Z0-9]/.test(password)) score++
-
-	score = Math.min(4, score)
-	const labels = [t('Too short'), t('Weak'), t('Fair'), t('Good'), t('Strong')]
-	return { score, label: labels[score], percent: score * 25 }
-}
-
 export function validIdTag(idTag: string) {
 	return idTag.match(/^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*$/)
 }

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button } from '@cloudillo/react'
+import { Button, DateTimePicker, HBox, Text } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { LuX as IcClose } from 'react-icons/lu'
@@ -49,66 +49,42 @@ export function SchedulePicker({ value, onChange }: SchedulePickerProps) {
 	// Minimum date: today
 	const minDate = toLocalDateString(new Date())
 
-	function parseLocalDateTime(dateStr: string, timeStr: string): Date {
-		const [y, m, d] = dateStr.split('-').map(Number)
-		const [h, min] = timeStr.split(':').map(Number)
-		return new Date(y, m - 1, d, h, min)
-	}
-
-	function handleDateChange(e: React.ChangeEvent<HTMLInputElement>) {
-		const dateStr = e.target.value
+	function handleChange(str: string) {
+		const [dateStr, timeStr] = str.split('T')
 		if (!dateStr) {
 			onChange(undefined)
 			return
 		}
-		const timeStr = value ? toLocalTimeString(value) : '12:00'
-		onChange(parseLocalDateTime(dateStr, timeStr))
-	}
-
-	function handleTimeChange(e: React.ChangeEvent<HTMLInputElement>) {
-		const timeStr = e.target.value
-		if (!timeStr) return
-		const dateStr = value ? toLocalDateString(value) : minDate
-		onChange(parseLocalDateTime(dateStr, timeStr))
-	}
-
-	function handleClear() {
-		onChange(undefined)
+		const [y, m, d] = dateStr.split('-').map(Number)
+		const [h, min] = (timeStr || '12:00').split(':').map(Number)
+		onChange(new Date(y, m - 1, d, h, min))
 	}
 
 	return (
-		<div className="c-hbox g-2 align-items-center flex-wrap">
-			<input
-				type="date"
-				className="c-input"
+		<HBox gap={2} align="center" wrap>
+			<DateTimePicker
+				value={value ? `${toLocalDateString(value)}T${toLocalTimeString(value)}` : ''}
+				onChange={handleChange}
 				min={minDate}
-				value={value ? toLocalDateString(value) : ''}
-				onChange={handleDateChange}
-				aria-label={t('Schedule date')}
-				style={{ width: 'auto' }}
-			/>
-			<input
-				type="time"
-				className="c-input"
-				value={value ? toLocalTimeString(value) : ''}
-				onChange={handleTimeChange}
-				aria-label={t('Schedule time')}
-				style={{ width: 'auto' }}
+				defaultTime="12:00"
+				dateLabel={t('Schedule date')}
+				timeLabel={t('Schedule time')}
 			/>
 			{value && (
 				<>
-					<span
-						className="text-sm"
-						style={{ color: 'var(--col-on-container)', opacity: 0.7 }}
-					>
+					<Text size="sm" emphasis="muted">
 						{formatRelativeTime(value, t)} ({timezone})
-					</span>
-					<Button kind="link" onClick={handleClear} aria-label={t('Clear schedule')}>
+					</Text>
+					<Button
+						variant="link"
+						onClick={() => onChange(undefined)}
+						aria-label={t('Clear schedule')}
+					>
 						<IcClose />
 					</Button>
 				</>
 			)}
-		</div>
+		</HBox>
 	)
 }
 

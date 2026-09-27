@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { HBox, Icon, Input, Text, VBox } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { LuMapPin as IcMapPin } from 'react-icons/lu'
@@ -21,10 +22,10 @@ export function LocationSectionView({ section }: LocationSectionViewProps) {
 	if (!parts.length) return null
 
 	return (
-		<div className="c-hbox g-2 align-items-center">
-			<IcMapPin className="c-section-icon f-none" />
-			<span>{parts.join(', ')}</span>
-		</div>
+		<HBox gap={2} align="center">
+			<Icon as={IcMapPin} className="text-muted" />
+			<Text>{parts.join(', ')}</Text>
+		</HBox>
 	)
 }
 
@@ -46,26 +47,26 @@ export function LocationSectionEdit({ section, onChange }: LocationSectionEditPr
 	}
 
 	return (
-		<div className="c-vbox g-2">
-			<input
-				className="c-input"
+		<VBox gap={2}>
+			<Input
+				aria-label={t('City')}
 				placeholder={t('City')}
 				value={data.city || ''}
 				onChange={(e) => update('city', e.target.value)}
 			/>
-			<input
-				className="c-input"
+			<Input
+				aria-label={t('Country')}
 				placeholder={t('Country')}
 				value={data.country || ''}
 				onChange={(e) => update('country', e.target.value)}
 			/>
-			<input
-				className="c-input"
+			<Input
+				aria-label={t('Address')}
 				placeholder={t('Address')}
 				value={data.address || ''}
 				onChange={(e) => update('address', e.target.value)}
 			/>
-		</div>
+		</VBox>
 	)
 }
 

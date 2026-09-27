@@ -11,6 +11,7 @@ const shared = {
 		// package's `exports` map, which jest's resolver does not read. Point
 		// them at the sources so a test doesn't need libs/core built first.
 		'^@cloudillo/core/(.*)$': '<rootDir>/../libs/core/src/$1.ts',
+		'\\.css$': '<rootDir>/jest.css-stub.cjs',
 		'^(\\.{1,2}/.*)\\.js$': '$1'
 	}
 }

@@ -2,22 +2,24 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import { setApiToken } from '@cloudillo/core'
-import { Button, resolveDefaultExport, useApi, useAuth } from '@cloudillo/react'
+import {
+	Alert,
+	Button,
+	Center,
+	LoadingSpinner,
+	Panel,
+	QRCode,
+	Text,
+	useApi,
+	useAuth
+} from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuX as IcError,
-	LuCheck as IcOk,
-	LuQrCode as IcQr,
-	LuRefreshCw as IcRefresh
-} from 'react-icons/lu'
-import ReactQRCode from 'react-qr-code'
+import { LuQrCode as IcQr, LuRefreshCw as IcRefresh } from 'react-icons/lu'
 
 import { installToken } from '../pwa.js'
 import { useLoginInit } from './auth.js'
 import { rateLimitMessage } from './utils.js'
-
-const QRCode = resolveDefaultExport(ReactQRCode)
 
 type PanelState =
 	| 'loading'
@@ -29,7 +31,7 @@ type PanelState =
 	| 'pollError'
 	| 'error'
 
-export function QrLoginPanel() {
+export function QrLoginPanel({ className }: { className?: string }) {
 	const { t } = useTranslation()
 	const { api } = useApi()
 	const [auth, setAuth] = useAuth()
@@ -151,106 +153,69 @@ export function QrLoginPanel() {
 
 	const qrValue = `cloudillo:qr-login:${sessionId}`
 
+	const retry = (
+		<Button icon={<IcRefresh />} onClick={initSession}>
+			{state === 'expired' ? t('Click to refresh') : t('Try again')}
+		</Button>
+	)
+
 	return (
-		<div className="c-panel p-3" style={{ textAlign: 'center' }}>
-			<h3 className="mb-3">
-				<IcQr className="me-2" />
-				{t('Scan QR code to log in')}
-			</h3>
-
-			{state === 'loading' && (
-				<div className="p-4">
-					<IcRefresh className="animate-rotate-cw" style={{ fontSize: '2rem' }} />
-				</div>
-			)}
-
-			{state === 'showing' && (
+		<Panel
+			className={className}
+			title={
 				<>
-					<div
-						className="p-3 mb-3"
-						style={{
-							background: 'white',
-							display: 'inline-block',
-							borderRadius: '8px'
-						}}
-					>
-						<QRCode
-							value={qrValue}
-							size={200}
-							aria-label={t('Scan QR code to log in')}
-						/>
-					</div>
-					<p className="text-muted">
-						<IcRefresh
-							className="animate-rotate-cw me-1"
-							style={{ fontSize: '0.9rem' }}
-						/>
-						{t('Waiting for approval...')}
-					</p>
+					<IcQr /> {t('Scan QR code to log in')}
 				</>
-			)}
+			}
+		>
+			<Center>
+				{state === 'loading' && <LoadingSpinner />}
 
-			{state === 'approved' && (
-				<div className="p-4">
-					<IcOk style={{ fontSize: '3rem', color: 'var(--col-success)' }} />
-					<p className="mt-2">{t('Login approved')}</p>
-				</div>
-			)}
+				{state === 'showing' && (
+					<>
+						<QRCode value={qrValue} size={200} label={t('Scan QR code to log in')} />
+						<Text as="p" emphasis="muted" role="status">
+							{t('Waiting for approval...')}
+						</Text>
+					</>
+				)}
 
-			{state === 'denied' && (
-				<div className="p-4">
-					<IcError style={{ fontSize: '3rem', color: 'var(--col-error)' }} />
-					<p className="mt-2 mb-3">{t('Login denied')}</p>
-					<Button onClick={initSession}>{t('Try again')}</Button>
-				</div>
-			)}
+				{state === 'approved' && <Alert color="success">{t('Login approved')}</Alert>}
 
-			{state === 'expired' && (
-				<div className="p-4">
-					<p className="mb-3">{t('QR code expired')}</p>
-					<Button onClick={initSession}>
-						<IcRefresh className="me-1" />
-						{t('Click to refresh')}
-					</Button>
-				</div>
-			)}
+				{state === 'denied' && (
+					<Alert color="error" actions={retry}>
+						{t('Login denied')}
+					</Alert>
+				)}
 
-			{state === 'blocked' && (
-				<div className="p-4">
-					<IcError style={{ fontSize: '3rem', color: 'var(--col-error)' }} />
-					<p className="mt-2 mb-3 text-error">
+				{state === 'expired' && (
+					<Alert color="neutral" actions={retry}>
+						{t('QR code expired')}
+					</Alert>
+				)}
+
+				{state === 'blocked' && (
+					<Alert color="error" actions={retry}>
 						{blockedMsg ??
 							t(
 								'Access temporarily blocked. Please wait a moment before trying again.'
 							)}
-					</p>
-					<Button onClick={initSession}>
-						<IcRefresh className="me-1" />
-						{t('Try again')}
-					</Button>
-				</div>
-			)}
+					</Alert>
+				)}
 
-			{state === 'pollError' && (
-				<div className="p-4">
-					<p className="mb-3 text-error">{t('Connection lost. Please try again.')}</p>
-					<Button onClick={initSession}>
-						<IcRefresh className="me-1" />
-						{t('Try again')}
-					</Button>
-				</div>
-			)}
+				{state === 'pollError' && (
+					<Alert color="error" actions={retry}>
+						{t('Connection lost. Please try again.')}
+					</Alert>
+				)}
 
-			{state === 'error' && (
-				<div className="p-4">
-					<p className="mb-3 text-error">{t('Failed to generate QR code')}</p>
-					<Button onClick={initSession}>
-						<IcRefresh className="me-1" />
-						{t('Try again')}
-					</Button>
-				</div>
-			)}
-		</div>
+				{state === 'error' && (
+					<Alert color="error" actions={retry}>
+						{t('Failed to generate QR code')}
+					</Alert>
+				)}
+			</Center>
+		</Panel>
 	)
 }
 

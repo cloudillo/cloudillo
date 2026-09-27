@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button } from '@cloudillo/react'
+import { Button, HBox } from '@cloudillo/react'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import { FiEdit2 as IcEdit } from 'react-icons/fi'
 
 import { useContextAwareApi } from '../../../context/index.js'
@@ -21,6 +22,7 @@ export const TagsCell = React.memo(function TagsCell({
 	setTags,
 	editable
 }: TagsCellProps) {
+	const { t } = useTranslation()
 	const { api } = useContextAwareApi()
 	const [isEditing, setIsEditing] = React.useState(false)
 
@@ -46,14 +48,18 @@ export const TagsCell = React.memo(function TagsCell({
 		return <EditTags tags={tags} listTags={listTags} addTag={addTag} removeTag={removeTag} />
 	} else {
 		return (
-			<div className="c-tag-list g-1">
+			<HBox gap={1} align="center" wrap>
 				<Tags tags={tags} />
 				{!!editable && (
-					<Button kind="link" onClick={() => setIsEditing(true)}>
-						<IcEdit />
-					</Button>
+					<Button
+						variant="ghost"
+						size="sm"
+						icon={<IcEdit />}
+						aria-label={t('Edit tags')}
+						onClick={() => setIsEditing(true)}
+					/>
 				)}
-			</div>
+			</HBox>
 		)
 	}
 })

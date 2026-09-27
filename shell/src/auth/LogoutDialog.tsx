@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button } from '@cloudillo/react'
+import { ActionBar, Button, Dialog, Field, Input, List, ListItem, Text } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { LuLogOut as IcLogout, LuCircleAlert as IcWarning } from 'react-icons/lu'
@@ -27,19 +27,10 @@ interface LogoutDialogProps {
 
 export function LogoutDialog({ open, idTag, dirtyDocs, onCancel, onConfirm }: LogoutDialogProps) {
 	const { t } = useTranslation()
-	const dialogRef = React.useRef<HTMLDialogElement>(null)
-	const cancelRef = React.useRef<HTMLButtonElement>(null)
 	const [confirmText, setConfirmText] = React.useState('')
 
 	React.useEffect(() => {
-		if (open) {
-			dialogRef.current?.showModal()
-			setConfirmText('')
-			// Default focus to Cancel so accidental Enter doesn't sign out.
-			setTimeout(() => cancelRef.current?.focus(), 0)
-		} else {
-			dialogRef.current?.close()
-		}
+		if (open) setConfirmText('')
 	}, [open])
 
 	if (!open) return null
@@ -48,98 +39,85 @@ export function LogoutDialog({ open, idTag, dirtyDocs, onCancel, onConfirm }: Lo
 	const canConfirm = !hasDirty || confirmText === CONFIRM_PHRASE
 
 	return (
-		<dialog
-			ref={dialogRef}
-			className="c-error-dialog"
-			aria-labelledby="logout-dialog-title"
-			onCancel={(e) => {
-				e.preventDefault()
-				onCancel()
-			}}
-		>
-			<div className="c-card c-logout-dialog__card p-4">
-				<div className="c-hbox align-items-center g-2 mb-3">
-					{hasDirty && <IcWarning size={32} className="text-error" />}
-					<h2 id="logout-dialog-title" className="m-0">
-						{hasDirty
-							? t('Unsynced changes will be lost')
-							: t('Sign out of {{idTag}}', { idTag: idTag ?? '' })}
-					</h2>
-				</div>
-
-				{hasDirty ? (
-					<>
-						<p className="mb-2">
-							{t(
-								"You have {{count}} document(s) with edits that haven't reached the server.",
-								{ count: dirtyDocs.length }
-							)}
-						</p>
-						<ul className="c-vbox c-logout-dialog__list g-1 p-2 mb-3">
-							{dirtyDocs.map((d) => (
-								<li
-									key={d.docId}
-									className={
-										isPlaceholderName(d)
-											? 'c-logout-dialog__placeholder-name'
-											: undefined
-									}
-								>
-									{d.name}
-								</li>
-							))}
-						</ul>
-						<p className="mb-3 text-error">
-							{t(
-								'Signing out now will permanently discard these edits. They cannot be recovered.'
-							)}
-						</p>
-						<p className="mb-2 text-muted">
-							{t(
-								'Tip: open the documents in their apps and let them sync, then return here.'
-							)}
-						</p>
-						<label className="c-vbox g-1 mb-3">
-							<span>
-								{t('Type {{phrase}} to confirm', { phrase: CONFIRM_PHRASE })}
-							</span>
-							<input
-								type="text"
-								className="c-input"
-								value={confirmText}
-								onChange={(e) => setConfirmText(e.target.value)}
-								placeholder={CONFIRM_PHRASE}
-								autoComplete="off"
-								spellCheck={false}
-							/>
-						</label>
-					</>
-				) : (
-					<>
-						<p className="mb-3">
-							{t(
-								'Signing out will permanently remove all locally cached data and the encryption key from this device.'
-							)}
-						</p>
-						<p className="mb-3 text-muted">
-							{t(
-								'Your data on the server is unaffected. Signing back in will re-download what you need.'
-							)}
-						</p>
-					</>
-				)}
-
-				<div className="c-hbox g-2 justify-content-end">
-					<Button ref={cancelRef} onClick={onCancel}>
+		<Dialog
+			open
+			size="sm"
+			onClose={onCancel}
+			icon={hasDirty && <IcWarning size={32} className="text-error" />}
+			title={
+				hasDirty
+					? t('Unsynced changes will be lost')
+					: t('Sign out of {{idTag}}', { idTag: idTag ?? '' })
+			}
+			footer={
+				<ActionBar>
+					{/* Default focus on Cancel so accidental Enter doesn't sign out. */}
+					<Button autoFocus onClick={onCancel}>
 						{t('Cancel')}
 					</Button>
-					<Button className="error" onClick={onConfirm} disabled={!canConfirm}>
-						<IcLogout />
+					<Button
+						color="error"
+						icon={<IcLogout />}
+						onClick={onConfirm}
+						disabled={!canConfirm}
+					>
 						{t('Sign out')}
 					</Button>
-				</div>
-			</div>
-		</dialog>
+				</ActionBar>
+			}
+		>
+			{hasDirty ? (
+				<>
+					<Text as="p">
+						{t(
+							"You have {{count}} document(s) with edits that haven't reached the server.",
+							{ count: dirtyDocs.length }
+						)}
+					</Text>
+					<List variant="bordered">
+						{dirtyDocs.map((d) => (
+							<ListItem
+								key={d.docId}
+								title={<Text mono={isPlaceholderName(d)}>{d.name}</Text>}
+							/>
+						))}
+					</List>
+					<Text as="p" color="error">
+						{t(
+							'Signing out now will permanently discard these edits. They cannot be recovered.'
+						)}
+					</Text>
+					<Text as="p" emphasis="muted">
+						{t(
+							'Tip: open the documents in their apps and let them sync, then return here.'
+						)}
+					</Text>
+					<Field label={t('Type {{phrase}} to confirm', { phrase: CONFIRM_PHRASE })}>
+						<Input
+							type="text"
+							value={confirmText}
+							onChange={(e) => setConfirmText(e.target.value)}
+							placeholder={CONFIRM_PHRASE}
+							autoComplete="off"
+							spellCheck={false}
+						/>
+					</Field>
+				</>
+			) : (
+				<>
+					<Text as="p">
+						{t(
+							'Signing out will permanently remove all locally cached data and the encryption key from this device.'
+						)}
+					</Text>
+					<Text as="p" emphasis="muted">
+						{t(
+							'Your data on the server is unaffected. Signing back in will re-download what you need.'
+						)}
+					</Text>
+				</>
+			)}
+		</Dialog>
 	)
 }
 

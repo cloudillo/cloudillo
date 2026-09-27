@@ -51,7 +51,7 @@ export const SITE_CHROME_ID = 'cl-site-chrome'
 /**
  * Mirror of `PREBOOT_BODY_CLASS` in `wrapper.rs`. It is what reserves the chrome's
  * height above the content while React's own layout is not there yet
- * (`shell/src/style.css`), and it comes off in the same commit as the element
+ * (`shell/src/ui/site-bar.css`), and it comes off in the same commit as the element
  * above.
  */
 export const SITE_PREBOOT_CLASS = 'cl-site-preboot'

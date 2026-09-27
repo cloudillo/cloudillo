@@ -1,17 +1,12 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { useApi } from '@cloudillo/react'
+import { Alert, List, ListItem, LoadingSpinner, Logo, Text, useApi } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuTriangleAlert as IcAlert,
-	LuCheck as IcCheck,
-	LuRefreshCw as IcLoading
-} from 'react-icons/lu'
 import { useParams } from 'react-router-dom'
 
-import { CloudilloLogo } from '../logo.js'
+import { AuthLayout } from './AuthLayout.js'
 
 type ActivationState = 'loading' | 'success' | 'error'
 
@@ -66,62 +61,47 @@ export function IdpActivate() {
 	}, [api, refId, t])
 
 	return (
-		<div className="c-panel p-4">
-			<CloudilloLogo className="c-logo w-50 float-right ps-3 pb-3" />
-			<header>
-				<h1 className="mb-3">{t('Identity Activation')}</h1>
-			</header>
-
+		<AuthLayout
+			width="md"
+			logo={<Logo animated={state === 'loading'} />}
+			title={t('Identity Activation')}
+		>
 			{state === 'loading' && (
-				<div className="c-panel info mt-3">
-					<p>
-						<IcLoading className="animate-rotate-cw me-2" />
-						{t('Activating your identity...')}
-					</p>
-				</div>
+				<Alert color="info" icon={<LoadingSpinner size="sm" />}>
+					{t('Activating your identity...')}
+				</Alert>
 			)}
 
-			{state === 'error' && (
-				<div className="c-panel error mt-3">
-					<p>
-						<IcAlert className="me-2" />
-						{error || t('Activation failed')}
-					</p>
-				</div>
-			)}
+			{state === 'error' && <Alert color="error">{error || t('Activation failed')}</Alert>}
 
 			{state === 'success' && (
 				<>
-					<div className="c-panel success mt-3">
-						<p>
-							<IcCheck className="me-2" />
-							{t('Your identity has been activated successfully!')}
-						</p>
+					<Alert color="success">
+						<Text as="p">{t('Your identity has been activated successfully!')}</Text>
 						{identityId && (
-							<p className="mt-2">
-								<strong>{identityId}</strong>
-							</p>
+							<Text as="p" weight="bold">
+								{identityId}
+							</Text>
 						)}
-					</div>
+					</Alert>
 
-					<div className="c-panel info mt-3">
-						<h3 className="mb-2">{t("What's next?")}</h3>
-						<ul className="mb-0">
-							<li>
+					<Alert color="info" title={t("What's next?")}>
+						<List marker="bullet">
+							<ListItem>
 								{t(
 									'If you registered a personal identity, check your inbox for a welcome email to finish setting up your profile.'
 								)}
-							</li>
-							<li>
+							</ListItem>
+							<ListItem>
 								{t(
 									'If you activated a community identity, it is now ready to use in Cloudillo.'
 								)}
-							</li>
-						</ul>
-					</div>
+							</ListItem>
+						</List>
+					</Alert>
 				</>
 			)}
-		</div>
+		</AuthLayout>
 	)
 }
 

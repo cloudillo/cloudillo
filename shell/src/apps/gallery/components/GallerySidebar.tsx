@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import type { TagInfo } from '@cloudillo/core'
-import { Button, mergeClasses, useApi } from '@cloudillo/react'
+import { Button, Divider, HBox, Nav, Tag, Text, useApi, VBox } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -59,150 +59,78 @@ export const GallerySidebar = React.memo(function GallerySidebar({
 		[api]
 	)
 
+	const viewItems: { mode: GalleryViewMode; icon: React.ReactNode; label: string }[] = [
+		{ mode: 'all', icon: <IcAll />, label: t('All photos') },
+		{ mode: 'starred', icon: <IcStarred />, label: t('Starred') },
+		{ mode: 'recent', icon: <IcRecent />, label: t('Recent') }
+	]
+	const timeItems: { filter: TimeFilter; label: string }[] = [
+		{ filter: 'all', label: t('All time') },
+		{ filter: 'today', label: t('Today') },
+		{ filter: 'week', label: t('This week') },
+		{ filter: 'month', label: t('This month') },
+		{ filter: 'year', label: t('This year') }
+	]
+
 	return (
-		<ul className={mergeClasses('c-nav vertical low', className)}>
-			{/* View mode section */}
-			<li className="c-nav-item">
-				<a
-					className={mergeClasses('c-nav-link', viewMode === 'all' && 'active')}
-					href="#"
-					onClick={(e) => {
-						e.preventDefault()
-						onViewModeChange('all')
-					}}
+		<VBox gap={2} className={className} autoBg>
+			<Nav aria-label={t('Gallery')}>
+				{viewItems.map(({ mode, icon, label }) => (
+					<Nav.Item
+						key={mode}
+						icon={icon}
+						label={label}
+						active={viewMode === mode}
+						onClick={() => onViewModeChange(mode)}
+					/>
+				))}
+				<Nav.Divider />
+				<Nav.Section
+					label={
+						<>
+							<IcTime /> {t('Time')}
+						</>
+					}
 				>
-					<IcAll /> {t('All photos')}
-				</a>
-			</li>
-			<li className="c-nav-item">
-				<a
-					className={mergeClasses('c-nav-link', viewMode === 'starred' && 'active')}
-					href="#"
-					onClick={(e) => {
-						e.preventDefault()
-						onViewModeChange('starred')
-					}}
-				>
-					<IcStarred /> {t('Starred')}
-				</a>
-			</li>
-			<li className="c-nav-item">
-				<a
-					className={mergeClasses('c-nav-link', viewMode === 'recent' && 'active')}
-					href="#"
-					onClick={(e) => {
-						e.preventDefault()
-						onViewModeChange('recent')
-					}}
-				>
-					<IcRecent /> {t('Recent')}
-				</a>
-			</li>
+					{timeItems.map(({ filter, label }) => (
+						<Nav.Item
+							key={filter}
+							label={label}
+							active={timeFilter === filter}
+							onClick={() => onTimeFilterChange(filter)}
+						/>
+					))}
+				</Nav.Section>
+			</Nav>
 
-			<hr className="w-100" />
-
-			{/* Time filter section */}
-			<li className="c-nav-item">
-				<span className="c-nav-link text-muted">
-					<IcTime /> {t('Time')}
-				</span>
-			</li>
-			<li className="c-nav-item">
-				<a
-					className={mergeClasses('c-nav-link ps-4', timeFilter === 'all' && 'active')}
-					href="#"
-					onClick={(e) => {
-						e.preventDefault()
-						onTimeFilterChange('all')
-					}}
-				>
-					{t('All time')}
-				</a>
-			</li>
-			<li className="c-nav-item">
-				<a
-					className={mergeClasses('c-nav-link ps-4', timeFilter === 'today' && 'active')}
-					href="#"
-					onClick={(e) => {
-						e.preventDefault()
-						onTimeFilterChange('today')
-					}}
-				>
-					{t('Today')}
-				</a>
-			</li>
-			<li className="c-nav-item">
-				<a
-					className={mergeClasses('c-nav-link ps-4', timeFilter === 'week' && 'active')}
-					href="#"
-					onClick={(e) => {
-						e.preventDefault()
-						onTimeFilterChange('week')
-					}}
-				>
-					{t('This week')}
-				</a>
-			</li>
-			<li className="c-nav-item">
-				<a
-					className={mergeClasses('c-nav-link ps-4', timeFilter === 'month' && 'active')}
-					href="#"
-					onClick={(e) => {
-						e.preventDefault()
-						onTimeFilterChange('month')
-					}}
-				>
-					{t('This month')}
-				</a>
-			</li>
-			<li className="c-nav-item">
-				<a
-					className={mergeClasses('c-nav-link ps-4', timeFilter === 'year' && 'active')}
-					href="#"
-					onClick={(e) => {
-						e.preventDefault()
-						onTimeFilterChange('year')
-					}}
-				>
-					{t('This year')}
-				</a>
-			</li>
-
-			{/* Tag Cloud */}
 			{tags.length > 0 && (
 				<>
-					<hr className="w-100" />
-					<li className="c-nav-item">
-						<span className="c-nav-link text-muted">
+					<Divider />
+					<HBox gap={1} align="center">
+						<Text size="sm" emphasis="muted" className="flex-fill">
 							<IcTag /> {t('Tags')}
-							{selectedTags.length > 0 && (
-								<Button className="ms-auto" size="small" onClick={onClearTags}>
-									{t('Clear')}
-								</Button>
-							)}
-						</span>
-					</li>
-					<div className="d-flex flex-wrap g-1 px-2">
+						</Text>
+						{selectedTags.length > 0 && (
+							<Button variant="ghost" size="sm" onClick={onClearTags}>
+								{t('Clear')}
+							</Button>
+						)}
+					</HBox>
+					<HBox gap={1} wrap>
 						{tags.map((tagInfo) => (
-							<button
+							<Tag
 								key={tagInfo.tag}
-								type="button"
-								className={mergeClasses(
-									'c-tag',
-									selectedTags.includes(tagInfo.tag) && 'accent'
-								)}
+								pressed={selectedTags.includes(tagInfo.tag)}
+								count={tagInfo.count}
 								onClick={() => onTagToggle(tagInfo.tag)}
 							>
 								{tagInfo.tag}
-								{tagInfo.count !== undefined && (
-									<span className="c-badge xs ms-1">{tagInfo.count}</span>
-								)}
-							</button>
+							</Tag>
 						))}
-					</div>
+					</HBox>
 				</>
 			)}
-		</ul>
+		</VBox>
 	)
 })
 

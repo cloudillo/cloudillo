@@ -1,14 +1,10 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { mergeClasses } from '@cloudillo/react'
+import { Badge, Breadcrumbs as BreadcrumbTrail, HBox, Text } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuChevronRight as IcChevron,
-	LuFolder as IcHome,
-	LuShare2 as IcShare
-} from 'react-icons/lu'
+import { LuFolder as IcHome, LuShare2 as IcShare } from 'react-icons/lu'
 
 import type { BreadcrumbItem } from '../hooks/useFileNavigation.js'
 import { canWrite, type FileAccessLevel } from '../utils.js'
@@ -19,18 +15,6 @@ interface BreadcrumbsProps {
 	onNavigate: (folderId: string | null) => void
 	isRemoteBrowsing?: boolean
 	accessLevel?: FileAccessLevel
-}
-
-function CrumbLabel({ item, className }: { item: BreadcrumbItem; className?: string }) {
-	return (
-		<span className={mergeClasses('c-hbox align-items-center', className)}>
-			{item.isShareRoot && <IcShare className="me-1" size="1em" />}
-			{item.isShareRoot && item.ownerName && (
-				<span className="text-secondary me-1">{item.ownerName}:</span>
-			)}
-			{item.name}
-		</span>
-	)
 }
 
 export const Breadcrumbs = React.memo(function Breadcrumbs({
@@ -46,48 +30,30 @@ export const Breadcrumbs = React.memo(function Breadcrumbs({
 		return null
 	}
 
-	return (
-		<nav className={mergeClasses('c-breadcrumbs', className)} aria-label={t('Breadcrumb')}>
-			<ol className="c-hbox g-1 align-items-center">
-				{items.map((item, index) => {
-					const isLast = index === items.length - 1
+	const crumbs = items.map((item, index) => ({
+		icon: item.isShareRoot ? (
+			<IcShare />
+		) : !isRemoteBrowsing && index === 0 ? (
+			<IcHome />
+		) : undefined,
+		label:
+			item.isShareRoot && item.ownerName ? (
+				<>
+					<Text color="secondary">{item.ownerName}:</Text> {item.name}
+				</>
+			) : (
+				item.name
+			),
+		onClick: index < items.length - 1 ? () => onNavigate(item.id) : undefined
+	}))
 
-					return (
-						<li key={item.id ?? 'root'} className="c-hbox align-items-center">
-							{index > 0 && <IcChevron className="mx-1 text-secondary" />}
-							{isLast ? (
-								<CrumbLabel item={item} className="text-primary font-medium" />
-							) : (
-								<a
-									href="#"
-									className="c-link"
-									onClick={(e) => {
-										e.preventDefault()
-										onNavigate(item.id)
-									}}
-								>
-									{!isRemoteBrowsing && index === 0 ? (
-										<span className="c-hbox align-items-center g-1">
-											<IcHome />
-											<span>{item.name}</span>
-										</span>
-									) : (
-										<CrumbLabel item={item} />
-									)}
-								</a>
-							)}
-						</li>
-					)
-				})}
-				{isRemoteBrowsing && accessLevel && (
-					<li className="c-hbox align-items-center ms-2">
-						<span className="c-badge">
-							{canWrite(accessLevel) ? t('Can edit') : t('Read only')}
-						</span>
-					</li>
-				)}
-			</ol>
-		</nav>
+	return (
+		<HBox gap={2} align="center" wrap className={className}>
+			<BreadcrumbTrail items={crumbs} />
+			{isRemoteBrowsing && accessLevel && (
+				<Badge>{canWrite(accessLevel) ? t('Can edit') : t('Read only')}</Badge>
+			)}
+		</HBox>
 	)
 })
 

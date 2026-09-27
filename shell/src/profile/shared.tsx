@@ -2,21 +2,76 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import type * as Types from '@cloudillo/core'
-import { Button, type useApi, useDialog } from '@cloudillo/react'
+import {
+	ActionBar,
+	Alert,
+	Badge,
+	Button,
+	Card,
+	CodeBlock,
+	Field,
+	Grid,
+	Heading,
+	IconText,
+	Input,
+	Logo,
+	Panel,
+	RadioGroup,
+	Text,
+	type useApi,
+	useDialog
+} from '@cloudillo/react'
 import debounce from 'debounce'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
 	LuAtSign as IcAt,
 	LuUsers as IcCommunity,
-	LuCopy as IcCopy,
 	LuTriangleAlert as IcError,
 	LuChevronsLeft as IcGoBack,
 	LuRefreshCw as IcLoading,
 	LuCheck as IcOk
 } from 'react-icons/lu'
 
-import { CloudilloLogo } from '../logo.js'
+////////////////////
+// Step headings //
+////////////////////
+export function CommunityTitle() {
+	const { t } = useTranslation()
+	return (
+		<Heading level={1} className="mb-3">
+			<IconText icon={<IcCommunity />}>{t('Create a Community')}</IconText>
+		</Heading>
+	)
+}
+
+function WelcomeTitle() {
+	const { t } = useTranslation()
+	return (
+		<>
+			<Logo className="w-50 float-right ps-3 pb-3" />
+			<Heading level={1} className="mb-3">
+				{t('Welcome to Cloudillo!')}
+			</Heading>
+		</>
+	)
+}
+
+/** Trailing status icon of a verified input */
+function VerifyIcon({ state }: { state?: 'checking' | 'valid' | 'warning' | 'invalid' }) {
+	switch (state) {
+		case 'checking':
+			return <IcLoading className="animate-rotate-cw" />
+		case 'valid':
+			return <IcOk className="text-success" />
+		case 'warning':
+			return <IcError className="text-warning" />
+		case 'invalid':
+			return <IcError className="text-error" />
+		default:
+			return null
+	}
+}
 
 ///////////////////////////
 // ProviderSelectionStep //
@@ -48,104 +103,61 @@ Your identity is separate from where your data is stored. You control your data 
 		)
 	}
 
-	if (mode === 'register') {
-		return (
-			<>
-				<CloudilloLogo className="c-logo w-50 float-right ps-3 pb-3" />
-				<header>
-					<h1 className="mb-3">{t('Welcome to Cloudillo!')}</h1>
-				</header>
+	const register = mode === 'register'
+	const beLabel = register ? t("You'll be") : t('Your community will be')
 
-				<h3 className="my-3">{t('How would you like to be known?')}</h3>
-
-				<div className="c-container overflow-hidden">
-					<div className="row g-3">
-						<div className="col col-md-6 animate-fade-slide-up stagger-1">
-							<div
-								className="c-panel interactive clickable h-100"
-								onClick={() => onSelectProvider('domain')}
-							>
-								<h4 className="mb-2">{t('Use my own domain as my identity')}</h4>
-								<p className="text-muted mb-2">
-									{t("You'll be")} <b>@yourname.com</b>
-								</p>
-								<p className="small">{t('Full control, requires DNS setup')}</p>
-							</div>
-						</div>
-						<div className="col col-md-6 animate-fade-slide-up stagger-2">
-							<div
-								className="c-panel primary interactive emph clickable h-100"
-								onClick={() => onSelectProvider('idp')}
-							>
-								<h4 className="mb-2">{t('Use an Identity Provider')}</h4>
-								<p className="text-muted mb-2">
-									{t("You'll be")} <b>@yourname.provider.net</b>
-								</p>
-								<p className="small">
-									{t('Quick setup - choose from available providers')}
-								</p>
-							</div>
-						</div>
-					</div>
-				</div>
-
-				<p className="text-muted mt-4 small">
-					<span className="me-2">ℹ️</span>
-					{t('This choice is hard to change later - pick what fits you best.')}{' '}
-					<button
-						type="button"
-						className="c-link text text-primary small"
-						onClick={onClickIdentityInfo}
-					>
-						{t('Learn more')}
-					</button>
-				</p>
-			</>
-		)
-	}
-
-	// Community mode
 	return (
 		<>
-			<header>
-				<h1 className="mb-3">
-					<IcCommunity className="me-2" />
-					{t('Create a Community')}
-				</h1>
-			</header>
+			{register ? <WelcomeTitle /> : <CommunityTitle />}
 
-			<h3 className="my-3">{t('How would you like your community to be identified?')}</h3>
+			<Heading level={3} className="my-3">
+				{register
+					? t('How would you like to be known?')
+					: t('How would you like your community to be identified?')}
+			</Heading>
 
-			<div className="c-container overflow-hidden">
-				<div className="row g-3">
-					<div className="col col-md-6 animate-fade-slide-up stagger-1">
-						<div
-							className="c-panel interactive clickable h-100"
-							onClick={() => onSelectProvider('domain')}
-						>
-							<h4 className="mb-2">{t('Use your own domain')}</h4>
-							<p className="text-muted mb-2">
-								{t('Your community will be')} <b>@myteam.com</b>
-							</p>
-							<p className="small">{t('Full control, requires DNS setup')}</p>
-						</div>
-					</div>
-					<div className="col col-md-6 animate-fade-slide-up stagger-2">
-						<div
-							className="c-panel primary interactive emph clickable h-100"
-							onClick={() => onSelectProvider('idp')}
-						>
-							<h4 className="mb-2">{t('Use an Identity Provider')}</h4>
-							<p className="text-muted mb-2">
-								{t('Your community will be')} <b>@myteam.provider.net</b>
-							</p>
-							<p className="small">
-								{t('Quick setup - choose from available providers')}
-							</p>
-						</div>
-					</div>
-				</div>
-			</div>
+			<Grid min="16rem" gap={3}>
+				<Card
+					className="animate-fade-slide-up stagger-1"
+					title={
+						register ? t('Use my own domain as my identity') : t('Use your own domain')
+					}
+					onClick={() => onSelectProvider('domain')}
+				>
+					<Text as="p" emphasis="muted">
+						{beLabel}{' '}
+						<Text weight="bold">{register ? '@yourname.com' : '@myteam.com'}</Text>
+					</Text>
+					<Text as="p" size="sm">
+						{t('Full control, requires DNS setup')}
+					</Text>
+				</Card>
+				<Card
+					className="animate-fade-slide-up stagger-2"
+					color="primary"
+					title={t('Use an Identity Provider')}
+					onClick={() => onSelectProvider('idp')}
+				>
+					<Text as="p" emphasis="muted">
+						{beLabel}{' '}
+						<Text weight="bold">
+							{register ? '@yourname.provider.net' : '@myteam.provider.net'}
+						</Text>
+					</Text>
+					<Text as="p" size="sm">
+						{t('Quick setup - choose from available providers')}
+					</Text>
+				</Card>
+			</Grid>
+
+			{register && (
+				<Text as="p" size="sm" emphasis="muted" className="mt-4">
+					{t('This choice is hard to change later - pick what fits you best.')}{' '}
+					<Button variant="link" size="sm" onClick={onClickIdentityInfo}>
+						{t('Learn more')}
+					</Button>
+				</Text>
+			)}
 		</>
 	)
 }
@@ -164,6 +176,9 @@ export interface ProviderSelectorStepProps {
 	onGoBack: () => void
 	api: ReturnType<typeof useApi>['api']
 }
+
+// Radio value of the "Other provider" option (never a valid domain)
+const CUSTOM_PROVIDER = ' custom'
 
 export function ProviderSelectorStep({
 	mode,
@@ -244,154 +259,113 @@ export function ProviderSelectorStep({
 
 	const previewName = mode === 'register' ? 'yourname' : 'communityname'
 
+	const options = [
+		...identityProviders.map((provider, index) => {
+			const info = providerInfoMap[provider]
+			return {
+				value: provider,
+				label: (
+					<>
+						{provider}{' '}
+						{index === 0 && (
+							<Badge variant="soft" size="sm">
+								{t('Default')}
+							</Badge>
+						)}
+					</>
+				),
+				description:
+					info?.info ??
+					(mode === 'register' ? t('Provider information not available') : undefined)
+			}
+		}),
+		{
+			value: CUSTOM_PROVIDER,
+			label: t('Other provider...'),
+			description: t('Enter a provider domain you know')
+		}
+	]
+
 	return (
 		<>
-			{mode === 'register' ? (
-				<>
-					<CloudilloLogo className="c-logo w-50 float-right ps-3 pb-3" />
-					<header>
-						<h1 className="mb-3">{t('Welcome to Cloudillo!')}</h1>
-					</header>
-				</>
-			) : (
-				<header>
-					<h1 className="mb-3">
-						<IcCommunity className="me-2" />
-						{t('Create a Community')}
-					</h1>
-				</header>
+			{mode === 'register' ? <WelcomeTitle /> : <CommunityTitle />}
+
+			<Heading level={3} className="my-3">
+				{t('Choose an Identity Provider')}
+			</Heading>
+			<Panel variant="soft" className="my-3">
+				<Text as="p" align="center" size="sm" emphasis="muted">
+					{mode === 'register' ? t('Your identity will be') : t('Your community will be')}
+				</Text>
+				<Text
+					as="p"
+					key={selectedProvider}
+					align="center"
+					size="xl"
+					weight="semibold"
+					className="animate-scale-in"
+				>
+					<Text color="accent">@{previewName}</Text>
+					<Text
+						color={selectedProvider ? 'primary' : undefined}
+						emphasis={selectedProvider ? undefined : 'disabled'}
+					>
+						.{selectedProvider || 'provider.net'}
+					</Text>
+				</Text>
+			</Panel>
+
+			<RadioGroup
+				variant="card"
+				aria-label={t('Choose an Identity Provider')}
+				options={options}
+				value={showCustom ? CUSTOM_PROVIDER : selectedProvider}
+				onChange={(value) =>
+					value === CUSTOM_PROVIDER ? handleCustomSelect() : handleProviderSelect(value)
+				}
+			/>
+
+			{showCustom && (
+				<Field label={t('Provider domain')} className="mt-2">
+					<Input
+						type="text"
+						autoFocus
+						value={customProvider}
+						onChange={(e) => handleCustomChange(e.target.value)}
+						onKeyDown={(e) => {
+							if (e.key === 'Enter') {
+								e.preventDefault()
+								if (isValid) onContinue()
+							}
+						}}
+						placeholder={t('example.provider.net')}
+						trailing={
+							customProviderState === 'idle' ? undefined : (
+								<VerifyIcon state={customProviderState} />
+							)
+						}
+					/>
+				</Field>
+			)}
+			{showCustom && customProviderState === 'invalid' && (
+				<Alert color="error" compact className="mt-2">
+					{t('This provider is not available or does not support Cloudillo identity.')}
+				</Alert>
+			)}
+			{showCustom && customProviderState === 'valid' && customProviderInfo && (
+				<Alert color="info" compact className="mt-2">
+					{customProviderInfo.info}
+				</Alert>
 			)}
 
-			<h3 className="my-3">{t('Choose an Identity Provider')}</h3>
-			<div className="c-panel mid text-center py-3 my-3">
-				<p className="text-muted small mb-1">
-					{mode === 'register' ? t('Your identity will be') : t('Your community will be')}
-				</p>
-				<p key={selectedProvider} className="text-xl font-semibold mb-0 animate-scale-in">
-					<span className="text-accent">@{previewName}</span>
-					<span className={selectedProvider ? 'text-primary' : 'text-disabled'}>
-						.{selectedProvider || 'provider.net'}
-					</span>
-				</p>
-			</div>
-
-			<div className="c-vbox g-2 mb-3">
-				{identityProviders.map((provider, index) => {
-					const info = providerInfoMap[provider]
-					const isSelected = !showCustom && selectedProvider === provider
-					return (
-						<div
-							key={provider}
-							className={`c-panel interactive clickable ${isSelected ? 'primary' : ''}`}
-							onClick={() => handleProviderSelect(provider)}
-						>
-							<div className="d-flex align-items-center">
-								<input
-									type="radio"
-									name="provider"
-									checked={isSelected}
-									onChange={() => handleProviderSelect(provider)}
-									className="me-3"
-								/>
-								<div className="flex-grow-1">
-									<strong>{provider}</strong>
-									{index === 0 && (
-										<span className="badge bg-secondary ms-2">
-											{t('Default')}
-										</span>
-									)}
-									{info && (
-										<div
-											className={`mt-2 mb-0 ${isSelected ? 'text-lg text-accent font-medium' : 'text-sm text-disabled'}`}
-										>
-											{info.info}
-										</div>
-									)}
-									{!info && mode === 'register' && (
-										<div className="mt-2 mb-0 text-sm text-disabled">
-											{t('Provider information not available')}
-										</div>
-									)}
-								</div>
-							</div>
-						</div>
-					)
-				})}
-
-				{/* Other provider option */}
-				<div
-					className={`c-panel interactive clickable ${showCustom ? 'primary' : ''}`}
-					onClick={handleCustomSelect}
-				>
-					<div className="d-flex align-items-center">
-						<input
-							type="radio"
-							name="provider"
-							checked={showCustom}
-							onChange={handleCustomSelect}
-							className="me-3"
-						/>
-						<div className="flex-grow-1">
-							<strong>{t('Other provider...')}</strong>
-							<p className="text-muted small mb-0">
-								{t('Enter a provider domain you know')}
-							</p>
-							{showCustom && (
-								<div className="c-input-group mt-2">
-									<input
-										className="c-input"
-										type="text"
-										autoFocus
-										value={customProvider}
-										onChange={(e) => handleCustomChange(e.target.value)}
-										onKeyDown={(e) => {
-											if (e.key === 'Enter') {
-												e.preventDefault()
-												if (isValid) onContinue()
-											}
-										}}
-										placeholder={t('example.provider.net')}
-										onClick={(e) => e.stopPropagation()}
-									/>
-									{customProviderState === 'checking' && (
-										<IcLoading className="animate-rotate-cw my-auto f-none" />
-									)}
-									{customProviderState === 'valid' && (
-										<IcOk className="text-success my-auto f-none" />
-									)}
-									{customProviderState === 'invalid' && (
-										<IcError className="text-error my-auto f-none" />
-									)}
-								</div>
-							)}
-							{showCustom && customProviderState === 'invalid' && (
-								<div className="c-panel error mt-2 mb-0 p-2 small">
-									{t(
-										'This provider is not available or does not support Cloudillo identity.'
-									)}
-								</div>
-							)}
-							{showCustom &&
-								customProviderState === 'valid' &&
-								customProviderInfo && (
-									<div className="c-panel info mt-2 mb-0 p-2 small">
-										{customProviderInfo.info}
-									</div>
-								)}
-						</div>
-					</div>
-				</div>
-			</div>
-
-			<footer className="c-group g-2 mt-4">
-				<Button className="container-secondary" onClick={onGoBack}>
-					<IcGoBack />
+			<ActionBar>
+				<Button icon={<IcGoBack />} onClick={onGoBack}>
 					{t('Back')}
 				</Button>
-				<Button className="primary" onClick={onContinue} disabled={!isValid}>
+				<Button color="primary" onClick={onContinue} disabled={!isValid}>
 					{mode === 'register' ? t('Continue with selected provider') : t('Continue')}
 				</Button>
-			</footer>
+			</ActionBar>
 		</>
 	)
 }
@@ -427,39 +401,38 @@ export function IdTagInput({
 	const showWarning =
 		error === 'network' || (mode === 'domain' && (error === 'nodns' || error === 'address'))
 	const showError = !!error && error !== 'network' && !showWarning
+	const state = progress
+		? 'checking'
+		: !value
+			? undefined
+			: error === ''
+				? 'valid'
+				: showWarning
+					? 'warning'
+					: showError
+						? 'invalid'
+						: undefined
 
 	return (
-		<label className="d-block my-3">
-			{label}
-			<div className={`c-input-group${suffix ? '' : ' pe-2'}`}>
-				<div className="c-button icon">
-					<IcAt />
-				</div>
-				<input
-					className="c-input"
-					name="idTag"
-					onChange={(evt: React.ChangeEvent<HTMLInputElement>) => {
-						onChange(evt.target.value)
-						onVerify(evt.target.value)
-					}}
-					value={value}
-					placeholder={placeholder}
-					aria-label={label}
-					autoFocus
-				/>
-				{progress === 'vfy' && <IcLoading className="animate-rotate-cw my-auto f-none" />}
-				{!progress && value && error === '' && (
-					<IcOk className="text-success my-auto f-none" />
-				)}
-				{!progress && value && showWarning && (
-					<IcError className="text-warning my-auto f-none" />
-				)}
-				{!progress && value && showError && (
-					<IcError className="text-error my-auto f-none" />
-				)}
-				{suffix && <div className="c-button">.{suffix}</div>}
-			</div>
-		</label>
+		<Field label={label} className="my-3">
+			<Input
+				name="idTag"
+				onChange={(evt: React.ChangeEvent<HTMLInputElement>) => {
+					onChange(evt.target.value)
+					onVerify(evt.target.value)
+				}}
+				value={value}
+				placeholder={placeholder}
+				autoFocus
+				leading={<IcAt />}
+				trailing={
+					<>
+						<VerifyIcon state={state} />
+						{suffix && <Text emphasis="muted">.{suffix}</Text>}
+					</>
+				}
+			/>
+		</Field>
 	)
 }
 
@@ -476,39 +449,33 @@ export function IdTagErrorPanel({ error, mode }: IdTagErrorPanelProps) {
 
 	if (error === 'network') {
 		return (
-			<div className="c-panel warning mt-2">
-				<p>
-					{t(
-						'Could not verify availability. Please check your internet connection and try again.'
-					)}
-				</p>
-			</div>
+			<Alert color="warning" className="mt-2">
+				{t(
+					'Could not verify availability. Please check your internet connection and try again.'
+				)}
+			</Alert>
 		)
 	}
 
 	if (error === 'invalid') {
 		return (
-			<div className="c-panel error mt-2">
-				<p>
-					{mode === 'idp'
-						? t(
-								'This name contains invalid characters. Use only letters, numbers, and hyphens.'
-							)
-						: t('Please enter a valid domain name (e.g., example.com)')}
-				</p>
-			</div>
+			<Alert color="error" className="mt-2">
+				{mode === 'idp'
+					? t(
+							'This name contains invalid characters. Use only letters, numbers, and hyphens.'
+						)
+					: t('Please enter a valid domain name (e.g., example.com)')}
+			</Alert>
 		)
 	}
 
 	if (error === 'used') {
 		return (
-			<div className="c-panel error mt-2">
-				<p>
-					{mode === 'idp'
-						? t('This name is already taken. Please try another one.')
-						: t('This domain is already registered with this Cloudillo instance.')}
-				</p>
-			</div>
+			<Alert color="error" className="mt-2">
+				{mode === 'idp'
+					? t('This name is already taken. Please try another one.')
+					: t('This domain is already registered with this Cloudillo instance.')}
+			</Alert>
 		)
 	}
 
@@ -542,44 +509,41 @@ export function AppDomainInput({
 	const { t } = useTranslation()
 
 	const showWarning = error === 'nodns' || error === 'address'
-	const showError = !!error && !showWarning
+	const state = progress
+		? 'checking'
+		: error === ''
+			? 'valid'
+			: showWarning
+				? 'warning'
+				: error
+					? 'invalid'
+					: undefined
 
 	return (
-		<div className="my-3">
-			<label className="d-block">
-				{accessLabel}
-				<p className="text-muted small mb-2">
-					{identityLabel} <b>@{idTagInput}</b> ✓
-				</p>
-				<div className="c-input-group px-2">
-					<span className="c-button text-muted">{t('App address:')}</span>
-					<input
-						className="c-input"
-						name="app-domain"
-						onChange={(evt: React.ChangeEvent<HTMLInputElement>) => {
-							onChange(evt.target.value)
-							onVerify(evt.target.value)
-						}}
-						value={value}
-						placeholder={idTagInput}
-						aria-label={t('App address')}
-					/>
-					{progress === 'vfy' && (
-						<IcLoading className="animate-rotate-cw my-auto f-none" />
-					)}
-					{!progress && error === '' && <IcOk className="text-success my-auto f-none" />}
-					{!progress && showWarning && (
-						<IcError className="text-warning my-auto f-none" />
-					)}
-					{!progress && showError && <IcError className="text-error my-auto f-none" />}
-				</div>
-			</label>
-			<p className="text-muted small mt-2">
-				{t(
+		<>
+			<Text as="p" size="sm" emphasis="muted" className="mt-3">
+				{identityLabel} <Text weight="bold">@{idTagInput}</Text> ✓
+			</Text>
+			<Field
+				label={accessLabel}
+				hint={t(
 					'Usually the same as your identity domain. Use a subdomain only if your main domain already has a website.'
 				)}
-			</p>
-		</div>
+				className="mb-3"
+			>
+				<Input
+					name="app-domain"
+					onChange={(evt: React.ChangeEvent<HTMLInputElement>) => {
+						onChange(evt.target.value)
+						onVerify(evt.target.value)
+					}}
+					value={value}
+					placeholder={idTagInput}
+					leading={<Text emphasis="muted">{t('App address:')}</Text>}
+					trailing={<VerifyIcon state={state} />}
+				/>
+			</Field>
+		</>
 	)
 }
 
@@ -597,35 +561,33 @@ export function AppDomainErrorPanel({ error, idTagInput, appDomain }: AppDomainE
 
 	if (error === 'invalid') {
 		return (
-			<div className="c-panel error mt-2">
-				<p>{t('Please enter a valid domain name.')}</p>
-			</div>
+			<Alert color="error" className="mt-2">
+				{t('Please enter a valid domain name.')}
+			</Alert>
 		)
 	}
 
 	if (error === 'used') {
 		return (
-			<div className="c-panel error mt-2">
-				<p>{t('This app address is already in use.')}</p>
-			</div>
+			<Alert color="error" className="mt-2">
+				{t('This app address is already in use.')}
+			</Alert>
 		)
 	}
 
 	if (error === 'address') {
 		return (
-			<div className="c-panel warning mt-2">
-				<p>
-					{!appDomain
-						? t(
-								'Your domain already has a website. Use the App address field above to set a subdomain for Cloudillo (e.g., cloudillo.{{idTag}}).',
-								{ idTag: idTagInput }
-							)
-						: t(
-								'This app address also points to another website. Try a different subdomain in the App address field (e.g., cloudillo.{{idTag}}).',
-								{ idTag: idTagInput }
-							)}
-				</p>
-			</div>
+			<Alert color="warning" className="mt-2">
+				{!appDomain
+					? t(
+							'Your domain already has a website. Use the App address field above to set a subdomain for Cloudillo (e.g., cloudillo.{{idTag}}).',
+							{ idTag: idTagInput }
+						)
+					: t(
+							'This app address also points to another website. Try a different subdomain in the App address field (e.g., cloudillo.{{idTag}}).',
+							{ idTag: idTagInput }
+						)}
+			</Alert>
 		)
 	}
 
@@ -651,7 +613,6 @@ export function DnsInstructions({
 	appDomainError
 }: DnsInstructionsProps) {
 	const { t } = useTranslation()
-	const [copied, setCopied] = React.useState(false)
 
 	const recordType = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(address) ? 'A' : 'CNAME'
 	const needsApiDns = idTagError === 'nodns' || idTagError === 'address'
@@ -665,38 +626,17 @@ export function DnsInstructions({
 		records.push(`${appDomain || idTagInput} IN ${recordType} ${address}`)
 	}
 
-	function handleCopy() {
-		navigator.clipboard.writeText(records.join('\n'))
-		setCopied(true)
-		setTimeout(() => setCopied(false), 2000)
-	}
-
 	return (
-		<div className="c-panel warning my-3">
-			<h4 className="mb-2">{t('One small step: connect your domain')}</h4>
-			<p className="small">{t('Add these records in your domain settings:')}</p>
-			<div className="c-panel bg-light p-2 small" style={{ position: 'relative' }}>
-				{records.map((record) => (
-					<div key={record}>
-						<code style={{ wordBreak: 'break-all' }}>{record}</code>
-					</div>
-				))}
-				<button
-					type="button"
-					className="c-button icon small"
-					style={{ position: 'absolute', bottom: '0.25rem', right: '0.25rem' }}
-					onClick={handleCopy}
-					title={t('Copy to clipboard')}
-				>
-					{copied ? <IcOk className="text-success" /> : <IcCopy />}
-				</button>
-			</div>
-			<p className="small text-muted mb-0 mt-2">
-				{t("Where to do this: GoDaddy, Namecheap, Cloudflare - 'DNS Settings'")}
-				<br />
+		<Alert color="warning" title={t('One small step: connect your domain')} className="my-3">
+			<Text as="p" size="sm">
+				{t('Add these records in your domain settings:')}
+			</Text>
+			<CodeBlock copyable>{records.join('\n')}</CodeBlock>
+			<Text as="p" size="sm" emphasis="muted" className="mt-2">
+				{t("Where to do this: GoDaddy, Namecheap, Cloudflare - 'DNS Settings'")}{' '}
 				{t('Changes can take up to an hour to work.')}
-			</p>
-		</div>
+			</Text>
+		</Alert>
 	)
 }
 

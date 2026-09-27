@@ -3,7 +3,21 @@
 
 import type * as Types from '@cloudillo/core'
 import type { ApiClient } from '@cloudillo/core'
-import { Button, ProfilePicture, useApi, useAuth, useToast } from '@cloudillo/react'
+import {
+	ActionBar,
+	Button,
+	Center,
+	Checkbox,
+	Fieldset,
+	Logo,
+	ProfilePicture,
+	Stepper,
+	Text,
+	useApi,
+	useAuth,
+	useToast,
+	VBox
+} from '@cloudillo/react'
 import type { ProfileInfo } from '@cloudillo/types'
 import { browserSupportsWebAuthn } from '@simplewebauthn/browser'
 import * as React from 'react'
@@ -12,6 +26,7 @@ import { Navigate, Outlet, Route, useLocation, useNavigate, useParams } from 're
 
 import { DEFAULT_COMMUNITY_ID_TAG } from '../context/constants.js'
 import { useCommunitiesList } from '../context/index.js'
+import { AuthLayout } from '../auth/AuthLayout.js'
 import { useNotifications } from '../notifications/state.js'
 import type { UsePWA } from '../pwa.js'
 import { feedPath, HOME_BASE } from '../routes.js'
@@ -184,143 +199,123 @@ function Invites() {
 
 	if (loading) {
 		return (
-			<div className="c-panel p-4">
-				<h1 className="mb-3">{t("You're in!")}</h1>
-				<p className="text-muted">{t('Loading…')}</p>
-			</div>
+			<AuthLayout logo={<Logo animated />} title={t("You're in!")}>
+				<Text as="p" emphasis="muted" role="status">
+					{t('Loading…')}
+				</Text>
+			</AuthLayout>
 		)
 	}
 
 	return (
-		<div className="c-panel p-4">
-			<h1 className="mb-3">{t("You're in!")}</h1>
-			<p className="mb-3 text-muted">
-				{conns.length || invts.length
+		<AuthLayout
+			logo={<Logo />}
+			title={t("You're in!")}
+			subtitle={
+				conns.length || invts.length
 					? t('Someone invited you. Choose what to accept — you can change this later.')
-					: t('Get started by joining the Cloudillo community.')}
-			</p>
-
+					: t('Get started by joining the Cloudillo community.')
+			}
+			footer={
+				/* First reversible step — going back would land on the password
+				   screen, so no Back button here. */
+				<ActionBar>
+					<Button onClick={onSkip}>{t('Skip')}</Button>
+					<Button color="primary" onClick={onContinue}>
+						{t('Continue')}
+					</Button>
+				</ActionBar>
+			}
+		>
 			{conns.length > 0 && (
-				<>
-					<h3 className="mb-1">{t('People')}</h3>
-					<p className="text-muted small mb-2">
+				<Fieldset legend={t('People')}>
+					<Text as="p" size="sm" emphasis="muted">
 						{t('These people want to connect with you.')}
-					</p>
-					<div className="c-panel my-3">
+					</Text>
+					<VBox gap={2}>
 						{conns.map((a) => (
-							<label
+							<Checkbox
 								key={a.actionId}
-								className="c-settings-field"
-								style={{ maxWidth: 'none' }}
-							>
-								<span className="c-hbox align-items-center g-2 flex-fill">
+								variant="card"
+								leading={
 									<ProfilePicture
 										profile={a.issuer}
 										srcTag={a.issuer.idTag}
 										small
 									/>
-									<span className="flex-fill">
-										{t('Connect with {{name}}', {
-											name: a.issuer.name || a.issuer.idTag
-										})}
-										<br />
-										<span className="text-muted small">{a.issuer.idTag}</span>
-									</span>
-								</span>
-								<input
-									className="c-toggle primary"
-									type="checkbox"
-									checked={!!draft.invitesChecked[a.actionId]}
-									onChange={() => toggle(a.actionId)}
-								/>
-							</label>
+								}
+								label={t('Connect with {{name}}', {
+									name: a.issuer.name || a.issuer.idTag
+								})}
+								description={a.issuer.idTag}
+								checked={!!draft.invitesChecked[a.actionId]}
+								onChange={() => toggle(a.actionId)}
+							/>
 						))}
-					</div>
-				</>
+					</VBox>
+				</Fieldset>
 			)}
 
 			{invts.length > 0 && (
-				<>
-					<h3 className="mb-1">{t('Communities')}</h3>
-					<p className="text-muted small mb-2">
+				<Fieldset legend={t('Communities')}>
+					<Text as="p" size="sm" emphasis="muted">
 						{t("You've been invited to join these communities.")}
-					</p>
-					<div className="c-panel my-3">
+					</Text>
+					<VBox gap={2}>
 						{invts.map((a) => {
 							// The loader dropped every invite that names no community.
 							const target = communityInviteTarget(a)
 							if (!target) return null
 							return (
-								<label
+								<Checkbox
 									key={a.actionId}
-									className="c-settings-field"
-									style={{ maxWidth: 'none' }}
-								>
-									<span className="c-hbox align-items-center g-2 flex-fill">
+									variant="card"
+									leading={
 										<ProfilePicture
 											profile={target}
 											srcTag={target.idTag}
 											small
 										/>
-										<span className="flex-fill">
-											{t('Join {{name}}', {
-												name: target.name || target.idTag
-											})}
-											<br />
-											<span className="text-muted small">{target.idTag}</span>
-										</span>
-									</span>
-									<input
-										className="c-toggle primary"
-										type="checkbox"
-										checked={!!draft.invitesChecked[a.actionId]}
-										onChange={() => toggle(a.actionId)}
-									/>
-								</label>
+									}
+									label={t('Join {{name}}', {
+										name: target.name || target.idTag
+									})}
+									description={target.idTag}
+									checked={!!draft.invitesChecked[a.actionId]}
+									onChange={() => toggle(a.actionId)}
+								/>
 							)
 						})}
-					</div>
-				</>
+					</VBox>
+				</Fieldset>
 			)}
 
 			{!alreadyInvited && (
-				<div className="c-panel primary my-3 p-3">
-					<h3 className="mb-2">🌐 {t('Join the Cloudillo community')}</h3>
-					<p className="text-muted small mb-3">
+				<Fieldset legend={t('Join the Cloudillo community')}>
+					<Text as="p" size="sm" emphasis="muted">
 						{t(
 							'Connect with other Cloudillo users, get help, and stay updated on new features.'
 						)}
-					</p>
-					<label className="c-settings-field" style={{ maxWidth: 'none' }}>
-						<span className="c-hbox align-items-center g-2 flex-fill">
-							<ProfilePicture profile={{}} srcTag={DEFAULT_COMMUNITY_ID_TAG} small />
-							<span className="flex-fill">
-								{t('Cloudillo community')}
-								<br />
-								<span className="text-muted small">{DEFAULT_COMMUNITY_ID_TAG}</span>
-							</span>
-						</span>
-						<input
-							className="c-toggle primary"
-							type="checkbox"
+					</Text>
+					<VBox gap={2}>
+						<Checkbox
+							variant="card"
+							leading={
+								<ProfilePicture
+									profile={{}}
+									srcTag={DEFAULT_COMMUNITY_ID_TAG}
+									small
+								/>
+							}
+							label={t('Cloudillo community')}
+							description={DEFAULT_COMMUNITY_ID_TAG}
 							checked={!!draft.join}
 							onChange={(e) => setDraft((d) => ({ ...d, join: e.target.checked }))}
 						/>
-					</label>
-				</div>
+					</VBox>
+				</Fieldset>
 			)}
-
-			{/* First reversible step — going back would land on the password
-			    screen, so no Back button here. */}
-			<div className="c-group g-2">
-				<Button className="c-button primary" onClick={onContinue}>
-					{t('Continue')}
-				</Button>
-				<Button className="c-button" onClick={onSkip}>
-					{t('Skip')}
-				</Button>
-			</div>
-		</div>
+		</AuthLayout>
 	)
 }
 
@@ -487,90 +482,68 @@ function Extras({ pwa }: { pwa: UsePWA }) {
 
 	if (nothingToShow) {
 		return (
-			<div className="c-panel p-4">
-				<h1 className="mb-3">{t("You're all set!")}</h1>
-				<p className="text-muted">{t('Loading…')}</p>
-			</div>
+			<AuthLayout logo={<Logo animated />} title={t("You're all set!")}>
+				<Text as="p" emphasis="muted" role="status">
+					{t('Loading…')}
+				</Text>
+			</AuthLayout>
 		)
 	}
 
 	return (
-		<div className="c-panel p-4">
-			<h3 className="mb-3">
-				{t('A couple more things')} <span className="text-muted">({t('optional')})</span>
-			</h3>
-
-			<div className="c-panel my-4">
+		<AuthLayout
+			logo={<Logo animated={finishing} />}
+			title={t('A couple more things')}
+			subtitle={t('optional')}
+			footer={
+				<ActionBar>
+					<Button onClick={onBack} disabled={finishing}>
+						{t('Back')}
+					</Button>
+					<Button
+						color="primary"
+						onClick={finish}
+						loading={finishing}
+						disabled={finishing}
+					>
+						{t('Finish')}
+					</Button>
+				</ActionBar>
+			}
+		>
+			<VBox gap={2}>
 				{canNotify && (
-					<label className="c-settings-field" style={{ maxWidth: 'none' }}>
-						<span>
-							{t('Enable notifications')}
-							<br />
-							<span className="text-muted small">
-								{t('Know when someone messages you')}
-							</span>
-						</span>
-						<input
-							className="c-toggle primary"
-							type="checkbox"
-							checked={draft.enableNotifications}
-							onChange={(e) =>
-								setDraft((d) => ({ ...d, enableNotifications: e.target.checked }))
-							}
-						/>
-					</label>
+					<Checkbox
+						label={t('Enable notifications')}
+						description={t('Know when someone messages you')}
+						checked={draft.enableNotifications}
+						onChange={(e) =>
+							setDraft((d) => ({ ...d, enableNotifications: e.target.checked }))
+						}
+					/>
 				)}
-
 				{canInstall && (
-					<label className="c-settings-field" style={{ maxWidth: 'none' }}>
-						<span>
-							{t('Add to home screen')}
-							<br />
-							<span className="text-muted small">
-								{t('Quick access on your phone')}
-							</span>
-						</span>
-						<input
-							className="c-toggle primary"
-							type="checkbox"
-							checked={draft.enableInstall}
-							onChange={(e) =>
-								setDraft((d) => ({ ...d, enableInstall: e.target.checked }))
-							}
-						/>
-					</label>
+					<Checkbox
+						label={t('Add to home screen')}
+						description={t('Quick access on your phone')}
+						checked={draft.enableInstall}
+						onChange={(e) =>
+							setDraft((d) => ({ ...d, enableInstall: e.target.checked }))
+						}
+					/>
 				)}
-
 				{canPasskey && (
-					<label className="c-settings-field" style={{ maxWidth: 'none' }}>
-						<span>
-							{t('Set up a passkey')}
-							<br />
-							<span className="text-muted small">
-								{t('Sign in without a password next time')}
-							</span>
-						</span>
-						<input
-							className="c-toggle primary"
-							type="checkbox"
-							checked={draft.enablePasskey}
-							onChange={(e) =>
-								setDraft((d) => ({ ...d, enablePasskey: e.target.checked }))
-							}
-						/>
-					</label>
+					<Checkbox
+						label={t('Set up a passkey')}
+						description={t('Sign in without a password next time')}
+						checked={draft.enablePasskey}
+						onChange={(e) =>
+							setDraft((d) => ({ ...d, enablePasskey: e.target.checked }))
+						}
+					/>
 				)}
-			</div>
-
-			<div className="c-group g-2">
-				<Button className="c-button" onClick={onBack} disabled={finishing}>
-					{t('Back')}
-				</Button>
-				<Button className="c-button primary" onClick={finish} disabled={finishing}>
-					{t('Finish')}
-				</Button>
-			</div>
-		</div>
+			</VBox>
+		</AuthLayout>
 	)
 }
 
@@ -601,55 +574,24 @@ function stepIndexFromPath(pathname: string): number {
 	return 0
 }
 
-function StepIndicator() {
-	const { t } = useTranslation()
-	const location = useLocation()
-
-	const currentStep = stepIndexFromPath(location.pathname)
-	if (currentStep < 0) return null
-
-	return (
-		<div className="c-hbox justify-content-center g-2 mb-3 mt-2">
-			{STEPS.map((step, i) => (
-				<div
-					key={step}
-					style={{
-						width: '0.625rem',
-						height: '0.625rem',
-						borderRadius: '50%',
-						background: i <= currentStep ? 'var(--col-primary)' : 'var(--col-outline)'
-					}}
-				/>
-			))}
-			<span className="text-muted small ms-2">
-				{t('Step {{current}} of {{total}}', {
-					current: currentStep + 1,
-					total: STEPS.length
-				})}
-			</span>
-		</div>
-	)
-}
-
 /**
  * The wizard chrome, as the `/onboarding` layout route. A layout route rather than a
- * wrapper around a `<Routes>` tree, which is what keeps `StepIndicator` mounted across
- * steps instead of remounting on every navigation.
+ * wrapper around a `<Routes>` tree, which is what keeps the `Stepper` mounted across
+ * steps instead of remounting on every navigation. Each step brings its own `AuthLayout`.
  */
 function Page() {
+	const location = useLocation()
+	const currentStep = stepIndexFromPath(location.pathname)
+
 	return (
-		<div className="c-container">
-			<div className="row">
-				<div className="col-0 col-md-1 col-lg-2" />
-				<div className="col col-md-10 col-lg-8">
-					<StepIndicator />
-					<div className="flex-fill-x">
-						<Outlet />
-					</div>
-				</div>
-				<div className="col-0 col-md-1 col-lg-2" />
-			</div>
-		</div>
+		<>
+			{currentStep >= 0 && (
+				<Center className="pt-3">
+					<Stepper count={STEPS.length} current={currentStep} />
+				</Center>
+			)}
+			<Outlet />
+		</>
 	)
 }
 

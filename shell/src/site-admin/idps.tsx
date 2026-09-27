@@ -1,7 +1,18 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { useApi, useAuth } from '@cloudillo/react'
+import {
+	Alert,
+	Button,
+	HBox,
+	Input,
+	List,
+	ListItem,
+	Panel,
+	Text,
+	useApi,
+	useAuth
+} from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { LuPlus as IcAdd, LuTrash2 as IcDelete } from 'react-icons/lu'
@@ -93,19 +104,18 @@ export function SuggestedProvidersSettings() {
 	}
 
 	return (
-		<div className="c-panel">
-			<h4>{t('Suggested Providers')}</h4>
-			<p className="mb-4 text-secondary">
-				{t(
-					'These providers appear as suggestions during registration. Users can still register with any identity provider.'
-				)}
-			</p>
-
+		<Panel
+			title={t('Suggested Providers')}
+			description={t(
+				'These providers appear as suggestions during registration. Users can still register with any identity provider.'
+			)}
+		>
 			{/* Add new domain */}
-			<div className="c-hbox g-2 mb-4">
-				<input
-					className="c-input w-lg"
+			<HBox gap={2} className="mb-4">
+				<Input
+					className="w-lg"
 					type="text"
+					aria-label={t('Domain')}
 					placeholder={t('Enter domain (e.g., cloudillo.net)')}
 					value={newDomain}
 					onChange={(evt) => {
@@ -114,40 +124,47 @@ export function SuggestedProvidersSettings() {
 					}}
 					onKeyDown={handleKeyDown}
 				/>
-				<button
-					className="c-button primary"
+				<Button
+					color="primary"
 					onClick={handleAdd}
 					disabled={!newDomain.trim()}
+					icon={<IcAdd />}
 				>
-					<IcAdd /> {t('Add')}
-				</button>
-			</div>
+					{t('Add')}
+				</Button>
+			</HBox>
 
-			{/* Error message */}
-			{error && <div className="c-alert error mb-4">{error}</div>}
-
-			{/* Domain list */}
-			{domains.length === 0 ? (
-				<div className="text-center text-secondary py-4">
-					{t('No suggested providers configured yet')}
-				</div>
-			) : (
-				<div className="c-vbox g-2">
-					{domains.map((domain) => (
-						<div key={domain} className="c-hbox c-panel low p-3">
-							<span className="flex-fill font-mono">{domain}</span>
-							<button
-								className="c-link error low"
-								onClick={() => handleRemove(domain)}
-								title={t('Remove')}
-							>
-								<IcDelete />
-							</button>
-						</div>
-					))}
-				</div>
+			{error && (
+				<Alert color="error" className="mb-4">
+					{error}
+				</Alert>
 			)}
-		</div>
+
+			{domains.length === 0 ? (
+				<Text as="p" emphasis="muted" align="center" className="py-4">
+					{t('No suggested providers configured yet')}
+				</Text>
+			) : (
+				<List variant="divided">
+					{domains.map((domain) => (
+						<ListItem
+							key={domain}
+							title={<Text mono>{domain}</Text>}
+							actions={
+								<Button
+									variant="ghost"
+									color="error"
+									size="sm"
+									onClick={() => handleRemove(domain)}
+									icon={<IcDelete />}
+									aria-label={t('Remove')}
+								/>
+							}
+						/>
+					))}
+				</List>
+			)}
+		</Panel>
 	)
 }
 

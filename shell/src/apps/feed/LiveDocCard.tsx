@@ -9,7 +9,19 @@
  * real app **inside the card**, so the reader keeps their feed scroll position.
  */
 
-import { Button, DocumentEmbedIframe, useApi } from '@cloudillo/react'
+import {
+	Alert,
+	Button,
+	Card,
+	DocumentEmbedIframe,
+	FileTypeIcon,
+	HBox,
+	Meta,
+	Panel,
+	Text,
+	useApi,
+	VBox
+} from '@cloudillo/react'
 import { useAtomValue } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -23,7 +35,6 @@ import {
 	useCtx,
 	useProfileTrust
 } from '../../context/index.js'
-import { getIcon } from '../../icon-registry.js'
 import { getHandlersForContentType } from '../../manifest-registry.js'
 import { TrustBanner } from '../../profile/TrustBanner.js'
 import { appPath } from '../../routes.js'
@@ -75,7 +86,6 @@ export function LiveDocCard({ docRef, width, collapsedOnly, className }: LiveDoc
 	const trustDecided = getEffectiveTrust(docRef.srcIdTag) !== null
 
 	const manifest = getHandlersForContentType(docRef.contentType)[0]?.manifest
-	const AppIcon = getIcon(manifest?.icon)
 	const appId = shellEmbedAppName(docRef.contentType)
 
 	// One file row, and only for the title — and only once the reader opens the card.
@@ -117,151 +127,154 @@ export function LiveDocCard({ docRef, width, collapsedOnly, className }: LiveDoc
 	const title = rowTitle ?? docRef.title ?? docRef.fileId
 	const typeLabel = manifest ? t('{{app}} document', { app: manifest.name }) : t('document')
 	const expandLabel = expanded ? t('Collapse') : t('Open document')
-	// The visible text stays put so a card does not reflow when `apiAtom` lands; the reason
-	// rides on the accessible name and the tooltip instead.
+	// The visible text stays put so a card does not reflow when `apiAtom` lands.
 	const expandBlocked = !expanded && !homeApi?.idTag
-	const expandTitle = expandBlocked
-		? t('{{action}} — still starting up, try again in a moment', { action: expandLabel })
-		: expandLabel
 
 	return (
-		<div
-			className={className ?? 'c-live-doc-card'}
+		<Card
+			variant="outline"
+			padding={2}
+			className={className}
 			style={width ? { maxWidth: width } : undefined}
 		>
-			<div className="c-live-doc-head c-hbox align-items-center g-2">
-				<span className="c-live-doc-icon">{AppIcon ? <AppIcon /> : null}</span>
-				<div className="c-vbox flex-fill">
-					<span className="c-live-doc-title">{title}</span>
-					<span className="c-live-doc-meta">
-						{typeLabel} · {docRef.srcIdTag}
-					</span>
-				</div>
-				{!collapsedOnly && (
-					<Button
-						kind="link"
-						variant="primary"
-						// Expanding needs our own idTag for the bundle URL, and `useApi()`
-						// has none until boot writes `apiAtom`; without it `useShellEmbed`
-						// parks at 'connecting' with no boot timer — a spinner that never
-						// times out. Collapsing needs nothing, so a card stays closable if
-						// `apiAtom` clears while it is open. `aria-disabled`, like the
-						// sibling button: a `disabled` button takes no focus, and
-						// `.c-live-doc-head [aria-disabled='true']` in `feed.css` dims it.
-						onClick={() => {
-							if (expandBlocked) return
-							setExpanded(!expanded)
-						}}
-						aria-disabled={expandBlocked}
-						aria-expanded={expanded}
-						title={expandTitle}
-						aria-label={expandTitle}
-					>
-						{expandLabel}
-					</Button>
-				)}
-				{/* A collapsed-only card has no expand button, so an untrusted node's TrustBanner is
-				    unreachable from here: render nothing rather than a control that can never enable. */}
-				{(trusted || !collapsedOnly) && (
-					<Button
-						kind="link"
-						// The reader stays in their own context; only the resId names the node
-						// that serves the document — exactly how the Files app opens a
-						// mirrored row. `@<idTag>` would be a community the reader may not
-						// even be a member of.
-						onClick={() => {
-							if (!trusted) return
-							navigate(appPath(ctx.base, appId, docRef.doc))
-						}}
-						// The full page mints the same identified token this card does.
-						// `aria-disabled`, not `disabled`: the reason below is the ONLY place
-						// it is stated, and a `disabled` button takes no focus, so a keyboard
-						// user could never reach it.
-						aria-disabled={!trusted}
-						title={
-							trusted
-								? t('Open on its own page')
-								: t('Decide whether to identify yourself to {{idTag}} first', {
-										idTag: docRef.srcIdTag
-									})
-						}
-						aria-label={
-							trusted
-								? t('Open on its own page')
-								: t('Decide whether to identify yourself to {{idTag}} first', {
-										idTag: docRef.srcIdTag
-									})
-						}
-						icon={<IcExternal />}
-					/>
-				)}
-			</div>
-			{/* Not rendered at all while collapsed: `active` only toggles
-			    pointerEvents — the iframe would still load. */}
-			{expanded && !collapsedOnly && !trusted && (
-				<div className="c-live-doc-embed">
-					<TrustBanner idTag={docRef.srcIdTag} />
-					{trustDecided && (
-						<p className="c-alert info m-2" role="status">
-							{t('This document cannot be opened anonymously.')}
-						</p>
+			<VBox gap={2}>
+				<HBox align="center" gap={2}>
+					<FileTypeIcon contentType={docRef.contentType} size="md" />
+					<VBox className="flex-fill" style={{ minWidth: 0 }}>
+						<Text weight="semibold" truncate>
+							{title}
+						</Text>
+						<Text size="sm" emphasis="muted" truncate>
+							<Meta>
+								{typeLabel}
+								{docRef.srcIdTag}
+							</Meta>
+						</Text>
+					</VBox>
+					{!collapsedOnly && (
+						<Button
+							variant="link"
+							color="primary"
+							// Expanding needs our own idTag for the bundle URL, and `useApi()`
+							// has none until boot writes `apiAtom`; without it `useShellEmbed`
+							// parks at 'connecting' with no boot timer — a spinner that never
+							// times out. Collapsing needs nothing, so a card stays closable if
+							// `apiAtom` clears while it is open. `disabledReason` keeps it
+							// focusable and states why.
+							onClick={() => {
+								if (expandBlocked) return
+								setExpanded(!expanded)
+							}}
+							disabledReason={
+								expandBlocked
+									? t('Still starting up, try again in a moment')
+									: undefined
+							}
+							aria-expanded={expanded}
+						>
+							{expandLabel}
+						</Button>
 					)}
-				</div>
-			)}
-			{expanded && !collapsedOnly && trusted && (
-				// `pos-relative`: the indicator is an opaque full-box overlay.
-				<div className="c-live-doc-embed pos-relative" style={{ height }}>
-					<AppLoadingIndicator
-						stage={embed.stage}
-						errorCode={embed.errorCode}
-						errorMessage={embed.error}
-						subtle={embed.stage === 'syncing'}
-						onRetry={() => setAttempt((n) => n + 1)}
-					/>
-					{/* Dropped on error: the overlay is opaque, so a mounted bundle behind it
-					    is invisible work — and its own retry loops keep running. */}
-					{embed.iframeSrc && embed.stage !== 'error' && (
-						<DocumentEmbedIframe
-							// A fresh element per boot: the memoised iframe otherwise merely
-							// navigates, leaving the pre-retry document's relay live to report
-							// readiness against the new mount (see `useShellEmbed`).
-							key={embed.iframeSrc}
-							src={embed.iframeSrc}
-							className="w-100 h-100 border-0"
-							active
-							onAppReady={embed.onAppReady}
-							onAppError={embed.onAppError}
+					{/* A collapsed-only card has no expand button, so an untrusted node's TrustBanner is
+					    unreachable from here: render nothing rather than a control that can never enable. */}
+					{(trusted || !collapsedOnly) && (
+						<Button
+							variant="link"
+							// The reader stays in their own context; only the resId names the node
+							// that serves the document — exactly how the Files app opens a
+							// mirrored row. `@<idTag>` would be a community the reader may not
+							// even be a member of.
+							onClick={() => {
+								if (!trusted) return
+								navigate(appPath(ctx.base, appId, docRef.doc))
+							}}
+							// The full page mints the same identified token this card does.
+							// `disabledReason`, not `disabled`: the reason is the ONLY place it
+							// is stated, and a `disabled` button takes no focus.
+							disabledReason={
+								trusted
+									? undefined
+									: t('Decide whether to identify yourself to {{idTag}} first', {
+											idTag: docRef.srcIdTag
+										})
+							}
+							aria-label={t('Open on its own page')}
+							icon={<IcExternal />}
 						/>
 					)}
-				</div>
-			)}
-			{expanded && !collapsedOnly && trusted && (
-				<div className="c-hbox g-2">
-					{height < MAX_EMBED_HEIGHT && (
-						<Button
-							kind="link"
-							size="small"
-							onClick={() =>
-								setHeight(Math.min(height + HEIGHT_STEP, MAX_EMBED_HEIGHT))
-							}
-						>
-							{t('Taller')}
-						</Button>
-					)}
-					{height > DEFAULT_EMBED_HEIGHT && (
-						<Button
-							kind="link"
-							size="small"
-							onClick={() =>
-								setHeight(Math.max(height - HEIGHT_STEP, DEFAULT_EMBED_HEIGHT))
-							}
-						>
-							{t('Shorter')}
-						</Button>
-					)}
-				</div>
-			)}
-		</div>
+				</HBox>
+				{/* Not rendered at all while collapsed: `active` only toggles
+				    pointerEvents — the iframe would still load. */}
+				{expanded && !collapsedOnly && !trusted && (
+					<VBox gap={2}>
+						<TrustBanner idTag={docRef.srcIdTag} />
+						{trustDecided && (
+							<Alert compact>
+								{t('This document cannot be opened anonymously.')}
+							</Alert>
+						)}
+					</VBox>
+				)}
+				{expanded && !collapsedOnly && trusted && (
+					// `pos-relative`: the indicator is an opaque full-box overlay.
+					<Panel
+						variant="outline"
+						padding={0}
+						className="pos-relative"
+						style={{ height }}
+					>
+						<AppLoadingIndicator
+							stage={embed.stage}
+							errorCode={embed.errorCode}
+							errorMessage={embed.error}
+							subtle={embed.stage === 'syncing'}
+							onRetry={() => setAttempt((n) => n + 1)}
+						/>
+						{/* Dropped on error: the overlay is opaque, so a mounted bundle behind it
+						    is invisible work — and its own retry loops keep running. */}
+						{embed.iframeSrc && embed.stage !== 'error' && (
+							<DocumentEmbedIframe
+								// A fresh element per boot: the memoised iframe otherwise merely
+								// navigates, leaving the pre-retry document's relay live to report
+								// readiness against the new mount (see `useShellEmbed`).
+								key={embed.iframeSrc}
+								src={embed.iframeSrc}
+								className="w-100 h-100 border-0"
+								active
+								onAppReady={embed.onAppReady}
+								onAppError={embed.onAppError}
+							/>
+						)}
+					</Panel>
+				)}
+				{expanded && !collapsedOnly && trusted && (
+					<HBox gap={2}>
+						{height < MAX_EMBED_HEIGHT && (
+							<Button
+								variant="link"
+								size="sm"
+								onClick={() =>
+									setHeight(Math.min(height + HEIGHT_STEP, MAX_EMBED_HEIGHT))
+								}
+							>
+								{t('Taller')}
+							</Button>
+						)}
+						{height > DEFAULT_EMBED_HEIGHT && (
+							<Button
+								variant="link"
+								size="sm"
+								onClick={() =>
+									setHeight(Math.max(height - HEIGHT_STEP, DEFAULT_EMBED_HEIGHT))
+								}
+							>
+								{t('Shorter')}
+							</Button>
+						)}
+					</HBox>
+				)}
+			</VBox>
+		</Card>
 	)
 }
 

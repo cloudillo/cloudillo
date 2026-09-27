@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { mergeClasses } from '@cloudillo/react'
+import { Panel, Tag } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -55,39 +55,32 @@ function SectionContent({ section }: { section: SectionWithContent }) {
 function VisibilityBadge({ visibility }: { visibility: string }) {
 	const { t } = useTranslation()
 
-	let Icon: React.ComponentType<{ className?: string }>
-	let label: string
-	let variant: string
-
 	switch (visibility) {
 		case 'P':
-			Icon = IcGlobe
-			label = t('Public')
-			variant = 'vis-public'
-			break
+			return (
+				<Tag size="xs" color="success" icon={<IcGlobe />}>
+					{t('Public')}
+				</Tag>
+			)
 		case 'F':
-			Icon = IcUserCheck
-			label = t('Followers')
-			variant = 'vis-follower'
-			break
+			return (
+				<Tag size="xs" color="primary" icon={<IcUserCheck />}>
+					{t('Followers')}
+				</Tag>
+			)
 		case 'C':
-			Icon = IcUsers
-			label = t('Connected')
-			variant = 'vis-connected'
-			break
+			return (
+				<Tag size="xs" color="warning" icon={<IcUsers />}>
+					{t('Connected')}
+				</Tag>
+			)
 		default:
-			Icon = IcRole
-			label = t(visibility.charAt(0).toUpperCase() + visibility.slice(1) + '+')
-			variant = 'vis-role'
-			break
+			return (
+				<Tag size="xs" color="secondary" icon={<IcRole />}>
+					{t(`${visibility.charAt(0).toUpperCase() + visibility.slice(1)}+`)}
+				</Tag>
+			)
 	}
-
-	return (
-		<span className={mergeClasses('c-vis-badge c-hbox g-1 align-items-center', variant)}>
-			<Icon className="text-xs" />
-			{label}
-		</span>
-	)
 }
 
 // ============================================================================
@@ -97,24 +90,23 @@ function VisibilityBadge({ visibility }: { visibility: string }) {
 interface SectionViewProps {
 	section: SectionWithContent
 	isOwner?: boolean
-	className?: string
 }
 
-export function SectionView({ section, isOwner, className }: SectionViewProps) {
+export function SectionView({ section, isOwner }: SectionViewProps) {
 	const { t } = useTranslation()
-	const title = getSectionTitle(t, section)
 
 	return (
-		<div className={mergeClasses('c-panel c-section-card', className)}>
-			<div className="c-hbox align-items-center g-2 mb-1">
-				<h4 className="m-0 text-base">{title}</h4>
-				<div className="flex-fill" />
-				{isOwner && section.visibility !== 'P' && (
+		<Panel
+			title={getSectionTitle(t, section)}
+			headingLevel={4}
+			actions={
+				isOwner && section.visibility !== 'P' ? (
 					<VisibilityBadge visibility={section.visibility} />
-				)}
-			</div>
+				) : undefined
+			}
+		>
 			<SectionContent section={section} />
-		</div>
+		</Panel>
 	)
 }
 

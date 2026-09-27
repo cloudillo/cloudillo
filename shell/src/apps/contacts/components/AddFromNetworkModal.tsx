@@ -2,11 +2,24 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import type { AddressBookOutput, ContactInput } from '@cloudillo/core'
-import { Button, Modal, ProfileCard } from '@cloudillo/react'
+import {
+	ActionBar,
+	Alert,
+	Button,
+	Dialog,
+	Field,
+	List,
+	ListItem,
+	LoadingSpinner,
+	NativeSelect,
+	ProfileCard,
+	SearchInput,
+	Text,
+	VBox
+} from '@cloudillo/react'
 import type { Profile } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuX as IcClose } from 'react-icons/lu'
 
 import { useContextAwareApi } from '../../../context/index.js'
 
@@ -95,29 +108,25 @@ export function AddFromNetworkModal({
 	}
 
 	return (
-		<Modal open={open} onClose={onClose}>
-			<div className="c-dialog c-panel emph p-4" style={{ maxWidth: '520px', width: '100%' }}>
-				<div className="d-flex align-items-center justify-content-between mb-3">
-					<h3 className="m-0">{t('Add from Cloudillo network')}</h3>
-					<button className="c-link" onClick={onClose} aria-label={t('Close')}>
-						<IcClose />
-					</button>
-				</div>
-
+		<Dialog
+			open={open}
+			onClose={onClose}
+			title={t('Add from Cloudillo network')}
+			footer={
+				<ActionBar>
+					<Button onClick={onClose}>{t('Close')}</Button>
+				</ActionBar>
+			}
+		>
+			<VBox gap={3}>
 				{error && (
-					<div
-						className="c-panel bg-container-error p-2 mb-3"
-						role="alert"
-						aria-live="polite"
-					>
-						<span className="text-error">{error}</span>
-					</div>
+					<Alert color="error" compact>
+						{error}
+					</Alert>
 				)}
 
-				<div className="mb-3">
-					<label className="c-contact-field-label">{t('Address book')}</label>
-					<select
-						className="c-input"
+				<Field label={t('Address book')}>
+					<NativeSelect
 						value={abId ?? ''}
 						onChange={(e) => setAbId(Number(e.target.value))}
 					>
@@ -126,47 +135,49 @@ export function AddFromNetworkModal({
 								{book.name}
 							</option>
 						))}
-					</select>
-				</div>
+					</NativeSelect>
+				</Field>
 
-				<div className="mb-3">
-					<label className="c-contact-field-label">{t('Search profiles')}</label>
-					<input
-						className="c-input"
-						type="search"
+				<Field label={t('Search profiles')}>
+					<SearchInput
 						placeholder={t('Name or idTag')}
 						value={query}
 						onChange={(e) => setQuery(e.target.value)}
 						autoFocus
 					/>
-				</div>
+				</Field>
 
-				<div className="c-vbox g-1" style={{ maxHeight: 320, overflowY: 'auto' }}>
-					{searching && <div className="c-hint p-2">{t('Searching...')}</div>}
-					{!searching && query.trim() && results.length === 0 && (
-						<div className="c-hint p-2">{t('No matching profiles')}</div>
-					)}
+				{searching ? (
+					<LoadingSpinner size="sm" label={t('Searching...')} />
+				) : (
+					query.trim() &&
+					results.length === 0 && (
+						<Text as="p" emphasis="muted">
+							{t('No matching profiles')}
+						</Text>
+					)
+				)}
+				<List>
 					{results.map((profile) => (
-						<button
+						<ListItem
 							key={profile.idTag}
-							type="button"
-							className="c-link d-flex align-items-center g-2 p-2 w-100 text-left"
-							disabled={submitting !== undefined}
-							onClick={() => add(profile)}
-						>
-							<ProfileCard className="flex-fill" profile={profile} />
-							<span className="c-tag small primary">
-								{submitting === profile.idTag ? t('Adding...') : t('Add')}
-							</span>
-						</button>
+							title={<ProfileCard profile={profile} />}
+							trailing={
+								<Button
+									size="sm"
+									color="primary"
+									loading={submitting === profile.idTag}
+									disabled={submitting !== undefined}
+									onClick={() => add(profile)}
+								>
+									{t('Add')}
+								</Button>
+							}
+						/>
 					))}
-				</div>
-
-				<div className="d-flex justify-content-end g-2 mt-3">
-					<Button onClick={onClose}>{t('Close')}</Button>
-				</div>
-			</div>
-		</Modal>
+				</List>
+			</VBox>
+		</Dialog>
 	)
 }
 

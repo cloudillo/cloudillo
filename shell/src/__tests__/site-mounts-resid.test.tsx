@@ -28,7 +28,12 @@ jest.unstable_mockModule('react-i18next', () => ({
 	useTranslation: () => ({ t: (key: string) => key })
 }))
 
+// The real components under the overrides below, so the mock does not have to
+// track every name the panel imports.
+const realReact = await import('../../../libs/react/lib/index.js')
+
 jest.unstable_mockModule('@cloudillo/react', () => ({
+	...realReact,
 	Badge: ({ children }: { children?: React.ReactNode }) => <span>{children}</span>,
 	Button: ({
 		children,
@@ -132,7 +137,7 @@ function renderPanel(contextIdTag?: string) {
 			/>
 		</MemoryRouter>
 	)
-	return [...container.querySelectorAll('a[href]')].map((a) => a.getAttribute('href') ?? '')
+	return [...container.querySelectorAll('[href]')].map((a) => a.getAttribute('href') ?? '')
 }
 
 describe('SiteMountsPanel — the notes-app link', () => {

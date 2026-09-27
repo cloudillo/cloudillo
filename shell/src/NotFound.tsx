@@ -11,11 +11,10 @@
  * community should land back in that community, not at their own feed.
  */
 
-import { EmptyState } from '@cloudillo/react'
+import { Button, EmptyState } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { LuMapPinOff as IcNotFound } from 'react-icons/lu'
-import { Link } from 'react-router-dom'
 
 import { useCtx } from './context/index.js'
 import { feedPath } from './routes.js'
@@ -25,18 +24,19 @@ export function NotFound() {
 	const ctx = useCtx()
 
 	return (
-		<div className="c-panel flex-fill d-flex align-items-center justify-content-center">
-			<EmptyState
-				icon={<IcNotFound size="4rem" className="text-muted" />}
-				title={t('Page not found')}
-				description={t('This address does not match anything in Cloudillo.')}
-				action={
-					<Link to={feedPath(ctx.base)} className="c-button accent">
-						{t('Go to the feed')}
-					</Link>
-				}
-			/>
-		</div>
+		<EmptyState
+			fill
+			className="auto-bg"
+			size="lg"
+			icon={<IcNotFound />}
+			title={t('Page not found')}
+			description={t('This address does not match anything in Cloudillo.')}
+			action={
+				<Button color="accent" href={feedPath(ctx.base)}>
+					{t('Go to the feed')}
+				</Button>
+			}
+		/>
 	)
 }
 

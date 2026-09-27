@@ -1,14 +1,22 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button, Fcd, Menu, MenuDivider, MenuItem, useToast } from '@cloudillo/react'
+import {
+	Button,
+	EmptyState,
+	Fcd,
+	HBox,
+	Menu,
+	MenuDivider,
+	MenuItem,
+	useToast
+} from '@cloudillo/react'
 import { useAtom } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
 	LuPlus as IcAdd,
 	LuUsers as IcAddNetwork,
-	LuFilter as IcFilter,
 	LuFileUp as IcImport,
 	LuEllipsisVertical as IcMore,
 	LuBookOpen as IcNewBook
@@ -30,8 +38,6 @@ import {
 } from './components/index.js'
 import { useAddressBooks, useContactList } from './hooks/index.js'
 import type { AddressBookOutput, SelectedContactRef } from './types.js'
-
-import './contacts.css'
 
 export function ContactsApp() {
 	const { t } = useTranslation()
@@ -58,9 +64,6 @@ export function ContactsApp() {
 		addressBooks,
 		searchQuery
 	})
-
-	// Mobile filter visibility
-	const [showFilter, setShowFilter] = React.useState(false)
 
 	// Address book editor
 	const [bookEditorOpen, setBookEditorOpen] = React.useState(false)
@@ -222,8 +225,8 @@ export function ContactsApp() {
 
 	return (
 		<>
-			<Fcd.Container className="g-1">
-				<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
+			<Fcd.Container className="g-1" filterLabel={t('Address books')}>
+				<Fcd.Filter>
 					<AddressBookSidebar
 						addressBooks={addressBooks}
 						selection={selection}
@@ -240,62 +243,59 @@ export function ContactsApp() {
 
 				<Fcd.Content
 					header={
-						<div className="c-nav d-flex align-items-center g-2 p-2">
-							<button
-								type="button"
-								className="c-link md-hide lg-hide"
-								onClick={() => setShowFilter(true)}
-								aria-label={t('Show address books')}
-							>
-								<IcFilter />
-							</button>
+						<HBox gap={1} align="center" className="p-2" autoBg>
 							<Button
-								variant="primary"
-								className="small"
+								color="primary"
+								size="sm"
 								disabled={noBooks || !!booksError}
 								onClick={openCreateContact}
+								icon={<IcAdd />}
 							>
-								<IcAdd className="me-1" />
 								{t('New contact')}
 							</Button>
-							<button
-								type="button"
-								className="c-link"
+							<Button
+								variant="ghost"
+								size="sm"
+								immediate
 								onClick={openToolbarMenu}
 								aria-label={t('More actions')}
 								aria-haspopup="menu"
 								aria-expanded={!!toolbarMenu}
-								title={t('More actions')}
-							>
-								<IcMore />
-							</button>
-						</div>
+								icon={<IcMore />}
+							/>
+						</HBox>
 					}
 				>
 					{booksError ? (
-						<div className="c-vbox align-items-center justify-content-center p-4 g-3 text-center">
-							<h3 className="m-0">
-								{booksDenied
+						<EmptyState
+							fill
+							color={booksDenied ? 'warning' : 'error'}
+							title={
+								booksDenied
 									? t('Contacts are not available here')
-									: t('Failed to load address books')}
-							</h3>
-							<p className="c-hint">
-								{booksDenied
+									: t('Failed to load address books')
+							}
+							description={
+								booksDenied
 									? t('You do not have permission to use contacts here.')
-									: booksError.message}
-							</p>
-						</div>
+									: booksError.message
+							}
+						/>
 					) : noBooks ? (
-						<div className="c-vbox align-items-center justify-content-center p-4 g-3 text-center">
-							<h3 className="m-0">{t('No address books yet')}</h3>
-							<p className="c-hint">
-								{t('Create an address book to start adding contacts.')}
-							</p>
-							<Button variant="primary" onClick={openCreateBook}>
-								<IcAdd className="me-1" />
-								{t('New address book')}
-							</Button>
-						</div>
+						<EmptyState
+							fill
+							title={t('No address books yet')}
+							description={t('Create an address book to start adding contacts.')}
+							actions={
+								<Button
+									color="primary"
+									onClick={openCreateBook}
+									icon={<IcNewBook />}
+								>
+									{t('New address book')}
+								</Button>
+							}
+						/>
 					) : (
 						<ContactList
 							contacts={list.contacts}

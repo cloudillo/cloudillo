@@ -2,7 +2,21 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import { type MountPathProblem, normalizeMountPath, siteTagSlug } from '@cloudillo/core'
-import { Badge, Button, EmptyState, useDialog } from '@cloudillo/react'
+import {
+	Badge,
+	type BadgeProps,
+	Button,
+	EmptyState,
+	HBox,
+	IconText,
+	Input,
+	Panel,
+	Table,
+	TableCell,
+	TableRow,
+	Text,
+	useDialog
+} from '@cloudillo/react'
 import type { SiteDoc } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -13,7 +27,6 @@ import {
 	LuPencil as IcPencil,
 	LuTrash2 as IcTrash
 } from 'react-icons/lu'
-import { Link } from 'react-router-dom'
 
 import { useDocumentPicker } from '../components/DocumentPicker/index.js'
 import { appPath, type CtxBase } from '../routes.js'
@@ -82,24 +95,29 @@ function MountPathInput({ value, label, focus, disabled, onCommit }: MountPathIn
 	)
 
 	return (
-		<div className="c-input-group">
-			<span className="c-input-addon" aria-hidden="true">
-				/
-			</span>
-			<input
-				ref={inputRef}
-				className="c-input w-min-0"
-				type="text"
-				value={text}
-				disabled={disabled}
-				aria-label={label}
-				onChange={(evt) => setText(evt.target.value)}
-				onBlur={commit}
-				onKeyDown={(evt) => {
-					if (evt.key === 'Enter') evt.currentTarget.blur()
-				}}
-			/>
-		</div>
+		<Input
+			ref={inputRef}
+			className="w-min-0"
+			leading="/"
+			type="text"
+			value={text}
+			disabled={disabled}
+			aria-label={label}
+			onChange={(evt) => setText(evt.target.value)}
+			onBlur={commit}
+			onKeyDown={(evt) => {
+				if (evt.key === 'Enter') evt.currentTarget.blur()
+			}}
+		/>
+	)
+}
+
+/** A message tied to one row or to the panel, read out when it appears. */
+function ErrorText({ children }: { children: React.ReactNode }) {
+	return (
+		<Text as="div" size="sm" color="error" role="alert">
+			<IconText icon={<IcAlert />}>{children}</IconText>
+		</Text>
 	)
 }
 
@@ -362,7 +380,8 @@ export function SiteMountsPanel({
 							)
 						: t('“{{name}}” stops being served. The document itself is not deleted.', {
 								name: docNames[docFileId] ?? docFileId
-							})
+							}),
+					{ color: 'error', confirmLabel: isRoot ? t('Stop serving') : t('Remove') }
 				)
 				if (!confirmed) return
 				setBusy(docFileId)
@@ -396,23 +415,25 @@ export function SiteMountsPanel({
 	}
 
 	/**
-	 * The same three states as `rowStatus`, short enough to sit in a badge. The tone
-	 * rides on `className` rather than `variant` because `neutral` is an OpalUI badge
-	 * colour that `ColorVariant` does not name; `Badge` merges either the same way.
+	 * The same three states as `rowStatus`, short enough to sit in a badge. The
+	 * neutral state is an uncoloured soft badge.
 	 */
-	function statusBadge(doc?: SiteDoc): { tone: string; label: string } {
-		if (!doc) return { tone: 'neutral', label: t('Not part of the site yet') }
+	function statusBadge(doc?: SiteDoc): {
+		tone: Pick<BadgeProps, 'color' | 'variant'>
+		label: string
+	} {
+		if (!doc) return { tone: { variant: 'soft' }, label: t('Not part of the site yet') }
 		if (!doc.publishedFileId || !doc.publishedMountPath) {
-			return { tone: 'neutral', label: t('Not published') }
+			return { tone: { variant: 'soft' }, label: t('Not published') }
 		}
 		if (doc.publishedMountPath === doc.mountPath) {
 			return {
-				tone: 'success',
+				tone: { color: 'success' },
 				label: t('Serving {{path}}', { path: doc.publishedMountPath })
 			}
 		}
 		return {
-			tone: 'warning',
+			tone: { color: 'warning' },
 			label: t('Moves to {{path}} on next publish', { path: doc.mountPath })
 		}
 	}
@@ -441,17 +462,19 @@ export function SiteMountsPanel({
 		const disabled = !isLeader || busy === docFileId
 		const badge = statusBadge(options.doc)
 		const name = docName(docFileId)
+		const href = notilloHref(docFileId)
 		return (
-			<tr key={docFileId}>
-				<td className="c-site-cell-doc" data-label={t('Document')}>
-					<strong className="d-block text-truncate">{name}</strong>
-				</td>
-				<td data-label={t('Path')}>
+			<TableRow key={docFileId}>
+				<TableCell>
+					<Text as="div" weight="semibold" truncate>
+						{name}
+					</Text>
+				</TableCell>
+				<TableCell>
 					{options.isRoot ? (
-						<span className="c-hbox g-1 align-items-center">
-							<Badge variant="primary">{t('Home')}</Badge>
-							<span>/</span>
-						</span>
+						<HBox gap={1} align="center">
+							<Badge color="primary">{t('Home')}</Badge>/
+						</HBox>
 					) : (
 						<MountPathInput
 							value={path}
@@ -461,67 +484,40 @@ export function SiteMountsPanel({
 							onCommit={(next) => commitPath(docFileId, next, options.current)}
 						/>
 					)}
-					{error && (
-						<span
-							className="text-error c-hbox align-items-center g-1 small"
-							role="alert"
-						>
-							<IcAlert className="flex-shrink-0" />
-							{error}
-						</span>
-					)}
-				</td>
-				<td data-label={t('Status')}>
-					<Badge className={badge.tone}>{badge.label}</Badge>
+					{error && <ErrorText>{error}</ErrorText>}
+				</TableCell>
+				<TableCell>
+					<Badge {...badge.tone}>{badge.label}</Badge>
 					{options.status && options.status !== badge.label && (
-						<span className="c-hint small d-block">{options.status}</span>
+						<Text as="div" size="sm" emphasis="muted">
+							{options.status}
+						</Text>
 					)}
-				</td>
-				<td>
-					<div className="c-site-actions">
-						{/* `Link`, not a Button: this is a navigation. It renders a real
-						    anchor, so middle-click and "copy link" come for free — and
-						    unlike a hand-rolled one it keeps the SPA up instead of
-						    re-running the whole boot and auth waterfall. */}
-						{notilloHref(docFileId) ? (
-							<Link
-								className="c-button icon"
-								to={notilloHref(docFileId) ?? ''}
-								title={t('Open in the notes app')}
-								aria-label={t('Open in the notes app')}
-							>
-								<IcExternal />
-							</Link>
-						) : (
-							<Button
-								mode="icon"
-								disabled
-								title={t('Open in the notes app')}
-								aria-label={t('Open in the notes app')}
-							>
-								<IcExternal />
-							</Button>
-						)}
+				</TableCell>
+				<TableCell label="" align="end">
+					<HBox gap={1} justify="end">
+						{/* An `href` Button, not an onClick: this is a navigation. It
+						    renders a real anchor, so middle-click and "copy link" come
+						    for free, and it keeps the SPA up. With no href it is inert. */}
+						<Button
+							href={href}
+							disabled={!href}
+							aria-label={t('Open in the notes app')}
+							icon={<IcExternal />}
+						/>
 						{options.isRoot && (
 							<Button
-								mode="icon"
 								disabled={disabled}
-								title={t('Change the root document')}
 								aria-label={t('Change the root document')}
 								onClick={onChooseRoot}
-							>
-								<IcPencil />
-							</Button>
+								icon={<IcPencil />}
+							/>
 						)}
 						{/* Every row can be removed, the root included: taking the `/` row
 						    out is how the home page is cleared, and a row nothing can
 						    remove is a row that cannot be fixed. */}
 						<Button
-							mode="icon"
 							disabled={disabled}
-							title={
-								options.isRoot ? t('Stop serving at /') : t('Remove from the site')
-							}
 							aria-label={
 								options.isRoot ? t('Stop serving at /') : t('Remove from the site')
 							}
@@ -532,25 +528,30 @@ export function SiteMountsPanel({
 									? onRemove(docFileId, options.isRoot)
 									: setPending(undefined)
 							}
-						>
-							<IcTrash />
-						</Button>
-					</div>
-				</td>
-			</tr>
+							icon={<IcTrash />}
+						/>
+					</HBox>
+				</TableCell>
+			</TableRow>
 		)
 	}
 
 	return (
-		<div className="c-panel c-site-panel">
-			<div className="c-hbox g-2 align-items-center">
-				<h4 className="flex-fill pb-2">{t('Pages')}</h4>
-				{(!!rows.length || pending) && (
+		<Panel
+			title={t('Pages')}
+			actions={
+				(!!rows.length || pending) && (
 					<Button disabled={!isLeader || !!pending} onClick={onAdd}>
 						{t('Add a document')}
 					</Button>
-				)}
-			</div>
+				)
+			}
+			description={
+				rows.length || pending
+					? t('Changing a path takes effect when that document is next published.')
+					: undefined
+			}
+		>
 			{!rows.length && !pending ? (
 				<EmptyState
 					icon={<IcGlobe size={32} />}
@@ -559,54 +560,38 @@ export function SiteMountsPanel({
 						'A site serves the pages of your documents at your own address.'
 					)}
 					action={
-						<Button variant="primary" disabled={!isLeader} onClick={onChooseRoot}>
+						<Button color="primary" disabled={!isLeader} onClick={onChooseRoot}>
 							{t('Choose the document to serve at /')}
 						</Button>
 					}
 				/>
 			) : (
 				<>
-					<p className="c-hint">
-						{t('Changing a path takes effect when that document is next published.')}
-					</p>
-					<table className="c-table hoverable c-site-table">
-						<thead>
-							<tr>
-								<th>{t('Document')}</th>
-								<th>{t('Path')}</th>
-								<th>{t('Status')}</th>
-								<th aria-label={t('Actions')} />
-							</tr>
-						</thead>
-						<tbody>
-							{rows.map((doc) =>
-								renderRow(doc.docFileId, doc.mountPath, {
-									isRoot: doc.mountPath === '/',
-									doc,
-									status: rowStatus(doc),
-									current: doc.mountPath
-								})
-							)}
-							{pending &&
-								renderRow(pending.docFileId, pending.path, {
-									isRoot: false,
-									status: t('Not part of the site yet — give it a path.'),
-									focus: true
-								})}
-						</tbody>
-					</table>
-					{rootError && (
-						<span
-							className="text-error c-hbox align-items-center g-1 small"
-							role="alert"
-						>
-							<IcAlert className="flex-shrink-0" />
-							{rootError}
-						</span>
-					)}
+					<Table
+						variant="hoverable"
+						stack
+						aria-label={t('Pages')}
+						columns={[t('Document'), t('Path'), t('Status'), t('Actions')]}
+					>
+						{rows.map((doc) =>
+							renderRow(doc.docFileId, doc.mountPath, {
+								isRoot: doc.mountPath === '/',
+								doc,
+								status: rowStatus(doc),
+								current: doc.mountPath
+							})
+						)}
+						{pending &&
+							renderRow(pending.docFileId, pending.path, {
+								isRoot: false,
+								status: t('Not part of the site yet — give it a path.'),
+								focus: true
+							})}
+					</Table>
+					{rootError && <ErrorText>{rootError}</ErrorText>}
 				</>
 			)}
-		</div>
+		</Panel>
 	)
 }
 

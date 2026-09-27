@@ -1,13 +1,15 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button, mergeClasses, Popper } from '@cloudillo/react'
+import { VisibilitySelect, type VisibilityCode } from '@cloudillo/react'
 import type { TFunction } from 'i18next'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { LuGlobe as IcGlobe, LuUserCheck as IcUserCheck, LuUsers as IcUsers } from 'react-icons/lu'
 
 export type Visibility = 'P' | 'C' | 'F'
+
+const FEED_VISIBILITY: VisibilityCode[] = ['F', 'C', 'P']
 
 interface VisibilityOption {
 	value: Visibility
@@ -35,41 +37,19 @@ interface VisibilitySelectorProps {
 	onChange: (value: Visibility) => void
 }
 
+/** Post visibility picker; keeps the feed's F → C → P order. */
 export const VisibilitySelector = React.memo(function VisibilitySelector({
 	value,
 	onChange
 }: VisibilitySelectorProps) {
 	const { t } = useTranslation()
-	const visibilityOptions = React.useMemo(() => getVisibilityOptions(t), [t])
-	const selected = visibilityOptions.find((o) => o.value === value) || visibilityOptions[0]
-	const Icon = selected.icon
-
 	return (
-		<Popper
-			menuClassName="c-button link secondary sm c-hbox g-1 align-items-center"
-			icon={<Icon style={{ color: selected.color }} />}
-			label={selected.label}
+		<VisibilitySelect
+			value={value}
+			onChange={(v) => onChange(v as Visibility)}
+			options={FEED_VISIBILITY}
 			aria-label={t('Visibility')}
-		>
-			<ul className="c-nav vertical emph">
-				{visibilityOptions.map((opt) => {
-					const OptIcon = opt.icon
-					const isActive = value === opt.value
-					return (
-						<li key={opt.value}>
-							<Button
-								kind="nav-item"
-								className={mergeClasses(isActive && 'active')}
-								onClick={() => onChange(opt.value)}
-							>
-								<OptIcon style={{ color: opt.color }} />
-								{opt.label}
-							</Button>
-						</li>
-					)
-				})}
-			</ul>
-		</Popper>
+		/>
 	)
 })
 

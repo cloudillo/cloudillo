@@ -45,7 +45,10 @@ const CTX_API = { api: { search: { queryPaginated: () => searchResponse() } } }
 // and a factory cannot import the specifier it stands in for.
 const { useDebouncedValue } = await import('../../../libs/react/src/components/hooks.js')
 
+// Unmocked primitives (layout, list, text) come from source; the overrides below win.
+const realReact = await import('../../../libs/react/src/index.js')
 jest.unstable_mockModule('@cloudillo/react', () => ({
+	...realReact,
 	Button: ({ children, ...props }: React.ComponentProps<'button'>) => (
 		<button type="button" {...props}>
 			{children}
@@ -150,7 +153,7 @@ describe('the status rows are not results', () => {
 
 		fireEvent.keyDown(input(), { key: 'ArrowDown' })
 
-		expect(document.querySelector('.c-nav-item.selected')).toBeNull()
+		expect(document.querySelector('.c-list-item.selected')).toBeNull()
 		expect(input().getAttribute('aria-activedescendant')).toBeFalsy()
 
 		// With no row highlighted, Enter means "search for what I typed".
@@ -166,7 +169,7 @@ describe('the status rows are not results', () => {
 		await screen.findByText('No results found')
 		fireEvent.keyDown(input(), { key: 'ArrowDown' })
 
-		expect(document.querySelector('.c-nav-item.selected')).toBeNull()
+		expect(document.querySelector('.c-list-item.selected')).toBeNull()
 	})
 })
 
@@ -227,14 +230,14 @@ describe('mode transitions', () => {
 		// Command mode highlights its first row by default…
 		type('/fi')
 		await screen.findByText('Files')
-		expect(document.querySelector('.c-nav-item.selected')).not.toBeNull()
+		expect(document.querySelector('.c-list-item.selected')).not.toBeNull()
 
 		// …and one keystroke replacing the whole value crosses into full-text. Read
 		// from the closure, `mode` would still say 'command' and downshift's default
 		// would keep index 0 highlighted, swallowing Enter.
 		type('files')
 		await screen.findByText('No results found')
-		expect(document.querySelector('.c-nav-item.selected')).toBeNull()
+		expect(document.querySelector('.c-list-item.selected')).toBeNull()
 
 		fireEvent.keyDown(input(), { key: 'Enter' })
 		expect(navigated).toEqual(['/~/search?q=files'])

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
+import { VBox } from '@cloudillo/react'
 import { MasonryPhotoAlbum, RowsPhotoAlbum } from 'react-photo-album'
 import 'react-photo-album/rows.css'
 import 'react-photo-album/masonry.css'
@@ -44,7 +45,7 @@ export function GalleryGrid({ photos, layout, className }: GalleryGridProps) {
 	const PhotoAlbumComponent = layout === 'masonry' ? MasonryPhotoAlbum : RowsPhotoAlbum
 
 	return (
-		<div className={className}>
+		<VBox className={className}>
 			<PhotoAlbumComponent
 				photos={photos}
 				onClick={handleClick}
@@ -59,7 +60,7 @@ export function GalleryGrid({ photos, layout, className }: GalleryGridProps) {
 				close={() => setLbIndex(undefined)}
 				plugins={[Fullscreen, Slideshow, Thumbnails, Zoom]}
 			/>
-		</div>
+		</VBox>
 	)
 }
 

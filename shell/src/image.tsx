@@ -1,25 +1,24 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button, Progress, useApi, useToast } from '@cloudillo/react'
+import {
+	Button,
+	Dialog,
+	HBox,
+	type ImageCropAspect,
+	ImageCropper,
+	type ImageCropRect,
+	Progress,
+	Text,
+	Toggle,
+	useApi,
+	useToast,
+	VBox
+} from '@cloudillo/react'
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuSquareDashed as IcBoxSelect, LuCircleDashed as IcCircleSelect } from 'react-icons/lu'
-import ReactCrop, { type Crop } from 'react-image-crop'
 
-export type Aspect = '4:1' | '3:1' | '2:1' | '16:9' | '3:2' | '4:3' | '1:1' | 'circle' | ''
-const aspectMap = {
-	// Aspect ratio = aspect / 36
-	'4:1': 144,
-	'3:1': 108,
-	'2:1': 72,
-	'16:9': 64,
-	'3:2': 54,
-	'4:3': 48,
-	'1:1': 36,
-	circle: 36,
-	'': undefined
-}
+export type Aspect = ImageCropAspect
 
 export function ImageUpload({
 	src,
@@ -49,9 +48,8 @@ export function ImageUpload({
 	const { t } = useTranslation()
 	const { api } = useApi()
 	const { error: toastError } = useToast()
-	const [aspect, setAspect] = React.useState<Aspect>() // Aspect ratio = aspect / 36
-	const imgRef = React.useRef<HTMLImageElement>(null)
-	const [crop, setCrop] = React.useState<Crop>()
+	const imgRef = React.useRef<HTMLImageElement | null>(null)
+	const cropRef = React.useRef<ImageCropRect | undefined>(undefined)
 	const [serverAllowsXd, setServerAllowsXd] = React.useState(false)
 	const [xd, setXd] = React.useState(false)
 	const [sourceLargeEnough, setSourceLargeEnough] = React.useState(false)
@@ -92,36 +90,9 @@ export function ImageUpload({
 		}
 	}, [isUploading, uploadError, phase])
 
-	function handleImageLoaded(_evt: React.SyntheticEvent<HTMLImageElement>) {
-		const img = imgRef.current
-		if (img) setSourceLargeEnough(Math.max(img.naturalWidth, img.naturalHeight) > 2560)
-		// Use first aspect if available (check length, not value, since '' is valid for free)
-		if (aspects?.length && aspects[0] !== '') changeAspect(aspects[0])
-	}
-
-	function changeCrop(newCrop: Crop, _percCrop: Crop) {
-		//console.log('changeCrop', newCrop, percCrop)
-		setCrop(newCrop)
-	}
-
-	function changeAspect(aspect: Aspect) {
-		const newAspect = aspectMap[aspect]
-		const img = imgRef.current
-		if (!img) return
-		const w = img.naturalWidth,
-			h = img.naturalHeight
-		const zoom = w / img.width
-		if (!newAspect) return setAspect(undefined)
-		const [width, height] =
-			w / h <= newAspect / 36 ? [w, (w / newAspect) * 36] : [(h * newAspect) / 36, h]
-		setCrop({
-			x: (w - width) / 2 / zoom,
-			y: (h - height) / 2 / zoom,
-			width: width / zoom,
-			height: height / zoom,
-			unit: 'px'
-		})
-		setAspect(aspect)
+	function handleImageLoaded(img: HTMLImageElement) {
+		imgRef.current = img
+		setSourceLargeEnough(Math.max(img.naturalWidth, img.naturalHeight) > 2560)
 	}
 
 	async function handleSubmit() {
@@ -134,7 +105,7 @@ export function ImageUpload({
 				return
 			}
 			const zoom = img.naturalWidth / img.width
-			const myCrop = crop ?? { x: 0, y: 0, width: img.width, height: img.height }
+			const myCrop = cropRef.current ?? { x: 0, y: 0, width: img.width, height: img.height }
 
 			const sx = myCrop.x * zoom
 			const sy = myCrop.y * zoom
@@ -224,141 +195,87 @@ export function ImageUpload({
 	}
 
 	const showOverlay = isUploading || !!uploadError || phase === 'encoding'
-	const overlayStyle: React.CSSProperties | undefined = showOverlay ? { opacity: 0.6 } : undefined
-
-	const cropArea = embedded ? (
-		<div className="crop-image-wrapper" inert={showOverlay || undefined} style={overlayStyle}>
-			<ReactCrop
-				crop={crop}
-				onChange={changeCrop}
-				aspect={aspect ? aspectMap[aspect] / 36 : undefined}
-				circularCrop={aspect == 'circle'}
-			>
-				<img ref={imgRef} src={src} onLoad={handleImageLoaded} />
-			</ReactCrop>
-		</div>
-	) : (
-		<div inert={showOverlay || undefined} style={overlayStyle}>
-			<ReactCrop
-				crop={crop}
-				onChange={changeCrop}
-				aspect={aspect ? aspectMap[aspect] / 36 : undefined}
-				circularCrop={aspect == 'circle'}
-			>
-				<img
-					ref={imgRef}
-					src={src}
-					onLoad={handleImageLoaded}
-					style={{ maxWidth: '80vw', maxHeight: '80vh' }}
-				/>
-			</ReactCrop>
-		</div>
-	)
-
-	const encodingToolbar = (
-		<div className="crop-toolbar">
-			<div className="c-hbox g-2 align-items-center flex-fill">
-				<Progress indeterminate className="flex-fill" />
-				<span className="text-sm">{t('Optimizing image...')}</span>
-			</div>
-			<div className="crop-toolbar-actions">
-				<Button onClick={handleCancelEncoding}>{t('Cancel')}</Button>
-			</div>
-		</div>
-	)
-
-	const uploadingToolbar = (
-		<div className="crop-toolbar">
-			<div className="c-hbox g-2 align-items-center flex-fill">
-				{uploadProgress === undefined ? (
-					<Progress indeterminate className="flex-fill" />
-				) : (
-					<Progress value={uploadProgress} className="flex-fill" />
-				)}
-				<span className="text-sm">
-					{t('Uploading...')}
-					{uploadProgress !== undefined ? ` ${uploadProgress}%` : ''}
-				</span>
-			</div>
-			<div className="crop-toolbar-actions">
-				<Button onClick={onAbort}>{t('Cancel')}</Button>
-			</div>
-		</div>
-	)
-
-	const errorToolbar = (
-		<div className="crop-toolbar">
-			<div className="c-hbox g-2 align-items-center flex-fill">
-				<span style={{ color: 'var(--col-error)' }}>{uploadError}</span>
-			</div>
-			<div className="crop-toolbar-actions">
-				<Button onClick={onCancel}>{t('Cancel')}</Button>
-				<Button variant="primary" onClick={handleRetry}>
-					{t('Retry')}
-				</Button>
-			</div>
-		</div>
-	)
-
-	const idleToolbar = (
-		<div className="crop-toolbar">
-			<div className="crop-toolbar-aspects">
-				{aspects?.map((asp) => (
-					<button
-						key={asp}
-						className={`crop-aspect-btn ${aspect === asp ? 'active' : ''}`}
-						onClick={() => changeAspect(asp)}
-						title={asp === 'circle' ? t('Circle') : asp || t('Free')}
-					>
-						{asp == 'circle' ? <IcCircleSelect /> : asp || <IcBoxSelect />}
-					</button>
-				))}
-			</div>
-			<div className="crop-toolbar-actions">
-				{allowXd && serverAllowsXd && sourceLargeEnough && (
-					<label className="c-hbox g-1" style={{ alignItems: 'center' }}>
-						<input
-							type="checkbox"
-							className="c-toggle primary"
-							checked={xd}
-							onChange={(e) => setXd(e.target.checked)}
-						/>
-						{t('XD (4K)')}
-					</label>
-				)}
-				<Button onClick={onCancel}>{t('Cancel')}</Button>
-				<Button variant="primary" onClick={handleSubmit}>
-					{t('Upload')}
-				</Button>
-			</div>
-		</div>
-	)
-
 	const showEncoding = phase !== 'idle' && !isUploading && !uploadError
-	const toolbar = showEncoding
-		? encodingToolbar
-		: isUploading
-			? uploadingToolbar
-			: uploadError
-				? errorToolbar
-				: idleToolbar
 
-	if (embedded) {
+	function progressStatus(label: string, value?: number) {
 		return (
-			<div className="image-upload-embedded">
-				{cropArea}
-				{toolbar}
-			</div>
+			<HBox gap={2} align="center" fill>
+				<VBox fill>
+					{value === undefined ? <Progress indeterminate /> : <Progress value={value} />}
+				</VBox>
+				<Text size="sm">{label}</Text>
+			</HBox>
 		)
 	}
 
+	const [status, actions] = showEncoding
+		? [
+				progressStatus(t('Optimizing image...')),
+				<Button key="cancel" onClick={handleCancelEncoding}>
+					{t('Cancel')}
+				</Button>
+			]
+		: isUploading
+			? [
+					progressStatus(
+						t('Uploading...') +
+							(uploadProgress !== undefined ? ` ${uploadProgress}%` : ''),
+						uploadProgress
+					),
+					<Button key="cancel" onClick={onAbort}>
+						{t('Cancel')}
+					</Button>
+				]
+			: uploadError
+				? [
+						<Text key="error" color="error" role="alert">
+							{uploadError}
+						</Text>,
+						<>
+							<Button onClick={onCancel}>{t('Cancel')}</Button>
+							<Button color="primary" onClick={handleRetry}>
+								{t('Retry')}
+							</Button>
+						</>
+					]
+				: [
+						undefined,
+						<>
+							{allowXd && serverAllowsXd && sourceLargeEnough && (
+								<Toggle
+									color="primary"
+									label={t('XD (4K)')}
+									checked={xd}
+									onChange={(e) => setXd(e.target.checked)}
+								/>
+							)}
+							<Button onClick={onCancel}>{t('Cancel')}</Button>
+							<Button color="primary" onClick={handleSubmit}>
+								{t('Upload')}
+							</Button>
+						</>
+					]
+
+	const cropper = (
+		<ImageCropper
+			src={src}
+			aspects={aspects}
+			onImageLoad={handleImageLoaded}
+			onCropChange={(crop) => {
+				cropRef.current = crop
+			}}
+			disabled={showOverlay}
+			status={status}
+			actions={actions}
+		/>
+	)
+
+	if (embedded) return cropper
+
 	return (
-		<div className="c-modal show">
-			<div className="c-panel g-1">
-				{cropArea}
-				{toolbar}
-			</div>
-		</div>
+		<Dialog open size="lg" title={t('Crop image')} dismissable={false}>
+			{cropper}
+		</Dialog>
 	)
 }
 

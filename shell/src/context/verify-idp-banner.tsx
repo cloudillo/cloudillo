@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import { FetchError } from '@cloudillo/core'
-import { Button } from '@cloudillo/react'
+import { Alert, Button } from '@cloudillo/react'
 import type { TFunction } from 'i18next'
 import { useAtom, useAtomValue } from 'jotai'
 import * as React from 'react'
@@ -170,45 +170,40 @@ export function CommunityVerifyIdpBanner() {
 		resendState === 'expired' || (expiresAt && new Date(expiresAt).getTime() <= Date.now())
 
 	return (
-		<div className="c-panel warning d-flex align-items-center g-3 m-2 p-3" role="alert">
-			<IcWarning className="flex-shrink-0" size={24} />
-			<div className="flex-fill">
-				{expired ? (
-					<>
-						<strong>{t("This community's identity has expired")}</strong>
-						<div className="text-muted small">
-							{t(
-								"It was not activated in time and will not accept new content. Members can still view what's already here."
-							)}
-						</div>
-					</>
-				) : (
-					<>
-						<strong>
-							{expiresAt
-								? t(
-										"This community's identity will be deleted in {{remaining}} if not activated",
-										{ remaining: formatRemaining(t, expiresAt) }
-									)
-								: t("This community's identity has not been activated yet")}
-						</strong>
-						<div className="text-muted small">
-							{t(
-								"An activation email was sent. Until it's confirmed, content posted here may be lost. The deadline doesn't change if you resend."
-							)}
-						</div>
-					</>
-				)}
-			</div>
-			<Button
-				className="primary"
-				onClick={onResend}
-				disabled={Boolean(expired) || resendState !== 'idle'}
-			>
-				{resendState === 'sending' && <IcLoading className="animate-rotate-cw me-2" />}
-				{resendState === 'cooldown' ? t('Email sent') : t('Resend activation')}
-			</Button>
-		</div>
+		<Alert
+			color="warning"
+			role="alert"
+			className="m-2"
+			icon={<IcWarning size={24} />}
+			title={
+				expired
+					? t("This community's identity has expired")
+					: expiresAt
+						? t(
+								"This community's identity will be deleted in {{remaining}} if not activated",
+								{ remaining: formatRemaining(t, expiresAt) }
+							)
+						: t("This community's identity has not been activated yet")
+			}
+			actions={
+				<Button
+					color="primary"
+					onClick={onResend}
+					disabled={Boolean(expired) || resendState !== 'idle'}
+				>
+					{resendState === 'sending' && <IcLoading className="animate-rotate-cw me-2" />}
+					{resendState === 'cooldown' ? t('Email sent') : t('Resend activation')}
+				</Button>
+			}
+		>
+			{expired
+				? t(
+						"It was not activated in time and will not accept new content. Members can still view what's already here."
+					)
+				: t(
+						"An activation email was sent. Until it's confirmed, content posted here may be lost. The deadline doesn't change if you resend."
+					)}
+		</Alert>
 	)
 }
 

@@ -2,18 +2,16 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import type { FileView } from '@cloudillo/core'
-import { Button, LoadingSpinner, mergeClasses, useAuth } from '@cloudillo/react'
+import { Button, EmptyState, ImmersiveOverlay, LoadingSpinner, useAuth } from '@cloudillo/react'
 import { useSetAtom } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuArrowLeft as IcBack, LuFileWarning as IcError } from 'react-icons/lu'
+import { LuFileWarning as IcError } from 'react-icons/lu'
 import { useNavigate, useParams } from 'react-router-dom'
 
 import { useApiContext, useCtx } from '../../context/index.js'
 import { documentTitleAtom } from '../../title.js'
 import { MediaViewer } from './MediaViewer.js'
-
-import './viewer.css'
 
 type ViewerState =
 	| { status: 'loading' }
@@ -115,32 +113,25 @@ export function FileViewerApp() {
 	// Render loading state
 	if (state.status === 'loading') {
 		return (
-			<div className="c-file-viewer">
-				<div className="c-file-viewer-content">
-					<LoadingSpinner size="lg" label={t('Loading...')} />
-				</div>
-			</div>
+			<ImmersiveOverlay open onClose={handleBack} aria-label={t('Loading...')}>
+				<LoadingSpinner size="lg" inverse label={t('Loading...')} />
+			</ImmersiveOverlay>
 		)
 	}
 
 	// Render error state
 	if (state.status === 'error') {
 		return (
-			<div className="c-file-viewer">
-				<div className={mergeClasses('c-file-viewer-toolbar')}>
-					<Button mode="icon" onClick={handleBack} title={t('Back')}>
-						<IcBack />
-					</Button>
-				</div>
-				<div className="c-file-viewer-content">
-					<div className="c-file-viewer-error">
-						<IcError className="c-file-viewer-error-icon" />
-						<h2>{t('Error')}</h2>
-						<p>{state.message}</p>
-						<Button onClick={handleBack}>{t('Go back')}</Button>
-					</div>
-				</div>
-			</div>
+			<ImmersiveOverlay open onClose={handleBack} aria-label={t('Error')}>
+				<EmptyState
+					inverse
+					color="error"
+					icon={<IcError />}
+					title={t('Error')}
+					description={state.message}
+					actions={<Button onClick={handleBack}>{t('Go back')}</Button>}
+				/>
+			</ImmersiveOverlay>
 		)
 	}
 

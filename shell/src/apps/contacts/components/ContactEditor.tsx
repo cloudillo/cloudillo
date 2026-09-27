@@ -8,15 +8,22 @@ import type {
 	ContactOutput,
 	TypedValue
 } from '@cloudillo/core'
-import { Button, Modal } from '@cloudillo/react'
+import {
+	ActionBar,
+	Alert,
+	Button,
+	Dialog,
+	Field,
+	Fieldset,
+	HBox,
+	Input,
+	NativeSelect,
+	TextArea,
+	VBox
+} from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuPlus as IcAdd,
-	LuX as IcClose,
-	LuTrash as IcDelete,
-	LuLink as IcLinked
-} from 'react-icons/lu'
+import { LuPlus as IcAdd, LuTrash as IcDelete, LuLink as IcLinked } from 'react-icons/lu'
 
 export interface ContactEditorProps {
 	open: boolean
@@ -75,65 +82,68 @@ function TypedValueRows({
 		setValues((prev) => [...prev, { value: '', type: [defaultType], uiKey: nextUiKey() }])
 	}
 	return (
-		<div className="mb-3">
-			<div className="d-flex align-items-center mb-1">
-				<label className="c-contact-field-label flex-fill mb-0">{fieldLabel}</label>
-				<button
-					type="button"
-					className="c-link"
-					onClick={handleAdd}
-					aria-label={labels.add}
-				>
-					<IcAdd />
-				</button>
-			</div>
-			{values.map((v, idx) => (
-				<div key={v.uiKey} className="c-typed-row">
-					<select
-						className="c-input"
-						value={v.type?.[0] ?? ''}
-						aria-label={labels.typeSelect}
-						onChange={(ev) =>
-							setValues((prev) => {
-								const next = [...prev]
-								next[idx] = {
-									...prev[idx],
-									type: ev.target.value ? [ev.target.value] : []
-								}
-								return next
-							})
-						}
-					>
-						{typeOptions.map((type) => (
-							<option key={type} value={type}>
-								{type}
-							</option>
-						))}
-					</select>
-					<input
-						className="c-input"
-						type={inputType}
-						placeholder={inputPlaceholder}
-						value={v.value}
-						onChange={(ev) =>
-							setValues((prev) => {
-								const next = [...prev]
-								next[idx] = { ...prev[idx], value: ev.target.value }
-								return next
-							})
-						}
-					/>
-					<button
+		<Fieldset legend={fieldLabel}>
+			<VBox gap={1}>
+				{values.map((v, idx) => (
+					<HBox key={v.uiKey} gap={1} align="center">
+						<NativeSelect
+							className="w-sm"
+							value={v.type?.[0] ?? ''}
+							aria-label={labels.typeSelect}
+							onChange={(ev) =>
+								setValues((prev) => {
+									const next = [...prev]
+									next[idx] = {
+										...prev[idx],
+										type: ev.target.value ? [ev.target.value] : []
+									}
+									return next
+								})
+							}
+						>
+							{typeOptions.map((type) => (
+								<option key={type} value={type}>
+									{type}
+								</option>
+							))}
+						</NativeSelect>
+						<Input
+							className="flex-fill"
+							type={inputType}
+							placeholder={inputPlaceholder}
+							value={v.value}
+							onChange={(ev) =>
+								setValues((prev) => {
+									const next = [...prev]
+									next[idx] = { ...prev[idx], value: ev.target.value }
+									return next
+								})
+							}
+						/>
+						<Button
+							type="button"
+							variant="ghost"
+							size="sm"
+							color="error"
+							aria-label={labels.remove}
+							onClick={() => setValues((prev) => prev.filter((_, i) => i !== idx))}
+							icon={<IcDelete />}
+						/>
+					</HBox>
+				))}
+				<HBox>
+					<Button
 						type="button"
-						className="c-link text-error c-typed-row__remove"
-						aria-label={labels.remove}
-						onClick={() => setValues((prev) => prev.filter((_, i) => i !== idx))}
+						variant="ghost"
+						size="sm"
+						onClick={handleAdd}
+						icon={<IcAdd />}
 					>
-						<IcDelete />
-					</button>
-				</div>
-			))}
-		</div>
+						{labels.add}
+					</Button>
+				</HBox>
+			</VBox>
+		</Fieldset>
 	)
 }
 
@@ -244,39 +254,33 @@ export function ContactEditor({
 	const isEdit = !!contact
 
 	return (
-		<Modal open={open} onClose={onClose}>
-			<form
-				className="c-dialog c-panel emph p-4"
-				style={{ maxWidth: '640px', width: '100%', maxHeight: '90vh', overflowY: 'auto' }}
-				onSubmit={handleSave}
-			>
-				<div className="d-flex align-items-center justify-content-between mb-3">
-					<h3 className="m-0">{isEdit ? t('Edit contact') : t('New contact')}</h3>
-					<button
-						type="button"
-						className="c-link"
-						onClick={onClose}
-						aria-label={t('Close')}
-					>
-						<IcClose />
-					</button>
-				</div>
-
+		<Dialog
+			open={open}
+			onClose={onClose}
+			title={isEdit ? t('Edit contact') : t('New contact')}
+			size="md"
+			onSubmit={handleSave}
+			footer={
+				<ActionBar>
+					<Button type="button" onClick={onClose}>
+						{t('Cancel')}
+					</Button>
+					<Button type="submit" color="primary" loading={submitting}>
+						{isEdit ? t('Save') : t('Create')}
+					</Button>
+				</ActionBar>
+			}
+		>
+			<VBox gap={3}>
 				{error && (
-					<div
-						className="c-panel bg-container-error p-2 mb-3"
-						role="alert"
-						aria-live="polite"
-					>
-						<span className="text-error">{error}</span>
-					</div>
+					<Alert color="error" compact>
+						{error}
+					</Alert>
 				)}
 
 				{!isEdit && (
-					<div className="mb-3">
-						<label className="c-contact-field-label">{t('Address book')}</label>
-						<select
-							className="c-input"
+					<Field label={t('Address book')}>
+						<NativeSelect
 							value={abId ?? ''}
 							onChange={(e) => setAbId(Number(e.target.value))}
 						>
@@ -285,33 +289,36 @@ export function ContactEditor({
 									{book.name}
 								</option>
 							))}
-						</select>
-					</div>
+						</NativeSelect>
+					</Field>
 				)}
 
-				<div className="mb-3">
-					<label className="c-contact-field-label">{t('Name')}</label>
-					<div className="d-flex g-2">
-						<input
-							className="c-input"
-							placeholder={t('Given')}
-							value={n.given ?? ''}
-							onChange={(e) => setN({ ...n, given: e.target.value })}
+				<Fieldset legend={t('Name')}>
+					<VBox gap={2}>
+						<HBox gap={2}>
+							<Input
+								className="flex-fill"
+								placeholder={t('Given')}
+								aria-label={t('Given')}
+								value={n.given ?? ''}
+								onChange={(e) => setN({ ...n, given: e.target.value })}
+							/>
+							<Input
+								className="flex-fill"
+								placeholder={t('Family')}
+								aria-label={t('Family')}
+								value={n.family ?? ''}
+								onChange={(e) => setN({ ...n, family: e.target.value })}
+							/>
+						</HBox>
+						<Input
+							placeholder={t('Display name (auto-derived if empty)')}
+							aria-label={t('Display name (auto-derived if empty)')}
+							value={fn}
+							onChange={(e) => setFn(e.target.value)}
 						/>
-						<input
-							className="c-input"
-							placeholder={t('Family')}
-							value={n.family ?? ''}
-							onChange={(e) => setN({ ...n, family: e.target.value })}
-						/>
-					</div>
-					<input
-						className="c-input mt-2"
-						placeholder={t('Display name (auto-derived if empty)')}
-						value={fn}
-						onChange={(e) => setFn(e.target.value)}
-					/>
-				</div>
+					</VBox>
+				</Fieldset>
 
 				<TypedValueRows
 					fieldLabel={t('Email')}
@@ -345,74 +352,43 @@ export function ContactEditor({
 					}}
 				/>
 
-				<div className="d-flex g-2 mb-3">
-					<div className="flex-fill">
-						<label className="c-contact-field-label">{t('Organization')}</label>
-						<input
-							className="c-input"
-							value={org}
-							onChange={(e) => setOrg(e.target.value)}
-						/>
-					</div>
-					<div className="flex-fill">
-						<label className="c-contact-field-label">{t('Title')}</label>
-						<input
-							className="c-input"
-							value={title}
-							onChange={(e) => setTitle(e.target.value)}
-						/>
-					</div>
-				</div>
+				<HBox gap={2} wrap>
+					<Field label={t('Organization')} className="flex-fill">
+						<Input value={org} onChange={(e) => setOrg(e.target.value)} />
+					</Field>
+					<Field label={t('Title')} className="flex-fill">
+						<Input value={title} onChange={(e) => setTitle(e.target.value)} />
+					</Field>
+				</HBox>
 
-				<div className="mb-3">
-					<label className="c-contact-field-label">{t('Photo URL')}</label>
-					<input
-						className="c-input"
+				<Field label={t('Photo URL')}>
+					<Input
 						type="url"
 						placeholder="https://..."
 						value={photo}
 						onChange={(e) => setPhoto(e.target.value)}
 					/>
-				</div>
+				</Field>
 
-				<div className="mb-3">
-					<label className="c-contact-field-label d-flex align-items-center g-1">
-						<IcLinked />
-						{t('Linked Cloudillo profile (idTag)')}
-					</label>
-					<input
-						className="c-input"
+				<Field
+					label={t('Linked Cloudillo profile (idTag)')}
+					hint={t(
+						'Links this contact to a Cloudillo profile so name and photo stay live.'
+					)}
+				>
+					<Input
+						leading={<IcLinked />}
 						placeholder="alice.example.com"
 						value={profileIdTag}
 						onChange={(e) => setProfileIdTag(e.target.value)}
 					/>
-					<div className="c-contact-field-hint">
-						{t(
-							'Links this contact to a Cloudillo profile so name and photo stay live.'
-						)}
-					</div>
-				</div>
+				</Field>
 
-				<div className="mb-3">
-					<label className="c-contact-field-label">{t('Notes')}</label>
-					<textarea
-						className="c-input"
-						rows={3}
-						value={note}
-						onChange={(e) => setNote(e.target.value)}
-					/>
-				</div>
-
-				<div className="d-flex justify-content-end g-2">
-					<Button type="button" onClick={onClose}>
-						{t('Cancel')}
-					</Button>
-					<Button type="submit" variant="primary" disabled={submitting}>
-						{submitting ? t('Saving...') : isEdit ? t('Save') : t('Create')}
-					</Button>
-				</div>
-			</form>
-		</Modal>
+				<Field label={t('Notes')}>
+					<TextArea rows={3} value={note} onChange={(e) => setNote(e.target.value)} />
+				</Field>
+			</VBox>
+		</Dialog>
 	)
 }
 

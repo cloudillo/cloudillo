@@ -10,7 +10,7 @@
  * `404.part.html` covers the cold load; a client-side miss lands here.
  */
 
-import { EmptyState } from '@cloudillo/react'
+import { Button, EmptyState } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { LuMapPinOff as IcNotFound } from 'react-icons/lu'
@@ -19,20 +19,20 @@ export function SiteNotFound() {
 	const { t } = useTranslation()
 
 	return (
-		<div className="c-panel flex-fill d-flex align-items-center justify-content-center">
-			<EmptyState
-				icon={<IcNotFound size="4rem" className="text-muted" />}
-				title={t('Page not found')}
-				description={t('This address is not part of this site.')}
-				action={
-					// A plain anchor: the site root is the one path the runtime cannot
-					// resolve client-side, so this is a real navigation by design.
-					<a href="/" className="c-button accent">
-						{t('Go to the start page')}
-					</a>
-				}
-			/>
-		</div>
+		<EmptyState
+			fill
+			icon={<IcNotFound size="4rem" className="text-muted" />}
+			title={t('Page not found')}
+			description={t('This address is not part of this site.')}
+			action={
+				// An absolute URL, so `Button` renders a plain anchor rather than a
+				// router link: the site root is the one path the runtime cannot
+				// resolve client-side, so this is a real navigation by design.
+				<Button href={`${window.location.origin}/`} color="accent">
+					{t('Go to the start page')}
+				</Button>
+			}
+		/>
 	)
 }
 

@@ -32,7 +32,10 @@ jest.unstable_mockModule('react-i18next', () => ({
 
 // The component library, not what is under test: the bar's provenance half pulls in
 // a profile picture and an identity tag, both of which want the shell's API context.
+// Unmocked primitives (layout, list, text) come from source; the overrides below win.
+const realReact = await import('../../../libs/react/src/index.js')
 jest.unstable_mockModule('@cloudillo/react', () => ({
+	...realReact,
 	useAuth: () => [undefined, () => {}],
 	ProfilePicture: () => null,
 	IdentityTag: ({ idTag }: { idTag: string }) => <span>{idTag}</span>,

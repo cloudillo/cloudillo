@@ -1,12 +1,11 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Avatar, Badge, mergeClasses, ProfileCard } from '@cloudillo/react'
+import { Avatar, Badge, BadgeAnchor, HBox, Icon, ListItem, ProfileCard } from '@cloudillo/react'
 import { useAtomValue } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { LuUsers as IcGroup } from 'react-icons/lu'
-import { Link } from 'react-router-dom'
 
 import { useCtx } from '../../../context/index.js'
 import { unreadCountAtom } from '../../../read-position.js'
@@ -15,93 +14,80 @@ import type { Conversation } from '../types.js'
 import { GroupAvatar } from './GroupAvatar.js'
 
 function ConversationCardComponent({
-	className,
-	conversation
+	conversation,
+	selected
 }: {
-	className?: string
 	conversation: Conversation
+	selected?: boolean
 }) {
 	const { t } = useTranslation()
 	const urlContext = useCtx().base
 	const unreadCounts = useAtomValue(unreadCountAtom)
 	const unread = unreadCounts[`msg:${conversation.id}`] || 0
+	const href = messagesPath(urlContext, conversation.id)
 
-	const isGroup = conversation.type === 'group'
-	const profile = conversation.profiles[0] || {}
-
-	return (
-		<Link
-			className={mergeClasses('c-nav-item c-hbox g-2 align-items-center', className)}
-			to={messagesPath(urlContext, conversation.id)}
-		>
-			{isGroup ? (
-				<>
-					<div className="pos-relative">
+	if (conversation.type === 'group') {
+		return (
+			<ListItem
+				href={href}
+				selected={selected}
+				leading={
+					// Group unread is dot-only (0/1 from lastCommentAt vs commentsReadAt);
+					// no misleading numeric badge.
+					<BadgeAnchor
+						badge={
+							unread > 0 && (
+								<Badge
+									dot
+									color="accent"
+									role="status"
+									aria-label={t('Unread messages')}
+								/>
+							)
+						}
+					>
 						{conversation.profiles.length > 1 ? (
 							<GroupAvatar profiles={conversation.profiles} max={3} />
 						) : (
-							<Avatar size="md">
-								<span className="c-avatar-fallback">
-									<IcGroup />
-								</span>
-							</Avatar>
+							<Avatar size="md" fallback={<Icon as={IcGroup} />} />
 						)}
-						{unread > 0 && (
-							<span
-								className="c-badge dot accent positioned tr"
-								role="status"
-								aria-label={t('Unread messages')}
-							/>
-						)}
-					</div>
-					<div className="c-vbox fill overflow-hidden">
-						<span className="c-hbox align-items-center g-1 overflow-hidden">
-							<span className="font-medium text-truncate">
-								{conversation.name || t('Unnamed Group')}
-							</span>
-							{conversation.left && (
-								<Badge className="flex-shrink-0">{t('Left')}</Badge>
-							)}
-						</span>
-						<span className="text-muted text-small text-truncate">
-							{conversation.lastMessage?.content ||
-								(conversation.memberCount
-									? t('{{count}} members', { count: conversation.memberCount })
-									: t('Group'))}
-						</span>
-					</div>
-					{/* Group unread is dot-only (0/1 from lastCommentAt vs commentsReadAt),
-					    shown as the avatar dot above; no misleading numeric badge. */}
-				</>
-			) : (
-				<>
-					<div className="c-vbox fill overflow-hidden">
-						<span className="c-hbox align-items-center g-1 overflow-hidden">
-							<div className="fill overflow-hidden">
-								<ProfileCard profile={profile} />
-							</div>
-							{conversation.connected !== true && (
-								<Badge className="flex-shrink-0">{t('Not connected')}</Badge>
-							)}
-						</span>
-						{conversation.lastMessage?.content && (
-							<span className="text-muted text-small text-truncate">
-								{conversation.lastMessage.content}
-							</span>
-						)}
-					</div>
-					{unread > 0 && (
-						<span
-							className="c-badge accent ms-auto"
-							role="status"
-							aria-label={t('Unread messages')}
-						>
-							{unread}
-						</span>
-					)}
-				</>
-			)}
-		</Link>
+					</BadgeAnchor>
+				}
+				title={
+					<HBox gap={1} align="center">
+						{conversation.name || t('Unnamed Group')}
+						{conversation.left && <Badge>{t('Left')}</Badge>}
+					</HBox>
+				}
+				subtitle={
+					conversation.lastMessage?.content ||
+					(conversation.memberCount
+						? t('{{count}} members', { count: conversation.memberCount })
+						: t('Group'))
+				}
+			/>
+		)
+	}
+
+	return (
+		<ListItem
+			href={href}
+			selected={selected}
+			title={
+				<HBox gap={1} align="center">
+					<ProfileCard profile={conversation.profiles[0] || {}} className="flex-fill" />
+					{conversation.connected !== true && <Badge>{t('Not connected')}</Badge>}
+				</HBox>
+			}
+			subtitle={conversation.lastMessage?.content}
+			trailing={
+				unread > 0 && (
+					<Badge color="accent" role="status" aria-label={t('Unread messages')}>
+						{unread}
+					</Badge>
+				)
+			}
+		/>
 	)
 }
 

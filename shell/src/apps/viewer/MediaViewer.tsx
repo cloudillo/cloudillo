@@ -6,7 +6,15 @@ import { useTranslation } from 'react-i18next'
 import Lightbox from 'yet-another-react-lightbox'
 import 'yet-another-react-lightbox/styles.css'
 import { type FileView, getFileUrl } from '@cloudillo/core'
-import { Button, mergeClasses } from '@cloudillo/react'
+import {
+	Button,
+	EmptyState,
+	ImmersiveOverlay,
+	Text,
+	Toolbar,
+	ToolbarDivider,
+	VideoPlayer
+} from '@cloudillo/react'
 import {
 	LuArrowLeft as IcBack,
 	LuDownload as IcDownload,
@@ -16,8 +24,6 @@ import Fullscreen from 'yet-another-react-lightbox/plugins/fullscreen'
 import Zoom from 'yet-another-react-lightbox/plugins/zoom'
 
 import { PdfViewer } from './PdfViewer.js'
-
-import './viewer.css'
 
 /** Trigger a browser download for a URL. */
 export function triggerDownload(url: string, fileName: string) {
@@ -107,57 +113,7 @@ export function MediaViewer({ file, idTag, token, onBack, onDownload }: MediaVie
 	const isVideo = contentType.startsWith('video/')
 	const isPdf = contentType === 'application/pdf'
 
-	const [toolbarVisible, setToolbarVisible] = React.useState(true)
-	const hideTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
 	const videoRef = React.useRef<HTMLVideoElement>(null)
-
-	// Keep the latest onBack without re-running setupAutoHide on every render.
-	const onBackRef = React.useRef(onBack)
-	React.useEffect(() => {
-		onBackRef.current = onBack
-	}, [onBack])
-
-	// Auto-hide toolbar after inactivity
-	const resetToolbarTimeout = React.useCallback(function resetToolbarTimeout() {
-		setToolbarVisible(true)
-		if (hideTimeoutRef.current) {
-			clearTimeout(hideTimeoutRef.current)
-		}
-		hideTimeoutRef.current = setTimeout(() => {
-			setToolbarVisible(false)
-		}, 3000)
-	}, [])
-
-	React.useEffect(
-		function setupAutoHide() {
-			// Images render in <Lightbox>, which owns its own chrome and Escape
-			// handling — no auto-hide timers or listeners needed (toolbarVisible
-			// is unused for that branch).
-			if (isImage) return
-
-			resetToolbarTimeout()
-
-			const handleMouseMove = () => resetToolbarTimeout()
-			const handleKeyDown = (evt: KeyboardEvent) => {
-				resetToolbarTimeout()
-				if (evt.key === 'Escape') {
-					onBackRef.current()
-				}
-			}
-
-			document.addEventListener('mousemove', handleMouseMove)
-			document.addEventListener('keydown', handleKeyDown)
-
-			return () => {
-				if (hideTimeoutRef.current) {
-					clearTimeout(hideTimeoutRef.current)
-				}
-				document.removeEventListener('mousemove', handleMouseMove)
-				document.removeEventListener('keydown', handleKeyDown)
-			}
-		},
-		[resetToolbarTimeout, isImage]
-	)
 
 	const handleDownload = React.useCallback(
 		function handleDownload() {
@@ -205,12 +161,13 @@ export function MediaViewer({ file, idTag, token, onBack, onDownload }: MediaVie
 				controller={{ closeOnBackdropClick: true }}
 				toolbar={{
 					buttons: [
+						// biome-ignore lint/plugin/no-raw-intrinsic: ds-allow: third-party yet-another-react-lightbox
 						<button
 							key="download"
 							type="button"
 							className="yarl__button"
 							onClick={handleDownload}
-							title={t('Download')}
+							aria-label={t('Download')}
 						>
 							<IcDownload size={24} />
 						</button>,
@@ -221,38 +178,47 @@ export function MediaViewer({ file, idTag, token, onBack, onDownload }: MediaVie
 		)
 	}
 
+	const backButton = <Button onClick={onBack} icon={<IcBack />} aria-label={t('Back')} />
+	const fileNameText = (
+		<Text size="sm" weight="medium" truncate className="flex-fill">
+			{file.fileName}
+		</Text>
+	)
+
 	// Render video viewer
 	if (isVideo && url) {
 		return (
-			<div className="c-file-viewer">
-				<div className={mergeClasses('c-file-viewer-toolbar', !toolbarVisible && 'hidden')}>
-					<Button mode="icon" onClick={onBack} title={t('Back')}>
-						<IcBack />
-					</Button>
-					<span className="c-file-viewer-toolbar-filename">{file.fileName}</span>
-					<div className="c-file-viewer-toolbar-divider" />
-					<Button mode="icon" onClick={handleDownload} title={t('Download')}>
-						<IcDownload />
-					</Button>
-					<Button mode="icon" onClick={handleVideoFullscreen} title={t('Fullscreen')}>
-						<IcFullscreen />
-					</Button>
-				</div>
-				<div className="c-file-viewer-content">
-					<div className="c-file-viewer-video-container">
-						<video
-							ref={videoRef}
-							className="c-file-viewer-video"
-							controls
-							autoPlay
-							poster={posterUrl}
-						>
-							<source src={url} />
-							{t('Your browser does not support video playback')}
-						</video>
-					</div>
-				</div>
-			</div>
+			<ImmersiveOverlay
+				open
+				onClose={onBack}
+				aria-label={file.fileName}
+				controls={
+					<Toolbar floating autoHide>
+						{backButton}
+						{fileNameText}
+						<ToolbarDivider />
+						<Button
+							onClick={handleDownload}
+							icon={<IcDownload />}
+							aria-label={t('Download')}
+						/>
+						<Button
+							onClick={handleVideoFullscreen}
+							icon={<IcFullscreen />}
+							aria-label={t('Fullscreen')}
+						/>
+					</Toolbar>
+				}
+			>
+				<VideoPlayer
+					ref={videoRef}
+					inverse
+					autoPlay
+					src={url}
+					poster={posterUrl}
+					style={{ maxHeight: '100%' }}
+				/>
+			</ImmersiveOverlay>
 		)
 	}
 
@@ -264,37 +230,38 @@ export function MediaViewer({ file, idTag, token, onBack, onDownload }: MediaVie
 				fileName={file.fileName}
 				onBack={onBack}
 				onDownload={handleDownload}
-				toolbarVisible={toolbarVisible}
 			/>
 		)
 	}
 
 	// Unsupported file type - offer download
 	return (
-		<div className="c-file-viewer">
-			<div className={mergeClasses('c-file-viewer-toolbar', !toolbarVisible && 'hidden')}>
-				<Button mode="icon" onClick={onBack} title={t('Back')}>
-					<IcBack />
-				</Button>
-				<span className="c-file-viewer-toolbar-filename">{file.fileName}</span>
-			</div>
-			<div className="c-file-viewer-content">
-				<div className="c-file-viewer-error">
-					<h2>{file.fileName}</h2>
-					{/* No URL is not an unsupported type: `getFileUrl` refused the id, so
-					    the download below cannot work either. Say that instead. */}
-					<p className="text-secondary">
-						{url ? contentType : t('This file cannot be opened')}
-					</p>
-					{url && (
-						<Button variant="primary" onClick={handleDownload}>
-							<IcDownload />
+		<ImmersiveOverlay
+			open
+			onClose={onBack}
+			aria-label={file.fileName}
+			controls={
+				<Toolbar floating>
+					{backButton}
+					{fileNameText}
+				</Toolbar>
+			}
+		>
+			{/* No URL is not an unsupported type: `getFileUrl` refused the id, so
+			    the download below cannot work either. Say that instead. */}
+			<EmptyState
+				inverse
+				title={file.fileName}
+				description={url ? contentType : t('This file cannot be opened')}
+				actions={
+					url && (
+						<Button color="primary" onClick={handleDownload} icon={<IcDownload />}>
 							{t('Download')}
 						</Button>
-					)}
-				</div>
-			</div>
-		</div>
+					)
+				}
+			/>
+		</ImmersiveOverlay>
 	)
 }
 

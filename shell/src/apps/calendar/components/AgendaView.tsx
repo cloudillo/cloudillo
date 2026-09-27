@@ -2,7 +2,17 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import type { CalendarOutput } from '@cloudillo/core'
-import { LoadingSpinner, mergeClasses } from '@cloudillo/react'
+import {
+	ColorDot,
+	Heading,
+	IconText,
+	List,
+	ListItem,
+	LoadingSpinner,
+	Panel,
+	Text,
+	VBox
+} from '@cloudillo/react'
 import dayjs from 'dayjs'
 import { useAtom } from 'jotai'
 import * as React from 'react'
@@ -35,18 +45,14 @@ export function AgendaView({ occurrences, isLoading }: AgendaViewProps) {
 	}, [occurrences])
 
 	if (isLoading && occurrences.length === 0) {
-		return (
-			<div className="c-cal-agenda d-flex align-items-center justify-content-center p-4">
-				<LoadingSpinner />
-			</div>
-		)
+		return <LoadingSpinner fill className="auto-bg" />
 	}
 
 	if (groups.length === 0) {
 		return (
-			<div className="c-cal-agenda p-4 text-center c-hint">
+			<Text as="p" emphasis="muted" align="center" className="auto-bg p-4">
 				{t('No events in this range')}
-			</div>
+			</Text>
 		)
 	}
 
@@ -58,20 +64,42 @@ export function AgendaView({ occurrences, isLoading }: AgendaViewProps) {
 	})
 
 	return (
-		<div className="c-cal-agenda p-2 flex-fill" style={{ overflowY: 'auto', minHeight: 0 }}>
-			{groups.map(([day, items]) => (
-				<div key={day} className="mb-3">
-					<div className="c-cal-detail-label px-2 pb-1">
-						{fmtDay.format(dayjs(day).toDate())}
-					</div>
-					<div className="c-vbox g-1">
-						{items.map((occ) => {
-							const isActive = selected?.uid === occ.uid
-							return (
-								<button
+		<Panel padding={2} className="flex-fill h-min-0 overflow-y-auto">
+			<VBox gap={3}>
+				{groups.map(([day, items]) => (
+					<VBox key={day} gap={1}>
+						<Heading level={2} size="xs" overline className="px-2">
+							{fmtDay.format(dayjs(day).toDate())}
+						</Heading>
+						<List>
+							{items.map((occ) => (
+								<ListItem
 									key={occ.id}
-									type="button"
-									className={mergeClasses('c-cal-task-row', isActive && 'active')}
+									selected={selected?.uid === occ.uid}
+									leading={<ColorDot color={occ.color || 'var(--col-primary)'} />}
+									title={
+										<>
+											{occ.title}
+											{occ.recurring && (
+												<IcRecur
+													className="ms-1"
+													aria-label={t('Recurring')}
+												/>
+											)}
+										</>
+									}
+									subtitle={
+										<>
+											{occ.allDay
+												? t('All day')
+												: `${fmtTime.format(dayjs(occ.start).toDate())} – ${fmtTime.format(dayjs(occ.end).toDate())}`}
+											{occ.location && (
+												<IconText className="ms-2" icon={<IcPin />}>
+													{occ.location}
+												</IconText>
+											)}
+										</>
+									}
 									onClick={() =>
 										setSelected({
 											calId: occ.calId,
@@ -81,43 +109,13 @@ export function AgendaView({ occurrences, isLoading }: AgendaViewProps) {
 												: undefined
 										})
 									}
-								>
-									<span
-										className="c-cal-item__swatch"
-										style={{ background: occ.color, marginTop: '0.25rem' }}
-										aria-hidden="true"
-									/>
-									<div className="flex-fill">
-										<div className="c-cal-task-row__title">
-											{occ.title}
-											{occ.recurring && (
-												<IcRecur
-													className="ms-1"
-													title={t('Recurring')}
-													style={{ opacity: 0.6 }}
-												/>
-											)}
-										</div>
-										<div className="c-cal-task-row__meta">
-											<span>
-												{occ.allDay
-													? t('All day')
-													: `${fmtTime.format(dayjs(occ.start).toDate())} – ${fmtTime.format(dayjs(occ.end).toDate())}`}
-											</span>
-											{occ.location && (
-												<span>
-													<IcPin /> {occ.location}
-												</span>
-											)}
-										</div>
-									</div>
-								</button>
-							)
-						})}
-					</div>
-				</div>
-			))}
-		</div>
+								/>
+							))}
+						</List>
+					</VBox>
+				))}
+			</VBox>
+		</Panel>
 	)
 }
 

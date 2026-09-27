@@ -1,11 +1,20 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button, Modal, ProfileMultiSelect, useApi, useToast } from '@cloudillo/react'
+import {
+	ActionBar,
+	Button,
+	Dialog,
+	Field,
+	ProfileMultiSelect,
+	TextArea,
+	useApi,
+	useToast,
+	VBox
+} from '@cloudillo/react'
 import type { Profile } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuX as IcClose } from 'react-icons/lu'
 
 interface InviteMembersDialogProps {
 	open: boolean
@@ -94,49 +103,42 @@ export function InviteMembersDialog({
 	}
 
 	return (
-		<Modal open={open} onClose={onClose} className="p-0">
-			<div className="c-dialog c-panel emph p-4" style={{ maxWidth: '480px', width: '90vw' }}>
-				<div className="c-hbox align-items-center mb-3">
-					<h2 className="flex-fill m-0">{t('Invite members')}</h2>
-					<Button kind="link" onClick={onClose}>
-						<IcClose />
-					</Button>
-				</div>
-
-				<div className="c-vbox g-3">
-					<ProfileMultiSelect
-						emptyText={t('Search for connections to invite')}
-						listProfiles={listProfiles}
-						value={selected}
-						onAdd={(p) => setSelected((prev) => [...prev, p])}
-						onRemove={(p) =>
-							setSelected((prev) => prev.filter((m) => m.idTag !== p.idTag))
-						}
-					/>
-
-					<div className="c-vbox g-1">
-						<label className="font-medium">{t('Optional message')}</label>
-						<textarea
-							className="c-input"
-							rows={3}
-							value={message}
-							onChange={(e) => setMessage(e.target.value)}
-						/>
-					</div>
-				</div>
-
-				<div className="c-hbox justify-content-end g-2 mt-4">
+		<Dialog
+			open={open}
+			onClose={onClose}
+			size="sm"
+			title={t('Invite members')}
+			footer={
+				<ActionBar>
 					<Button onClick={onClose}>{t('Cancel')}</Button>
 					<Button
-						variant="primary"
+						color="primary"
 						disabled={selected.length === 0 || submitting}
 						onClick={handleSubmit}
 					>
 						{t('Send invite')}
 					</Button>
-				</div>
-			</div>
-		</Modal>
+				</ActionBar>
+			}
+		>
+			<VBox gap={3}>
+				<ProfileMultiSelect
+					emptyText={t('Search for connections to invite')}
+					listProfiles={listProfiles}
+					value={selected}
+					onAdd={(p) => setSelected((prev) => [...prev, p])}
+					onRemove={(p) => setSelected((prev) => prev.filter((m) => m.idTag !== p.idTag))}
+				/>
+
+				<Field label={t('Optional message')}>
+					<TextArea
+						rows={3}
+						value={message}
+						onChange={(e) => setMessage(e.target.value)}
+					/>
+				</Field>
+			</VBox>
+		</Dialog>
 	)
 }
 

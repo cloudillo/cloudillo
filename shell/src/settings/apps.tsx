@@ -1,10 +1,20 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { mergeClasses, useApi, useToast } from '@cloudillo/react'
+import {
+	Button,
+	Card,
+	HBox,
+	Panel,
+	SortableGroup,
+	SortableList,
+	Text,
+	useApi,
+	useToast
+} from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuGripVertical as IcGrip, LuRotateCcw as IcReset } from 'react-icons/lu'
+import { LuRotateCcw as IcReset } from 'react-icons/lu'
 
 import {
 	applyMenuConfig,
@@ -16,60 +26,13 @@ import { useAppConfig } from '../utils.js'
 
 const MAX_MAIN_ITEMS = 4
 
-interface DragSource {
-	section: 'main' | 'extra' | 'available'
-	index: number
-}
-
-function MenuItemRow({
-	item,
-	draggable,
-	isDragging,
-	isDragOver,
-	language,
-	onDragStart,
-	onDragOver,
-	onDrop,
-	onDragEnd
-}: {
-	item: MenuItem
-	draggable: boolean
-	isDragging: boolean
-	isDragOver: boolean
-	language: string
-	onDragStart: (e: React.DragEvent) => void
-	onDragOver: (e: React.DragEvent) => void
-	onDrop: (e: React.DragEvent) => void
-	onDragEnd: () => void
-}) {
-	return (
-		<div
-			className={mergeClasses(
-				'c-app-menu-item',
-				isDragging && 'dragging',
-				isDragOver && 'drag-over'
-			)}
-			draggable={draggable}
-			onDragStart={onDragStart}
-			onDragOver={onDragOver}
-			onDrop={onDrop}
-			onDragEnd={onDragEnd}
-		>
-			<IcGrip className="c-app-menu-grip" />
-			{item.icon && React.createElement(item.icon)}
-			<span>{item.trans?.[language] || item.label}</span>
-		</div>
-	)
-}
+type Section = 'main' | 'extra' | 'available'
 
 export function AppMenuSettings() {
 	const { t, i18n } = useTranslation()
 	const { api } = useApi()
 	const { error: toastError } = useToast()
 	const [appConfig, setAppConfig] = useAppConfig()
-
-	const [dragSource, setDragSource] = React.useState<DragSource | null>(null)
-	const [dragOver, setDragOver] = React.useState<DragSource | null>(null)
 
 	const allItems = React.useMemo(() => getAllMenuItems(), [])
 	const itemMap = React.useMemo(
@@ -116,98 +79,28 @@ export function AppMenuSettings() {
 		[api, appConfig, setAppConfig, toastError, t]
 	)
 
-	// Get the list for a section
-	const getList = React.useCallback(
-		(section: 'main' | 'extra' | 'available'): string[] => {
-			switch (section) {
-				case 'main':
-					return mainIds
-				case 'extra':
-					return extraIds
-				case 'available':
-					return availableIds
-			}
-		},
-		[mainIds, extraIds, availableIds]
-	)
+	// `to` is the item's index after the move (SortableList semantics)
+	function move(source: Section, from: number, target: Section, to: number) {
+		if (source === 'available' && target === 'available') return
+		const lists = { main: [...mainIds], extra: [...extraIds], available: availableIds }
+		const itemId = lists[source][from]
+		if (!itemId) return
 
-	// DnD handlers
-	const handleDragStart = React.useCallback(
-		(e: React.DragEvent, section: DragSource['section'], index: number) => {
-			setDragSource({ section, index })
-			e.dataTransfer.effectAllowed = 'move'
-		},
-		[]
-	)
+		// Don't allow removing last item from main
+		if (source === 'main' && target !== 'main' && mainIds.length <= 1) return
 
-	const handleDragOver = React.useCallback(
-		(e: React.DragEvent, section: DragSource['section'], index: number) => {
-			e.preventDefault()
-			setDragOver({ section, index })
-		},
-		[]
-	)
+		// Available items are derived, no removal needed
+		if (source !== 'available') lists[source].splice(from, 1)
 
-	const handleDragEnd = React.useCallback(() => {
-		setDragSource(null)
-		setDragOver(null)
-	}, [])
+		// If main is full, bump last item to extra
+		if (target === 'main' && source !== 'main' && lists.main.length >= MAX_MAIN_ITEMS) {
+			lists.extra.unshift(lists.main.pop()!)
+		}
+		// Dropping into available = just removing from main/extra (already done)
+		if (target !== 'available') lists[target].splice(to, 0, itemId)
 
-	const handleDrop = React.useCallback(
-		(e: React.DragEvent, targetSection: DragSource['section'], targetIndex: number) => {
-			e.preventDefault()
-			if (!dragSource) return
-
-			const sourceList = [...getList(dragSource.section)]
-			const itemId = sourceList[dragSource.index]
-			if (!itemId) return
-
-			// Don't allow removing last item from main
-			if (dragSource.section === 'main' && mainIds.length <= 1 && targetSection !== 'main') {
-				setDragSource(null)
-				setDragOver(null)
-				return
-			}
-
-			// Remove from source
-			const newMain = [...mainIds]
-			const newExtra = [...extraIds]
-
-			if (dragSource.section === 'main') {
-				newMain.splice(dragSource.index, 1)
-			} else if (dragSource.section === 'extra') {
-				newExtra.splice(dragSource.index, 1)
-			}
-			// Available items are derived, no removal needed
-
-			// Insert at target
-			if (targetSection === 'main') {
-				// If main is full, bump last item to extra
-				if (newMain.length >= MAX_MAIN_ITEMS && dragSource.section !== 'main') {
-					const bumped = newMain.pop()!
-					newExtra.unshift(bumped)
-				}
-				newMain.splice(targetIndex, 0, itemId)
-			} else if (targetSection === 'extra') {
-				newExtra.splice(targetIndex, 0, itemId)
-			}
-			// Dropping into available = just removing from main/extra (already done)
-
-			setDragSource(null)
-			setDragOver(null)
-			saveMenuConfig(newMain, newExtra)
-		},
-		[dragSource, mainIds, extraIds, getList, saveMenuConfig]
-	)
-
-	const handleSectionDrop = React.useCallback(
-		(e: React.DragEvent, section: DragSource['section']) => {
-			// Drop at the end of the section
-			const list = getList(section)
-			handleDrop(e, section, list.length)
-		},
-		[getList, handleDrop]
-	)
+		saveMenuConfig(lists.main, lists.extra)
+	}
 
 	const handleReset = React.useCallback(async () => {
 		const prevConfig = appConfig
@@ -230,76 +123,70 @@ export function AppMenuSettings() {
 		}
 	}, [api, appConfig, setAppConfig, toastError, t])
 
-	function renderSection(
-		section: DragSource['section'],
-		ids: string[],
-		title: string,
-		subtitle: string
-	) {
+	const itemLabel = (item: MenuItem) => item.trans?.[i18n.language] || item.label
+
+	function renderSection(section: Section, ids: string[], title: string, subtitle: string) {
+		const items = ids.flatMap((id) => itemMap.get(id) ?? [])
 		return (
-			<div
-				className={mergeClasses('c-app-menu-section', `c-app-menu-section--${section}`)}
-				onDragOver={(e) => e.preventDefault()}
-				onDrop={(e) => handleSectionDrop(e, section)}
+			<Card
+				variant="outline"
+				color={section === 'main' ? 'primary' : undefined}
+				padding={2}
+				title={title}
+				description={subtitle}
 			>
-				<div className="c-app-menu-section-header">
-					<h4>{title}</h4>
-					<small className="text-muted">{subtitle}</small>
-				</div>
-				{ids.map((id, index) => {
-					const item = itemMap.get(id)
-					if (!item) return null
-					return (
-						<MenuItemRow
-							key={id}
-							item={item}
-							draggable
-							isDragging={
-								dragSource?.section === section && dragSource.index === index
-							}
-							isDragOver={dragOver?.section === section && dragOver.index === index}
-							language={i18n.language}
-							onDragStart={(e) => handleDragStart(e, section, index)}
-							onDragOver={(e) => handleDragOver(e, section, index)}
-							onDrop={(e) => handleDrop(e, section, index)}
-							onDragEnd={handleDragEnd}
-						/>
-					)
-				})}
-				{ids.length === 0 && (
-					<div className="c-app-menu-empty text-muted">{t('Drag items here')}</div>
+				<SortableList
+					group={section}
+					items={items}
+					getKey={(item) => item.id}
+					getLabel={itemLabel}
+					onReorder={(from, to, source) =>
+						move((source as Section | undefined) ?? section, from, section, to)
+					}
+					renderItem={(item, { handle }) => (
+						<HBox gap={2} align="center">
+							{handle}
+							{item.icon && React.createElement(item.icon)}
+							<Text>{itemLabel(item)}</Text>
+						</HBox>
+					)}
+				/>
+				{items.length === 0 && (
+					<Text as="div" size="sm" emphasis="muted" className="text-center">
+						{t('Drag items here')}
+					</Text>
 				)}
-			</div>
+			</Card>
 		)
 	}
 
 	return (
-		<div className="c-panel c-vbox g-2">
-			<div className="c-hbox g-2 align-items-center">
-				<h3 className="flex-fill">{t('App menu')}</h3>
-				<button
-					className="c-button small"
-					onClick={handleReset}
-					title={t('Reset to defaults')}
-				>
-					<IcReset /> {t('Reset')}
-				</button>
-			</div>
-
-			{renderSection(
-				'main',
-				mainIds,
-				t('Main menu'),
-				t('Up to {{count}} items shown in the navigation bar', { count: MAX_MAIN_ITEMS })
-			)}
-			{renderSection(
-				'extra',
-				extraIds,
-				t('Extra menu'),
-				t('Shown in the "More" overflow menu')
-			)}
-			{renderSection('available', availableIds, t('Available'), t('Not shown in menu'))}
-		</div>
+		<Panel
+			title={t('App menu')}
+			actions={
+				<Button size="sm" icon={<IcReset />} onClick={handleReset}>
+					{t('Reset')}
+				</Button>
+			}
+		>
+			<SortableGroup>
+				{renderSection(
+					'main',
+					mainIds,
+					t('Main menu'),
+					t('Up to {{count}} items shown in the navigation bar', {
+						count: MAX_MAIN_ITEMS
+					})
+				)}
+				{renderSection(
+					'extra',
+					extraIds,
+					t('Extra menu'),
+					t('Shown in the "More" overflow menu')
+				)}
+				{renderSection('available', availableIds, t('Available'), t('Not shown in menu'))}
+			</SortableGroup>
+		</Panel>
 	)
 }
 

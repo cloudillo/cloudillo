@@ -8,21 +8,19 @@
  */
 
 import {
-	Button,
-	mergeClasses,
-	ProfilePicture,
-	useAuth,
-	useEscapeKey,
-	useMenuKeyboard,
-	useOutsideDismiss
+	APP_IDS,
+	type AppId,
+	AppIcon,
+	Badge,
+	BottomSheet,
+	Popover,
+	useAuth
 } from '@cloudillo/react'
 import { useAtomValue, useSetAtom } from 'jotai'
 import * as React from 'react'
-import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { LuGrip as IcApps, LuScanLine as IcScan } from 'react-icons/lu'
-import { usePopper } from 'react-popper'
-import { NavLink, useLocation } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 
 import { getFileIcon } from '../apps/files/icons.js'
 import { useQrScanner } from '../components/QrScanner/index.js'
@@ -40,6 +38,14 @@ import {
 import { unreadCountAtom } from '../read-position.js'
 import { appPath, ctxBase, scopePath } from '../routes.js'
 import { lastAppAtom } from '../state/last-app.js'
+import {
+	AppDockContextToggle,
+	AppDockDivider,
+	AppDockIsland,
+	AppDockLink,
+	AppDockOther,
+	AppDockSplit
+} from '../ui/AppDock.js'
 import { useAppConfig } from '../utils.js'
 
 /** Truncate a filename while preserving its extension. Shared with `ContextBar`. */
@@ -65,63 +71,23 @@ interface MenuLinkItem {
 	path: string
 }
 
-// A nav link with a generic badge slot: a content dot for the feed, a numeric
-// unread count for messages.
-function MenuLink({
-	menuItem,
-	className,
-	badge,
-	onClick
-}: {
-	menuItem: MenuLinkItem
-	className?: string
-	badge?: React.ReactNode
-	onClick?: () => void
-}) {
-	const { i18n } = useTranslation()
-	const ctx = useCtx()
-	return (
-		<NavLink className={className} to={scopePath(ctx.base, menuItem.path)} onClick={onClick}>
-			<span style={{ position: 'relative', display: 'inline-flex' }}>
-				{menuItem.icon && React.createElement(menuItem.icon)}
-				{badge}
-			</span>
-			<span className="c-nav-label">{menuItem.trans?.[i18n.language] || menuItem.label}</span>
-		</NavLink>
-	)
-}
-
 export function Menu({
 	inert,
 	vertical,
-	sidebarToggle,
-	extraMenuPortal
+	sidebarToggle
 }: {
 	inert?: boolean
 	/** Icon-over-label item layout (the left rail and the mobile bottom bar). */
 	vertical?: boolean
-	/** Render the community-sheet toggle first — the mobile bottom bar only. */
+	/** The mobile bottom bar: the community-sheet toggle first, Other as a sheet. */
 	sidebarToggle?: boolean
-	extraMenuPortal?: HTMLElement | null
 }) {
-	const { t } = useTranslation()
+	const { t, i18n } = useTranslation()
 	const location = useLocation()
+	const ctx = useCtx()
 	const [appConfig, _setAppConfig] = useAppConfig()
 	const [auth, _setAuth] = useAuth()
 	const [moreMenuOpen, setMoreMenuOpen] = React.useState(false)
-	// Desktop rail only: the flyout is portaled out and anchored to its trigger.
-	// The mobile bottom bar takes the `extraMenuPortal` branch and never sets these.
-	const [triggerEl, setTriggerEl] = React.useState<HTMLButtonElement | null>(null)
-	const [flyoutEl, setFlyoutEl] = React.useState<HTMLDivElement | null>(null)
-	const { styles: popperStyles, attributes } = usePopper(triggerEl, flyoutEl, {
-		placement: 'right-start',
-		strategy: 'fixed',
-		modifiers: [
-			{ name: 'flip', options: { fallbackPlacements: ['right-end', 'left-start', 'top'] } },
-			{ name: 'preventOverflow', options: { padding: 8 } },
-			{ name: 'offset', options: { offset: [0, 8] } }
-		]
-	})
 	const sidebar = useSidebar()
 	const [guestDocument] = useGuestDocument()
 	const [, setQrScannerOpen] = useQrScanner()
@@ -131,20 +97,6 @@ export function Menu({
 	// unread probe writes; a `~`-shaped URL context would miss.
 	const menuContextIdTag = useCurrentContextIdTag()
 	const unreadCounts = useAtomValue(unreadCountAtom)
-
-	// A dot for the feed's active context. See read-position.ts.
-	function badgeFor(menuItem: MenuLinkItem): React.ReactNode {
-		if (menuItem.id === 'feed' && unreadCounts[menuContextIdTag ?? '']) {
-			return (
-				<span
-					className="c-badge dot accent positioned tr"
-					role="status"
-					aria-label={t('New content')}
-				/>
-			)
-		}
-		return undefined
-	}
 	const activeContext = useAtomValue(activeContextAtom)
 	const contextDisplay = useAtomValue(activeContextDisplayAtom)
 
@@ -155,30 +107,34 @@ export function Menu({
 		[location]
 	)
 
-	function closeMoreMenu(refocus?: boolean) {
-		setMoreMenuOpen(false)
-		if (refocus) triggerEl?.focus()
+	function menuLink(
+		menuItem: MenuLinkItem,
+		opts: { className?: string; vertical?: boolean; onClick?: () => void } = {}
+	) {
+		const icon = (APP_IDS as readonly string[]).includes(menuItem.id) ? (
+			<AppIcon app={menuItem.id as AppId} />
+		) : (
+			menuItem.icon && React.createElement(menuItem.icon)
+		)
+		return (
+			<AppDockLink
+				key={menuItem.id}
+				href={scopePath(ctx.base, menuItem.path)}
+				icon={icon}
+				label={menuItem.trans?.[i18n.language] || menuItem.label}
+				// A dot for the feed's active context. See read-position.ts.
+				badge={
+					menuItem.id === 'feed' &&
+					!!unreadCounts[menuContextIdTag ?? ''] && (
+						<Badge dot color="accent" role="status" aria-label={t('New content')} />
+					)
+				}
+				vertical={opts.vertical ?? vertical}
+				className={opts.className}
+				onClick={opts.onClick}
+			/>
+		)
 	}
-
-	useEscapeKey(() => closeMoreMenu(true), moreMenuOpen)
-
-	// Roving focus for the flyout grid. `flyoutEl` stays null while the popover is
-	// closed, so the hook is inert then; the mobile sheet never sets it. `autoFocus`
-	// is off: a mouse open must not yank the caret into the first link. Keyboard entry
-	// still works — with focus off the list `current` is -1, so ArrowDown enters at the
-	// top and ArrowUp at the bottom.
-	const handleFlyoutKeys = useMenuKeyboard(flyoutEl, {
-		itemSelector: '.c-nav-link',
-		autoFocus: false
-	})
-
-	// The trigger is exempt (it would close here and reopen on its own click), but it
-	// must not arm the hook: it is always mounted, and an armed hook swallows every
-	// click in the shell. Only the open surface arms it: the desktop flyout (exists only
-	// while open) or the mobile sheet's portal (always mounted, so gated on the flag —
-	// its empty band is `pointer-events: none`, so only taps on the sheet count inside).
-	const moreSurface = flyoutEl ?? (moreMenuOpen ? extraMenuPortal : null)
-	useOutsideDismiss(moreSurface ? [moreSurface, triggerEl] : [], () => setMoreMenuOpen(false))
 
 	// Tenant-owned apps (contacts, calendar) are leader-only server-side.
 	const leaderHere = isContextLeader(activeContext, auth?.idTag)
@@ -227,138 +183,106 @@ export function Menu({
 	// app since pinned inline or filtered out (leader-only, `perm`) falls back cleanly.
 	const recentItem = moreItems.find((item) => item.id === lastApp) ?? moreItems[0]
 
-	// One markup for both layouts: mobile renders it into `extraMenuPortal` as the
-	// slide-up sheet (the `open` class drives that transition), desktop into the
-	// popper-anchored flyout, which only exists while it is open.
+	// One grid for both layouts: the dock's modal sheet, or the rail's flyout.
 	const moreNav = (
-		<nav
-			inert={inert}
-			className={mergeClasses('c-nav c-extra-menu', moreMenuOpen && 'open')}
-			aria-label={t('More menu items')}
-		>
-			{moreItems.map((menuItem) => (
-				<MenuLink
-					key={menuItem.id}
-					menuItem={menuItem}
-					className="c-nav-link h-small vertical"
-					badge={badgeFor(menuItem)}
-					// No `refocus`: after navigating, the trigger is no longer where
-					// the user is looking.
-					onClick={() => {
+		<AppDockOther inert={inert} aria-label={t('More menu items')}>
+			{moreItems.map((menuItem) =>
+				menuLink(menuItem, {
+					className: 'h-small',
+					vertical: true,
+					onClick: () => {
 						setLastApp(menuItem.id)
-						closeMoreMenu()
-					}}
-				/>
-			))}
+						setMoreMenuOpen(false)
+					}
+				})
+			)}
 			{auth && (
-				<Button
-					kind="nav-link"
-					className="h-small vertical"
+				<AppDockLink
+					icon={<IcScan />}
+					label={t('Scan QR')}
+					vertical
+					className="h-small"
 					onClick={() => {
 						setQrScannerOpen(true)
-						closeMoreMenu()
+						setMoreMenuOpen(false)
 					}}
-				>
-					<IcScan />
-					<span className="c-nav-label">{t('Scan QR')}</span>
-				</Button>
+				/>
 			)}
-		</nav>
+		</AppDockOther>
 	)
 
+	const moreLabel = t('More menu items')
 	const appLinks = (
 		<>
-			{inlineItems.map((menuItem) => (
-				<MenuLink
-					key={menuItem.id}
-					menuItem={menuItem}
-					className={mergeClasses('c-nav-link', vertical && 'vertical')}
-					badge={badgeFor(menuItem)}
-				/>
-			))}
-			{recentItem && <span className="c-nav-divider" aria-hidden="true" />}
+			{inlineItems.map((menuItem) => menuLink(menuItem))}
+			{recentItem && <AppDockDivider />}
 			{needsMoreMenu && (
-				<div
-					className={mergeClasses('c-nav-split', !recentItem && 'single')}
-					role="group"
-					aria-label={t('Other apps')}
-				>
-					{recentItem && (
-						<MenuLink
-							menuItem={recentItem}
-							className={mergeClasses('c-nav-link', vertical && 'vertical')}
-							badge={badgeFor(recentItem)}
+				<AppDockSplit aria-label={t('Other apps')} single={!recentItem}>
+					{recentItem && menuLink(recentItem)}
+					{sidebarToggle ? (
+						<AppDockLink
+							icon={<IcApps />}
+							label={t('Other')}
+							vertical={vertical}
+							className="c-nav-split-more"
+							onClick={() => setMoreMenuOpen(!moreMenuOpen)}
+							aria-label={moreLabel}
+							aria-haspopup="dialog"
+							aria-expanded={moreMenuOpen}
 						/>
+					) : (
+						<Popover
+							trigger={
+								<AppDockLink
+									icon={<IcApps />}
+									label={t('Other')}
+									vertical={vertical}
+									className="c-nav-split-more"
+									aria-label={moreLabel}
+								/>
+							}
+							open={moreMenuOpen}
+							onOpenChange={setMoreMenuOpen}
+							placement="right-start"
+							className="c-menu-ex-flyout"
+						>
+							{moreNav}
+						</Popover>
 					)}
-					<Button
-						ref={setTriggerEl}
-						kind="nav-link"
-						className={mergeClasses(
-							'c-nav-split-more',
-							vertical && 'vertical',
-							moreMenuOpen && 'active'
-						)}
-						onClick={() => setMoreMenuOpen(!moreMenuOpen)}
-						aria-label={t('More menu items')}
-						aria-haspopup="true"
-						aria-expanded={moreMenuOpen}
-					>
-						<IcApps />
-						<span className="c-nav-label">{t('Other')}</span>
-					</Button>
-				</div>
+				</AppDockSplit>
 			)}
 		</>
 	)
 
+	if (location.pathname.match('^/register/')) return null
+
 	return (
-		!location.pathname.match('^/register/') && (
-			<>
-				{sidebarToggle && auth && (
-					<Button
-						kind="nav-link"
-						className={mergeClasses(
-							'c-ctx-toggle c-nav-island vertical',
-							sidebar.isOpen && 'active'
-						)}
-						onClick={() => sidebar.toggle()}
-						aria-label={t('Switch community')}
-						aria-haspopup="dialog"
-						aria-expanded={sidebar.isOpen}
-					>
-						<ProfilePicture
-							profile={{ profilePic: contextDisplay?.profilePic ?? auth.profilePic }}
-							srcTag={contextDisplay?.idTag ?? auth.idTag}
-							tiny
-						/>
-						<span className="c-nav-label">
-							{contextDisplay?.name ?? auth.name ?? auth.idTag}
-						</span>
-					</Button>
-				)}
-				{needsMoreMenu && extraMenuPortal && createPortal(moreNav, extraMenuPortal)}
-				{needsMoreMenu &&
-					!extraMenuPortal &&
-					moreMenuOpen &&
-					createPortal(
-						<div
-							ref={setFlyoutEl}
-							className="c-popper high c-menu-ex-flyout"
-							style={popperStyles.popper}
-							onKeyDown={handleFlyoutKeys}
-							{...attributes.popper}
-						>
-							{moreNav}
-						</div>,
-						document.getElementById('popper-container') ?? document.body
-					)}
-				{sidebarToggle ? (
-					<div className="c-nav-island c-nav-apps">{appLinks}</div>
-				) : (
-					appLinks
-				)}
-			</>
-		)
+		<>
+			{sidebarToggle && auth?.idTag && (
+				<AppDockContextToggle
+					open={sidebar.isOpen}
+					onToggle={() => sidebar.toggle()}
+					idTag={contextDisplay?.idTag ?? auth.idTag}
+					profilePic={contextDisplay?.profilePic ?? auth.profilePic}
+					name={contextDisplay?.name ?? auth.name ?? auth.idTag}
+					aria-label={t('Switch community')}
+				/>
+			)}
+			{sidebarToggle && needsMoreMenu && (
+				<BottomSheet
+					showBackdrop
+					snapPoint={moreMenuOpen ? 'half' : 'closed'}
+					onSnapChange={(snap) => {
+						if (snap === 'closed') setMoreMenuOpen(false)
+					}}
+					aria-label={moreLabel}
+				>
+					{moreNav}
+				</BottomSheet>
+			)}
+			{sidebarToggle ? <AppDockIsland apps>{appLinks}</AppDockIsland> : appLinks}
+		</>
 	)
 }
+
 // vim: ts=4

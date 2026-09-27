@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next'
 import '@cloudillo/calendar-ui/calendar-ui.css'
 
 import type { CalendarOutput } from '@cloudillo/core'
+import { Panel, VBox } from '@cloudillo/react'
 
 import { selectedObjectAtom } from '../atoms.js'
 import type { CalendarView, EventOccurrence } from '../types.js'
@@ -153,11 +154,13 @@ export function CalendarGrid({
 	}
 
 	return (
-		<div className="c-cal-grid">
-			{view === 'day' && <WeekView {...commonProps} single />}
-			{view === 'week' && <WeekView {...commonProps} />}
-			{view === 'month' && <MonthView {...commonProps} />}
-		</div>
+		<Panel variant="outline" padding={0} className="flex-fill h-min-0 overflow-hidden">
+			<VBox fill className="h-100 h-min-0">
+				{view === 'day' && <WeekView {...commonProps} single />}
+				{view === 'week' && <WeekView {...commonProps} />}
+				{view === 'month' && <MonthView {...commonProps} />}
+			</VBox>
+		</Panel>
 	)
 }
 

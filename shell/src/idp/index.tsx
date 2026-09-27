@@ -1,12 +1,12 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Fcd, LoadingSpinner, mergeClasses } from '@cloudillo/react'
+import { Fcd, LoadingSpinner, Nav } from '@cloudillo/react'
 import { useAtomValue } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuFingerprint as IcIdp, LuMenu as IcMenu, LuSettings as IcSettings } from 'react-icons/lu'
-import { Navigate, NavLink, Outlet, Route, useLocation } from 'react-router-dom'
+import { LuFingerprint as IcIdp, LuSettings as IcSettings } from 'react-icons/lu'
+import { Navigate, Outlet, Route, useLocation } from 'react-router-dom'
 
 import { contextIdpEnabledAtom, useCtx } from '../context/index.js'
 import { feedPath, idpPath } from '../routes.js'
@@ -16,50 +16,22 @@ import { ProviderSettings } from './settings.js'
 export function Idp({ title, children }: { title: string; children?: React.ReactNode }) {
 	const location = useLocation()
 	const { t } = useTranslation()
-	const [showFilter, setShowFilter] = React.useState<boolean>(false)
 	const basePath = idpPath(useCtx().base)
 
-	React.useEffect(
-		function onLocationEffect() {
-			setShowFilter(false)
-		},
-		[location]
-	)
-
 	return (
-		<Fcd.Container className="g-1">
-			<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
-				<ul className="c-nav vertical low">
-					<li>
-						<NavLink
-							className={({ isActive }) =>
-								mergeClasses('c-nav-item', isActive && 'active')
-							}
-							to={`${basePath}/settings`}
-						>
-							<IcSettings /> {t('Provider Settings')}
-						</NavLink>
-					</li>
-					<li>
-						<NavLink
-							className={({ isActive }) =>
-								mergeClasses('c-nav-item', isActive && 'active')
-							}
-							to={basePath}
-							end
-						>
-							<IcIdp /> {t('Identities')}
-						</NavLink>
-					</li>
-				</ul>
+		// Keyed on the path so the mobile filter drawer closes on navigation
+		<Fcd.Container key={location.pathname} className="g-1" filterLabel={title}>
+			<Fcd.Filter>
+				<Nav aria-label={t('Identity Provider')}>
+					<Nav.Item
+						href={`${basePath}/settings`}
+						icon={<IcSettings />}
+						label={t('Provider Settings')}
+					/>
+					<Nav.Item href={basePath} icon={<IcIdp />} label={t('Identities')} />
+				</Nav>
 			</Fcd.Filter>
-			<Fcd.Content>
-				<div className="c-nav c-hbox md-hide lg-hide">
-					<IcMenu onClick={() => setShowFilter(true)} />
-					<h3>{title}</h3>
-				</div>
-				{children}
-			</Fcd.Content>
+			<Fcd.Content>{children}</Fcd.Content>
 		</Fcd.Container>
 	)
 }
@@ -86,7 +58,7 @@ function IdpGuard() {
 	const enabled = ctx.idTag ? contextIdpEnabled[ctx.idTag] : undefined
 
 	// Not asked yet - the answer is coming
-	if (enabled === undefined) return <LoadingSpinner />
+	if (enabled === undefined) return <LoadingSpinner className="auto-bg" />
 	if (enabled === false) return <Navigate to={feedPath(ctx.base)} replace />
 
 	const title = location.pathname.endsWith('/settings') ? t('Provider Settings') : t('Identities')

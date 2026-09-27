@@ -10,17 +10,25 @@
  */
 
 import type { FileView } from '@cloudillo/core'
-import { LoadMoreTrigger, useApi, useAuth, useToast } from '@cloudillo/react'
+import {
+	Breadcrumbs,
+	Button,
+	EmptyState,
+	FileTile,
+	Grid,
+	IconText,
+	LoadingSpinner,
+	LoadMoreTrigger,
+	useApi,
+	useAuth,
+	useToast,
+	VBox
+} from '@cloudillo/react'
 import { useAtomValue } from 'jotai'
 import React, { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuChevronRight as IcChevronRight,
-	LuFileText as IcDocument,
-	LuHouse as IcHome
-} from 'react-icons/lu'
+import { LuFileText as IcDocument, LuHouse as IcHome, LuLock as IcLock } from 'react-icons/lu'
 
-import { getFileIcon } from '../../apps/files/icons.js'
 import { canManageFile, canWrite, resolveAccessLevel } from '../../apps/files/utils.js'
 import type { DocPickerResult } from '../../context/doc-picker-atom.js'
 import { activeContextAtom, contextRolesAtom, useApiContext } from '../../context/index.js'
@@ -252,8 +260,7 @@ export function DocumentPickerBrowseTab({
 	)
 
 	return (
-		<div className="doc-picker-browse">
-			{/* Filter bar */}
+		<VBox gap={2} fill>
 			<PickerFilterBar
 				viewMode={viewMode}
 				onViewModeChange={setViewMode}
@@ -266,104 +273,83 @@ export function DocumentPickerBrowseTab({
 				tags={tags}
 			/>
 
-			{/* Breadcrumbs (only in browse mode) */}
 			{viewMode === 'browse' && (
-				<div className="doc-picker-breadcrumbs">
-					{breadcrumbs.map((crumb, index) => (
-						<React.Fragment key={crumb.id ?? 'home'}>
-							{index > 0 && <IcChevronRight size={14} />}
-							<button type="button" onClick={() => handleBreadcrumbClick(index)}>
-								{index === 0 ? <IcHome size={14} /> : crumb.name}
-							</button>
-						</React.Fragment>
-					))}
-				</div>
+				<Breadcrumbs
+					items={breadcrumbs.map((crumb, index) => ({
+						label: index === 0 ? t('Home') : crumb.name,
+						icon: index === 0 ? <IcHome /> : undefined,
+						onClick: () => handleBreadcrumbClick(index)
+					}))}
+				/>
 			)}
 
-			{/* File grid */}
-			<div className="doc-picker-files">
-				{loading ? (
-					<div className="doc-picker-loading">
-						<span>{t('Loading...')}</span>
-					</div>
-				) : error ? (
-					<div className="doc-picker-empty">
-						<IcDocument />
-						<span>{error}</span>
-					</div>
-				) : files.length === 0 ? (
-					<div className="doc-picker-empty">
-						<IcDocument />
-						<span>{t('No documents found')}</span>
-					</div>
-				) : (
-					<>
-						<div className="doc-picker-grid">
-							{files.map((file) => {
-								const blocked = isBlocked(file)
-								const unlockable = blocked && canUnlock(file)
-								const isUpdating = updatingFileId === file.fileId
+			{loading ? (
+				<LoadingSpinner fill />
+			) : error ? (
+				<EmptyState icon={<IcDocument />} title={error} fill />
+			) : files.length === 0 ? (
+				<EmptyState icon={<IcDocument />} title={t('No documents found')} fill />
+			) : (
+				<VBox gap={2} fill scroll>
+					<Grid min="7.5rem" gap={2}>
+						{files.map((file) => {
+							const blocked = isBlocked(file)
+							const unlockable = blocked && canUnlock(file)
 
-								return (
-									<div
-										key={file.fileId}
-										className={`doc-picker-item ${
-											selectedFile?.fileId === file.fileId ? 'selected' : ''
-										} ${blocked ? 'disabled' : ''}`}
-										onClick={() => handleFileClick(file)}
-										onDoubleClick={() => handleFileDoubleClick(file)}
-										title={
-											blocked
-												? t(
-														'Only public documents can be embedded in a site page.'
-													)
-												: undefined
+							return (
+								<VBox
+									key={file.fileId}
+									onDoubleClick={() => handleFileDoubleClick(file)}
+								>
+									<FileTile
+										name={file.fileName}
+										contentType={
+											file.fileTp === 'FLDR'
+												? 'cloudillo/folder'
+												: file.contentType
 										}
-									>
-										<div className="doc-picker-item-icon">
-											{React.createElement(
-												getFileIcon(file.contentType, file.fileTp)
-											)}
-										</div>
-										<span className="doc-picker-item-name">
-											{file.fileName}
-										</span>
-										{blocked && (
-											<button
-												type="button"
-												className="c-button small doc-picker-item-unlock"
-												disabled={!unlockable || isUpdating}
-												title={
-													unlockable
-														? undefined
-														: t(
-																'You do not have permission to change this file’s visibility.'
-															)
-												}
-												onClick={(e) => {
-													e.stopPropagation()
-													handleMakePublic(file)
-												}}
-											>
-												{isUpdating ? t('Updating...') : t('Make public')}
-											</button>
-										)}
-									</div>
-								)
-							})}
-						</div>
-						<LoadMoreTrigger
-							ref={sentinelRef}
-							isLoading={isLoadingMore}
-							hasMore={hasMore}
-							error={loadMoreError}
-							errorPrefix={t('Failed to load more')}
-							onRetry={loadMore}
-						/>
-					</>
-				)}
-			</div>
-		</div>
+										selected={selectedFile?.fileId === file.fileId}
+										onClick={() => handleFileClick(file)}
+										meta={
+											blocked && (
+												<IconText icon={<IcLock />}>
+													{t(
+														'Only public documents can be embedded in a site page.'
+													)}
+												</IconText>
+											)
+										}
+										actions={
+											blocked && (
+												<Button
+													size="sm"
+													loading={updatingFileId === file.fileId}
+													disabled={!unlockable}
+													disabledReason={t(
+														'You do not have permission to change this file’s visibility.'
+													)}
+													onClick={() => handleMakePublic(file)}
+												>
+													{t('Make public')}
+												</Button>
+											)
+										}
+									/>
+								</VBox>
+							)
+						})}
+					</Grid>
+					<LoadMoreTrigger
+						ref={sentinelRef}
+						isLoading={isLoadingMore}
+						hasMore={hasMore}
+						error={loadMoreError}
+						errorPrefix={t('Failed to load more')}
+						onRetry={loadMore}
+					/>
+				</VBox>
+			)}
+		</VBox>
 	)
 }
 

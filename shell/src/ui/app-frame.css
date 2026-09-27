@@ -1,0 +1,43 @@
+/* SPDX-FileCopyrightText: Szilárd Hajba */
+/* SPDX-License-Identifier: LGPL-3.0-or-later */
+
+.c-app-frame-iframe {
+	position: absolute;
+	inset: 0;
+	z-index: 1;
+	width: 100%;
+	height: 100%;
+	border: none;
+}
+
+/* Trust frame: 2px on every side (the filter-rail breakpoint note in libs/react/src/components.css counts it) */
+.c-app-frame {
+	border: 2px solid var(--col-success);
+}
+
+.c-app-frame.semi-trusted {
+	border-color: var(--col-warning);
+}
+
+.c-app-frame.untrusted {
+	border-color: var(--col-error);
+}
+
+.c-app-frame-badge {
+	position: absolute;
+	top: 0.25rem;
+	right: 0.25rem;
+	z-index: 2;
+	padding: 0.125rem 0.5rem;
+	border-radius: 999px;
+	font-size: 0.75rem;
+	pointer-events: none;
+	opacity: 0.85;
+	background: var(--col-warning);
+	color: var(--col-on-warning);
+}
+
+.c-app-frame.untrusted .c-app-frame-badge {
+	background: var(--col-error);
+	color: var(--col-on-error, #fff);
+}

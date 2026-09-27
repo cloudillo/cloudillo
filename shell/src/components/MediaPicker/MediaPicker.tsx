@@ -10,14 +10,12 @@
  * - Internal shell components via useMediaPicker hook
  */
 
-import { Button, useBodyScrollLock, useEscapeKey } from '@cloudillo/react'
+import { ActionBar, Button, Dialog, Tab, Tabs, VBox } from '@cloudillo/react'
 import { useAtom, useSetAtom } from 'jotai'
 import React, { useCallback, useEffect, useState } from 'react'
-import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import {
 	LuMusic as IcAudio,
-	LuX as IcClose,
 	LuFileText as IcDocument,
 	LuFiles as IcFiles,
 	LuImage as IcImage,
@@ -33,8 +31,6 @@ import {
 import { setMediaPickerCallback } from '../../message-bus/handlers/media.js'
 import { MediaPickerBrowseTab } from './MediaPickerBrowseTab.js'
 import { MediaPickerUploadTab } from './MediaPickerUploadTab.js'
-
-import './media-picker.css'
 
 type TabType = 'browse' | 'upload'
 
@@ -75,10 +71,6 @@ export function MediaPicker() {
 
 	// Track when crop mode is active (to hide footer)
 	const [isCropping, setIsCropping] = useState(false)
-
-	// Close handlers
-	useEscapeKey(() => handleCancel(), state.isOpen)
-	useBodyScrollLock(state.isOpen)
 
 	// Get the atom setter for external app requests
 	const openPicker = useSetAtom(openMediaPickerAtom)
@@ -145,86 +137,57 @@ export function MediaPicker() {
 	const enableCrop =
 		state.options?.enableCrop !== false && (!mediaType || mediaType.startsWith('image/'))
 
-	const content = (
-		<div className="c-modal show media-picker-overlay" onClick={handleCancel}>
-			<div className="c-panel emph p-0 media-picker" onClick={(e) => e.stopPropagation()}>
-				{/* Header */}
-				<div className="media-picker-header">
-					<div className="c-hbox g-2 align-items-center">
-						{getMediaTypeIcon(mediaType)}
-						<h3 className="m-0">{title}</h3>
-						<span className="text-muted ms-2">{getMediaTypeLabel(t, mediaType)}</span>
-					</div>
-					<button
-						type="button"
-						className="c-link secondary"
-						onClick={handleCancel}
-						aria-label={t('Close')}
-					>
-						<IcClose />
-					</button>
-				</div>
-
-				{/* Tabs */}
-				<div className="c-tabs media-picker-tabs">
-					<button
-						type="button"
-						className={`c-tab ${activeTab === 'browse' ? 'active' : ''}`}
-						onClick={() => setActiveTab('browse')}
-					>
-						{t('Browse')}
-					</button>
-					<button
-						type="button"
-						className={`c-tab ${activeTab === 'upload' ? 'active' : ''}`}
-						onClick={() => setActiveTab('upload')}
-					>
-						{t('Upload')}
-					</button>
-				</div>
-
-				{/* Content */}
-				<div className="media-picker-content">
-					{activeTab === 'browse' ? (
-						<MediaPickerBrowseTab
-							mediaType={mediaType}
-							documentVisibility={state.options?.documentVisibility}
-							documentFileId={state.options?.documentFileId}
-							requirePublic={state.options?.requirePublic}
-							isExternalContext={state.options?.isExternalContext}
-							idTag={state.options?.idTag}
-							selectedFile={selectedFile}
-							onSelect={handleFileSelected}
-							onDoubleClick={handleDoubleClick}
-						/>
-					) : (
-						<MediaPickerUploadTab
-							mediaType={mediaType}
-							enableCrop={enableCrop}
-							cropAspects={state.options?.cropAspects}
-							isExternalContext={state.options?.isExternalContext}
-							idTag={state.options?.idTag}
-							documentFileId={state.options?.documentFileId}
-							onUploadComplete={handleUploadComplete}
-							onCroppingChange={setIsCropping}
-						/>
-					)}
-				</div>
-
-				{/* Footer - hidden during crop mode */}
-				{!isCropping && (
-					<div className="media-picker-footer">
+	return (
+		<Dialog
+			open
+			onClose={handleCancel}
+			size="lg"
+			icon={getMediaTypeIcon(mediaType)}
+			title={title}
+			description={getMediaTypeLabel(t, mediaType)}
+			footer={
+				!isCropping && (
+					<ActionBar>
 						<Button onClick={handleCancel}>{t('Cancel')}</Button>
-						<Button variant="primary" disabled={!selectedFile} onClick={handleSelect}>
+						<Button color="primary" disabled={!selectedFile} onClick={handleSelect}>
 							{t('Select')}
 						</Button>
-					</div>
+					</ActionBar>
+				)
+			}
+		>
+			<VBox gap={2} fill>
+				<Tabs value={activeTab} onTabChange={(v) => setActiveTab(v as TabType)}>
+					<Tab value="browse">{t('Browse')}</Tab>
+					<Tab value="upload">{t('Upload')}</Tab>
+				</Tabs>
+				{activeTab === 'browse' ? (
+					<MediaPickerBrowseTab
+						mediaType={mediaType}
+						documentVisibility={state.options?.documentVisibility}
+						documentFileId={state.options?.documentFileId}
+						requirePublic={state.options?.requirePublic}
+						isExternalContext={state.options?.isExternalContext}
+						idTag={state.options?.idTag}
+						selectedFile={selectedFile}
+						onSelect={handleFileSelected}
+						onDoubleClick={handleDoubleClick}
+					/>
+				) : (
+					<MediaPickerUploadTab
+						mediaType={mediaType}
+						enableCrop={enableCrop}
+						cropAspects={state.options?.cropAspects}
+						isExternalContext={state.options?.isExternalContext}
+						idTag={state.options?.idTag}
+						documentFileId={state.options?.documentFileId}
+						onUploadComplete={handleUploadComplete}
+						onCroppingChange={setIsCropping}
+					/>
 				)}
-			</div>
-		</div>
+			</VBox>
+		</Dialog>
 	)
-
-	return createPortal(content, document.body)
 }
 
 // vim: ts=4

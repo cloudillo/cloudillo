@@ -2,14 +2,25 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import { isSessionExpiredError } from '@cloudillo/core'
-import { Button, useApi } from '@cloudillo/react'
+import {
+	ActionBar,
+	Alert,
+	Button,
+	Field,
+	Form,
+	LoadingSpinner,
+	Logo,
+	Text,
+	useApi,
+	PasswordInput,
+	PasswordStrengthBar
+} from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuRefreshCw as IcLoading, LuLock as IcLock } from 'react-icons/lu'
+import { LuLock as IcLock } from 'react-icons/lu'
 import { useNavigate, useParams } from 'react-router-dom'
 
-import { PasswordInput, PasswordStrengthBar } from '../components/PasswordInput.js'
-import { CloudilloLogo } from '../logo.js'
+import { AuthLayout } from './AuthLayout.js'
 import { rateLimitMessage } from './utils.js'
 
 export function ResetPassword() {
@@ -98,51 +109,35 @@ export function ResetPassword() {
 	// Show loading state while validating ref
 	if (refValidating) {
 		return (
-			<div className="c-panel p-4">
-				<CloudilloLogo className="c-logo w-50 float-right ps-3 pb-3 slow" />
-				<header>
-					<h1 className="mb-3">{t('Reset Password')}</h1>
-				</header>
-				<div className="c-panel info mt-3">
-					<p>
-						<IcLoading className="animate-rotate-cw me-2" />
-						{t('Validating reset link...')}
-					</p>
-				</div>
-			</div>
+			<AuthLayout logo={<Logo animated />} title={t('Reset Password')}>
+				<Alert color="info" icon={<LoadingSpinner size="sm" />}>
+					{t('Validating reset link...')}
+				</Alert>
+			</AuthLayout>
 		)
 	}
 
 	// Show error if ref is invalid
 	if (!refValid) {
 		return (
-			<div className="c-panel p-4">
-				<CloudilloLogo className="c-logo w-50 float-right ps-3 pb-3" />
-				<header>
-					<h1 className="mb-3">{t('Reset Password')}</h1>
-				</header>
-				<div className="c-panel error mt-3">
-					<p>{error || t('Invalid or expired password reset link')}</p>
-				</div>
-			</div>
+			<AuthLayout logo={<Logo />} title={t('Reset Password')}>
+				<Alert color="error">{error || t('Invalid or expired password reset link')}</Alert>
+			</AuthLayout>
 		)
 	}
 
 	return (
-		<div className="c-panel p-4">
-			<CloudilloLogo className="c-logo w-50 float-right ps-3 pb-3" />
-			<header>
-				<h1 className="mb-3">{t('Reset Password')}</h1>
-			</header>
+		<AuthLayout
+			logo={<Logo animated={progress === 'loading'} />}
+			title={t('Reset Password')}
+			subtitle={t('Set Your New Password')}
+		>
+			<Text as="p">{t('Please choose a strong password to secure your account.')}</Text>
 
-			<h3 className="my-3">{t('Set Your New Password')}</h3>
-			<p className="pb-4">{t('Please choose a strong password to secure your account.')}</p>
-
-			<form onSubmit={handleSubmit}>
-				<label className="d-block my-3">
-					{t('New Password')}
+			<Form onSubmit={handleSubmit}>
+				<Field label={t('New Password')}>
 					<PasswordInput
-						icon={<IcLock />}
+						leading={<IcLock />}
 						name="password"
 						autoFocus
 						onChange={(evt) => {
@@ -154,13 +149,19 @@ export function ResetPassword() {
 						aria-label={t('New Password')}
 						disabled={progress === 'loading'}
 					/>
-				</label>
+				</Field>
 				<PasswordStrengthBar password={password} />
 
-				<label className="d-block my-3">
-					{t('Confirm Password')}
+				<Field
+					label={t('Confirm Password')}
+					error={
+						confirmPassword && password !== confirmPassword
+							? t('Passwords do not match')
+							: undefined
+					}
+				>
 					<PasswordInput
-						icon={<IcLock />}
+						leading={<IcLock />}
 						name="confirmPassword"
 						onChange={(evt) => {
 							setConfirmPassword(evt.target.value)
@@ -171,27 +172,21 @@ export function ResetPassword() {
 						aria-label={t('Confirm Password')}
 						disabled={progress === 'loading'}
 					/>
-				</label>
-				{confirmPassword && password !== confirmPassword && (
-					<div className="small text-error mt-1">{t('Passwords do not match')}</div>
-				)}
+				</Field>
 
-				{error && (
-					<div className="c-panel error mt-3">
-						<p>{error}</p>
-					</div>
-				)}
+				{error && <Alert color="error">{error}</Alert>}
 
 				{progress === 'success' && (
-					<div className="c-panel success mt-3">
-						<p>{t('Password reset successfully. Redirecting to login...')}</p>
-					</div>
+					<Alert color="success">
+						{t('Password reset successfully. Redirecting to login...')}
+					</Alert>
 				)}
 
-				<footer className="c-group g-2 mt-4">
+				<ActionBar>
 					<Button
-						className="primary"
+						color="primary"
 						type="submit"
+						loading={progress === 'loading'}
 						disabled={
 							progress === 'loading' ||
 							!password ||
@@ -200,12 +195,11 @@ export function ResetPassword() {
 							password.length < 8
 						}
 					>
-						{progress === 'loading' && <IcLoading className="animate-rotate-cw" />}
-						{progress !== 'loading' && t('Reset Password')}
+						{t('Reset Password')}
 					</Button>
-				</footer>
-			</form>
-		</div>
+				</ActionBar>
+			</Form>
+		</AuthLayout>
 	)
 }
 

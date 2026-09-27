@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import type { CalendarObjectOutput, CalendarOutput } from '@cloudillo/core'
-import { LoadingSpinner, mergeClasses } from '@cloudillo/react'
+import { Checkbox, EmptyState, List, ListItem, LoadingSpinner, Panel, Text } from '@cloudillo/react'
 import dayjs from 'dayjs'
 import { useAtom } from 'jotai'
 import * as React from 'react'
@@ -27,87 +27,71 @@ export function TaskList({ tasks, calendars, isLoading, error, onToggleComplete 
 	const { t, i18n } = useTranslation()
 
 	if (isLoading && tasks.length === 0) {
-		return (
-			<div className="c-cal-tasks d-flex align-items-center justify-content-center p-4">
-				<LoadingSpinner />
-			</div>
-		)
+		return <LoadingSpinner fill className="auto-bg" />
 	}
 
 	if (error) {
-		return (
-			<div className="c-cal-tasks p-4 text-center text-error" role="alert">
-				{error.message}
-			</div>
-		)
+		return <EmptyState fill className="auto-bg" color="error" description={error.message} />
 	}
 
 	if (tasks.length === 0) {
-		return <div className="c-cal-tasks p-4 text-center c-hint">{t('No tasks yet')}</div>
+		return (
+			<Text as="p" emphasis="muted" align="center" className="auto-bg p-4">
+				{t('No tasks yet')}
+			</Text>
+		)
 	}
 
 	const fmtDate = new Intl.DateTimeFormat(i18n.language, { month: 'short', day: 'numeric' })
 	const calById = new Map(calendars.map((c) => [c.calId, c]))
 
 	return (
-		<div className="c-cal-tasks p-2 flex-fill" style={{ overflowY: 'auto', minHeight: 0 }}>
-			<div className="c-vbox g-1">
+		<Panel padding={2} className="flex-fill h-min-0 overflow-y-auto">
+			<List>
 				{tasks.map((task) => {
-					const isActive = selected?.uid === task.uid
 					const isDone = task.status === 'COMPLETED'
 					const cal = calById.get(task.calId)
+					const meta = [
+						task.dtend && `${t('Due')}: ${fmtDate.format(dayjs(task.dtend).toDate())}`,
+						cal?.name
+					]
+						.filter(Boolean)
+						.join(' · ')
 					return (
-						<div
+						<ListItem
 							key={`${task.calId}-${task.uid}`}
-							className={mergeClasses(
-								'c-cal-task-row',
-								isActive && 'active',
-								isDone && 'completed'
-							)}
-							onClick={() => setSelected({ calId: task.calId, uid: task.uid })}
-							onKeyDown={(e) => {
-								if (e.key === 'Enter')
-									setSelected({ calId: task.calId, uid: task.uid })
-							}}
-							tabIndex={0}
-							role="button"
-						>
-							<input
-								type="checkbox"
-								checked={isDone}
-								onClick={(e) => e.stopPropagation()}
-								onChange={async () => {
-									// The parent expects CalendarObjectOutput — the list item has the
-									// essential fields but not `component`. We pass a minimal shape with
-									// `component: 'VTODO'` asserted via the cast.
-									await onToggleComplete({
-										...task,
-										component: task.component,
-										description: undefined,
-										priority: undefined,
-										organizer: undefined,
-										parseError: undefined,
-										createdAt: task.updatedAt
-									} as CalendarObjectOutput)
-								}}
-								aria-label={t('Mark complete')}
-							/>
-							<div className="flex-fill">
-								<div className="c-cal-task-row__title">
+							selected={selected?.uid === task.uid}
+							title={
+								<Text emphasis={isDone ? 'muted' : undefined}>
 									{task.summary || '(untitled)'}
-								</div>
-								<div className="c-cal-task-row__meta">
-									{task.dtend && (
-										<span>{`${t('Due')}: ${fmtDate.format(dayjs(task.dtend).toDate())}`}</span>
-									)}
-									{cal && <span>{cal.name}</span>}
-								</div>
-							</div>
-						</div>
+								</Text>
+							}
+							subtitle={meta || undefined}
+							onClick={() => setSelected({ calId: task.calId, uid: task.uid })}
+							trailing={
+								<Checkbox
+									checked={isDone}
+									onClick={(e) => e.stopPropagation()}
+									onChange={async () => {
+										// The list item lacks CalendarObjectOutput's detail fields, hence the cast.
+										await onToggleComplete({
+											...task,
+											component: task.component,
+											description: undefined,
+											priority: undefined,
+											organizer: undefined,
+											parseError: undefined,
+											createdAt: task.updatedAt
+										} as CalendarObjectOutput)
+									}}
+									aria-label={t('Mark complete')}
+								/>
+							}
+						/>
 					)
 				})}
-			</div>
-		</div>
+			</List>
+		</Panel>
 	)
 }
 

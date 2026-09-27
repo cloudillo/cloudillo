@@ -2,13 +2,26 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import { FetchError, type SmtpDiagnostic, tSmtpDiagnostic } from '@cloudillo/core'
-import { useApi, useAuth } from '@cloudillo/react'
+import {
+	Alert,
+	Button,
+	DescriptionList,
+	Disclosure,
+	Field,
+	HBox,
+	Input,
+	NativeSelect,
+	Panel,
+	Text,
+	Toggle,
+	useApi,
+	useAuth,
+	VBox,
+	PasswordInput
+} from '@cloudillo/react'
 import * as T from '@symbion/runtype'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuCircleAlert as IcError, LuCircleCheck as IcSuccess } from 'react-icons/lu'
-
-import { PasswordInput } from '../components/PasswordInput.js'
 
 interface TestEmailError {
 	message: string
@@ -324,179 +337,173 @@ export function EmailSettings() {
 
 	return (
 		<>
-			<div className="c-panel">
-				<h4>{t('Email Configuration')}</h4>
-
-				<label className="c-hbox pb-2">
-					<span className="flex-fill">{t('Enable email sending')}</span>
-					<input
-						className="c-toggle primary"
-						type="checkbox"
-						checked={formState.enabled}
-						onChange={(e) => updateField('enabled', e.target.checked)}
-					/>
-				</label>
-				<p className="c-hint mb-4">
-					{t(
+			<Panel title={t('Email Configuration')}>
+				<Toggle
+					checked={formState.enabled}
+					onChange={(e) => updateField('enabled', e.target.checked)}
+					label={t('Enable email sending')}
+					description={t(
 						'Disable for testing. When disabled, email features will be silently skipped.'
 					)}
-				</p>
-			</div>
+				/>
+			</Panel>
 
 			{formState.enabled && (
 				<>
-					<div className="c-panel">
-						<h4>{t('SMTP Server Configuration')}</h4>
-
-						<label className="c-hbox pb-2">
-							<span className="flex-fill">
-								{t('SMTP Host')} <span className="text-error">*</span>
-							</span>
-							<input
-								className={`c-input w-lg ${errors.smtpHost ? 'is-invalid' : ''}`}
-								type="text"
-								placeholder="smtp.gmail.com"
-								value={formState.smtpHost}
-								onChange={(e) => updateField('smtpHost', e.target.value)}
-							/>
-						</label>
-						{errors.smtpHost && (
-							<p className="c-invalid-feedback mb-2">{errors.smtpHost}</p>
-						)}
-						<p className="c-hint mb-4">
-							{t('SMTP server hostname. Example: smtp.gmail.com')}
-						</p>
-
-						<label className="c-hbox pb-2">
-							<span className="flex-fill">{t('TLS Mode')}</span>
-							<select
-								className="c-select w-sm"
-								value={formState.smtpTlsMode}
-								onChange={(e) => handleTlsModeChange(e.target.value)}
+					<Panel title={t('SMTP Server Configuration')}>
+						<VBox gap={3}>
+							<Field
+								label={t('SMTP Host')}
+								orientation="horizontal"
+								required
+								error={errors.smtpHost}
+								hint={t('SMTP server hostname. Example: smtp.gmail.com')}
 							>
-								<option value="none">{t('None')}</option>
-								<option value="starttls">{t('STARTTLS (recommended)')}</option>
-								<option value="tls">{t('TLS/SSL')}</option>
-							</select>
-						</label>
-						<p className="c-hint mb-4">
-							{t('STARTTLS on port 587, TLS/SSL on port 465')}
-						</p>
+								<Input
+									className="w-lg"
+									type="text"
+									placeholder="smtp.gmail.com"
+									value={formState.smtpHost}
+									onChange={(e) => updateField('smtpHost', e.target.value)}
+								/>
+							</Field>
 
-						<label className="c-hbox pb-2">
-							<span className="flex-fill">{t('SMTP Port')}</span>
-							<input
-								className={`c-input w-xs ${errors.smtpPort ? 'is-invalid' : ''}`}
-								type="number"
-								min="1"
-								max="65535"
-								placeholder={String(getDefaultPort())}
-								value={formState.smtpPort}
-								onChange={(e) => updateField('smtpPort', e.target.value)}
-							/>
-						</label>
-						{errors.smtpPort && (
-							<p className="c-invalid-feedback mb-2">{errors.smtpPort}</p>
-						)}
-						<p className="c-hint mb-4">
-							{t(
-								'Typically 25 (SMTP), 465 (SMTPS), or 587 (Submission with STARTTLS)'
-							)}
-						</p>
+							<Field
+								label={t('TLS Mode')}
+								orientation="horizontal"
+								hint={t('STARTTLS on port 587, TLS/SSL on port 465')}
+							>
+								<NativeSelect
+									className="w-sm"
+									value={formState.smtpTlsMode}
+									onChange={(e) => handleTlsModeChange(e.target.value)}
+								>
+									<option value="none">{t('None')}</option>
+									<option value="starttls">{t('STARTTLS (recommended)')}</option>
+									<option value="tls">{t('TLS/SSL')}</option>
+								</NativeSelect>
+							</Field>
 
-						<label className="c-hbox pb-2">
-							<span className="flex-fill">{t('Connection Timeout (seconds)')}</span>
-							<input
-								className="c-input w-xs"
-								type="number"
-								min="1"
-								max="300"
-								placeholder="30"
-								value={formState.smtpTimeoutSeconds}
-								onChange={(e) => updateField('smtpTimeoutSeconds', e.target.value)}
-							/>
-						</label>
-						<p className="c-hint mb-4">
-							{t('How long to wait before abandoning connection')}
-						</p>
-					</div>
+							<Field
+								label={t('SMTP Port')}
+								orientation="horizontal"
+								error={errors.smtpPort}
+								hint={t(
+									'Typically 25 (SMTP), 465 (SMTPS), or 587 (Submission with STARTTLS)'
+								)}
+							>
+								<Input
+									className="w-xs"
+									type="number"
+									min="1"
+									max="65535"
+									placeholder={String(getDefaultPort())}
+									value={formState.smtpPort}
+									onChange={(e) => updateField('smtpPort', e.target.value)}
+								/>
+							</Field>
 
-					<div className="c-panel">
-						<h4>{t('SMTP Authentication')}</h4>
+							<Field
+								label={t('Connection Timeout (seconds)')}
+								orientation="horizontal"
+								hint={t('How long to wait before abandoning connection')}
+							>
+								<Input
+									className="w-xs"
+									type="number"
+									min="1"
+									max="300"
+									placeholder="30"
+									value={formState.smtpTimeoutSeconds}
+									onChange={(e) =>
+										updateField('smtpTimeoutSeconds', e.target.value)
+									}
+								/>
+							</Field>
+						</VBox>
+					</Panel>
 
-						<label className="c-hbox pb-2">
-							<span className="flex-fill">{t('Username')}</span>
-							<input
-								className="c-input w-lg"
-								type="text"
-								placeholder="your@email.com"
-								value={formState.smtpUsername}
-								onChange={(e) => updateField('smtpUsername', e.target.value)}
-							/>
-						</label>
-						<p className="c-hint mb-4">
-							{t('SMTP authentication username (optional)')}
-						</p>
+					<Panel title={t('SMTP Authentication')}>
+						<VBox gap={3}>
+							<Field
+								label={t('Username')}
+								orientation="horizontal"
+								hint={t('SMTP authentication username (optional)')}
+							>
+								<Input
+									className="w-lg"
+									type="text"
+									placeholder="your@email.com"
+									value={formState.smtpUsername}
+									onChange={(e) => updateField('smtpUsername', e.target.value)}
+								/>
+							</Field>
 
-						<label className="c-hbox pb-2">
-							<span className="flex-fill">{t('Password')}</span>
-							<PasswordInput
-								className="flex-fill"
-								value={formState.smtpPassword}
-								onChange={(e) => updateField('smtpPassword', e.target.value)}
-								autoComplete="new-password"
-								data-lpignore="true"
-								data-1p-ignore="true"
-							/>
-						</label>
-						<p className="c-hint mb-4">
-							{t('SMTP authentication password (optional)')}
-						</p>
-					</div>
+							<Field
+								label={t('Password')}
+								orientation="horizontal"
+								id="email-smtp-password"
+								hint={t('SMTP authentication password (optional)')}
+							>
+								<PasswordInput
+									id="email-smtp-password"
+									className="w-lg"
+									value={formState.smtpPassword}
+									onChange={(e) => updateField('smtpPassword', e.target.value)}
+									autoComplete="new-password"
+									data-lpignore="true"
+									data-1p-ignore="true"
+								/>
+							</Field>
+						</VBox>
+					</Panel>
 
-					<div className="c-panel">
-						<h4>{t('Sender Configuration')}</h4>
+					<Panel title={t('Sender Configuration')}>
+						<VBox gap={3}>
+							<Field
+								label={t('From Address')}
+								orientation="horizontal"
+								error={errors.fromAddress}
+								hint={
+									t('Email address that will appear as the sender') +
+									(isEmail(formState.smtpUsername) && !formState.fromAddress
+										? ` (${t('defaults to username')})`
+										: '')
+								}
+							>
+								<Input
+									className="w-lg"
+									type="email"
+									placeholder={fromAddressPlaceholder}
+									value={formState.fromAddress}
+									onChange={(e) => updateField('fromAddress', e.target.value)}
+								/>
+							</Field>
 
-						<label className="c-hbox pb-2">
-							<span className="flex-fill">{t('From Address')}</span>
-							<input
-								className={`c-input w-lg ${errors.fromAddress ? 'is-invalid' : ''}`}
-								type="email"
-								placeholder={fromAddressPlaceholder}
-								value={formState.fromAddress}
-								onChange={(e) => updateField('fromAddress', e.target.value)}
-							/>
-						</label>
-						{errors.fromAddress && (
-							<p className="c-invalid-feedback mb-2">{errors.fromAddress}</p>
-						)}
-						<p className="c-hint mb-4">
-							{t('Email address that will appear as the sender')}
-							{isEmail(formState.smtpUsername) &&
-								!formState.fromAddress &&
-								` (${t('defaults to username')})`}
-						</p>
+							<Field
+								label={t('From Name')}
+								orientation="horizontal"
+								hint={t('Display name for the sender')}
+							>
+								<Input
+									className="w-md"
+									type="text"
+									placeholder="Cloudillo"
+									value={formState.fromName}
+									onChange={(e) => updateField('fromName', e.target.value)}
+								/>
+							</Field>
+						</VBox>
+					</Panel>
 
-						<label className="c-hbox pb-2">
-							<span className="flex-fill">{t('From Name')}</span>
-							<input
-								className="c-input w-md"
-								type="text"
-								placeholder="Cloudillo"
-								value={formState.fromName}
-								onChange={(e) => updateField('fromName', e.target.value)}
-							/>
-						</label>
-						<p className="c-hint mb-4">{t('Display name for the sender')}</p>
-					</div>
-
-					<div className="c-panel">
-						<h4>{t('Advanced Options')}</h4>
-
-						<label className="c-hbox pb-2">
-							<span className="flex-fill">{t('Retry Attempts')}</span>
-							<input
-								className="c-input w-xs"
+					<Panel title={t('Advanced Options')}>
+						<Field
+							label={t('Retry Attempts')}
+							orientation="horizontal"
+							hint={t('Number of times to retry sending failed emails')}
+						>
+							<Input
+								className="w-xs"
 								type="number"
 								min="0"
 								max="10"
@@ -504,41 +511,39 @@ export function EmailSettings() {
 								value={formState.retryAttempts}
 								onChange={(e) => updateField('retryAttempts', e.target.value)}
 							/>
-						</label>
-						<p className="c-hint mb-4">
-							{t('Number of times to retry sending failed emails')}
-						</p>
-					</div>
+						</Field>
+					</Panel>
 				</>
 			)}
 
-			<div className="c-panel">
-				<div className="c-hbox">
+			<Panel>
+				<HBox gap={3} align="center" justify="end">
 					{isDirty && (
-						<span className="text-warning me-3">{t('You have unsaved changes')}</span>
+						<Text color="warning" className="flex-fill">
+							{t('You have unsaved changes')}
+						</Text>
 					)}
-					<div className="flex-fill" />
-					<button
-						className="c-button primary"
-						type="button"
+					<Button
+						color="primary"
 						onClick={handleSave}
+						loading={isSaving}
 						disabled={isSaving || !isDirty}
 					>
 						{isSaving ? t('Saving...') : t('Save settings')}
-					</button>
-				</div>
-			</div>
+					</Button>
+				</HBox>
+			</Panel>
 
 			{formState.enabled && !isDirty && (
-				<div className="c-panel">
-					<h4>{t('Test Email')}</h4>
-					<p className="c-hint mb-3">
-						{t('Send a test email to verify your SMTP configuration.')}
-					</p>
-					<div className="c-hbox gap-2">
-						<input
-							className="c-input flex-fill"
+				<Panel
+					title={t('Test Email')}
+					description={t('Send a test email to verify your SMTP configuration.')}
+				>
+					<HBox gap={2}>
+						<Input
+							className="flex-fill"
 							type="email"
+							aria-label={t('Test email recipient')}
 							placeholder={userEmail || t('recipient@example.com')}
 							value={testEmailAddress}
 							onChange={(e) => {
@@ -547,76 +552,71 @@ export function EmailSettings() {
 								setTestEmailError(undefined)
 							}}
 						/>
-						<button
-							className="c-button primary"
-							type="button"
+						<Button
+							color="primary"
 							onClick={handleTestEmail}
+							loading={testEmailStatus === 'sending'}
 							disabled={testEmailStatus === 'sending'}
 						>
 							{testEmailStatus === 'sending' ? t('Sending...') : t('Send test email')}
-						</button>
-					</div>
+						</Button>
+					</HBox>
 					{testEmailStatus === 'success' && (
-						<div className="c-alert success mt-3">
-							<div className="c-alert-icon">
-								<IcSuccess />
-							</div>
-							<div className="c-alert-content">
-								<div className="c-alert-message">
-									{t('Test email sent successfully!')}
-								</div>
-							</div>
-						</div>
+						<Alert color="success" className="mt-3">
+							{t('Test email sent successfully!')}
+						</Alert>
 					)}
 					{testEmailStatus === 'error' && testEmailError && (
-						<div className="c-alert error mt-3">
-							<div className="c-alert-icon">
-								<IcError />
-							</div>
-							<div className="c-alert-content">
-								<div className="c-alert-title">
-									{t('Failed to send test email')}
-								</div>
-								<div className="c-alert-message">{testEmailError.message}</div>
-								{testEmailError.diagnostic && (
-									<div className="mt-2">
-										<p className="mb-2">
-											{diagnosticHint(testEmailError.diagnostic.category)}
-										</p>
-										{(testEmailError.diagnostic.smtpCode !== undefined ||
-											testEmailError.diagnostic.smtpResponse) && (
-											<dl className="mb-2">
-												{testEmailError.diagnostic.smtpCode !==
-													undefined && (
-													<>
-														<dt>{t('SMTP code')}</dt>
-														<dd>
-															{testEmailError.diagnostic.smtpCode}
-														</dd>
-													</>
-												)}
-												{testEmailError.diagnostic.smtpResponse && (
-													<>
-														<dt>{t('Server response')}</dt>
-														<dd>
-															{testEmailError.diagnostic.smtpResponse}
-														</dd>
-													</>
-												)}
-											</dl>
-										)}
-										<details>
-											<summary>{t('Raw error')}</summary>
-											<pre className="text-pre-wrap">
-												{testEmailError.diagnostic.raw}
-											</pre>
-										</details>
-									</div>
-								)}
-							</div>
-						</div>
+						<Alert
+							color="error"
+							className="mt-3"
+							title={t('Failed to send test email')}
+						>
+							{testEmailError.message}
+							{testEmailError.diagnostic && (
+								<VBox gap={2} className="mt-2">
+									<Text as="p">
+										{diagnosticHint(testEmailError.diagnostic.category)}
+									</Text>
+									{(testEmailError.diagnostic.smtpCode !== undefined ||
+										testEmailError.diagnostic.smtpResponse) && (
+										<DescriptionList
+											items={[
+												...(testEmailError.diagnostic.smtpCode !== undefined
+													? [
+															{
+																key: 'code',
+																term: t('SMTP code'),
+																description:
+																	testEmailError.diagnostic
+																		.smtpCode
+															}
+														]
+													: []),
+												...(testEmailError.diagnostic.smtpResponse
+													? [
+															{
+																key: 'response',
+																term: t('Server response'),
+																description:
+																	testEmailError.diagnostic
+																		.smtpResponse
+															}
+														]
+													: [])
+											]}
+										/>
+									)}
+									<Disclosure variant="ghost" summary={t('Raw error')}>
+										<Text as="div" mono preWrap>
+											{testEmailError.diagnostic.raw}
+										</Text>
+									</Disclosure>
+								</VBox>
+							)}
+						</Alert>
 					)}
-				</div>
+				</Panel>
 			)}
 		</>
 	)

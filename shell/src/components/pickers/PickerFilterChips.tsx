@@ -1,10 +1,9 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button } from '@cloudillo/react'
+import { Button, HBox, Tag } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuX as IcRemove } from 'react-icons/lu'
 
 export interface PickerFilterChipsProps {
 	searchQuery: string
@@ -35,39 +34,32 @@ export function PickerFilterChips({
 	}
 
 	return (
-		<div className="picker-filter-chips">
+		<HBox gap={1} wrap align="center">
 			{searchQuery.trim() !== '' && (
-				<span className="c-tag accent">
+				<Tag
+					color="accent"
+					onRemove={() => onSearchQueryChange('')}
+					removeLabel={t('Remove search filter')}
+				>
 					&ldquo;{searchQuery.trim()}&rdquo;
-					<button
-						type="button"
-						className="c-tag-remove"
-						onClick={() => onSearchQueryChange('')}
-						aria-label={t('Remove search filter')}
-					>
-						<IcRemove />
-					</button>
-				</span>
+				</Tag>
 			)}
 
 			{selectedTags.map((tag) => (
-				<span key={tag} className="c-tag accent">
+				<Tag
+					key={tag}
+					color="accent"
+					onRemove={() => removeTag(tag)}
+					removeLabel={t('Remove tag filter')}
+				>
 					#{tag}
-					<button
-						type="button"
-						className="c-tag-remove"
-						onClick={() => removeTag(tag)}
-						aria-label={t('Remove tag filter')}
-					>
-						<IcRemove />
-					</button>
-				</span>
+				</Tag>
 			))}
 
-			<Button size="small" onClick={clearAll}>
+			<Button size="sm" variant="ghost" onClick={clearAll}>
 				{t('Clear all')}
 			</Button>
-		</div>
+		</HBox>
 	)
 }
 

@@ -1,14 +1,25 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Popper } from '@cloudillo/react'
+import {
+	Badge,
+	BadgeAnchor,
+	Button,
+	HBox,
+	Heading,
+	List,
+	Popover,
+	Text,
+	VBox
+} from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { LuBell as IcNotifications } from 'react-icons/lu'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 
 import { useContextSwitch, useCtx } from '../context/index.js'
 import { communityCreatePath, contextPath } from '../routes.js'
+import { AppHeaderItem } from '../ui/AppHeader.js'
 import { NotificationItem } from './NotificationItem.js'
 import { useNotifications } from './state.js'
 
@@ -19,6 +30,7 @@ export function NotificationPopover() {
 	const navigate = useNavigate()
 	const urlContext = useCtx().base
 	const { switchTo } = useContextSwitch()
+	const [open, setOpen] = React.useState(false)
 	const { notifications, dismissNotification, acceptNotification, rejectNotification } =
 		useNotifications()
 
@@ -42,6 +54,7 @@ export function NotificationPopover() {
 		(action: Parameters<typeof acceptNotification>[0]) => {
 			acceptNotification(action)
 			const content = action.content as { refId?: string } | undefined
+			setOpen(false)
 			navigate(
 				communityCreatePath(
 					urlContext,
@@ -64,68 +77,83 @@ export function NotificationPopover() {
 		.slice(0, MAX_POPOVER_ITEMS)
 
 	const badgeCount = notifications.notifications.length
+	const allPath = contextPath(urlContext, 'notifications')
 
 	return (
-		<Popper
-			className="c-nav-item pos-relative"
-			aria-label={
-				badgeCount
-					? t('Notifications ({{count}} new)', { count: badgeCount })
-					: t('Notifications')
-			}
-			icon={
-				<>
-					<IcNotifications />
-					{!!badgeCount && <span className="c-badge br bg bg-primary">{badgeCount}</span>}
-				</>
-			}
-		>
-			<div className="c-vbox" style={{ width: 360, maxHeight: 480 }}>
-				<div className="c-hbox justify-content-between align-items-center p-2">
-					<h4 className="m-0">{t('Notifications')}</h4>
-					<Link to={contextPath(urlContext, 'notifications')} className="text-link">
-						{t('See all')}
-					</Link>
-				</div>
-				<div className="c-vbox" style={{ overflowY: 'auto', flex: 1 }}>
-					{!sortedNotifications.length && (
-						<div className="c-vbox align-items-center p-3 text-muted g-1">
-							<p>{t('No new notifications')}</p>
-							<p className="small">
+		<AppHeaderItem>
+			<Popover
+				width="md"
+				placement="bottom-end"
+				open={open}
+				onOpenChange={setOpen}
+				trigger={
+					<Button
+						variant="ghost"
+						aria-label={
+							badgeCount
+								? t('Notifications ({{count}} new)', { count: badgeCount })
+								: t('Notifications')
+						}
+						icon={
+							<BadgeAnchor
+								badge={!!badgeCount && <Badge color="primary">{badgeCount}</Badge>}
+							>
+								<IcNotifications />
+							</BadgeAnchor>
+						}
+					/>
+				}
+			>
+				<VBox>
+					<HBox justify="between" align="center" padding={2}>
+						<Heading level={4}>{t('Notifications')}</Heading>
+						<Button variant="link" href={allPath} onClick={() => setOpen(false)}>
+							{t('See all')}
+						</Button>
+					</HBox>
+					{!sortedNotifications.length ? (
+						<VBox align="center" gap={1} padding={3}>
+							<Text emphasis="muted">{t('No new notifications')}</Text>
+							<Text size="sm" emphasis="muted">
 								{t('Follow people or join communities to see activity here.')}
-							</p>
-						</div>
+							</Text>
+						</VBox>
+					) : (
+						<List scroll>
+							{sortedNotifications.map((action) => (
+								<NotificationItem
+									key={action.actionId}
+									action={action}
+									onClick={() => {
+										setOpen(false)
+										navigate(allPath)
+									}}
+									onAccept={
+										action.status === 'C'
+											? action.type === 'PRINVT'
+												? handlePrinvtAccept
+												: handleInvtAccept
+											: undefined
+									}
+									onReject={
+										action.status === 'C' && action.type !== 'PRINVT'
+											? rejectNotification
+											: undefined
+									}
+									onDismiss={
+										action.status !== 'C'
+											? dismissNotification
+											: action.type === 'PRINVT'
+												? acceptNotification
+												: undefined
+									}
+								/>
+							))}
+						</List>
 					)}
-					{sortedNotifications.map((action) => (
-						<NotificationItem
-							key={action.actionId}
-							action={action}
-							compact
-							onClick={() => navigate(contextPath(urlContext, 'notifications'))}
-							onAccept={
-								action.status === 'C'
-									? action.type === 'PRINVT'
-										? handlePrinvtAccept
-										: handleInvtAccept
-									: undefined
-							}
-							onReject={
-								action.status === 'C' && action.type !== 'PRINVT'
-									? rejectNotification
-									: undefined
-							}
-							onDismiss={
-								action.status !== 'C'
-									? dismissNotification
-									: action.type === 'PRINVT'
-										? acceptNotification
-										: undefined
-							}
-						/>
-					))}
-				</div>
-			</div>
-		</Popper>
+				</VBox>
+			</Popover>
+		</AppHeaderItem>
 	)
 }
 

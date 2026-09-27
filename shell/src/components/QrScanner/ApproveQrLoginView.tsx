@@ -1,15 +1,10 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button, useApi } from '@cloudillo/react'
+import { Button, EmptyState, LoadingSpinner, useApi } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuX as IcDeny,
-	LuMonitor as IcDesktop,
-	LuRefreshCw as IcLoading,
-	LuCheck as IcOk
-} from 'react-icons/lu'
+import { LuX as IcDeny, LuMonitor as IcDesktop, LuCheck as IcOk } from 'react-icons/lu'
 
 interface ApproveQrLoginViewProps {
 	loginCode: string
@@ -78,62 +73,51 @@ export function ApproveQrLoginView({ loginCode, onDone }: ApproveQrLoginViewProp
 	}
 
 	return (
-		<div
-			className="c-vbox align-items-center justify-content-center p-4 g-3"
-			style={{ color: '#fff', textAlign: 'center' }}
-			onClick={(e) => e.stopPropagation()}
-		>
-			{state === 'loading' && (
-				<IcLoading className="animate-rotate-cw" style={{ fontSize: '2rem' }} />
-			)}
+		<>
+			{(state === 'loading' || state === 'responding') && <LoadingSpinner inverse />}
 
 			{state === 'confirm' && (
-				<>
-					<IcDesktop style={{ fontSize: '3rem' }} />
-					<h3>{t('Allow login from this device?')}</h3>
-					<p>
-						{parseBrowser(userAgent)}
-						{ipAddress && ` — ${ipAddress}`}
-					</p>
-					<div className="c-hbox g-3">
-						<Button
-							onClick={() => handleRespond(false)}
-							style={{ minWidth: '100px', minHeight: '48px' }}
-						>
-							<IcDeny className="me-1" />
-							{t('Deny')}
-						</Button>
-						<Button
-							variant="primary"
-							onClick={() => handleRespond(true)}
-							style={{ minWidth: '100px', minHeight: '48px' }}
-						>
-							<IcOk className="me-1" />
-							{t('Allow')}
-						</Button>
-					</div>
-				</>
-			)}
-
-			{state === 'responding' && (
-				<IcLoading className="animate-rotate-cw" style={{ fontSize: '2rem' }} />
+				<EmptyState
+					inverse
+					icon={<IcDesktop />}
+					title={t('Allow login from this device?')}
+					description={`${parseBrowser(userAgent)}${ipAddress ? ` — ${ipAddress}` : ''}`}
+					actions={
+						<>
+							<Button
+								size="lg"
+								icon={<IcDeny />}
+								onClick={() => handleRespond(false)}
+							>
+								{t('Deny')}
+							</Button>
+							<Button
+								size="lg"
+								color="primary"
+								icon={<IcOk />}
+								onClick={() => handleRespond(true)}
+							>
+								{t('Allow')}
+							</Button>
+						</>
+					}
+				/>
 			)}
 
 			{state === 'success' && (
-				<>
-					<IcOk style={{ fontSize: '3rem', color: 'var(--col-success)' }} />
-					<p>{t('Login approved')}</p>
-				</>
+				<EmptyState inverse color="success" icon={<IcOk />} title={t('Login approved')} />
 			)}
 
 			{state === 'error' && (
-				<>
-					<IcDeny style={{ fontSize: '3rem', color: 'var(--col-error)' }} />
-					<p>{error}</p>
-					<Button onClick={onDone}>{t('Close')}</Button>
-				</>
+				<EmptyState
+					inverse
+					color="error"
+					icon={<IcDeny />}
+					title={error}
+					actions={<Button onClick={onDone}>{t('Close')}</Button>}
+				/>
 			)}
-		</div>
+		</>
 	)
 }
 

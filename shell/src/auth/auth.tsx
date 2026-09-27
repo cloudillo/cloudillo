@@ -2,7 +2,23 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import { type ApiClient, FetchError, isSessionExpiredError, setApiToken } from '@cloudillo/core'
-import { type AuthState, Button, useApi, useAuth, useDialog, useToast } from '@cloudillo/react'
+import {
+	ActionBar,
+	Alert,
+	type AuthState,
+	Button,
+	Field,
+	Form,
+	Input,
+	Logo,
+	Switcher,
+	Text,
+	Toggle,
+	useApi,
+	useAuth,
+	useToast,
+	PasswordInput
+} from '@cloudillo/react'
 import { browserSupportsWebAuthn, startAuthentication } from '@simplewebauthn/browser'
 import type { TFunction } from 'i18next'
 import { atom, useAtom } from 'jotai'
@@ -10,10 +26,8 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
 	LuArrowLeft as IcBack,
-	LuRefreshCw as IcLoading,
 	LuLogIn as IcLogin,
 	LuMail as IcMail,
-	LuCheck as IcOk,
 	LuFingerprint as IcWebAuthn
 } from 'react-icons/lu'
 import { Navigate, Route, useNavigate } from 'react-router-dom'
@@ -22,11 +36,11 @@ interface NavigatorUA {
 	userAgentData?: { platform: string }
 }
 
-import { PasswordInput } from '../components/PasswordInput.js'
 import { RegisterForm } from '../profile/register.js'
 import { installToken, setApiKey } from '../pwa.js'
 import { feedPath, HOME_BASE, scopePath } from '../routes.js'
 import { useAppConfig } from '../utils.js'
+import { AuthLayout } from './AuthLayout.js'
 import { IdpActivate } from './idp-activate.js'
 import { QrLoginPanel } from './QrLoginPanel.js'
 import { ResetPassword } from './reset-password.js'
@@ -172,7 +186,6 @@ export function LoginForm() {
 	const [appConfig, _setAppConfig] = useAppConfig()
 	const _navigate = useNavigate()
 	const [auth, setAuth] = useAuth()
-	const _dialog = useDialog()
 	const { error: toastError } = useToast()
 	const runWebAuthnLogin = useWebAuthnLoginHandler()
 
@@ -333,130 +346,117 @@ export function LoginForm() {
 		return <Navigate to={navTo} />
 	} else {
 		return (
-			<form className="c-panel p-3" onSubmit={forgot ? onForgotSubmit : onSubmit}>
-				<header>
-					<h2>{forgot ? t('Reset Password') : t('Login')}</h2>
-				</header>
-
-				{!forgot ? (
-					<>
-						<PasswordInput
-							groupClassName="mb-3"
-							name="password"
-							onChange={(evt) => setPassword(evt.target.value)}
-							value={password}
-							placeholder={t('Password')}
-							aria-label={t('Password')}
-						/>
-						<label className="c-hbox g-2 mb-3">
-							<input
-								className="c-toggle primary"
-								name="remember"
-								type="checkbox"
-								checked={remember}
-								onChange={(e) => setRemember(e.target.checked)}
-							/>
-							<span>{t('Remember me on this device')}</span>
-						</label>
-						<div className="mb-3">
-							<button type="button" className="c-link small" onClick={onForgot}>
-								{t('Forgot password?')}
-							</button>
-						</div>
-					</>
-				) : forgotStatus !== 'success' ? (
-					<>
-						{loginInitData?.maskedEmail && (
-							<p className="small text-muted mb-2">
-								{t('Your registered email: {{email}}', {
-									email: loginInitData.maskedEmail
-								})}
-							</p>
-						)}
-						<p className="text-muted mb-3">
-							{t(
-								"Enter your email address and we'll send you a link to reset your password."
-							)}
-						</p>
-						<div className="c-input-group mb-3">
-							<span className="c-button icon">
-								<IcMail />
-							</span>
-							<input
-								className="c-input"
-								name="email"
-								type="email"
-								value={email}
-								onChange={(evt: React.ChangeEvent<HTMLInputElement>) => {
-									setEmail(evt.target.value)
-									setForgotError(undefined)
-								}}
-								placeholder={t('Email address')}
-								aria-label={t('Email address')}
-								disabled={forgotStatus === 'loading'}
-								autoFocus
-							/>
-						</div>
-						{forgotError && (
-							<div className="c-invalid-feedback mb-2">{forgotError}</div>
-						)}
-					</>
-				) : (
-					<div className="c-panel success p-3 mb-3">
-						<div className="c-hbox align-items-center g-2">
-							<IcOk style={{ fontSize: '1.5rem', color: 'var(--col-success)' }} />
-							<p className="mb-0">
+			<AuthLayout
+				logo={<Logo animated={forgotStatus === 'loading'} />}
+				title={forgot ? t('Reset Password') : t('Login')}
+				width="md"
+			>
+				<Switcher gap={3}>
+					<Form onSubmit={forgot ? onForgotSubmit : onSubmit}>
+						{!forgot ? (
+							<>
+								<Field label={t('Password')}>
+									<PasswordInput
+										name="password"
+										onChange={(evt) => setPassword(evt.target.value)}
+										value={password}
+										placeholder={t('Password')}
+										aria-label={t('Password')}
+									/>
+								</Field>
+								<Toggle
+									color="primary"
+									name="remember"
+									label={t('Remember me on this device')}
+									checked={remember}
+									onChange={(e) => setRemember(e.target.checked)}
+								/>
+								<Button variant="link" onClick={onForgot}>
+									{t('Forgot password?')}
+								</Button>
+							</>
+						) : forgotStatus !== 'success' ? (
+							<>
+								{loginInitData?.maskedEmail && (
+									<Text as="p" size="sm" emphasis="muted">
+										{t('Your registered email: {{email}}', {
+											email: loginInitData.maskedEmail
+										})}
+									</Text>
+								)}
+								<Text as="p" emphasis="muted">
+									{t(
+										"Enter your email address and we'll send you a link to reset your password."
+									)}
+								</Text>
+								<Field label={t('Email address')} error={forgotError}>
+									<Input
+										leading={<IcMail />}
+										name="email"
+										type="email"
+										value={email}
+										onChange={(evt: React.ChangeEvent<HTMLInputElement>) => {
+											setEmail(evt.target.value)
+											setForgotError(undefined)
+										}}
+										placeholder={t('Email address')}
+										disabled={forgotStatus === 'loading'}
+										autoFocus
+									/>
+								</Field>
+							</>
+						) : (
+							<Alert color="success">
 								{t(
 									"If an account with this email exists, you'll receive a password reset link shortly."
 								)}
-							</p>
-						</div>
-					</div>
-				)}
+							</Alert>
+						)}
 
-				{!forgot && <div className="c-invalid-feedback">{error}</div>}
-				<footer className="c-group g-2">
-					{forgot ? (
-						<>
-							<Button
-								type="button"
-								onClick={() => {
-									setForgot(false)
-									setForgotStatus('idle')
-									setEmail('')
-									setForgotError(undefined)
-								}}
-							>
-								<IcBack />
-								{t('Back')}
-							</Button>
-							{forgotStatus !== 'success' && (
-								<Button
-									type="button"
-									variant="primary"
-									disabled={forgotStatus === 'loading' || !email}
-									onClick={onForgotSubmit}
-								>
-									{forgotStatus === 'loading' && (
-										<IcLoading className="animate-rotate-cw" />
+						{!forgot && error && <Alert color="error">{error}</Alert>}
+						<ActionBar>
+							{forgot ? (
+								<>
+									<Button
+										type="button"
+										onClick={() => {
+											setForgot(false)
+											setForgotStatus('idle')
+											setEmail('')
+											setForgotError(undefined)
+										}}
+									>
+										<IcBack />
+										{t('Back')}
+									</Button>
+									{forgotStatus !== 'success' && (
+										<Button
+											type="button"
+											color="primary"
+											loading={forgotStatus === 'loading'}
+											disabled={forgotStatus === 'loading' || !email}
+											onClick={onForgotSubmit}
+										>
+											{t('Send reset link')}
+										</Button>
 									)}
-									{t('Send reset link')}
-								</Button>
+								</>
+							) : (
+								<>
+									<Button type="submit" color="primary" disabled={!api?.idTag}>
+										<IcLogin />
+										{t('Login')}
+									</Button>
+									{browserSupportsWebAuthn() && hasPasskeys !== false && (
+										<WebAuth remember={remember} />
+									)}
+								</>
 							)}
-						</>
-					) : (
-						<>
-							<Button type="submit" variant="primary" disabled={!api?.idTag}>
-								<IcLogin />
-								{t('Login')}
-							</Button>
-							{browserSupportsWebAuthn() && hasPasskeys !== false && (
-								<WebAuth remember={remember} />
-							)}
-						</>
-					)}
-				</footer>
-			</form>
+						</ActionBar>
+					</Form>
+					<QrLoginPanel className="d-none md:d-flex" />
+				</Switcher>
+			</AuthLayout>
 		)
 	}
 }
@@ -487,34 +487,9 @@ export function WebAuth({ remember }: WebAuthProps) {
 	)
 }
 
-function LoginPage({ children, wide }: { children: React.ReactNode; wide?: boolean }) {
+function LoginPage({ children }: { children: React.ReactNode }) {
 	const [loginInitData] = useAtom(loginInitAtom)
-	return (
-		<LoginInitContext.Provider value={loginInitData}>
-			<div className="c-container">
-				{wide ? (
-					<div className="row">
-						<div className="col-0 col-md-1 col-lg-2" />
-						<div className="col col-md-10 col-lg-8">
-							<div className="flex-fill-x">{children}</div>
-						</div>
-						<div className="col-0 col-md-1 col-lg-2" />
-					</div>
-				) : (
-					<div className="row">
-						<div className="col-0 col-md-1 col-lg-2" />
-						<div className="col col-md-5 col-lg-4">
-							<div className="flex-fill-x">{children}</div>
-						</div>
-						<div className="col col-md-5 col-lg-4 d-none md:d-flex align-items-center justify-content-center">
-							<QrLoginPanel />
-						</div>
-						<div className="col-0 col-md-1 col-lg-2" />
-					</div>
-				)}
-			</div>
-		</LoginInitContext.Provider>
-	)
+	return <LoginInitContext.Provider value={loginInitData}>{children}</LoginInitContext.Provider>
 }
 
 /**
@@ -539,7 +514,7 @@ export function authRoutes() {
 			<Route
 				path="/register/:token"
 				element={
-					<LoginPage wide>
+					<LoginPage>
 						<RegisterForm />
 					</LoginPage>
 				}
@@ -547,7 +522,7 @@ export function authRoutes() {
 			<Route
 				path="/register/:token/:providerType"
 				element={
-					<LoginPage wide>
+					<LoginPage>
 						<RegisterForm />
 					</LoginPage>
 				}
@@ -555,7 +530,7 @@ export function authRoutes() {
 			<Route
 				path="/register/:token/idp/:idpStep"
 				element={
-					<LoginPage wide>
+					<LoginPage>
 						<RegisterForm />
 					</LoginPage>
 				}
@@ -563,7 +538,7 @@ export function authRoutes() {
 			<Route
 				path="/register/:token/idp/:idpStep/:provider"
 				element={
-					<LoginPage wide>
+					<LoginPage>
 						<RegisterForm />
 					</LoginPage>
 				}
@@ -579,7 +554,7 @@ export function authRoutes() {
 			<Route
 				path="/idp/activate/:refId"
 				element={
-					<LoginPage wide>
+					<LoginPage>
 						<IdpActivate />
 					</LoginPage>
 				}

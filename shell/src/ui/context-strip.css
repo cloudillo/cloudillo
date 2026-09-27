@@ -1,0 +1,284 @@
+/* ── Context strip (top bar), ContextChip, community finder ─────────────────────
+   Cut from shell/src/style.css (cleanup-13 Phase 3a). The strip is the parent
+   navigation tier: which identity's data am I acting on. */
+
+.c-ctx-bar {
+	display: flex;
+	align-items: center;
+	/* Sits flush after the logo rather than floating mid-row: the header <nav>
+	   is `justify-content-between` and the strip is content-sized, so it needs
+	   to take the slack itself. `min-width: 0` keeps the right group on screen. */
+	flex: 1 1 auto;
+	justify-content: flex-start;
+	min-width: 0;
+	/* `clip` with a margin, not `hidden`: a chip at either edge must be able to paint
+	   its `:focus-visible` shadow, which sits just outside the row. */
+	overflow: clip;
+	overflow-clip-margin: 0.375rem;
+}
+
+/* On R `Tag`: reset the tag's own box, then draw the chip. */
+.c-tag.c-ctx-chip {
+	display: flex;
+	align-items: center;
+	gap: 0.375rem;
+	flex-shrink: 0;
+	height: auto;
+	padding: 0.25rem 0.5rem 0.25rem 0.25rem;
+	border: none;
+	border-radius: 999px;
+	background: none;
+	color: var(--col-on);
+	font: inherit;
+	cursor: pointer;
+	position: relative;
+	/* Long-press opens the context menu, not the OS callout. */
+	-webkit-touch-callout: none;
+	user-select: none;
+	transition: background-color 0.2s;
+
+	&:hover {
+		background: var(--col-container-low);
+	}
+
+	&.active {
+		background: lch(from var(--col-primary) l c h / 0.25);
+		color: var(--col-primary);
+		font-weight: 600;
+	}
+
+	&.static {
+		cursor: default;
+	}
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: 0 0 var(--sh-focus) var(--col-focus);
+	}
+
+	/* Sheet tile: avatar over name. */
+	&.vertical {
+		flex-direction: column;
+		gap: 0.25rem;
+		width: 4rem;
+		padding: 0.25rem 0;
+		border-radius: var(--radius-md);
+		scroll-snap-align: start;
+
+		&.active {
+			background: lch(from var(--col-primary) l c h / 0.15);
+		}
+
+		.c-ctx-chip-avatar {
+			width: 2.75rem;
+			height: 2.75rem;
+		}
+
+		.c-ctx-chip-name {
+			max-inline-size: 100%;
+			font-size: 0.75rem;
+		}
+	}
+}
+
+.c-sortable-item:has(> .c-ctx-chip) {
+	cursor: grab;
+}
+
+.c-sortable-item.dragging:not(.overlay) > .c-ctx-chip {
+	opacity: 0.5;
+}
+
+/* Icon-only personal tile: the pill tint alone does not read as active. `outline`
+   rather than `box-shadow`: it must not fight the chip's own `:focus-visible` shadow. */
+.c-ctx-chip.active .c-ctx-chip-avatar > :first-child {
+	outline: 2px solid var(--col-primary);
+	outline-offset: 1px;
+}
+
+.c-ctx-chip.preview .c-ctx-chip-avatar > :first-child {
+	border: 2px dashed var(--col-on-container);
+}
+
+.c-ctx-chip-avatar {
+	flex-shrink: 0;
+	width: 2.25rem;
+	height: 2.25rem;
+
+	> :first-child {
+		width: 100%;
+		height: 100%;
+	}
+}
+
+.c-ctx-chip-pending {
+	position: absolute;
+	inset-block-end: 0;
+	inset-inline-start: 0;
+	display: inline-flex;
+	color: var(--col-primary);
+	opacity: 0.7;
+	font-size: 0.75rem;
+}
+
+.c-ctx-chip-name {
+	/* A cap, not a scroll: a long (or Hungarian) name ellipsises, and the chip
+	   *count* cap is what pushes the rest into the [▦] overflow. */
+	max-inline-size: 9ch;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	font-size: 0.83rem;
+}
+
+.c-ctx-overflow {
+	position: relative;
+	flex-shrink: 0;
+	padding: 0.375rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.c-tag.c-ctx-chip {
+		transition: none;
+	}
+}
+
+/* The [▦] popup: R `Menu` surface with `role="dialog"` (search field + pin toggles).
+   The body is `.c-community-finder`, which does its own scrolling. */
+.c-community-popup {
+	display: flex;
+	flex-direction: column;
+	padding: 0.5rem;
+	width: min(26rem, calc(100vw - 2rem));
+	max-height: min(32rem, calc(100vh - 6rem));
+}
+
+/* Shared by the popup and the mobile sheet (layout/CommunityFinder.tsx). DOM order is
+   pinned → search → list → footer; the sheet flips it so the search and the pinned
+   row sit next to the thumb, above the dock. */
+.c-community-finder {
+	gap: 0.5rem;
+	flex: 1 1 auto;
+	min-height: 0;
+}
+
+.c-community-finder-list {
+	gap: 0.5rem;
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow-y: auto;
+}
+
+/* Bottom-anchored: the first section and the first row sit right above the search
+   field, and a column-reverse scroller starts at its bottom. */
+.c-community-finder.sheet {
+	flex-direction: column-reverse;
+
+	.c-community-finder-list,
+	.c-community-finder-section,
+	.c-community-finder-rows {
+		flex-direction: column-reverse;
+	}
+}
+
+.c-community-finder-footer {
+	gap: 0.5rem;
+	padding-top: 0.5rem;
+	border-top: 1px solid var(--col-outline);
+	font-size: 0.83rem;
+}
+
+.c-community-finder.sheet .c-community-finder-footer {
+	padding-top: 0;
+	padding-bottom: 0.5rem;
+	border-top: none;
+	border-bottom: 1px solid var(--col-outline);
+}
+
+/* ContextTools as a compact row inside the sheet. */
+.c-community-finder .c-sidebar-context-tools {
+	display: flex;
+	margin: 0;
+	padding: 0;
+	border: none;
+
+	.c-nav-link {
+		flex: 1 1 0;
+		min-width: 0;
+		flex-direction: column;
+		gap: 0.25rem;
+		font-size: 1.25rem;
+		min-height: 3.25rem;
+	}
+
+	.c-nav-label {
+		font-size: 0.75rem;
+		max-width: 100%;
+		overflow: hidden;
+		white-space: nowrap;
+		text-overflow: ellipsis;
+	}
+}
+
+.c-community-card {
+	align-items: center;
+	gap: 0.25rem;
+	border-radius: var(--radius-md);
+
+	&.active {
+		background: lch(from var(--col-primary) l c h / 0.15);
+	}
+}
+
+.c-sortable-item:has(> .c-community-card) {
+	cursor: grab;
+}
+
+.c-button.c-community-card-main {
+	display: flex;
+	align-items: center;
+	justify-content: flex-start;
+	gap: 0.75rem;
+	flex: 1 1 auto;
+	min-width: 0;
+	min-height: 3.25rem;
+	padding: 0.375rem 0.5rem;
+	border-radius: inherit;
+	text-align: start;
+
+	&:focus-visible {
+		outline-offset: -2px;
+	}
+
+	.c-ctx-chip-avatar {
+		width: 2.5rem;
+		height: 2.5rem;
+	}
+}
+
+.c-community-card-text {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.c-community-card-action {
+	flex: none;
+	justify-content: center;
+	width: 2.75rem;
+	height: 2.75rem;
+	padding: 0;
+	font-size: 1.125rem;
+}
+
+/* Sheet only: 'me' + pinned communities, a horizontal snap scroller. */
+.c-community-pinned {
+	flex: none;
+	scroll-snap-type: x proximity;
+	scrollbar-width: none;
+	/* Room for the badges hanging off the avatars. */
+	padding: 0.5rem 0.25rem 0;
+}
+
+.c-community-pinned::-webkit-scrollbar {
+	display: none;
+}

@@ -1,0 +1,441 @@
+/* ── Published site chrome ────────────────────────────────────────────────────
+   The site bar, and the reservations that hold its place before the bundle
+   parses. Two implementations paint this markup — React (`ui/SiteBar.tsx`) and
+   the Rust wrapper (`cloudillo-rs`, `crates/cloudillo-site/src/wrapper.rs`, which
+   emits the same class names) — and *neither of them owns a size*. Every height
+   is here, read by both, so the takeover at boot can drift in cosmetics inside
+   the bar but never in geometry. That is the whole contract; adding a chrome row
+   without updating `--shell-site-bar-height` would start shifting every published
+   page instead. */
+
+/* Before boot there is no `.c-layout` to push the article below the header, so
+   the article clears both fixed rows itself. `SitePage`'s layout effect drops
+   this class in the same commit that removes the server chrome and mounts
+   React's, so the two spacings never both apply and never both go missing. */
+body.cl-site-preboot #cl-site-content {
+	/* Margin, not padding: the article now paints a background of its own, and padding
+	   here would paint it up behind the fixed header and site bar. The card starts
+	   below the chrome; `padding-block` above still supplies the inner air. */
+	margin-block-start: calc(var(--shell-header-height) + var(--shell-site-bar-height) + 1rem);
+}
+
+/* …and it is also what lets the page scroll before boot. `body { overflow: hidden }`
+   above propagates to the viewport, which is right for the shell — every shell view
+   scrolls inside a panel of its own — and would clip a published page at one screen
+   with the bundle blocked, i.e. exactly the reader this whole design renders for. */
+body.cl-site-preboot {
+	overflow: visible;
+	height: auto;
+}
+
+/* The published article's scroll container after boot, and its only one: neither
+   `.c-layout` nor `#main-content` sets an overflow, and the viewport still does not
+   scroll. `site/scroll.ts` reads and writes this element's `scrollTop` — it owns the
+   offset a back navigation restores, so nothing above it may take over the scrolling.
+   `overflow-x: clip` for the same reason as `.c-search-page-results`: `overflow-y: auto`
+   alone produces a spurious horizontal scrollbar. */
+.c-site-content-host {
+	flex: 1 1 0;
+	min-height: 0;
+	overflow-y: auto;
+	overflow-x: clip;
+}
+
+.c-site-bar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.5rem;
+	height: var(--shell-site-bar-height);
+	/* React's copy is a row of `#main-content`, a flex column: without this the
+	   article below it would squeeze the bar and undo the reserved height. */
+	flex-shrink: 0;
+	padding-inline: 0.75rem;
+	font-size: 0.875rem;
+	background: var(--col-container);
+	color: var(--col-on-container);
+	border-block-end: 1px solid var(--col-outline);
+}
+
+/* The server's copy of the bar, which has no React layout to sit in: it stands
+   where `.c-layout`'s first row will be, directly under the fixed header. */
+.c-site-bar.preboot {
+	position: fixed;
+	top: var(--shell-header-height);
+	left: 0;
+	right: 0;
+	z-index: var(--z-fixed);
+}
+
+/* The list is the disclosure's **sibling**, not its child, and that is the whole
+   trick: a closed `<details>` hides its content through the UA's
+   `content-visibility: hidden` on the content slot, which applies to the entire
+   subtree and cannot be undone by a `display` on a child. So a nested list is
+   invisible at every width where nothing opens the element — which above the
+   breakpoint is every width, the summary being `display: none`. Sitting outside,
+   the list is simply the row up here, and below the breakpoint the disclosure
+   reaches it with `+` to become a native menu that opens with the bundle blocked.
+   `::details-content { content-visibility: visible }` would say the same thing more
+   directly but only reached Baseline in 2025; `+` needs nothing newer than CSS2,
+   and this markup is read by anonymous visitors on the owner's own origin. */
+/* No `overflow` here, at either width: a top-level item's submenu is positioned
+   against its own `<li>` and would be clipped by any ancestor that sets one — the
+   same reason the mobile block below says it. What keeps the bar's fixed height is
+   that the submenu is out of flow, not that the row is cropped; a nav long enough to
+   spill sideways squeezes the breadcrumbs, which do crop themselves. */
+.c-site-nav {
+	display: flex;
+	align-items: stretch;
+	min-width: 0;
+}
+
+/* The disclosure is mobile-only: up here the list needs no toggle to reveal it. */
+.c-site-nav-menu {
+	display: none;
+}
+
+.c-site-nav-list {
+	display: flex;
+	align-items: stretch;
+	gap: 0.125rem;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+/* One level of children (`detect.ts` normalizes to exactly that), as a dropdown
+   anchored to its own item so the row keeps the bar's fixed height. */
+.c-site-nav-list > li {
+	position: relative;
+	display: flex;
+	align-items: stretch;
+}
+
+.c-site-nav-list > li > ul {
+	display: none;
+	position: absolute;
+	top: 100%;
+	inset-inline-start: 0;
+	z-index: var(--z-popover);
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 0.25rem;
+	min-width: max(10rem, 100%);
+	margin: 0;
+	padding: 0.25rem;
+	list-style: none;
+	background: var(--col-container);
+	color: var(--col-on-container);
+	border: 1px solid var(--col-outline);
+	border-radius: var(--radius-md);
+	box-shadow: var(--shadow-md);
+	/* A nav with many children must not run off the bottom of the viewport. Safe
+	   here even though `.c-site-nav` deliberately sets no overflow: nothing inside
+	   this panel is out of flow — the second level has no children of its own. */
+	max-height: min(70vh, 24rem);
+	overflow-y: auto;
+}
+
+.c-site-nav-list > li > ul :is(a, span) {
+	width: 100%;
+	min-height: 1.5rem;
+	padding-block: 0.25rem;
+	border-radius: var(--radius-sm);
+}
+
+/* `:focus-within` as well as hover, and neither is optional: the bar ships no script
+   of its own — a published page is read with whatever the visitor has — so this is
+   the whole of the submenu's keyboard access. */
+.c-site-nav-list > li:hover > ul,
+.c-site-nav-list > li:focus-within > ul {
+	display: flex;
+}
+
+/* The `<span>` is `NavLink`'s fallback for a target `safeHref` rejected — it must
+   size like the anchor or the row would jump when one entry is unsafe. */
+.c-site-nav-list :is(a, span) {
+	display: flex;
+	align-items: center;
+	padding-inline: 0.5rem;
+	color: inherit;
+	text-decoration: none;
+	white-space: nowrap;
+	transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+/* Full bar height: clears WCAG 2.2 AA 2.5.8 (24x24 CSS px), the same reason
+   `.c-site-provenance .owner` stretches — and it is what puts the submenu's
+   `top: 100%` on the bar's own bottom edge, so there is no gap to lose hover
+   across and no overlap of the border. Square bottom corners so the current-page
+   accent reads as an underline rather than a floating dash. */
+.c-site-nav-list > li > :is(a, span) {
+	align-self: stretch;
+	border-start-start-radius: var(--radius-sm);
+	border-start-end-radius: var(--radius-sm);
+}
+
+.c-site-nav a:hover {
+	background: var(--col-container-high);
+}
+
+/* The global ring (`:focus-visible` in `shell/src/style.css`) uses a positive offset, which would
+   paint outside a full-height item. Inset it, as `.c-nav-link:focus-visible` does. */
+.c-site-nav :is(a, summary):focus-visible {
+	outline-offset: -2px;
+	border-radius: var(--radius-sm);
+}
+
+/* Colour *and* a 2px bar, never font-weight: a weight change re-lays-out the whole
+   row on every navigation, and weight alone is a thin cue on a 14px row. */
+.c-site-nav a[aria-current='page'] {
+	color: var(--col-em-container);
+	box-shadow: inset 0 -2px 0 var(--col-primary);
+}
+
+/* Also on any coarse pointer, whatever the width: a touch device wider than the
+   breakpoint has no hover, so without the disclosure its submenus could not be
+   opened at all. The breadcrumb block below deliberately stays width-only —
+   collapsing a trail is a question of room, not of pointer. */
+@media screen and (width < 48rem), screen and (hover: none) {
+	/* The panel is anchored to the nav, not to the disclosure: the list is the
+	   disclosure's sibling, so the containing block moves up one level. */
+	.c-site-nav {
+		position: relative;
+	}
+
+	.c-site-nav-menu {
+		display: flex;
+		align-items: stretch;
+	}
+
+	/* 2rem square minimum plus the bar's full height — WCAG 2.2 AA 2.5.8 again. */
+	.c-site-nav-menu > summary {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		align-self: stretch;
+		min-width: 2rem;
+		padding-inline: 0.25rem;
+		border-radius: var(--radius-sm);
+		font-size: 1.125rem;
+		cursor: pointer;
+		list-style: none;
+	}
+
+	.c-site-nav-menu > summary:hover {
+		background: var(--col-container-high);
+	}
+
+	.c-site-nav-menu > summary::-webkit-details-marker {
+		display: none;
+	}
+
+	.c-site-nav-menu > summary::before {
+		content: '\2630';
+	}
+
+	.c-site-nav-menu:not([open]) + .c-site-nav-list {
+		display: none;
+	}
+
+	.c-site-nav-menu[open] + .c-site-nav-list {
+		position: absolute;
+		top: 100%;
+		inset-inline-start: 0;
+		z-index: var(--z-popover);
+		flex-direction: column;
+		align-items: stretch;
+		gap: 0.25rem;
+		min-width: 12rem;
+		padding: 0.25rem;
+		background: var(--col-container);
+		border: 1px solid var(--col-outline);
+		border-radius: var(--radius-md);
+		box-shadow: var(--shadow-md);
+		max-height: min(70vh, 24rem);
+		overflow-y: auto;
+	}
+
+	.c-site-nav-menu[open] + .c-site-nav-list :is(a, span) {
+		width: 100%;
+		min-height: 2rem;
+		border-radius: var(--radius-sm);
+	}
+
+	/* In a vertical panel an underline accent reads as a divider, so the current
+	   page is a filled row instead. */
+	.c-site-nav-menu[open] + .c-site-nav-list a[aria-current='page'] {
+		background: var(--col-container-high);
+		box-shadow: none;
+	}
+
+	/* Inside the open panel the children stay in flow as an indented sub-list:
+	   the menu is already a panel, and a second dropdown inside it would open
+	   against the viewport edge as often as not. Always shown, so it needs neither
+	   hover nor focus — there is no pointer to hover with here. */
+	.c-site-nav-menu[open] + .c-site-nav-list > li > ul {
+		display: flex;
+		position: static;
+		min-width: 0;
+		margin-block-start: 0.25rem;
+		padding-block: 0;
+		padding-inline: 0.75rem 0;
+		background: none;
+		border: 0;
+	}
+}
+
+/* Deeper than one level only, and the first thing to go when the row is tight:
+   the nav and the provenance both say something a breadcrumb repeats. */
+.c-site-breadcrumbs {
+	display: flex;
+	align-items: center;
+	min-width: 0;
+	overflow: hidden;
+	white-space: nowrap;
+	/* Not `opacity`: composited on the light container this text lands at ~3:1,
+	   short of WCAG 2.2 AA 1.4.3. The token is AA in both themes. */
+	color: var(--col-on-container-low);
+
+	ol {
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+		min-width: 0;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	/* The clip is per crumb, so a long trail loses characters from each instead
+	   of chopping the row. */
+	li {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	li + li::before {
+		content: '\203A';
+		margin-inline-end: 0.25rem;
+	}
+
+	/* The glyph points along the reading direction. */
+	[dir='rtl'] & li + li::before {
+		content: '\2039';
+	}
+
+	a {
+		color: inherit;
+		text-decoration: none;
+	}
+
+	a:hover {
+		text-decoration: underline;
+	}
+
+	[aria-current='page'] {
+		color: var(--col-on-container);
+	}
+}
+
+/* Width-only, unlike the nav block above: a trail collapses for want of room. */
+@media screen and (width < 48rem) {
+	/* Not the whole trail — one "up" link. Everything else on this row is either
+	   collapsed (the nav) or identity (the owner chip), so a deep page otherwise
+	   shows nothing about where it sits. `crumbs.length > 1` guarantees this item
+	   exists whenever the trail renders at all. */
+	.c-site-breadcrumbs li:not(:nth-last-child(2)) {
+		display: none;
+	}
+
+	.c-site-breadcrumbs li:nth-last-child(2)::before {
+		content: '\2039';
+		margin-inline: 0 0.25rem;
+	}
+
+	[dir='rtl'] .c-site-breadcrumbs li:nth-last-child(2)::before {
+		content: '\203A';
+	}
+}
+
+/* The right half — the same provenance `GuestOwnerBanner` shows on shell routes,
+   in one row with the nav instead of a strip of its own. For a signed-in owner
+   it is an edit link instead: they do not need to be told whose node this is. */
+.c-site-provenance {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	min-width: 0;
+	overflow: hidden;
+
+	/* `color`, not `opacity`: dimming a ~6:1 pair by 0.7 lands under the 4.5:1 of
+	   WCAG 2.2 AA 1.4.3 on the light container. The token is AA in both themes. */
+	.label {
+		flex-shrink: 0;
+		color: var(--col-on-container-low);
+	}
+
+	.owner {
+		display: inline-flex;
+		align-items: center;
+		/* Full-height link — clears WCAG 2.2 AA 2.5.8 (24x24 CSS px target). */
+		align-self: stretch;
+		gap: 0.375rem;
+		min-width: 0;
+		padding-inline: 0.375rem;
+		border-radius: var(--radius-sm);
+		overflow: hidden;
+		color: inherit;
+		text-decoration: none;
+	}
+
+	a.owner:hover {
+		background: var(--col-container-high);
+	}
+
+	/* `min-width: 0` on the flex items too, or the `auto` default floors them
+	   at max-content and the ellipsis never fires. */
+	.name {
+		min-width: 0;
+		font-weight: 600;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	/* Gives up its space ~100x faster than the name, so the name is the last
+	   thing to lose characters. */
+	.tag {
+		flex-shrink: 100;
+		min-width: 0;
+		color: var(--col-on-container-low);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	/* The wrapper's stand-in for `<UnknownProfilePicture>` is a span, and a span
+	   does not take the width and height an `<img>` gets for free — without this
+	   the pictureless case would reserve nothing and the name would slide left
+	   when React's placeholder arrives. */
+	span.picture {
+		display: inline-block;
+	}
+}
+
+/* The header logo before React's `<CloudilloLogo>` arrives, at the same box and
+   the same artwork so the swap is invisible. **Hand copy of
+   `libs/react/src/components/Logo/Logo.tsx`** — same paths, same fills, same order — because the
+   wrapper cannot import a React component and neither repository should hold a
+   second drawing of the logo. If the component's artwork changes, regenerate
+   this URL from it. */
+.c-site-logo {
+	display: block;
+	height: 2rem;
+	aspect-ratio: 770 / 490;
+	background:
+		center / contain no-repeat
+		url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 770 490'%3E%3Cpath fill='%23fff' d='m684.56 206.51c-11.5-4.1-23.3-6.3-34.7-8.3-1.1-0.2-2.2-0.4-3.4-0.6-3.9-47.7-30.2-88.1-72.1-109.6-40.8-20.9-89.3-19.4-130.1 3.2-0.7-1.3-1.3-2.6-2-3.8-33.9-63.3-108.9-97.5-178.4-81.5-72.3 16.7-124.5 78.6-127 150.4 0 1.3-0.1 2.3-0.2 2.9-0.7 0.2-1.8 0.3-3.2 0.5-49.5 5.6-92.6 35.4-115.5 79.6-22.8 44-22.2 96.2 1.6 139.5 28.2 51.4 75.1 78.7 135.5 78.7h166.5c20 15 40.7 20.5 63.4 20.5h2.8c20.6 0 47-7 60.6-20.4h187.1c5.7 0 11.5-0.3 17.9-1 58.8-6.2 106.8-52.3 114.2-109.8 7.9-63.3-25.4-119.8-83-140.3z'/%3E%3Cpath fill='%23007ba2' d='m438.26 112.61c82.6-59.3 193.7-5.2 193.7 97.3 16 3.5 32.4 5.3 47.6 10.7 51.1 18.2 80.1 68.6 73 124.4-6.4 50.2-49.2 91.3-100.8 96.8-5.4 0.6-10.9 0.9-16.4 0.9-160.1 0-320.2 0.1-480.4-0.1-54.3-0.1-96.2-23.2-122.4-71-45.6-83.2 8.1-186.3 102.5-197.1 12.7-1.4 16.3-5.2 16.7-17.8 2.2-65.8 49.6-121.1 115.4-136.3 63-14.6 131.1 16.5 161.8 73.9 3 5.7 5.8 11.5 9.3 18.3z'/%3E%3Cpath fill='%23fff' d='m693.66 310.31c-11.3-18.2-32.6-26.6-52.5-22.4-5.5 1.2-10.9 3.3-15.9 6.4-11.3 7-19.2 18-22.2 30.9-0.1 0.3-0.1 0.6-0.2 0.9-33 6.4-52.7 10.2-72.4 14-17.7 3.4-35.5 6.8-63.1 12.2-3.3-8.6-7.9-16.5-13.6-23.5 11.7-18.9 20-32.2 28.2-45.5 9.1-14.7 18.3-29.4 31.9-51.5 10.8 1 21.5-1.5 30.8-7.4 11.3-7.1 19.1-18.1 22.1-31.1 6.1-26.8-10.7-53.5-37.4-59.6-21-4.8-41.9 4.5-53 21.6-3.1 4.7-5.3 10.1-6.7 15.8-3 13-0.7 26.3 6.4 37.6 1.1 1.7 2.2 3.3 3.5 4.8-13.8 22.3-23 37-32.1 51.8-7.3 11.8-14.7 23.6-24.3 39.2-12.3-5.9-26.1-9.1-40.7-8.7-6.6 0.2-12.9 0.9-18.9 2.2-9.3-24.8-14.8-39.5-20.2-54.1-5.6-15-11.2-30.1-21-56.3 4.2-2.7 8.1-5.8 11.7-9.4 12.4-12.6 19.2-29.4 19-47.1s-7.2-34.3-19.9-46.7c-26.1-25.6-68.2-25.2-93.8 0.9-20.1 20.4-24.2 50.7-12.5 75.2 3.2 6.8 7.7 13.1 13.3 18.6 12.2 12 28.3 18.6 45.3 18.9 0.2 1.3 0.5 2.5 1 3.8 9.9 26.3 15.5 41.4 21.1 56.5 5.6 15 11.1 30 20.9 56-9.5 7.5-17.2 16.8-22.7 27.7-18.5-4.3-30.9-7.2-43.2-10.1-13.9-3.2-27.8-6.5-50.5-11.7 0.4-6.4 0.1-13-1.2-19.5-3.8-19.1-14.9-35.6-31.1-46.4s-35.7-14.6-54.8-10.8c-39.4 7.9-65.1 46.4-57.2 85.8 6.2 30.9 31.2 53.3 60.6 57.8 8.1 1.2 16.6 1.1 25.2-0.6 18.5-3.7 34.5-14.3 45.3-29.7 25.1 5.8 39.8 9.2 54.5 12.7 12.2 2.9 24.4 5.7 42.7 9.9-0.1 2.4-0.2 4.9-0.1 7.4 1.3 49 42 87.6 91 86.3 46.1-1.2 83.1-37.5 86.1-82.6 29.7-5.8 48.3-9.4 66.8-12.9 19.2-3.7 38.4-7.4 70-13.6 7 10.6 17.6 18 30 20.9 12.9 3 26.3 0.8 37.5-6.2 23.6-14.4 30.7-45.1 16.3-68.4z'/%3E%3Ccircle fill='%23e98a54' cx='384.86' cy='384.51' r='79.2'/%3E%3Cpath fill='%23e98a54' d='m601.66 335.91c-60.2 11.8-75.5 14.5-131.3 25.4 1.7 6.2 2.7 12.6 3 19.2 57-11.1 72.2-13.9 132-25.5-2.5-6.1-3.7-12.5-3.7-19.1z'/%3E%3Cpath fill='%23e98a54' d='m486.66 220.71c-23.8 38.4-33.7 54.2-55 88.6 5.6 3.5 10.7 7.5 15.3 12.1 22.5-36.3 32.3-51.9 56.8-91.5-6.3-1.9-12.1-5.1-17.1-9.2z'/%3E%3Cpath fill='%23e98a54' d='m301.86 351.01c-37.5-8.7-49.3-11.6-91.1-21.2-1.3 6.4-3.5 12.5-6.5 18.4 43.4 10 55.1 12.9 92.9 21.6 0.9-6.5 2.5-12.8 4.7-18.8z'/%3E%3Cpath fill='%23e98a54' d='m295.66 199.21c19.3 51.4 22.3 59.9 40.9 109.6 5.5-3.3 11.4-6 17.8-8.2-18.4-48.9-21.4-57.7-40.4-108.3-5.9 2.6-12.2 4.4-18.7 5.2 0.1 0.7 0.2 1.2 0.4 1.7z'/%3E%3Ccircle fill='%23e98a54' cx='518.36' cy='182.31' r='39.7'/%3E%3Ccircle fill='%23e98a54' cx='139.46' cy='315.01' r='63.1'/%3E%3Ccircle fill='%23e98a54' cx='286.76' cy='131.91' r='56.2'/%3E%3Ccircle fill='%23e98a54' cx='651.36' cy='336.51' r='39.7'/%3E%3C/svg%3E");
+}

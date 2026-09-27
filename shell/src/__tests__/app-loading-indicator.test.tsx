@@ -23,7 +23,10 @@ jest.unstable_mockModule('@cloudillo/react', () => ({
 	Button: ({ children }: { children?: React.ReactNode }) => (
 		<button type="button">{children}</button>
 	),
-	LoadingSpinner: () => <div data-testid="spinner" />,
+	EmptyState: ({ title }: { title?: React.ReactNode }) => <div>{title}</div>,
+	// The real spinner is itself the status region, labelled with the stage text.
+	LoadingSpinner: ({ label }: { label?: string }) => <div role="status" aria-label={label} />,
+	VBox: (props: React.HTMLAttributes<HTMLDivElement>) => <div {...props} />,
 	mergeClasses: (...c: unknown[]) => c.filter(Boolean).join(' ')
 }))
 
@@ -70,8 +73,8 @@ describe('AppLoadingIndicator', () => {
 		const overlay = container.querySelector('.c-app-loading')
 		expect(overlay).not.toBeNull()
 		// Progress is a status; only a failure interrupts a screen reader.
-		expect(overlay?.getAttribute('role')).toBe('status')
-		expect(overlay?.getAttribute('aria-live')).toBe('polite')
+		expect(overlay?.getAttribute('role')).toBeNull()
+		expect(overlay?.querySelector('[role="status"]')).not.toBeNull()
 
 		rerender(<AppLoadingIndicator stage="ready" />)
 		advance(FADE_MS + 1)
@@ -84,13 +87,12 @@ describe('AppLoadingIndicator', () => {
 	it('should become an alert when the error follows a spinner', () => {
 		const { container, rerender } = render(<AppLoadingIndicator stage="syncing" />)
 		advance(SHOW_DELAY_MS + 1)
-		expect(container.querySelector('.c-app-loading')?.getAttribute('role')).toBe('status')
+		expect(container.querySelector('.c-app-loading [role="status"]')).not.toBeNull()
 
 		rerender(<AppLoadingIndicator stage="error" errorCode={4404} />)
 
 		const overlay = container.querySelector('.c-app-loading')
 		expect(overlay?.getAttribute('role')).toBe('alert')
-		expect(overlay?.getAttribute('aria-live')).toBe('assertive')
 	})
 
 	it('should map the error code to text from a cold mount', () => {
@@ -100,7 +102,6 @@ describe('AppLoadingIndicator', () => {
 		const overlay = container.querySelector('.c-app-loading')
 		expect(overlay?.textContent).toContain('Access denied')
 		expect(overlay?.getAttribute('role')).toBe('alert')
-		expect(overlay?.getAttribute('aria-live')).toBe('assertive')
 	})
 })
 

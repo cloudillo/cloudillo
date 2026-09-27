@@ -11,7 +11,17 @@
  * Data source: `api.profiles.listTrust()` → `GET /api/profiles?trustSet=true`.
  */
 
-import { LoadingSpinner, useApi, useToast } from '@cloudillo/react'
+import {
+	EmptyState,
+	List,
+	ListItem,
+	LoadingSpinner,
+	Panel,
+	Segmented,
+	SegmentedItem,
+	useApi,
+	useToast
+} from '@cloudillo/react'
 import type { Profile, ProfileTrust } from '@cloudillo/types'
 import { useAtomValue } from 'jotai'
 import * as React from 'react'
@@ -92,35 +102,30 @@ export function TrustSettings(): React.ReactElement {
 		}
 	}
 
-	const trustSegments: Array<{
-		value: ProfileTrust | null
-		label: string
-		activeClass: string
-	}> = [
-		{ value: 'always', label: t('Always'), activeClass: 'success' },
-		{ value: null, label: t('Ask'), activeClass: 'primary' },
-		{ value: 'never', label: t('Never'), activeClass: 'warning' }
+	const trustSegments: Array<{ value: ProfileTrust | 'ask'; label: string }> = [
+		{ value: 'always', label: t('Always') },
+		{ value: 'ask', label: t('Ask') },
+		{ value: 'never', label: t('Never') }
 	]
 
-	if (rows === undefined) return <LoadingSpinner />
+	if (rows === undefined) return <LoadingSpinner className="auto-bg" />
 
 	if (rows.length === 0) {
 		return (
-			<div className="c-panel p-3">
-				<p className="text-muted">{t('No trusted profiles')}</p>
-				<p className="c-hint">
-					{t(
-						'You have not marked any profiles as Always or Never. Open a profile page to set a preference.'
-					)}
-				</p>
-			</div>
+			<EmptyState
+				className="auto-bg"
+				size="sm"
+				title={t('No trusted profiles')}
+				description={t(
+					'You have not marked any profiles as Always or Never. Open a profile page to set a preference.'
+				)}
+			/>
 		)
 	}
 
 	return (
-		<div className="c-panel p-0">
-			<h4 className="p-3 pb-2">{t('Trusted profiles')}</h4>
-			<ul className="c-vbox g-1 p-2" style={{ listStyle: 'none', margin: 0 }}>
+		<Panel title={t('Trusted profiles')}>
+			<List>
 				{rows.map((profile) => {
 					const trust = profile.trust ?? null
 					const Icon =
@@ -136,48 +141,42 @@ export function TrustSettings(): React.ReactElement {
 								? 'flex-shrink-0 text-warning'
 								: 'flex-shrink-0 text-muted'
 					const busy = busyIdTag === profile.idTag
+					const current = trust ?? 'ask'
 					return (
-						<li key={profile.idTag} className="c-hbox g-2 p-2 align-items-center">
-							<Icon size="1.5rem" className={iconClass} />
-							<div className="c-vbox flex-fill">
-								<div className="font-weight-bold">
-									{profile.name || profile.idTag}
-								</div>
-								<div className="text-muted">{`@${profile.idTag}`}</div>
-							</div>
-							<div
-								className="c-input-group w-auto"
-								role="group"
-								aria-label={t('Trust preference')}
-							>
-								{trustSegments.map((seg) => {
-									const active = seg.value === trust
-									return (
-										<button
-											key={seg.value ?? 'ask'}
-											type="button"
-											className={
-												active
-													? `c-button ${seg.activeClass}`
-													: 'c-button secondary'
-											}
-											aria-pressed={active}
-											onClick={() => {
-												if (active) return
-												void apply(profile.idTag, seg.value)
-											}}
+						<ListItem
+							key={profile.idTag}
+							leading={<Icon size="1.5rem" className={iconClass} />}
+							title={profile.name || profile.idTag}
+							subtitle={`@${profile.idTag}`}
+							trailing={
+								<Segmented
+									size="sm"
+									aria-label={t('Trust preference')}
+									value={current}
+									onChange={(value) => {
+										if (value === current) return
+										void apply(
+											profile.idTag,
+											value === 'ask' ? null : (value as ProfileTrust)
+										)
+									}}
+								>
+									{trustSegments.map((seg) => (
+										<SegmentedItem
+											key={seg.value}
+											value={seg.value}
 											disabled={busy}
 										>
 											{seg.label}
-										</button>
-									)
-								})}
-							</div>
-						</li>
+										</SegmentedItem>
+									))}
+								</Segmented>
+							}
+						/>
 					)
 				})}
-			</ul>
-		</div>
+			</List>
+		</Panel>
 	)
 }
 

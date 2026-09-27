@@ -6,7 +6,7 @@ import { Button, EmptyState, LoadingSpinner, useApi } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { LuFileWarning as IcError } from 'react-icons/lu'
-import { Link, useLocation, useParams } from 'react-router-dom'
+import { useLocation, useParams } from 'react-router-dom'
 
 import { GuestNameDialog } from '../components/GuestNameDialog.js'
 import { type GuestFileType, useGuestDocument } from '../context/index.js'
@@ -171,40 +171,31 @@ export function SharedResourceView() {
 	}
 
 	if (state.status === 'loading') {
-		return (
-			<div className="c-panel flex-fill d-flex align-items-center justify-content-center">
-				<LoadingSpinner />
-			</div>
-		)
+		return <LoadingSpinner fill className="auto-bg" />
 	}
 
 	if (state.status === 'error') {
 		return (
-			<div className="c-panel flex-fill d-flex align-items-center justify-content-center">
-				<EmptyState
-					icon={<IcError size="4rem" className="text-error" />}
-					title={t('Link Error')}
-					description={state.message}
-					action={
-						<div className="c-hbox g-2 align-items-center justify-content-center">
-							{state.recoverable && (
-								<Button
-									variant="primary"
-									onClick={() => setReloadKey((k) => k + 1)}
-								>
-									{t('Retry')}
-								</Button>
-							)}
-							<Link
-								to="/login"
-								className={state.recoverable ? 'c-button' : 'c-button accent'}
-							>
-								{t('Go to Cloudillo')}
-							</Link>
-						</div>
-					}
-				/>
-			</div>
+			<EmptyState
+				fill
+				className="auto-bg"
+				color="error"
+				icon={<IcError />}
+				title={t('Link Error')}
+				description={state.message}
+				actions={
+					<>
+						{state.recoverable && (
+							<Button color="primary" onClick={() => setReloadKey((k) => k + 1)}>
+								{t('Retry')}
+							</Button>
+						)}
+						<Button href="/login" color={state.recoverable ? undefined : 'accent'}>
+							{t('Go to Cloudillo')}
+						</Button>
+					</>
+				}
+			/>
 		)
 	}
 
@@ -247,11 +238,14 @@ export function SharedResourceView() {
 
 		// Fallback: show error if no app found
 		return (
-			<div className="c-panel flex-fill d-flex flex-column align-items-center justify-content-center g-2">
-				<IcError size="4rem" className="text-warning" />
-				<h2>{t('Unsupported file type')}</h2>
-				<p className="text-secondary">{contentType}</p>
-			</div>
+			<EmptyState
+				fill
+				className="auto-bg"
+				color="warning"
+				icon={<IcError />}
+				title={t('Unsupported file type')}
+				description={contentType}
+			/>
 		)
 	}
 

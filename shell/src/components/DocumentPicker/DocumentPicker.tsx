@@ -1,8 +1,6 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
-
 /**
  * DocumentPicker Component
  *
@@ -12,12 +10,11 @@ import * as React from 'react'
  * - Internal shell components via useDocumentPicker hook
  */
 
-import { Button, useBodyScrollLock, useEscapeKey, useToast } from '@cloudillo/react'
+import { ActionBar, Button, Dialog, useToast } from '@cloudillo/react'
 import { useAtom, useSetAtom } from 'jotai'
-import { useCallback, useEffect, useState } from 'react'
-import { createPortal } from 'react-dom'
+import React, { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuX as IcClose, LuFileText as IcDocument } from 'react-icons/lu'
+import { LuFileText as IcDocument } from 'react-icons/lu'
 
 import {
 	closeDocPickerAtom,
@@ -28,8 +25,6 @@ import {
 import { setDocPickerCallback, setDocPickerNotifier } from '../../message-bus/handlers/document.js'
 import { DocumentPickerBrowseTab } from './DocumentPickerBrowseTab.js'
 
-import './document-picker.css'
-
 export function DocumentPicker() {
 	const { t } = useTranslation()
 	const { error: toastError } = useToast()
@@ -38,10 +33,6 @@ export function DocumentPicker() {
 
 	// Selection state
 	const [selectedFile, setSelectedFile] = useState<DocPickerResult | null>(null)
-
-	// Close handlers
-	useEscapeKey(() => handleCancel(), state.isOpen)
-	useBodyScrollLock(state.isOpen)
 
 	// Get the atom setter for external app requests
 	const openPicker = useSetAtom(openDocPickerAtom)
@@ -111,51 +102,34 @@ export function DocumentPicker() {
 
 	const title = state.options?.title || t('Select document')
 
-	const content = (
-		<div className="c-modal show doc-picker-overlay" onClick={handleCancel}>
-			<div className="c-panel emph p-0 doc-picker" onClick={(e) => e.stopPropagation()}>
-				{/* Header */}
-				<div className="doc-picker-header">
-					<div className="c-hbox g-2 align-items-center">
-						<IcDocument />
-						<h3 className="m-0">{title}</h3>
-					</div>
-					<button
-						type="button"
-						className="c-link secondary"
-						onClick={handleCancel}
-						aria-label={t('Close')}
-					>
-						<IcClose />
-					</button>
-				</div>
-
-				{/* Content */}
-				<div className="doc-picker-content">
-					<DocumentPickerBrowseTab
-						fileTp={state.options?.fileTp}
-						contentType={state.options?.contentType}
-						sourceFileId={state.options?.sourceFileId}
-						requirePublic={state.options?.requirePublic}
-						idTag={state.options?.idTag}
-						selectedFile={selectedFile}
-						onSelect={handleFileSelected}
-						onDoubleClick={handleDoubleClick}
-					/>
-				</div>
-
-				{/* Footer */}
-				<div className="doc-picker-footer">
+	return (
+		<Dialog
+			open
+			onClose={handleCancel}
+			size="lg"
+			icon={<IcDocument />}
+			title={title}
+			footer={
+				<ActionBar>
 					<Button onClick={handleCancel}>{t('Cancel')}</Button>
-					<Button variant="primary" disabled={!selectedFile} onClick={handleSelect}>
+					<Button color="primary" disabled={!selectedFile} onClick={handleSelect}>
 						{t('Select')}
 					</Button>
-				</div>
-			</div>
-		</div>
+				</ActionBar>
+			}
+		>
+			<DocumentPickerBrowseTab
+				fileTp={state.options?.fileTp}
+				contentType={state.options?.contentType}
+				sourceFileId={state.options?.sourceFileId}
+				requirePublic={state.options?.requirePublic}
+				idTag={state.options?.idTag}
+				selectedFile={selectedFile}
+				onSelect={handleFileSelected}
+				onDoubleClick={handleDoubleClick}
+			/>
+		</Dialog>
 	)
-
-	return createPortal(content, document.body)
 }
 
 // vim: ts=4

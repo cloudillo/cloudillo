@@ -8,13 +8,29 @@ import {
 	type WebAuthnCredential
 } from '@cloudillo/core'
 import {
+	ActionBar,
+	Alert,
+	Badge,
 	Button,
-	CopyButton,
+	Checkbox,
+	CodeBlock,
+	Dialog,
+	Field,
+	HBox,
+	Input,
+	InputGroup,
+	List,
+	ListItem,
 	LoadingSpinner,
-	Modal,
+	Panel,
+	Text,
+	Toggle,
 	useApi,
 	useAuth,
-	useDialog
+	useDialog,
+	VBox,
+	PasswordInput,
+	PasswordStrengthBar
 } from '@cloudillo/react'
 import { browserSupportsWebAuthn } from '@simplewebauthn/browser'
 import type { TFunction } from 'i18next'
@@ -28,14 +44,11 @@ import { useTranslation } from 'react-i18next'
 import {
 	LuPlus as IcAdd,
 	LuKey as IcApiKey,
-	LuX as IcClose,
 	LuTrash as IcDelete,
 	LuPencil as IcEdit,
-	LuFingerprint as IcPasskey,
-	LuTriangleAlert as IcWarning
+	LuFingerprint as IcPasskey
 } from 'react-icons/lu'
 
-import { PasswordInput, PasswordStrengthBar } from '../components/PasswordInput.js'
 import {
 	deleteApiKey as swDeleteApiKey,
 	getApiKey as swGetApiKey,
@@ -82,6 +95,34 @@ function scopeLabel(t: TFunction, scope: string): string {
 	return getAvailableScopes(t).find((s) => s.value === scope)?.label ?? scope
 }
 
+// Scope checkboxes shared by the create and edit dialogs (submitted with the form → Checkbox)
+interface ScopeChecklistProps {
+	scopes: ScopeDef[]
+	selected: string[]
+	onToggle: (scope: string) => void
+}
+
+function ScopeChecklist({ scopes, selected, onToggle }: ScopeChecklistProps) {
+	const { t } = useTranslation()
+
+	return (
+		<VBox gap={2} role="group" aria-label={t('Permissions')}>
+			<Text emphasis="strong">{t('Permissions')}</Text>
+			<Text size="sm" emphasis="muted">
+				{t('Leave all unchecked for full access.')}
+			</Text>
+			{scopes.map((scope) => (
+				<Checkbox
+					key={scope.value}
+					checked={selected.includes(scope.value)}
+					onChange={() => onToggle(scope.value)}
+					label={scope.label}
+					description={scope.description}
+				/>
+			))}
+		</VBox>
+	)
+}
 // Create API Key Modal
 interface CreateApiKeyModalProps {
 	open: boolean
@@ -142,60 +183,37 @@ function CreateApiKeyModal({ open, onClose, onCreated }: CreateApiKeyModalProps)
 	}
 
 	return (
-		<Modal open={open} onClose={onClose}>
-			<div className="c-dialog c-panel emph p-4" style={{ maxWidth: '500px', width: '100%' }}>
-				<div className="c-hbox mb-3">
-					<h3 className="flex-fill mb-0">{t('Create API Key')}</h3>
-					<button className="c-link" onClick={onClose} aria-label={t('Close')}>
-						<IcClose />
-					</button>
-				</div>
+		<Dialog
+			open={open}
+			onClose={onClose}
+			title={t('Create API Key')}
+			footer={
+				<ActionBar>
+					<Button onClick={onClose}>{t('Cancel')}</Button>
+					<Button color="primary" loading={isSubmitting} onClick={handleCreate}>
+						{t('Create API Key')}
+					</Button>
+				</ActionBar>
+			}
+		>
+			<VBox gap={3}>
+				{error && <Alert color="error">{error}</Alert>}
 
-				{error && (
-					<div className="c-panel error p-2 mb-3">
-						<span className="text-error">{error}</span>
-					</div>
-				)}
-
-				<div className="mb-3">
-					<label>{t('Name (optional)')}</label>
-					<input
-						className="c-input"
+				<Field label={t('Name (optional)')}>
+					<Input
 						placeholder={t('e.g., CI pipeline')}
 						value={name}
 						onChange={(e) => setName(e.target.value)}
 					/>
-				</div>
+				</Field>
 
-				<div className="mb-3">
-					<label>{t('Permissions')}</label>
-					<div className="c-hint small mb-2">
-						{t('Leave all unchecked for full access.')}
-					</div>
-					{availableScopes.map((scope) => (
-						<label key={scope.value} className="c-hbox ai-start p-2">
-							<input
-								type="checkbox"
-								className="c-toggle primary me-2 mt-1"
-								checked={selectedScopes.includes(scope.value)}
-								onChange={() => toggleScope(scope.value)}
-							/>
-							<div>
-								<span>{scope.label}</span>
-								<div className="c-hint small">{scope.description}</div>
-							</div>
-						</label>
-					))}
-				</div>
-
-				<div className="c-hbox justify-content-end g-2">
-					<Button onClick={onClose}>{t('Cancel')}</Button>
-					<Button variant="primary" disabled={isSubmitting} onClick={handleCreate}>
-						{isSubmitting ? t('Creating...') : t('Create API Key')}
-					</Button>
-				</div>
-			</div>
-		</Modal>
+				<ScopeChecklist
+					scopes={availableScopes}
+					selected={selectedScopes}
+					onToggle={toggleScope}
+				/>
+			</VBox>
+		</Dialog>
 	)
 }
 
@@ -288,37 +306,42 @@ function EditApiKeyModal({ open, apiKey, onClose, onSaved }: EditApiKeyModalProp
 	}
 
 	return (
-		<Modal open={open} onClose={onClose}>
-			<div className="c-dialog c-panel emph p-4" style={{ maxWidth: '500px', width: '100%' }}>
-				<div className="c-hbox mb-3">
-					<h3 className="flex-fill mb-0">{t('Edit API key')}</h3>
-					<button className="c-link" onClick={onClose} aria-label={t('Close')}>
-						<IcClose />
-					</button>
-				</div>
+		<Dialog
+			open={open}
+			onClose={onClose}
+			title={t('Edit API key')}
+			footer={
+				<ActionBar>
+					<Button onClick={onClose}>{t('Cancel')}</Button>
+					<Button color="primary" loading={isSubmitting} onClick={handleSave}>
+						{t('Save changes')}
+					</Button>
+				</ActionBar>
+			}
+		>
+			<VBox gap={3}>
+				{error && <Alert color="error">{error}</Alert>}
 
-				{error && (
-					<div className="c-panel error p-2 mb-3">
-						<span className="text-error">{error}</span>
-					</div>
-				)}
-
-				<div className="mb-3">
-					<label>{t('Name (optional)')}</label>
-					<input
-						className="c-input"
+				<Field label={t('Name (optional)')}>
+					<Input
 						placeholder={t('e.g., CI pipeline')}
 						value={name}
 						onChange={(e) => setName(e.target.value)}
 					/>
-				</div>
+				</Field>
 
-				<div className="mb-3">
-					<label>{t('Expires (optional)')}</label>
-					<div className="c-hbox g-2 align-items-center">
-						<input
+				<Field
+					label={t('Expires (optional)')}
+					hint={
+						expiresAtInput
+							? t('Key is valid until the end of this day.')
+							: t('No expiration — the key is valid until revoked.')
+					}
+				>
+					<HBox gap={2} align="center">
+						<Input
 							type="date"
-							className="c-input flex-fill"
+							className="flex-fill"
 							value={expiresAtInput}
 							min={expiresAtToDateInput(Math.floor(Date.now() / 1000))}
 							onChange={(e) => setExpiresAtInput(e.target.value)}
@@ -326,43 +349,16 @@ function EditApiKeyModal({ open, apiKey, onClose, onSaved }: EditApiKeyModalProp
 						{expiresAtInput && (
 							<Button onClick={() => setExpiresAtInput('')}>{t('Clear')}</Button>
 						)}
-					</div>
-					<div className="c-hint small mt-1">
-						{expiresAtInput
-							? t('Key is valid until the end of this day.')
-							: t('No expiration — the key is valid until revoked.')}
-					</div>
-				</div>
+					</HBox>
+				</Field>
 
-				<div className="mb-3">
-					<label>{t('Permissions')}</label>
-					<div className="c-hint small mb-2">
-						{t('Leave all unchecked for full access.')}
-					</div>
-					{availableScopes.map((scope) => (
-						<label key={scope.value} className="c-hbox ai-start p-2">
-							<input
-								type="checkbox"
-								className="c-toggle primary me-2 mt-1"
-								checked={selectedScopes.includes(scope.value)}
-								onChange={() => toggleScope(scope.value)}
-							/>
-							<div>
-								<span>{scope.label}</span>
-								<div className="c-hint small">{scope.description}</div>
-							</div>
-						</label>
-					))}
-				</div>
-
-				<div className="c-hbox justify-content-end g-2">
-					<Button onClick={onClose}>{t('Cancel')}</Button>
-					<Button variant="primary" disabled={isSubmitting} onClick={handleSave}>
-						{isSubmitting ? t('Saving...') : t('Save changes')}
-					</Button>
-				</div>
-			</div>
-		</Modal>
+				<ScopeChecklist
+					scopes={availableScopes}
+					selected={selectedScopes}
+					onToggle={toggleScope}
+				/>
+			</VBox>
+		</Dialog>
 	)
 }
 
@@ -380,43 +376,38 @@ function DavSetupRow({ label, idTag, plaintextKey, hint, comingSoon }: DavSetupR
 	const serverUrl = `${getInstanceUrl(idTag)}/dav/principal/`
 
 	return (
-		<div className="c-panel p-3 mb-2">
-			<div className="c-hbox align-items-center mb-2">
-				<strong className="flex-fill">{label}</strong>
-				{comingSoon && (
-					<span className="c-badge small" title={t('Server support not yet available')}>
-						{t('Coming soon')}
-					</span>
-				)}
-			</div>
-			<div className="c-vbox g-2">
-				<div>
-					<label className="small">{t('Server URL')}</label>
-					<div className="c-hbox g-1">
-						<code className="c-mono flex-fill">{serverUrl}</code>
-						<CopyButton text={serverUrl} label={t('server URL')} className="small" />
-					</div>
-				</div>
-				<div>
-					<label className="small">{t('Username')}</label>
-					<div className="c-hbox g-1">
-						<code className="c-mono flex-fill">cloudillo</code>
-						<CopyButton text="cloudillo" label={t('username')} className="small" />
-					</div>
-					<div className="c-hint small mt-1">
+		<Panel padding={3}>
+			<VBox gap={2}>
+				<HBox align="center">
+					<Text emphasis="strong" className="flex-fill">
+						{label}
+					</Text>
+					{comingSoon && (
+						<Badge size="sm" title={t('Server support not yet available')}>
+							{t('Coming soon')}
+						</Badge>
+					)}
+				</HBox>
+				<VBox gap={1}>
+					<Text size="sm">{t('Server URL')}</Text>
+					<CodeBlock copyable>{serverUrl}</CodeBlock>
+				</VBox>
+				<VBox gap={1}>
+					<Text size="sm">{t('Username')}</Text>
+					<CodeBlock copyable>cloudillo</CodeBlock>
+					<Text size="sm" emphasis="muted">
 						{t('Any value works — the server ignores the username.')}
-					</div>
-				</div>
-				<div>
-					<label className="small">{t('Password')}</label>
-					<div className="c-hbox g-1">
-						<code className="c-mono flex-fill">{plaintextKey}</code>
-						<CopyButton text={plaintextKey} label={t('password')} className="small" />
-					</div>
-				</div>
-				<div className="c-hint small">{hint}</div>
-			</div>
-		</div>
+					</Text>
+				</VBox>
+				<VBox gap={1}>
+					<Text size="sm">{t('Password')}</Text>
+					<CodeBlock copyable>{plaintextKey}</CodeBlock>
+				</VBox>
+				<Text size="sm" emphasis="muted">
+					{hint}
+				</Text>
+			</VBox>
+		</Panel>
 	)
 }
 
@@ -439,53 +430,47 @@ function ApiKeyCreatedModal({ open, result, onClose }: ApiKeyCreatedModalProps) 
 	const idTag = auth?.idTag
 
 	return (
-		<Modal open={open} onClose={onClose} closeOnBackdrop={false}>
-			<div className="c-dialog c-panel emph p-4" style={{ maxWidth: '600px', width: '100%' }}>
-				<div className="c-hbox align-items-center mb-3">
-					<IcApiKey className="text-primary me-2" style={{ fontSize: '1.5rem' }} />
-					<h3 className="flex-fill mb-0">{t('API Key Created')}</h3>
-				</div>
+		<Dialog
+			open={open}
+			onClose={onClose}
+			dismissable={false}
+			size="md"
+			icon={<IcApiKey />}
+			title={t('API Key Created')}
+			footer={
+				<ActionBar>
+					<Button color="primary" onClick={onClose}>
+						{t("I've saved the key")}
+					</Button>
+				</ActionBar>
+			}
+		>
+			<VBox gap={3}>
+				<Alert color="warning" title={t('Save this key now!')}>
+					{t('This key will only be shown once. Store it securely.')}
+				</Alert>
 
-				<div className="c-panel warning p-2 mb-3">
-					<div className="c-hbox ai-start">
-						<IcWarning className="text-warning me-2 mt-1 flex-shrink-0" />
-						<div>
-							<strong>{t('Save this key now!')}</strong>
-							<p className="c-hint mb-0">
-								{t('This key will only be shown once. Store it securely.')}
-							</p>
-						</div>
-					</div>
-				</div>
-
-				<div className="mb-3">
-					<label>{t('API Key')}</label>
-					<div className="c-hbox g-1">
-						<code className="c-mono flex-fill">{result.plaintextKey}</code>
-						<CopyButton
-							text={result.plaintextKey}
-							label={t('API key')}
-							className="small"
-						/>
-					</div>
-				</div>
+				<VBox gap={1}>
+					<Text emphasis="strong">{t('API Key')}</Text>
+					<CodeBlock copyable>{result.plaintextKey}</CodeBlock>
+				</VBox>
 
 				{scopes && scopes.length > 0 && (
-					<div className="mb-3">
-						<label>{t('Scopes')}</label>
-						<div className="c-hbox g-1 flex-wrap">
+					<VBox gap={1}>
+						<Text emphasis="strong">{t('Scopes')}</Text>
+						<HBox gap={1} wrap>
 							{scopes.map((scope) => (
-								<span key={scope} className="c-badge small">
+								<Badge key={scope} size="sm">
 									{scopeLabel(t, scope)}
-								</span>
+								</Badge>
 							))}
-						</div>
-					</div>
+						</HBox>
+					</VBox>
 				)}
 
 				{(hasCardDav || hasCalDav) && idTag && (
-					<div className="mb-3">
-						<label>{t('Connect a DAV client')}</label>
+					<VBox gap={2}>
+						<Text emphasis="strong">{t('Connect a DAV client')}</Text>
 						{hasCardDav && (
 							<DavSetupRow
 								label={t('CardDAV (contacts)')}
@@ -506,16 +491,10 @@ function ApiKeyCreatedModal({ open, result, onClose }: ApiKeyCreatedModalProps) 
 								)}
 							/>
 						)}
-					</div>
+					</VBox>
 				)}
-
-				<div className="c-hbox justify-content-end">
-					<Button variant="primary" onClick={onClose}>
-						{t("I've saved the key")}
-					</Button>
-				</div>
-			</div>
-		</Modal>
+			</VBox>
+		</Dialog>
 	)
 }
 
@@ -622,7 +601,8 @@ export function SecuritySettings() {
 			t('Delete passkey?'),
 			t(
 				'This passkey will be permanently removed. You may lose access to your account if this is your only authentication method.'
-			)
+			),
+			{ color: 'error', confirmLabel: t('Delete') }
 		)
 
 		if (!confirmed) return
@@ -649,7 +629,8 @@ export function SecuritySettings() {
 				? t(
 						'This is the API key for this device. Deleting it will log you out on next visit.'
 					)
-				: t('This API key will be permanently revoked.')
+				: t('This API key will be permanently revoked.'),
+			{ color: 'error', confirmLabel: t('Delete') }
 		)
 
 		if (!confirmed) return
@@ -678,7 +659,8 @@ export function SecuritySettings() {
 				t('Enable stay logged in?'),
 				t(
 					'This will create an API key stored on this device. Only use this on trusted devices. Anyone with access to this device will be able to access your account.'
-				)
+				),
+				{ confirmLabel: t('Enable') }
 			)
 
 			if (!confirmed) return
@@ -760,246 +742,263 @@ export function SecuritySettings() {
 		}
 	}
 
-	if (!settings) return <LoadingSpinner />
+	if (!settings) return <LoadingSpinner className="auto-bg" />
 
 	return (
 		<>
-			{/* Password Change Section */}
-			<div className="c-panel">
-				<h4 className="pb-2">{t('Change password')}</h4>
-				<label className="c-hbox pb-2">
-					<span className="flex-fill">{t('Current password')}</span>
-					<PasswordInput
-						groupClassName="w-md"
-						name="sec.current_password"
-						autoComplete="current-password"
-						value={currentPassword}
-						onChange={(evt) => {
-							setCurrentPassword(evt.target.value)
-							setPasswordError(undefined)
-						}}
-					/>
-				</label>
-				<label className="c-hbox pb-2">
-					<span className="flex-fill">{t('New password')}</span>
-					<PasswordInput
-						groupClassName="w-md"
-						name="sec.new_password"
-						autoComplete="new-password"
-						value={newPassword}
-						onChange={(evt) => {
-							setNewPassword(evt.target.value)
-							setPasswordError(undefined)
-						}}
-					/>
-				</label>
-				<PasswordStrengthBar password={newPassword} style={{ textAlign: 'right' }} />
-				<label className="c-hbox pb-2">
-					<span className="flex-fill">{t('Confirm new password')}</span>
-					<PasswordInput
-						groupClassName="w-md"
-						name="sec.confirm_new_password"
-						autoComplete="new-password"
-						value={confirmNewPassword}
-						onChange={(evt) => {
-							setConfirmNewPassword(evt.target.value)
-							setPasswordError(undefined)
-						}}
-					/>
-				</label>
-				{confirmNewPassword && newPassword !== confirmNewPassword && (
-					<div className="small text-error mt-1" style={{ textAlign: 'right' }}>
-						{t('Passwords do not match')}
-					</div>
-				)}
-				{passwordError && (
-					<div className="c-panel error mt-2">
-						<p>{passwordError}</p>
-					</div>
-				)}
-				<div className="c-group">
-					<Button
-						variant="primary"
-						disabled={
-							!currentPassword ||
-							!newPassword ||
-							!confirmNewPassword ||
-							newPassword !== confirmNewPassword ||
-							newPassword.length < 8
-						}
-						onClick={onChangePassword}
+			<Panel title={t('Change password')}>
+				<VBox gap={2}>
+					<Field
+						label={t('Current password')}
+						orientation="horizontal"
+						id="sec-current-password"
 					>
-						{t('Change password')}
-					</Button>
-				</div>
-			</div>
-
-			{/* Passkeys Section */}
-			{webAuthnSupported && (
-				<div className="c-panel">
-					<h4 className="c-hbox pb-2">
-						<IcPasskey className="me-2" />
-						{t('Passkeys')}
-					</h4>
-					<p className="c-hint pb-2">
-						{t('Use biometric authentication or security keys for passwordless login.')}
-					</p>
-
-					{/* List existing passkeys */}
-					{passkeys.length > 0 && (
-						<div className="mb-3">
-							{passkeys.map((pk) => (
-								<div key={pk.credentialId} className="c-hbox py-2 border-bottom">
-									<IcPasskey className="me-2" />
-									<span className="flex-fill">{pk.description}</span>
-									<button
-										className="c-link text-error"
-										onClick={() => deletePasskey(pk.credentialId)}
-									>
-										<IcDelete />
-									</button>
-								</div>
-							))}
-						</div>
-					)}
-
-					{/* Add new passkey */}
-					<div className="c-hbox g-2">
-						<input
-							className="c-input w-lg"
-							placeholder={t('Passkey name (optional)')}
-							value={passkeyDescription}
-							onChange={(e) => setPasskeyDescription(e.target.value)}
+						<PasswordInput
+							id="sec-current-password"
+							className="w-md"
+							name="sec.current_password"
+							autoComplete="current-password"
+							value={currentPassword}
+							onChange={(evt) => {
+								setCurrentPassword(evt.target.value)
+								setPasswordError(undefined)
+							}}
 						/>
-						<Button variant="primary" disabled={isAddingPasskey} onClick={addPasskey}>
-							<IcAdd className="me-1" />
-							{t('Add passkey')}
+					</Field>
+					<Field label={t('New password')} orientation="horizontal" id="sec-new-password">
+						<PasswordInput
+							id="sec-new-password"
+							className="w-md"
+							name="sec.new_password"
+							autoComplete="new-password"
+							value={newPassword}
+							onChange={(evt) => {
+								setNewPassword(evt.target.value)
+								setPasswordError(undefined)
+							}}
+						/>
+					</Field>
+					<PasswordStrengthBar password={newPassword} align="right" />
+					<Field
+						label={t('Confirm new password')}
+						orientation="horizontal"
+						id="sec-confirm-new-password"
+						error={
+							confirmNewPassword && newPassword !== confirmNewPassword
+								? t('Passwords do not match')
+								: undefined
+						}
+					>
+						<PasswordInput
+							id="sec-confirm-new-password"
+							className="w-md"
+							name="sec.confirm_new_password"
+							autoComplete="new-password"
+							value={confirmNewPassword}
+							onChange={(evt) => {
+								setConfirmNewPassword(evt.target.value)
+								setPasswordError(undefined)
+							}}
+						/>
+					</Field>
+					{passwordError && <Alert color="error">{passwordError}</Alert>}
+					<ActionBar>
+						<Button
+							color="primary"
+							disabled={
+								!currentPassword ||
+								!newPassword ||
+								!confirmNewPassword ||
+								newPassword !== confirmNewPassword ||
+								newPassword.length < 8
+							}
+							onClick={onChangePassword}
+						>
+							{t('Change password')}
 						</Button>
-					</div>
-				</div>
+					</ActionBar>
+				</VBox>
+			</Panel>
+
+			{webAuthnSupported && (
+				<Panel
+					title={
+						<>
+							<IcPasskey className="me-2" />
+							{t('Passkeys')}
+						</>
+					}
+					description={t(
+						'Use biometric authentication or security keys for passwordless login.'
+					)}
+				>
+					<VBox gap={3}>
+						{passkeys.length > 0 && (
+							<List variant="divided">
+								{passkeys.map((pk) => (
+									<ListItem
+										key={pk.credentialId}
+										leading={<IcPasskey />}
+										title={pk.description}
+										trailing={
+											<Button
+												variant="ghost"
+												color="error"
+												icon={<IcDelete />}
+												aria-label={t('Delete passkey')}
+												onClick={() => deletePasskey(pk.credentialId)}
+											/>
+										}
+									/>
+								))}
+							</List>
+						)}
+
+						<InputGroup>
+							<Input
+								aria-label={t('Passkey name (optional)')}
+								placeholder={t('Passkey name (optional)')}
+								value={passkeyDescription}
+								onChange={(e) => setPasskeyDescription(e.target.value)}
+							/>
+							<Button
+								color="primary"
+								icon={<IcAdd />}
+								loading={isAddingPasskey}
+								onClick={addPasskey}
+							>
+								{t('Add passkey')}
+							</Button>
+						</InputGroup>
+					</VBox>
+				</Panel>
 			)}
 
-			{/* Stay Logged In Section */}
-			<div className="c-panel">
-				<h4 className="c-hbox pb-2">
-					<IcApiKey className="me-2" />
-					{t('Stay logged in')}
-				</h4>
-				<label className="c-hbox pb-2">
-					<span className="flex-fill">{t('Keep me logged in on this device')}</span>
-					<input
-						className="c-toggle primary"
-						type="checkbox"
+			<Panel
+				title={
+					<>
+						<IcApiKey className="me-2" />
+						{t('Stay logged in')}
+					</>
+				}
+			>
+				<VBox gap={2}>
+					<Toggle
+						color="primary"
 						checked={stayLoggedIn}
 						onChange={(e) => toggleStayLoggedIn(e.target.checked)}
+						label={t('Keep me logged in on this device')}
 					/>
-				</label>
-				<div className="c-hbox text-warning pb-2">
-					<IcWarning className="me-2 flex-shrink-0" />
-					<span className="c-hint">
+					<Alert color="warning" compact>
 						{t(
 							'Only enable this on personal, trusted devices. The login credentials will be stored locally.'
 						)}
-					</span>
-				</div>
-			</div>
+					</Alert>
+				</VBox>
+			</Panel>
 
-			{/* API Keys Section */}
-			<div className="c-panel">
-				<div className="c-hbox pb-2">
-					<h4 className="c-hbox flex-fill mb-0">
+			<Panel
+				title={
+					<>
 						<IcApiKey className="me-2" />
 						{t('API Keys')}
-					</h4>
+					</>
+				}
+				description={t(
+					'API keys allow programmatic access or keeping devices logged in. Revoking a key will revoke its access.'
+				)}
+				actions={
 					<Button
-						variant="primary"
-						className="small"
+						color="primary"
+						size="sm"
+						icon={<IcAdd />}
 						onClick={() => setShowCreateModal(true)}
 					>
-						<IcAdd className="me-1" />
 						{t('Create API key')}
 					</Button>
-				</div>
-				<p className="c-hint pb-2">
-					{t(
-						'API keys allow programmatic access or keeping devices logged in. Revoking a key will revoke its access.'
-					)}
-				</p>
-
+				}
+			>
 				{apiKeys.length === 0 ? (
-					<p className="c-hint">{t('No API keys yet.')}</p>
+					<Text emphasis="muted">{t('No API keys yet.')}</Text>
 				) : (
-					<div>
+					<List variant="divided">
 						{apiKeys.map((key) => {
 							const isCurrentDevice = currentDeviceKeyPrefix === key.keyPrefix
 							const scopes = key.scopes?.split(',').filter(Boolean)
 							return (
-								<div key={key.keyId} className="c-hbox py-2 border-bottom">
-									<IcApiKey className="me-2" />
-									<div className="flex-fill">
-										<div className="c-hbox align-items-center g-1 flex-wrap">
-											<span>{key.name || t('Unnamed key')}</span>
+								<ListItem
+									key={key.keyId}
+									leading={<IcApiKey />}
+									title={
+										<>
+											{key.name || t('Unnamed key')}{' '}
 											{scopes && scopes.length > 0 ? (
 												scopes.map((scope) => (
-													<span key={scope} className="c-badge small">
+													<Badge key={scope} size="sm" className="ms-1">
 														{scopeLabel(t, scope)}
-													</span>
+													</Badge>
 												))
 											) : (
-												<span className="c-badge small success">
+												<Badge size="sm" color="success" className="ms-1">
 													{t('Full access')}
-												</span>
+												</Badge>
 											)}
-										</div>
-										<div className="c-hint small">
+										</>
+									}
+									subtitle={
+										<>
 											{key.keyPrefix}...
 											{isCurrentDevice && (
-												<span className="ms-2 text-primary">
+												<Text color="primary" className="ms-2">
 													({t('this device')})
-												</span>
+												</Text>
 											)}
 											{key.expiresAt &&
 												(key.expiresAt * 1000 < Date.now() ? (
-													<span className="ms-2 text-error">
+													<Text color="error" className="ms-2">
 														{t('Expired {{date}}', {
 															date: new Date(
 																key.expiresAt * 1000
 															).toLocaleDateString()
 														})}
-													</span>
+													</Text>
 												) : (
-													<span className="ms-2">
+													<Text className="ms-2">
 														{t('Expires {{date}}', {
 															date: new Date(
 																key.expiresAt * 1000
 															).toLocaleDateString()
 														})}
-													</span>
+													</Text>
 												))}
-										</div>
-									</div>
-									<button
-										className="c-link"
-										aria-label={t('Edit API key')}
-										onClick={() => setEditingKey(key)}
-									>
-										<IcEdit />
-									</button>
-									<button
-										className="c-link text-error"
-										aria-label={t('Delete API key')}
-										onClick={() => deleteApiKey(key.keyId, key.keyPrefix)}
-									>
-										<IcDelete />
-									</button>
-								</div>
+										</>
+									}
+									trailing={
+										<HBox gap={1}>
+											<Button
+												variant="ghost"
+												icon={<IcEdit />}
+												aria-label={t('Edit API key')}
+												onClick={() => setEditingKey(key)}
+											/>
+											<Button
+												variant="ghost"
+												color="error"
+												icon={<IcDelete />}
+												aria-label={t('Delete API key')}
+												onClick={() =>
+													deleteApiKey(key.keyId, key.keyPrefix)
+												}
+											/>
+										</HBox>
+									}
+								/>
 							)
 						})}
-					</div>
+					</List>
 				)}
-			</div>
+			</Panel>
 
-			{/* Modals */}
 			<CreateApiKeyModal
 				open={showCreateModal}
 				onClose={() => setShowCreateModal(false)}

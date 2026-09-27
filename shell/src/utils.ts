@@ -106,8 +106,8 @@ export function coerceSettingValue(
  * How far a microfrontend app is trusted — 'trusted' (first-party), 'semi-trusted'
  * (verified third-party), 'untrusted' (everything else).
  *
- * A **presentation and policy** label only: it becomes a CSS class on the app container
- * (`shell/src/apps/index.tsx`, `mergeClasses('c-app …', trustLevel, …)`). It does **not**
+ * A **presentation and policy** label only: it becomes the visible trust badge and a CSS
+ * class on the frame (`<AppFrame trust={…}>`, `shell/src/ui/AppFrame.tsx`). It does **not**
  * reach the sandbox. Every level gets the same `APP_SANDBOX` from
  * `libs/core/src/iframe-sandbox.ts`, which never grants `allow-same-origin` — see that
  * file for why.

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import { getFileUrl } from '@cloudillo/core'
-import { EmptyState, Fcd, LoadingSpinner, LoadMoreTrigger, useAuth } from '@cloudillo/react'
+import { EmptyState, Fcd, LoadingSpinner, LoadMoreTrigger, useAuth, VBox } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { LuImage as IcImage } from 'react-icons/lu'
@@ -77,9 +77,9 @@ export function GalleryApp() {
 		// Loading state (initial load only)
 		if (isLoading && files.length === 0) {
 			return (
-				<div className="d-flex align-items-center justify-content-center h-100">
+				<VBox align="center" justify="center" className="h-100">
 					<LoadingSpinner size="lg" label={t('Loading gallery...')} />
-				</div>
+				</VBox>
 			)
 		}
 
@@ -87,7 +87,7 @@ export function GalleryApp() {
 		if (files.length === 0 && !hasActiveFilters) {
 			return (
 				<EmptyState
-					icon={<IcImage style={{ fontSize: '2.5rem' }} />}
+					icon={<IcImage />}
 					title={t('No images found')}
 					description={t('Upload some images to see them here')}
 				/>
@@ -98,7 +98,7 @@ export function GalleryApp() {
 		if (files.length === 0 && hasActiveFilters) {
 			return (
 				<EmptyState
-					icon={<IcImage style={{ fontSize: '2.5rem' }} />}
+					icon={<IcImage />}
 					title={t('No photos match your filters')}
 					description={t('Try adjusting your filters to see more photos')}
 				/>
@@ -152,6 +152,7 @@ export function GalleryApp() {
 			>
 				{files.length > 0 && (
 					<ActiveFilters
+						className="auto-bg"
 						viewMode={filters.viewMode}
 						selectedTags={filters.selectedTags}
 						timeFilter={filters.timeFilter}

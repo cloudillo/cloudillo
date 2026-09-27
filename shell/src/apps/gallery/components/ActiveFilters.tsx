@@ -1,10 +1,9 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button, mergeClasses } from '@cloudillo/react'
 import * as React from 'react'
+import { Button, HBox, Tag, Text } from '@cloudillo/react'
 import { useTranslation } from 'react-i18next'
-import { LuX as IcClose } from 'react-icons/lu'
 
 import type { GalleryViewMode, TimeFilter } from '../types.js'
 
@@ -57,73 +56,47 @@ export function ActiveFilters({
 		(viewMode !== 'all' ? 1 : 0) + (timeFilter !== 'all' ? 1 : 0) + selectedTags.length > 1
 
 	return (
-		<div
-			className={mergeClasses('d-flex align-items-center flex-wrap g-2 px-3 py-2', className)}
-		>
-			<span className="text-muted">{t('Active filters:')}</span>
+		<HBox gap={2} padding={2} align="center" wrap className={className}>
+			<Text emphasis="muted">{t('Active filters:')}</Text>
 
-			{/* View mode chip */}
 			{viewMode !== 'all' && (
-				<span className="c-tag accent">
+				<Tag color="accent" onRemove={onClearViewMode} removeLabel={t('Remove filter')}>
 					{t(VIEW_MODE_LABELS[viewMode])}
-					<button
-						type="button"
-						className="c-tag-remove ms-1"
-						onClick={onClearViewMode}
-						aria-label={t('Remove filter')}
-					>
-						<IcClose size={12} />
-					</button>
-				</span>
+				</Tag>
 			)}
 
-			{/* Time filter chip */}
 			{timeFilter !== 'all' && (
-				<span className="c-tag accent">
+				<Tag color="accent" onRemove={onClearTimeFilter} removeLabel={t('Remove filter')}>
 					{t(TIME_FILTER_LABELS[timeFilter])}
-					<button
-						type="button"
-						className="c-tag-remove ms-1"
-						onClick={onClearTimeFilter}
-						aria-label={t('Remove filter')}
-					>
-						<IcClose size={12} />
-					</button>
-				</span>
+				</Tag>
 			)}
 
-			{/* Tag chips */}
 			{selectedTags.map((tag) => (
-				<span key={tag} className="c-tag accent">
+				<Tag
+					key={tag}
+					color="accent"
+					onRemove={() => onRemoveTag(tag)}
+					removeLabel={t('Remove tag')}
+				>
 					#{tag}
-					<button
-						type="button"
-						className="c-tag-remove ms-1"
-						onClick={() => onRemoveTag(tag)}
-						aria-label={t('Remove tag')}
-					>
-						<IcClose size={12} />
-					</button>
-				</span>
+				</Tag>
 			))}
 
-			{/* Clear all button */}
 			{multipleFilters && (
-				<Button size="small" kind="link" onClick={onClearAll}>
+				<Button variant="ghost" size="sm" onClick={onClearAll}>
 					{t('Clear all')}
 				</Button>
 			)}
 
-			{/* Photo count */}
 			{filteredCount !== undefined && totalCount !== undefined && (
-				<span className="ms-auto text-muted">
+				<Text emphasis="muted" className="ms-auto">
 					{t('Showing {{filtered}} of {{total}} photos', {
 						filtered: filteredCount,
 						total: totalCount
 					})}
-				</span>
+				</Text>
 			)}
-		</div>
+		</HBox>
 	)
 }
 

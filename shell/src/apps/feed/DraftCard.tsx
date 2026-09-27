@@ -1,7 +1,20 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button, Popper, TimeFormat, useApi, useDialog } from '@cloudillo/react'
+import {
+	Button,
+	Card,
+	HBox,
+	IconText,
+	Menu,
+	MenuItem,
+	Spacer,
+	Text,
+	TimeFormat,
+	useApi,
+	useDialog,
+	VBox
+} from '@cloudillo/react'
 import type { ActionView } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -94,7 +107,8 @@ export function DraftCard({
 			isScheduled ? t('Delete scheduled post') : t('Delete draft'),
 			isScheduled
 				? t('Delete this scheduled post? This cannot be undone.')
-				: t('Delete this draft? This cannot be undone.')
+				: t('Delete this draft? This cannot be undone.'),
+			{ color: 'error', confirmLabel: t('Delete') }
 		)
 		if (!confirmed) return
 
@@ -106,106 +120,93 @@ export function DraftCard({
 		}
 	}
 
+	const tone = isOverdue ? 'error' : isScheduled ? 'primary' : 'warning'
+	const kindLabel =
+		draft.subType === 'LDOC'
+			? t('live document')
+			: draft.subType === 'VIDEO'
+				? t('video')
+				: draft.subType === 'DOC'
+					? t('document')
+					: attachmentCount === 1
+						? t('image')
+						: t('images')
+	const KindIcon =
+		draft.subType === 'VIDEO'
+			? IcVideo
+			: draft.subType === 'LDOC' || draft.subType === 'DOC'
+				? IcDocument
+				: IcImage
+
 	return (
-		<div
-			className="c-panel g-2"
-			style={{
-				borderLeft: `4px solid var(${isOverdue ? '--col-error' : isScheduled ? '--col-primary' : '--col-warning'})`
-			}}
-		>
-			<div className="c-hbox g-2 align-items-center">
-				{isScheduled ? (
-					<div
-						className="c-hbox g-1 align-items-center"
-						style={{ color: isOverdue ? 'var(--col-error)' : 'var(--col-primary)' }}
-					>
-						<IcSchedule />
-						<span className="text-sm fw-bold">
-							{isOverdue ? t('Schedule overdue') : t('SCHEDULED')}
-						</span>
-					</div>
-				) : (
-					<div
-						className="c-hbox g-1 align-items-center"
-						style={{ color: 'var(--col-warning)' }}
-					>
-						<IcDraft />
-						<span className="text-sm fw-bold">{t('DRAFT')}</span>
-					</div>
-				)}
-				<span className="ms-auto text-sm" style={{ opacity: 0.7 }}>
-					{isScheduled && publishAt ? (
-						<TimeFormat time={publishAt.toISOString()} />
-					) : (
-						<>
-							{t('Last edited:')} <TimeFormat time={draft.createdAt} />
-						</>
-					)}
-				</span>
-			</div>
-			<div>
-				{contentPreview ? (
-					<p style={{ margin: 0 }}>{contentPreview}</p>
-				) : attachmentCount > 0 || draft.subType === 'LDOC' ? (
-					<p style={{ margin: 0, opacity: 0.6, fontStyle: 'italic' }}>
-						({t('No text')} - {attachmentCount > 0 ? `${attachmentCount} ` : ''}
-						{draft.subType === 'LDOC' ? (
-							<>
-								<IcDocument style={{ verticalAlign: 'text-bottom' }} />{' '}
-								{t('live document')}
-							</>
-						) : draft.subType === 'VIDEO' ? (
-							<>
-								<IcVideo style={{ verticalAlign: 'text-bottom' }} /> {t('video')}
-							</>
-						) : draft.subType === 'DOC' ? (
-							<>
-								<IcDocument style={{ verticalAlign: 'text-bottom' }} />{' '}
-								{t('document')}
-							</>
+		<Card color={tone} variant="outline">
+			<VBox gap={2}>
+				<HBox gap={2} align="center">
+					<Text size="sm" weight="bold" color={tone}>
+						<IconText icon={isScheduled ? <IcSchedule /> : <IcDraft />}>
+							{isScheduled
+								? isOverdue
+									? t('Schedule overdue')
+									: t('SCHEDULED')
+								: t('DRAFT')}
+						</IconText>
+					</Text>
+					<Spacer />
+					<Text size="sm" emphasis="muted">
+						{isScheduled && publishAt ? (
+							<TimeFormat time={publishAt.toISOString()} />
 						) : (
 							<>
-								<IcImage style={{ verticalAlign: 'text-bottom' }} />{' '}
-								{attachmentCount === 1 ? t('image') : t('images')}
+								{t('Last edited:')} <TimeFormat time={draft.createdAt} />
 							</>
 						)}
-						)
-					</p>
+					</Text>
+				</HBox>
+				{contentPreview ? (
+					<Text as="p">{contentPreview}</Text>
+				) : attachmentCount > 0 || draft.subType === 'LDOC' ? (
+					<Text as="p" emphasis="muted">
+						({t('No text')} - {attachmentCount > 0 ? `${attachmentCount} ` : ''}
+						<IconText icon={<KindIcon />}>{kindLabel}</IconText>)
+					</Text>
 				) : (
-					<p style={{ margin: 0, opacity: 0.6, fontStyle: 'italic' }}>
+					<Text as="p" emphasis="muted">
 						({t('Empty draft')})
-					</p>
+					</Text>
 				)}
-			</div>
-			<div className="c-hbox g-2">
-				<Button size="small" onClick={() => onEdit(draft)}>
-					<IcEdit />
-					{t('Edit')}
-				</Button>
-				<Button size="small" variant="primary" onClick={handlePublishNow}>
-					<IcPublish />
-					{t('Publish now')}
-				</Button>
-				<Popper menuClassName="c-button" icon={<IcMore />}>
-					<ul className="c-nav vertical emph">
-						{isScheduled && (
-							<li>
-								<Button kind="nav-item" onClick={handleUnschedule}>
-									<IcUnschedule />
-									{t('Unschedule')}
-								</Button>
-							</li>
-						)}
-						<li>
-							<Button kind="nav-item" onClick={handleDelete}>
-								<IcDelete style={{ color: 'var(--col-error)' }} />
-								{isScheduled ? t('Delete scheduled post') : t('Delete draft')}
+				<HBox gap={2}>
+					<Button size="sm" onClick={() => onEdit(draft)}>
+						<IcEdit />
+						{t('Edit')}
+					</Button>
+					<Button size="sm" color="primary" onClick={handlePublishNow}>
+						<IcPublish />
+						{t('Publish now')}
+					</Button>
+					<Menu
+						trigger={
+							<Button variant="ghost" size="sm" aria-label={t('More actions')}>
+								<IcMore />
 							</Button>
-						</li>
-					</ul>
-				</Popper>
-			</div>
-		</div>
+						}
+					>
+						{isScheduled && (
+							<MenuItem
+								icon={<IcUnschedule />}
+								label={t('Unschedule')}
+								onClick={handleUnschedule}
+							/>
+						)}
+						<MenuItem
+							icon={<IcDelete />}
+							label={isScheduled ? t('Delete scheduled post') : t('Delete draft')}
+							color="error"
+							onClick={handleDelete}
+						/>
+					</Menu>
+				</HBox>
+			</VBox>
+		</Card>
 	)
 }
 

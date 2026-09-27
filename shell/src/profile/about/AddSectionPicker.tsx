@@ -1,10 +1,9 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button, mergeClasses } from '@cloudillo/react'
+import { Button, Menu, MenuDivider, MenuItem } from '@cloudillo/react'
 import type { SectionType } from '@cloudillo/types'
 import * as React from 'react'
-import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import {
 	LuColumns2 as IcColumns,
@@ -19,7 +18,6 @@ import {
 	LuType as IcText,
 	LuBriefcase as IcWork
 } from 'react-icons/lu'
-import { usePopper } from 'react-popper'
 
 import { getSectionTypes, type SectionWithContent } from './types.js'
 
@@ -63,105 +61,40 @@ export function AddSectionPicker({
 
 	const usedTypes = new Set(sections.map((s) => s.type))
 
-	const [open, setOpen] = React.useState(false)
-	const [btnEl, setBtnEl] = React.useState<HTMLButtonElement | null>(null)
-	const [popperEl, setPopperEl] = React.useState<HTMLDivElement | null>(null)
-	const { styles: popperStyles, attributes } = usePopper(btnEl, popperEl, {
-		placement: 'top-start',
-		strategy: 'fixed'
-	})
-
-	React.useEffect(() => {
-		if (!open) return
-
-		function handleClickOutside(evt: MouseEvent) {
-			if (
-				evt.target instanceof Node &&
-				!popperEl?.contains(evt.target) &&
-				!btnEl?.contains(evt.target)
-			) {
-				setOpen(false)
-			}
-		}
-
-		document.addEventListener('click', handleClickOutside, true)
-		return () => document.removeEventListener('click', handleClickOutside, true)
-	}, [open, popperEl, btnEl])
-
-	function handleAdd(type: SectionType) {
-		onAdd(type)
-		setOpen(false)
-	}
-
-	function handleAddCols() {
-		onAddCols?.()
-		setOpen(false)
-	}
-
 	return (
-		<div className="c-vbox g-1">
-			<Button
-				ref={setBtnEl}
-				kind="link"
-				className="c-about-add-btn w-100 p-2"
-				onClick={() => setOpen(!open)}
-			>
-				<IcPlus /> {t('Add Section')}
-			</Button>
-			{open &&
-				createPortal(
-					<div
-						ref={setPopperEl}
-						className="c-popper high"
-						style={popperStyles.popper}
-						{...attributes.popper}
-					>
-						<div className="c-panel c-vbox g-1 p-2">
-							{availableTypes.map((def) => {
-								const Icon = SECTION_ICONS[def.type]
-								const isUsed = usedTypes.has(def.type) && !def.multiple
-								return (
-									<Button
-										key={def.type}
-										kind="link"
-										disabled={isUsed}
-										className={mergeClasses(
-											'c-hbox g-2 align-items-center p-2 border-radius-sm justify-content-start text-left',
-											isUsed && 'text-muted'
-										)}
-										onClick={() => handleAdd(def.type)}
-									>
-										<Icon />
-										<span className="c-vbox g-0">
-											<span>{def.defaultTitle}</span>
-											<small className="text-muted">{def.description}</small>
-										</span>
-									</Button>
-								)
-							})}
-							{onAddCols && (
-								<>
-									<hr className="border-bottom my-1" />
-									<Button
-										kind="link"
-										className="c-hbox g-2 align-items-center p-2 border-radius-sm justify-content-start text-left"
-										onClick={handleAddCols}
-									>
-										<IcColumns />
-										<span className="c-vbox g-0">
-											<span>{t('2-Column Layout')}</span>
-											<small className="text-muted">
-												{t('Side-by-side sections')}
-											</small>
-										</span>
-									</Button>
-								</>
-							)}
-						</div>
-					</div>,
-					document.getElementById('popper-container')!
-				)}
-		</div>
+		<Menu
+			placement="top-start"
+			trigger={
+				<Button variant="ghost" className="w-100" icon={<IcPlus />}>
+					{t('Add Section')}
+				</Button>
+			}
+		>
+			{availableTypes.map((def) => {
+				const Icon = SECTION_ICONS[def.type]
+				return (
+					<MenuItem
+						key={def.type}
+						icon={<Icon />}
+						label={def.defaultTitle}
+						description={def.description}
+						disabled={usedTypes.has(def.type) && !def.multiple}
+						onClick={() => onAdd(def.type)}
+					/>
+				)
+			})}
+			{onAddCols && (
+				<>
+					<MenuDivider />
+					<MenuItem
+						icon={<IcColumns />}
+						label={t('2-Column Layout')}
+						description={t('Side-by-side sections')}
+						onClick={onAddCols}
+					/>
+				</>
+			)}
+		</Menu>
 	)
 }
 

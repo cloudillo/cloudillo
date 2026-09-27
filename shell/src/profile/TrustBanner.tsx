@@ -13,7 +13,7 @@
  * `useProfileTrust()`, which causes this banner to hide on the next render.
  */
 
-import { useToast } from '@cloudillo/react'
+import { Alert, Button, useToast } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { LuShield as IcShield } from 'react-icons/lu'
@@ -77,53 +77,33 @@ export function TrustBanner({ idTag, onDecision }: TrustBannerProps): React.Reac
 	}
 
 	return (
-		<div className="c-alert info m-2" role="status">
-			<div className="c-alert-icon">
-				<IcShield />
-			</div>
-			<div className="c-alert-content">
-				<h3 className="c-alert-title">{t('Authenticate to {{idTag}}?', { idTag })}</h3>
-				<div className="c-alert-message">
-					{t(
-						'You are browsing anonymously. Authenticating lets them see you viewed them and unlocks content restricted to known viewers.'
-					)}
-				</div>
-				<div className="c-alert-actions">
-					<button
-						type="button"
-						className="c-button primary small"
-						onClick={handleSession}
-						disabled={busy}
-					>
+		<Alert
+			color="info"
+			className="m-2"
+			role="status"
+			icon={<IcShield />}
+			title={t('Authenticate to {{idTag}}?', { idTag })}
+			actions={
+				<>
+					<Button size="sm" color="primary" onClick={handleSession} disabled={busy}>
 						{t('This session')}
-					</button>
-					<button
-						type="button"
-						className="c-button secondary small"
-						onClick={handleAlways}
-						disabled={busy}
-					>
+					</Button>
+					<Button size="sm" color="secondary" onClick={handleAlways} disabled={busy}>
 						{t('Always')}
-					</button>
-					<button
-						type="button"
-						className="c-button warning small"
-						onClick={handleNever}
-						disabled={busy}
-					>
+					</Button>
+					<Button size="sm" color="warning" onClick={handleNever} disabled={busy}>
 						{t('Never')}
-					</button>
-					<button
-						type="button"
-						className="c-button link small"
-						onClick={handleAnonymous}
-						disabled={busy}
-					>
+					</Button>
+					<Button size="sm" variant="ghost" onClick={handleAnonymous} disabled={busy}>
 						{t('Continue anonymously')}
-					</button>
-				</div>
-			</div>
-		</div>
+					</Button>
+				</>
+			}
+		>
+			{t(
+				'You are browsing anonymously. Authenticating lets them see you viewed them and unlocks content restricted to known viewers.'
+			)}
+		</Alert>
 	)
 }
 

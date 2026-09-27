@@ -2,7 +2,18 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import type { TagInfo } from '@cloudillo/core'
-import { mergeClasses, Popper } from '@cloudillo/react'
+import {
+	Badge,
+	Button,
+	List,
+	ListItem,
+	Popover,
+	SearchInput,
+	Segmented,
+	SegmentedItem,
+	Toolbar,
+	VBox
+} from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -11,15 +22,12 @@ import {
 	LuLink as IcConnected,
 	LuPaperclip as IcManaged,
 	LuClock as IcRecent,
-	LuSearch as IcSearch,
 	LuStar as IcStarred,
 	LuTag as IcTag
 } from 'react-icons/lu'
 
 import { PickerFilterChips } from './PickerFilterChips.js'
 import type { PickerViewMode } from './types.js'
-
-import './picker-filter.css'
 
 export interface PickerFilterBarProps {
 	viewMode: PickerViewMode
@@ -59,133 +67,85 @@ export function PickerFilterBar({
 	)
 
 	return (
-		<div className="picker-filter-bar">
-			{/* Single row: view mode icons | search | tag filter */}
-			<div className="picker-filter-row">
-				{/* View mode icon buttons */}
-				<div className="picker-view-modes">
-					<button
-						type="button"
-						className={mergeClasses(
-							'picker-view-btn',
-							viewMode === 'browse' && 'active'
-						)}
-						onClick={() => onViewModeChange('browse')}
-						title={t('Browse folders')}
-					>
-						<IcBrowse />
-					</button>
+		<VBox gap={1}>
+			<Toolbar padding={0}>
+				<Segmented
+					size="sm"
+					aria-label={t('View')}
+					value={viewMode}
+					onChange={(v) => onViewModeChange(v as PickerViewMode)}
+				>
+					<SegmentedItem value="browse" icon={IcBrowse} label={t('Browse folders')} />
 					{contextFileId && (
-						<button
-							type="button"
-							className={mergeClasses(
-								'picker-view-btn',
-								viewMode === 'connected' && 'active'
-							)}
-							onClick={() => onViewModeChange('connected')}
-							title={t('This document')}
-						>
-							<IcConnected />
-						</button>
+						<SegmentedItem
+							value="connected"
+							icon={IcConnected}
+							label={t('This document')}
+						/>
 					)}
 					{showManaged && (
-						<button
-							type="button"
-							className={mergeClasses(
-								'picker-view-btn',
-								viewMode === 'managed' && 'active'
-							)}
-							onClick={() => onViewModeChange('managed')}
-							title={t('Managed files')}
-						>
-							<IcManaged />
-						</button>
+						<SegmentedItem
+							value="managed"
+							icon={IcManaged}
+							label={t('Managed files')}
+						/>
 					)}
-					<button
-						type="button"
-						className={mergeClasses(
-							'picker-view-btn',
-							viewMode === 'recent' && 'active'
-						)}
-						onClick={() => onViewModeChange('recent')}
-						title={t('Recent files')}
-					>
-						<IcRecent />
-					</button>
-					<button
-						type="button"
-						className={mergeClasses(
-							'picker-view-btn',
-							viewMode === 'starred' && 'active'
-						)}
-						onClick={() => onViewModeChange('starred')}
-						title={t('Starred files')}
-					>
-						<IcStarred />
-					</button>
-				</div>
+					<SegmentedItem value="recent" icon={IcRecent} label={t('Recent files')} />
+					<SegmentedItem value="starred" icon={IcStarred} label={t('Starred files')} />
+				</Segmented>
 
-				{/* Search input */}
-				<div className="c-input-group flex-fill">
-					<span className="c-input-suffix">
-						<IcSearch />
-					</span>
-					<input
-						type="text"
-						className="c-input"
-						placeholder={searchPlaceholder || t('Search files...')}
-						value={searchQuery}
-						onChange={(e) => onSearchQueryChange(e.target.value)}
-					/>
-				</div>
+				<SearchInput
+					className="flex-fill"
+					aria-label={searchPlaceholder || t('Search files...')}
+					placeholder={searchPlaceholder || t('Search files...')}
+					value={searchQuery}
+					onChange={(e) => onSearchQueryChange(e.target.value)}
+				/>
 
-				{/* Tag filter */}
 				{tags.length > 0 && (
-					<Popper
-						className="picker-tag-filter"
-						menuClassName="picker-tag-trigger"
-						icon={<IcTag size={16} />}
-						label={
-							selectedTags.length > 0 ? (
-								<span className="c-badge xs">{selectedTags.length}</span>
-							) : undefined
+					<Popover
+						placement="bottom-end"
+						role="listbox"
+						trigger={
+							<Button variant="ghost" aria-label={t('Filter by tags')}>
+								<IcTag />
+								{selectedTags.length > 0 && (
+									<Badge size="xs" color="primary">
+										{selectedTags.length}
+									</Badge>
+								)}
+							</Button>
 						}
-						aria-label={t('Filter by tags')}
 					>
-						<div className="picker-tag-dropdown" onClick={(e) => e.stopPropagation()}>
+						<List selectable="multiple" scroll>
 							{tags.map((tagInfo) => (
-								<button
+								<ListItem
 									key={tagInfo.tag}
-									type="button"
-									className={mergeClasses(
-										'picker-tag-option',
-										selectedTags.includes(tagInfo.tag) && 'active'
-									)}
-									onClick={(e) => {
-										e.stopPropagation()
-										toggleTag(tagInfo.tag)
-									}}
-								>
-									{selectedTags.includes(tagInfo.tag) && <IcCheck size={14} />}
-									<span>{tagInfo.tag}</span>
-									{tagInfo.count !== undefined && (
-										<span className="c-badge xs ms-auto">{tagInfo.count}</span>
-									)}
-								</button>
+									selected={selectedTags.includes(tagInfo.tag)}
+									leading={
+										selectedTags.includes(tagInfo.tag) ? <IcCheck /> : undefined
+									}
+									title={tagInfo.tag}
+									trailing={
+										tagInfo.count !== undefined && (
+											<Badge size="xs">{tagInfo.count}</Badge>
+										)
+									}
+									onClick={() => toggleTag(tagInfo.tag)}
+								/>
 							))}
-						</div>
-					</Popper>
+						</List>
+					</Popover>
 				)}
-			</div>
+			</Toolbar>
 
-			{/* Filter chips (only shown when filters are active) */}
 			<PickerFilterChips
 				searchQuery={searchQuery}
 				selectedTags={selectedTags}
 				onSearchQueryChange={onSearchQueryChange}
 				onTagFilter={onTagFilter}
 			/>
-		</div>
+		</VBox>
 	)
 }
 

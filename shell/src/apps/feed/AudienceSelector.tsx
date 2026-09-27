@@ -1,7 +1,15 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button, Dropdown, mergeClasses, ProfilePicture, useAuth } from '@cloudillo/react'
+import {
+	Button,
+	Menu,
+	MenuDivider,
+	MenuItem,
+	ProfilePicture,
+	Text,
+	useAuth
+} from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { LuCheck as IcCheck, LuChevronDown as IcChevron } from 'react-icons/lu'
@@ -30,7 +38,7 @@ export interface AudienceSelectorProps {
 
 /**
  * Top-left "posting to …" audience selector for repost compose. A plain
- * {@link Dropdown} list (no search) of the user's prioritised contexts: own
+ * {@link Menu} (no search) of the user's prioritised contexts: own
  * wall first, then pinned communities, then other memberships, with thin
  * dividers between the three groups.
  */
@@ -91,71 +99,53 @@ export function AudienceSelector({ target, ownRepostIds, onChange }: AudienceSel
 	])
 
 	function row(tgt: AudienceTarget) {
-		const isActive = tgt.idTag === target.idTag
 		return (
-			<li key={tgt.idTag}>
-				<Button
-					kind="nav-item"
-					className={mergeClasses(
-						'c-hbox g-2 align-items-center w-100',
-						isActive && 'active'
-					)}
-					onClick={() => onChange(tgt)}
-				>
-					<ProfilePicture profile={tgt} srcTag={tgt.idTag} tiny />
-					<span className="flex-fill text-start">{tgt.name || tgt.idTag}</span>
-					{tgt.kind === 'me' && <small style={{ opacity: 0.6 }}>{t('(you)')}</small>}
-					{tgt.repostId && (
-						<IcCheck
-							style={{ color: 'var(--col-primary)' }}
-							aria-label={t('Already reposted to {{name}}', {
-								name: tgt.name || tgt.idTag
-							})}
-						/>
-					)}
-				</Button>
-			</li>
+			<MenuItem
+				key={tgt.idTag}
+				icon={<ProfilePicture profile={tgt} srcTag={tgt.idTag} size="xs" />}
+				label={tgt.name || tgt.idTag}
+				selected={tgt.idTag === target.idTag}
+				onClick={() => onChange(tgt)}
+				trailing={
+					<>
+						{tgt.kind === 'me' && (
+							<Text size="sm" emphasis="muted">
+								{t('(you)')}
+							</Text>
+						)}
+						{tgt.repostId && (
+							<IcCheck
+								className="text-primary"
+								aria-label={t('Already reposted to {{name}}', {
+									name: tgt.name || tgt.idTag
+								})}
+							/>
+						)}
+					</>
+				}
+			/>
 		)
 	}
 
 	return (
-		<Dropdown
+		<Menu
 			placement="bottom-start"
-			triggerClassName="c-button link secondary sm c-hbox g-1 align-items-center"
-			triggerProps={{ 'aria-label': t('Post to') }}
 			trigger={
-				<>
-					<ProfilePicture profile={resolved} srcTag={resolved.idTag} tiny />
-					<span>{resolved.name || resolved.idTag}</span>
+				<Button variant="ghost" color="secondary" size="sm" aria-label={t('Post to')}>
+					<ProfilePicture profile={resolved} srcTag={resolved.idTag} size="xs" />
+					{resolved.name || resolved.idTag}
 					<IcChevron />
-				</>
+				</Button>
 			}
 		>
-			<ul
-				className="c-nav vertical emph"
-				style={{ minWidth: '16rem', maxHeight: '20rem', overflowY: 'auto' }}
-			>
-				{currentUnknown && row(currentUnknown)}
-				{currentUnknown && (
-					<li>
-						<hr className="m-0" />
-					</li>
-				)}
-				{row(me)}
-				{pinned.length > 0 && (
-					<li>
-						<hr className="m-0" />
-					</li>
-				)}
-				{pinned.map(row)}
-				{others.length > 0 && (
-					<li>
-						<hr className="m-0" />
-					</li>
-				)}
-				{others.map(row)}
-			</ul>
-		</Dropdown>
+			{currentUnknown && row(currentUnknown)}
+			{currentUnknown && <MenuDivider />}
+			{row(me)}
+			{pinned.length > 0 && <MenuDivider />}
+			{pinned.map(row)}
+			{others.length > 0 && <MenuDivider />}
+			{others.map(row)}
+		</Menu>
 	)
 }
 

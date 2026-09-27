@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { HBox, Icon, Input, Link, VBox } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { LuGlobe as IcGlobe, LuMail as IcMail, LuPhone as IcPhone } from 'react-icons/lu'
@@ -21,32 +22,32 @@ export function ContactSectionView({ section }: ContactSectionViewProps) {
 	if (!hasContent) return null
 
 	return (
-		<div className="c-vbox g-1">
+		<VBox gap={1}>
 			{data.email && (
-				<div className="c-hbox g-2 align-items-center">
-					<IcMail className="c-section-icon f-none" />
-					<a href={`mailto:${data.email}`}>{data.email}</a>
-				</div>
+				<HBox gap={2} align="center">
+					<Icon as={IcMail} className="text-muted" />
+					<Link href={`mailto:${data.email}`}>{data.email}</Link>
+				</HBox>
 			)}
 			{data.phone && (
-				<div className="c-hbox g-2 align-items-center">
-					<IcPhone className="c-section-icon f-none" />
-					<a href={`tel:${data.phone}`}>{data.phone}</a>
-				</div>
+				<HBox gap={2} align="center">
+					<Icon as={IcPhone} className="text-muted" />
+					<Link href={`tel:${data.phone}`}>{data.phone}</Link>
+				</HBox>
 			)}
 			{data.website && (
-				<div className="c-hbox g-2 align-items-center">
-					<IcGlobe className="c-section-icon f-none" />
-					<a
+				<HBox gap={2} align="center">
+					<Icon as={IcGlobe} className="text-muted" />
+					<Link
 						href={ensureUrlProtocol(data.website)}
 						target="_blank"
 						rel="noopener noreferrer"
 					>
 						{data.website.replace(/^https?:\/\//, '')}
-					</a>
-				</div>
+					</Link>
+				</HBox>
 			)}
-		</div>
+		</VBox>
 	)
 }
 
@@ -68,38 +69,41 @@ export function ContactSectionEdit({ section, onChange }: ContactSectionEditProp
 	}
 
 	return (
-		<div className="c-vbox g-2">
-			<div className="c-hbox g-2 align-items-center">
-				<IcMail className="c-section-icon f-none" />
-				<input
-					className="c-input flex-fill"
+		<VBox gap={2}>
+			<HBox gap={2} align="center">
+				<Icon as={IcMail} className="text-muted" />
+				<Input
+					className="flex-fill"
 					type="email"
+					aria-label={t('Email')}
 					placeholder={t('Email')}
 					value={data.email || ''}
 					onChange={(e) => update('email', e.target.value)}
 				/>
-			</div>
-			<div className="c-hbox g-2 align-items-center">
-				<IcPhone className="c-section-icon f-none" />
-				<input
-					className="c-input flex-fill"
+			</HBox>
+			<HBox gap={2} align="center">
+				<Icon as={IcPhone} className="text-muted" />
+				<Input
+					className="flex-fill"
 					type="tel"
+					aria-label={t('Phone')}
 					placeholder={t('Phone')}
 					value={data.phone || ''}
 					onChange={(e) => update('phone', e.target.value)}
 				/>
-			</div>
-			<div className="c-hbox g-2 align-items-center">
-				<IcGlobe className="c-section-icon f-none" />
-				<input
-					className="c-input flex-fill"
+			</HBox>
+			<HBox gap={2} align="center">
+				<Icon as={IcGlobe} className="text-muted" />
+				<Input
+					className="flex-fill"
 					type="url"
+					aria-label={t('Website')}
 					placeholder={t('Website')}
 					value={data.website || ''}
 					onChange={(e) => update('website', e.target.value)}
 				/>
-			</div>
-		</div>
+			</HBox>
+		</VBox>
 	)
 }
 

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button } from '@cloudillo/react'
+import { ActionBar, Button, Dialog, Disclosure, Text } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -48,65 +48,42 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 
 function ErrorFallback({ error, onReset }: { error: Error | null; onReset: () => void }) {
 	const { t } = useTranslation()
-	const dialogRef = React.useRef<HTMLDialogElement>(null)
-
-	// Use native dialog with showModal() for built-in focus trapping
-	React.useEffect(() => {
-		dialogRef.current?.showModal()
-	}, [])
 
 	return (
-		<dialog
-			ref={dialogRef}
-			className="c-error-dialog"
-			aria-labelledby="error-boundary-title"
-			onCancel={(e) => e.preventDefault()}
-		>
-			<div className="c-card p-4" style={{ maxWidth: 480 }}>
-				<div className="c-hbox align-items-center g-2 mb-3">
-					<IcError size={32} className="text-error" />
-					<h2 id="error-boundary-title" className="m-0">
-						{t('Something went wrong')}
-					</h2>
-				</div>
-				<p className="mb-4">
-					{t(
-						'An unexpected error occurred. You can try reloading the page or going back.'
-					)}
-				</p>
-				{process.env.NODE_ENV !== 'production' && error && (
-					<details className="mb-4">
-						<summary className="text-muted" style={{ cursor: 'pointer' }}>
-							{t('Error details')}
-						</summary>
-						<pre
-							className="p-2 mt-2"
-							style={{
-								fontSize: '0.75rem',
-								overflow: 'auto',
-								maxHeight: '10rem',
-								background: 'var(--col-surface)',
-								borderRadius: 'var(--bd-radius)'
-							}}
-						>
-							{error.message}
-							{error.stack && '\n\n' + error.stack}
-						</pre>
-					</details>
-				)}
-				<div className="c-hbox g-2 justify-content-end">
-					<Button onClick={() => window.history.back()}>
-						<IcBack />
+		<Dialog
+			open
+			size="sm"
+			dismissable={false}
+			icon={<IcError size={32} className="text-error" />}
+			title={t('Something went wrong')}
+			footer={
+				<ActionBar>
+					<Button icon={<IcBack />} onClick={() => window.history.back()}>
 						{t('Go back')}
 					</Button>
 					<Button onClick={onReset}>{t('Try again')}</Button>
-					<Button className="primary" onClick={() => window.location.reload()}>
-						<IcReload />
+					<Button
+						color="primary"
+						icon={<IcReload />}
+						onClick={() => window.location.reload()}
+					>
 						{t('Reload page')}
 					</Button>
-				</div>
-			</div>
-		</dialog>
+				</ActionBar>
+			}
+		>
+			<Text as="p">
+				{t('An unexpected error occurred. You can try reloading the page or going back.')}
+			</Text>
+			{process.env.NODE_ENV !== 'production' && error && (
+				<Disclosure summary={t('Error details')}>
+					<Text as="div" size="xs" mono preWrap className="mh-sm scroll">
+						{error.message}
+						{error.stack && '\n\n' + error.stack}
+					</Text>
+				</Disclosure>
+			)}
+		</Dialog>
 	)
 }
 

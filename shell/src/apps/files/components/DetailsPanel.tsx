@@ -5,12 +5,28 @@ import type * as Types from '@cloudillo/core'
 import { getFileUrl } from '@cloudillo/core'
 import {
 	Badge,
+	Breadcrumbs,
 	Button,
-	Popper,
+	DescriptionList,
+	type DescriptionListItem,
+	Disclosure,
+	EmptyState,
+	FileTypeIcon,
+	Heading,
+	HBox,
+	IconText,
+	List,
+	ListItem,
+	Menu,
+	MenuItem,
+	Panel,
 	ProfileCard,
 	QRCodeDialog,
+	Text,
+	Thumbnail,
 	useAuth,
-	useToast
+	useToast,
+	VBox
 } from '@cloudillo/react'
 import type { Profile } from '@cloudillo/types'
 import * as React from 'react'
@@ -19,7 +35,6 @@ import { FiEdit2 as IcEdit, FiMoreVertical as IcMore } from 'react-icons/fi'
 import {
 	LuChevronDown as IcChevronDown,
 	LuCopy as IcCopy,
-	LuChevronRight as IcDisclosure,
 	LuLink as IcLink,
 	LuPin as IcPin,
 	LuQrCode as IcQrCode,
@@ -34,7 +49,6 @@ import { getCachedProfile, getCachedProfiles } from '../../../utils/profileCache
 import { canUseRefCredential } from '../../../utils/refs.js'
 import { isMissingError, isPermissionError } from '../../../utils.js'
 import { type FileOwnerScopeOverride, useFileOwnerScope } from '../hooks/useFileOwnerScope.js'
-import { getFileIcon, IcUnknown } from '../icons.js'
 import type { File, FileOps } from '../types.js'
 import {
 	formatRelativeTime,
@@ -58,17 +72,22 @@ type PermLevel = SharePermLevel
  *  pair of helpers ShareDialog uses, so the two surfaces cannot drift. */
 function PermChip({ perm }: { perm: string }) {
 	const { t } = useTranslation()
-	return <Badge variant={sharePermVariant(perm)}>{sharePermLabel(perm, t)}</Badge>
+	return <Badge color={sharePermVariant(perm)}>{sharePermLabel(perm, t)}</Badge>
 }
 
 /** Same chip for a link's level, which never carries admin. */
 function AccessChip({ level }: { level: PermLevel }) {
 	const perm = levelToPermChar(level)
 	const { t } = useTranslation()
-	return <Badge variant={sharePermVariant(perm)}>{sharePermLabel(perm, t)}</Badge>
+	return <Badge color={sharePermVariant(perm)}>{sharePermLabel(perm, t)}</Badge>
 }
 
-const ELLIPSIS_MARKER = { id: '__ellipsis__', name: '…' } as const
+/** Folders carry no MIME type; FileTypeIcon knows them as `cloudillo/folder`. */
+function iconContentType(contentType: string | undefined, fileTp: string | undefined) {
+	return fileTp === 'FLDR' ? 'cloudillo/folder' : contentType
+}
+
+// Abbreviate deeply nested paths so they stay on one line.
 const MAX_INLINE_SEGMENTS = 4
 
 interface PathBreadcrumbProps {
@@ -82,58 +101,25 @@ function PathBreadcrumb({ path, parentId, onNavigate }: PathBreadcrumbProps) {
 
 	// Loading: path lookup still in flight for a non-root file.
 	if (path === undefined && parentId) {
-		return <span className="text-muted">{t('Loading…')}</span>
+		return <Text emphasis="muted">{t('Loading…')}</Text>
 	}
 
 	// Empty path on a non-root file means the lookup failed
 	// (e.g. parent deleted) — distinguish from the genuine
 	// root case where parentId is explicitly null.
 	if (path && path.length === 0 && parentId) {
-		return <span className="text-muted">{t('Unknown')}</span>
+		return <Text emphasis="muted">{t('Unknown')}</Text>
 	}
 
-	const segs = path ?? []
-	// Abbreviate deeply nested paths so they stay on one line.
-	const display: ReadonlyArray<{ id: string; name: string }> =
-		segs.length > MAX_INLINE_SEGMENTS
-			? [segs[0], ELLIPSIS_MARKER, segs[segs.length - 2], segs[segs.length - 1]]
-			: segs
+	const items = [
+		{ label: t('Files'), onClick: onNavigate ? () => onNavigate(null) : undefined },
+		...(path ?? []).map((seg) => ({
+			label: seg.name,
+			onClick: onNavigate ? () => onNavigate(seg.id) : undefined
+		}))
+	]
 
-	const goRoot = onNavigate ? () => onNavigate(null) : undefined
-	const goSegment = (id: string) => (onNavigate ? () => onNavigate(id) : undefined)
-
-	return (
-		<span className="c-hbox g-1 align-items-center flex-wrap">
-			{goRoot ? (
-				<button type="button" className="c-link p-0" onClick={goRoot}>
-					{t('Files')}
-				</button>
-			) : (
-				<span>{t('Files')}</span>
-			)}
-			{display.map((seg, idx) => (
-				<React.Fragment key={`${idx}-${seg.id}`}>
-					<span className="text-muted">/</span>
-					{seg === ELLIPSIS_MARKER ? (
-						<span className="text-muted">{seg.name}</span>
-					) : goSegment(seg.id) ? (
-						<button
-							type="button"
-							className="c-link p-0 text-truncate"
-							onClick={goSegment(seg.id)}
-							title={seg.name}
-						>
-							{seg.name}
-						</button>
-					) : (
-						<span className="text-truncate" title={seg.name}>
-							{seg.name}
-						</span>
-					)}
-				</React.Fragment>
-			))}
-		</span>
-	)
+	return <Breadcrumbs items={items} maxItems={MAX_INLINE_SEGMENTS + 1} label={t('Location')} />
 }
 
 interface DetailsPanelProps {
@@ -191,7 +177,6 @@ export function DetailsPanel({
 	const [peopleProfiles, setPeopleProfiles] = React.useState<Record<string, Profile>>({})
 	const [ownerProfile, setOwnerProfile] = React.useState<Profile | null>(null)
 	const [qrCodeUrl, setQrCodeUrl] = React.useState<string | undefined>()
-	const [usedInOpen, setUsedInOpen] = React.useState(false)
 	const [filePath, setFilePath] = React.useState<{ id: string; name: string }[] | undefined>(
 		file.path
 	)
@@ -199,7 +184,6 @@ export function DetailsPanel({
 	// unmounts on navigate/close), so unbounded growth isn't a concern.
 	const pathCacheRef = React.useRef<Map<string, { id: string; name: string }[]>>(new Map())
 
-	const Icon = getFileIcon(file.contentType, file.fileTp)
 	const isImage = file.contentType?.startsWith('image/')
 	const isFolder = file.fileTp === 'FLDR'
 
@@ -373,6 +357,8 @@ export function DetailsPanel({
 	// The host that serves the thumbnail is the one holding the blob - the upstream node for a
 	// mirrored row, otherwise whichever tenant the scope points at.
 	const thumbIdTag = upstreamIdTag || scope.scopeIdTag || contextIdTag
+	const thumbId = isImage ? file.fileId : file.variantId
+	const thumbSrc = thumbId && thumbIdTag ? getFileUrl(thumbIdTag, thumbId, 'vis.sd') : undefined
 
 	const sharedPeopleCount = allPeople?.length ?? 0
 	const sharedLinkCount = shareRefs?.length ?? 0
@@ -395,362 +381,361 @@ export function DetailsPanel({
 					.join(' · ')
 			: undefined
 
+	const credentialUnavailable = t('Resolving the share address for this file…')
+
+	const properties: DescriptionListItem[] = [
+		{
+			key: 'visibility',
+			term: t('Visibility'),
+			description:
+				canManage && !isCrossOwner && fileOps.setVisibility ? (
+					<Menu
+						trigger={
+							<Button variant="soft" icon={<VisibilityIcon />}>
+								{getVisibilityLabel(t, file.visibility ?? null)}
+								<IcChevronDown />
+							</Button>
+						}
+					>
+						{getVisibilityDropdownOptions(t).map((opt) => {
+							const OptionIcon = opt.icon
+							return (
+								<MenuItem
+									key={opt.value ?? 'null'}
+									icon={<OptionIcon />}
+									label={opt.label}
+									checked={(file.visibility ?? null) === opt.value}
+									// Cross-owner rows never reach this branch: a Pin/Place row
+									// reuses the SOURCE's file_id (cloudillo-rs handler.rs:1707),
+									// so which node owns a placed row's mutable state is
+									// unresolved. Until it is, they stay read-only.
+									onClick={() =>
+										fileOps.setVisibility!(
+											file.fileId,
+											opt.value,
+											api ?? undefined
+										)
+									}
+								/>
+							)
+						})}
+					</Menu>
+				) : (
+					<IconText icon={<VisibilityIcon />}>
+						{getVisibilityLabel(t, file.visibility ?? null)}
+					</IconText>
+				)
+		},
+		...(file.owner?.name
+			? [{ key: 'owner', term: t('Owner'), description: file.owner.name }]
+			: []),
+		{
+			key: 'location',
+			term: t('Location'),
+			description: (
+				<PathBreadcrumb
+					path={filePath}
+					parentId={file.parentId}
+					onNavigate={onNavigateToFolder}
+				/>
+			)
+		},
+		...(file.contentType
+			? [{ key: 'type', term: t('Type'), description: file.contentType }]
+			: []),
+		{ key: 'created', term: t('Created'), description: formatRelativeTime(file.createdAt) },
+		...(file.userData?.modifiedAt
+			? [
+					{
+						key: 'modified',
+						term: t('Last edited'),
+						description: formatRelativeTime(file.userData.modifiedAt)
+					}
+				]
+			: []),
+		...(file.userData?.accessedAt
+			? [
+					{
+						key: 'accessed',
+						term: t('Last opened'),
+						description: formatRelativeTime(file.userData.accessedAt)
+					}
+				]
+			: []),
+		{
+			key: 'tags',
+			term: t('Tags'),
+			// Tag writes go to the active context's client, so a cross-owner row is
+			// read-only here rather than routed to the owner's node.
+			description: (
+				<TagsCell
+					fileId={file.fileId}
+					tags={file.tags}
+					editable={canManage && !isCrossOwner}
+					setTags={(tags) => fileOps.setFile?.({ ...file, tags })}
+				/>
+			)
+		}
+	]
+
 	return (
-		<div className="c-vbox g-2">
+		<VBox gap={2}>
 			{/* Header — subject of the panel — and quick-actions toolbar */}
-			<div className="c-panel mid c-details-subject">
-				<div className="c-details-header">
-					<div className="c-details-thumb">
-						{isImage && thumbIdTag ? (
-							<img
-								src={getFileUrl(thumbIdTag, file.fileId, 'vis.sd')}
-								alt={file.fileName}
-							/>
-						) : file.variantId && thumbIdTag ? (
-							<img
-								src={getFileUrl(thumbIdTag, file.variantId, 'vis.sd')}
-								alt={file.fileName}
-							/>
-						) : (
-							<Icon />
-						)}
-					</div>
-					<div className="c-details-title">
-						<h2 title={file.fileName}>{file.fileName}</h2>
+			<Panel>
+				<HBox gap={3} align="center">
+					{thumbSrc ? (
+						<Thumbnail src={thumbSrc} alt={file.fileName} size="lg" />
+					) : (
+						<FileTypeIcon
+							contentType={iconContentType(file.contentType, file.fileTp)}
+							size="lg"
+						/>
+					)}
+					<VBox className="flex-fill min-w-0">
+						<Heading level={2} size="lg" className="text-truncate">
+							{file.fileName}
+						</Heading>
 						{(file.contentType || file.owner?.name) && (
-							<div className="text-secondary text-small">
+							<Text size="sm" emphasis="muted">
 								{[file.contentType, file.owner?.name].filter(Boolean).join(' · ')}
-							</div>
+							</Text>
 						)}
-					</div>
-				</div>
+					</VBox>
+				</HBox>
 
 				{/* Quick actions toolbar */}
-				<div className="c-details-actions c-hbox g-1">
+				<HBox gap={1} className="mt-2">
 					{!isFolder && (
 						<Button
-							kind="link"
-							title={t('Open')}
+							variant="ghost"
+							icon={<IcEdit />}
+							aria-label={t('Open')}
 							onClick={() =>
 								fileOps.openFile(file.fileId, toAppAccess(file.accessLevel))
 							}
-						>
-							<IcEdit />
-						</Button>
+						/>
 					)}
 					<Button
-						kind="link"
-						aria-pressed={!!file.userData?.starred}
-						className={file.userData?.starred ? 'text-accent' : ''}
-						title={file.userData?.starred ? t('Starred') : t('Star')}
+						variant="ghost"
+						icon={<IcStar />}
+						pressed={!!file.userData?.starred}
+						aria-label={file.userData?.starred ? t('Starred') : t('Star')}
 						onClick={() => fileOps.toggleStarred?.(file.fileId)}
-					>
-						<IcStar />
-					</Button>
+					/>
 					<Button
-						kind="link"
-						aria-pressed={!!file.userData?.pinned}
-						className={file.userData?.pinned ? 'text-accent' : ''}
-						title={file.userData?.pinned ? t('Pinned') : t('Pin')}
+						variant="ghost"
+						icon={<IcPin />}
+						pressed={!!file.userData?.pinned}
+						aria-label={file.userData?.pinned ? t('Pinned') : t('Pin')}
 						onClick={() => fileOps.togglePinned?.(file.fileId)}
-					>
-						<IcPin />
-					</Button>
+					/>
 					{onShare && canShare && (
-						<Button kind="link" title={t('Share')} onClick={() => onShare(file)}>
-							<IcShare />
-						</Button>
+						<Button
+							variant="ghost"
+							icon={<IcShare />}
+							aria-label={t('Share')}
+							onClick={() => onShare(file)}
+						/>
 					)}
 					{/* Same cross-owner exclusion as Visibility below: a placed row's file_id names
 					    a row on two nodes, so we do not offer a write we cannot route. */}
 					{canManage && !isCrossOwner && (
-						<Popper className="c-link ms-auto" icon={<IcMore />}>
-							<ul className="c-nav vertical">
-								<li className="c-nav-item">
-									<a onClick={() => fileOps.renameFile(file.fileId)}>
-										{t('Rename...')}
-									</a>
-								</li>
-							</ul>
-						</Popper>
+						<Menu
+							trigger={
+								<Button
+									variant="ghost"
+									icon={<IcMore />}
+									aria-label={t('More actions')}
+									className="ms-auto"
+								/>
+							}
+						>
+							<MenuItem
+								label={t('Rename...')}
+								onClick={() => fileOps.renameFile(file.fileId)}
+							/>
+						</Menu>
 					)}
-				</div>
-			</div>
+				</HBox>
+			</Panel>
 
 			{/* Properties */}
-			<div className="c-panel mid">
-				<dl className="c-description-list">
-					<dt>{t('Visibility')}</dt>
-					<dd>
-						{canManage && !isCrossOwner && fileOps.setVisibility ? (
-							<Popper
-								menuClassName="c-button secondary c-hbox g-2 align-items-center"
-								icon={
-									<>
-										<VisibilityIcon className="me-2" />
-										{getVisibilityLabel(t, file.visibility ?? null)}
-									</>
-								}
-								label={<IcChevronDown />}
-							>
-								<ul className="c-nav vertical">
-									{getVisibilityDropdownOptions(t).map((opt) => {
-										const OptionIcon = opt.icon
-										const isCurrentVisibility =
-											(file.visibility ?? null) === opt.value
-										return (
-											<li key={opt.value ?? 'null'} className="c-nav-item">
-												<a
-													className={isCurrentVisibility ? 'active' : ''}
-													// Cross-owner rows never reach this
-													// branch: a Pin/Place row reuses the
-													// SOURCE's file_id (cloudillo-rs
-													// handler.rs:1707), so which node owns
-													// a placed row's mutable state is
-													// unresolved (see TODO.md). Until it
-													// is, they stay read-only here.
-													onClick={() =>
-														fileOps.setVisibility!(
-															file.fileId,
-															opt.value,
-															api ?? undefined
-														)
-													}
-												>
-													<OptionIcon className="me-2" />
-													{opt.label}
-												</a>
-											</li>
-										)
-									})}
-								</ul>
-							</Popper>
-						) : (
-							<span className="c-hbox g-2 align-items-center">
-								<VisibilityIcon />
-								{getVisibilityLabel(t, file.visibility ?? null)}
-							</span>
-						)}
-					</dd>
-
-					{file.owner?.name && (
-						<>
-							<dt>{t('Owner')}</dt>
-							<dd>{file.owner.name}</dd>
-						</>
-					)}
-
-					<dt>{t('Location')}</dt>
-					<dd>
-						<PathBreadcrumb
-							path={filePath}
-							parentId={file.parentId}
-							onNavigate={onNavigateToFolder}
-						/>
-					</dd>
-
-					{file.contentType && (
-						<>
-							<dt>{t('Type')}</dt>
-							<dd>{file.contentType}</dd>
-						</>
-					)}
-
-					<dt>{t('Created')}</dt>
-					<dd>{formatRelativeTime(file.createdAt)}</dd>
-
-					{file.userData?.modifiedAt && (
-						<>
-							<dt>{t('Last edited')}</dt>
-							<dd>{formatRelativeTime(file.userData.modifiedAt)}</dd>
-						</>
-					)}
-
-					{file.userData?.accessedAt && (
-						<>
-							<dt>{t('Last opened')}</dt>
-							<dd>{formatRelativeTime(file.userData.accessedAt)}</dd>
-						</>
-					)}
-
-					<dt>{t('Tags')}</dt>
-					<dd>
-						{/* Tag writes go to the active context's client, so a cross-owner row is
-						    read-only here rather than routed to the owner's node. */}
-						<TagsCell
-							fileId={file.fileId}
-							tags={file.tags}
-							editable={canManage && !isCrossOwner}
-							setTags={(tags) => fileOps.setFile?.({ ...file, tags })}
-						/>
-					</dd>
-				</dl>
-			</div>
+			<Panel>
+				<DescriptionList items={properties} />
+			</Panel>
 
 			{canSeeShares && (
-				<div className="c-panel mid">
-					<div className="c-panel-header c-hbox g-2 align-items-center">
-						<h3 className="flex-fill">
-							{t('Sharing')}
-							{sharingSummary && (
-								<span className="text-secondary text-small ms-2">
-									{sharingSummary}
-								</span>
-							)}
-						</h3>
-						{/* A reader may OPEN the dialog - it renders a complete read-only variant,
-						    and that listing is also the only way an explicit 'A' grant, which no
-						    predicate here can see, becomes visible. Only the label changes. */}
-						{onShare && canSeeShares && (
+				<Panel
+					title={t('Sharing')}
+					description={sharingSummary}
+					headingLevel={3}
+					actions={
+						// A reader may OPEN the dialog - it renders a complete read-only variant,
+						// and that listing is also the only way an explicit 'A' grant, which no
+						// predicate here can see, becomes visible. Only the label changes.
+						onShare && (
 							<Button
-								size="small"
-								title={canShare ? t('Manage sharing') : t('View sharing')}
+								size="sm"
+								icon={<IcShare />}
 								aria-label={canShare ? t('Manage sharing') : t('View sharing')}
 								onClick={() => onShare(file)}
-							>
-								<IcShare />
-							</Button>
-						)}
-					</div>
-					<div className="c-vbox g-3">
+							/>
+						)
+					}
+				>
+					<VBox gap={3}>
 						{/* People with access — Owner row always visible */}
-						<div className="c-vbox g-1">
-							<h4 className="mb-2 text-secondary text-uppercase text-small">
+						<VBox gap={1}>
+							<Heading level={4} overline>
 								{t('People with access')}
-							</h4>
-
+							</Heading>
 							{ownerIdTag && (
-								<div className="c-hbox g-2 align-items-center p-2">
-									<div className="c-hbox g-2 flex-fill align-items-center text-truncate">
-										<ProfileCard
-											profile={
-												ownerProfile ?? {
-													idTag: ownerIdTag,
-													name: ownerIdTag
-												}
-											}
-											srcTag={scope.profileSrcTag}
-										/>
-										{ownerIdTag === auth?.idTag && file.owner && (
-											<span className="text-secondary">({t('you')})</span>
-										)}
-									</div>
-									<span className="c-badge">{t('Owner')}</span>
-								</div>
+								<List>
+									<ListItem
+										title={
+											<HBox gap={2} align="center">
+												<ProfileCard
+													profile={
+														ownerProfile ?? {
+															idTag: ownerIdTag,
+															name: ownerIdTag
+														}
+													}
+													srcTag={scope.profileSrcTag}
+												/>
+												{ownerIdTag === auth?.idTag && file.owner && (
+													<Text emphasis="muted">({t('you')})</Text>
+												)}
+											</HBox>
+										}
+										trailing={<Badge>{t('Owner')}</Badge>}
+									/>
+								</List>
 							)}
-						</div>
+						</VBox>
 
 						{isSharingLoading ? (
-							<span className="text-secondary">{t('Loading…')}</span>
+							<Text emphasis="muted">{t('Loading…')}</Text>
 						) : (
 							<>
 								{/* People with access (other than owner) */}
-								<div className="c-vbox g-1">
-									{allPeople?.map((entry) => {
-										const idTag = entry.subjectId.toString()
-										const profile: Profile = peopleProfiles[idTag] ?? {
-											idTag,
-											name: idTag
-										}
-										return (
-											<div
-												key={idTag}
-												className="c-hbox g-2 align-items-center p-2"
-											>
-												<div className="flex-fill text-truncate">
-													<ProfileCard
-														profile={profile}
-														srcTag={scope.profileSrcTag}
-													/>
-												</div>
-												<PermChip
-													perm={toSharePermChar(entry.permission)}
+								{allPeople && allPeople.length > 0 ? (
+									<List>
+										{allPeople.map((entry) => {
+											const idTag = entry.subjectId.toString()
+											const profile: Profile = peopleProfiles[idTag] ?? {
+												idTag,
+												name: idTag
+											}
+											return (
+												<ListItem
+													key={idTag}
+													title={
+														<ProfileCard
+															profile={profile}
+															srcTag={scope.profileSrcTag}
+														/>
+													}
+													trailing={
+														<PermChip
+															perm={toSharePermChar(entry.permission)}
+														/>
+													}
 												/>
-											</div>
-										)
-									})}
-
-									{allPeople?.length === 0 && (
-										<div className="text-secondary text-small px-2">
-											{t('No one else has access yet')}
-										</div>
-									)}
-								</div>
+											)
+										})}
+									</List>
+								) : (
+									<Text size="sm" emphasis="muted">
+										{t('No one else has access yet')}
+									</Text>
+								)}
 
 								{/* Anyone with the link */}
-								<div className="c-vbox g-1">
-									<h4 className="mb-2 text-secondary text-uppercase text-small">
+								<VBox gap={1}>
+									<Heading level={4} overline>
 										{t('Anyone with the link')}
-									</h4>
+									</Heading>
 
-									{shareRefs?.map((ref) => {
-										const formattedExpiry = formatRefDate(ref.expiresAt)
-										const expiryText = formattedExpiry
-											? `${t('Expires')} ${formattedExpiry}`
-											: t('Never expires')
-										return (
-											<div
-												key={ref.refId}
-												className="c-hbox g-2 align-items-center p-2"
-											>
-												<IcLink className="flex-shrink-0" />
-												<div className="flex-fill text-truncate">
-													{/* The refId is the credential and never a label -
-													    Copy is the way to obtain its value. */}
-													<div>{ref.description || t('Share link')}</div>
-													<div className="text-secondary text-small">
-														{expiryText}
-													</div>
-												</div>
-												<AccessChip
-													level={linkAccessToPermLevel(ref.accessLevel)}
-												/>
-												{/* Copy and QR need canManageShares, not canReadShares,
-												    and a trusted origin - see ShareDialog.tsx for why. */}
-												{canUseRefCredential(ref, canShare) && (
-													<>
-														<button
-															type="button"
-															className="c-link p-1"
-															title={
-																shareOrigin.trusted
-																	? t('Copy link')
-																	: t(
-																			'Resolving the share address for this file…'
-																		)
-															}
-															disabled={!shareOrigin.trusted}
-															onClick={() => copyShareLink(ref.refId)}
-														>
-															<IcCopy />
-														</button>
-														<button
-															type="button"
-															className="c-link p-1"
-															title={
-																shareOrigin.trusted
-																	? t('Show QR code')
-																	: t(
-																			'Resolving the share address for this file…'
-																		)
-															}
-															disabled={!shareOrigin.trusted}
-															onClick={() =>
-																setQrCodeUrl(
-																	`${shareOrigin.href}/s/${ref.refId}`
-																)
-															}
-														>
-															<IcQrCode />
-														</button>
-													</>
-												)}
-											</div>
-										)
-									})}
-
-									{shareRefs?.length === 0 && (
-										<div className="text-secondary text-small px-2">
+									{shareRefs && shareRefs.length > 0 ? (
+										<List>
+											{shareRefs.map((ref) => {
+												const formattedExpiry = formatRefDate(ref.expiresAt)
+												// The refId is the credential and never a label -
+												// Copy is the way to obtain its value.
+												return (
+													<ListItem
+														key={ref.refId}
+														leading={<IcLink />}
+														title={ref.description || t('Share link')}
+														subtitle={
+															formattedExpiry
+																? `${t('Expires')} ${formattedExpiry}`
+																: t('Never expires')
+														}
+														trailing={
+															<HBox gap={1} align="center">
+																<AccessChip
+																	level={linkAccessToPermLevel(
+																		ref.accessLevel
+																	)}
+																/>
+																{/* Copy and QR need canManageShares, not
+																    canReadShares, and a trusted origin -
+																    see ShareDialog.tsx for why. */}
+																{canUseRefCredential(
+																	ref,
+																	canShare
+																) && (
+																	<>
+																		<Button
+																			variant="ghost"
+																			size="sm"
+																			icon={<IcCopy />}
+																			aria-label={t(
+																				'Copy link'
+																			)}
+																			disabled={
+																				!shareOrigin.trusted
+																			}
+																			disabledReason={
+																				credentialUnavailable
+																			}
+																			onClick={() =>
+																				copyShareLink(
+																					ref.refId
+																				)
+																			}
+																		/>
+																		<Button
+																			variant="ghost"
+																			size="sm"
+																			icon={<IcQrCode />}
+																			aria-label={t(
+																				'Show QR code'
+																			)}
+																			disabled={
+																				!shareOrigin.trusted
+																			}
+																			disabledReason={
+																				credentialUnavailable
+																			}
+																			onClick={() =>
+																				setQrCodeUrl(
+																					`${shareOrigin.href}/s/${ref.refId}`
+																				)
+																			}
+																		/>
+																	</>
+																)}
+															</HBox>
+														}
+													/>
+												)
+											})}
+										</List>
+									) : (
+										<Text size="sm" emphasis="muted">
 											{refsAccess === 'denied'
 												? t(
 														"You do not have permission to see this file's share links."
@@ -760,105 +745,74 @@ export function DetailsPanel({
 															"Could not load this file's share links. Please try again."
 														)
 													: t('No share links yet')}
-										</div>
+										</Text>
 									)}
-								</div>
+								</VBox>
 
 								{/* Used in N documents (collapsible footer) */}
 								{fileShareEntries && fileShareEntries.length > 0 && (
-									<div className="mt-2">
-										<button
-											type="button"
-											className="c-link p-2 c-hbox g-2 align-items-center text-secondary"
-											onClick={() => setUsedInOpen((v) => !v)}
-										>
-											<IcDisclosure
-												style={{
-													transform: usedInOpen
-														? 'rotate(90deg)'
-														: undefined,
-													transition: 'transform 0.15s'
-												}}
-											/>
-											<span>
-												{t('Used in {{count}} documents', {
-													count: fileShareEntries.length
-												})}
-											</span>
-										</button>
-										{usedInOpen && (
-											<div className="c-vbox g-2 mt-2">
-												{fileShareEntries.map((entry) => {
-													const EntryIcon = entry.subjectContentType
-														? getFileIcon(
-																entry.subjectContentType,
-																entry.subjectFileTp
-															)
-														: IcUnknown
-													return (
-														<div
-															key={entry.id}
-															className="c-hbox g-2 align-items-center p-2"
-														>
-															{React.createElement<
-																React.ComponentProps<
-																	typeof IcUnknown
-																>
-															>(EntryIcon, {
-																className: 'flex-shrink-0'
-															})}
-															<div className="flex-fill text-truncate">
-																<div>
-																	{entry.subjectFileName ||
-																		entry.subjectId}
-																</div>
-																<div className="text-secondary text-small">
-																	{sharePermLabel(
-																		toSharePermChar(
-																			entry.permission
-																		),
-																		t
-																	)}
-																	{(() => {
-																		const f = formatRefDate(
-																			entry.expiresAt
-																		)
-																		return f
-																			? ` · ${t('Expires')} ${f}`
-																			: ''
-																	})()}
-																</div>
-															</div>
-														</div>
-													)
-												})}
-											</div>
-										)}
-									</div>
+									<Disclosure
+										variant="ghost"
+										summary={t('Used in {{count}} documents', {
+											count: fileShareEntries.length
+										})}
+									>
+										<List>
+											{fileShareEntries.map((entry) => {
+												const f = formatRefDate(entry.expiresAt)
+												return (
+													<ListItem
+														key={entry.id}
+														leading={
+															<FileTypeIcon
+																contentType={iconContentType(
+																	entry.subjectContentType,
+																	entry.subjectFileTp
+																)}
+																size="sm"
+																tile={false}
+															/>
+														}
+														title={
+															entry.subjectFileName || entry.subjectId
+														}
+														subtitle={`${sharePermLabel(
+															toSharePermChar(entry.permission),
+															t
+														)}${f ? ` · ${t('Expires')} ${f}` : ''}`}
+													/>
+												)
+											})}
+										</List>
+									</Disclosure>
 								)}
 
 								{/* Empty state */}
 								{(allPeople?.length ?? 0) === 0 &&
 									(shareRefs?.length ?? 0) === 0 &&
 									(fileShareEntries?.length ?? 0) === 0 && (
-										<div className="c-vbox g-2 align-items-center text-center py-2">
-											<div className="text-secondary">
-												{t('This file is private')}
-											</div>
-											{onShare && (
-												<Button onClick={() => onShare(file)}>
-													<IcShare /> {t('Share file')}
-												</Button>
-											)}
-										</div>
+										<EmptyState
+											size="sm"
+											description={t('This file is private')}
+											actions={
+												onShare && (
+													<Button
+														icon={<IcShare />}
+														onClick={() => onShare(file)}
+													>
+														{t('Share file')}
+													</Button>
+												)
+											}
+										/>
 									)}
 							</>
 						)}
-					</div>
-				</div>
+					</VBox>
+				</Panel>
 			)}
 			<QRCodeDialog value={qrCodeUrl} onClose={() => setQrCodeUrl(undefined)} />
-		</div>
+		</VBox>
 	)
 }
 

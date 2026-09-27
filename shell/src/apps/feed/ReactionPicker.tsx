@@ -1,12 +1,10 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button, mergeClasses } from '@cloudillo/react'
+import { Button, HBox, Popover } from '@cloudillo/react'
 import * as React from 'react'
-import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { LuX as IcRemove, LuThumbsUp as IcThumbsUp } from 'react-icons/lu'
-import { usePopper } from 'react-popper'
 
 import {
 	getReactionEmoji,
@@ -21,7 +19,7 @@ export interface ReactionPickerProps {
 	onReact: (key: string) => void
 }
 
-type HoverRegion = 'trigger' | 'popper'
+type HoverRegion = 'trigger' | 'surface'
 
 const OPEN_DELAY_MS = 250
 const CLOSE_DELAY_MS = 300
@@ -29,8 +27,6 @@ const CLOSE_DELAY_MS = 300
 export function ReactionPicker({ className, ownReaction, onReact }: ReactionPickerProps) {
 	const { t } = useTranslation()
 	const [isOpen, setIsOpen] = React.useState(false)
-	const [refEl, setRefEl] = React.useState<HTMLElement | null>(null)
-	const [popperEl, setPopperEl] = React.useState<HTMLElement | null>(null)
 	const hoverRegions = React.useRef<Set<HoverRegion>>(new Set())
 	const openTimer = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 	const closeTimer = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
@@ -44,30 +40,6 @@ export function ReactionPicker({ className, ownReaction, onReact }: ReactionPick
 			if (longPressTimer.current) clearTimeout(longPressTimer.current)
 		}
 	}, [])
-
-	const { styles: popperStyles, attributes } = usePopper(refEl, popperEl, {
-		placement: 'top-start',
-		strategy: 'fixed',
-		modifiers: [
-			{ name: 'flip', options: { fallbackPlacements: ['bottom-start'] } },
-			{ name: 'offset', options: { offset: [0, 4] } }
-		]
-	})
-
-	React.useEffect(() => {
-		if (!isOpen || !popperEl) return
-
-		function handleClickOutside(evt: MouseEvent) {
-			if (!(evt.target instanceof Node)) return
-			if (popperEl?.contains(evt.target) || refEl?.contains(evt.target)) return
-			setIsOpen(false)
-		}
-
-		document.addEventListener('click', handleClickOutside, true)
-		return () => {
-			document.removeEventListener('click', handleClickOutside, true)
-		}
-	}, [isOpen, popperEl, refEl])
 
 	function cancelOpenTimer() {
 		if (openTimer.current) {
@@ -116,14 +88,14 @@ export function ReactionPicker({ className, ownReaction, onReact }: ReactionPick
 		leaveRegion('trigger')
 	}
 
-	function handlePopperPointerEnter(e: React.PointerEvent) {
+	function handleSurfacePointerEnter(e: React.PointerEvent) {
 		if (e.pointerType === 'touch') return
-		enterRegion('popper')
+		enterRegion('surface')
 	}
 
-	function handlePopperPointerLeave(e: React.PointerEvent) {
+	function handleSurfacePointerLeave(e: React.PointerEvent) {
 		if (e.pointerType === 'touch') return
-		leaveRegion('popper')
+		leaveRegion('surface')
 	}
 
 	function handleTouchStart() {
@@ -164,98 +136,58 @@ export function ReactionPicker({ className, ownReaction, onReact }: ReactionPick
 
 	const activeLabel = ownReaction ? getReactionPastLabel(t, ownReaction) : null
 
+	// The trigger's click reacts; the Popover only opens on hover or long press, so its
+	// own open requests are ignored and only its closes (Escape, outside click) apply.
 	return (
-		<div
-			ref={setRefEl}
-			className={mergeClasses(className, ownReaction && 'c-reaction-chip--active')}
-			onPointerEnter={handleTriggerPointerEnter}
-			onPointerLeave={handleTriggerPointerLeave}
+		<Popover
+			placement="top-start"
+			open={isOpen}
+			onOpenChange={(open) => {
+				if (!open) setIsOpen(false)
+			}}
+			aria-label={t('React')}
+			onPointerEnter={handleSurfacePointerEnter}
+			onPointerLeave={handleSurfacePointerLeave}
+			trigger={
+				<Button
+					className={className}
+					variant={ownReaction ? 'filled' : 'link'}
+					color={ownReaction ? 'primary' : 'accent'}
+					size="sm"
+					aria-label={ownReaction ? t('Change reaction') : t('Like')}
+					icon={ownReaction ? getReactionEmoji(ownReaction) : <IcThumbsUp />}
+					onClick={handleClick}
+					onTouchStart={handleTouchStart}
+					onTouchEnd={handleTouchEnd}
+					onPointerEnter={handleTriggerPointerEnter}
+					onPointerLeave={handleTriggerPointerLeave}
+				>
+					{ownReaction ? activeLabel : t('Like')}
+				</Button>
+			}
 		>
-			<Button
-				kind={ownReaction ? 'button' : 'link'}
-				variant={ownReaction ? 'primary' : 'accent'}
-				size="small"
-				aria-label={ownReaction ? t('Change reaction') : t('Like')}
-				onClick={handleClick}
-				onTouchStart={handleTouchStart}
-				onTouchEnd={handleTouchEnd}
-			>
-				{ownReaction ? (
-					<>
-						<span style={{ fontSize: '1.1em', lineHeight: 1 }}>
-							{getReactionEmoji(ownReaction)}
-						</span>
-						<small>{activeLabel}</small>
-					</>
-				) : (
-					<>
-						<IcThumbsUp />
-						<small>{t('Like')}</small>
-					</>
+			<HBox gap={1} align="center">
+				{reactionTypes.map((r) => (
+					<Button
+						key={r.key}
+						variant={ownReaction === r.key ? 'soft' : 'ghost'}
+						color={ownReaction === r.key ? 'accent' : undefined}
+						aria-label={getReactionLabel(t, r.key)}
+						aria-pressed={ownReaction === r.key}
+						icon={r.emoji}
+						onClick={() => handleSelect(r.key)}
+					/>
+				))}
+				{ownReaction && (
+					<Button
+						variant="ghost"
+						aria-label={t('Remove reaction')}
+						icon={<IcRemove />}
+						onClick={handleRemove}
+					/>
 				)}
-			</Button>
-			{isOpen &&
-				createPortal(
-					<div
-						ref={setPopperEl}
-						className="c-popper high"
-						style={{ ...popperStyles.popper, zIndex: 1000 }}
-						onPointerEnter={handlePopperPointerEnter}
-						onPointerLeave={handlePopperPointerLeave}
-						aria-label={t('React')}
-						{...attributes.popper}
-					>
-						<div className="c-hbox g-1 p-1 align-items-center">
-							{reactionTypes.map((r) => (
-								<button
-									key={r.key}
-									type="button"
-									title={getReactionLabel(t, r.key)}
-									aria-label={getReactionLabel(t, r.key)}
-									onClick={() => handleSelect(r.key)}
-									style={{
-										fontSize: '1.4rem',
-										cursor: 'pointer',
-										background: 'none',
-										border: 'none',
-										padding: '0.25rem',
-										borderRadius: '0.25rem',
-										outline:
-											ownReaction === r.key
-												? '2px solid var(--col-accent)'
-												: 'none',
-										transition: 'transform 0.15s ease'
-									}}
-									onPointerEnter={(e) => {
-										if (e.pointerType !== 'touch')
-											(e.currentTarget as HTMLElement).style.transform =
-												'scale(1.3)'
-									}}
-									onPointerLeave={(e) => {
-										if (e.pointerType !== 'touch')
-											(e.currentTarget as HTMLElement).style.transform =
-												'scale(1)'
-									}}
-								>
-									{r.emoji}
-								</button>
-							))}
-							{ownReaction && (
-								<button
-									type="button"
-									className="c-reaction-remove-btn"
-									title={t('Remove reaction')}
-									aria-label={t('Remove reaction')}
-									onClick={handleRemove}
-								>
-									<IcRemove />
-								</button>
-							)}
-						</div>
-					</div>,
-					document.getElementById('popper-container') ?? document.body
-				)}
-		</div>
+			</HBox>
+		</Popover>
 	)
 }
 

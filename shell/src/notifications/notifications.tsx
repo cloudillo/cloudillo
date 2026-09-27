@@ -3,14 +3,23 @@
 
 import {
 	Button,
+	EmptyState,
 	Fcd,
-	generateFragments,
+	HBox,
+	Heading,
+	Link,
 	mergeClasses,
+	Nav,
+	NavItem,
+	Panel,
 	ProfileAudienceCard,
 	ProfileCard,
+	RichText,
+	Text,
 	TimeFormat,
 	useApi,
-	useAuth
+	useAuth,
+	VBox
 } from '@cloudillo/react'
 import { type ActionView, tConnectAction, tFileShareAction } from '@cloudillo/types'
 import * as T from '@symbion/runtype'
@@ -27,12 +36,11 @@ import {
 	LuHeart as IcSocial,
 	LuMailOpen as IcUnread
 } from 'react-icons/lu'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 
 import { useContextSwitch, useCtx } from '../context/index.js'
 import { communityCreatePath, messagesPath, profilePath } from '../routes.js'
 import { useNotifications } from './state'
-import './notifications.css'
 
 type NotificationFilter = 'all' | 'unread' | 'connections' | 'messages' | 'social' | 'files'
 
@@ -55,18 +63,19 @@ function FilterBar({
 	]
 
 	return (
-		<ul className="c-nav vertical low">
+		<Nav as="div" vertical className="low">
 			{filters.map((f) => (
-				<li key={f.key}>
-					<button
-						className={mergeClasses('c-nav-item', filter === f.key && 'active')}
-						onClick={() => setFilter(f.key)}
-					>
-						{f.icon} {f.label}
-					</button>
-				</li>
+				<NavItem
+					key={f.key}
+					as="button"
+					gap={2}
+					active={filter === f.key}
+					onClick={() => setFilter(f.key)}
+				>
+					{f.icon} {f.label}
+				</NavItem>
 			))}
-		</ul>
+		</Nav>
 	)
 }
 
@@ -109,6 +118,81 @@ function getNotificationDescription(type: string, t: (key: string) => string): s
 	}
 }
 
+/** Shared card: issuer + time header, title, body, action row */
+function NotificationCard({
+	action,
+	actionable,
+	className,
+	header,
+	title,
+	children,
+	actions
+}: {
+	action: ActionView
+	actionable?: boolean
+	className?: string
+	header?: React.ReactNode
+	title: React.ReactNode
+	children?: React.ReactNode
+	actions?: React.ReactNode
+}) {
+	const urlContext = useCtx().base
+	return (
+		<Panel className={mergeClasses('c-notification', actionable && 'actionable', className)}>
+			<HBox align="center" gap={3}>
+				{header ?? (
+					<Link href={profilePath(urlContext, action.issuer.idTag)}>
+						<ProfileCard profile={action.issuer} />
+					</Link>
+				)}
+				<Text size="sm" emphasis="muted" className="ms-auto text-nowrap">
+					<TimeFormat time={action.createdAt} />
+				</Text>
+			</HBox>
+			<VBox gap={1}>
+				<Heading level={3} size="base">
+					{title}
+				</Heading>
+				{children}
+			</VBox>
+			{actions && (
+				<HBox gap={2} justify="end" wrap className="pt-1">
+					{actions}
+				</HBox>
+			)}
+		</Panel>
+	)
+}
+
+function AcceptRejectActions({
+	onAccept,
+	onReject
+}: {
+	onAccept: () => void
+	onReject: () => void
+}) {
+	const { t } = useTranslation()
+	return (
+		<>
+			<Button color="primary" onClick={onAccept}>
+				<IcAccept /> {t('Accept')}
+			</Button>
+			<Button onClick={onReject}>
+				<IcReject /> {t('Reject')}
+			</Button>
+		</>
+	)
+}
+
+function DismissAction({ onDismiss }: { onDismiss: () => void }) {
+	const { t } = useTranslation()
+	return (
+		<Button onClick={onDismiss}>
+			<IcReject /> {t('Dismiss')}
+		</Button>
+	)
+}
+
 function GenericNotification({
 	className,
 	action,
@@ -119,31 +203,14 @@ function GenericNotification({
 	onDismiss?: (action: ActionView) => void
 }) {
 	const { t } = useTranslation()
-	const urlContext = useCtx().base
 
 	return (
-		<div className={mergeClasses('c-panel c-notification', className)}>
-			<div className="c-hbox align-items-center g-3">
-				<Link to={profilePath(urlContext, action.issuer.idTag)}>
-					<ProfileCard profile={action.issuer} />
-				</Link>
-				<small className="ms-auto text-nowrap text-muted">
-					<TimeFormat time={action.createdAt} />
-				</small>
-			</div>
-			<div className="c-vbox g-1">
-				<h3 className="c-notification-title">
-					{getNotificationDescription(action.type, t)}
-				</h3>
-			</div>
-			{onDismiss && (
-				<div className="c-hbox g-2 justify-content-end flex-wrap pt-1">
-					<Button onClick={() => onDismiss(action)}>
-						<IcReject /> {t('Dismiss')}
-					</Button>
-				</div>
-			)}
-		</div>
+		<NotificationCard
+			action={action}
+			className={className}
+			title={getNotificationDescription(action.type, t)}
+			actions={onDismiss && <DismissAction onDismiss={() => onDismiss(action)} />}
+		/>
 	)
 }
 
@@ -160,7 +227,6 @@ function ConnectNotification({
 }) {
 	const { t } = useTranslation()
 	const { api } = useApi()
-	const urlContext = useCtx().base
 	const contentRes = T.decode(tConnectAction.props.content, action.content)
 	const content = T.isOk(contentRes) ? contentRes.ok : undefined
 
@@ -179,68 +245,29 @@ function ConnectNotification({
 	}
 
 	return (
-		<div
-			className={mergeClasses(
-				'c-panel c-notification',
-				actionable && 'actionable',
-				className
-			)}
-		>
-			<div className="c-hbox align-items-center g-3">
-				<Link to={profilePath(urlContext, action.issuer.idTag)}>
-					<ProfileCard profile={action.issuer} />
-				</Link>
-				<small className="ms-auto text-nowrap text-muted">
-					<TimeFormat time={action.createdAt} />
-				</small>
-			</div>
-			<div className="c-vbox g-1">
-				{action.subType === 'DEL' ? (
-					<h3 className="c-notification-title">
-						{t('User disconnected, or refused to connect')}
-					</h3>
+		<NotificationCard
+			action={action}
+			actionable={actionable}
+			className={className}
+			title={
+				action.subType === 'DEL'
+					? t('User disconnected, or refused to connect')
+					: action.status === 'C'
+						? t('Wants to connect')
+						: t('is now a connection')
+			}
+			actions={
+				actionable ? (
+					<AcceptRejectActions onAccept={onAccept} onReject={onReject} />
 				) : (
-					<>
-						<h3 className="c-notification-title">
-							{action.status === 'C'
-								? t('Wants to connect')
-								: t('is now a connection')}
-						</h3>
-						{!action.subType &&
-							content?.split('\n\n').map((paragraph, i) => (
-								<p key={i} className="c-notification-message">
-									{paragraph.split('\n').map((line, i) => (
-										<React.Fragment key={i}>
-											{generateFragments(line).map((n, i) => (
-												<React.Fragment key={i}>{n}</React.Fragment>
-											))}
-											<br />
-										</React.Fragment>
-									))}
-								</p>
-							))}
-					</>
-				)}
-			</div>
-			{actionable ? (
-				<div className="c-hbox g-2 justify-content-end flex-wrap pt-1">
-					<Button variant="primary" onClick={onAccept}>
-						<IcAccept /> {t('Accept')}
-					</Button>
-					<Button onClick={onReject}>
-						<IcReject /> {t('Reject')}
-					</Button>
-				</div>
-			) : (
-				onDismiss && (
-					<div className="c-hbox g-2 justify-content-end flex-wrap pt-1">
-						<Button onClick={() => onDismiss(action)}>
-							<IcReject /> {t('Dismiss')}
-						</Button>
-					</div>
+					onDismiss && <DismissAction onDismiss={() => onDismiss(action)} />
 				)
+			}
+		>
+			{action.subType !== 'DEL' && !action.subType && content && (
+				<RichText text={content} className="c-notification-message" />
 			)}
-		</div>
+		</NotificationCard>
 	)
 }
 
@@ -255,7 +282,6 @@ function FileShareNotification({
 }) {
 	const { t } = useTranslation()
 	const { api } = useApi()
-	const urlContext = useCtx().base
 	const contentRes = T.decode(tFileShareAction.props.content, action.content)
 	const content = T.isOk(contentRes) ? contentRes.ok : undefined
 	if (!content) return null
@@ -275,41 +301,20 @@ function FileShareNotification({
 	const actionable = action.status === 'C'
 
 	return (
-		<div
-			className={mergeClasses(
-				'c-panel c-notification',
-				actionable && 'actionable',
-				className
-			)}
+		<NotificationCard
+			action={action}
+			actionable={actionable}
+			className={className}
+			title={t('Wants to share a file with you')}
+			actions={actionable && <AcceptRejectActions onAccept={onAccept} onReject={onReject} />}
 		>
-			<div className="c-hbox align-items-center g-3">
-				<Link to={profilePath(urlContext, action.issuer.idTag)}>
-					<ProfileCard profile={action.issuer} />
-				</Link>
-				<small className="ms-auto text-nowrap text-muted">
-					<TimeFormat time={action.createdAt} />
-				</small>
-			</div>
-			<div className="c-vbox g-1">
-				<h3 className="c-notification-title">{t('Wants to share a file with you')}</h3>
-				<div>
-					{t('Filename')}: <span className="text-emph">{content.fileName}</span>
-				</div>
-				<div>
-					{t('Type')}: <span className="text-emph">{content.contentType}</span>
-				</div>
-			</div>
-			{actionable && (
-				<div className="c-hbox g-2 justify-content-end flex-wrap pt-1">
-					<Button variant="primary" onClick={onAccept}>
-						<IcAccept /> {t('Accept')}
-					</Button>
-					<Button onClick={onReject}>
-						<IcReject /> {t('Reject')}
-					</Button>
-				</div>
-			)}
-		</div>
+			<Text as="div">
+				{t('Filename')}: <Text weight="semibold">{content.fileName}</Text>
+			</Text>
+			<Text as="div">
+				{t('Type')}: <Text weight="semibold">{content.contentType}</Text>
+			</Text>
+		</NotificationCard>
 	)
 }
 
@@ -370,54 +375,38 @@ function InviteNotification({
 	const actionable = action.status === 'C'
 
 	return (
-		<div
-			className={mergeClasses(
-				'c-panel c-notification',
-				actionable && 'actionable',
-				className
-			)}
-		>
-			<div className="c-hbox align-items-center g-3">
-				{action.subjectProfile ? (
+		<NotificationCard
+			action={action}
+			actionable={actionable}
+			className={className}
+			header={
+				action.subjectProfile && (
 					<ProfileAudienceCard
 						audience={action.subjectProfile}
 						profile={action.issuer}
 						profileBasePath={profilePath(urlContext)}
 					/>
-				) : (
-					<Link to={profilePath(urlContext, action.issuer.idTag)}>
-						<ProfileCard profile={action.issuer} />
-					</Link>
-				)}
-				<small className="ms-auto text-nowrap text-muted">
-					<TimeFormat time={action.createdAt} />
-				</small>
-			</div>
-			<div className="c-vbox g-1">
-				<h3 className="c-notification-title">
-					{isCommunityInvite
-						? t('Invited you to join this community')
-						: t('Invited you to join this group')}
-				</h3>
-				{!action.subjectProfile && content?.groupName && (
-					<div className="text-muted">
-						{isCommunityInvite ? t('Community') : t('Group')}:{' '}
-						<span className="text-emph">{content.groupName}</span>
-					</div>
-				)}
-				{content?.message && <p className="c-notification-message">{content.message}</p>}
-			</div>
-			{actionable && (
-				<div className="c-hbox g-2 justify-content-end flex-wrap pt-1">
-					<Button variant="primary" onClick={onAccept}>
-						<IcAccept /> {t('Accept')}
-					</Button>
-					<Button onClick={onReject}>
-						<IcReject /> {t('Reject')}
-					</Button>
-				</div>
+				)
+			}
+			title={
+				isCommunityInvite
+					? t('Invited you to join this community')
+					: t('Invited you to join this group')
+			}
+			actions={actionable && <AcceptRejectActions onAccept={onAccept} onReject={onReject} />}
+		>
+			{!action.subjectProfile && content?.groupName && (
+				<Text as="div" emphasis="muted">
+					{isCommunityInvite ? t('Community') : t('Group')}:{' '}
+					<Text weight="semibold">{content.groupName}</Text>
+				</Text>
 			)}
-		</div>
+			{content?.message && (
+				<Text as="p" className="c-notification-message">
+					{content.message}
+				</Text>
+			)}
+		</NotificationCard>
 	)
 }
 
@@ -467,41 +456,24 @@ function ProfileInviteNotification({
 	}
 
 	return (
-		<div
-			className={mergeClasses(
-				'c-panel c-notification',
-				actionable && 'actionable',
-				className
-			)}
+		<NotificationCard
+			action={action}
+			actionable={actionable}
+			className={className}
+			title={t('Invited you to create a community')}
+			actions={actionable && <AcceptRejectActions onAccept={onAccept} onReject={onReject} />}
 		>
-			<div className="c-hbox align-items-center g-3">
-				<Link to={profilePath(urlContext, action.issuer.idTag)}>
-					<ProfileCard profile={action.issuer} />
-				</Link>
-				<small className="ms-auto text-nowrap text-muted">
-					<TimeFormat time={action.createdAt} />
-				</small>
-			</div>
-			<div className="c-vbox g-1">
-				<h3 className="c-notification-title">{t('Invited you to create a community')}</h3>
-				{content?.nodeName && (
-					<div className="text-muted">
-						{t('Server')}: <span className="text-emph">{content.nodeName}</span>
-					</div>
-				)}
-				{content?.message && <p className="c-notification-message">{content.message}</p>}
-			</div>
-			{actionable && (
-				<div className="c-hbox g-2 justify-content-end flex-wrap pt-1">
-					<Button variant="primary" onClick={onAccept}>
-						<IcAccept /> {t('Accept')}
-					</Button>
-					<Button onClick={onReject}>
-						<IcReject /> {t('Reject')}
-					</Button>
-				</div>
+			{content?.nodeName && (
+				<Text as="div" emphasis="muted">
+					{t('Server')}: <Text weight="semibold">{content.nodeName}</Text>
+				</Text>
 			)}
-		</div>
+			{content?.message && (
+				<Text as="p" className="c-notification-message">
+					{content.message}
+				</Text>
+			)}
+		</NotificationCard>
 	)
 }
 
@@ -653,48 +625,66 @@ export function Notifications() {
 						<FilterBar filter={filter} setFilter={setFilter} />
 					</Fcd.Filter>
 					<Fcd.Content>
-						<div
+						<HBox
+							justify="between"
+							align="center"
 							className={mergeClasses(
-								'c-nav c-hbox justify-content-between align-items-center',
+								'c-nav',
 								!notifications.notifications.length && 'md-hide lg-hide'
 							)}
 						>
-							<div className="c-hbox align-items-center g-2 md-hide lg-hide">
-								<IcMenu onClick={() => setShowFilter(true)} />
-								<h3>{t('Notifications')}</h3>
-							</div>
+							<HBox align="center" gap={2} className="md-hide lg-hide">
+								<Button
+									variant="ghost"
+									icon={<IcMenu />}
+									aria-label={t('Filter')}
+									onClick={() => setShowFilter(true)}
+								/>
+								<Heading level={3}>{t('Notifications')}</Heading>
+							</HBox>
 							{notifications.notifications.some((a) => a.status === 'N') && (
 								<Button
-									kind="link"
+									variant="link"
 									className="ms-auto"
 									onClick={dismissAllNotifications}
 								>
 									{t('Mark all as read')}
 								</Button>
 							)}
-						</div>
+						</HBox>
 						{!filteredNotifications.length && (
-							<div className="c-vbox align-items-center justify-content-center p-4 text-muted">
-								<IcNotifications size={48} />
-								<h3 className="mt-2">
-									{filter === 'all'
+							<EmptyState
+								icon={<IcNotifications size={48} />}
+								title={
+									filter === 'all'
 										? t('All caught up!')
 										: t('No {{category}} notifications', {
 												category: filterLabel
-											})}
-								</h3>
-								{filter === 'all' ? (
-									<p>{t('You have no new notifications.')}</p>
-								) : (
-									<Button kind="link" onClick={() => setFilter('all')}>
-										{t('Show all')}
-									</Button>
-								)}
-							</div>
+											})
+								}
+								description={
+									filter === 'all'
+										? t('You have no new notifications.')
+										: undefined
+								}
+								action={
+									filter !== 'all' && (
+										<Button variant="link" onClick={() => setFilter('all')}>
+											{t('Show all')}
+										</Button>
+									)
+								}
+							/>
 						)}
 						{groupedNotifications.map((bucket) => (
 							<React.Fragment key={bucket.group}>
-								<h4 className="c-notification-group-heading">{bucket.group}</h4>
+								<Heading
+									level={4}
+									overline
+									className="c-notification-group-heading"
+								>
+									{bucket.group}
+								</Heading>
 								{bucket.items.map((action) => (
 									<Notification
 										key={action.actionId}

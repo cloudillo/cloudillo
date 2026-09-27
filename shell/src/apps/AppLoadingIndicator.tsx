@@ -12,7 +12,7 @@
  * - Respects reduced motion preferences
  */
 
-import { Button, LoadingSpinner, mergeClasses } from '@cloudillo/react'
+import { Button, EmptyState, LoadingSpinner, mergeClasses, VBox } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { LuCircleAlert as IcError } from 'react-icons/lu'
@@ -34,7 +34,7 @@ interface AppLoadingIndicatorProps {
 
 // Delay before showing the loading indicator (300ms per UX best practices)
 const SHOW_DELAY_MS = 300
-// Must match `transition: opacity 200ms` on `.c-app-loading` in shell/src/style.css
+// Must match `transition: opacity 200ms` on `.c-app-loading` in shell/src/ui/app-shell.css
 const FADE_MS = 200
 
 function getErrorText(
@@ -118,46 +118,41 @@ export function AppLoadingIndicator({
 	const isSubtle = !!subtle && !isError
 
 	return (
-		<div
+		<VBox
 			// A live region whose role is swapped on a MOUNTED node is not reliably
 			// re-registered, so the error would go unannounced. A changing key remounts it as
-			// a fresh region. `aria-live` is redundant next to `role="alert"`; kept explicit
-			// so both states read the same.
+			// a fresh region. The loading states need no role here: LoadingSpinner is itself
+			// `role="status"`, labelled with the stage text.
 			key={isError ? 'error' : 'status'}
 			className={mergeClasses(
+				'c-app-loading pos-absolute z-2',
 				isSubtle
-					? 'c-app-loading c-app-loading--subtle pos-absolute top-0 right-0 c-hbox g-2 align-items-center z-2 p-1 m-1'
-					: 'c-app-loading pos-absolute top-0 left-0 right-0 bottom-0 d-flex flex-column align-items-center justify-content-center z-2',
+					? 'c-app-loading--subtle top-0 right-0 p-1 m-1'
+					: 'top-0 left-0 right-0 bottom-0',
 				fadingOut && 'c-app-loading--fade-out'
 			)}
-			role={isError ? 'alert' : 'status'}
-			aria-live={isError ? 'assertive' : 'polite'}
+			role={isError ? 'alert' : undefined}
 		>
 			{isError ? (
-				<>
-					<IcError
-						size="3rem"
-						className="c-app-loading__icon c-app-loading__icon--error mb-3"
-					/>
-					<p className="c-app-loading__text c-app-loading__text--error mb-4">
-						{stageText}
-					</p>
-					{onRetry && (
-						<Button onClick={onRetry} className="c-app-loading__retry">
-							{t('app.loading.retry', 'Retry')}
-						</Button>
-					)}
-				</>
+				<EmptyState
+					fill
+					color="error"
+					icon={<IcError />}
+					title={stageText}
+					actions={
+						onRetry && (
+							<Button onClick={onRetry}>{t('app.loading.retry', 'Retry')}</Button>
+						)
+					}
+				/>
 			) : (
-				<>
-					<LoadingSpinner
-						size={isSubtle ? 'sm' : 'xl'}
-						className={isSubtle ? undefined : 'mb-3'}
-					/>
-					{stageText && <p className="c-app-loading__text">{stageText}</p>}
-				</>
+				<LoadingSpinner
+					fill={!isSubtle}
+					size={isSubtle ? 'sm' : 'xl'}
+					label={stageText ?? undefined}
+				/>
 			)}
-		</div>
+		</VBox>
 	)
 }
 

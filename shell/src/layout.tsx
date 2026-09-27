@@ -3,11 +3,18 @@
 
 import { setApiToken } from '@cloudillo/core'
 import {
+	Badge,
+	BadgeAnchor,
 	Button,
 	DialogContainer,
-	mergeClasses,
-	Popper,
+	Logo,
+	Menu,
+	MenuDivider,
+	MenuHeader,
+	MenuItem,
 	ProfilePicture,
+	Heading,
+	Text,
 	useApi,
 	useAuth,
 	useDialog,
@@ -28,7 +35,7 @@ import {
 	LuSettings as IcSettings,
 	LuUser as IcUser
 } from 'react-icons/lu'
-import { Link, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 
 import { useGlobalMessageUnreadProbe } from './apps/messages/index.js'
 import { appRoutes, ContextRoot } from './apps/routes.js'
@@ -44,8 +51,6 @@ import { BusinessCardDialog } from './components/BusinessCard/BusinessCardDialog
 import { CameraCaptureDialog } from './components/CameraCapture/index.js'
 import { DocumentPicker } from './components/DocumentPicker/index.js'
 import { FeedPostHost } from './components/FeedPostHost.js'
-import { GuestOwnerBanner } from './components/GuestOwnerBanner.js'
-import { HandChip } from './components/HandChip.js'
 import { MediaPicker } from './components/MediaPicker/index.js'
 import { QrScannerDialog } from './components/QrScanner/index.js'
 import { ShareCreate } from './components/ShareCreate/index.js'
@@ -62,13 +67,11 @@ import {
 } from './context/index.js'
 import { UnknownContextBanner } from './context/unknown-context-banner.js'
 import { CommunityVerifyIdpBanner } from './context/verify-idp-banner.js'
-import { ErrorBoundary } from './ErrorBoundary.js'
 import { idpRoutes } from './idp/index.js'
 import { CommunitySheet } from './layout/CommunitySheet.js'
 import { ContextBar } from './layout/ContextBar.js'
-import { Menu } from './layout/Menu.js'
+import { Menu as AppMenu } from './layout/Menu.js'
 import { Toasts } from './layout/Toasts.js'
-import { CloudilloLogo } from './logo.js'
 import { appConfig as APP_CONFIG } from './manifest-registry.js'
 import { getShellBus, initShellBus } from './message-bus'
 import { createShellBusConfig } from './message-bus/shell-bus-config.js'
@@ -98,14 +101,18 @@ import { settingsRoutes } from './settings/index.js'
 import { isSiteDocument } from './site/detect.js'
 import { SitePage } from './site/SitePage.js'
 import { siteAdminRoutes } from './site-admin/index.js'
+import { AppDock } from './ui/AppDock.js'
+import { AppHeader, AppHeaderItem } from './ui/AppHeader.js'
+import { AppShell } from './ui/AppShell.js'
+import { GuestOwnerBanner } from './ui/GuestOwnerBanner.js'
+import { HandChip } from './ui/HandChip.js'
 import { useAppConfig } from './utils.js'
 import { useWsBus, WsBusRoot } from './ws-bus.js'
 
 import '@symbion/opalui'
-//import '@symbion/opalui/src/opalui.css'
-// Use Cloudillo-specific themes with local fonts (no Google Fonts CDN)
-import './themes/opaque.css'
-import './themes/glass.css'
+import '@symbion/opalui/themes/opaque.css'
+import '@symbion/opalui/themes/glass.css'
+import '@cloudillo/fonts/fonts.css'
 // The shell's own markup uses component-library classes (`.c-input-icon`,
 // `.c-input-clear`, TreeView, …), so the stylesheet is a dependency of the entry point,
 // not just of whichever feature module happens to pull it in.
@@ -140,12 +147,8 @@ function Header({ inert }: { inert?: boolean }) {
 	const { setNotifications, loadNotifications } = useNotifications()
 	const { warning: toastWarning } = useToast()
 	const setKeyLoss = useSetAtom(keyLossAtom)
-	const [_menuOpen, setMenuOpen] = React.useState(false)
 	const [businessCardOpen, setBusinessCardOpen] = React.useState(false)
 	const urlContext = useCtx().base
-	const [extraMenuPortalMobile, setExtraMenuPortalMobile] = React.useState<HTMLDivElement | null>(
-		null
-	)
 	const unreadCounts = useAtomValue(unreadCountAtom)
 	// Conversations with anything unread — consistent across DMs (per-message counts)
 	// and groups (0/1 dots). See read-position.ts.
@@ -211,7 +214,6 @@ function Header({ inert }: { inert?: boolean }) {
 	const [logoutDirtyDocs, setLogoutDirtyDocs] = React.useState<DirtyDocSummary[]>([])
 
 	async function requestLogout() {
-		setMenuOpen(false)
 		const dirty = await listDirtyDocs().catch((err) => {
 			console.error('[Logout] failed to list dirty docs:', err)
 			return [] as DirtyDocSummary[]
@@ -241,12 +243,6 @@ function Header({ inert }: { inert?: boolean }) {
 		await deleteApiKey().catch(() => {})
 		await wipeLocalData()
 		navigate('/login')
-	}
-
-	function setLang(evt: React.MouseEvent, lang: string) {
-		evt.preventDefault()
-		i18n.changeLanguage(lang)
-		setMenuOpen(false)
 	}
 
 	const setLoginInitData = useSetAtom(loginInitAtom)
@@ -286,222 +282,167 @@ function Header({ inert }: { inert?: boolean }) {
 		[api, auth]
 	)
 
+	const langItems = (
+		<>
+			<MenuItem label="English" onClick={() => i18n.changeLanguage('en')} />
+			<MenuItem label="Magyar" onClick={() => i18n.changeLanguage('hu')} />
+			<MenuHeader>Cloudillo V{process.env.CLOUDILLO_VERSION}</MenuHeader>
+		</>
+	)
+
 	return (
 		<>
-			<nav
+			<AppHeader
 				inert={inert}
-				className="c-nav nav-top justify-content-between border-radius-0 mb-2 g-1"
 				aria-label={t('Main navigation')}
-			>
-				<ul
-					className={mergeClasses(
-						'c-nav-group g-1',
-						// Only the focused omnibox grows to fill the row; the idle
-						// breadcrumb stays content-sized so the menu keeps clear of
-						// the right-hand icons.
-						search.query != undefined && 'flex-fill'
-					)}
-				>
-					<li
-						className={mergeClasses(
-							'c-nav-item',
-							search.query != undefined && 'sm-hide'
+				expanded={search.query != undefined}
+				logo={<Logo size={50} />}
+				start={
+					<>
+						{/* Renders null — it only keeps `document.title` in step with the route. */}
+						<DocumentTitleSync />
+						{/* Guests too: they may search the owner's public content, minus
+							profiles — see `Omnibox`. */}
+						{search.query != undefined && (
+							<AppHeaderItem fill>
+								<Omnibox />
+							</AppHeaderItem>
 						)}
-					>
-						<CloudilloLogo style={{ height: 32 }} />
-					</li>
-					{/* Renders null — it only keeps `document.title` in step with the route. */}
-					<DocumentTitleSync />
-					{/* Guests too: they may search the owner's public content, minus
-					    profiles — see `Omnibox`. */}
-					{search.query != undefined && (
-						<li className="c-nav-item flex-fill" style={{ minWidth: 0 }}>
-							<Omnibox />
-						</li>
-					)}
-				</ul>
-				{/* Context tier; hidden while the omnibox is open — the input takes the row. */}
-				{search.query == undefined && <ContextBar />}
-				<ul className="c-nav-group c-hbox">
-					{auth && <HandChip />}
-					{/* The `<li>`s here are bare: `c-nav-item` belongs on the
-					    interactive child, and OpalUI's margin rule matches both
-					    `.c-nav-group > .c-nav-item` and `.c-nav-group > li > .c-nav-item`
-					    — carrying it on the wrapper too spaces every icon twice. */}
-					<li>
-						<Button
-							kind="nav-item"
-							onClick={() => openOmnibox()}
-							aria-label={t('Search')}
-						>
-							<IcSearch />
-						</Button>
-					</li>
-					{auth && (
-						<li className="sm-hide md-hide">
-							{/* Always the user's own settings, never the URL's context —
-							    a community's own settings live on the rail. */}
-							<Link
-								className="c-nav-item"
-								to={settingsPath(ctxBase(auth.idTag, auth.idTag))}
-								aria-label={t('My settings')}
-								title={t('My settings')}
-							>
-								<IcSettings />
-							</Link>
-						</li>
-					)}
-					{auth && (
-						<li>
-							<Link
-								className="c-nav-item"
-								to={messagesPath(urlContext)}
-								aria-label={t('Messages')}
-								title={t('Messages')}
-							>
-								<span style={{ position: 'relative', display: 'inline-flex' }}>
-									<IcMessages />
-									{unreadConversations > 0 && (
-										<span
-											className="c-badge accent positioned tr"
-											role="status"
-											aria-label={t('Unread messages')}
+					</>
+				}
+				// Context tier; hidden while the omnibox is open — the input takes the row.
+				center={search.query == undefined && <ContextBar />}
+				end={
+					<>
+						{auth && <HandChip />}
+						<AppHeaderItem>
+							<Button
+								variant="ghost"
+								icon={<IcSearch />}
+								aria-label={t('Search')}
+								onClick={() => openOmnibox()}
+							/>
+						</AppHeaderItem>
+						{auth && (
+							<AppHeaderItem className="sm-hide md-hide">
+								{/* Always the user's own settings, never the URL's context —
+									a community's own settings live on the rail. */}
+								<Button
+									variant="ghost"
+									href={settingsPath(ctxBase(auth.idTag, auth.idTag))}
+									icon={<IcSettings />}
+									aria-label={t('My settings')}
+								/>
+							</AppHeaderItem>
+						)}
+						{auth && (
+							<AppHeaderItem>
+								<Button
+									variant="ghost"
+									href={messagesPath(urlContext)}
+									aria-label={t('Messages')}
+									icon={
+										<BadgeAnchor
+											badge={
+												unreadConversations > 0 && (
+													<Badge
+														color="accent"
+														role="status"
+														aria-label={t('Unread messages')}
+													>
+														{unreadConversations}
+													</Badge>
+												)
+											}
 										>
-											{unreadConversations}
-										</span>
-									)}
-								</span>
-							</Link>
-						</li>
-					)}
-					{auth && !location.pathname.startsWith('/onboarding/') && (
-						<NotificationPopover />
-					)}
-					{auth ? (
-						<Popper
-							className="c-nav-item"
-							aria-label={t('User menu')}
-							icon={<ProfilePicture profile={auth} />}
-						>
-							<ul className="c-nav vertical emph">
-								<li>
-									<Link className="c-nav-item" to={profilePath(urlContext, 'me')}>
-										<IcUser />
-										{t('Profile')}
-									</Link>
-								</li>
-								<li>
-									<Button
-										kind="nav-item"
-										onClick={() => setBusinessCardOpen(true)}
-									>
-										<IcQrCode />
-										{t('My Card')}
-									</Button>
-								</li>
-								<li>
-									{/* This is the *account* menu, so its Settings is the account's —
-									    a community's own settings live on the rail (ContextTools). */}
-									<Link
-										className="c-nav-item"
-										to={settingsPath(ctxBase(auth.idTag, auth.idTag))}
-									>
-										<IcSettings />
-										{t('Settings')}
-									</Link>
-								</li>
-								<li>
-									<hr className="w-100" />
-								</li>
-								<li>
-									<Button kind="nav-item" onClick={requestLogout}>
-										<IcLogout />
-										{t('Logout')}
-									</Button>
-								</li>
-								<li>
-									<hr className="w-100" />
-								</li>
-								<li>
-									<Button
-										kind="nav-item"
-										onClick={(evt) => {
-											evt.preventDefault()
-											i18n.changeLanguage('en')
-										}}
-									>
-										English
-									</Button>
-								</li>
-								<li>
-									<Button kind="nav-item" onClick={(evt) => setLang(evt, 'hu')}>
-										Magyar
-									</Button>
-								</li>
-								<li className="text-disabled">
-									Cloudillo V{process.env.CLOUDILLO_VERSION}
-								</li>
-							</ul>
-						</Popper>
-					) : (
-						<>
-							<Popper className="c-nav-item" aria-label={t('Menu')} icon={<IcMenu />}>
-								<ul className="c-nav vertical emph">
-									<li>
+											<IcMessages />
+										</BadgeAnchor>
+									}
+								/>
+							</AppHeaderItem>
+						)}
+						{auth && !location.pathname.startsWith('/onboarding/') && (
+							<NotificationPopover />
+						)}
+						{auth ? (
+							<AppHeaderItem>
+								<Menu
+									placement="bottom-end"
+									trigger={
 										<Button
-											kind="nav-item"
-											onClick={(evt) => {
-												evt.preventDefault()
-												i18n.changeLanguage('en')
-											}}
-										>
-											English
-										</Button>
-									</li>
-									<li>
-										<Button
-											kind="nav-item"
-											onClick={(evt) => setLang(evt, 'hu')}
-										>
-											Magyar
-										</Button>
-									</li>
-									<li className="text-disabled">
-										Cloudillo V{process.env.CLOUDILLO_VERSION}
-									</li>
-								</ul>
-							</Popper>
-							<li className="c-nav-item">
-								<Link
-									to="/login"
-									className="c-button accent pill small c-signin-button"
-									aria-label={t('Sign in')}
+											variant="ghost"
+											icon={<ProfilePicture profile={auth} />}
+											aria-label={t('User menu')}
+										/>
+									}
 								>
-									<IcLogin />
-									<span className="sm-hide">{t('Sign in')}</span>
-								</Link>
-							</li>
-						</>
-					)}
-				</ul>
-			</nav>
+									<MenuItem
+										icon={<IcUser />}
+										label={t('Profile')}
+										href={profilePath(urlContext, 'me')}
+									/>
+									<MenuItem
+										icon={<IcQrCode />}
+										label={t('My Card')}
+										onClick={() => setBusinessCardOpen(true)}
+									/>
+									{/* This is the *account* menu, so its Settings is the account's —
+										a community's own settings live on the rail (ContextTools). */}
+									<MenuItem
+										icon={<IcSettings />}
+										label={t('Settings')}
+										href={settingsPath(ctxBase(auth.idTag, auth.idTag))}
+									/>
+									<MenuDivider />
+									<MenuItem
+										icon={<IcLogout />}
+										label={t('Logout')}
+										onClick={requestLogout}
+									/>
+									<MenuDivider />
+									{langItems}
+								</Menu>
+							</AppHeaderItem>
+						) : (
+							<>
+								<AppHeaderItem>
+									<Menu
+										placement="bottom-end"
+										trigger={
+											<Button
+												variant="ghost"
+												icon={<IcMenu />}
+												aria-label={t('Menu')}
+											/>
+										}
+									>
+										{langItems}
+									</Menu>
+								</AppHeaderItem>
+								<AppHeaderItem>
+									<Button
+										href="/login"
+										color="accent"
+										shape="pill"
+										size="sm"
+										className="c-signin-button"
+										icon={<IcLogin />}
+										aria-label={t('Sign in')}
+									>
+										<Text className="sm-hide">{t('Sign in')}</Text>
+									</Button>
+								</AppHeaderItem>
+							</>
+						)}
+					</>
+				}
+			/>
 			{!location.pathname.match('^/register/') && (
 				<>
-					{/* Portal container for extra menu - rendered before nav-bottom to avoid stacking issues */}
-					<div ref={setExtraMenuPortalMobile} className="c-extra-menu-portal lg-hide" />
 					{auth && <CommunitySheet />}
-					<nav
-						inert={inert}
-						className="c-nav nav-bottom w-100 border-radius-0 justify-content-center flex-order-end lg-hide"
-						aria-label={t('Mobile navigation')}
-					>
-						<Menu
-							vertical
-							sidebarToggle
-							inert={inert}
-							extraMenuPortal={extraMenuPortalMobile}
-						/>
-					</nav>
+					<AppDock inert={inert} aria-label={t('Mobile navigation')}>
+						<AppMenu vertical sidebarToggle inert={inert} />
+					</AppDock>
 				</>
 			)}
 			<BusinessCardDialog
@@ -531,7 +472,7 @@ function QrScanner() {
 }
 
 function PlaceHolder({ title }: { title: string }) {
-	return <h1>{title}</h1>
+	return <Heading level={1}>{title}</Heading>
 }
 
 /**
@@ -630,7 +571,7 @@ function ShellRoutes({ pwa }: { pwa: UsePWA }) {
 }
 
 export function Layout() {
-	const { t, i18n } = useTranslation()
+	const { i18n } = useTranslation()
 	const pwa = usePWA()
 	const [auth] = useAuth()
 	const { api } = useApi()
@@ -746,42 +687,30 @@ export function Layout() {
 	// render or the splash would stay up forever.
 
 	return (
-		<>
-			<a className="c-skip-link" href="#main-content">
-				{t('Skip to main content')}
-			</a>
-			<WsBusRoot>
-				{/* Everything below reads the URL's context through `useCtx()`. */}
-				<CtxProvider>
-					<Sidebar />
-					<Header inert={dialog.isOpen} />
-					<div className={mergeClasses('c-layout', sidebar.isPinned && 'with-sidebar')}>
-						<ErrorBoundary>
-							<div
-								id="main-content"
-								inert={dialog.isOpen}
-								className="c-vbox flex-fill h-min-0"
-							>
-								<GuestOwnerBanner />
-								<CommunityVerifyIdpBanner />
-								<UnknownContextBanner />
-								<ShellRoutes pwa={pwa} />
-							</div>
-						</ErrorBoundary>
-						<div className="pt-1" />
-					</div>
-					<div id="popper-container" />
-					<DialogContainer />
-					<Toasts />
-					<MediaPicker />
-					<ShareCreate />
-					<DocumentPicker />
-					<QrScanner />
-					<FeedPostHost />
-					<CameraCaptureDialog />
-				</CtxProvider>
-			</WsBusRoot>
-		</>
+		<WsBusRoot>
+			{/* Everything below reads the URL's context through `useCtx()`. */}
+			<CtxProvider>
+				<AppShell
+					sidebar={<Sidebar />}
+					sidebarPinned={sidebar.isPinned}
+					header={<Header inert={dialog.isOpen} />}
+					inert={dialog.isOpen}
+				>
+					<GuestOwnerBanner />
+					<CommunityVerifyIdpBanner />
+					<UnknownContextBanner />
+					<ShellRoutes pwa={pwa} />
+				</AppShell>
+				<DialogContainer />
+				<Toasts />
+				<MediaPicker />
+				<ShareCreate />
+				<DocumentPicker />
+				<QrScanner />
+				<FeedPostHost />
+				<CameraCaptureDialog />
+			</CtxProvider>
+		</WsBusRoot>
 	)
 }
 

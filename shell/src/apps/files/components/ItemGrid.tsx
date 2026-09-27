@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import { getFileUrl } from '@cloudillo/core'
-import { InlineEditForm, mergeClasses } from '@cloudillo/react'
+import { Button, FileTile, HBox, Icon, InlineEditForm, Text, VBox } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
 	LuFolder as IcFolder,
 	LuInfo as IcInfo,
+	LuRadio as IcLive,
 	LuLock as IcLock,
 	LuPin as IcPin,
 	LuLoaderCircle as IcProcessing,
@@ -17,7 +18,6 @@ import {
 } from 'react-icons/lu'
 
 import { useCurrentContextIdTag } from '../../../context/index.js'
-import { getFileIcon, type IcUnknown } from '../icons.js'
 import {
 	type File,
 	type FileOps,
@@ -34,8 +34,13 @@ import {
 	toAppAccess
 } from '../utils.js'
 
+function iconContentType(contentType: string | undefined, fileTp: string | undefined) {
+	return fileTp === 'FLDR' ? 'cloudillo/folder' : contentType
+}
+
 interface ItemGridProps {
 	className?: string
+	selected?: boolean
 	file: File
 	isDirty?: boolean
 	onClick?: (file: File, event: React.MouseEvent) => void
@@ -51,6 +56,7 @@ interface ItemGridProps {
 
 export const ItemGrid = React.memo(function ItemGrid({
 	className,
+	selected,
 	file,
 	isDirty,
 	onClick,
@@ -67,15 +73,18 @@ export const ItemGrid = React.memo(function ItemGrid({
 	const { t } = useTranslation()
 
 	const isFolder = file.fileTp === 'FLDR'
-	const Icon = getFileIcon(file.contentType, file.fileTp)
 	const isRenaming = renameFileName !== undefined && file.fileId === renameFileId
 
 	// Check if file has a thumbnail/variant
 	const hasThumbnail = file.variantId && contextIdTag
 	const isImage = file.contentType?.startsWith('image/')
-	// A processing file's variants 404, so show a spinner placeholder instead of
-	// a broken thumbnail until FileIdGeneratorTask finalizes its id.
+	// A processing file's variants 404, so show the type icon plus a spinner badge
+	// instead of a broken thumbnail until FileIdGeneratorTask finalizes its id.
 	const isProcessing = isFileProcessing(file)
+	const thumbSrc =
+		!isProcessing && (hasThumbnail || isImage) && contextIdTag
+			? getFileUrl(contextIdTag, file.variantId || file.fileId, 'vis.tn')
+			: undefined
 
 	function handleClick(evt: React.MouseEvent) {
 		onClick?.(file, evt)
@@ -105,140 +114,118 @@ export const ItemGrid = React.memo(function ItemGrid({
 	const isStarred = file.userData?.starred ?? false
 	const isLive = file.fileTp === 'CRDT' || file.fileTp === 'RTDB'
 	const smartTimestamp = getSmartTimestamp(file)
+	const isDirect = !file.visibility || file.visibility === 'D'
 
 	function handleStarClick(evt: React.MouseEvent) {
 		evt.stopPropagation()
 		fileOps.toggleStarred?.(file.fileId)
 	}
 
-	return (
-		<div
-			className={mergeClasses('c-file-grid-item', isPinned && 'pinned', className)}
-			data-file-id={file.fileId}
-			data-source-context={contextIdTag ?? undefined}
-			onClick={handleClick}
-			onDoubleClick={handleDoubleClick}
-			onContextMenu={handleContextMenu}
-		>
-			{/* Thumbnail or Icon with badges */}
-			<div className="c-file-grid-thumb">
-				{isProcessing ? (
-					<div
-						className="c-file-grid-thumb-icon processing"
-						title={t('Still processing — available shortly')}
-					>
-						<IcProcessing />
-					</div>
-				) : (hasThumbnail || isImage) && contextIdTag ? (
-					<img
-						className="c-file-grid-thumb-img"
-						src={getFileUrl(contextIdTag, file.variantId || file.fileId, 'vis.tn')}
-						alt={file.fileName}
-						loading="lazy"
-					/>
-				) : (
-					<div className="c-file-grid-thumb-icon">
-						{React.createElement<React.ComponentProps<typeof IcUnknown>>(Icon)}
-					</div>
-				)}
-
-				{/* Pin badge - top left */}
-				{isPinned && (
-					<span className="c-file-grid-pin" title={t('Pinned')}>
-						<IcPin />
-					</span>
-				)}
-
-				{/* Star button - top right (clickable) */}
-				{!isInTrash && !isManagedView && (
-					<button
-						type="button"
-						className={mergeClasses('c-file-grid-star', isStarred && 'active')}
-						onClick={handleStarClick}
-						title={isStarred ? t('Unstar') : t('Star')}
-					>
-						<IcStar />
-					</button>
-				)}
-
-				{/* Live indicator - bottom right */}
-				{isLive && <span className="c-file-grid-live" title={t('Live document')} />}
-
-				{/* Unsynced local edits indicator */}
-				{isDirty && (
-					<span className="c-file-grid-dirty" title={t('Has unsynced local edits')}>
-						<IcUnsyncedEdit />
-					</span>
-				)}
-
-				{/* Access level badge for non-write access */}
-				{!isFolder && file.accessLevel && !canWrite(file.accessLevel) && (
-					<span className="c-file-grid-access-badge">
-						{file.accessLevel === 'read' || file.accessLevel === 'comment' ? (
-							<IcView />
-						) : (
-							<IcLock />
-						)}
-					</span>
-				)}
-
-				{/* Visibility badge - bottom left */}
-				{(() => {
-					const VisibilityIcon = getVisibilityIcon(file.visibility ?? null)
-					const isDirect = !file.visibility || file.visibility === 'D'
-					return (
-						<span
-							className={mergeClasses('c-file-grid-visibility', isDirect && 'muted')}
-							title={getVisibilityLabel(t, file.visibility ?? null)}
-						>
-							<VisibilityIcon />
-						</span>
-					)
-				})()}
-			</div>
-
-			{/* File name */}
-			<div className="c-file-grid-name">
-				{isRenaming ? (
-					<InlineEditForm
-						value={renameFileName}
-						onSave={(newName) => fileOps.doRenameFile(file.fileId, newName)}
-						onCancel={() => fileOps.setRenameFileName(undefined)}
-						size="small"
-					/>
-				) : (
-					<span className="c-file-grid-name-text">{file.fileName}</span>
-				)}
-			</div>
-
+	const meta = (
+		<VBox gap={1}>
 			{/* Parent folder context — shown only in hierarchy-agnostic views
 			    or during cross-folder search. */}
 			{showParentChip && file.parentName && (
-				<div className="text-muted small d-inline-flex align-items-center g-1">
-					<IcFolder /> <span className="text-truncate">{file.parentName}</span>
-				</div>
+				<HBox gap={1} align="center">
+					<Icon as={IcFolder} />
+					<Text size="sm" emphasis="muted" truncate>
+						{file.parentName}
+					</Text>
+				</HBox>
 			)}
-
-			{/* Smart timestamp */}
-			<div className="c-file-grid-timestamp">
-				{smartTimestamp.label && (
-					<span className="text-muted">{t(smartTimestamp.label)} </span>
-				)}
+			<Text size="sm">
+				{smartTimestamp.label && <Text emphasis="muted">{t(smartTimestamp.label)} </Text>}
 				{smartTimestamp.time}
-			</div>
+			</Text>
+			<HBox gap={1} align="center" wrap>
+				{isProcessing && (
+					<Icon as={IcProcessing} label={t('Still processing — available shortly')} />
+				)}
+				{isPinned && <Icon as={IcPin} label={t('Pinned')} />}
+				{isLive && <Icon as={IcLive} color="success" label={t('Live document')} />}
+				{isDirty && (
+					<Icon
+						as={IcUnsyncedEdit}
+						color="warning"
+						label={t('Has unsynced local edits')}
+					/>
+				)}
+				{!isFolder && file.accessLevel && !canWrite(file.accessLevel) && (
+					<Icon
+						as={
+							file.accessLevel === 'read' || file.accessLevel === 'comment'
+								? IcView
+								: IcLock
+						}
+					/>
+				)}
+				<Icon
+					as={getVisibilityIcon(file.visibility ?? null)}
+					className={isDirect ? 'text-muted' : undefined}
+					label={getVisibilityLabel(t, file.visibility ?? null)}
+				/>
+			</HBox>
+		</VBox>
+	)
 
+	const actions = (
+		<>
+			{!isInTrash && !isManagedView && (
+				<Button
+					variant="ghost"
+					size="sm"
+					icon={<IcStar />}
+					pressed={isStarred}
+					onClick={handleStarClick}
+					aria-label={isStarred ? t('Unstar') : t('Star')}
+				/>
+			)}
 			{/* Info button (visible on mobile only) */}
 			{!isInTrash && onInfoClick && (
-				<button
-					type="button"
-					className="c-file-grid-info c-button link icon lg-hide"
+				<Button
+					variant="ghost"
+					size="sm"
+					className="lg-hide"
+					icon={<IcInfo />}
 					onClick={handleInfoClick}
-					title={t('Show details')}
-				>
-					<IcInfo />
-				</button>
+					aria-label={t('Show details')}
+				/>
 			)}
-		</div>
+		</>
+	)
+
+	// The wrapper carries the row plumbing FileTile does not forward: `data-file-id`
+	// (hand-fly, ContextMenu, keyboard shortcuts), double-click and context menu.
+	return (
+		<VBox
+			data-file-id={file.fileId}
+			data-source-context={contextIdTag ?? undefined}
+			onDoubleClick={handleDoubleClick}
+			onContextMenu={handleContextMenu}
+		>
+			<FileTile
+				className={className}
+				selected={selected}
+				name={
+					isRenaming ? (
+						<InlineEditForm
+							value={renameFileName}
+							onSave={(newName) => fileOps.doRenameFile(file.fileId, newName)}
+							onCancel={() => fileOps.setRenameFileName(undefined)}
+							size="small"
+						/>
+					) : (
+						file.fileName
+					)
+				}
+				onClick={isRenaming ? undefined : handleClick}
+				src={thumbSrc}
+				alt={file.fileName}
+				contentType={iconContentType(file.contentType, file.fileTp)}
+				meta={meta}
+				actions={actions}
+			/>
+		</VBox>
 	)
 })
 

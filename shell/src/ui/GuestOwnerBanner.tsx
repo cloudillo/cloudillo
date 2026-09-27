@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { IdentityTag, ProfilePicture, useApi, useAuth } from '@cloudillo/react'
+import { Alert, HBox, IdentityTag, ProfilePicture, Text, useApi, useAuth } from '@cloudillo/react'
 import { useAtomValue } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -78,22 +78,32 @@ export function GuestOwnerBanner() {
 	const ownerName = seeded?.name ?? name
 	const ownerPic = seeded?.profilePic ?? profilePic
 
+	// `role="note"`: provenance, not news — Alert's default `status` would announce it on
+	// every navigation.
 	return (
-		<div className="c-guest-banner">
-			<span className="label">{label}</span>
-			<Link className="owner" to={profilePath(HOME_BASE, 'me')} title={idTag}>
-				<ProfilePicture profile={{ profilePic: ownerPic }} srcTag={idTag} tiny />
-				<span className="name">{ownerName || idTag}</span>
-				{/* Only alongside a real name — without one the name span already *is*
-				    the idTag. Kept at every width: the CSS shrinks the tag rather than
-				    hiding it, where `sm-hide` dropped it below 48rem, i.e. every phone. */}
-				{!!ownerName && (
-					<span className="tag">
-						<IdentityTag idTag={idTag} />
-					</span>
-				)}
-			</Link>
-		</div>
+		<Alert color="neutral" compact icon={false} role="note" className="rounded-0">
+			<HBox gap={2} align="center">
+				<Text emphasis="muted" className="flex-shrink-0">
+					{label}
+				</Text>
+				<Link
+					className="c-hbox g-1 align-items-center min-w-0"
+					to={profilePath(HOME_BASE, 'me')}
+					title={idTag}
+				>
+					<ProfilePicture profile={{ profilePic: ownerPic }} srcTag={idTag} tiny />
+					<Text weight="semibold" truncate>
+						{ownerName || idTag}
+					</Text>
+					{/* Only alongside a real name — without one the name already *is* the idTag. */}
+					{!!ownerName && (
+						<Text emphasis="muted" truncate>
+							<IdentityTag idTag={idTag} />
+						</Text>
+					)}
+				</Link>
+			</HBox>
+		</Alert>
 	)
 }
 

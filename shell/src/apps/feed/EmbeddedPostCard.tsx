@@ -1,7 +1,16 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button, mergeClasses, ProfileCard, TimeFormat, useAuth } from '@cloudillo/react'
+import {
+	Button,
+	Card,
+	HBox,
+	ProfileCard,
+	RichText,
+	TimeFormat,
+	useAuth,
+	VBox
+} from '@cloudillo/react'
 import type { ActionView } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -11,7 +20,7 @@ import { useCtx } from '../../context/index.js'
 import { profilePath } from '../../routes.js'
 import { LiveDocCard } from './LiveDocCard.js'
 import { parseLiveDocContent } from './live-doc.js'
-import { Document, Images, renderPostContent, Video } from './PostMedia.js'
+import { Document, Images, Video } from './PostMedia.js'
 
 export interface EmbeddedPostCardProps {
 	/** The hydrated original action being shared (REPOST subject). */
@@ -71,62 +80,54 @@ export function EmbeddedPostCard({
 	}, [content, subjectAction.attachments])
 
 	return (
-		<div
-			className={mergeClasses('c-panel p-2 g-2', className)}
-			style={{
-				border: '1px solid var(--col-container)',
-				background: 'var(--col-surface)'
-			}}
-		>
-			<div className="c-hbox align-items-center g-2">
-				<Link
-					to={profilePath(urlContext, subjectAction.issuer.idTag)}
-					className="flex-fill"
+		<Card variant="outline" padding={2} className={className}>
+			<VBox gap={2}>
+				<HBox align="center" gap={2}>
+					<Link
+						to={profilePath(urlContext, subjectAction.issuer.idTag)}
+						className="flex-fill"
+					>
+						<ProfileCard profile={subjectAction.issuer} srcTag={fileIdTag} />
+					</Link>
+					<TimeFormat time={subjectAction.createdAt} />
+				</HBox>
+				<VBox
+					ref={contentRef}
+					className="pos-relative overflow-hidden"
+					style={expanded ? undefined : { maxHeight: `${CLAMP_MAX_HEIGHT}px` }}
 				>
-					<ProfileCard profile={subjectAction.issuer} srcTag={fileIdTag} />
-				</Link>
-				<TimeFormat time={subjectAction.createdAt} />
-			</div>
-			<div
-				ref={contentRef}
-				className="pos-relative"
-				style={
-					expanded
-						? undefined
-						: { maxHeight: `${CLAMP_MAX_HEIGHT}px`, overflow: 'hidden' }
-				}
-			>
-				{!!content && renderPostContent(content)}
-				{/* Never an iframe inside a quote inset. */}
-				{liveDoc && <LiveDocCard docRef={liveDoc} width={width * 0.85} collapsedOnly />}
-				{!!subjectAction.attachments?.length &&
-					(subjectAction.subType === 'VIDEO' ? (
-						<Video attachments={subjectAction.attachments} idTag={fileIdTag} />
-					) : subjectAction.subType === 'DOC' ? (
-						<Document
-							attachments={subjectAction.attachments}
-							idTag={fileIdTag}
-							token={auth?.token}
-						/>
-					) : (
-						<Images
-							width={width * 0.85}
-							attachments={subjectAction.attachments}
-							idTag={fileIdTag}
-						/>
-					))}
-			</div>
-			{overflowing && !expanded && (
-				<Button
-					kind="link"
-					variant="primary"
-					size="small"
-					onClick={() => setExpanded(true)}
-				>
-					{t('Show more')}
-				</Button>
-			)}
-		</div>
+					{!!content && <RichText text={content} />}
+					{/* Never an iframe inside a quote inset. */}
+					{liveDoc && <LiveDocCard docRef={liveDoc} width={width * 0.85} collapsedOnly />}
+					{!!subjectAction.attachments?.length &&
+						(subjectAction.subType === 'VIDEO' ? (
+							<Video attachments={subjectAction.attachments} idTag={fileIdTag} />
+						) : subjectAction.subType === 'DOC' ? (
+							<Document
+								attachments={subjectAction.attachments}
+								idTag={fileIdTag}
+								token={auth?.token}
+							/>
+						) : (
+							<Images
+								width={width * 0.85}
+								attachments={subjectAction.attachments}
+								idTag={fileIdTag}
+							/>
+						))}
+				</VBox>
+				{overflowing && !expanded && (
+					<Button
+						variant="link"
+						color="primary"
+						size="sm"
+						onClick={() => setExpanded(true)}
+					>
+						{t('Show more')}
+					</Button>
+				)}
+			</VBox>
+		</Card>
 	)
 }
 

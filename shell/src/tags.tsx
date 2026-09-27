@@ -1,29 +1,22 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Select } from '@cloudillo/react'
+import { Button, Combobox, HBox, Tag } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuX as IcDelete,
-	LuHash as IcHash,
-	LuMinus as IcMinus,
-	LuPlus as IcPlus
-} from 'react-icons/lu'
+import { LuHash as IcHash, LuMinus as IcMinus, LuPlus as IcPlus } from 'react-icons/lu'
 
 export function Tags({ tags }: { tags?: string[] }) {
 	return (
 		<>
 			{(tags || []).map((tag, i) => (
-				<span key={i} className="c-tag">
-					#{tag}
-				</span>
+				<Tag key={i}>#{tag}</Tag>
 			))}
 		</>
 	)
 }
 
-interface Tag {
+interface TagItem {
 	tag: string
 	privileged?: boolean
 	new?: boolean
@@ -31,7 +24,7 @@ interface Tag {
 
 interface EditTagsProps {
 	tags?: string[]
-	listTags: (q: string) => Promise<Tag[] | undefined>
+	listTags: (q: string) => Promise<TagItem[] | undefined>
 	addTag?: (tag: string) => Promise<void>
 	removeTag?: (tag: string) => Promise<void>
 }
@@ -39,7 +32,7 @@ export function EditTags({ tags, listTags, addTag, removeTag }: EditTagsProps) {
 	const [add, setAdd] = React.useState(false)
 	const { t } = useTranslation()
 
-	async function getData(q: string): Promise<Tag[] | undefined> {
+	async function getData(q: string): Promise<TagItem[] | undefined> {
 		if (!q) return []
 
 		const list = await listTags(q)
@@ -48,62 +41,60 @@ export function EditTags({ tags, listTags, addTag, removeTag }: EditTagsProps) {
 		return list && (list.find((t) => t.tag === q) ? list : [{ tag: q, new: true }, ...list])
 	}
 
-	function renderItem(tag: Tag) {
+	function renderItem(tag: TagItem) {
 		return (
-			<div className="c-link">
-				<span style={{ width: '2rem' }}>{tag.new ? <IcPlus /> : ''}</span>
-				<span className={'c-tag small' + (tag.privileged ? ' warning' : '')}>
-					{tag.tag}
-				</span>
-			</div>
+			<Tag size="sm" color={tag.privileged ? 'warning' : undefined}>
+				{tag.tag}
+			</Tag>
 		)
 	}
 
-	function onAdd(tag?: Tag) {
+	function onAdd(tag?: TagItem) {
 		return tag && addTag?.(tag.tag)
 	}
 
-	function onRemove(tag: Tag) {
+	function onRemove(tag: TagItem) {
 		return tag && removeTag?.(tag.tag)
 	}
 
 	return (
 		<>
-			<div className="c-tag-list">
+			<HBox wrap gap={1} align="center">
 				{(tags || []).map((tag, i) => (
-					<span key={i} className="c-button small">
+					<Tag
+						key={i}
+						onRemove={() => onRemove({ tag })}
+						removeLabel={t('Remove tag {{tag}}', { tag })}
+					>
 						#{tag}
-						<button className="c-link p-0 ps-1" onClick={() => onRemove({ tag })}>
-							<IcDelete />
-						</button>
-					</span>
+					</Tag>
 				))}
-				{!!addTag && !add && (
-					<button className="c-link" onClick={() => setAdd(true)}>
-						<IcPlus />
-					</button>
+				{!!addTag && (
+					<Button
+						variant="ghost"
+						size="sm"
+						icon={add ? <IcMinus /> : <IcPlus />}
+						aria-label={add ? t('Cancel') : t('Add tag')}
+						aria-expanded={add}
+						onClick={() => setAdd(!add)}
+					/>
 				)}
-				{!!addTag && add && (
-					<button className="c-link" onClick={() => setAdd(false)}>
-						<IcMinus />
-					</button>
-				)}
-			</div>
+			</HBox>
 			{add && (
-				<div className="c-input-group">
-					<span className="c-button icon">
-						<IcHash />
-					</span>
-					<Select
+				<HBox gap={1} align="center">
+					<IcHash aria-hidden="true" />
+					<Combobox
 						className="flex-fill"
 						placeholder={t('Add tag...')}
+						aria-label={t('Add tag')}
 						getData={getData}
 						itemToId={(i) => i.tag}
 						itemToString={(i) => i?.tag || ''}
 						renderItem={renderItem}
-						onSelectItem={onAdd}
+						leading={(i) => (i.new ? <IcPlus /> : undefined)}
+						onSelect={onAdd}
 					/>
-				</div>
+				</HBox>
 			)}
 		</>
 	)

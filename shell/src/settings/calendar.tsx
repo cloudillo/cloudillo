@@ -2,7 +2,19 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import { localeFirstDay } from '@cloudillo/calendar-ui'
-import { LoadingSpinner, useApi, useToast } from '@cloudillo/react'
+import {
+	Field,
+	HBox,
+	LoadingSpinner,
+	NativeSelect,
+	Panel,
+	Segmented,
+	SegmentedItem,
+	Text,
+	Toggle,
+	useApi,
+	useToast
+} from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -39,6 +51,8 @@ export function CalendarSettings() {
 	const { error: toastError } = useToast()
 	const weekdayNames = useWeekdayNames()
 	const { settings, setSettings, onSettingChange } = useSettings('ui.calendar')
+	// The start select takes the Field's id; the end one needs its own
+	const whEndId = React.useId()
 
 	const workingDaysRaw = settings?.['ui.calendar.working_days']
 	const workingDays = React.useMemo<number[]>(() => {
@@ -86,7 +100,7 @@ export function CalendarSettings() {
 		[api, workingDays, setSettings, t, toastError]
 	)
 
-	if (!settings) return <LoadingSpinner />
+	if (!settings) return <LoadingSpinner className="auto-bg" />
 
 	const weekStart = settings['ui.calendar.week_start']
 	const weekStartValue =
@@ -102,11 +116,9 @@ export function CalendarSettings() {
 	const whEnd = parseHour(whEndRaw, 17)
 
 	return (
-		<div className="c-panel">
-			<label className="c-settings-field">
-				<span>{t('Week starts on')}</span>
-				<select
-					className="c-select"
+		<Panel>
+			<Field label={t('Week starts on')} orientation="horizontal">
+				<NativeSelect
 					name="ui.calendar.week_start"
 					value={weekStartValue}
 					onChange={onSettingChange}
@@ -114,14 +126,12 @@ export function CalendarSettings() {
 					<option value="">{t('Automatic (locale default)')}</option>
 					<option value="0">{t('Sunday')}</option>
 					<option value="1">{t('Monday')}</option>
-				</select>
-			</label>
+				</NativeSelect>
+			</Field>
 
-			<div className="c-settings-field">
-				<span>{t('Working hours')}</span>
-				<div className="d-flex align-items-center g-2">
-					<select
-						className="c-select"
+			<Field label={t('Working hours')} orientation="horizontal">
+				<HBox gap={2} align="center">
+					<NativeSelect
 						name="ui.calendar.working_hours_start"
 						value={String(whStart)}
 						onChange={onSettingChange}
@@ -132,10 +142,10 @@ export function CalendarSettings() {
 								{hourLabel(h)}
 							</option>
 						))}
-					</select>
-					<span>–</span>
-					<select
-						className="c-select"
+					</NativeSelect>
+					<Text aria-hidden>–</Text>
+					<NativeSelect
+						id={whEndId}
 						name="ui.calendar.working_hours_end"
 						value={String(whEnd)}
 						onChange={onSettingChange}
@@ -146,45 +156,40 @@ export function CalendarSettings() {
 								{hourLabel(h)}
 							</option>
 						))}
-					</select>
-				</div>
-			</div>
+					</NativeSelect>
+				</HBox>
+			</Field>
 
-			<div className="c-settings-field">
-				<span>{t('Working days')}</span>
-				<div className="d-flex g-1 flex-wrap" role="group" aria-label={t('Working days')}>
-					{weekdayOrder.map((dow) => {
-						const isOn = workingDays.includes(dow)
-						return (
-							<button
-								key={dow}
-								type="button"
-								className="c-button"
-								aria-pressed={isOn}
-								onClick={() => toggleWorkingDay(dow, !isOn)}
-								style={{
-									minWidth: '3rem',
-									opacity: isOn ? 1 : 0.55
-								}}
-							>
-								{weekdayNames[dow]}
-							</button>
-						)
-					})}
-				</div>
-			</div>
+			<Field label={t('Working days')} orientation="horizontal">
+				<Segmented
+					multiple
+					fill
+					aria-label={t('Working days')}
+					value={workingDays.map(String)}
+					onChange={(values: string[]) => {
+						// One press toggles one day: diff it out and save that day
+						const added = values.find((v) => !workingDays.includes(Number(v)))
+						const removed = workingDays.find((d) => !values.includes(String(d)))
+						if (added !== undefined) void toggleWorkingDay(Number(added), true)
+						else if (removed !== undefined) void toggleWorkingDay(removed, false)
+					}}
+				>
+					{weekdayOrder.map((dow) => (
+						<SegmentedItem key={dow} value={String(dow)}>
+							{weekdayNames[dow]}
+						</SegmentedItem>
+					))}
+				</Segmented>
+			</Field>
 
-			<label className="c-settings-field">
-				<span>{t('Show original positions for moved occurrences')}</span>
-				<input
-					className="c-toggle primary"
-					type="checkbox"
-					name="ui.calendar.show_override_ghosts"
-					checked={parseBoolean(settings['ui.calendar.show_override_ghosts'])}
-					onChange={onSettingChange}
-				/>
-			</label>
-		</div>
+			<Toggle
+				color="primary"
+				name="ui.calendar.show_override_ghosts"
+				checked={parseBoolean(settings['ui.calendar.show_override_ghosts'])}
+				onChange={onSettingChange}
+				label={t('Show original positions for moved occurrences')}
+			/>
+		</Panel>
 	)
 }
 

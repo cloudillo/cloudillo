@@ -2,6 +2,17 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import type { CalendarCreate, CalendarOutput, CalendarPatch } from '@cloudillo/core'
+import {
+	Button,
+	Checkbox,
+	ColorDot,
+	ColorInput,
+	Field,
+	Fieldset,
+	HBox,
+	Input,
+	VBox
+} from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -97,76 +108,54 @@ export function CalendarEditor({ open, calendar, onClose, onSave }: CalendarEdit
 			onClose={onClose}
 			onSubmit={handleSave}
 		>
-			<div className="mb-3">
-				<label className="c-cal-detail-label">{t('Name')}</label>
-				<input
-					className="c-input"
-					value={name}
-					onChange={(e) => setName(e.target.value)}
-					placeholder={t('e.g., Work')}
-					autoFocus
-				/>
-			</div>
-
-			<div className="mb-3">
-				<label className="c-cal-detail-label">{t('Description (optional)')}</label>
-				<input
-					className="c-input"
-					value={description}
-					onChange={(e) => setDescription(e.target.value)}
-				/>
-			</div>
-
-			<div className="mb-3">
-				<label className="c-cal-detail-label">{t('Colour')}</label>
-				<div className="d-flex align-items-center g-2">
-					<input
-						type="color"
-						value={color}
-						onChange={(e) => setColor(e.target.value)}
-						style={{ width: '2.5rem', height: '2rem' }}
+			<VBox gap={3}>
+				<Field label={t('Name')}>
+					<Input
+						value={name}
+						onChange={(e) => setName(e.target.value)}
+						placeholder={t('e.g., Work')}
+						autoFocus
 					/>
-					<div className="d-flex g-1">
-						{DEFAULT_COLORS.map((c) => (
-							<button
-								key={c}
-								type="button"
-								className="c-cal-item__swatch"
-								style={{
-									background: c,
-									width: '1.5rem',
-									height: '1.5rem',
-									cursor: 'pointer'
-								}}
-								onClick={() => setColor(c)}
-								aria-label={c}
-							/>
-						))}
-					</div>
-				</div>
-			</div>
+				</Field>
 
-			<div className="mb-3">
-				<label className="c-cal-detail-label">{t('Holds')}</label>
-				<div className="d-flex g-3">
-					<label className="d-flex align-items-center g-1">
-						<input
-							type="checkbox"
+				<Field label={t('Description (optional)')}>
+					<Input value={description} onChange={(e) => setDescription(e.target.value)} />
+				</Field>
+
+				<Field label={t('Colour')}>
+					<HBox gap={2} align="center" wrap>
+						<ColorInput value={color} onChange={setColor} />
+						<HBox gap={1} wrap>
+							{DEFAULT_COLORS.map((c) => (
+								<Button
+									key={c}
+									type="button"
+									variant="ghost"
+									size="sm"
+									icon={<ColorDot color={c} size="lg" />}
+									onClick={() => setColor(c)}
+									aria-label={c}
+								/>
+							))}
+						</HBox>
+					</HBox>
+				</Field>
+
+				<Fieldset legend={t('Holds')}>
+					<HBox gap={3}>
+						<Checkbox
+							label={t('Events')}
 							checked={includeEvents}
 							onChange={(e) => setIncludeEvents(e.target.checked)}
 						/>
-						{t('Events')}
-					</label>
-					<label className="d-flex align-items-center g-1">
-						<input
-							type="checkbox"
+						<Checkbox
+							label={t('Tasks')}
 							checked={includeTasks}
 							onChange={(e) => setIncludeTasks(e.target.checked)}
 						/>
-						{t('Tasks')}
-					</label>
-				</div>
-			</div>
+					</HBox>
+				</Fieldset>
+			</VBox>
 		</CalendarEditorModal>
 	)
 }

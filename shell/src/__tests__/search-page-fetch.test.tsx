@@ -104,7 +104,10 @@ jest.unstable_mockModule('../utils', () => ({
 const { useInfiniteScroll } = await import('../../../libs/react/src/hooks.js')
 const { useDebouncedValue } = await import('../../../libs/react/src/components/hooks.js')
 
+// Unmocked primitives (layout, list, text) come from source; the overrides below win.
+const realReact = await import('../../../libs/react/src/index.js')
 jest.unstable_mockModule('@cloudillo/react', () => ({
+	...realReact,
 	Button: ({ children, ...props }: { children?: React.ReactNode }) => (
 		<button type="button" {...props}>
 			{children}

@@ -2,13 +2,29 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import { downloadBlob, sanitizeFilename } from '@cloudillo/core'
-import { Badge, Button, EmptyState, LoadingSpinner, useAuth, useToast } from '@cloudillo/react'
+import {
+	Alert,
+	Badge,
+	Button,
+	EmptyState,
+	HBox,
+	IconText,
+	Link,
+	LoadingSpinner,
+	Panel,
+	Table,
+	TableCell,
+	TableRow,
+	Text,
+	useAuth,
+	useToast,
+	VBox
+} from '@cloudillo/react'
 import type { SiteConfig, SiteNavItem } from '@cloudillo/types'
 import { useAtomValue } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { LuGlobe as IcGlobe, LuLock as IcLock } from 'react-icons/lu'
-import { Link } from 'react-router-dom'
 
 import {
 	activeContextAtom,
@@ -241,13 +257,15 @@ export function SiteSettings() {
 	// `!config`.
 	if (loadError && !config)
 		return (
-			<div className="c-panel c-site-panel c-vbox g-2 align-items-start">
-				<div role="alert">{t('Failed to load the site settings.')}</div>
-				<Button onClick={() => setReload((n) => n + 1)}>{t('Retry')}</Button>
-			</div>
+			<Panel>
+				<VBox gap={2} align="start">
+					<Alert color="error">{t('Failed to load the site settings.')}</Alert>
+					<Button onClick={() => setReload((n) => n + 1)}>{t('Retry')}</Button>
+				</VBox>
+			</Panel>
 		)
 
-	if (!config) return <LoadingSpinner />
+	if (!config) return <LoadingSpinner className="auto-bg" />
 
 	// The `/` row *is* the root document — the one fact, read from the one place that
 	// serving reads it from.
@@ -279,44 +297,45 @@ export function SiteSettings() {
 	return (
 		<>
 			{!isLeader && (
-				<div className="c-panel c-site-panel">
-					<p className="c-hint c-hbox align-items-center g-2">
-						<IcLock className="flex-shrink-0" />
-						{t('Only the owner or a community leader can change these settings.')}
-					</p>
-				</div>
+				<Panel>
+					<Text as="p" emphasis="muted">
+						<IconText icon={<IcLock />}>
+							{t('Only the owner or a community leader can change these settings.')}
+						</IconText>
+					</Text>
+				</Panel>
 			)}
 
-			<div className="c-panel c-site-panel">
-				<h4 className="pb-2">{t('Site')}</h4>
-
-				<div className="c-hbox g-2 align-items-center flex-wrap">
+			<Panel
+				title={t('Site')}
+				description={t('Publishing happens in the notes app that holds the document.')}
+			>
+				<HBox gap={2} align="center" wrap>
 					<IcGlobe className="flex-shrink-0 text-muted" />
 					{siteUrl ? (
-						<a
-							className="c-link flex-fill w-min-0 text-truncate"
+						<Link
+							className="flex-fill w-min-0 text-truncate"
 							href={siteUrl}
 							target="_blank"
-							rel="noreferrer"
 						>
 							{siteUrl}
-						</a>
+						</Link>
 					) : (
-						<span className="flex-fill w-min-0 c-hint">{t('Not configured')}</span>
+						<Text emphasis="muted" className="flex-fill w-min-0">
+							{t('Not configured')}
+						</Text>
 					)}
-					{/* The tone rides on `className`: `neutral` is an OpalUI badge colour
-					    that `ColorVariant` does not name, and Badge merges either alike. */}
-					<Badge
-						className={`flex-shrink-0 ${!config.site ? 'neutral' : rootDoc ? 'success' : 'warning'}`}
-					>
-						{!config.site
-							? t('Not configured')
-							: rootDoc
-								? t('Live')
-								: t('Nothing published yet')}
-					</Badge>
-				</div>
-				<p className="c-hint small">
+					{!config.site ? (
+						<Badge variant="soft" className="flex-shrink-0">
+							{t('Not configured')}
+						</Badge>
+					) : (
+						<Badge color={rootDoc ? 'success' : 'warning'} className="flex-shrink-0">
+							{rootDoc ? t('Live') : t('Nothing published yet')}
+						</Badge>
+					)}
+				</HBox>
+				<Text as="p" size="sm" emphasis="muted">
 					{rootDocId
 						? t('Published from “{{name}}”', {
 								name: docNames[rootDocId] ?? rootDocId
@@ -324,11 +343,8 @@ export function SiteSettings() {
 						: t('No document is served at / yet.')}
 					{' · '}
 					{t('{{count}} documents mounted', { count: config.docs.length })}
-				</p>
-				<p className="c-hint">
-					{t('Publishing happens in the notes app that holds the document.')}
-				</p>
-			</div>
+				</Text>
+			</Panel>
 
 			<SiteMountsPanel
 				docs={config.docs}
@@ -352,8 +368,16 @@ export function SiteSettings() {
 				onLoadPages={onLoadPages}
 			/>
 
-			<div className="c-panel c-site-panel">
-				<h4 className="pb-2">{t('Published versions')}</h4>
+			<Panel
+				title={t('Published versions')}
+				description={
+					publishedDocs.length
+						? t(
+								'Each document keeps the version being served and the one before it. Rolling back swaps them, and rolling back again puts it right.'
+							)
+						: undefined
+				}
+			>
 				{!publishedDocs.length ? (
 					<EmptyState
 						size="sm"
@@ -361,126 +385,110 @@ export function SiteSettings() {
 						description={t('Publish from the notes app.')}
 					/>
 				) : (
-					<>
-						<p className="c-hint">
-							{t(
-								'Each document keeps the version being served and the one before it. Rolling back swaps them, and rolling back again puts it right.'
-							)}
-						</p>
-						<table className="c-table hoverable c-site-table">
-							<thead>
-								<tr>
-									<th>{t('Document')}</th>
-									<th>{t('Serving')}</th>
-									<th>{t('Previous')}</th>
-								</tr>
-							</thead>
-							<tbody>
-								{publishedDocs.map((doc) => {
-									// Named after the document, not after the opaque fileId the
-									// row stores, so a downloaded container says what it holds.
-									const baseName = sanitizeFilename(
-										docNames[doc.docFileId] ?? doc.docFileId
-									)
-									// Bound before the JSX: TypeScript will not narrow a
-									// mutable property inside a closure that runs later.
-									const currentFileId = doc.publishedFileId
-									const previousFileId = doc.previousFileId
-									return (
-										<tr key={doc.docFileId}>
-											<td data-label={t('Document')}>
-												<strong className="d-block text-truncate">
-													{docNames[doc.docFileId] ?? doc.docFileId}
-												</strong>
-												<span className="c-hint small d-block">
-													{doc.mountPath}
-												</span>
-												{/* No context idTag means no owner half, and a
-												    bare fileId is not a resId — Notillo would
-												    open the wrong document, or none. Plain
-												    text until one resolves. */}
-												{contextIdTag ? (
-													<Link
-														className="c-link small"
-														to={appPath(
-															base,
-															'notillo',
-															`${contextIdTag}:${doc.docFileId}`
-														)}
-													>
-														{t('Open in the notes app')}
-													</Link>
-												) : (
-													<span className="c-hint small">
-														{t('Open in the notes app')}
-													</span>
+					<Table
+						variant="hoverable"
+						stack
+						aria-label={t('Published versions')}
+						columns={[t('Document'), t('Serving'), t('Previous')]}
+					>
+						{publishedDocs.map((doc) => {
+							// Named after the document, not after the opaque fileId the
+							// row stores, so a downloaded container says what it holds.
+							const baseName = sanitizeFilename(
+								docNames[doc.docFileId] ?? doc.docFileId
+							)
+							// Bound before the JSX: TypeScript will not narrow a
+							// mutable property inside a closure that runs later.
+							const currentFileId = doc.publishedFileId
+							const previousFileId = doc.previousFileId
+							return (
+								<TableRow key={doc.docFileId}>
+									<TableCell>
+										<Text as="div" weight="semibold" truncate>
+											{docNames[doc.docFileId] ?? doc.docFileId}
+										</Text>
+										<Text as="div" size="sm" emphasis="muted">
+											{doc.mountPath}
+										</Text>
+										{/* No context idTag means no owner half, and a
+										    bare fileId is not a resId — Notillo would
+										    open the wrong document, or none. Plain
+										    text until one resolves. */}
+										{contextIdTag ? (
+											<Link
+												size="sm"
+												href={appPath(
+													base,
+													'notillo',
+													`${contextIdTag}:${doc.docFileId}`
 												)}
-											</td>
-											<td data-label={t('Serving')}>
-												<span className="d-block">
+											>
+												{t('Open in the notes app')}
+											</Link>
+										) : (
+											<Text size="sm" emphasis="muted">
+												{t('Open in the notes app')}
+											</Text>
+										)}
+									</TableCell>
+									<TableCell>
+										<Text as="div">{formatStamp(doc.publishedAt ?? '')}</Text>
+										{currentFileId && (
+											<Button
+												variant="link"
+												size="sm"
+												disabled={!canDownload}
+												onClick={() =>
+													void downloadGeneration(
+														currentFileId,
+														`${baseName}.zip`
+													)
+												}
+											>
+												{t('Download')}
+											</Button>
+										)}
+									</TableCell>
+									<TableCell>
+										{previousFileId ? (
+											<VBox gap={1} align="start">
+												<Text size="sm" emphasis="muted">
+													{t('replaced')}{' '}
 													{formatStamp(doc.publishedAt ?? '')}
-												</span>
-												{currentFileId && (
-													<Button
-														kind="link"
-														className="small"
-														disabled={!canDownload}
-														onClick={() =>
-															void downloadGeneration(
-																currentFileId,
-																`${baseName}.zip`
-															)
-														}
-													>
-														{t('Download')}
-													</Button>
-												)}
-											</td>
-											<td data-label={t('Previous')}>
-												{previousFileId ? (
-													<div className="c-vbox g-1 align-items-start">
-														<span className="c-hint small">
-															{t('replaced')}{' '}
-															{formatStamp(doc.publishedAt ?? '')}
-														</span>
-														<Button
-															kind="link"
-															className="small"
-															disabled={!canDownload}
-															onClick={() =>
-																void downloadGeneration(
-																	previousFileId,
-																	`${baseName}-previous.zip`
-																)
-															}
-														>
-															{t('Download')}
-														</Button>
-														<Button
-															variant="secondary"
-															disabled={
-																!isLeader ||
-																rollingBack === doc.docFileId
-															}
-															onClick={() =>
-																onRollback(doc.docFileId)
-															}
-														>
-															{t('Roll back')}
-														</Button>
-													</div>
-												) : (
-													<span className="c-hint">—</span>
-												)}
-											</td>
-										</tr>
-									)
-								})}
-							</tbody>
-						</table>
-					</>
+												</Text>
+												<Button
+													variant="link"
+													size="sm"
+													disabled={!canDownload}
+													onClick={() =>
+														void downloadGeneration(
+															previousFileId,
+															`${baseName}-previous.zip`
+														)
+													}
+												>
+													{t('Download')}
+												</Button>
+												<Button
+													color="secondary"
+													disabled={
+														!isLeader || rollingBack === doc.docFileId
+													}
+													onClick={() => onRollback(doc.docFileId)}
+												>
+													{t('Roll back')}
+												</Button>
+											</VBox>
+										) : (
+											<Text emphasis="muted">—</Text>
+										)}
+									</TableCell>
+								</TableRow>
+							)
+						})}
+					</Table>
 				)}
-			</div>
+			</Panel>
 		</>
 	)
 }

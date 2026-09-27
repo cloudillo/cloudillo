@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import type { IdpStatusResponse } from '@cloudillo/core'
-import { Button } from '@cloudillo/react'
+import { ActionBar, Alert, Button, HBox, LoadingSpinner, Logo, Text } from '@cloudillo/react'
 import type { TFunction } from 'i18next'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuRefreshCw as IcLoading, LuMail as IcMail } from 'react-icons/lu'
+import { LuMail as IcMail } from 'react-icons/lu'
 
-import { CloudilloLogo } from '../logo.js'
+import { AuthLayout } from '../auth/AuthLayout.js'
 
 export type ResendState = 'idle' | 'sending' | 'cooldown' | 'expired'
 
@@ -65,45 +65,38 @@ export function VerifyIdpContent({
 
 	if (loadError) {
 		return (
-			<div className="c-panel p-4">
-				<CloudilloLogo className="c-logo w-50 float-right ps-3 pb-3" />
-				<header>
-					<h1 className="mb-3">{t('Verify your identity')}</h1>
-				</header>
-				<div className="c-panel error mt-3">
-					<p>{loadError}</p>
-				</div>
-			</div>
+			<AuthLayout logo={<Logo />} title={t('Verify your identity')}>
+				<Alert color="error">{loadError}</Alert>
+			</AuthLayout>
 		)
 	}
 
 	if (!idp) {
 		return (
-			<div className="c-panel p-4">
-				<CloudilloLogo className="c-logo w-50 float-right ps-3 pb-3 slow" />
-				<header>
-					<h1 className="mb-3">{t('Verify your identity')}</h1>
-				</header>
-				<div className="c-panel info mt-3">
-					<p>
-						<IcLoading className="animate-rotate-cw me-2" />
-						{t('Loading identity status...')}
-					</p>
-				</div>
-			</div>
+			<AuthLayout logo={<Logo animated />} title={t('Verify your identity')}>
+				<Alert color="info" icon={<LoadingSpinner size="sm" />} role="status">
+					{t('Loading identity status...')}
+				</Alert>
+			</AuthLayout>
 		)
 	}
 
 	const expired = resendState === 'expired'
 
 	return (
-		<div className="c-panel p-4">
-			<CloudilloLogo className="c-logo w-50 float-right ps-3 pb-3" />
-			<header>
-				<h1 className="mb-3">{t('Verify your identity')}</h1>
-			</header>
-
-			<p className="my-3">
+		<AuthLayout
+			logo={<Logo animated={!expired} />}
+			title={t('Verify your identity')}
+			footer={
+				<HBox gap={2} align="center" role="status">
+					<LoadingSpinner size="sm" />
+					<Text size="sm" emphasis="muted">
+						{t('Waiting for activation...')}
+					</Text>
+				</HBox>
+			}
+		>
+			<Text as="p">
 				{idp.providerName
 					? t(
 							'We sent a separate activation email from your identity provider {{provider}}. Click the link in that email to activate your federated identity — until you do, this account is held in a pending state and will be deleted automatically.',
@@ -112,65 +105,49 @@ export function VerifyIdpContent({
 					: t(
 							'We sent a separate activation email from your identity provider. Click the link in that email to activate your federated identity — until you do, this account is held in a pending state and will be deleted automatically.'
 						)}
-			</p>
+			</Text>
 
 			{idp.email && (
-				<p className="my-3 text-muted">
-					<IcMail className="me-2" />
-					{t('Sent to: {{email}}', { email: idp.email })}
-				</p>
+				<HBox gap={2} align="center">
+					<IcMail />
+					<Text emphasis="muted">{t('Sent to: {{email}}', { email: idp.email })}</Text>
+				</HBox>
 			)}
 
 			{!expired && idp.expiresAt && (
-				<div className="c-panel warning my-4 p-3">
-					<p className="mb-1">
-						<strong>
-							{t('Your identity will be deleted in {{remaining}}', {
-								remaining: formatRemaining(t, idp.expiresAt)
-							})}
-						</strong>
-					</p>
-					<p className="text-muted small mb-0">
-						{t(
-							"The deadline doesn't change if you resend — it was set when you registered. If it expires, you'll need to register again."
-						)}
-					</p>
-				</div>
+				<Alert
+					color="warning"
+					title={t('Your identity will be deleted in {{remaining}}', {
+						remaining: formatRemaining(t, idp.expiresAt)
+					})}
+				>
+					{t(
+						"The deadline doesn't change if you resend — it was set when you registered. If it expires, you'll need to register again."
+					)}
+				</Alert>
 			)}
 
 			{expired && (
-				<div className="c-panel error my-4 p-3">
-					<p className="mb-1">
-						<strong>{t('Your identity has expired')}</strong>
-					</p>
-					<p className="mb-0">{t('Please register again to create a new identity.')}</p>
-				</div>
+				<Alert color="error" title={t('Your identity has expired')}>
+					{t('Please register again to create a new identity.')}
+				</Alert>
 			)}
 
-			{resendError && (
-				<div className="c-panel error mt-3">
-					<p>{resendError}</p>
-				</div>
-			)}
+			{resendError && <Alert color="error">{resendError}</Alert>}
 
-			<div className="c-group g-2 mt-4">
+			<ActionBar>
 				<Button
-					variant="primary"
+					color="primary"
 					onClick={onResend}
+					loading={resendState === 'sending'}
 					disabled={expired || resendState !== 'idle'}
 				>
-					{resendState === 'sending' && <IcLoading className="animate-rotate-cw me-2" />}
 					{resendState === 'cooldown'
 						? t('Email sent — check your inbox')
 						: t('Resend activation email')}
 				</Button>
-			</div>
-
-			<p className="mt-4 text-muted small">
-				<IcLoading className="animate-rotate-cw me-2" />
-				{t('Waiting for activation...')}
-			</p>
-		</div>
+			</ActionBar>
+		</AuthLayout>
 	)
 }
 

@@ -2,7 +2,19 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import type { ApiClient } from '@cloudillo/core'
-import { LoadingSpinner, useApi, useToast } from '@cloudillo/react'
+import {
+	Button,
+	Field,
+	Heading,
+	LoadingSpinner,
+	NativeSelect,
+	Panel,
+	Slider,
+	Text,
+	Toggle,
+	useApi,
+	useToast
+} from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -59,10 +71,8 @@ function SoundSelect({
 	}
 
 	return (
-		<label className="c-settings-field ms-2">
-			<span>{label}</span>
-			<select
-				className="c-select"
+		<Field label={label} orientation="horizontal" className="ms-2">
+			<NativeSelect
 				value={(localSettings[settingKey] as string) || ''}
 				onChange={handleChange}
 			>
@@ -72,8 +82,8 @@ function SoundSelect({
 						{soundLabel}
 					</option>
 				))}
-			</select>
-		</label>
+			</NativeSelect>
+		</Field>
 	)
 }
 
@@ -90,30 +100,16 @@ function VolumeSlider({
 }) {
 	const value = (localSettings[settingKey] as number) ?? 50
 	return (
-		<label className="c-settings-field ms-2">
-			<span>{label}</span>
-			<span
-				style={{
-					flex: '0 0 auto',
-					display: 'flex',
-					alignItems: 'center',
-					gap: '0.5rem',
-					minWidth: '150px',
-					maxWidth: '200px'
-				}}
-			>
-				<input
-					type="range"
-					min="0"
-					max="100"
-					step="10"
-					value={value}
-					onChange={(e) => updateSetting(settingKey, parseInt(e.target.value, 10))}
-					style={{ flex: 1 }}
-				/>
-				<span style={{ minWidth: '3em', textAlign: 'right' }}>{value}%</span>
-			</span>
-		</label>
+		<Field label={label} orientation="horizontal" className="ms-2">
+			<Slider
+				min={0}
+				max={100}
+				step={10}
+				value={value}
+				format={(v) => `${v}%`}
+				onChange={(e) => updateSetting(settingKey, parseInt(e.target.value, 10))}
+			/>
+		</Field>
 	)
 }
 
@@ -170,214 +166,172 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 		}
 	}
 
-	if (!settings) return <LoadingSpinner />
+	if (!settings) return <LoadingSpinner className="auto-bg" />
 
 	return (
-		<div className="c-panel">
-			<label className="c-settings-field">
-				<span>{t('Enable push notifications on this device')}</span>
-				<input
-					className="c-toggle primary"
+		<>
+			<Panel title={t('Push notifications')}>
+				<Toggle
+					color="primary"
 					name="notify.push"
-					type="checkbox"
 					checked={!!notificationSubscription}
 					onChange={onPushChange}
+					label={t('Enable push notifications on this device')}
 				/>
-			</label>
-
-			<label className="c-settings-field mt-4">
-				<span>{t('Enable push notifications')}</span>
-				<input
-					className="c-toggle primary"
+				<Toggle
+					color="primary"
 					name="notify.push"
-					type="checkbox"
 					checked={!!settings['notify.push']}
 					onChange={onSettingChange}
+					label={t('Enable push notifications')}
 				/>
-			</label>
-
-			{!!settings['notify.push'] && (
-				<>
-					<label className="c-settings-field ms-2">
-						<span>{t('Notify on direct messages')}</span>
-						<input
-							className="c-toggle"
+				{!!settings['notify.push'] && (
+					<>
+						<Toggle
+							className="ms-2"
 							name="notify.push.message"
-							type="checkbox"
 							checked={!!settings['notify.push.message']}
 							onChange={onSettingChange}
+							label={t('Notify on direct messages')}
 						/>
-					</label>
-					<label className="c-settings-field ms-2">
-						<span>{t('Notify on connection requests')}</span>
-						<input
-							className="c-toggle"
+						<Toggle
+							className="ms-2"
 							name="notify.push.connection"
-							type="checkbox"
 							checked={!!settings['notify.push.connection']}
 							onChange={onSettingChange}
+							label={t('Notify on connection requests')}
 						/>
-					</label>
-					<label className="c-settings-field ms-2">
-						<span>{t('Notify when files are shared with you')}</span>
-						<input
-							className="c-toggle"
+						<Toggle
+							className="ms-2"
 							name="notify.push.file_share"
-							type="checkbox"
 							checked={!!settings['notify.push.file_share']}
 							onChange={onSettingChange}
+							label={t('Notify when files are shared with you')}
 						/>
-					</label>
-					<label className="c-settings-field ms-2">
-						<span>{t('Notify when someone follows you')}</span>
-						<input
-							className="c-toggle"
+						<Toggle
+							className="ms-2"
 							name="notify.push.follow"
-							type="checkbox"
 							checked={!!settings['notify.push.follow']}
 							onChange={onSettingChange}
+							label={t('Notify when someone follows you')}
 						/>
-					</label>
-					<label className="c-settings-field ms-2">
-						<span>{t('Notify on comments to your posts')}</span>
-						<input
-							className="c-toggle"
+						<Toggle
+							className="ms-2"
 							name="notify.push.comment"
-							type="checkbox"
 							checked={!!settings['notify.push.comment']}
 							onChange={onSettingChange}
+							label={t('Notify on comments to your posts')}
 						/>
-					</label>
-					<label className="c-settings-field ms-2">
-						<span>{t('Notify on reactions to your posts')}</span>
-						<input
-							className="c-toggle"
+						<Toggle
+							className="ms-2"
 							name="notify.push.reaction"
-							type="checkbox"
 							checked={!!settings['notify.push.reaction']}
 							onChange={onSettingChange}
+							label={t('Notify on reactions to your posts')}
 						/>
-					</label>
-					<label className="c-settings-field ms-2">
-						<span>{t('Notify on new posts from people you follow')}</span>
-						<input
-							className="c-toggle"
+						<Toggle
+							className="ms-2"
 							name="notify.push.post"
-							type="checkbox"
 							checked={!!settings['notify.push.post']}
 							onChange={onSettingChange}
+							label={t('Notify on new posts from people you follow')}
 						/>
-					</label>
-				</>
-			)}
+					</>
+				)}
+			</Panel>
 
-			<label className="c-settings-field mt-4">
-				<span>{t('Enable email notifications')}</span>
-				<input
-					className="c-toggle primary"
+			<Panel title={t('Email notifications')}>
+				<Toggle
+					color="primary"
 					name="notify.email"
-					type="checkbox"
 					checked={!!settings['notify.email']}
 					onChange={onSettingChange}
+					label={t('Enable email notifications')}
 				/>
-			</label>
+				{!!settings['notify.email'] && (
+					<>
+						<Text as="p" emphasis="muted" className="ms-2">
+							{t(
+								'While you’re away, we email you about the first item in each group, then pause for a day so your inbox stays calm.'
+							)}
+						</Text>
 
-			{!!settings['notify.email'] && (
-				<>
-					<p className="text-muted ms-2">
-						{t(
-							'While you’re away, we email you about the first item in each group, then pause for a day so your inbox stays calm.'
-						)}
-					</p>
-
-					<h5 className="ms-2 mt-2">{t('Direct')}</h5>
-					<label className="c-settings-field ms-2">
-						<span>{t('Notify on direct messages')}</span>
-						<input
-							className="c-toggle"
+						<Heading level={4} size="sm" className="ms-2 mt-2">
+							{t('Direct')}
+						</Heading>
+						<Toggle
+							className="ms-2"
 							name="notify.email.message"
-							type="checkbox"
 							checked={!!settings['notify.email.message']}
 							onChange={onSettingChange}
+							label={t('Notify on direct messages')}
 						/>
-					</label>
-					<label className="c-settings-field ms-2">
-						<span>{t('Notify on connection requests')}</span>
-						<input
-							className="c-toggle"
+						<Toggle
+							className="ms-2"
 							name="notify.email.connection"
-							type="checkbox"
 							checked={!!settings['notify.email.connection']}
 							onChange={onSettingChange}
+							label={t('Notify on connection requests')}
 						/>
-					</label>
-					<label className="c-settings-field ms-2">
-						<span>{t('Notify when files are shared with you')}</span>
-						<input
-							className="c-toggle"
+						<Toggle
+							className="ms-2"
 							name="notify.email.file_share"
-							type="checkbox"
 							checked={!!settings['notify.email.file_share']}
 							onChange={onSettingChange}
+							label={t('Notify when files are shared with you')}
 						/>
-					</label>
 
-					<h5 className="ms-2 mt-2">{t('Engagement')}</h5>
-					<label className="c-settings-field ms-2">
-						<span>{t('Notify on comments to your posts')}</span>
-						<input
-							className="c-toggle"
+						<Heading level={4} size="sm" className="ms-2 mt-2">
+							{t('Engagement')}
+						</Heading>
+						<Toggle
+							className="ms-2"
 							name="notify.email.comment"
-							type="checkbox"
 							checked={!!settings['notify.email.comment']}
 							onChange={onSettingChange}
+							label={t('Notify on comments to your posts')}
 						/>
-					</label>
-					<label className="c-settings-field ms-2">
-						<span>{t('Notify on reactions to your posts')}</span>
-						<input
-							className="c-toggle"
+						<Toggle
+							className="ms-2"
 							name="notify.email.reaction"
-							type="checkbox"
 							checked={!!settings['notify.email.reaction']}
 							onChange={onSettingChange}
+							label={t('Notify on reactions to your posts')}
 						/>
-					</label>
 
-					<h5 className="ms-2 mt-2">{t('Social')}</h5>
-					<label className="c-settings-field ms-2">
-						<span>{t('Notify when someone follows you')}</span>
-						<input
-							className="c-toggle"
+						<Heading level={4} size="sm" className="ms-2 mt-2">
+							{t('Social')}
+						</Heading>
+						<Toggle
+							className="ms-2"
 							name="notify.email.follow"
-							type="checkbox"
 							checked={!!settings['notify.email.follow']}
 							onChange={onSettingChange}
+							label={t('Notify when someone follows you')}
 						/>
-					</label>
-					<label className="c-settings-field ms-2">
-						<span>{t('Notify on new posts from people you follow')}</span>
-						<input
-							className="c-toggle"
+						<Toggle
+							className="ms-2"
 							name="notify.email.post"
-							type="checkbox"
 							checked={!!settings['notify.email.post']}
 							onChange={onSettingChange}
+							label={t('Notify on new posts from people you follow')}
 						/>
-					</label>
-				</>
-			)}
-
-			<h4 className="mt-4">{t('Sound notifications')}</h4>
-			<p className="text-muted">{t('These settings are stored locally on this device')}</p>
-			<p className="text-muted">
-				{t(
-					'Browsers may block sounds until you interact with the page. Click the test button to enable sounds.'
+					</>
 				)}
-			</p>
-			<div className="c-hbox mt-2 mb-2">
-				<button
-					className="c-button secondary"
+			</Panel>
+
+			<Panel
+				title={t('Sound notifications')}
+				description={t('These settings are stored locally on this device')}
+			>
+				<Text as="p" emphasis="muted">
+					{t(
+						'Browsers may block sounds until you interact with the page. Click the test button to enable sounds.'
+					)}
+				</Text>
+				<Button
+					color="secondary"
+					className="mt-2 mb-2"
 					onClick={() => {
 						const firstSound = Object.values(NOTIFICATION_SOUNDS)[0]
 						if (firstSound) {
@@ -387,157 +341,134 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 					}}
 				>
 					{t('Test sound')}
-				</button>
-			</div>
+				</Button>
 
-			<VolumeSlider
-				label={t('Volume when tab is active')}
-				settingKey="volume.active"
-				localSettings={localSettings}
-				updateSetting={updateSetting}
-			/>
-			<VolumeSlider
-				label={t('Volume when tab is inactive (background)')}
-				settingKey="volume.inactive"
-				localSettings={localSettings}
-				updateSetting={updateSetting}
-			/>
+				<VolumeSlider
+					label={t('Volume when tab is active')}
+					settingKey="volume.active"
+					localSettings={localSettings}
+					updateSetting={updateSetting}
+				/>
+				<VolumeSlider
+					label={t('Volume when tab is inactive (background)')}
+					settingKey="volume.inactive"
+					localSettings={localSettings}
+					updateSetting={updateSetting}
+				/>
 
-			<SoundSelect
-				label={t('Direct messages')}
-				settingKey="sound.message"
-				localSettings={localSettings}
-				updateSetting={updateSetting}
-				t={t}
-			/>
-			<SoundSelect
-				label={t('Connection requests')}
-				settingKey="sound.connection"
-				localSettings={localSettings}
-				updateSetting={updateSetting}
-				t={t}
-			/>
-			<SoundSelect
-				label={t('File sharing')}
-				settingKey="sound.file_share"
-				localSettings={localSettings}
-				updateSetting={updateSetting}
-				t={t}
-			/>
-			<SoundSelect
-				label={t('New followers')}
-				settingKey="sound.follow"
-				localSettings={localSettings}
-				updateSetting={updateSetting}
-				t={t}
-			/>
-			<SoundSelect
-				label={t('Comments on your posts')}
-				settingKey="sound.comment"
-				localSettings={localSettings}
-				updateSetting={updateSetting}
-				t={t}
-			/>
-			<SoundSelect
-				label={t('Reactions to your posts')}
-				settingKey="sound.reaction"
-				localSettings={localSettings}
-				updateSetting={updateSetting}
-				t={t}
-			/>
-			<SoundSelect
-				label={t('Mentions')}
-				settingKey="sound.mention"
-				localSettings={localSettings}
-				updateSetting={updateSetting}
-				t={t}
-			/>
-			<SoundSelect
-				label={t('Posts from followed users')}
-				settingKey="sound.post"
-				localSettings={localSettings}
-				updateSetting={updateSetting}
-				t={t}
-			/>
+				<SoundSelect
+					label={t('Direct messages')}
+					settingKey="sound.message"
+					localSettings={localSettings}
+					updateSetting={updateSetting}
+					t={t}
+				/>
+				<SoundSelect
+					label={t('Connection requests')}
+					settingKey="sound.connection"
+					localSettings={localSettings}
+					updateSetting={updateSetting}
+					t={t}
+				/>
+				<SoundSelect
+					label={t('File sharing')}
+					settingKey="sound.file_share"
+					localSettings={localSettings}
+					updateSetting={updateSetting}
+					t={t}
+				/>
+				<SoundSelect
+					label={t('New followers')}
+					settingKey="sound.follow"
+					localSettings={localSettings}
+					updateSetting={updateSetting}
+					t={t}
+				/>
+				<SoundSelect
+					label={t('Comments on your posts')}
+					settingKey="sound.comment"
+					localSettings={localSettings}
+					updateSetting={updateSetting}
+					t={t}
+				/>
+				<SoundSelect
+					label={t('Reactions to your posts')}
+					settingKey="sound.reaction"
+					localSettings={localSettings}
+					updateSetting={updateSetting}
+					t={t}
+				/>
+				<SoundSelect
+					label={t('Mentions')}
+					settingKey="sound.mention"
+					localSettings={localSettings}
+					updateSetting={updateSetting}
+					t={t}
+				/>
+				<SoundSelect
+					label={t('Posts from followed users')}
+					settingKey="sound.post"
+					localSettings={localSettings}
+					updateSetting={updateSetting}
+					t={t}
+				/>
+			</Panel>
 
-			<label className="c-settings-field mt-4">
-				<span>{t('Enable toast notifications')}</span>
-				<input
-					className="c-toggle primary"
-					type="checkbox"
+			<Panel title={t('Toast notifications')}>
+				<Toggle
+					color="primary"
 					checked={!!localSettings.toast}
 					onChange={(e) => updateSetting('toast', e.target.checked)}
+					label={t('Enable toast notifications')}
 				/>
-			</label>
-
-			{!!localSettings.toast && (
-				<>
-					<label className="c-settings-field ms-2">
-						<span>{t('Direct messages')}</span>
-						<input
-							className="c-toggle"
-							type="checkbox"
+				{!!localSettings.toast && (
+					<>
+						<Toggle
+							className="ms-2"
 							checked={!!localSettings['toast.message']}
 							onChange={(e) => updateSetting('toast.message', e.target.checked)}
+							label={t('Direct messages')}
 						/>
-					</label>
-					<label className="c-settings-field ms-2">
-						<span>{t('Connection requests')}</span>
-						<input
-							className="c-toggle"
-							type="checkbox"
+						<Toggle
+							className="ms-2"
 							checked={!!localSettings['toast.connection']}
 							onChange={(e) => updateSetting('toast.connection', e.target.checked)}
+							label={t('Connection requests')}
 						/>
-					</label>
-					<label className="c-settings-field ms-2">
-						<span>{t('File sharing')}</span>
-						<input
-							className="c-toggle"
-							type="checkbox"
+						<Toggle
+							className="ms-2"
 							checked={!!localSettings['toast.file_share']}
 							onChange={(e) => updateSetting('toast.file_share', e.target.checked)}
+							label={t('File sharing')}
 						/>
-					</label>
-					<label className="c-settings-field ms-2">
-						<span>{t('New followers')}</span>
-						<input
-							className="c-toggle"
-							type="checkbox"
+						<Toggle
+							className="ms-2"
 							checked={!!localSettings['toast.follow']}
 							onChange={(e) => updateSetting('toast.follow', e.target.checked)}
+							label={t('New followers')}
 						/>
-					</label>
-					<label className="c-settings-field ms-2">
-						<span>{t('Comments on your posts')}</span>
-						<input
-							className="c-toggle"
-							type="checkbox"
+						<Toggle
+							className="ms-2"
 							checked={!!localSettings['toast.comment']}
 							onChange={(e) => updateSetting('toast.comment', e.target.checked)}
+							label={t('Comments on your posts')}
 						/>
-					</label>
-					<label className="c-settings-field ms-2">
-						<span>{t('Reactions to your posts')}</span>
-						<input
-							className="c-toggle"
-							type="checkbox"
+						<Toggle
+							className="ms-2"
 							checked={!!localSettings['toast.reaction']}
 							onChange={(e) => updateSetting('toast.reaction', e.target.checked)}
+							label={t('Reactions to your posts')}
 						/>
-					</label>
-					<label className="c-settings-field ms-2">
-						<span>{t('Posts from followed users')}</span>
-						<input
-							className="c-toggle"
-							type="checkbox"
+						<Toggle
+							className="ms-2"
 							checked={!!localSettings['toast.post']}
 							onChange={(e) => updateSetting('toast.post', e.target.checked)}
+							label={t('Posts from followed users')}
 						/>
-					</label>
-				</>
-			)}
-		</div>
+					</>
+				)}
+			</Panel>
+		</>
 	)
 }
 

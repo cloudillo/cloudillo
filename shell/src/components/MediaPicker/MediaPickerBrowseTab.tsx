@@ -10,25 +10,31 @@
 
 import type { FileView } from '@cloudillo/core'
 import { getFileUrl, VISIBILITY_ORDER, type Visibility } from '@cloudillo/core'
-import { LoadMoreTrigger, useApi, useAuth, useToast } from '@cloudillo/react'
+import {
+	Alert,
+	Breadcrumbs,
+	Button,
+	EmptyState,
+	FileTile,
+	Grid,
+	IconText,
+	LoadingSpinner,
+	LoadMoreTrigger,
+	useApi,
+	useAuth,
+	useDialog,
+	useToast,
+	VBox
+} from '@cloudillo/react'
 import { useAtomValue } from 'jotai'
 import React, { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-	LuMusic as IcAudio,
-	LuCheck as IcCheck,
-	LuChevronRight as IcChevronRight,
 	LuUserCheck as IcConnected,
-	LuFileText as IcDocument,
 	LuFile as IcFile,
-	LuFolder as IcFolder,
 	LuUserPlus as IcFollowers,
 	LuHouse as IcHome,
-	LuImage as IcImage,
-	LuLock as IcLock,
-	LuVideo as IcVideo,
-	LuTriangleAlert as IcWarning,
-	LuX as IcX
+	LuLock as IcLock
 } from 'react-icons/lu'
 
 import { canManageFile, canManageShares } from '../../apps/files/utils.js'
@@ -116,19 +122,6 @@ function matchesMediaType(file: FileView, mediaType?: string): boolean {
 }
 
 /**
- * Get icon for file type
- */
-function getFileIcon(file: FileView): React.ReactNode {
-	if (file.fileTp === 'FLDR') return <IcFolder />
-	const contentType = file.contentType || ''
-	if (contentType.startsWith('image/')) return <IcImage />
-	if (contentType.startsWith('video/')) return <IcVideo />
-	if (contentType.startsWith('audio/')) return <IcAudio />
-	if (contentType === 'application/pdf') return <IcDocument />
-	return <IcFile />
-}
-
-/**
  * Check if file is an image (which can have a thumbnail)
  */
 function isImage(file: FileView): boolean {
@@ -151,6 +144,7 @@ export function MediaPickerBrowseTab({
 	const { api: defaultApi } = useApi()
 	const [auth] = useAuth()
 	const toast = useToast()
+	const dialog = useDialog()
 	const { getClientFor } = useApiContext()
 	const activeContext = useAtomValue(activeContextAtom)
 	const contextRoles = useAtomValue(contextRolesAtom)
@@ -232,23 +226,6 @@ export function MediaPickerBrowseTab({
 
 	// Track which file is currently being updated (for loading state)
 	const [updatingFileId, setUpdatingFileId] = useState<string | null>(null)
-	// Track which file is awaiting confirmation and which side is confirm (vertical split)
-	const [confirmingFile, setConfirmingFile] = useState<{
-		id: string
-		confirmSide: 'top' | 'bottom'
-	} | null>(null)
-
-	// Auto-reset confirmation state after 3 seconds
-	useEffect(() => {
-		if (!confirmingFile) return
-
-		const timeout = setTimeout(() => {
-			setConfirmingFile(null)
-		}, 3000)
-
-		return () => clearTimeout(timeout)
-	}, [confirmingFile])
-
 	// Resolve document visibility from fileId if needed
 	useEffect(() => {
 		if (documentVisibility) {
@@ -501,9 +478,24 @@ export function MediaPickerBrowseTab({
 	const fileAccessActionLabel =
 		documentFileId && !requirePublic ? t('Grant access') : t('Make public')
 
+	const handleUnlockClick = useCallback(
+		async (file: FileView) => {
+			const ok = await dialog.confirm(
+				fileAccessActionLabel,
+				documentFileId && !requirePublic
+					? t('Let readers of this document see {{name}}?', { name: file.fileName })
+					: t('Make {{name}} public? Anyone will be able to see it.', {
+							name: file.fileName
+						}),
+				{ confirmLabel: fileAccessActionLabel }
+			)
+			if (ok) handleFileAccessAction(file.fileId, file.fileName, file.contentType)
+		},
+		[dialog, fileAccessActionLabel, documentFileId, requirePublic, handleFileAccessAction, t]
+	)
+
 	return (
-		<div className="media-picker-browse">
-			{/* Filter bar */}
+		<VBox gap={2} fill>
 			<PickerFilterBar
 				viewMode={viewMode}
 				onViewModeChange={setViewMode}
@@ -517,49 +509,29 @@ export function MediaPickerBrowseTab({
 				tags={tags}
 			/>
 
-			{/* Breadcrumbs (only in browse mode) */}
 			{viewMode === 'browse' && (
-				<div className="media-picker-breadcrumbs">
-					{breadcrumbs.map((crumb, index) => (
-						<React.Fragment key={crumb.id ?? 'home'}>
-							{index > 0 && <IcChevronRight size={14} />}
-							<button type="button" onClick={() => handleBreadcrumbClick(index)}>
-								{index === 0 ? <IcHome size={14} /> : crumb.name}
-							</button>
-						</React.Fragment>
-					))}
-				</div>
+				<Breadcrumbs
+					items={breadcrumbs.map((crumb, index) => ({
+						label: index === 0 ? t('Home') : crumb.name,
+						icon: index === 0 ? <IcHome /> : undefined,
+						onClick: () => handleBreadcrumbClick(index)
+					}))}
+				/>
 			)}
 
-			{/* Visibility warning */}
 			{showVisibilityWarning && selectedFile && (
-				<div className="media-picker-visibility-warning">
-					<IcWarning />
-					<div className="media-picker-visibility-warning-content">
-						<strong>{t('Visibility mismatch')}</strong>
-						<p>
-							{t(
-								'This file is {{visibility}}. Some viewers may not be able to see this media.',
-								{
-									visibility: t(
-										getVisibilityLabel(
-											selectedFile.visibility as FileVisibility
-										)
-									)
-								}
-							)}
-						</p>
-						<div className="media-picker-visibility-warning-actions">
-							<button
-								type="button"
-								className="c-button small"
-								onClick={() => setShowVisibilityWarning(false)}
-							>
+				<Alert
+					color="warning"
+					title={t('Visibility mismatch')}
+					actions={
+						<>
+							<Button size="sm" onClick={() => setShowVisibilityWarning(false)}>
 								{t('Cancel')}
-							</button>
-							<button
-								type="button"
-								className="c-button small primary"
+							</Button>
+							<Button
+								size="sm"
+								color="primary"
+								loading={updatingFileId === selectedFile.fileId}
 								onClick={() =>
 									handleFileAccessAction(
 										selectedFile.fileId,
@@ -567,213 +539,111 @@ export function MediaPickerBrowseTab({
 										selectedFile.contentType
 									)
 								}
-								disabled={updatingFileId === selectedFile.fileId}
 							>
-								{updatingFileId === selectedFile.fileId
-									? t('Updating...')
-									: fileAccessActionLabel}
-							</button>
-							<button
-								type="button"
-								className="c-button small"
-								onClick={handleAcknowledgeWarning}
-							>
+								{fileAccessActionLabel}
+							</Button>
+							<Button size="sm" onClick={handleAcknowledgeWarning}>
 								{t('Use anyway')}
-							</button>
-						</div>
-					</div>
-				</div>
+							</Button>
+						</>
+					}
+				>
+					{t(
+						'This file is {{visibility}}. Some viewers may not be able to see this media.',
+						{
+							visibility: t(
+								getVisibilityLabel(selectedFile.visibility as FileVisibility)
+							)
+						}
+					)}
+				</Alert>
 			)}
 
-			{/* File grid */}
-			<div className="media-picker-files">
-				{loading ? (
-					<div className="media-picker-loading">
-						<span>{t('Loading...')}</span>
-					</div>
-				) : error ? (
-					<div className="media-picker-empty">
-						<IcFile />
-						<span>{error}</span>
-					</div>
-				) : filteredFiles.length === 0 ? (
-					<div className="media-picker-empty">
-						<IcFile />
-						<span>{t('No files found')}</span>
-					</div>
-				) : (
-					<>
-						<div className="media-picker-grid">
-							{filteredFiles.map((file) => {
-								// Check if file is disabled (non-public in external context, not a folder)
-								const isFileDisabled = isBlocked(file) && file.fileTp !== 'FLDR'
-								const visibilityIcon = getVisibilityIcon(file.visibility ?? null)
-								const isUpdating = updatingFileId === file.fileId
-								const isConfirming = confirmingFile?.id === file.fileId
-								const confirmSide = isConfirming ? confirmingFile.confirmSide : null
-								// Offering an action the server will refuse just
-								// produces a broken embed — show the lock inert.
-								const unlockable = canUnlock(file)
+			{loading ? (
+				<LoadingSpinner fill />
+			) : error ? (
+				<EmptyState icon={<IcFile />} title={error} fill />
+			) : filteredFiles.length === 0 ? (
+				<EmptyState icon={<IcFile />} title={t('No files found')} fill />
+			) : (
+				<VBox gap={2} fill scroll>
+					<Grid min="7.5rem" gap={2}>
+						{filteredFiles.map((file) => {
+							const isFolder = file.fileTp === 'FLDR'
+							// Non-public in an external context (folders always navigate)
+							const isFileDisabled = isBlocked(file) && !isFolder
+							const visibilityIcon = getVisibilityIcon(file.visibility ?? null)
+							// Offering an action the server will refuse just
+							// produces a broken embed — show the lock inert.
+							const unlockable = canUnlock(file)
 
-								return (
-									<div
-										key={file.fileId}
-										className={`media-picker-item ${
-											selectedFile?.fileId === file.fileId ? 'selected' : ''
-										} ${isFileDisabled ? 'disabled' : ''}`}
+							return (
+								<VBox
+									key={file.fileId}
+									onDoubleClick={() => handleFileDoubleClick(file)}
+								>
+									<FileTile
+										name={file.fileName}
+										contentType={
+											isFolder ? 'cloudillo/folder' : file.contentType
+										}
+										src={
+											isImage(file) && idTag
+												? getFileUrl(idTag, file.fileId, 'vis.tn')
+												: undefined
+										}
+										selected={selectedFile?.fileId === file.fileId}
 										onClick={() => handleFileClick(file)}
-										onDoubleClick={() => handleFileDoubleClick(file)}
-									>
-										<div className="media-picker-item-thumbnail">
-											{isImage(file) && idTag ? (
-												<img
-													src={getFileUrl(idTag, file.fileId, 'vis.tn')}
-													alt={file.fileName}
-												/>
+										meta={
+											isFileDisabled ? (
+												<IconText icon={<IcLock />}>
+													{unlockable ? t('Not shared') : t('No access')}
+												</IconText>
 											) : (
-												getFileIcon(file)
-											)}
-											{/* Interactive lock overlay with vertical split confirmation */}
-											{isFileDisabled && (
-												<div
-													className={`media-picker-item-lock ${isUpdating ? 'loading' : ''} ${isConfirming ? 'confirming' : ''} ${unlockable ? '' : 'disabled'}`}
-													onClick={(e) => {
-														e.stopPropagation()
-														if (
-															!unlockable ||
-															isUpdating ||
-															isConfirming
-														)
-															return
-
-														// Determine which half was clicked (vertical split)
-														const rect =
-															e.currentTarget.getBoundingClientRect()
-														const clickY = e.clientY - rect.top
-														const isTopClick = clickY < rect.height / 2
-
-														// Confirm is on the OPPOSITE half of click
-														setConfirmingFile({
-															id: file.fileId,
-															confirmSide: isTopClick
-																? 'bottom'
-																: 'top'
-														})
-													}}
-													title={
-														unlockable
-															? t('Click to {{action}}', {
-																	action: fileAccessActionLabel
-																})
-															: t(
-																	'You do not have permission to share this file.'
-																)
-													}
-												>
-													{isUpdating ? (
-														<span className="media-picker-lock-spinner" />
-													) : isConfirming ? (
-														<div className="media-picker-lock-split">
-															{/* Top half */}
-															<div
-																className={`media-picker-lock-half ${confirmSide === 'top' ? 'confirm' : 'cancel'}`}
-																onClick={(e) => {
-																	e.stopPropagation()
-																	if (confirmSide === 'top') {
-																		handleFileAccessAction(
-																			file.fileId,
-																			file.fileName,
-																			file.contentType
-																		)
-																	}
-																	setConfirmingFile(null)
-																}}
-															>
-																{confirmSide === 'top' ? (
-																	<IcCheck />
-																) : (
-																	<IcX />
-																)}
-																<span>
-																	{confirmSide === 'top'
-																		? t('Confirm')
-																		: t('Cancel')}
-																</span>
-															</div>
-															{/* Bottom half */}
-															<div
-																className={`media-picker-lock-half ${confirmSide === 'bottom' ? 'confirm' : 'cancel'}`}
-																onClick={(e) => {
-																	e.stopPropagation()
-																	if (confirmSide === 'bottom') {
-																		handleFileAccessAction(
-																			file.fileId,
-																			file.fileName,
-																			file.contentType
-																		)
-																	}
-																	setConfirmingFile(null)
-																}}
-															>
-																{confirmSide === 'bottom' ? (
-																	<IcCheck />
-																) : (
-																	<IcX />
-																)}
-																<span>
-																	{confirmSide === 'bottom'
-																		? t('Confirm')
-																		: t('Cancel')}
-																</span>
-															</div>
-														</div>
-													) : (
-														<>
-															<IcLock />
-															<span className="media-picker-item-lock-label">
-																{unlockable
-																	? fileAccessActionLabel
-																	: t('No access')}
-															</span>
-														</>
-													)}
-												</div>
-											)}
-											{/* Visibility badge for non-public files */}
-											{!isFileDisabled &&
 												visibilityIcon &&
-												file.fileTp !== 'FLDR' && (
-													<div
-														className="media-picker-item-visibility"
-														title={t(
+												!isFolder && (
+													<IconText icon={visibilityIcon}>
+														{t(
 															getVisibilityLabel(
 																file.visibility ?? null
 															)
 														)}
-													>
-														{visibilityIcon}
-													</div>
-												)}
-										</div>
-										<span className="media-picker-item-name">
-											{file.fileName}
-										</span>
-									</div>
-								)
-							})}
-						</div>
-						<LoadMoreTrigger
-							ref={sentinelRef}
-							isLoading={isLoadingMore}
-							hasMore={hasMore}
-							error={loadMoreError}
-							errorPrefix={t('Failed to load more')}
-							onRetry={loadMore}
-						/>
-					</>
-				)}
-			</div>
-		</div>
+													</IconText>
+												)
+											)
+										}
+										actions={
+											isFileDisabled && (
+												<Button
+													size="sm"
+													icon={<IcLock />}
+													loading={updatingFileId === file.fileId}
+													disabled={!unlockable}
+													disabledReason={t(
+														'You do not have permission to share this file.'
+													)}
+													onClick={() => handleUnlockClick(file)}
+												>
+													{fileAccessActionLabel}
+												</Button>
+											)
+										}
+									/>
+								</VBox>
+							)
+						})}
+					</Grid>
+					<LoadMoreTrigger
+						ref={sentinelRef}
+						isLoading={isLoadingMore}
+						hasMore={hasMore}
+						error={loadMoreError}
+						errorPrefix={t('Failed to load more')}
+						onRetry={loadMore}
+					/>
+				</VBox>
+			)}
+		</VBox>
 	)
 }
 

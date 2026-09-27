@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { APP_SANDBOX, delay, resolveAppUrl } from '@cloudillo/core'
+import { delay, resolveAppUrl } from '@cloudillo/core'
 import { jwtRemainingSeconds } from '@cloudillo/core/jwt'
-import { mergeClasses, useApi, useAuth, useDialog, useToast } from '@cloudillo/react'
+import { useApi, useAuth, useDialog, useToast } from '@cloudillo/react'
 import { useSetAtom } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -15,6 +15,7 @@ import { releaseClientIdsForWindow } from '../message-bus/handlers/crdt.js'
 import { offAppTitle, onAppError, onAppReady, onAppTitle } from '../message-bus/index.js'
 import { getShellBus, type InitAppData } from '../message-bus/shell-bus.js'
 import { filesPath } from '../routes.js'
+import { AppFrame } from '../ui/AppFrame.js'
 import { documentTitleAtom } from '../title.js'
 import { normalizeTrust, type TrustLevel, useAppConfig } from '../utils.js'
 import { AppLoadingIndicator, type LoadingStage } from './AppLoadingIndicator.js'
@@ -428,35 +429,30 @@ export function MicrofrontendContainer({
 		[app, appUrl, resId, retryCount, isReady]
 	)
 
+	// clipboard-read/clipboard-write are required for in-app context-menu
+	// copy/paste (Fortune Sheet and others use the async Clipboard API for menu actions)
+	// Bundles load from the API domain, so shell storage is already out of reach:
+	// `swKey` is a host-only cookie (`../pwa/cookie.ts` writes no `Domain=`) and the
+	// ServiceWorker registration is scoped to the shell host. The sandbox's opaque
+	// origin is what keeps apps off the SW API entirely — and why bundles cannot be
+	// SW-cached (see `shell/sw/cache-strategy.ts`).
 	return (
-		<div className={mergeClasses('c-app flex-fill pos-relative', trustLevel, className)}>
+		<AppFrame
+			ref={ref}
+			trust={trustLevel}
+			className={className}
+			src={url}
+			allow="clipboard-read; clipboard-write; fullscreen; geolocation; accelerometer; gyroscope; magnetometer"
+			allowFullScreen
+			autoFocus
+		>
 			<AppLoadingIndicator
 				stage={loadingStage}
 				onRetry={handleRetry}
 				errorMessage={errorMessage}
 				errorCode={errorCode}
 			/>
-			{/* clipboard-read/clipboard-write are required for in-app context-menu */}
-			{/* copy/paste (Fortune Sheet and others use the async Clipboard API for menu actions) */}
-			{/* Bundles load from the API domain, so shell storage is already out of reach: */}
-			{/* `swKey` is a host-only cookie (`../pwa/cookie.ts` writes no `Domain=`) and the */}
-			{/* ServiceWorker registration is scoped to the shell host. The sandbox's opaque */}
-			{/* origin is what keeps apps off the SW API entirely — and why bundles cannot be */}
-			{/* SW-cached (see `shell/sw/cache-strategy.ts`). */}
-			<iframe
-				ref={ref}
-				src={url}
-				sandbox={APP_SANDBOX}
-				allow="clipboard-read; clipboard-write; fullscreen; geolocation; accelerometer; gyroscope; magnetometer"
-				allowFullScreen
-				className={mergeClasses(
-					'pos-absolute top-0 left-0 right-0 bottom-0 z-1',
-					className
-				)}
-				style={{ width: '100%', height: '100%' }}
-				autoFocus
-			/>
-		</div>
+		</AppFrame>
 	)
 }
 

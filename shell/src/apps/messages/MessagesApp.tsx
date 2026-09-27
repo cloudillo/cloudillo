@@ -2,13 +2,20 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import {
+	Alert,
 	Badge,
 	Button,
+	Divider,
 	EmptyState,
+	FAB,
 	Fcd,
+	HBox,
+	Icon,
 	IdentityTag,
-	LoadingSpinner,
+	LoadMoreTrigger,
+	Panel,
 	SkeletonList,
+	Text,
 	useApi,
 	useAuth
 } from '@cloudillo/react'
@@ -286,35 +293,34 @@ export function MessagesApp() {
 							ref={setConvEl}
 							onScroll={onConvScroll}
 							header={
-								<div className="c-panel c-hbox align-items-center flex-nowrap g-2 p-2 w-100">
-									<Button
-										kind="link"
-										className="md-hide lg-hide p-1 flex-shrink-0"
-										onClick={() => setShowFilter(true)}
-									>
-										<IcConvList />
-									</Button>
-									{conversation && (
-										<div className="c-hbox align-items-center g-2 fill overflow-hidden">
-											{isGroup ? (
+								<Panel padding={2} className="w-100">
+									<HBox align="center" gap={2}>
+										<Button
+											variant="ghost"
+											icon={<IcConvList />}
+											aria-label={t('Conversations')}
+											className="md-hide lg-hide"
+											onClick={() => setShowFilter(true)}
+										/>
+										{conversation &&
+											(isGroup ? (
 												<>
-													<IcGroup className="flex-shrink-0" />
-													<span className="font-medium text-truncate">
+													<Icon as={IcGroup} />
+													<Text weight="medium" truncate>
 														{conversation.name}
-													</span>
-													<Badge className="flex-shrink-0">
+													</Text>
+													<Badge>
 														{t('{{count}} members', {
 															count: conversation.memberCount
 														})}
 													</Badge>
 													<Button
-														kind="link"
-														className="lg-hide p-1 flex-shrink-0 ms-auto"
-														title={t('Group details')}
+														variant="ghost"
+														icon={<IcInfo />}
+														aria-label={t('Group details')}
+														className="lg-hide ms-auto"
 														onClick={() => setShowDetails(true)}
-													>
-														<IcInfo />
-													</Button>
+													/>
 												</>
 											) : (
 												conversation.profiles[0] && (
@@ -322,24 +328,24 @@ export function MessagesApp() {
 														idTag={conversation.profiles[0].idTag}
 													/>
 												)
-											)}
-										</div>
-									)}
-								</div>
+											))}
+									</HBox>
+								</Panel>
 							}
 						>
 							{!scrollBottom && (
-								<button
-									className="c-button float m-1 secondary pos-absolute bottom-0 right-0"
+								<FAB
+									size="sm"
+									color="secondary"
+									icon={<IcScrollBottom />}
 									aria-label={t('Scroll to bottom')}
 									onClick={onConvScrollBottomClick}
-								>
-									<IcScrollBottom />
-								</button>
+								/>
 							)}
 							{!convId ? (
 								<EmptyState
-									icon={<IcConvList style={{ fontSize: '2.5rem' }} />}
+									className="auto-bg"
+									icon={<IcConvList />}
 									title={t('Select a conversation')}
 									description={t(
 										'Choose a contact from the list to start messaging'
@@ -349,23 +355,19 @@ export function MessagesApp() {
 								<SkeletonList count={5} showAvatar />
 							) : msg.length === 0 ? (
 								<EmptyState
-									icon={
-										isGroup ? (
-											<IcGroup style={{ fontSize: '2.5rem' }} />
-										) : (
-											<IcConvList style={{ fontSize: '2.5rem' }} />
-										)
-									}
+									className="auto-bg"
+									icon={isGroup ? <IcGroup /> : <IcConvList />}
 									title={t('No messages yet')}
 									description={t('Start the conversation by sending a message!')}
 								/>
 							) : (
 								<>
-									{hasMore && <div ref={topSentinelRef} style={{ height: 1 }} />}
-									{loadingOlder && (
-										<div className="c-hbox justify-content-center p-2">
-											<LoadingSpinner size="sm" />
-										</div>
+									{hasMore && (
+										<LoadMoreTrigger
+											ref={topSentinelRef}
+											hasMore
+											isLoading={loadingOlder}
+										/>
 									)}
 									{grouped.map((g, i) => {
 										const local = g.action.issuer.idTag === auth?.idTag
@@ -374,27 +376,12 @@ export function MessagesApp() {
 												key={g.action.tempId ?? g.action.actionId}
 											>
 												{i === firstUnreadIdx && (
-													<div
+													<Divider
 														ref={unreadDividerRef}
-														className="c-hbox align-items-center g-2 my-2 text-small font-medium"
-														style={{ color: 'var(--col-primary)' }}
-													>
-														<hr
-															className="fill m-0"
-															style={{
-																borderColor: 'var(--col-primary)'
-															}}
-														/>
-														<span className="flex-shrink-0">
-															{t('New messages')}
-														</span>
-														<hr
-															className="fill m-0"
-															style={{
-																borderColor: 'var(--col-primary)'
-															}}
-														/>
-													</div>
+														label={t('New messages')}
+														color="primary"
+														className="my-2"
+													/>
 												)}
 												<Msg
 													register={register}
@@ -433,18 +420,21 @@ export function MessagesApp() {
 
 			{/* Left-group banner (read-only history) */}
 			{!!auth && !!convId && conversation && isLeftGroup && (
-				<div className="c-panel c-hbox align-items-center g-2 p-2 mt-1">
-					<span className="fill">{t('You left this group')}</span>
-					{conversation.isOpen ? (
-						<Button variant="primary" onClick={handleRejoin}>
-							{t('Rejoin')}
-						</Button>
-					) : (
-						<span className="text-muted text-small">
-							{t('This group is invite-only')}
-						</span>
-					)}
-				</div>
+				<Alert
+					color="neutral"
+					compact
+					className="mt-1"
+					actions={
+						conversation.isOpen ? (
+							<Button color="primary" onClick={handleRejoin}>
+								{t('Rejoin')}
+							</Button>
+						) : undefined
+					}
+				>
+					{t('You left this group')}
+					{!conversation.isOpen && ` — ${t('This group is invite-only')}`}
+				</Alert>
 			)}
 
 			{/* Message Input */}

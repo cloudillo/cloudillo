@@ -1,7 +1,18 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { EmptyState, LoadingSpinner, LoadMoreTrigger, mergeClasses } from '@cloudillo/react'
+import {
+	Avatar,
+	EmptyState,
+	HBox,
+	Icon,
+	List,
+	ListItem,
+	LoadingSpinner,
+	LoadMoreTrigger,
+	Panel,
+	Text
+} from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -40,48 +51,30 @@ function ContactRow({
 			: undefined
 
 	return (
-		<button
-			type="button"
-			role="listitem"
-			aria-current={isSelected ? 'true' : undefined}
-			className={mergeClasses('c-contact-row', isSelected && 'active')}
+		<ListItem
+			selected={isSelected}
 			onClick={onSelect}
-		>
-			{photoUrl ? (
-				<img className="c-contact-row__avatar" src={photoUrl} alt="" />
-			) : (
-				<div
-					className="c-contact-row__avatar d-flex align-items-center justify-content-center"
-					aria-hidden="true"
-					style={{ color: 'lch(from var(--col-on) l c h / 0.45)' }}
-				>
-					<IcUser />
-				</div>
-			)}
-			<div className="flex-fill" style={{ minWidth: 0 }}>
-				<div className="d-flex align-items-center g-1">
-					<span className="c-contact-row__name text-truncate flex-fill">
+			leading={<Avatar size="md" src={photoUrl} fallback={<Icon as={IcUser} />} />}
+			title={
+				<HBox gap={1} align="center">
+					<Text truncate weight="medium">
 						{displayName}
-					</span>
+					</Text>
 					{contact.profileIdTag && (
-						<IcLinked
-							title={t('Linked Cloudillo profile')}
-							className="text-primary flex-shrink-0"
-							aria-label={t('Linked Cloudillo profile')}
-						/>
+						<Icon as={IcLinked} color="primary" label={t('Linked Cloudillo profile')} />
 					)}
-				</div>
-				{subtitle && (
-					<div className="c-contact-row__sub">
-						{contact.email ? <IcMail /> : contact.tel ? <IcPhone /> : <IcOrg />}
-						<span className="text-truncate">{subtitle}</span>
-					</div>
-				)}
-				{showBookName && contact.bookName && (
-					<div className="c-contact-row__book text-truncate">{contact.bookName}</div>
-				)}
-			</div>
-		</button>
+				</HBox>
+			}
+			subtitle={
+				subtitle && (
+					<HBox gap={1} align="center">
+						<Icon as={contact.email ? IcMail : contact.tel ? IcPhone : IcOrg} />
+						<Text truncate>{subtitle}</Text>
+					</HBox>
+				)
+			}
+			meta={showBookName ? contact.bookName : undefined}
+		/>
 	)
 }
 
@@ -114,9 +107,7 @@ export function ContactList({
 
 	if (isLoading && contacts.length === 0) {
 		return (
-			<div className="d-flex align-items-center justify-content-center flex-fill p-4">
-				<LoadingSpinner size="lg" label={t('Loading contacts...')} />
-			</div>
+			<LoadingSpinner fill size="lg" className="auto-bg" label={t('Loading contacts...')} />
 		)
 	}
 
@@ -130,19 +121,20 @@ export function ContactList({
 	}
 
 	return (
-		<div className="c-contact-list c-vbox g-1 p-2" role="list" aria-label={t('Contacts')}>
-			{contacts.map((contact) => {
-				const isSelected = selected?.abId === contact.abId && selected?.uid === contact.uid
-				return (
+		<Panel padding={2}>
+			<List aria-label={t('Contacts')}>
+				{contacts.map((contact) => (
 					<ContactRow
 						key={`${contact.abId}:${contact.uid}`}
 						contact={contact}
-						isSelected={isSelected}
+						isSelected={
+							selected?.abId === contact.abId && selected?.uid === contact.uid
+						}
 						onSelect={() => onSelect({ abId: contact.abId, uid: contact.uid })}
 						showBookName={showBookName}
 					/>
-				)
-			})}
+				))}
+			</List>
 			<LoadMoreTrigger
 				ref={sentinelRef}
 				isLoading={isLoadingMore}
@@ -153,7 +145,7 @@ export function ContactList({
 				retryLabel={t('Retry')}
 				errorPrefix={t('Failed to load:')}
 			/>
-		</div>
+		</Panel>
 	)
 }
 

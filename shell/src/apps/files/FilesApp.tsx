@@ -4,27 +4,30 @@
 import { useAtom } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuCloud as IcCloud, LuUpload as IcUpload } from 'react-icons/lu'
+import { LuCloud as IcCloud, LuCloudOff as IcOffline, LuUpload as IcUpload } from 'react-icons/lu'
 import { useLocation, useNavigate } from 'react-router-dom'
-
-import './files.css'
 
 import type * as Types from '@cloudillo/core'
 import {
+	Alert,
+	Button,
 	DropZone,
 	EmptyState,
 	Fcd,
+	Grid,
+	Icon,
 	LoadingSpinner,
+	List,
 	LoadMoreTrigger,
-	mergeClasses,
+	Text,
 	useAuth,
 	useDebouncedValue,
 	useDialog,
 	useIsMobile,
-	useToast
+	useToast,
+	VBox
 } from '@cloudillo/react'
 
-import { OfflineBanner } from '../../components/OfflineBanner.js'
 import { useContextAwareApi, useCtx, useCurrentContextIdTag } from '../../context/index.js'
 import { getDirtyDocIds } from '../../message-bus/handlers/crdt.js'
 import { appPath, type QueryInit } from '../../routes.js'
@@ -419,7 +422,8 @@ export function FilesApp() {
 				t('Empty trash'),
 				t(
 					'Are you sure you want to permanently delete all files in trash? This action cannot be undone.'
-				)
+				),
+				{ color: 'error', confirmLabel: t('Empty trash') }
 			)
 			if (!res) return
 
@@ -561,7 +565,8 @@ export function FilesApp() {
 							? t(
 									'Are you sure you want to move this folder and its contents to trash?'
 								)
-							: t('Are you sure you want to move this file to trash?')
+							: t('Are you sure you want to move this file to trash?'),
+					{ color: 'error', confirmLabel: t('Move to trash') }
 				)
 				if (!res) return
 
@@ -584,7 +589,8 @@ export function FilesApp() {
 					t('Permanently delete'),
 					t(
 						'Are you sure you want to permanently delete this file? This action cannot be undone.'
-					)
+					),
+					{ color: 'error', confirmLabel: t('Delete') }
 				)
 				if (!res) return
 
@@ -633,7 +639,8 @@ export function FilesApp() {
 					t('Move to trash'),
 					t('Are you sure you want to move {{count}} items to trash?', {
 						count: fileIds.length
-					})
+					}),
+					{ color: 'error', confirmLabel: t('Move to trash') }
 				)
 				if (!res) return
 
@@ -657,7 +664,8 @@ export function FilesApp() {
 					t(
 						'Are you sure you want to permanently delete {{count}} items? This action cannot be undone.',
 						{ count: fileIds.length }
-					)
+					),
+					{ color: 'error', confirmLabel: t('Delete') }
 				)
 				if (!res) return
 
@@ -852,14 +860,16 @@ export function FilesApp() {
 	return (
 		<>
 			<DropZone
-				overlay
-				onFilesDropped={canUpload ? uploadQueue.handleFilesForUpload : () => {}}
+				variant="overlay"
+				target="viewport"
+				className="h-100"
+				onFiles={canUpload ? uploadQueue.handleFilesForUpload : () => {}}
 				hover={
 					canUpload ? (
-						<div className="c-vbox align-items-center g-2">
-							<IcUpload style={{ fontSize: '3rem' }} />
-							<div>{t('Drop files here to upload')}</div>
-						</div>
+						<VBox gap={2} align="center">
+							<Icon as={IcUpload} size="xl" />
+							<Text>{t('Drop files here to upload')}</Text>
+						</VBox>
 					) : undefined
 				}
 			>
@@ -882,7 +892,7 @@ export function FilesApp() {
 					</Fcd.Filter>
 					<Fcd.Content
 						header={
-							<div className="c-vbox g-2">
+							<VBox gap={2} autoBg>
 								<Toolbar
 									canGoBack={canGoBack}
 									onGoBack={goBack}
@@ -922,7 +932,11 @@ export function FilesApp() {
 											accessLevel={remoteAccessLevel}
 										/>
 									)}
-								<OfflineBanner show={fileListData.isOffline} />
+								{fileListData.isOffline && (
+									<Alert color="neutral" compact icon={<IcOffline />}>
+										{t('Showing cached data — you appear to be offline')}
+									</Alert>
+								)}
 								<FilterChips
 									fileTypeFilter={fileTypeFilter}
 									ownerFilter={ownerFilter}
@@ -944,57 +958,66 @@ export function FilesApp() {
 										return (
 											<>
 												{searchScope === 'folder' && outsideMatchExists && (
-													<div className="c-hbox g-2 align-items-center p-2 bg-container-secondary rounded">
-														<span className="flex-fill text-small">
-															{t(
-																'More matches exist outside this folder.'
-															)}
-															<span className="text-muted ms-2">
-																{`${t('In folder:')} ${folderPath}`}
-															</span>
-														</span>
-														<button
-															type="button"
-															className="c-button small"
-															onClick={() => setSearchScope('all')}
-														>
-															{t('Search all files')}
-														</button>
-													</div>
+													<Alert
+														compact
+														color="info"
+														actions={
+															<Button
+																size="sm"
+																onClick={() =>
+																	setSearchScope('all')
+																}
+															>
+																{t('Search all files')}
+															</Button>
+														}
+													>
+														{t(
+															'More matches exist outside this folder.'
+														)}{' '}
+														<Text emphasis="muted">{`${t('In folder:')} ${folderPath}`}</Text>
+													</Alert>
 												)}
 												{searchScope === 'folder' &&
 													!outsideMatchExists && (
-														<div className="p-2 text-small text-muted">
+														<Text
+															as="div"
+															size="sm"
+															emphasis="muted"
+															className="p-2"
+														>
 															{`${t('In folder:')} ${folderPath}`}
-														</div>
+														</Text>
 													)}
 												{searchScope === 'all' && (
-													<div className="c-hbox g-2 align-items-center p-2 bg-container-secondary rounded">
-														<span className="flex-fill text-small text-muted">
-															{t('Searching all files')}
-														</span>
-														<button
-															type="button"
-															className="c-button small"
-															onClick={() => setSearchScope('folder')}
-														>
-															{t('Back to this folder')}
-														</button>
-													</div>
+													<Alert
+														compact
+														color="info"
+														actions={
+															<Button
+																size="sm"
+																onClick={() =>
+																	setSearchScope('folder')
+																}
+															>
+																{t('Back to this folder')}
+															</Button>
+														}
+													>
+														{t('Searching all files')}
+													</Alert>
 												)}
 											</>
 										)
 									})()}
-							</div>
+							</VBox>
 						}
 					>
 						{isInitialLoading ? (
-							<div className="d-flex align-items-center justify-content-center flex-fill">
-								<LoadingSpinner size="lg" label={t('Loading files...')} />
-							</div>
+							<LoadingSpinner fill size="lg" label={t('Loading files...')} />
 						) : files.length === 0 ? (
 							<EmptyState
-								icon={<IcCloud style={{ fontSize: '2.5rem' }} />}
+								icon={<Icon as={IcCloud} size="xl" />}
 								title={
 									isTrashView
 										? t('Trash is empty')
@@ -1020,13 +1043,11 @@ export function FilesApp() {
 							/>
 						) : displayMode === 'grid' ? (
 							<>
-								<div className="c-file-grid-container">
+								<Grid min="8rem" gap={3} className="p-2" data-file-grid>
 									{files.map((file) => (
 										<ItemGrid
 											key={file.fileId}
-											className={mergeClasses(
-												multiSelect.isSelected(file.fileId) && 'accent'
-											)}
+											selected={multiSelect.isSelected(file.fileId)}
 											file={file}
 											isDirty={dirtyDocIds.has(
 												`${contextIdTag}:${file.fileId}`
@@ -1042,7 +1063,7 @@ export function FilesApp() {
 											showParentChip={showParentChip}
 										/>
 									))}
-								</div>
+								</Grid>
 								<LoadMoreTrigger
 									ref={fileListData.sentinelRef}
 									isLoading={fileListData.isLoadingMore}
@@ -1056,26 +1077,27 @@ export function FilesApp() {
 							</>
 						) : (
 							<>
-								{files.map((file) => (
-									<ItemCard
-										key={file.fileId}
-										className={mergeClasses(
-											'mb-1',
-											multiSelect.isSelected(file.fileId) && 'accent'
-										)}
-										file={file}
-										isDirty={dirtyDocIds.has(`${contextIdTag}:${file.fileId}`)}
-										onClick={onClickFile}
-										onDoubleClick={onDoubleClickFile}
-										onContextMenu={onContextMenuFile}
-										onInfoClick={auth ? onInfoClick : undefined}
-										renameFileId={renameFileId}
-										renameFileName={renameFileName}
-										fileOps={fileOps}
-										viewMode={viewMode}
-										showParentChip={showParentChip}
-									/>
-								))}
+								<List>
+									{files.map((file) => (
+										<ItemCard
+											key={file.fileId}
+											selected={multiSelect.isSelected(file.fileId)}
+											file={file}
+											isDirty={dirtyDocIds.has(
+												`${contextIdTag}:${file.fileId}`
+											)}
+											onClick={onClickFile}
+											onDoubleClick={onDoubleClickFile}
+											onContextMenu={onContextMenuFile}
+											onInfoClick={auth ? onInfoClick : undefined}
+											renameFileId={renameFileId}
+											renameFileName={renameFileName}
+											fileOps={fileOps}
+											viewMode={viewMode}
+											showParentChip={showParentChip}
+										/>
+									))}
+								</List>
 								<LoadMoreTrigger
 									ref={fileListData.sentinelRef}
 									isLoading={fileListData.isLoadingMore}

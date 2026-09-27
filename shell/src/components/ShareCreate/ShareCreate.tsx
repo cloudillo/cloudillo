@@ -12,7 +12,20 @@
  */
 
 import type { Ref } from '@cloudillo/core'
-import { Badge, Button, Dialog, useAuth, useToast } from '@cloudillo/react'
+import {
+	ActionBar,
+	Alert,
+	Badge,
+	Button,
+	Dialog,
+	HBox,
+	RadioGroup,
+	type RadioOption,
+	Text,
+	useAuth,
+	useToast,
+	VBox
+} from '@cloudillo/react'
 import dayjs from 'dayjs'
 import React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -25,6 +38,8 @@ import {
 } from '../../message-bus/handlers/share.js'
 import { useShareOrigin } from '../../utils/appOrigin.js'
 import { isRefReusable, shareLinkErrorMessage } from '../../utils/refs.js'
+
+const CREATE_NEW = ':create'
 
 interface PendingRequest {
 	options: ShareCreateOpenOptions
@@ -178,104 +193,89 @@ export function ShareCreate() {
 
 	if (!pending) return null
 
-	const accessLabel =
-		pending.options.accessLevel === 'write'
-			? t('Can edit')
-			: pending.options.accessLevel === 'comment'
-				? t('Can comment')
-				: t('View only')
+	const accessLabel = (level?: string) =>
+		level === 'write' ? t('Can edit') : level === 'comment' ? t('Can comment') : t('View only')
+	const accessBadge = (level?: string) => (
+		<Badge color={level === 'write' ? 'accent' : 'secondary'}>{accessLabel(level)}</Badge>
+	)
 	const showReuse = pending.options.reuse && compatibleRefs.length > 0
 
+	// One radio value per choice: CREATE_NEW, or the refId to reuse
+	const choice = mode === 'reuse' && selectedRefId ? selectedRefId : CREATE_NEW
+	const choiceOptions: RadioOption[] = [
+		{
+			value: CREATE_NEW,
+			label: (
+				<HBox align="center" gap={2}>
+					<Text className="flex-fill">{t('Create new link')}</Text>
+					{accessBadge(pending.options.accessLevel)}
+				</HBox>
+			)
+		},
+		...compatibleRefs.map((ref) => ({
+			value: ref.refId,
+			label: (
+				<HBox align="center" gap={2}>
+					<Text className="flex-fill">{ref.description || t('Shared link')}</Text>
+					{accessBadge(ref.accessLevel)}
+				</HBox>
+			),
+			description: [t('Use existing link'), formatExpiry(ref, t)].filter(Boolean).join(' · ')
+		}))
+	]
+
 	return (
-		<Dialog open title={t('Create share link')} onClose={handleCancel}>
-			<p>{pending.options.description || t('Share this document')}</p>
+		<Dialog
+			open
+			title={t('Create share link')}
+			onClose={handleCancel}
+			footer={
+				<ActionBar>
+					<Button onClick={handleCancel}>{t('Cancel')}</Button>
+					{/* Both paths hand out a URL, and /s/:refId resolves the ref against the ORIGIN's
+					    tenant - built on our own host, a foreign owner's link 404s for whoever receives
+					    it. So the confirm waits for the owner's real app domain, and stays disabled for
+					    good if it never arrives. */}
+					<Button
+						color="primary"
+						onClick={handleConfirm}
+						loading={creating}
+						disabled={loadingRefs || !shareOrigin.trusted}
+					>
+						{mode === 'reuse' ? t('Copy page link') : t('Create & copy link')}
+					</Button>
+				</ActionBar>
+			}
+		>
+			<VBox gap={3}>
+				<Text as="p">{pending.options.description || t('Share this document')}</Text>
 
-			{showReuse ? (
-				<div className="c-vbox g-2 mt-3">
-					<label className="c-hbox g-2 align-items-center">
-						<input
-							type="radio"
-							name="share-choice"
-							checked={mode === 'create'}
-							onChange={() => setMode('create')}
-						/>
-						<span className="flex-fill">{t('Create new link')}</span>
-						<Badge
-							variant={
-								pending.options.accessLevel === 'write' ? 'accent' : 'secondary'
+				{showReuse ? (
+					<RadioGroup
+						aria-label={t('Share link')}
+						options={choiceOptions}
+						value={choice}
+						onChange={(value) => {
+							if (value === CREATE_NEW) {
+								setMode('create')
+							} else {
+								setMode('reuse')
+								setSelectedRefId(value)
 							}
-						>
-							{accessLabel}
-						</Badge>
-					</label>
-					<hr style={{ margin: 0, opacity: 0.2 }} />
-					<div className="text-secondary" style={{ fontSize: '0.85em' }}>
-						{t('Use existing link')}
-					</div>
-					{compatibleRefs.map((ref) => {
-						const expiry = formatExpiry(ref, t)
-						return (
-							<label key={ref.refId} className="c-hbox g-2 align-items-center">
-								<input
-									type="radio"
-									name="share-choice"
-									checked={mode === 'reuse' && selectedRefId === ref.refId}
-									onChange={() => {
-										setMode('reuse')
-										setSelectedRefId(ref.refId)
-									}}
-								/>
-								<span className="flex-fill">
-									{ref.description || t('Shared link')}
-								</span>
-								{expiry && (
-									<span className="text-secondary" style={{ fontSize: '0.85em' }}>
-										{expiry}
-									</span>
-								)}
-								<Badge
-									variant={ref.accessLevel === 'write' ? 'accent' : 'secondary'}
-								>
-									{ref.accessLevel === 'write'
-										? t('Can edit')
-										: ref.accessLevel === 'comment'
-											? t('Can comment')
-											: t('View only')}
-								</Badge>
-							</label>
-						)
-					})}
-				</div>
-			) : (
-				<p className="text-secondary mt-2">
-					{t('Access')}: {accessLabel}
-				</p>
-			)}
+						}}
+					/>
+				) : (
+					<Text as="p" emphasis="muted">
+						{t('Access')}: {accessLabel(pending.options.accessLevel)}
+					</Text>
+				)}
 
-			{shareOrigin.status === 'failed' && (
-				<p className="text-error mt-2" role="alert">
-					{t('Could not determine the share address for this document.')}
-				</p>
-			)}
-
-			<div className="c-hbox justify-content-end g-2 mt-3">
-				<Button onClick={handleCancel}>{t('Cancel')}</Button>
-				{/* Both paths hand out a URL, and /s/:refId resolves the ref against the ORIGIN's
-				    tenant - built on our own host, a foreign owner's link 404s for whoever receives
-				    it. So the confirm waits for the owner's real app domain, and stays disabled for
-				    good if it never arrives. */}
-				<Button
-					variant="primary"
-					onClick={handleConfirm}
-					disabled={creating || loadingRefs || !shareOrigin.trusted}
-				>
-					{creating
-						? t('Creating...')
-						: mode === 'reuse'
-							? t('Copy page link')
-							: t('Create & copy link')}
-				</Button>
-			</div>
+				{shareOrigin.status === 'failed' && (
+					<Alert color="error" compact>
+						{t('Could not determine the share address for this document.')}
+					</Alert>
+				)}
+			</VBox>
 		</Dialog>
 	)
 }

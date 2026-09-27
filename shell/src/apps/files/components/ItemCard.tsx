@@ -2,12 +2,18 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import {
+	Button,
+	FileTypeIcon,
+	HBox,
+	Icon,
 	InlineEditForm,
-	mergeClasses,
+	ListItem,
 	ProfilePicture,
 	Tag,
+	Text,
 	useAuth,
-	useToast
+	useToast,
+	VBox
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -17,6 +23,7 @@ import {
 	LuPencil as IcEdit,
 	LuFolder as IcFolder,
 	LuInfo as IcInfo,
+	LuRadio as IcLive,
 	LuLock as IcLock,
 	LuChevronRight as IcOpenFolder,
 	LuPin as IcPin,
@@ -29,7 +36,6 @@ import {
 import { useCurrentContextIdTag } from '../../../context/index.js'
 import { useAppConfig } from '../../../utils.js'
 import { isViewerSupported, triggerFileDownload } from '../../viewer/MediaViewer.js'
-import { getFileIcon, type IcUnknown } from '../icons.js'
 import type { File, FileOps, ViewMode } from '../types.js'
 import { isFileProcessing, MANAGED_FOLDER_ID, TRASH_FOLDER_ID } from '../types.js'
 import {
@@ -40,8 +46,13 @@ import {
 	toAppAccess
 } from '../utils.js'
 
+function iconContentType(contentType: string | undefined, fileTp: string | undefined) {
+	return fileTp === 'FLDR' ? 'cloudillo/folder' : contentType
+}
+
 interface ItemCardProps {
 	className?: string
+	selected?: boolean
 	file: File
 	isDirty?: boolean
 	onClick?: (file: File, event: React.MouseEvent) => void
@@ -57,6 +68,7 @@ interface ItemCardProps {
 
 export const ItemCard = React.memo(function ItemCard({
 	className,
+	selected,
 	file,
 	isDirty,
 	onClick,
@@ -78,12 +90,7 @@ export const ItemCard = React.memo(function ItemCard({
 	const isFolder = file.fileTp === 'FLDR'
 	const isInTrash = viewMode === 'trash' || file.parentId === TRASH_FOLDER_ID
 	const isManagedView = viewMode === 'managed' || file.parentId === MANAGED_FOLDER_ID
-	const Icon = getFileIcon(file.contentType, file.fileTp)
 	const isRenaming = renameFileName !== undefined && file.fileId === renameFileId
-
-	function handleClick(evt: React.MouseEvent) {
-		onClick?.(file, evt)
-	}
 
 	function handleDoubleClick(_evt: React.MouseEvent) {
 		if (isFolder) {
@@ -185,211 +192,190 @@ export const ItemCard = React.memo(function ItemCard({
 		fileOps.toggleStarred?.(file.fileId)
 	}
 
+	const isDirect = !file.visibility || file.visibility === 'D'
+	// Prefer the upstream node — on a mirrored (pinned/placed) row it is the
+	// meaningful "from where" signal, and it is never the active context.
+	// Otherwise attribute to the owner.
+	const attribution = file.upstream ?? file.owner
+	const showAttribution = !!attribution && attribution.idTag !== contextIdTag
+	const editable = isLive && (canWrite(file.accessLevel) || !file.accessLevel)
+
 	return (
-		<div
-			className={mergeClasses(
-				'c-file-card',
-				isPinned && 'pinned',
-				isBroken && 'broken',
-				isProcessing && 'processing',
-				className
-			)}
+		<ListItem
+			className={className}
+			selected={selected}
 			data-file-id={file.fileId}
 			data-source-context={contextIdTag ?? undefined}
-			onClick={handleClick}
+			onClick={
+				isRenaming
+					? undefined
+					: (evt) => onClick?.(file, evt as unknown as React.MouseEvent)
+			}
 			onDoubleClick={handleDoubleClick}
 			onContextMenu={handleContextMenu}
-		>
-			{/* File Icon with pin, access badge and live indicator */}
-			<div className="c-file-card-icon pos-relative">
-				{React.createElement<React.ComponentProps<typeof IcUnknown>>(Icon)}
-				{isBroken && (
-					<span className="c-file-card-broken-badge" title={brokenSubtitle ?? ''}>
-						<IcBroken />
-					</span>
-				)}
-				{!isBroken && isProcessing && (
-					<span
-						className="c-file-card-processing-badge"
-						title={t('Still processing — available shortly')}
-					>
-						<IcProcessing />
-					</span>
-				)}
-				{isPinned && (
-					<span className="c-file-card-pin" title={t('Pinned')}>
-						<IcPin />
-					</span>
-				)}
-				{!isFolder && file.accessLevel && !canWrite(file.accessLevel) && (
-					<span className="c-file-card-access-badge">
-						{file.accessLevel === 'read' || file.accessLevel === 'comment' ? (
-							<IcView />
-						) : (
-							<IcLock />
+			leading={
+				<FileTypeIcon
+					contentType={iconContentType(file.contentType, file.fileTp)}
+					size="md"
+				/>
+			}
+			title={
+				isRenaming ? (
+					<InlineEditForm
+						value={renameFileName}
+						onSave={(newName) => fileOps.doRenameFile(file.fileId, newName)}
+						onCancel={() => fileOps.setRenameFileName(undefined)}
+						size="small"
+					/>
+				) : (
+					file.fileName
+				)
+			}
+			subtitle={
+				<VBox gap={1}>
+					{/* Meta line: smart timestamp, parent chip, owner, visibility */}
+					<HBox gap={2} align="center" wrap>
+						<Text>
+							{smartTimestamp.label && (
+								<Text emphasis="muted">{t(smartTimestamp.label)} </Text>
+							)}
+							{smartTimestamp.time}
+						</Text>
+						{showParentChip && file.parentName && (
+							<HBox gap={1} align="center">
+								<Icon as={IcFolder} />
+								<Text truncate>{file.parentName}</Text>
+							</HBox>
 						)}
-					</span>
-				)}
-				{isLive && <span className="c-file-card-live" title={t('Live document')} />}
-				{isDirty && (
-					<span className="c-file-card-dirty" title={t('Has unsynced local edits')}>
-						<IcUnsyncedEdit />
-					</span>
-				)}
-			</div>
-
-			{/* Content: name, meta, tags */}
-			<div className="c-file-card-content">
-				{/* File name with inline edit and star button */}
-				<div className="c-file-card-name">
-					{isRenaming ? (
-						<InlineEditForm
-							value={renameFileName}
-							onSave={(newName) => fileOps.doRenameFile(file.fileId, newName)}
-							onCancel={() => fileOps.setRenameFileName(undefined)}
-							size="small"
+						{showAttribution && attribution && (
+							<HBox gap={1} align="center">
+								{/* The listing came from the active context, which holds the blob. */}
+								<ProfilePicture
+									profile={attribution}
+									tiny
+									srcTag={contextIdTag ?? auth?.idTag}
+								/>
+								<Text truncate>{attribution.name || `@${attribution.idTag}`}</Text>
+							</HBox>
+						)}
+						<Icon
+							as={getVisibilityIcon(file.visibility ?? null)}
+							className={isDirect ? 'text-muted' : undefined}
+							label={getVisibilityLabel(t, file.visibility ?? null)}
 						/>
-					) : (
-						<span className="c-file-card-name-text text-truncate">{file.fileName}</span>
+					</HBox>
+					{/* Tombstone subtitle */}
+					{brokenSubtitle && (
+						<Text size="sm" emphasis="muted">
+							{brokenSubtitle}
+						</Text>
 					)}
+					{/* Tags (read-only on card) */}
+					{!isFolder && file.tags && file.tags.length > 0 && (
+						<HBox gap={1} align="center" wrap>
+							{file.tags.slice(0, 3).map((tag) => (
+								<Tag key={tag} size="sm">
+									#{tag}
+								</Tag>
+							))}
+							{file.tags.length > 3 && (
+								<Text size="sm" emphasis="muted">
+									+{file.tags.length - 3}
+								</Text>
+							)}
+						</HBox>
+					)}
+				</VBox>
+			}
+			meta={
+				<HBox gap={1} align="center">
+					{isBroken && (
+						<Icon as={IcBroken} color="warning" label={brokenSubtitle ?? ''} />
+					)}
+					{!isBroken && isProcessing && (
+						<Icon as={IcProcessing} label={t('Still processing — available shortly')} />
+					)}
+					{isPinned && <Icon as={IcPin} label={t('Pinned')} />}
+					{!isFolder && file.accessLevel && !canWrite(file.accessLevel) && (
+						<Icon
+							as={
+								file.accessLevel === 'read' || file.accessLevel === 'comment'
+									? IcView
+									: IcLock
+							}
+						/>
+					)}
+					{isLive && <Icon as={IcLive} color="success" label={t('Live document')} />}
+					{isDirty && (
+						<Icon
+							as={IcUnsyncedEdit}
+							color="warning"
+							label={t('Has unsynced local edits')}
+						/>
+					)}
+				</HBox>
+			}
+			trailing={
+				<HBox gap={1} align="center">
 					{!isInTrash && !isManagedView && (
-						<button
-							type="button"
-							className={mergeClasses('c-file-card-star', isStarred && 'active')}
+						<Button
+							variant="ghost"
+							size="sm"
+							icon={<IcStar />}
+							pressed={isStarred}
 							onClick={handleStarClick}
-							title={isStarred ? t('Unstar') : t('Star')}
-						>
-							<IcStar />
-						</button>
+							aria-label={isStarred ? t('Unstar') : t('Star')}
+						/>
 					)}
-				</div>
-
-				{/* Meta line: smart timestamp, parent chip, owner, visibility */}
-				<div className="c-file-card-meta">
-					<span className="c-file-card-meta-date">
-						{smartTimestamp.label && (
-							<span className="c-file-card-meta-label">
-								{t(smartTimestamp.label)}{' '}
-							</span>
-						)}
-						{smartTimestamp.time}
-					</span>
-					{showParentChip && file.parentName && (
-						<span className="c-file-card-meta-parent" title={file.parentName}>
-							<IcFolder /> <span className="text-truncate">{file.parentName}</span>
-						</span>
+					{/* Info button (visible on mobile only) */}
+					{!isInTrash && onInfoClick && (
+						<Button
+							variant="ghost"
+							className="lg-hide"
+							icon={<IcInfo />}
+							onClick={handleInfoClick}
+							aria-label={t('Show details')}
+						/>
 					)}
-					<span className="c-file-card-meta-right">
-						{(() => {
-							// Prefer the upstream node — on a mirrored (pinned/placed) row it is
-							// the meaningful "from where" signal, and it is never the active
-							// context. Otherwise attribute to the owner.
-							const attribution = file.upstream ?? file.owner
-							if (!attribution) return null
-							if (attribution.idTag === contextIdTag) return null
-							return (
-								<span className="c-file-card-meta-owner">
-									{/* The listing came from the active context, which holds the blob. */}
-									<ProfilePicture
-										profile={attribution}
-										tiny
-										srcTag={contextIdTag ?? auth?.idTag}
-									/>
-									<span className="text-truncate">
-										{attribution.name || `@${attribution.idTag}`}
-									</span>
-								</span>
-							)
-						})()}
-						{(() => {
-							const VisibilityIcon = getVisibilityIcon(file.visibility ?? null)
-							const isDirect = !file.visibility || file.visibility === 'D'
-							return (
-								<span
-									className={mergeClasses(
-										'c-file-card-visibility',
-										isDirect && 'muted'
-									)}
-									title={getVisibilityLabel(t, file.visibility ?? null)}
-								>
-									<VisibilityIcon />
-								</span>
-							)
-						})()}
-					</span>
-				</div>
-
-				{/* Tombstone subtitle */}
-				{isBroken && brokenSubtitle && (
-					<div className="c-file-card-meta">
-						<span className="small text-muted">{brokenSubtitle}</span>
-					</div>
-				)}
-
-				{/* Tags (read-only on card) */}
-				{!isFolder && file.tags && file.tags.length > 0 && (
-					<div className="c-file-card-tags">
-						{file.tags.slice(0, 3).map((tag) => (
-							<Tag key={tag} size="small">
-								#{tag}
-							</Tag>
-						))}
-						{file.tags.length > 3 && (
-							<span className="c-file-card-tags-more">+{file.tags.length - 3}</span>
-						)}
-					</div>
-				)}
-			</div>
-
-			{/* Info button (visible on mobile only) */}
-			{!isInTrash && onInfoClick && (
-				<button
-					type="button"
-					className="c-file-card-info c-button link icon lg-hide"
-					onClick={handleInfoClick}
-					title={t('Show details')}
-				>
-					<IcInfo />
-				</button>
-			)}
-
-			{/* Open button (for mobile touch and clarity) */}
-			{/* Long-press on files with write access opens in read mode */}
-			{/* Icon changes based on access level: pencil=edit, eye=view, lock=none */}
-			{!isInTrash && (
-				<button
-					type="button"
-					className="c-file-card-open c-button link icon"
-					onClick={handleOpenClick}
-					onTouchStart={handleOpenTouchStart}
-					onTouchEnd={handleOpenTouchEnd}
-					onTouchCancel={handleOpenTouchEnd}
-					title={
-						isFolder
-							? t('Open folder')
-							: file.accessLevel === 'none'
-								? t('No access')
-								: isLive && (canWrite(file.accessLevel) || !file.accessLevel)
-									? t('Edit (hold for view mode)')
-									: downloadOnly
-										? t('Download')
-										: t('View')
-					}
-				>
-					{isFolder ? (
-						<IcOpenFolder />
-					) : file.accessLevel === 'none' ? (
-						<IcLock />
-					) : isLive && (canWrite(file.accessLevel) || !file.accessLevel) ? (
-						<IcEdit />
-					) : downloadOnly ? (
-						<IcDownload />
-					) : (
-						<IcView />
+					{/* Open button (for mobile touch and clarity) */}
+					{/* Long-press on files with write access opens in read mode */}
+					{/* Icon changes based on access level: pencil=edit, eye=view, lock=none */}
+					{!isInTrash && (
+						<Button
+							variant="ghost"
+							onClick={handleOpenClick}
+							onTouchStart={handleOpenTouchStart}
+							onTouchEnd={handleOpenTouchEnd}
+							onTouchCancel={handleOpenTouchEnd}
+							icon={
+								isFolder ? (
+									<IcOpenFolder />
+								) : file.accessLevel === 'none' ? (
+									<IcLock />
+								) : editable ? (
+									<IcEdit />
+								) : downloadOnly ? (
+									<IcDownload />
+								) : (
+									<IcView />
+								)
+							}
+							aria-label={
+								isFolder
+									? t('Open folder')
+									: file.accessLevel === 'none'
+										? t('No access')
+										: editable
+											? t('Edit (hold for view mode)')
+											: downloadOnly
+												? t('Download')
+												: t('View')
+							}
+						/>
 					)}
-				</button>
-			)}
-		</div>
+				</HBox>
+			}
+		/>
 	)
 })
 

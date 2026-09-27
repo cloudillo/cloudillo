@@ -15,12 +15,15 @@ import {
 } from '@cloudillo/react'
 import type { ProfileStatus } from '@cloudillo/types'
 import type { TFunction } from 'i18next'
+import { useAtomValue } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
 	LuCircleOff as IcBlock,
 	LuCheck as IcCheck,
 	LuAtSign as IcCopyTag,
+	LuArrowLeft as IcMoveLeft,
+	LuArrowRight as IcMoveRight,
 	LuHouse as IcHome,
 	LuBellOff as IcMute,
 	LuPin as IcPin,
@@ -31,6 +34,7 @@ import {
 import { useNavigate } from 'react-router-dom'
 
 import { profilePath } from '../routes.js'
+import { previewCommunityAtom } from './atoms'
 import { useCtx } from './ctx'
 import { useCommunitiesList } from './hooks'
 
@@ -53,6 +57,9 @@ export interface ProfileContextMenuProps {
 	position: { x: number; y: number }
 	onClose: () => void
 	onRestored?: (idTag: string) => void
+	/** A pinned strip chip: move it one slot (WCAG 2.5.7 alternative to dragging) */
+	onMoveLeft?: () => void
+	onMoveRight?: () => void
 }
 
 type StatusChange = 'A' | 'B' | 'M'
@@ -74,7 +81,9 @@ export function ProfileContextMenu({
 	target,
 	position,
 	onClose,
-	onRestored
+	onRestored,
+	onMoveLeft,
+	onMoveRight
 }: ProfileContextMenuProps) {
 	const { t } = useTranslation()
 	const navigate = useNavigate()
@@ -83,6 +92,7 @@ export function ProfileContextMenu({
 	const toast = useToast()
 	const ctx = useCtx()
 	const { communities, favorites, toggleFavorite, setShowInHome } = useCommunitiesList()
+	const previewCommunity = useAtomValue(previewCommunityAtom)
 
 	const isMobile = useIsMobile()
 	const Item = isMobile ? ActionSheetItem : MenuItem
@@ -95,7 +105,9 @@ export function ProfileContextMenu({
 	const isCommunity = target.type === 'community'
 	const isMember = isCommunity && communities.some((c) => c.idTag === target.idTag)
 	const isPinned = isCommunity && favorites.some((c) => c.idTag === target.idTag)
-	const showPinEntry = isCommunity && !isOwnProfile && (isPinned || isMember)
+	// The preview chip (active but unpinned) is pinned from here too.
+	const isPreview = isCommunity && previewCommunity?.idTag === target.idTag
+	const showPinEntry = isCommunity && !isOwnProfile && (isPinned || isMember || isPreview)
 	// Composition: members can opt a community in/out of the merged home feed.
 	const memberCommunity = isMember ? communities.find((c) => c.idTag === target.idTag) : undefined
 	const showHomeEntry = isCommunity && !isOwnProfile && isMember
@@ -171,6 +183,20 @@ export function ProfileContextMenu({
 							icon={<IcPin />}
 							label={t('Pin')}
 							onClick={handleAction(handleTogglePin)}
+						/>
+					)}
+					{isPinned && onMoveLeft && (
+						<Item
+							icon={<IcMoveLeft />}
+							label={t('Move left')}
+							onClick={handleAction(onMoveLeft)}
+						/>
+					)}
+					{isPinned && onMoveRight && (
+						<Item
+							icon={<IcMoveRight />}
+							label={t('Move right')}
+							onClick={handleAction(onMoveRight)}
 						/>
 					)}
 				</>

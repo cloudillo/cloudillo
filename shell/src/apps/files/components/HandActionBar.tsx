@@ -3,7 +3,21 @@
 
 import type { ApiClient } from '@cloudillo/core'
 import { FetchError } from '@cloudillo/core'
-import { Button, Dialog, useAuth, useToast } from '@cloudillo/react'
+import {
+	Badge,
+	Button,
+	Dialog,
+	HBox,
+	Icon,
+	RadioGroup,
+	type RadioOption,
+	Tag,
+	Text,
+	Toolbar,
+	useAuth,
+	useToast,
+	VBox
+} from '@cloudillo/react'
 import { useAtom, useAtomValue, useStore } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -276,14 +290,14 @@ export function HandActionBar({
 	// On non-browse views with a non-empty hand, show a muted hint instead of action buttons.
 	if (!isBrowse) {
 		return (
-			<div className="c-hbox align-items-center g-2 p-2 bg-mid br">
-				<IcHand />
-				<span className="cl-hand-hint">
+			<Toolbar variant="soft">
+				<Icon as={IcHand} />
+				<Text size="sm" emphasis="muted">
 					{t('Holding {{count}} files. Switch to Browse to place, move or pin them.', {
 						count: items.length
 					})}
-				</span>
-			</div>
+				</Text>
+			</Toolbar>
 		)
 	}
 
@@ -336,241 +350,193 @@ export function HandActionBar({
 	const previewChips = placeTargets.slice(0, 3)
 	const previewOverflow = placeCount - previewChips.length
 
-	const allOptions: Array<{
-		value: AccessLevel
-		icon: React.ReactNode
-		title: string
-		desc: string
-	}> = [
+	const allOptions: Array<RadioOption<AccessLevel>> = [
 		{
 			value: 'read',
-			icon: <IcRead />,
-			title: t('Read only'),
-			desc: t('Recipients can view the files.')
+			leading: <IcRead />,
+			label: t('Read only'),
+			description: t('Recipients can view the files.')
 		},
 		{
 			value: 'comment',
-			icon: <IcComment />,
-			title: t('Can comment'),
-			desc: t('Recipients can view and add comments.')
+			leading: <IcComment />,
+			label: t('Can comment'),
+			description: t('Recipients can view and add comments.')
 		},
 		{
 			value: 'write',
-			icon: <IcWrite />,
-			title: t('Can edit'),
-			desc: t('Recipients can edit the content.')
+			leading: <IcWrite />,
+			label: t('Can edit'),
+			description: t('Recipients can edit the content.')
 		}
 	]
-	const options = anyImmutable ? allOptions.filter((o) => o.value !== 'write') : allOptions
+	const options = (anyImmutable ? allOptions.filter((o) => o.value !== 'write') : allOptions).map(
+		(o) =>
+			o.value === lastUsed
+				? {
+						...o,
+						label: (
+							<>
+								{o.label}{' '}
+								<Text size="sm" emphasis="muted">
+									· {t('last used')} ·
+								</Text>
+							</>
+						)
+					}
+				: o
+	)
 
 	return (
 		<>
-			<div className="c-hbox align-items-center g-2 p-2 bg-mid br flex-wrap">
-				<IcHand />
-				<span className="small text-muted">
+			<Toolbar variant="soft" className="flex-wrap">
+				<Icon as={IcHand} />
+				<Text size="sm" emphasis="muted">
 					{t('Hand: {{count}} files', { count: items.length })}
-				</span>
+				</Text>
 
 				{states.pin !== 'hidden' && (
-					<button
-						type="button"
-						className="c-button primary"
-						disabled={states.pin === 'disabled'}
-						title={
+					<Button
+						color="primary"
+						icon={<IcPin />}
+						disabledReason={
 							states.pin === 'disabled'
-								? disabledTooltip(
-										items.filter(applies.pin).length,
-										items.length,
-										t('pinned')
-									)
+								? disabledTooltip(counts.pin, items.length, t('pinned'))
 								: undefined
 						}
 						onClick={doPin}
 					>
-						<IcPin />
 						{t('Pin here')}
 						{states.pin === 'disabled' && (
-							<span
-								className="cl-hand-action-badge"
+							<Badge
+								size="sm"
 								aria-label={t('{{count}} applicable', { count: counts.pin })}
 							>
 								{counts.pin}
-							</span>
+							</Badge>
 						)}
-					</button>
+					</Button>
 				)}
 
 				{states.place !== 'hidden' && (
-					<button
-						type="button"
-						className="c-button primary"
-						disabled={states.place === 'disabled'}
-						title={
+					<Button
+						color="primary"
+						icon={<IcPlace />}
+						disabledReason={
 							states.place === 'disabled'
-								? disabledTooltip(
-										items.filter(applies.place).length,
-										items.length,
-										t('placed')
-									)
+								? disabledTooltip(counts.place, items.length, t('placed'))
 								: undefined
 						}
 						onClick={onOpenPlace}
 					>
-						<IcPlace />
 						{t('Place here…')}
 						{states.place === 'disabled' && (
-							<span
-								className="cl-hand-action-badge"
+							<Badge
+								size="sm"
 								aria-label={t('{{count}} applicable', { count: counts.place })}
 							>
 								{counts.place}
-							</span>
+							</Badge>
 						)}
-					</button>
+					</Button>
 				)}
 
 				{states.move !== 'hidden' && (
-					<button
-						type="button"
-						className="c-button"
-						disabled={states.move === 'disabled'}
-						title={
+					<Button
+						icon={<IcMove />}
+						disabledReason={
 							states.move === 'disabled'
-								? disabledTooltip(
-										items.filter(applies.move).length,
-										items.length,
-										t('moved')
-									)
+								? disabledTooltip(counts.move, items.length, t('moved'))
 								: undefined
 						}
 						onClick={doMove}
 					>
-						<IcMove />
 						{t('Move here')}
 						{states.move === 'disabled' && (
-							<span
-								className="cl-hand-action-badge"
+							<Badge
+								size="sm"
 								aria-label={t('{{count}} applicable', { count: counts.move })}
 							>
 								{counts.move}
-							</span>
+							</Badge>
 						)}
-					</button>
+					</Button>
 				)}
 
 				{states.restore !== 'hidden' && (
-					<button
-						type="button"
-						className="c-button"
-						disabled={states.restore === 'disabled'}
-						title={
+					<Button
+						icon={<IcRestore />}
+						disabledReason={
 							states.restore === 'disabled'
-								? disabledTooltip(
-										items.filter(applies.restore).length,
-										items.length,
-										t('restored')
-									)
+								? disabledTooltip(counts.restore, items.length, t('restored'))
 								: undefined
 						}
 						onClick={doRestore}
 					>
-						<IcRestore />
 						{t('Restore here')}
 						{states.restore === 'disabled' && (
-							<span
-								className="cl-hand-action-badge"
+							<Badge
+								size="sm"
 								aria-label={t('{{count}} applicable', { count: counts.restore })}
 							>
 								{counts.restore}
-							</span>
+							</Badge>
 						)}
-					</button>
+					</Button>
 				)}
-			</div>
+			</Toolbar>
 
 			<Dialog
 				open={placeOpen}
 				title={dialogTitle}
+				description={t('Choose what recipients can do:')}
 				onClose={onCancelPlace}
-				className="cl-hand-place-dialog"
+				onSubmit={() => onConfirmPlace()}
+				footer={
+					<HBox gap={2} align="center" justify="between" wrap>
+						<Text size="xs" emphasis="muted">
+							{t('Esc to cancel · ⏎ to place')}
+						</Text>
+						<HBox gap={2}>
+							<Button type="button" onClick={onCancelPlace}>
+								{t('Cancel')}
+							</Button>
+							<Button type="submit" color="primary">
+								{placeCount === 1 ? t('Place') : t('Place files')}
+								<IcChevron />
+							</Button>
+						</HBox>
+					</HBox>
+				}
 			>
-				<form
-					onSubmit={(e) => {
-						e.preventDefault()
-						onConfirmPlace()
-					}}
-				>
-					<p className="m-0 mb-3">{t('Choose what recipients can do:')}</p>
-					<fieldset className="cl-perm-options">
-						<legend className="sr-only">{t('Permission')}</legend>
-						{options.map((opt) => {
-							const isLast = opt.value === lastUsed
-							const isSelected = opt.value === placeAccess
-							return (
-								<label
-									key={opt.value}
-									className={'cl-perm-option' + (isSelected ? ' selected' : '')}
-								>
-									<input
-										type="radio"
-										name="hand-place-access"
-										value={opt.value}
-										checked={isSelected}
-										onChange={() => setPlaceAccess(opt.value)}
-										autoFocus={isSelected}
-									/>
-									<span className="cl-perm-option__icon" aria-hidden="true">
-										{opt.icon}
-									</span>
-									<span className="cl-perm-option__body">
-										<span className="cl-perm-option__title">
-											{opt.title}
-											{isLast && (
-												<span className="cl-perm-option__badge">
-													· {t('last used')} ·
-												</span>
-											)}
-										</span>
-										<span className="cl-perm-option__desc">{opt.desc}</span>
-									</span>
-								</label>
-							)
-						})}
-					</fieldset>
+				<VBox gap={3}>
+					<RadioGroup
+						variant="card"
+						name="hand-place-access"
+						aria-label={t('Permission')}
+						options={options}
+						value={placeAccess}
+						onChange={setPlaceAccess}
+					/>
 
 					{previewChips.length > 0 && (
-						<div className="cl-hand-place-preview">
-							<span className="text-muted small">
+						<HBox gap={1} align="center" wrap>
+							<Text size="sm" emphasis="muted">
 								{t('{{count}} files', { count: placeCount })}:
-							</span>
+							</Text>
 							{previewChips.map((it) => (
-								<span
-									key={`${it.sourceContext}:${it.id}`}
-									className="cl-hand-chip"
-									title={it.label}
-								>
+								<Tag key={`${it.sourceContext}:${it.id}`} size="sm">
 									{it.label}
-								</span>
+								</Tag>
 							))}
 							{previewOverflow > 0 && (
-								<span className="cl-hand-chip cl-hand-chip--more">
+								<Text size="sm" emphasis="muted">
 									{t('+{{count}} more', { count: previewOverflow })}
-								</span>
+								</Text>
 							)}
-						</div>
+						</HBox>
 					)}
-
-					<div className="c-hbox g-2 align-items-center justify-content-flex-end mt-3">
-						<Button type="button" onClick={onCancelPlace}>
-							{t('Cancel')}
-						</Button>
-						<Button type="submit" variant="primary" className="g-2">
-							{placeCount === 1 ? t('Place') : t('Place files')}
-							<IcChevron />
-						</Button>
-					</div>
-					<div className="cl-hand-place-kbd-hint">{t('Esc to cancel · ⏎ to place')}</div>
-				</form>
+				</VBox>
 			</Dialog>
 		</>
 	)

@@ -20,7 +20,7 @@
  * onwards: swap the markup, hoist the metadata, rescan the islands, place the scroll.
  */
 
-import { Button, LoadingSpinner } from '@cloudillo/react'
+import { Alert, Button, LoadingSpinner, VBox, VisuallyHidden } from '@cloudillo/react'
 import { useSetAtom } from 'jotai'
 import * as React from 'react'
 import { createPortal, flushSync } from 'react-dom'
@@ -28,6 +28,7 @@ import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate, useNavigationType } from 'react-router-dom'
 
 import { NotFound } from '../NotFound.js'
+import { ContentHost } from '../ui/ContentHost.js'
 import { nodeHasSite, SITE_CHROME_ID, SITE_CONTENT_ID, SITE_PREBOOT_CLASS } from './detect.js'
 import {
 	applyPageMeta,
@@ -358,12 +359,12 @@ export function SitePage() {
 			{/* Not a 404: the page is very likely there and nobody answered. Leave
 			    whatever is on screen alone and offer the fetch again. */}
 			{loadError && (
-				<div className="c-vbox g-2 p-3 align-items-center">
-					<div className="c-alert error" role="alert">
+				<VBox gap={2} padding={3} align="center">
+					<Alert color="error">
 						{t('Could not load this page. Check your connection.')}
-					</div>
+					</Alert>
 					<Button onClick={() => setRetry((n) => n + 1)}>{t('Try again')}</Button>
-				</div>
+				</VBox>
 			)}
 			{/* Only while the host below is genuinely empty — a page reached from
 			    another page keeps that one on screen for the round trip, and a
@@ -371,20 +372,20 @@ export function SitePage() {
 			    of the two this is — a 404 emptied the host without forgetting its
 			    path, so `shownPathRef` would answer the wrong question. */}
 			{loading && !loadError && hostEmptyRef.current && (
-				<div className="c-vbox align-items-center justify-content-center p-3">
+				<VBox align="center" justify="center" padding={3}>
 					<LoadingSpinner />
-				</div>
+				</VBox>
 			)}
 			{/* Renders no React children, so React never touches what it adopted:
 			    first paint stays the server's paint — no flash, no second render.
 			    It is also the published page's only scroll container — see
-			    `.c-site-content-host` in `shell/src/style.css` and `scroll.ts`. */}
-			<div ref={hostRef} className="c-site-content-host" hidden={notFound} />
+			    `ContentHost` and `scroll.ts`. */}
+			<ContentHost ref={hostRef} hidden={notFound} />
 			{/* The swap is a DOM mutation React never sees, so the page change has to
 			    be spoken deliberately. */}
-			<div className="sr-only" role="status" aria-live="polite">
+			<VisuallyHidden role="status" aria-live="polite">
 				{announce}
-			</div>
+			</VisuallyHidden>
 			{islands.map((target) =>
 				createPortal(<SiteIsland target={target} />, target.el, target.key)
 			)}
@@ -394,7 +395,7 @@ export function SitePage() {
 
 /**
  * The content element, adopted from the server or made here. Its **id** carries the
- * reading measure (`#cl-site-content`, `shell/src/style.css`), so a fetched page wears
+ * reading measure (`#cl-site-content`, `@cloudillo/react/site/prose.css`), so a fetched page wears
  * it too. `tabIndex = -1` makes it focusable without a tab stop — `followRoute` moves
  * focus here after a swap, since the clicked anchor left with the old markup.
  */

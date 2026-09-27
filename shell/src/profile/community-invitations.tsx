@@ -3,12 +3,18 @@
 
 import type { ApiClient } from '@cloudillo/core'
 import {
+	ActionBar,
+	Badge,
 	Button,
-	mergeClasses,
+	Card,
+	EmptyState,
+	HBox,
 	ProfileCard,
+	Text,
 	TimeFormat,
 	useDialog,
-	useToast
+	useToast,
+	VBox
 } from '@cloudillo/react'
 import type { ActionView } from '@cloudillo/types'
 import * as React from 'react'
@@ -75,7 +81,7 @@ export function InvitationsList({
 		const confirmed = await dialog.confirm(
 			t('Revoke invitation'),
 			t('Are you sure you want to revoke this invitation?'),
-			'error'
+			{ color: 'error', confirmLabel: t('Revoke') }
 		)
 		if (!confirmed) return
 		const client = getClientFor(communityIdTag, { explicit: true })
@@ -96,48 +102,43 @@ export function InvitationsList({
 
 	if (invitations === undefined) return null
 	if (invitations.length === 0) {
-		return (
-			<div className="c-panel p-3">
-				<p className="text-muted">{t('No invitations sent.')}</p>
-			</div>
-		)
+		return <EmptyState className="auto-bg" size="sm" title={t('No invitations sent.')} />
 	}
 
 	return (
-		<>
+		<VBox gap={2}>
 			{invitations.map((action) => {
 				const busy = busyId === action.actionId
 				const invitee = action.audience
 				return (
-					<div
-						key={action.actionId}
-						className={mergeClasses('c-panel p-3 mb-2 g-2 d-flex flex-column')}
-					>
-						<div className="c-hbox g-2 align-items-center">
+					<Card key={action.actionId} padding={3}>
+						<HBox gap={2} align="center">
 							{invitee ? (
 								<ProfileCard className="flex-fill" profile={invitee} />
 							) : (
-								<div className="flex-fill text-muted">{t('(unknown)')}</div>
+								<Text emphasis="muted" className="flex-fill">
+									{t('(unknown)')}
+								</Text>
 							)}
-							<span className="c-badge">{t('Pending')}</span>
+							<Badge variant="soft">{t('Pending')}</Badge>
 							<TimeFormat time={action.createdAt} />
-						</div>
+						</HBox>
 						{action.issuer && (
-							<p className="c-hint m-0">
+							<Text as="p" size="sm" emphasis="muted">
 								{t('invited by {{name}}', {
 									name: action.issuer.name || action.issuer.idTag
 								})}
-							</p>
+							</Text>
 						)}
-						<div className="c-hbox g-2 justify-content-end">
+						<ActionBar>
 							<Button disabled={busy} onClick={() => handleRevoke(action)}>
 								{t('Revoke invitation')}
 							</Button>
-						</div>
-					</div>
+						</ActionBar>
+					</Card>
 				)
 			})}
-		</>
+		</VBox>
 	)
 }
 

@@ -2,19 +2,32 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import { parseQS } from '@cloudillo/core'
-import { Badge, Fcd, ProfileCard, ProfilePicture, useApi, useAuth } from '@cloudillo/react'
+import {
+	Avatar,
+	Badge,
+	Button,
+	Card,
+	FAB,
+	Fcd,
+	HBox,
+	Icon,
+	Nav,
+	PageHeader,
+	ProfileCard,
+	ProfilePicture,
+	useApi,
+	useAuth
+} from '@cloudillo/react'
 import type { Profile } from '@cloudillo/types'
 import type { TFunction } from 'i18next'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
 	LuExternalLink as IcExternalLink,
-	LuFilter as IcFilter,
 	LuUserCheck as IcFollowsYou,
 	LuUsers as IcMutual,
 	LuPlus as IcPlus,
 	LuScanLine as IcScan,
-	LuSearch as IcSearch,
 	LuUser as IcUser,
 	LuUsers as IcUserAll,
 	LuCircleOff as IcUserBlocked,
@@ -24,7 +37,7 @@ import {
 	LuBellOff as IcUserMuted,
 	LuOctagonPause as IcUserSuspended
 } from 'react-icons/lu'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 
 import { useQrScanner } from '../components/QrScanner/index.js'
 import { useContextSwitch, useCtx } from '../context/index.js'
@@ -51,31 +64,33 @@ function ProfileConnectionIcon({ profile }: { profile: Profile }) {
 	const { t } = useTranslation()
 	const rel = describeRelationship(profile)
 	// Check for exactly true (connected) vs 'R' (pending request)
-	if (profile.connected === true) return <IcUserConnected className="text-success" />
-	if (profile.connected === 'R') return <IcUserConnected className="text-warning" />
-	if (rel.mutual) return <IcMutual className="text-success" title={t('Mutual')} />
-	if (rel.following) return <IcUserFollowing className="text-success" />
-	if (rel.followsYou) return <IcFollowsYou className="text-secondary" title={t('Follows you')} />
-	return <IcUser />
+	if (profile.connected === true)
+		return <Icon as={IcUserConnected} color="success" label={t('Connected')} />
+	if (profile.connected === 'R')
+		return <Icon as={IcUserConnected} color="warning" label={t('Connection requested')} />
+	if (rel.mutual) return <Icon as={IcMutual} color="success" label={t('Mutual')} />
+	if (rel.following) return <Icon as={IcUserFollowing} color="success" label={t('Following')} />
+	if (rel.followsYou) return <Icon as={IcFollowsYou} color="secondary" label={t('Follows you')} />
+	return <Icon as={IcUser} />
 }
 
 export function ProfileStatusBadge({ profile }: { profile: Profile }) {
 	const { t } = useTranslation()
 	if (profile.status === 'B')
 		return (
-			<Badge className="xs align-self-center" variant="error">
+			<Badge size="xs" className="align-self-center" color="error">
 				{t('Blocked')}
 			</Badge>
 		)
 	if (profile.status === 'S')
 		return (
-			<Badge className="xs align-self-center" variant="warning">
+			<Badge size="xs" className="align-self-center" color="warning">
 				{t('Suspended')}
 			</Badge>
 		)
 	if (profile.status === 'M')
 		return (
-			<Badge className="xs align-self-center" variant="secondary">
+			<Badge size="xs" className="align-self-center" color="secondary">
 				{t('Muted')}
 			</Badge>
 		)
@@ -91,12 +106,11 @@ const getStatusFilters = (t: TFunction) =>
 		{ value: 'all', label: t('All statuses'), icon: IcUserAll }
 	] as const
 
-function FilterBar({ className }: { className?: string }) {
+function FilterBar() {
 	const { t } = useTranslation()
 	const statusFilters = getStatusFilters(t)
 	const location = useLocation()
 	const qs = parseQS(location.search)
-	const userStat = { all: 0, connected: 0, followed: 0, following: 0, trusted: 0 }
 
 	const relFilter: 'connected' | 'followed' | 'followers' | 'all' =
 		qs.connected === '1'
@@ -117,6 +131,10 @@ function FilterBar({ className }: { className?: string }) {
 					? statusList[0]
 					: ''
 
+	function withSearch(sp: URLSearchParams): string {
+		const s = sp.toString()
+		return s ? `${location.pathname}?${s}` : location.pathname
+	}
 	function relHref(v: 'connected' | 'followed' | 'followers' | 'all'): string {
 		const sp = new URLSearchParams(location.search)
 		sp.delete('connected')
@@ -124,91 +142,59 @@ function FilterBar({ className }: { className?: string }) {
 		if (v === 'connected') sp.set('connected', '1')
 		else if (v === 'followed') sp.set('filter', 'followed')
 		else if (v === 'followers') sp.set('filter', 'followers')
-		const s = sp.toString()
-		return s ? `?${s}` : location.pathname
+		return withSearch(sp)
 	}
 	function statusHref(v: string): string {
 		const sp = new URLSearchParams(location.search)
 		if (v === 'A') sp.delete('status')
 		else if (v === 'all') sp.set('status', 'A,B,M,S')
 		else sp.set('status', v)
-		const s = sp.toString()
-		return s ? `?${s}` : location.pathname
+		return withSearch(sp)
 	}
 
+	// Filters differ only by query string, so `active` is passed explicitly
+	// (router-derived active state matches the pathname only)
 	return (
-		<div className={'c-vbox g-2 ' + (className || '')}>
-			<div className="c-input-group">
-				<input type="text" className="c-input" placeholder={t('Search')} />
-				<button className="c-button secondary" type="button">
-					<IcSearch />
-				</button>
-			</div>
-
-			<h6 className="m-0">{t('Relationship')}</h6>
-			<ul className="c-nav vertical low">
-				<li className="c-nav-item">
-					<Link
-						className={'c-nav-link ' + (relFilter === 'connected' ? 'active' : '')}
-						to={relHref('connected')}
-					>
-						<IcUserConnected /> {t('Connected')}
-						{!!userStat.connected && (
-							<span className="c-badge bg bg-error">{userStat.connected}</span>
-						)}
-					</Link>
-				</li>
-				<li className="c-nav-item">
-					<Link
-						className={'c-nav-link ' + (relFilter === 'followed' ? 'active' : '')}
-						to={relHref('followed')}
-					>
-						<IcUserFollowed /> {t('Following')}
-						{!!userStat.followed && (
-							<span className="c-badge bg bg-error">{userStat.followed}</span>
-						)}
-					</Link>
-				</li>
-				<li className="c-nav-item">
-					<Link
-						className={'c-nav-link ' + (relFilter === 'followers' ? 'active' : '')}
-						to={relHref('followers')}
-					>
-						<IcFollowsYou /> {t('Followers')}
-					</Link>
-				</li>
-				<li className="c-nav-item">
-					<Link
-						className={'c-nav-link ' + (relFilter === 'all' ? 'active' : '')}
-						to={relHref('all')}
-					>
-						<IcUserAll /> {t('All')}
-						{!!userStat.all && (
-							<span className="c-badge bg bg-error">{userStat.all}</span>
-						)}
-					</Link>
-				</li>
-			</ul>
-
-			<h6 className="m-0">{t('Status')}</h6>
-			<ul className="c-nav vertical low">
-				{statusFilters.map(({ value, label, icon: Icon }) => (
-					<li key={value} className="c-nav-item">
-						<Link
-							className={'c-nav-link ' + (statusFilter === value ? 'active' : '')}
-							to={statusHref(value)}
-						>
-							<Icon /> {label}
-						</Link>
-					</li>
+		<Nav orientation="vertical" aria-label={t('Filter')}>
+			<Nav.Section label={t('Relationship')}>
+				<Nav.Item
+					icon={<IcUserConnected />}
+					label={t('Connected')}
+					href={relHref('connected')}
+					active={relFilter === 'connected'}
+				/>
+				<Nav.Item
+					icon={<IcUserFollowed />}
+					label={t('Following')}
+					href={relHref('followed')}
+					active={relFilter === 'followed'}
+				/>
+				<Nav.Item
+					icon={<IcFollowsYou />}
+					label={t('Followers')}
+					href={relHref('followers')}
+					active={relFilter === 'followers'}
+				/>
+				<Nav.Item
+					icon={<IcUserAll />}
+					label={t('All')}
+					href={relHref('all')}
+					active={relFilter === 'all'}
+				/>
+			</Nav.Section>
+			<Nav.Section label={t('Status')}>
+				{statusFilters.map(({ value, label, icon: StatusIcon }) => (
+					<Nav.Item
+						key={value}
+						icon={<StatusIcon />}
+						label={label}
+						href={statusHref(value)}
+						active={statusFilter === value}
+					/>
 				))}
-			</ul>
-		</div>
+			</Nav.Section>
+		</Nav>
 	)
-}
-
-function _ProfileDetails({ className }: { className?: string }) {
-	return <div className={'c-panel p-1 ' + (className || '')}></div>
 }
 
 interface ProfileListCardProps {
@@ -234,21 +220,24 @@ export function ProfileListCard({
 	const rel = describeRelationship(profile)
 
 	return (
-		<Link
-			className="c-panel p-1 mb-1 flex-row align-items-center"
-			to={profilePath(ctx.base, profile.idTag)}
+		<Card
+			padding={1}
+			className="mb-1"
+			href={profilePath(ctx.base, profile.idTag)}
 			onClick={wrapClick?.(() => {})}
 			{...triggerProps}
 		>
-			<ProfileCard className="flex-fill" profile={profile} srcTag={srcTag} />
-			{rel.followsYou && !rel.mutual && (
-				<span className="c-badge outline secondary align-self-center">
-					{t('Follows you')}
-				</span>
-			)}
-			<ProfileStatusBadge profile={profile} />
-			<ProfileConnectionIcon profile={profile} />
-		</Link>
+			<HBox gap={2} align="center">
+				<ProfileCard className="flex-fill" profile={profile} srcTag={srcTag} />
+				{rel.followsYou && !rel.mutual && (
+					<Badge variant="outline" color="secondary" className="align-self-center">
+						{t('Follows you')}
+					</Badge>
+				)}
+				<ProfileStatusBadge profile={profile} />
+				<ProfileConnectionIcon profile={profile} />
+			</HBox>
+		</Card>
 	)
 }
 
@@ -295,8 +284,10 @@ export function CommunityListCard({
 	}
 
 	return (
-		<div
-			className="c-panel p-1 mb-1 flex-row align-items-center"
+		<Card
+			interactive
+			padding={1}
+			className="mb-1"
 			role="button"
 			tabIndex={0}
 			onClick={wrapClick ? wrapClick(handleRowClick) : handleRowClick}
@@ -306,22 +297,20 @@ export function CommunityListCard({
 					handleRowClick()
 				}
 			}}
-			style={{ cursor: 'pointer' }}
 			{...triggerProps}
 		>
-			<ProfileCard className="flex-fill" profile={profile} srcTag={srcTag} />
-			<button
-				type="button"
-				className="c-button icon ghost"
-				onClick={handleViewProfile}
-				title={t('View profile')}
-				aria-label={t('View profile')}
-			>
-				<IcExternalLink />
-			</button>
-			<ProfileStatusBadge profile={profile} />
-			<ProfileConnectionIcon profile={profile} />
-		</div>
+			<HBox gap={2} align="center">
+				<ProfileCard className="flex-fill" profile={profile} srcTag={srcTag} />
+				<Button
+					variant="ghost"
+					icon={<IcExternalLink />}
+					aria-label={t('View profile')}
+					onClick={handleViewProfile}
+				/>
+				<ProfileStatusBadge profile={profile} />
+				<ProfileConnectionIcon profile={profile} />
+			</HBox>
+		</Card>
 	)
 }
 
@@ -335,21 +324,19 @@ interface PeopleHeaderProps {
 
 export function PeopleHeader({ variant, title, subtitle, profilePic, srcTag }: PeopleHeaderProps) {
 	return (
-		<div className="c-hbox g-2 align-items-center p-2 mb-2">
-			{variant === 'community' ? (
-				<ProfilePicture profile={{ profilePic }} srcTag={srcTag} small />
-			) : (
-				<div className="c-profile-card">
-					<div className="picture small c-hbox align-items-center justify-content-center">
-						<IcUserAll />
-					</div>
-				</div>
-			)}
-			<div className="c-vbox">
-				<h2 className="m-0">{title}</h2>
-				<div className="text-secondary small">{subtitle}</div>
-			</div>
-		</div>
+		<PageHeader
+			className="auto-bg"
+			level={2}
+			title={title}
+			subtitle={subtitle}
+			leading={
+				variant === 'community' ? (
+					<ProfilePicture profile={{ profilePic }} srcTag={srcTag} small />
+				) : (
+					<Avatar size="sm" fallback={<IcUserAll />} />
+				)
+			}
+		/>
 	)
 }
 
@@ -358,7 +345,6 @@ export function PersonListPage({ idTag }: { idTag?: string }) {
 	const location = useLocation()
 	const { api } = useApi()
 	const [auth] = useAuth()
-	const [showFilter, setShowFilter] = React.useState<boolean>(false)
 	const [profiles, setProfiles] = React.useState<Profile[]>([])
 	const [refreshTick, setRefreshTick] = React.useState(0)
 	const [, setQrScannerOpen] = useQrScanner()
@@ -366,13 +352,6 @@ export function PersonListPage({ idTag }: { idTag?: string }) {
 	// The tenant the route names when there is one (this page is also rendered without a
 	// route, from `PeoplePage`).
 	const contextIdTag = useCtx().idTag || idTag
-
-	React.useEffect(
-		function onLocationEffect() {
-			setShowFilter(false)
-		},
-		[location]
-	)
 
 	React.useEffect(
 		function loadPersonList() {
@@ -398,8 +377,8 @@ export function PersonListPage({ idTag }: { idTag?: string }) {
 
 	return (
 		<>
-			<Fcd.Container className="g-1">
-				<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
+			<Fcd.Container className="g-1" filterLabel={t('Filter')}>
+				<Fcd.Filter>
 					<FilterBar />
 				</Fcd.Filter>
 				<Fcd.Content>
@@ -408,9 +387,6 @@ export function PersonListPage({ idTag }: { idTag?: string }) {
 						title={t('People')}
 						subtitle={`${t('Your connections')} · ${profiles.length}`}
 					/>
-					<div className="c-nav c-hbox md-hide lg-hide">
-						<IcFilter onClick={() => setShowFilter(true)} />
-					</div>
 					{!!profiles &&
 						profiles.map((profile) => (
 							<ProfileListCard
@@ -429,13 +405,11 @@ export function PersonListPage({ idTag }: { idTag?: string }) {
 			</Fcd.Container>
 
 			{auth && (
-				<button
-					className="c-fab"
+				<FAB
+					icon={<IcScan />}
+					aria-label={t('Scan QR code')}
 					onClick={() => setQrScannerOpen(true)}
-					title={t('Scan QR code')}
-				>
-					<IcScan />
-				</button>
+				/>
 			)}
 
 			{menuState && (
@@ -459,19 +433,11 @@ export function CommunityListPage() {
 	const navigate = useNavigate()
 	const { api } = useApi()
 	const [auth] = useAuth()
-	const [showFilter, setShowFilter] = React.useState<boolean>(false)
 	const [profiles, setProfiles] = React.useState<Profile[]>([])
 	const [refreshTick, setRefreshTick] = React.useState(0)
 	const { menuState, closeMenu, getTriggerProps, wrapClick } = useProfileContextMenu()
 	// The tenant the route names; the effect below re-runs when it changes.
 	const ctx = useCtx()
-
-	React.useEffect(
-		function onLocationEffect() {
-			setShowFilter(false)
-		},
-		[location]
-	)
 
 	React.useEffect(
 		function loadCommunities() {
@@ -495,14 +461,11 @@ export function CommunityListPage() {
 
 	return (
 		<>
-			<Fcd.Container className="g-1">
-				<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
+			<Fcd.Container className="g-1" filterLabel={t('Filter')}>
+				<Fcd.Filter>
 					<FilterBar />
 				</Fcd.Filter>
 				<Fcd.Content>
-					<div className="c-nav c-hbox md-hide lg-hide">
-						<IcFilter onClick={() => setShowFilter(true)} />
-					</div>
 					{!!profiles &&
 						profiles.map((profile) => (
 							<CommunityListCard
@@ -520,14 +483,11 @@ export function CommunityListPage() {
 				</Fcd.Content>
 			</Fcd.Container>
 
-			{/* FAB for creating new community */}
-			<button
-				className="c-fab"
+			<FAB
+				icon={<IcPlus />}
+				aria-label={t('Create new community')}
 				onClick={() => navigate(communityCreatePath(ctx.base))}
-				title={t('Create new community')}
-			>
-				<IcPlus />
-			</button>
+			/>
 
 			{menuState && (
 				<ProfileContextMenu

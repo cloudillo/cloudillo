@@ -1,10 +1,9 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button } from '@cloudillo/react'
 import * as React from 'react'
+import { Button, HBox, Tag } from '@cloudillo/react'
 import { useTranslation } from 'react-i18next'
-import { LuX as IcRemove } from 'react-icons/lu'
 
 import type { FileTypeFilter, OwnerFilter } from '../types.js'
 
@@ -51,67 +50,52 @@ export function FilterChips({
 	}
 
 	return (
-		<div className="d-flex flex-wrap align-items-center g-1">
+		<HBox gap={1} align="center" wrap>
 			{fileTypeFilter !== 'all' && (
-				<span className="c-tag accent">
+				<Tag
+					color="accent"
+					onRemove={() => onFileTypeFilterChange('all')}
+					removeLabel={t('Remove type filter')}
+				>
 					{fileTypeFilter === 'live' ? t('Live') : t('Static')}
-					<button
-						type="button"
-						className="c-tag-remove"
-						onClick={() => onFileTypeFilterChange('all')}
-						aria-label={t('Remove type filter')}
-					>
-						<IcRemove />
-					</button>
-				</span>
+				</Tag>
 			)}
 
 			{ownerFilter !== 'anyone' && (
-				<span className="c-tag accent">
+				<Tag
+					color="accent"
+					onRemove={() => onOwnerFilterChange('anyone')}
+					removeLabel={t('Remove owner filter')}
+				>
 					{ownerFilter === 'me' ? t('Owner: Me') : t('Owner: Others')}
-					<button
-						type="button"
-						className="c-tag-remove"
-						onClick={() => onOwnerFilterChange('anyone')}
-						aria-label={t('Remove owner filter')}
-					>
-						<IcRemove />
-					</button>
-				</span>
+				</Tag>
 			)}
 
 			{searchQuery.trim() !== '' && (
-				<span className="c-tag accent">
+				<Tag
+					color="accent"
+					onRemove={() => onSearchQueryChange('')}
+					removeLabel={t('Remove search filter')}
+				>
 					&ldquo;{searchQuery.trim()}&rdquo;
-					<button
-						type="button"
-						className="c-tag-remove"
-						onClick={() => onSearchQueryChange('')}
-						aria-label={t('Remove search filter')}
-					>
-						<IcRemove />
-					</button>
-				</span>
+				</Tag>
 			)}
 
 			{selectedTags.map((tag) => (
-				<span key={tag} className="c-tag accent">
+				<Tag
+					key={tag}
+					color="accent"
+					onRemove={() => removeTag(tag)}
+					removeLabel={t('Remove tag filter')}
+				>
 					#{tag}
-					<button
-						type="button"
-						className="c-tag-remove"
-						onClick={() => removeTag(tag)}
-						aria-label={t('Remove tag filter')}
-					>
-						<IcRemove />
-					</button>
-				</span>
+				</Tag>
 			))}
 
-			<Button size="small" onClick={clearAll}>
+			<Button variant="ghost" size="sm" onClick={clearAll}>
 				{t('Clear all')}
 			</Button>
-		</div>
+		</HBox>
 	)
 }
 

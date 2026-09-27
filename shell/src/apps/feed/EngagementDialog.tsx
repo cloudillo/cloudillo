@@ -8,16 +8,22 @@
  * verified automatically in the background, everyone else gets a Verify button.
  */
 
-import { getFileUrl } from '@cloudillo/core'
 import {
+	Badge,
 	Button,
 	Dialog,
 	EmptyState,
+	HBox,
+	Icon,
+	List,
+	ListItem,
 	LoadingSpinner,
-	monogramFor,
+	ProfilePicture,
 	SkeletonList,
 	Tab,
 	Tabs,
+	Text,
+	Tooltip,
 	useApi,
 	useAuth
 } from '@cloudillo/react'
@@ -31,7 +37,6 @@ import {
 	LuShieldOff as IcUnavailable,
 	LuShieldCheck as IcVerified
 } from 'react-icons/lu'
-import { Link } from 'react-router-dom'
 
 import { useApiContext, useCtx } from '../../context/index.js'
 import { profilePath } from '../../routes.js'
@@ -194,49 +199,41 @@ export function EngagementDialog({
 	const showEmoji = activeTab === 'all'
 
 	return (
-		<Dialog
-			open
-			dismissable
-			title={t('Reactions')}
-			onClose={onClose}
-			className="c-engagement-dialog"
-		>
-			<Tabs value={activeTab} onTabChange={setActiveTab} className="mb-2 c-engagement-tabs">
+		<Dialog open dismissable title={t('Reactions')} onClose={onClose}>
+			<Tabs value={activeTab} onTabChange={setActiveTab} className="mb-2">
 				<Tab value="all">
-					{t('All')} {reactions.length > 0 && <small>{reactions.length}</small>}
+					{t('All')} {reactions.length > 0 && <CountBadge count={reactions.length} />}
 				</Tab>
 				{reactionGroups.map((g) => (
-					<Tab key={g.key} value={g.key} title={getReactionLabel(t, g.key)}>
-						{getReactionEmoji(g.key)} <small>{g.actions.length}</small>
+					<Tab key={g.key} value={g.key} aria-label={getReactionLabel(t, g.key)}>
+						{getReactionEmoji(g.key)} <CountBadge count={g.actions.length} />
 					</Tab>
 				))}
 				<Tab value="reposts">
-					{t('Reposts')} {reposts.length > 0 && <small>{reposts.length}</small>}
+					{t('Reposts')} {reposts.length > 0 && <CountBadge count={reposts.length} />}
 				</Tab>
 			</Tabs>
 
-			<div className="c-engagement-list overflow-y-auto">
-				{loading ? (
-					<SkeletonList count={5} />
-				) : error ? (
-					<EmptyState
-						title={t('Could not load')}
-						description={error.message}
-						action={
-							<Button variant="primary" onClick={reload}>
-								{t('Retry')}
-							</Button>
-						}
-					/>
-				) : rows.length === 0 ? (
-					<EmptyState
-						icon={<IcEmpty />}
-						title={
-							activeTab === 'reposts' ? t('No reposts yet') : t('No reactions yet')
-						}
-					/>
-				) : (
-					rows.map((action) => (
+			{loading ? (
+				<SkeletonList count={5} />
+			) : error ? (
+				<EmptyState
+					title={t('Could not load')}
+					description={error.message}
+					action={
+						<Button color="primary" onClick={reload}>
+							{t('Retry')}
+						</Button>
+					}
+				/>
+			) : rows.length === 0 ? (
+				<EmptyState
+					icon={<IcEmpty />}
+					title={activeTab === 'reposts' ? t('No reposts yet') : t('No reactions yet')}
+				/>
+			) : (
+				<List scroll>
+					{rows.map((action) => (
 						<EngagementRow
 							key={action.actionId}
 							action={action}
@@ -246,10 +243,18 @@ export function EngagementDialog({
 							onVerify={onVerify}
 							onClose={onClose}
 						/>
-					))
-				)}
-			</div>
+					))}
+				</List>
+			)}
 		</Dialog>
+	)
+}
+
+function CountBadge({ count }: { count: number }) {
+	return (
+		<Badge size="sm" variant="soft">
+			{count}
+		</Badge>
 	)
 }
 
@@ -276,40 +281,41 @@ function EngagementRow({
 	// Gate on the resolved tag, not on `auth` — this dialog is guest-reachable
 	// (the reaction/repost chips that open it are not auth-gated).
 	const picIdTag = audienceTag || auth?.idTag
-	const picUrl =
-		picIdTag && issuer.profilePic
-			? getFileUrl(picIdTag, issuer.profilePic, 'vis.pf')
-			: undefined
 
 	return (
-		<div className="c-engagement-row c-hbox align-items-center g-2">
-			<Link
-				to={profilePath(urlContext, issuer.idTag)}
-				className="c-hbox align-items-center g-2 flex-fill text-decoration-none"
-				onClick={onClose}
-			>
-				{picUrl ? (
-					<img className="c-engagement-avatar" src={picUrl} alt="" />
-				) : (
-					<div
-						className="c-engagement-avatar c-engagement-avatar--empty"
-						aria-hidden="true"
-					>
-						{monogramFor(issuer.idTag, issuer.name)}
-					</div>
-				)}
-				<div className="c-vbox flex-fill" style={{ minWidth: 0 }}>
-					<span className="c-engagement-name">{issuer.name || issuer.idTag}</span>
-					<small className="c-engagement-tag text-muted">@{issuer.idTag}</small>
-				</div>
-			</Link>
-			{emoji && (
-				<span className="c-engagement-emoji" aria-hidden="true">
-					{emoji}
-				</span>
-			)}
-			<VerifyBadge status={status} onVerify={() => onVerify(action)} />
-		</div>
+		<ListItem
+			href={profilePath(urlContext, issuer.idTag)}
+			onClick={onClose}
+			leading={<ProfilePicture profile={issuer} srcTag={picIdTag} size="sm" />}
+			title={issuer.name || issuer.idTag}
+			subtitle={`@${issuer.idTag}`}
+			trailing={
+				<HBox align="center" gap={2}>
+					{emoji && (
+						<Text size="lg" aria-hidden="true">
+							{emoji}
+						</Text>
+					)}
+					<VerifyBadge status={status} onVerify={() => onVerify(action)} />
+				</HBox>
+			}
+		/>
+	)
+}
+
+function StatusIcon({
+	icon,
+	label,
+	color
+}: {
+	icon: React.ComponentType<React.SVGAttributes<SVGElement>>
+	label: string
+	color?: 'success' | 'error'
+}) {
+	return (
+		<Tooltip content={label}>
+			<Icon as={icon} label={label} color={color} tabIndex={0} />
+		</Tooltip>
 	)
 }
 
@@ -318,51 +324,23 @@ function VerifyBadge({ status, onVerify }: { status: RowStatus; onVerify: () => 
 
 	switch (status) {
 		case 'pending':
-			return (
-				<span className="c-engagement-status" title={t('Checking signature…')}>
-					<LoadingSpinner size="xs" />
-				</span>
-			)
+			return <LoadingSpinner size="xs" label={t('Checking signature…')} />
 		case 'verified':
-			return (
-				<span
-					className="c-engagement-status text-success c-hbox align-items-center g-1"
-					title={t('Signature verified')}
-				>
-					<IcVerified />
-				</span>
-			)
+			return <StatusIcon icon={IcVerified} color="success" label={t('Signature verified')} />
 		case 'invalid':
 			return (
-				<span className="c-engagement-status c-engagement-status--invalid text-error c-hbox align-items-center g-1">
-					<IcInvalid />
-					<small>{t('Invalid signature')}</small>
-				</span>
+				<Badge color="error" variant="soft" icon={<IcInvalid />}>
+					{t('Invalid signature')}
+				</Badge>
 			)
 		case 'no-key':
-			return (
-				<span
-					className="c-engagement-status text-muted c-hbox align-items-center g-1"
-					title={t('No matching key published')}
-				>
-					<IcNoKey />
-				</span>
-			)
+			return <StatusIcon icon={IcNoKey} label={t('No matching key published')} />
 		case 'unavailable':
-			return (
-				<span className="c-engagement-status text-muted" title={t('Signature unavailable')}>
-					<IcUnavailable />
-				</span>
-			)
+			return <StatusIcon icon={IcUnavailable} label={t('Signature unavailable')} />
 		default:
 			// 'unchecked' or 'error' — offer an explicit Verify action.
 			return (
-				<Button
-					size="small"
-					variant="secondary"
-					className="c-engagement-verify-btn"
-					onClick={onVerify}
-				>
+				<Button size="sm" color="secondary" onClick={onVerify}>
 					{t('Verify')}
 				</Button>
 			)

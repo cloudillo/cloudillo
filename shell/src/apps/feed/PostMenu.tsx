@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button, mergeClasses, Popper, useApi, useAuth, useDialog } from '@cloudillo/react'
+import { Button, Menu, MenuDivider, MenuItem, useApi, useAuth, useDialog } from '@cloudillo/react'
 import type { ActionView } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -57,7 +57,8 @@ export function PostMenu({ action, onDelete }: PostMenuProps) {
 
 		const confirmed = await dialog.confirm(
 			t('Delete post'),
-			t('Delete this post? This cannot be undone.')
+			t('Delete this post? This cannot be undone.'),
+			{ color: 'error', confirmLabel: t('Delete') }
 		)
 		if (!confirmed) return
 
@@ -73,48 +74,38 @@ export function PostMenu({ action, onDelete }: PostMenuProps) {
 	if (!auth) return null
 
 	return (
-		<Popper menuClassName="c-button link" icon={<IcMore />}>
-			<ul className="c-nav vertical emph">
-				<li>
-					<Button
-						kind="nav-item"
-						className={mergeClasses(subLevel === 'W' && 'active')}
-						onClick={() => handleSubscribe('W')}
-					>
-						<IcBell />
-						{t('Watching')}
-					</Button>
-				</li>
-				<li>
-					<Button
-						kind="nav-item"
-						className={mergeClasses(subLevel === 'T' && 'active')}
-						onClick={() => handleSubscribe('T')}
-					>
-						<IcTrack />
-						{t('Tracking')}
-					</Button>
-				</li>
-				<li>
-					<Button
-						kind="nav-item"
-						className={mergeClasses(subLevel === 'M' && 'active')}
-						onClick={() => handleSubscribe('M')}
-					>
-						<IcMute />
-						{t('Muted')}
-					</Button>
-				</li>
-				{isOwn && (
-					<li>
-						<Button kind="nav-item" onClick={handleDelete}>
-							<IcDelete style={{ color: 'var(--col-error)' }} />
-							{t('Delete post')}
-						</Button>
-					</li>
-				)}
-			</ul>
-		</Popper>
+		<Menu
+			placement="bottom-end"
+			trigger={<Button variant="ghost" icon={<IcMore />} aria-label={t('More actions')} />}
+		>
+			<MenuItem
+				icon={<IcBell />}
+				label={t('Watching')}
+				selected={subLevel === 'W'}
+				onClick={() => handleSubscribe('W')}
+			/>
+			<MenuItem
+				icon={<IcTrack />}
+				label={t('Tracking')}
+				selected={subLevel === 'T'}
+				onClick={() => handleSubscribe('T')}
+			/>
+			<MenuItem
+				icon={<IcMute />}
+				label={t('Muted')}
+				selected={subLevel === 'M'}
+				onClick={() => handleSubscribe('M')}
+			/>
+			{isOwn && <MenuDivider />}
+			{isOwn && (
+				<MenuItem
+					icon={<IcDelete />}
+					label={t('Delete post')}
+					color="error"
+					onClick={handleDelete}
+				/>
+			)}
+		</Menu>
 	)
 }
 

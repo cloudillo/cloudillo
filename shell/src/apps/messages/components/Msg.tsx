@@ -3,11 +3,18 @@
 
 import { getFileUrl } from '@cloudillo/core'
 import {
-	generateFragments,
+	Button,
+	ChatBubble,
+	HBox,
+	Icon,
+	Image,
+	Link,
 	LoadingSpinner,
-	mergeClasses,
 	ProfileCard,
-	useAuth
+	RichText,
+	Text,
+	useAuth,
+	VBox
 } from '@cloudillo/react'
 import dayjs from 'dayjs'
 import * as React from 'react'
@@ -17,30 +24,11 @@ import {
 	LuRotateCw as IcRetry,
 	LuCheck as IcSent
 } from 'react-icons/lu'
-import { Link } from 'react-router-dom'
 
 import { useCtx } from '../../../context/index.js'
 import { createdAtToSeconds } from '../../../read-position.js'
 import { profilePath } from '../../../routes.js'
 import type { ActionEvt } from '../types.js'
-
-// Render message text: paragraphs split on blank lines, soft line breaks via
-// `<br/>` placed only BETWEEN lines (not after the last) so there is no trailing
-// blank line at the end of a paragraph.
-function paragraphsFromContent(content: string): React.ReactNode {
-	return content.split('\n\n').map((paragraph, i) => (
-		<p key={i}>
-			{paragraph.split('\n').map((line, j, arr) => (
-				<React.Fragment key={j}>
-					{generateFragments(line).map((n, k) => (
-						<React.Fragment key={k}>{n}</React.Fragment>
-					))}
-					{j < arr.length - 1 && <br />}
-				</React.Fragment>
-			))}
-		</p>
-	))
-}
 
 interface MsgProps {
 	className?: string
@@ -75,60 +63,52 @@ function MsgComponent({
 	}
 
 	const senderName = action.issuer.name || action.issuer.idTag
+	const tempId = action.tempId
 
 	return (
-		<div
+		<ChatBubble
 			ref={register}
+			side={local ? 'end' : 'start'}
 			data-read-ts={createdAtToSeconds(action.createdAt)}
-			className={mergeClasses(
-				'c-panel c-msg p-2 px-3 mb-1',
-				local ? 'local primary' : 'remote secondary',
-				className
-			)}
+			className={className ? `mb-1 ${className}` : 'mb-1'}
 		>
 			{showSender && (
-				<div className="c-panel-header d-flex mb-1">
-					<Link to={profilePath(urlContext, action.issuer.idTag)}>
-						<ProfileCard profile={action.issuer} className="small" />
-					</Link>
-				</div>
+				<Link href={profilePath(urlContext, action.issuer.idTag)} className="mb-1">
+					<ProfileCard profile={action.issuer} className="small" />
+				</Link>
 			)}
-			<div className="d-flex flex-column">
+			<VBox>
 				{imgSrc && (
-					<img
-						src={imgSrc}
-						alt={senderName || t('Image')}
-						className="mb-2 mx-auto w-max-100"
-					/>
+					<Image src={imgSrc} alt={senderName || t('Image')} className="mb-2 mx-auto" />
 				)}
-				{typeof action.content == 'string' && action.content.trim()
-					? paragraphsFromContent(action.content)
-					: null}
-			</div>
-			<div className="c-hbox align-items-center g-2 justify-content-end text-muted text-small mt-1">
-				{action.sendStatus === 'failed' && onRetry && action.tempId && (
-					<button
-						className="c-button link text-error p-0"
-						title={t('Retry')}
-						aria-label={t('Retry')}
-						onClick={() => onRetry(action.tempId!)}
+				{typeof action.content == 'string' && action.content.trim() ? (
+					<RichText text={action.content} />
+				) : null}
+			</VBox>
+			<HBox align="center" justify="end" gap={2} className="mt-1">
+				{action.sendStatus === 'failed' && onRetry && tempId && (
+					<Button
+						variant="ghost"
+						color="error"
+						size="sm"
+						icon={<IcRetry />}
+						onClick={() => onRetry(tempId)}
 					>
-						<IcRetry size={14} className="me-1" />
 						{t('Retry')}
-					</button>
+					</Button>
 				)}
 				{showTimestamp && (
-					<span>
+					<Text size="sm" emphasis="muted">
 						{dayjs.unix(createdAtToSeconds(action.createdAt)).format('MMM D, HH:mm')}
-					</span>
+					</Text>
 				)}
 				{action.sendStatus === 'sending' && <LoadingSpinner size="sm" />}
-				{action.sendStatus === 'sent' && <IcSent size={14} title={t('Sent')} />}
+				{action.sendStatus === 'sent' && <Icon as={IcSent} size="sm" label={t('Sent')} />}
 				{action.sendStatus === 'failed' && (
-					<IcFailed size={14} className="text-error" title={t('Failed to send')} />
+					<Icon as={IcFailed} size="sm" color="error" label={t('Failed to send')} />
 				)}
-			</div>
-		</div>
+			</HBox>
+		</ChatBubble>
 	)
 }
 

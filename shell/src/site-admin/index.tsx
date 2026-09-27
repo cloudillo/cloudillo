@@ -1,29 +1,20 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Fcd, mergeClasses, useAuth } from '@cloudillo/react'
+import { Fcd, Nav } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
 	LuShieldCheck as IcIdps,
 	LuAtSign as IcInvitations,
 	LuMail as IcMail,
-	LuMenu as IcMenu,
 	LuNetwork as IcProxy,
 	LuServer as IcServer,
 	LuHardDrive as IcStorage,
 	LuUser as IcTenant,
 	LuUsers as IcTenants
 } from 'react-icons/lu'
-import {
-	Navigate,
-	NavLink,
-	Outlet,
-	Route,
-	useLocation,
-	useMatch,
-	useNavigate
-} from 'react-router-dom'
+import { Navigate, Outlet, Route, useLocation, useMatch } from 'react-router-dom'
 
 import { useCtx } from '../context/index.js'
 import { HOME_BASE, rebase, sectionMatch, siteAdminPath } from '../routes.js'
@@ -39,117 +30,66 @@ import { TenantDetail } from './tenant-detail.js'
 import { Tenants } from './tenants.js'
 
 export function SiteAdmin({ title, children }: { title: string; children?: React.ReactNode }) {
-	const _navigate = useNavigate()
 	const location = useLocation()
 	const { t } = useTranslation()
-	const [_auth] = useAuth()
-	const [showFilter, setShowFilter] = React.useState<boolean>(false)
-
-	React.useEffect(
-		function onLocationEffect() {
-			setShowFilter(false)
-		},
-		[location]
-	)
 
 	return (
-		<Fcd.Container className="g-1">
-			<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
-				<ul className="c-nav vertical low">
-					<li className="c-nav-header">{t('User Management')}</li>
-					<li>
-						<NavLink
-							className={({ isActive }) =>
-								mergeClasses('c-nav-item', isActive && 'active')
-							}
-							to={siteAdminPath('invitations')}
-						>
-							<IcInvitations /> {t('Invitations')}
-						</NavLink>
-					</li>
-					<li>
-						<NavLink
-							className={({ isActive }) =>
-								mergeClasses('c-nav-item', isActive && 'active')
-							}
-							to={siteAdminPath('tenants')}
-						>
-							<IcTenants /> {t('Users & Communities')}
-						</NavLink>
-					</li>
-					<li className="c-menu-divider" />
-					<li className="c-nav-header">{t('Registration')}</li>
-					<li>
-						<NavLink
-							className={({ isActive }) =>
-								mergeClasses('c-nav-item', isActive && 'active')
-							}
-							to={siteAdminPath('idps')}
-						>
-							<IcIdps /> {t('Suggested Providers')}
-						</NavLink>
-					</li>
-					<li className="c-menu-divider" />
-					<li className="c-nav-header">{t('System')}</li>
-					<li>
-						<NavLink
-							className={({ isActive }) =>
-								mergeClasses('c-nav-item', isActive && 'active')
-							}
-							to={siteAdminPath('server')}
-						>
-							<IcServer /> {t('Server')}
-						</NavLink>
-					</li>
-					<li>
-						<NavLink
-							className={({ isActive }) =>
-								mergeClasses('c-nav-item', isActive && 'active')
-							}
-							to={siteAdminPath('storage')}
-						>
-							<IcStorage /> {t('Storage')}
-						</NavLink>
-					</li>
-					<li>
-						<NavLink
-							className={({ isActive }) =>
-								mergeClasses('c-nav-item', isActive && 'active')
-							}
-							to={siteAdminPath('email')}
-						>
-							<IcMail /> {t('Email')}
-						</NavLink>
-					</li>
-					<li>
-						<NavLink
-							className={({ isActive }) =>
-								mergeClasses('c-nav-item', isActive && 'active')
-							}
-							to={siteAdminPath('proxy-sites')}
-						>
-							<IcProxy /> {t('Reverse Proxy')}
-						</NavLink>
-					</li>
-					<li>
-						<NavLink
-							className={({ isActive }) =>
-								mergeClasses('c-nav-item', isActive && 'active')
-							}
-							to={siteAdminPath('tenant')}
-						>
-							<IcTenant /> {t('Default Policies')}
-						</NavLink>
-					</li>
-				</ul>
+		// Keyed on the path so the mobile filter drawer closes on navigation — `Fcd.Container`'s
+		// built-in `filterLabel` state has no close-on-navigate of its own.
+		<Fcd.Container key={location.pathname} className="g-1" filterLabel={title}>
+			<Fcd.Filter>
+				<Nav aria-label={t('Administration')}>
+					<Nav.Section label={t('User Management')}>
+						<Nav.Item
+							href={siteAdminPath('invitations')}
+							icon={<IcInvitations />}
+							label={t('Invitations')}
+						/>
+						<Nav.Item
+							href={siteAdminPath('tenants')}
+							icon={<IcTenants />}
+							label={t('Users & Communities')}
+						/>
+					</Nav.Section>
+					<Nav.Divider />
+					<Nav.Section label={t('Registration')}>
+						<Nav.Item
+							href={siteAdminPath('idps')}
+							icon={<IcIdps />}
+							label={t('Suggested Providers')}
+						/>
+					</Nav.Section>
+					<Nav.Divider />
+					<Nav.Section label={t('System')}>
+						<Nav.Item
+							href={siteAdminPath('server')}
+							icon={<IcServer />}
+							label={t('Server')}
+						/>
+						<Nav.Item
+							href={siteAdminPath('storage')}
+							icon={<IcStorage />}
+							label={t('Storage')}
+						/>
+						<Nav.Item
+							href={siteAdminPath('email')}
+							icon={<IcMail />}
+							label={t('Email')}
+						/>
+						<Nav.Item
+							href={siteAdminPath('proxy-sites')}
+							icon={<IcProxy />}
+							label={t('Reverse Proxy')}
+						/>
+						<Nav.Item
+							href={siteAdminPath('tenant')}
+							icon={<IcTenant />}
+							label={t('Default Policies')}
+						/>
+					</Nav.Section>
+				</Nav>
 			</Fcd.Filter>
-			<Fcd.Content>
-				<div className="c-nav c-hbox md-hide lg-hide">
-					<IcMenu onClick={() => setShowFilter(true)} />
-					<h3>{title}</h3>
-				</div>
-				{children}
-			</Fcd.Content>
+			<Fcd.Content>{children}</Fcd.Content>
 		</Fcd.Container>
 	)
 }

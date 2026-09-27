@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { Divider } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -12,13 +13,7 @@ interface ReadDividerProps {
 // already-seen posts in the Feed tab.
 export function ReadDivider({ label }: ReadDividerProps) {
 	const { t } = useTranslation()
-	return (
-		<div className="c-hbox align-items-center g-2 py-2 text-muted small">
-			<hr className="flex-fill" />
-			<span>{label ?? t('New since your last visit')}</span>
-			<hr className="flex-fill" />
-		</div>
-	)
+	return <Divider label={label ?? t('New since your last visit')} className="py-2" />
 }
 
 // vim: ts=4

@@ -25,7 +25,12 @@ jest.unstable_mockModule('react-i18next', () => ({
 	useTranslation: () => ({ t: (key: string) => key })
 }))
 
+// The real components under the overrides below, so the mock does not have to
+// track every name the panel imports.
+const realReact = await import('../../../libs/react/lib/index.js')
+
 jest.unstable_mockModule('@cloudillo/react', () => ({
+	...realReact,
 	Badge: ({ children }: { children?: React.ReactNode }) => <span>{children}</span>,
 	// `...rest` matters: the move buttons below carry their whole accessible name in
 	// `aria-label`, and a mock that dropped it would hide exactly what is under test.

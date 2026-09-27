@@ -10,12 +10,9 @@
  */
 
 import * as React from 'react'
+import { Button, Dialog, Text, VBox } from '@cloudillo/react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuX as IcClose,
-	LuFileSpreadsheet as IcConvert,
-	LuUpload as IcUpload
-} from 'react-icons/lu'
+import { LuFileSpreadsheet as IcConvert, LuUpload as IcUpload } from 'react-icons/lu'
 
 import type { ImportHandler } from '../../../manifest-registry.js'
 import type { PendingConversion } from '../hooks/useSmartUpload.js'
@@ -41,57 +38,45 @@ export function ImportChoiceDialog({
 	const current = pendingConversions[0]
 
 	return (
-		<div className="c-modal show" tabIndex={-1}>
-			<div className="c-dialog c-panel h-max-100 emph p-4">
-				<div className="c-hbox">
-					<h2 className="fill mb-3">{t('Import file')}</h2>
-					<button
-						type="button"
-						className="c-link pos-absolute top-0 right-0 m-3"
-						aria-label={t('Close')}
-						onClick={onDismissAll}
-					>
-						<IcClose />
-					</button>
-				</div>
+		<Dialog
+			open
+			title={t('Import file')}
+			description={t('This file can be converted to a native document:')}
+			onClose={onDismissAll}
+		>
+			<VBox gap={3}>
+				<Text weight="bold">{current.file.name}</Text>
 
-				<p className="mb-3">{t('This file can be converted to a native document:')}</p>
-				<p className="mb-4">
-					<strong>{current.file.name}</strong>
-				</p>
-
-				<div className="c-vbox g-2">
+				<VBox gap={2}>
 					{current.handlers.map((handler) => (
-						<button
+						<Button
 							key={handler.manifest.id}
-							type="button"
-							className="c-button primary"
+							color="primary"
+							icon={<IcConvert />}
 							onClick={() => onConvert(current.file, handler)}
 						>
-							<IcConvert />
 							{t('Convert to {{appName}}', { appName: handler.manifest.name })}
-						</button>
+						</Button>
 					))}
 
-					<button
-						type="button"
-						className="c-button secondary"
+					<Button
+						color="secondary"
+						icon={<IcUpload />}
 						onClick={() => onUploadAsFile(current.file)}
 					>
-						<IcUpload />
 						{t('Upload as file')}
-					</button>
-				</div>
+					</Button>
+				</VBox>
 
 				{pendingConversions.length > 1 && (
-					<p className="mt-3 text-muted">
+					<Text emphasis="muted">
 						{t('{{count}} more file(s) to process', {
 							count: pendingConversions.length - 1
 						})}
-					</p>
+					</Text>
 				)}
-			</div>
-		</div>
+			</VBox>
+		</Dialog>
 	)
 }
 

@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button, Dropdown, mergeClasses } from '@cloudillo/react'
 import * as React from 'react'
+import { Button, Menu, MenuDivider, MenuItem } from '@cloudillo/react'
 import { useTranslation } from 'react-i18next'
 import { LuChevronDown as IcChevron, LuTrash2 as IcTrash } from 'react-icons/lu'
 
@@ -57,64 +57,48 @@ export function AccessLevelMenu<L extends AccessLevel>({
 
 	function renderItem(level: AccessLevelUpper, itemLabel: string) {
 		if (disabledLevels?.includes(level)) return null
-		return (
-			<li>
-				<Button
-					kind="nav-item"
-					className={level === upper ? 'active' : ''}
-					onClick={() => pick(level)}
-				>
-					{itemLabel}
-				</Button>
-			</li>
-		)
+		return <MenuItem label={itemLabel} selected={level === upper} onClick={() => pick(level)} />
 	}
 
 	if (disabled) {
 		return (
-			<Button
-				size="small"
-				variant={variant}
-				className={className}
-				aria-label={ariaLabel}
-				disabled
-			>
+			<Button size="sm" color={variant} className={className} aria-label={ariaLabel} disabled>
 				{label}
 			</Button>
 		)
 	}
 
 	return (
-		<Dropdown
-			triggerClassName={mergeClasses('c-button small', variant, className)}
+		<Menu
 			placement="bottom-end"
-			triggerProps={{ 'aria-label': ariaLabel, 'aria-haspopup': 'menu' }}
 			trigger={
-				<>
+				<Button
+					size="sm"
+					color={variant}
+					className={className}
+					aria-label={ariaLabel}
+					aria-haspopup="menu"
+				>
 					{label}
 					<IcChevron />
-				</>
+				</Button>
 			}
 		>
-			<ul className="c-nav vertical emph">
-				{renderItem('READ', t('Viewer'))}
-				{renderItem('COMMENT', t('Commenter'))}
-				{renderItem('WRITE', t('Editor'))}
-				{onRemove && (
-					<>
-						<li>
-							<hr className="my-1" />
-						</li>
-						<li>
-							<Button kind="nav-item" onClick={onRemove}>
-								<IcTrash style={{ color: 'var(--col-error)' }} />
-								{t('Remove access')}
-							</Button>
-						</li>
-					</>
-				)}
-			</ul>
-		</Dropdown>
+			{renderItem('READ', t('Viewer'))}
+			{renderItem('COMMENT', t('Commenter'))}
+			{renderItem('WRITE', t('Editor'))}
+			{onRemove && (
+				<>
+					<MenuDivider />
+					<MenuItem
+						color="error"
+						icon={<IcTrash />}
+						label={t('Remove access')}
+						onClick={onRemove}
+					/>
+				</>
+			)}
+		</Menu>
 	)
 }
 

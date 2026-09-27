@@ -1,16 +1,24 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { generateFragments, mergeClasses, Progress, useApi, useAuth } from '@cloudillo/react'
+import {
+	Button,
+	FileButton,
+	HBox,
+	Panel,
+	Progress,
+	RichTextInput,
+	Text,
+	useApi,
+	useAuth
+} from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { LuImage as IcImage, LuSendHorizontal as IcSend } from 'react-icons/lu'
-import { type Position, useEditable } from 'use-editable'
 
 import { AttachmentPreview } from '../../../components/AttachmentPreview.js'
 import { useImageUpload } from '../../../hooks/useImageUpload.js'
 import { ImageUpload } from '../../../image.js'
-import { handleEditablePaste } from '../../../utils/editablePaste.js'
 
 export interface SendInput {
 	content: string
@@ -34,45 +42,22 @@ export function NewMsg({
 	const [auth] = useAuth()
 	const [content, setContent] = React.useState('')
 	const editorRef = React.useRef<HTMLDivElement>(null)
-	const imgInputRef = React.useRef<HTMLInputElement>(null)
-	const imgInputId = React.useId()
 
 	const imageUpload = useImageUpload()
 
-	const edit = useEditable(editorRef, onChange)
-
-	// Re-seat the use-editable contentEditable caret on open: a freshly mounted
-	// contentEditable can land with a detached/zero-width selection, so a blur/focus
-	// round-trip restores a working caret while leaving the composer focused. Deferred one
-	// frame past layout (0ms), matching the identical round-trip in doSubmit.
-	React.useEffect(() => {
-		setTimeout(function () {
-			editorRef.current?.blur()
-			editorRef.current?.focus()
-		}, 0)
-	}, [])
-
-	function onChange(text: string, _pos: Position) {
-		setContent(text)
-	}
-
-	function onFileChange() {
-		const file = imgInputRef.current?.files?.[0]
-		if (file) {
-			if (file.type === 'image/svg+xml' || file.name.toLowerCase().endsWith('.svg')) {
-				// SVGs upload directly — no crop step for vector graphics.
-				imageUpload.uploadSvg(file)
-			} else {
-				imageUpload.selectFile(file)
-			}
-			if (imgInputRef.current) imgInputRef.current.value = ''
+	function onFiles([file]: File[]) {
+		if (!file) return
+		if (file.type === 'image/svg+xml' || file.name.toLowerCase().endsWith('.svg')) {
+			// SVGs upload directly — no crop step for vector graphics.
+			imageUpload.uploadSvg(file)
+		} else {
+			imageUpload.selectFile(file)
 		}
 	}
 
 	function onCancelCrop() {
 		imageUpload.cancelCrop()
 		imageUpload.clearUploadError()
-		if (imgInputRef.current) imgInputRef.current.value = ''
 	}
 
 	async function doSubmit() {
@@ -86,6 +71,7 @@ export function NewMsg({
 		if (ok) {
 			setContent('')
 			imageUpload.reset()
+			// Re-seat the contentEditable caret (see RichTextInput autoFocus)
 			setTimeout(function () {
 				editorRef.current?.blur()
 				editorRef.current?.focus()
@@ -93,63 +79,49 @@ export function NewMsg({
 		}
 	}
 
-	function onKeyDown(e: React.KeyboardEvent) {
-		if (!e.shiftKey && e.key == 'Enter') {
-			e.preventDefault()
-			doSubmit()
-		}
-	}
-
 	return (
 		<>
-			<div className={mergeClasses('c-panel', className)}>
-				<div className="h-100" style={style}>
-					<div className="c-input-group">
-						<label htmlFor={imgInputId} className="c-button secondary align-self-start">
-							<IcImage />
-						</label>
-						<input
-							ref={imgInputRef}
-							id={imgInputId}
-							type="file"
-							accept="image/*,.svg"
-							style={{ display: 'none' }}
-							onChange={onFileChange}
-						/>
-						<div
-							ref={editorRef}
-							className="c-input flex-fill"
-							tabIndex={0}
-							onKeyDown={onKeyDown}
-							onPasteCapture={(e) => handleEditablePaste(e, edit, content)}
-						>
-							{generateFragments(content).map((n, i) => (
-								<React.Fragment key={i}>{n}</React.Fragment>
-							))}
-						</div>
-						<button
-							className="c-button primary align-self-end"
-							aria-label={t('Send')}
-							onClick={doSubmit}
-						>
-							<IcSend />
-						</button>
-					</div>
-					{auth?.idTag && (
-						<AttachmentPreview
-							attachmentIds={imageUpload.attachmentIds}
-							idTag={auth.idTag}
-							onRemove={imageUpload.removeAttachment}
-							compact
-						/>
-					)}
-				</div>
-			</div>
+			<Panel className={className} style={style}>
+				<RichTextInput
+					ref={editorRef}
+					value={content}
+					onChange={setContent}
+					onSubmit={doSubmit}
+					submitKey="enter"
+					autoFocus
+					aria-label={t('Message')}
+					actions={
+						<>
+							<FileButton
+								color="secondary"
+								icon={<IcImage />}
+								aria-label={t('Add image')}
+								accept="image/*,.svg"
+								onFiles={onFiles}
+							/>
+							<Button
+								color="primary"
+								icon={<IcSend />}
+								aria-label={t('Send')}
+								onClick={doSubmit}
+							/>
+						</>
+					}
+				/>
+				{auth?.idTag && (
+					<AttachmentPreview
+						attachmentIds={imageUpload.attachmentIds}
+						idTag={auth.idTag}
+						onRemove={imageUpload.removeAttachment}
+						compact
+					/>
+				)}
+			</Panel>
 			{imageUpload.isPreparing && !imageUpload.attachment && (
-				<div className="c-hbox g-2 align-items-center p-2">
+				<HBox gap={2} align="center" padding={2}>
 					<Progress indeterminate className="flex-fill" />
-					<span className="text-sm">{t('Preparing image...')}</span>
-				</div>
+					<Text size="sm">{t('Preparing image...')}</Text>
+				</HBox>
 			)}
 			{imageUpload.attachment && (
 				<ImageUpload

@@ -3,20 +3,18 @@
 
 /**
  * Small header chip that reflects and manages the current trust state for a
- * foreign profile. Click to open a popover offering session / always / never /
+ * foreign profile. Click to open a menu offering session / always / never /
  * clear. Rendered next to the profile name on the profile page header.
  *
  * The chip is not rendered for the user's own profile.
  */
 
-import { useToast } from '@cloudillo/react'
+import { Menu, MenuItem, Tag, useToast } from '@cloudillo/react'
 import type { ProfileTrust } from '@cloudillo/types'
 import * as React from 'react'
-import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import {
 	LuEyeOff as IcAnonymous,
-	LuChevronDown as IcCaret,
 	LuShield as IcShield,
 	LuShieldCheck as IcShieldCheck,
 	LuShieldOff as IcShieldOff
@@ -38,93 +36,29 @@ export function TrustChip({ idTag, onChanged }: TrustChipProps): React.ReactElem
 	const { t } = useTranslation()
 	const { getEffectiveTrust, setSessionTrust, setStoredTrust } = useProfileTrust()
 	const { error: toastError } = useToast()
-	const [open, setOpen] = React.useState(false)
 	const [busy, setBusy] = React.useState(false)
-	const wrapperRef = React.useRef<HTMLDivElement>(null)
-	const menuRef = React.useRef<HTMLDivElement>(null)
-	const [menuPos, setMenuPos] = React.useState<{ top: number; left: number } | null>(null)
-	const menuId = React.useId()
-
-	// Position the portal-anchored menu below the chip and clamp it to the
-	// viewport. The callback re-runs whenever the menu opens, scrolls, or
-	// resizes. Menu width is only known after the element mounts, so the
-	// first call uses 0 (left = chip's x) and a second pass — triggered by
-	// the ref callback below — re-clamps with the measured width.
-	const updateMenuPos = React.useCallback(() => {
-		if (!wrapperRef.current) return
-		const rect = wrapperRef.current.getBoundingClientRect()
-		const menuWidth = menuRef.current?.offsetWidth ?? 0
-		const maxLeft = Math.max(8, window.innerWidth - menuWidth - 8)
-		const left = Math.min(rect.left, maxLeft)
-		const top = rect.bottom + 4
-		setMenuPos((prev) =>
-			prev && prev.left === left && prev.top === top ? prev : { top, left }
-		)
-	}, [])
-
-	// Keep position synced with scroll/resize while open.
-	React.useLayoutEffect(() => {
-		if (!open) return
-		updateMenuPos()
-		window.addEventListener('resize', updateMenuPos)
-		window.addEventListener('scroll', updateMenuPos, true)
-		return () => {
-			window.removeEventListener('resize', updateMenuPos)
-			window.removeEventListener('scroll', updateMenuPos, true)
-		}
-	}, [open, updateMenuPos])
-
-	// Ref callback: fires with the menu element once it is attached, then we
-	// re-measure so the width-clamp in updateMenuPos can run against the real
-	// size instead of the zero-width first pass.
-	const menuRefCallback = React.useCallback(
-		(node: HTMLDivElement | null) => {
-			menuRef.current = node
-			if (node) updateMenuPos()
-		},
-		[updateMenuPos]
-	)
-
-	React.useEffect(() => {
-		if (!open) return
-		const onClickOutside = (e: MouseEvent) => {
-			const target = e.target as Node
-			if (wrapperRef.current?.contains(target)) return
-			if (menuRef.current?.contains(target)) return
-			setOpen(false)
-		}
-		const onKey = (e: KeyboardEvent) => {
-			if (e.key === 'Escape') setOpen(false)
-		}
-		window.addEventListener('mousedown', onClickOutside)
-		window.addEventListener('keydown', onKey)
-		return () => {
-			window.removeEventListener('mousedown', onClickOutside)
-			window.removeEventListener('keydown', onKey)
-		}
-	}, [open])
 
 	const trust = getEffectiveTrust(idTag)
 
 	// Chip presentation per effective trust level. Session 'X' gets its own
 	// label so users can verify that "continue anonymously" actually stuck —
 	// otherwise it is indistinguishable from the no-decision default.
-	const { label, variant, Icon } = (() => {
+	const { label, color, Icon } = (() => {
 		switch (trust) {
 			case 'always':
-				return { label: t('Trusted'), variant: 'success', Icon: IcShieldCheck }
+				return { label: t('Trusted'), color: 'success' as const, Icon: IcShieldCheck }
 			case 'never':
-				return { label: t('Never'), variant: 'warning', Icon: IcShieldOff }
+				return { label: t('Never'), color: 'warning' as const, Icon: IcShieldOff }
 			case 'S':
-				return { label: t('Session auth'), variant: 'primary', Icon: IcShield }
+				return { label: t('Session auth'), color: 'primary' as const, Icon: IcShield }
 			case 'X':
 				return {
 					label: t('Anonymous (session)'),
-					variant: 'secondary',
+					color: 'secondary' as const,
 					Icon: IcAnonymous
 				}
 			default:
-				return { label: t('Anonymous'), variant: 'secondary', Icon: IcAnonymous }
+				return { label: t('Anonymous'), color: 'secondary' as const, Icon: IcAnonymous }
 		}
 	})()
 
@@ -138,7 +72,6 @@ export function TrustChip({ idTag, onChanged }: TrustChipProps): React.ReactElem
 			} else if (action === 'clear') {
 				await setStoredTrust(idTag, null)
 			}
-			setOpen(false)
 			// Always refetch: an unlock should reload with the authenticated
 			// view; a lock ('never' / 'X') must drop previously-rendered
 			// authenticated content so the user's opt-out takes effect
@@ -152,80 +85,31 @@ export function TrustChip({ idTag, onChanged }: TrustChipProps): React.ReactElem
 		}
 	}
 
-	const menu = open && menuPos && (
-		<div
-			ref={menuRefCallback}
-			id={menuId}
-			className="c-menu"
-			style={{ position: 'fixed', top: menuPos.top, left: menuPos.left }}
-			role="menu"
+	return (
+		<Menu
+			trigger={
+				<Tag color={color} icon={<Icon size="0.9rem" />} caret>
+					{label}
+				</Tag>
+			}
 		>
-			<button
-				type="button"
-				role="menuitem"
-				className="c-menu-item"
-				onClick={() => apply('S')}
-				disabled={busy}
-			>
-				{t('This session')}
-			</button>
-			<button
-				type="button"
-				role="menuitem"
-				className="c-menu-item"
-				onClick={() => apply('always')}
-				disabled={busy}
-			>
-				{t('Always')}
-			</button>
-			<button
-				type="button"
-				role="menuitem"
-				className="c-menu-item"
-				onClick={() => apply('never')}
-				disabled={busy}
-			>
-				{t('Never')}
-			</button>
-			<button
-				type="button"
-				role="menuitem"
-				className="c-menu-item"
+			<MenuItem label={t('This session')} onClick={() => apply('S')} disabled={busy} />
+			<MenuItem label={t('Always')} onClick={() => apply('always')} disabled={busy} />
+			<MenuItem label={t('Never')} onClick={() => apply('never')} disabled={busy} />
+			<MenuItem
+				label={t('Continue anonymously')}
 				onClick={() => apply('X')}
 				disabled={busy}
-			>
-				{t('Continue anonymously')}
-			</button>
+			/>
 			{(trust === 'always' || trust === 'never') && (
-				<button
-					type="button"
-					role="menuitem"
-					className="c-menu-item danger"
+				<MenuItem
+					label={t('Clear trust')}
+					color="error"
 					onClick={() => apply('clear')}
 					disabled={busy}
-				>
-					{t('Clear trust')}
-				</button>
+				/>
 			)}
-		</div>
-	)
-
-	return (
-		<div ref={wrapperRef} className="d-inline-block">
-			<button
-				type="button"
-				className={`c-tag c-trust-chip ${variant} g-1`}
-				onClick={() => setOpen((v) => !v)}
-				aria-haspopup="menu"
-				aria-expanded={open}
-				aria-controls={open ? menuId : undefined}
-			>
-				<Icon size="0.9rem" />
-				<span>{label}</span>
-				<IcCaret size="0.9rem" />
-			</button>
-			{menu && createPortal(menu, document.body)}
-		</div>
+		</Menu>
 	)
 }
 

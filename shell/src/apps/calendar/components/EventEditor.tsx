@@ -7,7 +7,19 @@ import type {
 	CalendarOutput,
 	EventInput
 } from '@cloudillo/core'
-import { DateTimePicker } from '@cloudillo/react'
+import {
+	Checkbox,
+	DateTimePicker,
+	Field,
+	Fieldset,
+	Input,
+	NativeSelect,
+	Panel,
+	Tag,
+	TagList,
+	TextArea,
+	VBox
+} from '@cloudillo/react'
 import dayjs from 'dayjs'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -280,230 +292,197 @@ export function EventEditor({
 			error={error}
 			onClose={onClose}
 			onSubmit={handleSave}
-			maxWidth="540px"
+			size="md"
 		>
-			<div className="mb-3">
-				<input
-					className="c-input c-cal-editor__title"
-					value={summary}
-					onChange={(e) => setSummary(e.target.value)}
-					placeholder={t('Event title')}
-					aria-label={t('Event title')}
-					autoFocus
-				/>
-				<select
-					className="c-input mt-2"
-					value={calId ?? ''}
-					onChange={(e) => setCalId(Number(e.target.value))}
-					aria-label={t('Calendar')}
-				>
-					<option value="">{t('Pick a calendar')}</option>
-					{calendars.map((c) => (
-						<option key={c.calId} value={c.calId}>
-							{c.name}
-						</option>
-					))}
-				</select>
-			</div>
+			<VBox gap={4}>
+				<VBox gap={2}>
+					<Input
+						size="lg"
+						value={summary}
+						onChange={(e) => setSummary(e.target.value)}
+						placeholder={t('Event title')}
+						aria-label={t('Event title')}
+						autoFocus
+					/>
+					<NativeSelect
+						value={calId ?? ''}
+						onChange={(e) => setCalId(Number(e.target.value))}
+						aria-label={t('Calendar')}
+					>
+						<option value="">{t('Pick a calendar')}</option>
+						{calendars.map((c) => (
+							<option key={c.calId} value={c.calId}>
+								{c.name}
+							</option>
+						))}
+					</NativeSelect>
+				</VBox>
 
-			<section className="c-cal-section">
-				<div className="c-cal-section__label">{t('When')}</div>
-
-				<div className="mb-2">
-					<label className="d-flex align-items-center g-2">
-						<input
-							type="checkbox"
+				<Panel variant="plain" padding={0} title={t('When')} headingLevel={3}>
+					<VBox gap={2}>
+						<Checkbox
+							label={t('All day')}
 							checked={allDay}
 							onChange={(e) => setAllDay(e.target.checked)}
 						/>
-						{t('All day')}
-					</label>
-				</div>
 
-				<div className="mb-2">
-					<label className="c-cal-detail-label">{t('Starts')}</label>
-					{allDay ? (
-						<input
-							className="c-input"
-							type="date"
-							value={start}
-							onChange={(e) => setStart(e.target.value)}
-							aria-label={t('Start date')}
-						/>
-					) : (
-						<DateTimePicker
-							value={start}
-							onChange={setStart}
-							defaultTime="09:00"
-							dateLabel={t('Start date')}
-							timeLabel={t('Start time')}
-						/>
-					)}
-				</div>
+						<Field label={t('Starts')}>
+							{allDay ? (
+								<Input
+									type="date"
+									value={start}
+									onChange={(e) => setStart(e.target.value)}
+								/>
+							) : (
+								<DateTimePicker
+									value={start}
+									onChange={setStart}
+									defaultTime="09:00"
+									dateLabel={t('Start date')}
+									timeLabel={t('Start time')}
+								/>
+							)}
+						</Field>
 
-				{allDay ? (
-					<div className="mb-2">
-						<label className="c-cal-detail-label">{t('Ends')}</label>
-						<input
-							className="c-input"
-							type="date"
-							value={end}
-							onChange={(e) => setEnd(e.target.value)}
-							min={start || undefined}
-							aria-label={t('End date')}
-						/>
-					</div>
-				) : (
-					<div className="mb-2">
-						<label className="c-cal-detail-label">{t('Duration')}</label>
-						<select
-							className="c-input"
-							value={durationMin === 'custom' ? 'custom' : String(durationMin)}
+						{allDay ? (
+							<Field label={t('Ends')}>
+								<Input
+									type="date"
+									value={end}
+									onChange={(e) => setEnd(e.target.value)}
+									min={start || undefined}
+								/>
+							</Field>
+						) : (
+							<Field
+								label={t('Duration')}
+								hint={
+									durationMin !== 'custom' && start
+										? t('Ends {{when}}', {
+												when: formatEndHint(start, end, i18n.language)
+											})
+										: undefined
+								}
+							>
+								<NativeSelect
+									value={
+										durationMin === 'custom' ? 'custom' : String(durationMin)
+									}
+									onChange={(e) =>
+										setDurationMin(
+											e.target.value === 'custom'
+												? 'custom'
+												: Number(e.target.value)
+										)
+									}
+								>
+									{DURATION_PRESETS.map((m) => (
+										<option key={m} value={String(m)}>
+											{durationLabel(m, start, i18n.language, t)}
+										</option>
+									))}
+									<option value="custom">{t('Custom end time…')}</option>
+								</NativeSelect>
+							</Field>
+						)}
+						{!allDay && durationMin === 'custom' && (
+							<DateTimePicker
+								value={end}
+								onChange={setEnd}
+								defaultTime="10:00"
+								min={start ? start.slice(0, 10) : undefined}
+								dateLabel={t('End date')}
+								timeLabel={t('End time')}
+							/>
+						)}
+
+						<Fieldset legend={t('Repeat')} variant="inset">
+							<RecurrenceBuilder
+								value={rrule}
+								onChange={setRrule}
+								startDate={start || undefined}
+								allDay={allDay}
+								locale={i18n.language}
+								firstDayOfWeek={firstDayOfWeek}
+							/>
+						</Fieldset>
+					</VBox>
+				</Panel>
+
+				<Panel variant="plain" padding={0} title={t('Where & details')} headingLevel={3}>
+					<VBox gap={2}>
+						<Field label={t('Location')}>
+							<Input value={location} onChange={(e) => setLocation(e.target.value)} />
+						</Field>
+						<Field label={t('Description')}>
+							<TextArea
+								rows={3}
+								value={description}
+								onChange={(e) => setDescription(e.target.value)}
+							/>
+						</Field>
+					</VBox>
+				</Panel>
+
+				<Panel variant="plain" padding={0} title={t('People')} headingLevel={3}>
+					<VBox gap={2}>
+						<Field label={t('Organizer')}>
+							<Input
+								placeholder="mailto:alice@example.com"
+								value={organizer}
+								onChange={(e) => setOrganizer(e.target.value)}
+							/>
+						</Field>
+						<Field label={t('Attendees')} hint={t('Press Enter or comma to add')}>
+							<Input
+								placeholder="bob@example.com"
+								value={attendeeInput}
+								onChange={(e) => setAttendeeInput(e.target.value)}
+								onKeyDown={(e) => {
+									if (e.key === 'Enter' || e.key === ',') {
+										e.preventDefault()
+										addAttendee()
+									}
+								}}
+								onBlur={() => addAttendee()}
+							/>
+						</Field>
+						{attendees.length > 0 && (
+							<TagList>
+								{attendees.map((addr, i) => (
+									<Tag
+										key={`${i}-${addr}`}
+										onRemove={() =>
+											setAttendees((prev) => prev.filter((_, j) => j !== i))
+										}
+									>
+										{addr.replace(/^mailto:/, '')}
+									</Tag>
+								))}
+							</TagList>
+						)}
+					</VBox>
+				</Panel>
+
+				<Panel variant="plain" padding={0} title={t('Alerts')} headingLevel={3}>
+					<Field label={t('Reminder')}>
+						<NativeSelect
+							value={reminderMin === '' ? '' : String(reminderMin)}
 							onChange={(e) =>
-								setDurationMin(
-									e.target.value === 'custom' ? 'custom' : Number(e.target.value)
-								)
+								setReminderMin(e.target.value === '' ? '' : Number(e.target.value))
 							}
 						>
-							{DURATION_PRESETS.map((m) => (
-								<option key={m} value={String(m)}>
-									{durationLabel(m, start, i18n.language, t)}
-								</option>
-							))}
-							<option value="custom">{t('Custom end time…')}</option>
-						</select>
-						{durationMin === 'custom' ? (
-							<div className="mt-1">
-								<DateTimePicker
-									value={end}
-									onChange={setEnd}
-									defaultTime="10:00"
-									min={start ? start.slice(0, 10) : undefined}
-									dateLabel={t('End date')}
-									timeLabel={t('End time')}
-								/>
-							</div>
-						) : (
-							start && (
-								<div
-									className="c-hint"
-									style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}
-								>
-									{t('Ends {{when}}', {
-										when: formatEndHint(start, end, i18n.language)
-									})}
-								</div>
-							)
-						)}
-					</div>
-				)}
-
-				<div className="mb-2">
-					<label className="c-cal-detail-label">{t('Repeat')}</label>
-					<RecurrenceBuilder
-						value={rrule}
-						onChange={setRrule}
-						startDate={start || undefined}
-						allDay={allDay}
-						locale={i18n.language}
-						firstDayOfWeek={firstDayOfWeek}
-					/>
-				</div>
-			</section>
-
-			<section className="c-cal-section">
-				<div className="c-cal-section__label">{t('Where & details')}</div>
-				<div className="mb-2">
-					<label className="c-cal-detail-label">{t('Location')}</label>
-					<input
-						className="c-input"
-						value={location}
-						onChange={(e) => setLocation(e.target.value)}
-					/>
-				</div>
-				<div className="mb-2">
-					<label className="c-cal-detail-label">{t('Description')}</label>
-					<textarea
-						className="c-input"
-						rows={3}
-						value={description}
-						onChange={(e) => setDescription(e.target.value)}
-					/>
-				</div>
-			</section>
-
-			<section className="c-cal-section">
-				<div className="c-cal-section__label">{t('People')}</div>
-				<div className="mb-2">
-					<label className="c-cal-detail-label">{t('Organizer')}</label>
-					<input
-						className="c-input"
-						placeholder="mailto:alice@example.com"
-						value={organizer}
-						onChange={(e) => setOrganizer(e.target.value)}
-					/>
-				</div>
-				<div className="mb-2">
-					<label className="c-cal-detail-label">{t('Attendees')}</label>
-					<div className="c-cal-chips">
-						{attendees.map((addr, i) => (
-							<span key={`${i}-${addr}`} className="c-cal-chip">
-								{addr.replace(/^mailto:/, '')}
-								<button
-									type="button"
-									className="c-cal-chip__remove"
-									onClick={() =>
-										setAttendees((prev) => prev.filter((_, j) => j !== i))
-									}
-									aria-label={t('Remove')}
-								>
-									×
-								</button>
-							</span>
-						))}
-						<input
-							className="c-input"
-							style={{ border: 'none', flex: 1, minWidth: '10ch' }}
-							placeholder="bob@example.com"
-							value={attendeeInput}
-							onChange={(e) => setAttendeeInput(e.target.value)}
-							onKeyDown={(e) => {
-								if (e.key === 'Enter' || e.key === ',') {
-									e.preventDefault()
-									addAttendee()
-								}
-							}}
-							onBlur={() => addAttendee()}
-						/>
-					</div>
-					<div className="c-hint" style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>
-						{t('Press Enter or comma to add')}
-					</div>
-				</div>
-			</section>
-
-			<section className="c-cal-section">
-				<div className="c-cal-section__label">{t('Alerts')}</div>
-				<div className="mb-2">
-					<label className="c-cal-detail-label">{t('Reminder')}</label>
-					<select
-						className="c-input"
-						value={reminderMin === '' ? '' : String(reminderMin)}
-						onChange={(e) =>
-							setReminderMin(e.target.value === '' ? '' : Number(e.target.value))
-						}
-						style={{ maxWidth: '16rem' }}
-					>
-						<option value="">{t('None')}</option>
-						<option value="5">{t('5 minutes before')}</option>
-						<option value="15">{t('15 minutes before')}</option>
-						<option value="30">{t('30 minutes before')}</option>
-						<option value="60">{t('1 hour before')}</option>
-						<option value="1440">{t('1 day before')}</option>
-						<option value="10080">{t('1 week before')}</option>
-					</select>
-				</div>
-			</section>
+							<option value="">{t('None')}</option>
+							<option value="5">{t('5 minutes before')}</option>
+							<option value="15">{t('15 minutes before')}</option>
+							<option value="30">{t('30 minutes before')}</option>
+							<option value="60">{t('1 hour before')}</option>
+							<option value="1440">{t('1 day before')}</option>
+							<option value="10080">{t('1 week before')}</option>
+						</NativeSelect>
+					</Field>
+				</Panel>
+			</VBox>
 		</CalendarEditorModal>
 	)
 }

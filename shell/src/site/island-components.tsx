@@ -14,7 +14,7 @@
  */
 
 import { safeHref, sitePositiveInt, tAnyValue } from '@cloudillo/core'
-import { DocumentEmbedIframe, useApi } from '@cloudillo/react'
+import { DocumentEmbedIframe, useApi, VBox } from '@cloudillo/react'
 import * as T from '@symbion/runtype'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -186,7 +186,7 @@ function SiteDocumentEmbedIsland({ props }: SiteIslandProps) {
 	// only when the block had one — this wrapper is what guarantees the iframe
 	// a box in either case. `pos-relative`: the indicator overlays that box.
 	return (
-		<div className="w-100 pos-relative" style={{ height: `${height}px` }}>
+		<VBox className="w-100 pos-relative" style={{ height: `${height}px` }}>
 			<AppLoadingIndicator
 				stage={embed.stage}
 				errorCode={embed.errorCode}
@@ -212,7 +212,7 @@ function SiteDocumentEmbedIsland({ props }: SiteIslandProps) {
 					onAppError={embed.onAppError}
 				/>
 			)}
-		</div>
+		</VBox>
 	)
 }
 

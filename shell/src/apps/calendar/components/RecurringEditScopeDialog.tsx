@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button, Modal } from '@cloudillo/react'
+import { ActionBar, Button, Dialog, RadioGroup } from '@cloudillo/react'
 import dayjs from 'dayjs'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -55,93 +55,48 @@ export function RecurringEditScopeDialog({
 	}
 
 	return (
-		<Modal open={open} onClose={onCancel}>
-			<form
-				className="c-dialog c-panel emph"
-				style={{ maxWidth: '460px', width: '100%' }}
-				onSubmit={handleSubmit}
-				onKeyDown={(e) => {
-					if (e.key === 'Escape') {
-						e.preventDefault()
-						onCancel()
-					}
-				}}
-			>
-				<div className="c-cal-editor__header">
-					<h3 className="m-0">{title}</h3>
-				</div>
-				<div className="c-cal-editor__body">
-					<p style={{ marginTop: 0 }}>{body}</p>
-					<fieldset style={{ border: 'none', padding: 0, margin: 0 }}>
-						<legend className="sr-only">{t('Scope')}</legend>
-						<label className="d-flex align-items-flex-start g-2 mb-2">
-							<input
-								type="radio"
-								name="scope"
-								value="occurrence"
-								checked={scope === 'occurrence'}
-								onChange={() => setScope('occurrence')}
-								autoFocus
-							/>
-							<span>
-								<strong>{t('This event only')}</strong>
-								<div
-									className="c-hint"
-									style={{ fontSize: '0.8rem', opacity: 0.75 }}
-								>
-									{t('Only the occurrence on {{date}}', { date: dateLabel })}
-								</div>
-							</span>
-						</label>
-						<label className="d-flex align-items-flex-start g-2 mb-2">
-							<input
-								type="radio"
-								name="scope"
-								value="following"
-								checked={scope === 'following'}
-								onChange={() => setScope('following')}
-							/>
-							<span>
-								<strong>{t('This and following events')}</strong>
-								<div
-									className="c-hint"
-									style={{ fontSize: '0.8rem', opacity: 0.75 }}
-								>
-									{t('All occurrences from {{date}} onward', {
-										date: dateLabel
-									})}
-								</div>
-							</span>
-						</label>
-						<label className="d-flex align-items-flex-start g-2">
-							<input
-								type="radio"
-								name="scope"
-								value="series"
-								checked={scope === 'series'}
-								onChange={() => setScope('series')}
-							/>
-							<span>
-								<strong>{t('All events in the series')}</strong>
-								<div
-									className="c-hint"
-									style={{ fontSize: '0.8rem', opacity: 0.75 }}
-								>
-									{t('Every occurrence, past and future')}
-								</div>
-							</span>
-						</label>
-					</fieldset>
-				</div>
-				<div className="c-cal-editor__footer">
+		<Dialog
+			open={open}
+			onClose={onCancel}
+			title={title}
+			description={body}
+			size="sm"
+			onSubmit={handleSubmit}
+			footer={
+				<ActionBar>
 					<Button type="button" onClick={onCancel}>
 						{t('Cancel')}
 					</Button>
-					<Button type="submit" variant="primary">
+					<Button type="submit" color={mode === 'delete' ? 'error' : 'primary'}>
 						{primaryLabel}
 					</Button>
-				</div>
-			</form>
-		</Modal>
+				</ActionBar>
+			}
+		>
+			<RadioGroup<RecurringScope>
+				aria-label={t('Scope')}
+				value={scope}
+				onChange={setScope}
+				options={[
+					{
+						value: 'occurrence',
+						label: t('This event only'),
+						description: t('Only the occurrence on {{date}}', { date: dateLabel })
+					},
+					{
+						value: 'following',
+						label: t('This and following events'),
+						description: t('All occurrences from {{date}} onward', { date: dateLabel })
+					},
+					{
+						value: 'series',
+						label: t('All events in the series'),
+						description: t('Every occurrence, past and future')
+					}
+				]}
+			/>
+		</Dialog>
 	)
 }
+
+// vim: ts=4

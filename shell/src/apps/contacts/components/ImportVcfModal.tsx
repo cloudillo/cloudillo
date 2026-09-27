@@ -2,16 +2,28 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import type { AddressBookOutput, ImportConflictMode, ImportContactsResult } from '@cloudillo/core'
-import { Button, Modal, mergeClasses } from '@cloudillo/react'
+import {
+	ActionBar,
+	Alert,
+	Button,
+	Dialog,
+	Disclosure,
+	DropZone,
+	Field,
+	Fieldset,
+	FileButton,
+	HBox,
+	Icon,
+	List,
+	ListItem,
+	NativeSelect,
+	RadioGroup,
+	Text,
+	VBox
+} from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuX as IcClose,
-	LuFileText as IcFile,
-	LuCircleCheck as IcSuccess,
-	LuFileUp as IcUpload,
-	LuTriangleAlert as IcWarn
-} from 'react-icons/lu'
+import { LuX as IcClose, LuFileText as IcFile, LuFileUp as IcUpload } from 'react-icons/lu'
 
 import { useContextAwareApi } from '../../../context/index.js'
 
@@ -25,6 +37,7 @@ export interface ImportVcfModalProps {
 }
 
 const VCARD_BEGIN_RE = /^BEGIN:VCARD\b/gim
+const VCF_ACCEPT = '.vcf,text/vcard,text/x-vcard,text/directory'
 
 function countCards(text: string): number {
 	return (text.match(VCARD_BEGIN_RE) ?? []).length
@@ -45,7 +58,6 @@ export function ImportVcfModal({
 }: ImportVcfModalProps) {
 	const { t } = useTranslation()
 	const { api } = useContextAwareApi()
-	const fileInputRef = React.useRef<HTMLInputElement>(null)
 
 	const [abId, setAbId] = React.useState<number | undefined>(defaultAddressBookId)
 	const [conflict, setConflict] = React.useState<ImportConflictMode>('skip')
@@ -55,7 +67,6 @@ export function ImportVcfModal({
 	const [submitting, setSubmitting] = React.useState(false)
 	const [error, setError] = React.useState<string | undefined>()
 	const [result, setResult] = React.useState<ImportContactsResult | undefined>()
-	const [dragOver, setDragOver] = React.useState(false)
 
 	// Reset only on open→true transition; read fresh props via ref so later
 	// prop changes don't wipe the picked file mid-flight.
@@ -72,8 +83,6 @@ export function ImportVcfModal({
 		setError(undefined)
 		setResult(undefined)
 		setSubmitting(false)
-		setDragOver(false)
-		if (fileInputRef.current) fileInputRef.current.value = ''
 	}, [open])
 
 	async function handleFile(f: File) {
@@ -91,36 +100,14 @@ export function ImportVcfModal({
 		}
 	}
 
-	function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-		const f = e.target.files?.[0]
-		if (f) void handleFile(f)
-	}
-
-	function onDrop(e: React.DragEvent<HTMLDivElement>) {
-		e.preventDefault()
-		setDragOver(false)
-		const f = e.dataTransfer.files?.[0]
-		if (f) void handleFile(f)
-	}
-
-	function onDragOver(e: React.DragEvent<HTMLDivElement>) {
-		e.preventDefault()
-		setDragOver(true)
-	}
-
-	function onDragLeave() {
-		setDragOver(false)
-	}
-
-	function openPicker() {
-		fileInputRef.current?.click()
+	function onFiles(files: File[]) {
+		if (files[0]) void handleFile(files[0])
 	}
 
 	function clearFile() {
 		setFile(undefined)
 		setVcardText('')
 		setPreviewCount(0)
-		if (fileInputRef.current) fileInputRef.current.value = ''
 	}
 
 	async function handleImport(e?: React.FormEvent) {
@@ -143,119 +130,103 @@ export function ImportVcfModal({
 	const ready = !!api && !!file && previewCount > 0 && !!abId && !submitting
 
 	return (
-		<Modal open={open} onClose={onClose}>
-			<form
-				className="c-dialog c-panel emph p-4"
-				style={{ maxWidth: '640px', width: '100%', maxHeight: '90vh', overflowY: 'auto' }}
-				onSubmit={handleImport}
-			>
-				<div className="d-flex align-items-center justify-content-between mb-3">
-					<h3 className="m-0">{t('Import contacts (VCF)')}</h3>
-					<button
-						type="button"
-						className="c-link"
-						onClick={onClose}
-						aria-label={t('Close')}
-					>
-						<IcClose />
-					</button>
-				</div>
-
+		<Dialog
+			open={open}
+			onClose={onClose}
+			title={t('Import contacts (VCF)')}
+			size="md"
+			onSubmit={handleImport}
+			footer={
+				result ? (
+					<ActionBar>
+						<Button type="button" color="primary" onClick={onClose}>
+							{t('Done')}
+						</Button>
+					</ActionBar>
+				) : (
+					<ActionBar>
+						<Button type="button" onClick={onClose}>
+							{t('Cancel')}
+						</Button>
+						<Button
+							type="submit"
+							color="primary"
+							disabled={!ready}
+							loading={submitting}
+							icon={<IcUpload />}
+						>
+							{t('Import')}
+						</Button>
+					</ActionBar>
+				)
+			}
+		>
+			<VBox gap={3}>
 				{error && (
-					<div
-						className="c-panel bg-container-error p-2 mb-3"
-						role="alert"
-						aria-live="polite"
-					>
-						<span className="text-error">{error}</span>
-					</div>
+					<Alert color="error" compact>
+						{error}
+					</Alert>
 				)}
 
 				{result ? (
-					<ImportResultView result={result} onClose={onClose} />
+					<ImportResultView result={result} />
 				) : (
 					<>
-						{/* Hidden native input — triggered by the drop zone / "Replace" button */}
-						<input
-							ref={fileInputRef}
-							type="file"
-							accept=".vcf,text/vcard,text/x-vcard,text/directory"
-							onChange={onFileChange}
-							className="c-visually-hidden"
-							tabIndex={-1}
-						/>
-
 						{!file ? (
-							<div
-								role="button"
-								tabIndex={0}
-								className={mergeClasses(
-									'c-import-drop mb-3',
-									dragOver && 'is-dragover'
-								)}
-								onClick={openPicker}
-								onKeyDown={(e) => {
-									if (e.key === 'Enter' || e.key === ' ') {
-										e.preventDefault()
-										openPicker()
-									}
-								}}
-								onDragOver={onDragOver}
-								onDragEnter={onDragOver}
-								onDragLeave={onDragLeave}
-								onDrop={onDrop}
-							>
-								<IcUpload className="c-import-drop__icon" />
-								<div className="c-import-drop__primary">
-									{t('Drop a .vcf file here, or click to browse')}
-								</div>
-								<div className="c-import-drop__hint">
-									{t('Exported from Apple Contacts, Google Contacts, etc.')}
-								</div>
-							</div>
+							<DropZone
+								variant="area"
+								accept={VCF_ACCEPT}
+								multiple={false}
+								onFiles={onFiles}
+								title={t('Drop a .vcf file here, or click to browse')}
+								hint={t('Exported from Apple Contacts, Google Contacts, etc.')}
+							/>
 						) : (
-							<div className="c-import-file-card mb-3">
-								<IcFile className="c-import-file-card__icon" aria-hidden="true" />
-								<div className="c-import-file-card__body">
-									<div className="c-import-file-card__name" title={file.name}>
-										{file.name}
-									</div>
-									<div className="c-import-file-card__meta">
-										{fmtBytes(file.size)} ·{' '}
-										{previewCount === 0 ? (
-											<span className="text-warning">
-												{t('No vCard blocks detected')}
-											</span>
-										) : (
-											t('{{count}} contacts found', {
-												count: previewCount
-											})
-										)}
-									</div>
-								</div>
-								<button
-									type="button"
-									className="c-link"
-									onClick={openPicker}
-									aria-label={t('Replace file')}
-								>
-									{t('Replace')}
-								</button>
-								<button
-									type="button"
-									className="c-link"
-									onClick={clearFile}
-									aria-label={t('Remove file')}
-								>
-									<IcClose />
-								</button>
-							</div>
+							<List variant="bordered">
+								<ListItem
+									leading={<Icon as={IcFile} color="primary" size="lg" />}
+									title={<Text truncate>{file.name}</Text>}
+									subtitle={
+										<>
+											{fmtBytes(file.size)} ·{' '}
+											{previewCount === 0 ? (
+												<Text color="warning">
+													{t('No vCard blocks detected')}
+												</Text>
+											) : (
+												t('{{count}} contacts found', {
+													count: previewCount
+												})
+											)}
+										</>
+									}
+									trailing={
+										<HBox gap={1} align="center">
+											<FileButton
+												variant="ghost"
+												size="sm"
+												accept={VCF_ACCEPT}
+												onFiles={onFiles}
+												aria-label={t('Replace file')}
+											>
+												{t('Replace')}
+											</FileButton>
+											<Button
+												type="button"
+												variant="ghost"
+												size="sm"
+												onClick={clearFile}
+												aria-label={t('Remove file')}
+												icon={<IcClose />}
+											/>
+										</HBox>
+									}
+								/>
+							</List>
 						)}
 
-						<div className="mb-3">
-							<label className="c-contact-field-label">{t('Address book')}</label>
-							<select
-								className="c-input"
+						<Field label={t('Address book')}>
+							<NativeSelect
 								value={abId ?? ''}
 								disabled={noBooks}
 								onChange={(e) => setAbId(Number(e.target.value))}
@@ -265,159 +236,84 @@ export function ImportVcfModal({
 										{book.name}
 									</option>
 								))}
-							</select>
-						</div>
+							</NativeSelect>
+						</Field>
 
-						<fieldset
-							className="mb-3"
-							style={{ border: 'none', padding: 0, margin: 0 }}
-						>
-							<legend className="c-contact-field-label" style={{ padding: 0 }}>
-								{t('If a contact already exists')}
-							</legend>
-							<div className="c-vbox g-2">
-								<ConflictRadio
-									value="skip"
-									current={conflict}
-									onChange={setConflict}
-									label={t('Skip duplicates')}
-									description={t(
-										'Keep existing contacts unchanged. New ones are added.'
-									)}
-								/>
-								<ConflictRadio
-									value="replace"
-									current={conflict}
-									onChange={setConflict}
-									label={t('Replace duplicates')}
-									description={t(
-										'Overwrite existing contacts with the imported version.'
-									)}
-								/>
-								<ConflictRadio
-									value="add"
-									current={conflict}
-									onChange={setConflict}
-									label={t('Add as new')}
-									description={t(
-										'Always create a new contact, even if one with the same UID exists.'
-									)}
-								/>
-							</div>
-						</fieldset>
-
-						<div className="d-flex justify-content-end g-2">
-							<Button type="button" onClick={onClose}>
-								{t('Cancel')}
-							</Button>
-							<Button type="submit" variant="primary" disabled={!ready}>
-								<IcUpload className="me-1" />
-								{submitting ? t('Importing...') : t('Import')}
-							</Button>
-						</div>
+						<Fieldset legend={t('If a contact already exists')}>
+							<RadioGroup<ImportConflictMode>
+								variant="card"
+								value={conflict}
+								onChange={setConflict}
+								options={[
+									{
+										value: 'skip',
+										label: t('Skip duplicates'),
+										description: t(
+											'Keep existing contacts unchanged. New ones are added.'
+										)
+									},
+									{
+										value: 'replace',
+										label: t('Replace duplicates'),
+										description: t(
+											'Overwrite existing contacts with the imported version.'
+										)
+									},
+									{
+										value: 'add',
+										label: t('Add as new'),
+										description: t(
+											'Always create a new contact, even if one with the same UID exists.'
+										)
+									}
+								]}
+							/>
+						</Fieldset>
 					</>
 				)}
-			</form>
-		</Modal>
+			</VBox>
+		</Dialog>
 	)
 }
 
-function ConflictRadio({
-	value,
-	current,
-	onChange,
-	label,
-	description
-}: {
-	value: ImportConflictMode
-	current: ImportConflictMode
-	onChange: (v: ImportConflictMode) => void
-	label: string
-	description: string
-}) {
-	const id = `import-conflict-${value}`
-	const checked = current === value
-	return (
-		<label htmlFor={id} className={mergeClasses('c-conflict-card', checked && 'is-selected')}>
-			<input
-				id={id}
-				type="radio"
-				name="import-conflict"
-				value={value}
-				checked={checked}
-				onChange={() => onChange(value)}
-				className="c-conflict-card__radio"
-			/>
-			<div className="c-conflict-card__body">
-				<div className="c-conflict-card__title">{label}</div>
-				<div className="c-conflict-card__desc">{description}</div>
-			</div>
-		</label>
-	)
-}
-
-function ImportResultView({
-	result,
-	onClose
-}: {
-	result: ImportContactsResult
-	onClose: () => void
-}) {
+function ImportResultView({ result }: { result: ImportContactsResult }) {
 	const { t } = useTranslation()
 	const ok = result.errors.length === 0
 	return (
-		<div className="c-vbox g-3">
-			<div
-				className={mergeClasses(
-					'c-import-result-banner',
-					ok ? 'bg-container-success' : 'bg-container-warning'
-				)}
-				role="status"
-				aria-live="polite"
+		<VBox gap={3}>
+			<Alert
+				color={ok ? 'success' : 'warning'}
+				title={ok ? t('Import complete') : t('Import finished with errors')}
 			>
-				{ok ? (
-					<IcSuccess className="c-import-result-banner__icon text-success" />
-				) : (
-					<IcWarn className="c-import-result-banner__icon text-warning" />
+				{t(
+					'{{imported}} added · {{updated}} updated · {{skipped}} skipped · {{errors}} failed',
+					{
+						imported: result.imported,
+						updated: result.updated,
+						skipped: result.skipped,
+						errors: result.errors.length
+					}
 				)}
-				<div className="flex-fill">
-					<div className="font-medium">
-						{ok ? t('Import complete') : t('Import finished with errors')}
-					</div>
-					<div className="c-contact-field-hint">
-						{t(
-							'{{imported}} added · {{updated}} updated · {{skipped}} skipped · {{errors}} failed',
-							{
-								imported: result.imported,
-								updated: result.updated,
-								skipped: result.skipped,
-								errors: result.errors.length
-							}
-						)}
-					</div>
-				</div>
-			</div>
+			</Alert>
 
 			{!ok && (
-				<details>
-					<summary className="cursor-pointer">{t('Show error details')}</summary>
-					<ul style={{ margin: '0.5rem 0 0', padding: '0 0 0 1.25rem' }}>
+				<Disclosure summary={t('Show error details')}>
+					<List marker="bullet">
 						{result.errors.map((e) => (
-							<li key={`${e.index}-${e.uid ?? 'no-uid'}`} className="text-sm">
-								<strong>#{e.index + 1}</strong>
-								{e.uid ? ` (${e.uid})` : ''} — {e.message}
-							</li>
+							<ListItem
+								key={`${e.index}-${e.uid ?? 'no-uid'}`}
+								title={
+									<Text size="sm">
+										<Text weight="bold">#{e.index + 1}</Text>
+										{e.uid ? ` (${e.uid})` : ''} — {e.message}
+									</Text>
+								}
+							/>
 						))}
-					</ul>
-				</details>
+					</List>
+				</Disclosure>
 			)}
-
-			<div className="d-flex justify-content-end">
-				<Button variant="primary" onClick={onClose}>
-					{t('Done')}
-				</Button>
-			</div>
-		</div>
+		</VBox>
 	)
 }
 

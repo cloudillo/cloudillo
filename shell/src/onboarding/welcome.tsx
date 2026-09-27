@@ -3,14 +3,26 @@
 
 import type { IdpStatusResponse } from '@cloudillo/core'
 import { FetchError, setApiToken } from '@cloudillo/core'
-import { Button, useApi, useAuth } from '@cloudillo/react'
+import {
+	ActionBar,
+	Alert,
+	Button,
+	Field,
+	Form,
+	LoadingSpinner,
+	Logo,
+	Text,
+	useApi,
+	useAuth,
+	PasswordInput,
+	PasswordStrengthBar
+} from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuRefreshCw as IcLoading, LuLock as IcLock } from 'react-icons/lu'
+import { LuLock as IcLock } from 'react-icons/lu'
 import { useNavigate, useParams } from 'react-router-dom'
 
-import { PasswordInput, PasswordStrengthBar } from '../components/PasswordInput.js'
-import { CloudilloLogo } from '../logo.js'
+import { AuthLayout } from '../auth/AuthLayout.js'
 import { installToken } from '../pwa.js'
 import { type ResendState, VerifyIdpContent } from './verify-idp-content.js'
 
@@ -237,33 +249,20 @@ export function Welcome() {
 	// Show loading state while validating ref / loading IDP status
 	if (refValidating) {
 		return (
-			<div className="c-panel p-4">
-				<CloudilloLogo className="c-logo w-50 float-right ps-3 pb-3 slow" />
-				<header>
-					<h1 className="mb-3">{t('Welcome to Cloudillo!')}</h1>
-				</header>
-				<div className="c-panel info mt-3">
-					<p>
-						<IcLoading className="animate-rotate-cw me-2" />
-						{t('Validating invitation link...')}
-					</p>
-				</div>
-			</div>
+			<AuthLayout logo={<Logo animated />} title={t('Welcome to Cloudillo!')}>
+				<Alert color="info" icon={<LoadingSpinner size="sm" />} role="status">
+					{t('Validating invitation link...')}
+				</Alert>
+			</AuthLayout>
 		)
 	}
 
 	// Show error if ref is invalid
 	if (!refValid) {
 		return (
-			<div className="c-panel p-4">
-				<CloudilloLogo className="c-logo w-50 float-right ps-3 pb-3" />
-				<header>
-					<h1 className="mb-3">{t('Welcome to Cloudillo!')}</h1>
-				</header>
-				<div className="c-panel error mt-3">
-					<p>{error || t('Invalid or expired reference link')}</p>
-				</div>
-			</div>
+			<AuthLayout logo={<Logo />} title={t('Welcome to Cloudillo!')}>
+				<Alert color="error">{error || t('Invalid or expired reference link')}</Alert>
+			</AuthLayout>
 		)
 	}
 
@@ -294,20 +293,17 @@ export function Welcome() {
 	}
 
 	return (
-		<div className="c-panel p-4">
-			<CloudilloLogo className="c-logo w-50 float-right ps-3 pb-3" />
-			<header>
-				<h1 className="mb-3">{t('Welcome to Cloudillo!')}</h1>
-			</header>
+		<AuthLayout
+			logo={<Logo animated={progress === 'loading'} />}
+			title={t('Welcome to Cloudillo!')}
+			subtitle={t('Set Your Password')}
+		>
+			<Text as="p">{t('Please choose a strong password to secure your account.')}</Text>
 
-			<h3 className="my-3">{t('Set Your Password')}</h3>
-			<p className="pb-4">{t('Please choose a strong password to secure your account.')}</p>
-
-			<form onSubmit={handleSubmit}>
-				<label className="d-block my-3">
-					{t('Password')}
+			<Form onSubmit={handleSubmit}>
+				<Field label={t('Password')}>
 					<PasswordInput
-						icon={<IcLock />}
+						leading={<IcLock />}
 						name="password"
 						autoFocus
 						onChange={(evt) => {
@@ -319,13 +315,19 @@ export function Welcome() {
 						aria-label={t('Password')}
 						disabled={progress === 'loading'}
 					/>
-				</label>
+				</Field>
 				<PasswordStrengthBar password={password} />
 
-				<label className="d-block my-3">
-					{t('Confirm Password')}
+				<Field
+					label={t('Confirm Password')}
+					error={
+						confirmPassword && password !== confirmPassword
+							? t('Passwords do not match')
+							: undefined
+					}
+				>
 					<PasswordInput
-						icon={<IcLock />}
+						leading={<IcLock />}
 						name="confirmPassword"
 						onChange={(evt) => {
 							setConfirmPassword(evt.target.value)
@@ -336,27 +338,19 @@ export function Welcome() {
 						aria-label={t('Confirm Password')}
 						disabled={progress === 'loading'}
 					/>
-				</label>
-				{confirmPassword && password !== confirmPassword && (
-					<div className="small text-error mt-1">{t('Passwords do not match')}</div>
-				)}
+				</Field>
 
-				{error && (
-					<div className="c-panel error mt-3">
-						<p>{error}</p>
-					</div>
-				)}
+				{error && <Alert color="error">{error}</Alert>}
 
 				{progress === 'success' && (
-					<div className="c-panel success mt-3">
-						<p>{t('Password set successfully. Redirecting...')}</p>
-					</div>
+					<Alert color="success">{t('Password set successfully. Redirecting...')}</Alert>
 				)}
 
-				<footer className="c-group g-2 mt-4">
+				<ActionBar>
 					<Button
-						className="primary"
+						color="primary"
 						type="submit"
+						loading={progress === 'loading'}
 						disabled={
 							progress === 'loading' ||
 							!password ||
@@ -365,12 +359,11 @@ export function Welcome() {
 							password.length < 8
 						}
 					>
-						{progress === 'loading' && <IcLoading className="animate-rotate-cw" />}
-						{progress !== 'loading' && t('Set Password')}
+						{t('Set Password')}
 					</Button>
-				</footer>
-			</form>
-		</div>
+				</ActionBar>
+			</Form>
+		</AuthLayout>
 	)
 }
 

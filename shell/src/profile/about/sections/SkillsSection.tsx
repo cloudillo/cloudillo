@@ -1,10 +1,9 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button } from '@cloudillo/react'
+import { Button, HBox, Input, Tag, VBox } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuX as IcRemove } from 'react-icons/lu'
 
 import type { SectionWithContent, SkillsContent } from '../types.js'
 import { parseContent, stringifyContent } from '../types.js'
@@ -21,13 +20,11 @@ export function SkillsSectionView({ section }: SkillsSectionViewProps) {
 	if (!data.tags.length) return null
 
 	return (
-		<div className="c-hbox wrap g-1">
+		<HBox wrap gap={1}>
 			{data.tags.map((tag) => (
-				<span key={tag} className="c-tag">
-					{tag}
-				</span>
+				<Tag key={tag}>{tag}</Tag>
 			))}
-		</div>
+		</HBox>
 	)
 }
 
@@ -68,30 +65,28 @@ export function SkillsSectionEdit({ section, onChange }: SkillsSectionEditProps)
 	}
 
 	return (
-		<div className="c-vbox g-2">
-			<div className="c-hbox wrap g-1">
+		<VBox gap={2}>
+			<HBox wrap gap={1}>
 				{data.tags.map((tag) => (
-					<span key={tag} className="c-tag c-hbox g-1 align-items-center">
+					<Tag key={tag} onRemove={() => removeTag(tag)}>
 						{tag}
-						<Button kind="link" className="p-0" onClick={() => removeTag(tag)}>
-							<IcRemove size="0.8rem" />
-						</Button>
-					</span>
+					</Tag>
 				))}
-			</div>
-			<div className="c-hbox g-1">
-				<input
-					className="c-input flex-fill"
+			</HBox>
+			<HBox gap={1}>
+				<Input
+					className="flex-fill"
+					aria-label={t('Add a tag...')}
 					placeholder={t('Add a tag...')}
 					value={input}
 					onChange={(e) => setInput(e.target.value)}
 					onKeyDown={onKeyDown}
 				/>
-				<Button kind="link" onClick={addTag} disabled={!input.trim()}>
+				<Button variant="ghost" onClick={addTag} disabled={!input.trim()}>
 					{t('Add')}
 				</Button>
-			</div>
-		</div>
+			</HBox>
+		</VBox>
 	)
 }
 

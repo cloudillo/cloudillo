@@ -1,17 +1,11 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button, mergeClasses, ProfilePicture, TimeFormat } from '@cloudillo/react'
+import { Button, HBox, ListItem, ProfilePicture, Text, TimeFormat } from '@cloudillo/react'
 import type { ActionView } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { LuCheck as IcAccept, LuX as IcDismiss } from 'react-icons/lu'
-import { Link } from 'react-router-dom'
-
-import { useCtx } from '../context/index.js'
-import { profilePath } from '../routes.js'
-
-import './notifications.css'
 
 function getActionText(
 	type: string,
@@ -48,110 +42,97 @@ function getActionText(
 	}
 }
 
+function inviteMessage(action: ActionView): string | undefined {
+	if (action.type !== 'INVT' && action.type !== 'PRINVT') return undefined
+	const c = action.content
+	return typeof c === 'string' ? c : (c as { message?: string } | undefined)?.message
+}
+
 export interface NotificationItemProps {
 	action: ActionView
-	compact?: boolean
 	onClick?: (action: ActionView) => void
 	onAccept?: (action: ActionView) => void
 	onReject?: (action: ActionView) => void
 	onDismiss?: (action: ActionView) => void
 }
 
+/** Compact notification row for the header popover */
 export function NotificationItem({
 	action,
-	compact,
 	onClick,
 	onAccept,
 	onReject,
 	onDismiss
 }: NotificationItemProps) {
 	const { t } = useTranslation()
-	const urlContext = useCtx().base
 	const name = action.issuer?.name || action.issuer?.idTag || ''
-	const text = getActionText(action.type, action.subType, action.status, t, action.subject)
-	const isActionable = compact && action.status === 'C'
+	const subject =
+		action.type === 'INVT' && action.subjectProfile
+			? action.subjectProfile.name || action.subjectProfile.idTag
+			: undefined
+	const message = inviteMessage(action)
 
 	return (
-		<div
-			className={mergeClasses(
-				'c-hbox g-2 align-items-center',
-				compact ? 'p-2' : 'p-3',
-				isActionable && 'c-notification-item-actionable'
-			)}
-			style={
-				compact
-					? {
-							cursor: 'pointer',
-							borderBottom: '1px solid var(--border-color, rgba(128,128,128,0.2))'
-						}
-					: undefined
-			}
+		<ListItem
+			className={action.status === 'C' ? 'c-notification-item-actionable' : undefined}
 			onClick={onClick ? () => onClick(action) : undefined}
-		>
-			<ProfilePicture profile={action.issuer} srcTag={action.issuer?.idTag} tiny />
-			<div className="c-vbox flex-fill" style={{ minWidth: 0 }}>
-				<span className={compact ? 'text-sm' : ''}>
-					<strong>{name}</strong>{' '}
-					{action.type === 'INVT' && action.subjectProfile ? (
+			leading={
+				<ProfilePicture profile={action.issuer} srcTag={action.issuer?.idTag} size="xs" />
+			}
+			title={
+				<Text size="sm">
+					<Text weight="semibold">{name}</Text>{' '}
+					{subject ? (
 						<>
-							<span className="text-muted">{t('invited you to')}</span>{' '}
-							<Link
-								to={profilePath(urlContext, action.subjectProfile.idTag)}
-								onClick={(e) => e.stopPropagation()}
-							>
-								<strong className="text-emph">
-									{action.subjectProfile.name || action.subjectProfile.idTag}
-								</strong>
-							</Link>
+							<Text emphasis="muted">{t('invited you to')}</Text>{' '}
+							<Text weight="semibold">{subject}</Text>
 						</>
 					) : (
-						<span className="text-muted">{text}</span>
-					)}{' '}
-					<small className="text-muted">
-						<TimeFormat time={action.createdAt} />
-					</small>
-				</span>
-				{(action.type === 'INVT' || action.type === 'PRINVT') &&
-					(() => {
-						const c = action.content
-						const msg =
-							typeof c === 'string'
-								? c
-								: (c as { message?: string } | undefined)?.message
-						return msg ? (
-							<span className="text-muted text-truncate" style={{ maxWidth: '100%' }}>
-								{msg}
-							</span>
-						) : null
-					})()}
-			</div>
-			{/* stopPropagation on wrapper div to prevent Popper close on button click */}
-			<div className="c-hbox g-1" onClick={(e) => e.stopPropagation()}>
-				{onAccept && (
-					<Button
-						kind="link"
-						onClick={() => onAccept(action)}
-						style={{ color: 'var(--col-success)' }}
-					>
-						<IcAccept />
-					</Button>
-				)}
-				{onReject && (
-					<Button
-						kind="link"
-						onClick={() => onReject(action)}
-						style={{ color: 'var(--col-error)' }}
-					>
-						<IcDismiss />
-					</Button>
-				)}
-				{onDismiss && (
-					<Button kind="link" onClick={() => onDismiss(action)}>
-						<IcDismiss />
-					</Button>
-				)}
-			</div>
-		</div>
+						<Text emphasis="muted">
+							{getActionText(
+								action.type,
+								action.subType,
+								action.status,
+								t,
+								action.subject
+							)}
+						</Text>
+					)}
+				</Text>
+			}
+			subtitle={message && <Text truncate>{message}</Text>}
+			meta={<TimeFormat time={action.createdAt} />}
+			actions={
+				<HBox gap={1}>
+					{onAccept && (
+						<Button
+							variant="ghost"
+							color="success"
+							icon={<IcAccept />}
+							aria-label={t('Accept')}
+							onClick={() => onAccept(action)}
+						/>
+					)}
+					{onReject && (
+						<Button
+							variant="ghost"
+							color="error"
+							icon={<IcDismiss />}
+							aria-label={t('Reject')}
+							onClick={() => onReject(action)}
+						/>
+					)}
+					{onDismiss && (
+						<Button
+							variant="ghost"
+							icon={<IcDismiss />}
+							aria-label={t('Dismiss')}
+							onClick={() => onDismiss(action)}
+						/>
+					)}
+				</HBox>
+			}
+		/>
 	)
 }
 

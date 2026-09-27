@@ -9,21 +9,23 @@
  */
 
 import type { CropAspect, Visibility } from '@cloudillo/core'
-import { Button, Progress, useApi } from '@cloudillo/react'
-import type { TFunction } from 'i18next'
+import {
+	ActionBar,
+	Alert,
+	Button,
+	DropZone,
+	EmptyState,
+	Field,
+	PERSONAL_VISIBILITY,
+	Progress,
+	Text,
+	useApi,
+	VBox,
+	VisibilitySelect
+} from '@cloudillo/react'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuCheck as IcCheck,
-	LuChevronDown as IcChevronDown,
-	LuX as IcClose,
-	LuUserCheck as IcConnected,
-	LuUserPlus as IcFollowers,
-	LuInfo as IcInfo,
-	LuGlobe as IcPublic,
-	LuUpload as IcUpload,
-	LuTriangleAlert as IcWarning
-} from 'react-icons/lu'
+import { LuCheck as IcCheck, LuX as IcClose } from 'react-icons/lu'
 
 import { useApiContext } from '../../context/index.js'
 import type { MediaPickerResult } from '../../context/media-picker-atom.js'
@@ -42,29 +44,6 @@ interface MediaPickerUploadTabProps {
 }
 
 type UploadState = 'idle' | 'preparing' | 'cropping' | 'uploading' | 'complete' | 'error'
-
-/**
- * Visibility options for the dropdown
- */
-interface MediaPickerVisibilityOption {
-	value: Visibility
-	label: string
-	icon: React.ComponentType<{ className?: string }>
-}
-
-const getVisibilityOptions = (t: TFunction): MediaPickerVisibilityOption[] => [
-	{ value: 'P', label: t('Public'), icon: IcPublic },
-	{ value: 'F', label: t('Followers'), icon: IcFollowers },
-	{ value: 'C', label: t('Connected'), icon: IcConnected }
-]
-
-/**
- * Get visibility option by value
- */
-function getVisibilityOption(t: TFunction, value: Visibility): MediaPickerVisibilityOption {
-	const opts = getVisibilityOptions(t)
-	return opts.find((opt) => opt.value === value) || opts[0]
-}
 
 export function MediaPickerUploadTab({
 	mediaType,
@@ -90,7 +69,6 @@ export function MediaPickerUploadTab({
 				: defaultApi) || defaultApi,
 		[idTagProp, defaultApi, getClientFor]
 	)
-	const fileInputRef = useRef<HTMLInputElement>(null)
 	const abortControllerRef = useRef<AbortController | null>(null)
 	const lastUploadedBlobRef = useRef<{ blob: globalThis.File | Blob; fileName?: string } | null>(
 		null
@@ -100,7 +78,6 @@ export function MediaPickerUploadTab({
 	const [uploadState, setUploadState] = useState<UploadState>('idle')
 	const [progress, setProgress] = useState<number | undefined>(undefined)
 	const [error, setError] = useState<string | null>(null)
-	const [dragOver, setDragOver] = useState(false)
 
 	// Image cropping state
 	const [cropImageSrc, setCropImageSrc] = useState<string | null>(null)
@@ -108,7 +85,6 @@ export function MediaPickerUploadTab({
 
 	// Visibility state: default to 'P' (Public) for external context, 'F' (Followers) otherwise
 	const [visibility, setVisibility] = useState<Visibility>(isExternalContext ? 'P' : 'F')
-	const [showVisibilityDropdown, setShowVisibilityDropdown] = useState(false)
 
 	// Notify parent when cropping state changes
 	useEffect(() => {
@@ -263,48 +239,6 @@ export function MediaPickerUploadTab({
 		setUploadState('idle')
 	}, [])
 
-	// Handle file input change
-	const handleInputChange = useCallback(
-		(e: React.ChangeEvent<HTMLInputElement>) => {
-			const file = e.target.files?.[0]
-			if (file) {
-				handleFileSelect(file)
-			}
-			// Reset input so same file can be selected again
-			e.target.value = ''
-		},
-		[handleFileSelect]
-	)
-
-	// Handle drag and drop
-	const handleDragOver = useCallback((e: React.DragEvent) => {
-		e.preventDefault()
-		setDragOver(true)
-	}, [])
-
-	const handleDragLeave = useCallback((e: React.DragEvent) => {
-		e.preventDefault()
-		setDragOver(false)
-	}, [])
-
-	const handleDrop = useCallback(
-		(e: React.DragEvent) => {
-			e.preventDefault()
-			setDragOver(false)
-
-			const file = e.dataTransfer.files?.[0]
-			if (file) {
-				handleFileSelect(file)
-			}
-		},
-		[handleFileSelect]
-	)
-
-	// Handle click on dropzone
-	const handleDropzoneClick = useCallback(() => {
-		fileInputRef.current?.click()
-	}, [])
-
 	// Reset state
 	const handleReset = useCallback(() => {
 		abortControllerRef.current?.abort()
@@ -316,14 +250,6 @@ export function MediaPickerUploadTab({
 		setCropImageSrc(null)
 		setOriginalFile(null)
 	}, [])
-
-	// Handle visibility change
-	const handleVisibilityChange = useCallback((value: Visibility) => {
-		setVisibility(value)
-		setShowVisibilityDropdown(false)
-	}, [])
-
-	const visibilityOptions = React.useMemo(() => getVisibilityOptions(t), [t])
 
 	// Show cropping dialog
 	if ((uploadState === 'cropping' || uploadState === 'uploading') && cropImageSrc) {
@@ -344,144 +270,95 @@ export function MediaPickerUploadTab({
 		)
 	}
 
-	const currentVisibilityOption = getVisibilityOption(t, visibility)
-	const VisibilityIcon = currentVisibilityOption.icon
-
 	// Check if non-public visibility is selected in external context
 	const showNonPublicWarning = isExternalContext && visibility !== 'P'
 
 	return (
-		<div className="media-picker-upload">
-			<input
-				ref={fileInputRef}
-				type="file"
-				accept={getAcceptType()}
-				style={{ display: 'none' }}
-				onChange={handleInputChange}
-			/>
-
-			{/* Info banner for external context */}
+		<VBox gap={3} fill>
 			{isExternalContext && uploadState === 'idle' && !showNonPublicWarning && (
-				<div className="media-picker-upload-info">
-					<IcInfo />
-					<span>
-						{t('Public visibility ensures all document viewers can see this file.')}
-					</span>
-				</div>
+				<Alert color="info" compact>
+					{t('Public visibility ensures all document viewers can see this file.')}
+				</Alert>
 			)}
 
-			{/* Warning when non-public visibility selected in external context */}
 			{showNonPublicWarning && uploadState === 'idle' && (
-				<div className="media-picker-upload-warning">
-					<IcWarning />
-					<span>
-						{t(
-							'Only public files can be embedded. Some viewers may not see this file.'
-						)}
-					</span>
-				</div>
-			)}
-
-			{/* Visibility selector */}
-			{uploadState === 'idle' && (
-				<div className="media-picker-upload-visibility">
-					<label>{t('Visibility')}</label>
-					<div className="media-picker-visibility-selector">
-						<button
-							type="button"
-							className="c-button ghost small"
-							onClick={() => setShowVisibilityDropdown(!showVisibilityDropdown)}
-						>
-							<VisibilityIcon />
-							<span>{currentVisibilityOption.label}</span>
-							<IcChevronDown />
-						</button>
-						{showVisibilityDropdown && (
-							<div className="media-picker-visibility-dropdown">
-								{visibilityOptions.map((opt) => {
-									const OptionIcon = opt.icon
-									return (
-										<button
-											key={opt.value}
-											type="button"
-											className={`media-picker-visibility-option ${visibility === opt.value ? 'active' : ''}`}
-											onClick={() => handleVisibilityChange(opt.value)}
-										>
-											<OptionIcon />
-											<span>{opt.label}</span>
-										</button>
-									)
-								})}
-							</div>
-						)}
-					</div>
-				</div>
+				<Alert color="warning" compact>
+					{t('Only public files can be embedded. Some viewers may not see this file.')}
+				</Alert>
 			)}
 
 			{uploadState === 'idle' && (
-				<div
-					className={`media-picker-dropzone ${dragOver ? 'dragover' : ''}`}
-					onClick={handleDropzoneClick}
-					onDragOver={handleDragOver}
-					onDragLeave={handleDragLeave}
-					onDrop={handleDrop}
-				>
-					<IcUpload />
-					<div className="media-picker-dropzone-text">
-						<strong>{t('Drag and drop a file here')}</strong>
-						<span>{t('or click to browse')}</span>
-					</div>
-				</div>
+				<>
+					<Field label={t('Visibility')} orientation="horizontal" size="sm">
+						<VisibilitySelect
+							value={visibility}
+							onChange={(v) => setVisibility(v as Visibility)}
+							options={PERSONAL_VISIBILITY}
+						/>
+					</Field>
+					<DropZone
+						variant="area"
+						multiple={false}
+						accept={getAcceptType()}
+						onFiles={(files) => {
+							if (files[0]) handleFileSelect(files[0])
+						}}
+						title={t('Drag and drop a file here')}
+						hint={t('or click to browse')}
+					/>
+				</>
 			)}
 
 			{uploadState === 'preparing' && (
-				<div className="media-picker-upload-progress">
-					<span>{t('Preparing image...')}</span>
+				<VBox gap={2}>
+					<Text>{t('Preparing image...')}</Text>
 					<Progress indeterminate />
-				</div>
+				</VBox>
 			)}
 
 			{uploadState === 'uploading' && !cropImageSrc && (
-				<div className="media-picker-upload-progress">
-					<span>
+				<VBox gap={2}>
+					<Text>
 						{t('Uploading...')}
 						{progress !== undefined ? ` ${progress}%` : ''}
-					</span>
+					</Text>
 					{progress === undefined ? (
 						<Progress indeterminate />
 					) : (
 						<Progress value={progress} />
 					)}
-					<Button onClick={handleCancelUpload}>{t('Cancel')}</Button>
-				</div>
+					<ActionBar>
+						<Button onClick={handleCancelUpload}>{t('Cancel')}</Button>
+					</ActionBar>
+				</VBox>
 			)}
 
 			{uploadState === 'complete' && (
-				<div className="media-picker-dropzone">
-					<IcCheck />
-					<div className="media-picker-dropzone-text">
-						<strong>{t('Upload complete')}</strong>
-						<span>{t('Click Select to use this file')}</span>
-					</div>
-					<Button onClick={handleReset}>{t('Upload another')}</Button>
-				</div>
+				<EmptyState
+					color="success"
+					icon={<IcCheck />}
+					title={t('Upload complete')}
+					description={t('Click Select to use this file')}
+					actions={<Button onClick={handleReset}>{t('Upload another')}</Button>}
+				/>
 			)}
 
 			{uploadState === 'error' && (
-				<div className="media-picker-dropzone">
-					<IcClose />
-					<div className="media-picker-dropzone-text">
-						<strong>{error || t('Upload failed')}</strong>
-					</div>
-					<div className="c-hbox g-2">
-						<Button variant="primary" onClick={handleRetryUpload}>
-							{t('Retry')}
-						</Button>
-						<Button onClick={handleReset}>{t('Try again')}</Button>
-					</div>
-				</div>
+				<EmptyState
+					color="error"
+					icon={<IcClose />}
+					title={error || t('Upload failed')}
+					actions={
+						<>
+							<Button color="primary" onClick={handleRetryUpload}>
+								{t('Retry')}
+							</Button>
+							<Button onClick={handleReset}>{t('Try again')}</Button>
+						</>
+					}
+				/>
 			)}
-		</div>
+		</VBox>
 	)
 }
 

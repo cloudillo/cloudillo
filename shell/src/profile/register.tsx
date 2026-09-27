@@ -3,19 +3,37 @@
 
 import type * as Types from '@cloudillo/core'
 import { FetchError } from '@cloudillo/core'
-import { Button, useApi, useAuth, useDebouncedValue } from '@cloudillo/react'
+import {
+	ActionBar,
+	Alert,
+	Button,
+	Center,
+	Container,
+	EmptyState,
+	Field,
+	Form,
+	Input,
+	List,
+	ListItem,
+	Logo,
+	Panel,
+	Stepper,
+	Text,
+	useApi,
+	useAuth,
+	useDebouncedValue
+} from '@cloudillo/react'
 import debounce from 'debounce'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
 	LuChevronsLeft as IcGoBack,
 	LuDoorOpen as IcSignUp,
-	LuCircleCheck as IcSuccess,
-	LuLightbulb as IcTip
+	LuCircleCheck as IcSuccess
 } from 'react-icons/lu'
 import { useNavigate, useParams } from 'react-router-dom'
 
-import { CloudilloLogo } from '../logo.js'
+import { AuthLayout } from '../auth/AuthLayout.js'
 import {
 	AppDomainErrorPanel,
 	AppDomainInput,
@@ -32,13 +50,30 @@ type LocalVerifyResult = Omit<Types.RegisterVerifyResult, 'idTagError'> & {
 	idTagError?: IdTagError
 }
 
+////////////////
+// EmailField //
+////////////////
+function EmailField({ email, setEmail }: { email: string; setEmail: (value: string) => void }) {
+	const { t } = useTranslation()
+
+	return (
+		<Field label={t('Your email (for account recovery)')}>
+			<Input
+				name="email"
+				type="email"
+				onChange={(evt: React.ChangeEvent<HTMLInputElement>) => setEmail(evt.target.value)}
+				value={email}
+				placeholder={t('you@example.com')}
+			/>
+		</Field>
+	)
+}
+
 /////////////////////////
 // IdpRegistrationForm //
 /////////////////////////
 interface IdpRegistrationFormProps {
-	identityProviders: string[]
 	selectedProvider: string
-	setSelectedProvider: (provider: string) => void
 	providerInfo?: Types.IdpInfo
 	idTagInput: string
 	setIdTagInput: (value: string) => void
@@ -52,7 +87,6 @@ interface IdpRegistrationFormProps {
 		provider?: string,
 		appDomain?: string
 	) => void
-	onSubmit: (evt: React.FormEvent) => void
 	onGoBack: () => void
 }
 
@@ -70,93 +104,60 @@ function IdpRegistrationForm({
 }: IdpRegistrationFormProps) {
 	const { t } = useTranslation()
 
-	// Debounced display name for smooth animation (only animate when user pauses typing)
+	// Debounced display name so the preview only updates when the user pauses typing
 	const displayName = useDebouncedValue(idTagInput, 300)
 
 	return (
 		<>
-			<CloudilloLogo
-				className={'c-logo w-50 float-right ps-3 pb-3' + (progress == 'vfy' ? ' slow' : '')}
+			{/* Identity preview */}
+			<Panel variant="soft" className="my-3">
+				<Text as="p" align="center" size="sm" emphasis="muted">
+					{t("You'll be known as")}
+				</Text>
+				<Text as="p" key={displayName} align="center" size="xl" weight="semibold">
+					<Text
+						color={idTagInput ? 'accent' : undefined}
+						emphasis={idTagInput ? undefined : 'disabled'}
+					>
+						@{idTagInput || 'yourname'}
+					</Text>
+					<Text color="primary">.{selectedProvider}</Text>
+				</Text>
+				<Text as="p" align="center" size="sm" emphasis="muted">
+					{t('Pick something memorable that represents you.')}
+				</Text>
+			</Panel>
+
+			<IdTagInput
+				value={idTagInput}
+				onChange={setIdTagInput}
+				onVerify={(value) => onVerify('idTag', value, selectedProvider)}
+				progress={progress}
+				error={verifyState?.idTagError}
+				label={t('Your name')}
+				placeholder={t('yourname')}
+				suffix={selectedProvider}
+				mode="idp"
 			/>
-			<header>
-				<h1 className="mb-3">{t('Welcome to Cloudillo!')}</h1>
-			</header>
+			<IdTagErrorPanel error={verifyState?.idTagError} mode="idp" />
 
-			{/* Identity preview panel with animation */}
-			<div className="animate-fade-slide-up stagger-1">
-				<h3 className="my-3">
-					{t('Choose your name on {{provider}}', {
-						provider: providerInfo?.name || selectedProvider
-					})}
-				</h3>
-				<div className="c-panel mid text-center py-3 my-3">
-					<p className="text-muted small mb-1">{t("You'll be known as")}</p>
-					<p key={displayName} className="text-xl font-semibold mb-2 animate-scale-in">
-						<span className={idTagInput ? 'text-accent' : 'text-disabled'}>
-							@{idTagInput || 'yourname'}
-						</span>
-						<span className="text-primary">.{selectedProvider}</span>
-					</p>
-					<p className="text-muted small mb-0">
-						{t('Pick something memorable that represents you.')}
-					</p>
-				</div>
-			</div>
+			<EmailField email={email} setEmail={setEmail} />
 
-			{/* Name input with animation */}
-			<div className="animate-fade-slide-up stagger-2">
-				<IdTagInput
-					value={idTagInput}
-					onChange={setIdTagInput}
-					onVerify={(value) => onVerify('idTag', value, selectedProvider)}
-					progress={progress}
-					error={verifyState?.idTagError}
-					label={t('Your name')}
-					placeholder={t('yourname')}
-					suffix={selectedProvider}
-					mode="idp"
-				/>
-				<IdTagErrorPanel error={verifyState?.idTagError} mode="idp" />
-			</div>
+			{providerInfo && <Alert color="info">{providerInfo.info}</Alert>}
 
-			{/* Email input with animation */}
-			<div className="animate-fade-slide-up stagger-3">
-				<label className="d-block my-3">
-					{t('Your email (for account recovery)')}
-					<input
-						className="c-input px-3"
-						name="email"
-						type="email"
-						onChange={(evt: React.ChangeEvent<HTMLInputElement>) =>
-							setEmail(evt.target.value)
-						}
-						value={email}
-						placeholder={t('you@example.com')}
-						aria-label={t('Email address')}
-					/>
-				</label>
-			</div>
-
-			{providerInfo && (
-				<p className="text-muted small mt-3">
-					<span className="me-1">ℹ️</span> {providerInfo.info}
-				</p>
-			)}
-
-			<footer className="c-group g-2 mt-4">
-				<Button className="container-secondary" onClick={onGoBack}>
-					<IcGoBack />
+			<ActionBar>
+				<Button icon={<IcGoBack />} onClick={onGoBack}>
 					{t('Back')}
 				</Button>
 				<Button
-					className="primary"
+					color="primary"
 					type="submit"
+					icon={<IcSignUp />}
 					disabled={verifyState?.idTagError !== '' || !email || !idTagInput}
 				>
-					<IcSignUp />
 					{t('Sign up')}
 				</Button>
-			</footer>
+			</ActionBar>
 		</>
 	)
 }
@@ -179,7 +180,6 @@ interface DomainRegistrationFormProps {
 		provider?: string,
 		appDomain?: string
 	) => void
-	onSubmit: (evt: React.FormEvent) => void
 	onGoBack: () => void
 }
 
@@ -212,15 +212,6 @@ function DomainRegistrationForm({
 
 	return (
 		<>
-			<CloudilloLogo
-				className={'c-logo w-50 float-right ps-3 pb-3' + (progress == 'vfy' ? ' slow' : '')}
-			/>
-			<header>
-				<h1 className="mb-3">{t('Welcome to Cloudillo!')}</h1>
-			</header>
-
-			<h3 className="my-3">{t('Use your domain as your identity')}</h3>
-
 			<IdTagInput
 				value={idTagInput}
 				onChange={setIdTagInput}
@@ -267,42 +258,84 @@ function DomainRegistrationForm({
 				/>
 			)}
 
-			{showEmailField && (
-				<label className="d-block my-3">
-					{t('Your email (for account recovery)')}
-					<input
-						className="c-input px-3"
-						name="email"
-						type="email"
-						onChange={(evt: React.ChangeEvent<HTMLInputElement>) =>
-							setEmail(evt.target.value)
-						}
-						value={email}
-						placeholder={t('you@example.com')}
-						aria-label={t('Email address')}
-					/>
-				</label>
-			)}
+			{showEmailField && <EmailField email={email} setEmail={setEmail} />}
 
-			<footer className="c-group g-2 mt-4">
-				<Button className="container-secondary" onClick={onGoBack}>
-					<IcGoBack />
+			<ActionBar>
+				<Button icon={<IcGoBack />} onClick={onGoBack}>
 					{t('Back')}
 				</Button>
 				<Button
-					className="primary"
+					color="primary"
 					type="submit"
+					icon={<IcSignUp />}
 					disabled={
 						verifyState?.idTagError !== '' ||
 						verifyState?.appDomainError !== '' ||
 						!email
 					}
 				>
-					<IcSignUp />
 					{t('Sign up')}
 				</Button>
-			</footer>
+			</ActionBar>
 		</>
+	)
+}
+
+//////////////////////
+// RegisterComplete //
+//////////////////////
+function RegisterComplete({ identityProvider }: { identityProvider?: 'idp' | 'domain' }) {
+	const { t } = useTranslation()
+
+	return (
+		<AuthLayout logo={<Logo />} title={t('Welcome to Cloudillo!')}>
+			<EmptyState
+				size="sm"
+				color="success"
+				icon={<IcSuccess />}
+				title={t('Registration Successful!')}
+			/>
+
+			{identityProvider == 'idp' ? (
+				<>
+					<Text as="p" weight="semibold">
+						{t('What happens next?')}
+					</Text>
+					<List marker="number">
+						<ListItem
+							title={t('Activation email') + ' ' + t('from your Identity Provider')}
+							subtitle={t('Click to activate your federated identity')}
+						/>
+						<ListItem
+							title={t('Onboarding email') + ' ' + t('from this Cloudillo instance')}
+							subtitle={t('Click to set up your account and password')}
+						/>
+					</List>
+					<Alert color="info" title={t('Check your inbox to continue.')}>
+						{t('It may take up to an hour before your account is fully ready.')}
+					</Alert>
+				</>
+			) : (
+				<>
+					<Text as="p">
+						{t(
+							'We have sent an onboarding link to your email address. Please check your inbox to continue setting up your account.'
+						)}
+					</Text>
+					{identityProvider == 'domain' && (
+						<Alert color="info">
+							{t(
+								'If you set up custom DNS records, it may take some time for changes to propagate.'
+							)}
+						</Alert>
+					)}
+				</>
+			)}
+
+			<Text as="p" align="center" emphasis="muted" className="mt-3">
+				{t("You're all set here!")}
+			</Text>
+		</AuthLayout>
 	)
 }
 
@@ -548,310 +581,169 @@ export function RegisterForm() {
 	if (show == undefined) return
 	if (!show)
 		return (
-			<div className="c-panel">
-				<CloudilloLogo className="c-logo w-50 float-right ps-3 pb-3" />
-				<header>
-					{tokenError === 'rate-limit' ? (
-						<>
-							<h1 className="mb-3">{t('Too many requests')}</h1>
-							<p className="text-muted">{t('Please wait a moment and try again.')}</p>
-						</>
-					) : (
-						<h1 className="mb-3">{t('This registration link is invalid!')}</h1>
-					)}
-				</header>
-			</div>
+			<AuthLayout
+				logo={<Logo />}
+				title={
+					tokenError === 'rate-limit'
+						? t('Too many requests')
+						: t('This registration link is invalid!')
+				}
+				subtitle={
+					tokenError === 'rate-limit'
+						? t('Please wait a moment and try again.')
+						: undefined
+				}
+			/>
 		)
 
-	// Render the appropriate step
+	// Registering / checking the app domain
+	if (progress == 'reg' || progress == 'check')
+		return (
+			<AuthLayout
+				logo={<Logo animated />}
+				title={t('Welcome to Cloudillo!')}
+				subtitle={
+					progress == 'reg'
+						? t('Registration is in progress')
+						: t('Registration is successful')
+				}
+			>
+				<Text as="p" role="status">
+					{progress == 'reg'
+						? t('This usually takes only 10-20 seconds, please be patient...')
+						: t('Checking app domain...')}
+				</Text>
+			</AuthLayout>
+		)
+
+	if (progress == 'done' || progress == 'wait-dns')
+		return <RegisterComplete identityProvider={identityProvider} />
+
+	if (progress == 'error')
+		return (
+			<AuthLayout
+				logo={<Logo />}
+				title={t('Something went wrong!')}
+				subtitle={t('Your registration was unsuccessful.')}
+			>
+				{error && <Alert color="error">{error}</Alert>}
+				<Text as="p">
+					{t('Please contact the administrator of the server or try again.')}
+				</Text>
+				<ActionBar>
+					<Button
+						color="primary"
+						onClick={() => {
+							setProgress(undefined)
+							setError(undefined)
+						}}
+					>
+						{t('Try again')}
+					</Button>
+				</ActionBar>
+			</AuthLayout>
+		)
+
+	// Wizard steps: gateway → (idp: provider → name | domain: domain form)
+	const stepCount = identityProvider == 'domain' ? 2 : 3
+	const step = !identityProvider ? 0 : identityProvider == 'idp' && idpStep === 'name' ? 2 : 1
+	const stepper = (
+		<Center className="pt-3">
+			<Stepper count={stepCount} current={step} />
+		</Center>
+	)
+
+	// Gateway and IdP provider selection render their own logo + heading (shared.tsx)
+	if (!identityProvider || (identityProvider == 'idp' && idpStep === 'select'))
+		return (
+			<>
+				{stepper}
+				<Container>
+					<Center
+						className="p-3"
+						style={{ '--center-min-height': '100%' } as React.CSSProperties}
+					>
+						<Panel className="w-100" style={{ maxWidth: '40rem' }}>
+							{!identityProvider ? (
+								<ProviderSelectionStep
+									mode="register"
+									onSelectProvider={onSelectProviderType}
+								/>
+							) : (
+								<ProviderSelectorStep
+									mode="register"
+									identityProviders={identityProviders}
+									providerInfoMap={providerInfoMap}
+									selectedProvider={selectedProvider}
+									onSelectProvider={setSelectedProvider}
+									onProviderInfoFetched={(provider, info) =>
+										setProviderInfoMap((prev) => ({
+											...prev,
+											[provider]: info
+										}))
+									}
+									onContinue={onIdpProviderContinue}
+									onGoBack={onGoBack}
+									api={api}
+								/>
+							)}
+						</Panel>
+					</Center>
+				</Container>
+			</>
+		)
+
 	return (
-		<form className="c-panel d-block p-4" onSubmit={onSubmit}>
-			{/* Gateway: Choose IDP vs Domain */}
-			{(!progress || progress == 'vfy') && !identityProvider && (
-				<ProviderSelectionStep mode="register" onSelectProvider={onSelectProviderType} />
-			)}
-
-			{/* IDP flow - Step 1: Provider selection */}
-			{(!progress || progress == 'vfy') &&
-				identityProvider == 'idp' &&
-				idpStep === 'select' && (
-					<ProviderSelectorStep
-						mode="register"
-						identityProviders={identityProviders}
-						providerInfoMap={providerInfoMap}
-						selectedProvider={selectedProvider}
-						onSelectProvider={setSelectedProvider}
-						onProviderInfoFetched={(provider, info) =>
-							setProviderInfoMap((prev) => ({ ...prev, [provider]: info }))
-						}
-						onContinue={onIdpProviderContinue}
-						onGoBack={onGoBack}
-						api={api}
-					/>
-				)}
-
-			{/* IDP flow - Step 2: Name selection */}
-			{(!progress || progress == 'vfy') &&
-				identityProvider == 'idp' &&
-				idpStep === 'name' && (
-					<IdpRegistrationForm
-						identityProviders={identityProviders}
-						selectedProvider={selectedProvider}
-						setSelectedProvider={setSelectedProvider}
-						providerInfo={providerInfoMap[selectedProvider]}
-						idTagInput={idTagInput}
-						setIdTagInput={setIdTagInput}
-						email={email}
-						setEmail={setEmail}
-						verifyState={verifyState}
-						progress={progress}
-						onVerify={onChangeVerify}
-						onSubmit={onSubmit}
-						onGoBack={onGoBack}
-					/>
-				)}
-
-			{/* Domain registration form */}
-			{(!progress || progress == 'vfy') && identityProvider == 'domain' && (
-				<DomainRegistrationForm
-					idTagInput={idTagInput}
-					setIdTagInput={setIdTagInput}
-					appDomain={appDomain}
-					setAppDomain={(value) => {
-						setAppDomain(value)
-						setVerifyState((vs) => (!vs ? undefined : { ...vs, appDomainError: '' }))
-					}}
-					email={email}
-					setEmail={setEmail}
-					verifyState={verifyState}
-					progress={progress}
-					onVerify={onChangeVerify}
-					onSubmit={onSubmit}
-					onGoBack={onGoBack}
-				/>
-			)}
-
-			{/* In progress */}
-			{/***************/}
-			{progress == 'reg' && (
-				<>
-					<header>
-						<h1 className="mb-3">{t('Welcome to Cloudillo!')}</h1>
-					</header>
-					<div className="c-vbox align-items-center">
-						<CloudilloLogo className="c-logo w-50 ps-3 pb-w slow" />
-					</div>
-					<h3 className="my-3">{t('Registration is in progress')}</h3>
-					<p>{t('This usually takes only 10-20 seconds, please be patient...')}</p>
-				</>
-			)}
-
-			{/* Check App domain*/}
-			{/*******************/}
-			{progress == 'check' && (
-				<>
-					<header>
-						<h1 className="mb-3">{t('Welcome to Cloudillo!')}</h1>
-					</header>
-					<div className="c-vbox align-items-center">
-						<CloudilloLogo className="c-logo w-50 ps-3 pb-w slow" />
-					</div>
-					<h3 className="my-3">{t('Registration is successful')}</h3>
-					<p>{t('Checking app domain...')}</p>
-				</>
-			)}
-
-			{/* Registration success */}
-			{/************************/}
-			{progress == 'done' && (
-				<div className="c-vbox align-items-center">
-					<CloudilloLogo className="c-logo" style={{ maxWidth: '8rem' }} />
-
-					<div className="c-success-header">
-						<IcSuccess className="c-success-icon" aria-hidden="true" />
-						<h1 className="mb-0">{t('Registration Successful!')}</h1>
-						<p className="text-muted">{t('Welcome to Cloudillo!')}</p>
-					</div>
-
+		<>
+			{stepper}
+			<AuthLayout
+				logo={<Logo animated={progress == 'vfy'} />}
+				title={t('Welcome to Cloudillo!')}
+				subtitle={
+					identityProvider == 'idp'
+						? t('Choose your name on {{provider}}', {
+								provider:
+									providerInfoMap[selectedProvider]?.name || selectedProvider
+							})
+						: t('Use your domain as your identity')
+				}
+			>
+				<Form onSubmit={onSubmit}>
 					{identityProvider == 'idp' ? (
-						<div className="w-100" style={{ maxWidth: '28rem' }}>
-							<h3 className="mb-3">{t('What happens next?')}</h3>
-
-							<div className="c-step-card">
-								<div className="c-step-number">1</div>
-								<div className="c-step-content">
-									<strong>{t('Activation email')}</strong>
-									<span className="text-muted">
-										{' '}
-										{t('from your Identity Provider')}
-									</span>
-									<hr className="my-2" />
-									<p className="text-muted small mb-0">
-										{t('Click to activate your federated identity')}
-									</p>
-								</div>
-							</div>
-
-							<div className="c-step-card">
-								<div className="c-step-number">2</div>
-								<div className="c-step-content">
-									<strong>{t('Onboarding email')}</strong>
-									<span className="text-muted">
-										{' '}
-										{t('from this Cloudillo instance')}
-									</span>
-									<hr className="my-2" />
-									<p className="text-muted small mb-0">
-										{t('Click to set up your account and password')}
-									</p>
-								</div>
-							</div>
-
-							<div className="c-info-tip mt-3">
-								<IcTip className="c-info-tip-icon" aria-hidden="true" />
-								<div>
-									<p className="mb-1">{t('Check your inbox to continue.')}</p>
-									<p className="text-muted small mb-0">
-										{t(
-											'It may take up to an hour before your account is fully ready.'
-										)}
-									</p>
-								</div>
-							</div>
-						</div>
+						<IdpRegistrationForm
+							selectedProvider={selectedProvider}
+							providerInfo={providerInfoMap[selectedProvider]}
+							idTagInput={idTagInput}
+							setIdTagInput={setIdTagInput}
+							email={email}
+							setEmail={setEmail}
+							verifyState={verifyState}
+							progress={progress}
+							onVerify={onChangeVerify}
+							onGoBack={onGoBack}
+						/>
 					) : (
-						<div className="w-100" style={{ maxWidth: '28rem' }}>
-							<p className="mb-3">
-								{t(
-									'We have sent an onboarding link to your email address. Please check your inbox to continue setting up your account.'
-								)}
-							</p>
-							{identityProvider == 'domain' && (
-								<div className="c-info-tip">
-									<IcTip className="c-info-tip-icon" aria-hidden="true" />
-									<p className="text-muted small mb-0">
-										{t(
-											'If you set up custom DNS records, it may take some time for changes to propagate.'
-										)}
-									</p>
-								</div>
-							)}
-						</div>
-					)}
-
-					<p className="text-muted mt-4">{t("You're all set here!")}</p>
-				</div>
-			)}
-
-			{/* Wait for DNS */}
-			{/****************/}
-			{progress == 'wait-dns' && (
-				<div className="c-vbox align-items-center">
-					<CloudilloLogo className="c-logo" style={{ maxWidth: '8rem' }} />
-
-					<div className="c-success-header">
-						<IcSuccess className="c-success-icon" aria-hidden="true" />
-						<h1 className="mb-0">{t('Registration Successful!')}</h1>
-						<p className="text-muted">{t('Welcome to Cloudillo!')}</p>
-					</div>
-
-					{identityProvider == 'idp' ? (
-						<div className="w-100" style={{ maxWidth: '28rem' }}>
-							<h3 className="mb-3">{t('What happens next?')}</h3>
-
-							<div className="c-step-card">
-								<div className="c-step-number">1</div>
-								<div className="c-step-content">
-									<strong>{t('Activation email')}</strong>
-									<span className="text-muted">
-										{' '}
-										{t('from your Identity Provider')}
-									</span>
-									<hr className="my-2" />
-									<p className="text-muted small mb-0">
-										{t('Click to activate your federated identity')}
-									</p>
-								</div>
-							</div>
-
-							<div className="c-step-card">
-								<div className="c-step-number">2</div>
-								<div className="c-step-content">
-									<strong>{t('Onboarding email')}</strong>
-									<span className="text-muted">
-										{' '}
-										{t('from this Cloudillo instance')}
-									</span>
-									<hr className="my-2" />
-									<p className="text-muted small mb-0">
-										{t('Click to set up your account and password')}
-									</p>
-								</div>
-							</div>
-
-							<div className="c-info-tip mt-3">
-								<IcTip className="c-info-tip-icon" aria-hidden="true" />
-								<div>
-									<p className="mb-1">{t('Check your inbox to continue.')}</p>
-									<p className="text-muted small mb-0">
-										{t(
-											'It may take up to an hour before your account is fully ready.'
-										)}
-									</p>
-								</div>
-							</div>
-						</div>
-					) : (
-						<div className="w-100" style={{ maxWidth: '28rem' }}>
-							<p className="mb-3">
-								{t(
-									'We have sent an onboarding link to your email address. Please check your inbox to continue setting up your account.'
-								)}
-							</p>
-							{identityProvider == 'domain' && (
-								<div className="c-info-tip">
-									<IcTip className="c-info-tip-icon" aria-hidden="true" />
-									<p className="text-muted small mb-0">
-										{t(
-											'If you set up custom DNS records, it may take some time for changes to propagate.'
-										)}
-									</p>
-								</div>
-							)}
-						</div>
-					)}
-
-					<p className="text-muted mt-4">{t("You're all set here!")}</p>
-				</div>
-			)}
-
-			{/* Registration error */}
-			{/**********************/}
-			{progress == 'error' && (
-				<>
-					<header>
-						<h1 className="mb-3">{t('Something went wrong!')}</h1>
-					</header>
-					<div className="c-vbox align-items-center p-5">
-						<CloudilloLogo className="c-logo w-50 ps-3 pb-w" />
-						<h3 className="my-3">{t('Your registration was unsuccessful.')}</h3>
-						{error && <p className="c-panel error">{error}</p>}
-						<p>{t('Please contact the administrator of the server or try again.')}</p>
-					</div>
-					<div className="c-group">
-						<Button
-							className="primary"
-							onClick={() => {
-								setProgress(undefined)
-								setError(undefined)
+						<DomainRegistrationForm
+							idTagInput={idTagInput}
+							setIdTagInput={setIdTagInput}
+							appDomain={appDomain}
+							setAppDomain={(value) => {
+								setAppDomain(value)
+								setVerifyState((vs) =>
+									!vs ? undefined : { ...vs, appDomainError: '' }
+								)
 							}}
-						>
-							{t('Try again')}
-						</Button>
-					</div>
-				</>
-			)}
-		</form>
+							email={email}
+							setEmail={setEmail}
+							verifyState={verifyState}
+							progress={progress}
+							onVerify={onChangeVerify}
+							onGoBack={onGoBack}
+						/>
+					)}
+				</Form>
+			</AuthLayout>
+		</>
 	)
 }
 

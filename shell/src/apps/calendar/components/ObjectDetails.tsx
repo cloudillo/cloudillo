@@ -2,7 +2,23 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import type { CalendarObjectOutput, CalendarOutput } from '@cloudillo/core'
-import { Button, LoadingSpinner, useDialog } from '@cloudillo/react'
+import {
+	ActionBar,
+	Alert,
+	Badge,
+	Button,
+	ColorDot,
+	DescriptionList,
+	Disclosure,
+	EmptyState,
+	Heading,
+	HBox,
+	Icon,
+	LoadingSpinner,
+	Text,
+	useDialog,
+	VBox
+} from '@cloudillo/react'
 import dayjs from 'dayjs'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -35,25 +51,25 @@ function bucketPriority(
 	return null
 }
 
-type StatusPill = { label: string; className: string }
+type StatusPill = { label: string; color: 'success' | 'primary' | 'secondary' | 'warning' }
 
 function statusPill(status: string | undefined, t: (k: string) => string): StatusPill | null {
 	if (!status) return null
 	switch (status) {
 		case 'COMPLETED':
-			return { label: t('Done'), className: 'bg-container-success' }
+			return { label: t('Done'), color: 'success' }
 		case 'IN-PROCESS':
-			return { label: t('In progress'), className: 'bg-container-primary' }
+			return { label: t('In progress'), color: 'primary' }
 		case 'NEEDS-ACTION':
-			return { label: t('To do'), className: 'bg-container-secondary' }
+			return { label: t('To do'), color: 'secondary' }
 		case 'CANCELLED':
-			return { label: t('Cancelled'), className: 'bg-container-warning' }
+			return { label: t('Cancelled'), color: 'warning' }
 		case 'CONFIRMED':
-			return { label: t('Confirmed'), className: 'bg-container-success' }
+			return { label: t('Confirmed'), color: 'success' }
 		case 'TENTATIVE':
-			return { label: t('Tentative'), className: 'bg-container-secondary' }
+			return { label: t('Tentative'), color: 'secondary' }
 		default:
-			return { label: status, className: 'bg-container-secondary' }
+			return { label: status, color: 'secondary' }
 	}
 }
 
@@ -84,25 +100,30 @@ export interface ObjectDetailsHeaderProps {
 export function ObjectDetailsHeader({ object, calendars }: ObjectDetailsHeaderProps) {
 	const { t } = useTranslation()
 	if (!object) {
-		return <span className="flex-fill c-hint">{t('Details')}</span>
+		return (
+			<Text emphasis="muted" className="flex-fill">
+				{t('Details')}
+			</Text>
+		)
 	}
 	const cal = calendars.find((c) => c.calId === object.calId)
 	return (
 		<>
-			{cal && (
-				<span
-					className="c-cal-item__swatch"
-					style={{ background: cal.color || 'var(--col-primary)' }}
-					aria-hidden="true"
-				/>
-			)}
-			<h3 className="flex-fill m-0">{object.summary || t('(untitled)')}</h3>
-			{object.rrule && (
-				<span title={t('Recurring')} aria-label={t('Recurring')}>
-					<IcRecur />
-				</span>
-			)}
+			{cal && <ColorDot color={cal.color || 'var(--col-primary)'} />}
+			<Heading level={3} className="flex-fill m-0">
+				{object.summary || t('(untitled)')}
+			</Heading>
+			{object.rrule && <Icon as={IcRecur} label={t('Recurring')} />}
 		</>
+	)
+}
+
+function Term({ icon, children }: { icon?: React.ComponentType; children: React.ReactNode }) {
+	return (
+		<HBox gap={1} align="center">
+			{icon && <Icon as={icon} />}
+			{children}
+		</HBox>
 	)
 }
 
@@ -120,23 +141,11 @@ export function ObjectDetails({
 	const dialog = useDialog()
 
 	if (loading) {
-		return (
-			<div className="c-cal-details d-flex flex-column">
-				<div className="flex-fill d-flex align-items-center justify-content-center p-4">
-					<LoadingSpinner />
-				</div>
-			</div>
-		)
+		return <LoadingSpinner fill />
 	}
 
 	if (!object) {
-		return (
-			<div className="c-cal-details d-flex flex-column">
-				<div className="flex-fill p-4 c-hint text-center">
-					{t('Select an event or task to see details.')}
-				</div>
-			</div>
-		)
+		return <EmptyState fill description={t('Select an event or task to see details.')} />
 	}
 
 	const isTask = object.component === 'VTODO'
@@ -144,7 +153,8 @@ export function ObjectDetails({
 	async function handleDelete() {
 		const confirmed = await dialog.confirm(
 			isTask ? t('Delete task?') : t('Delete event?'),
-			t('This cannot be undone.')
+			t('This cannot be undone.'),
+			{ color: 'error', confirmLabel: t('Delete') }
 		)
 		if (!confirmed) return
 		await onDelete()
@@ -177,128 +187,116 @@ export function ObjectDetails({
 	const rruleHuman = rruleToHuman(object.rrule, i18n.language, t)
 
 	return (
-		<div className="c-cal-details p-3">
+		<VBox gap={2} padding={3}>
 			{!hideHeader && (
-				<div className="d-flex align-items-center g-2 mb-2">
+				<HBox gap={2} align="center">
 					<ObjectDetailsHeader object={object} calendars={calendars} />
-				</div>
+				</HBox>
 			)}
 
 			{pill && (
-				<div className="mb-2">
-					<span className={`c-cal-detail-pill ${pill.className}`}>{pill.label}</span>
-				</div>
+				<HBox>
+					<Badge color={pill.color}>{pill.label}</Badge>
+				</HBox>
 			)}
 
 			{object.parseError && (
-				<div className="c-panel bg-container-error p-2 mb-2" role="alert">
-					<span className="text-error">
-						{t('Could not fully parse this entry: {{err}}', { err: object.parseError })}
-					</span>
-				</div>
+				<Alert color="error" compact>
+					{t('Could not fully parse this entry: {{err}}', { err: object.parseError })}
+				</Alert>
 			)}
 
-			<div className="c-cal-detail-field">
-				<span className="c-cal-detail-label">
-					<IcClock className="me-1" />
-					{isTask ? t('Due') : t('When')}
-				</span>
-				<span className="c-cal-detail-value">
-					{formatRange() || <em className="c-hint">{t('No time set')}</em>}
-				</span>
-			</div>
-
-			{object.location && (
-				<div className="c-cal-detail-field">
-					<span className="c-cal-detail-label">
-						<IcPin className="me-1" />
-						{t('Location')}
-					</span>
-					<span className="c-cal-detail-value">{object.location}</span>
-				</div>
-			)}
-
-			{object.description && (
-				<div className="c-cal-detail-field">
-					<span className="c-cal-detail-label">{t('Description')}</span>
-					<span className="c-cal-detail-value" style={{ whiteSpace: 'pre-wrap' }}>
-						{object.description}
-					</span>
-				</div>
-			)}
-
-			{object.organizer && (
-				<div className="c-cal-detail-field">
-					<span className="c-cal-detail-label">
-						<IcAttendees className="me-1" />
-						{t('Organizer')}
-					</span>
-					<span className="c-cal-detail-value">{object.organizer}</span>
-				</div>
-			)}
-
-			{priority && (
-				<div className="c-cal-detail-field">
-					<span className="c-cal-detail-label">
-						<IcAlarm className="me-1" />
-						{t('Priority')}
-					</span>
-					<span className="c-cal-detail-value d-flex align-items-center g-2">
-						<span
-							className="c-cal-task-row__priority"
-							style={{
-								background: priority.color,
-								marginTop: 0
-							}}
-							aria-hidden="true"
-						/>
-						{priority.label}
-					</span>
-				</div>
-			)}
-
-			{object.rrule && (
-				<div className="c-cal-detail-field">
-					<span className="c-cal-detail-label">
-						<IcRecur className="me-1" />
-						{t('Recurrence')}
-					</span>
-					{rruleHuman ? (
-						<span className="c-cal-detail-value">{rruleHuman}</span>
-					) : (
-						<details>
-							<summary className="c-cal-detail-value">{t('Custom rule')}</summary>
-							<code
-								className="d-block mt-1"
-								style={{ fontFamily: 'monospace', fontSize: '0.85em' }}
-							>
-								{object.rrule}
-							</code>
-						</details>
-					)}
-				</div>
-			)}
+			<DescriptionList
+				items={[
+					{
+						key: 'when',
+						term: <Term icon={IcClock}>{isTask ? t('Due') : t('When')}</Term>,
+						description: formatRange() || (
+							<Text emphasis="muted">{t('No time set')}</Text>
+						)
+					},
+					...(object.location
+						? [
+								{
+									key: 'location',
+									term: <Term icon={IcPin}>{t('Location')}</Term>,
+									description: object.location
+								}
+							]
+						: []),
+					...(object.description
+						? [
+								{
+									key: 'description',
+									term: <Term>{t('Description')}</Term>,
+									description: <Text preWrap>{object.description}</Text>
+								}
+							]
+						: []),
+					...(object.organizer
+						? [
+								{
+									key: 'organizer',
+									term: <Term icon={IcAttendees}>{t('Organizer')}</Term>,
+									description: object.organizer
+								}
+							]
+						: []),
+					...(priority
+						? [
+								{
+									key: 'priority',
+									term: <Term icon={IcAlarm}>{t('Priority')}</Term>,
+									description: (
+										<HBox gap={2} align="center">
+											<ColorDot color={priority.color} />
+											{priority.label}
+										</HBox>
+									)
+								}
+							]
+						: []),
+					...(object.rrule
+						? [
+								{
+									key: 'rrule',
+									term: <Term icon={IcRecur}>{t('Recurrence')}</Term>,
+									description: rruleHuman || (
+										<Disclosure summary={t('Custom rule')}>
+											<Text as="div" mono size="sm">
+												{object.rrule}
+											</Text>
+										</Disclosure>
+									)
+								}
+							]
+						: [])
+				]}
+			/>
 
 			{hasOverride && onReset && (
-				<div className="c-panel bg-container-secondary p-2 mb-2" role="status">
-					<div className="d-flex align-items-center g-2">
-						<span className="flex-fill">{t('This occurrence has been modified.')}</span>
-						<Button size="small" onClick={() => onReset()} icon={<IcReset />}>
+				<Alert
+					color="neutral"
+					compact
+					actions={
+						<Button size="sm" onClick={() => onReset()} icon={<IcReset />}>
 							{t('Reset to series default')}
 						</Button>
-					</div>
-				</div>
+					}
+				>
+					{t('This occurrence has been modified.')}
+				</Alert>
 			)}
 
-			<div className="d-flex justify-content-end g-2 mt-3">
+			<ActionBar>
 				<Button onClick={onEdit} icon={<IcEdit />}>
 					{t('Edit')}
 				</Button>
-				<Button variant="error" onClick={handleDelete} icon={<IcDelete />}>
+				<Button color="error" onClick={handleDelete} icon={<IcDelete />}>
 					{t('Delete')}
 				</Button>
-			</div>
-		</div>
+			</ActionBar>
+		</VBox>
 	)
 }
 

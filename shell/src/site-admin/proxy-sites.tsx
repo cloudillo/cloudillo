@@ -14,10 +14,33 @@ import type {
 	ProxySiteStatus,
 	UpdateProxySiteRequest
 } from '@cloudillo/core'
-import { Button, Modal, mergeClasses, useApi, useAuth, useDialog } from '@cloudillo/react'
+import {
+	ActionBar,
+	Alert,
+	Badge,
+	Button,
+	Card,
+	Dialog,
+	EmptyState,
+	Field,
+	HBox,
+	Input,
+	LoadingSpinner,
+	NativeSelect,
+	Panel,
+	SearchInput,
+	Segmented,
+	SegmentedItem,
+	Text,
+	TextArea,
+	Toggle,
+	useApi,
+	useAuth,
+	useDialog,
+	VBox
+} from '@cloudillo/react'
 import {
 	LuShieldCheck as IcCert,
-	LuX as IcClose,
 	LuTrash as IcDelete,
 	LuPencil as IcEdit,
 	LuPlus as IcPlus,
@@ -25,6 +48,8 @@ import {
 	LuRefreshCw as IcRenew,
 	LuSearch as IcSearch
 } from 'react-icons/lu'
+
+type ProxyType = 'basic' | 'advanced'
 
 // Backend URL validator
 function validateBackendUrlValue(url: string, t: (key: string) => string): string | undefined {
@@ -41,15 +66,15 @@ function validateBackendUrlValue(url: string, t: (key: string) => string): strin
 }
 
 // Status badge configuration
-const STATUS_CONFIG: Record<ProxySiteStatus, { class: string; label: string }> = {
-	A: { class: 'c-badge success', label: 'Active' },
-	D: { class: 'c-badge error', label: 'Disabled' }
+const STATUS_CONFIG: Record<ProxySiteStatus, { color: 'success' | 'error'; label: string }> = {
+	A: { color: 'success', label: 'Active' },
+	D: { color: 'error', label: 'Disabled' }
 }
 
 function StatusBadge({ status }: { status: ProxySiteStatus }) {
 	const { t } = useTranslation()
 	const config = STATUS_CONFIG[status]
-	return <span className={config.class}>{t(config.label)}</span>
+	return <Badge color={config.color}>{t(config.label)}</Badge>
 }
 
 // Certificate expiry indicator
@@ -57,41 +82,171 @@ function CertInfo({ certExpiresAt }: { certExpiresAt?: string }) {
 	const { t } = useTranslation()
 
 	if (!certExpiresAt) {
-		return <span className="c-hint small">{t('No certificate')}</span>
+		return (
+			<Text size="sm" emphasis="muted">
+				{t('No certificate')}
+			</Text>
+		)
 	}
 
 	const expires = dayjs(certExpiresAt)
 	const daysLeft = expires.diff(dayjs(), 'day')
-
-	let colorClass = 'text-success'
-	if (daysLeft < 7) colorClass = 'text-error'
-	else if (daysLeft < 30) colorClass = 'text-warning'
+	const color = daysLeft < 7 ? 'error' : daysLeft < 30 ? 'warning' : 'success'
 
 	return (
-		<span className={mergeClasses('small', colorClass)}>
-			<IcCert className="me-1" style={{ fontSize: '0.9em' }} />
-			{t('Expires {{date}}', { date: expires.format('MMM D, YYYY') })}
-		</span>
+		<Text size="sm" color={color}>
+			<IcCert /> {t('Expires {{date}}', { date: expires.format('MMM D, YYYY') })}
+		</Text>
 	)
 }
 
-// Filter chip component
-function FilterChip({
-	active,
-	onClick,
-	children
-}: {
-	active: boolean
-	onClick: () => void
-	children: React.ReactNode
-}) {
+// Advanced config draft (form strings) shared by the create and edit dialogs
+interface ConfigDraft {
+	connectTimeoutSecs: string
+	readTimeoutSecs: string
+	preserveHost: boolean
+	forwardHeaders: boolean
+	websocket: boolean
+	proxyProtocol: boolean
+	customHeaders: string
+}
+
+function draftFromSite(site?: ProxySiteData): ConfigDraft {
+	const config = site?.config
+	return {
+		connectTimeoutSecs: config?.connectTimeoutSecs?.toString() ?? '',
+		readTimeoutSecs: config?.readTimeoutSecs?.toString() ?? '',
+		preserveHost: config?.preserveHost ?? false,
+		forwardHeaders: config?.forwardHeaders ?? true,
+		websocket: config?.websocket ?? false,
+		proxyProtocol: config?.proxyProtocol ?? false,
+		customHeaders: formatHeaders(config?.customHeaders as Record<string, string> | undefined)
+	}
+}
+
+function configFromDraft(draft: ConfigDraft) {
+	return {
+		preserveHost: draft.preserveHost,
+		forwardHeaders: draft.forwardHeaders,
+		websocket: draft.websocket,
+		proxyProtocol: draft.proxyProtocol,
+		...(draft.connectTimeoutSecs
+			? { connectTimeoutSecs: Number(draft.connectTimeoutSecs) }
+			: {}),
+		...(draft.readTimeoutSecs ? { readTimeoutSecs: Number(draft.readTimeoutSecs) } : {}),
+		...(draft.customHeaders ? { customHeaders: parseHeaders(draft.customHeaders) } : {})
+	}
+}
+
+function draftEquals(a: ConfigDraft, b: ConfigDraft) {
+	return (Object.keys(a) as (keyof ConfigDraft)[]).every((k) => a[k] === b[k])
+}
+
+// Backend URL, type and (for advanced sites) the configuration panel
+interface ProxyFieldsProps {
+	backendUrl: string
+	onBackendUrlChange: (url: string) => void
+	backendUrlError?: string
+	onBackendUrlBlur: () => void
+	backendUrlRequired?: boolean
+	type: ProxyType
+	onTypeChange: (type: ProxyType) => void
+	draft: ConfigDraft
+	onDraftChange: (fn: (d: ConfigDraft) => ConfigDraft) => void
+}
+
+function ProxyFields({
+	backendUrl,
+	onBackendUrlChange,
+	backendUrlError,
+	onBackendUrlBlur,
+	backendUrlRequired,
+	type,
+	onTypeChange,
+	draft,
+	onDraftChange
+}: ProxyFieldsProps) {
+	const { t } = useTranslation()
+
+	function set<K extends keyof ConfigDraft>(key: K, value: ConfigDraft[K]) {
+		onDraftChange((d) => ({ ...d, [key]: value }))
+	}
+
 	return (
-		<button
-			className={mergeClasses('c-badge clickable', active ? 'primary' : '')}
-			onClick={onClick}
-		>
-			{children}
-		</button>
+		<>
+			<Field label={t('Backend URL')} required={backendUrlRequired} error={backendUrlError}>
+				<Input
+					placeholder="http://localhost:8080"
+					value={backendUrl}
+					onChange={(e) => onBackendUrlChange(e.target.value)}
+					onBlur={onBackendUrlBlur}
+				/>
+			</Field>
+
+			<Field label={t('Type')}>
+				<NativeSelect
+					value={type}
+					onChange={(e) => onTypeChange(e.target.value as ProxyType)}
+				>
+					<option value="basic">{t('Basic')}</option>
+					<option value="advanced">{t('Advanced')}</option>
+				</NativeSelect>
+			</Field>
+
+			{type === 'advanced' && (
+				<Panel title={t('Configuration')} padding={3}>
+					<VBox gap={2}>
+						<Field label={t('Connect Timeout (seconds)')}>
+							<Input
+								type="number"
+								placeholder="10"
+								value={draft.connectTimeoutSecs}
+								onChange={(e) => set('connectTimeoutSecs', e.target.value)}
+							/>
+						</Field>
+						<Field label={t('Read Timeout (seconds)')}>
+							<Input
+								type="number"
+								placeholder="30"
+								value={draft.readTimeoutSecs}
+								onChange={(e) => set('readTimeoutSecs', e.target.value)}
+							/>
+						</Field>
+						<Toggle
+							label={t('Preserve Host Header')}
+							checked={draft.preserveHost}
+							onChange={(e) => set('preserveHost', e.target.checked)}
+						/>
+						<Toggle
+							label={t('Forward Headers')}
+							checked={draft.forwardHeaders}
+							onChange={(e) => set('forwardHeaders', e.target.checked)}
+						/>
+						<Toggle
+							label={t('WebSocket Support')}
+							checked={draft.websocket}
+							onChange={(e) => set('websocket', e.target.checked)}
+						/>
+						<Toggle
+							label={t('Proxy Protocol')}
+							checked={draft.proxyProtocol}
+							onChange={(e) => set('proxyProtocol', e.target.checked)}
+						/>
+						<Field
+							label={t('Custom Headers')}
+							hint={t('One header per line: Name: Value')}
+						>
+							<TextArea
+								rows={3}
+								placeholder={'X-Custom: value\nX-Other: value'}
+								value={draft.customHeaders}
+								onChange={(e) => set('customHeaders', e.target.value)}
+							/>
+						</Field>
+					</VBox>
+				</Panel>
+			)}
+		</>
 	)
 }
 
@@ -106,43 +261,43 @@ function ProxySiteCard({ site, onEdit, onDelete }: ProxySiteCardProps) {
 	const { t } = useTranslation()
 
 	return (
-		<div className="c-panel mb-2 p-2">
-			<div className="c-hbox align-items-center">
-				<div className="flex-fill">
-					<div className="c-hbox align-items-center g-2 mb-1">
-						<StatusBadge status={site.status} />
-						<strong>{site.domain}</strong>
-						<span
-							className={mergeClasses(
-								'c-badge',
-								site.type === 'advanced' ? 'primary' : ''
-							)}
-						>
-							{site.type}
-						</span>
-					</div>
-					<div className="c-hint small mb-1">{site.backendUrl}</div>
-					<CertInfo certExpiresAt={site.certExpiresAt} />
-				</div>
-				<div className="c-hbox g-1">
-					<Button kind="link" onClick={() => onEdit(site)} title={t('Edit')}>
-						<IcEdit />
-					</Button>
+		<Card
+			title={site.domain}
+			actions={
+				<HBox gap={1}>
 					<Button
-						kind="link"
-						className="text-error"
+						variant="ghost"
+						icon={<IcEdit />}
+						aria-label={t('Edit')}
+						onClick={() => onEdit(site)}
+					/>
+					<Button
+						variant="ghost"
+						color="error"
+						icon={<IcDelete />}
+						aria-label={t('Delete')}
 						onClick={() => onDelete(site)}
-						title={t('Delete')}
-					>
-						<IcDelete />
-					</Button>
-				</div>
-			</div>
-		</div>
+					/>
+				</HBox>
+			}
+		>
+			<VBox gap={1}>
+				<HBox gap={2} align="center">
+					<StatusBadge status={site.status} />
+					<Badge color={site.type === 'advanced' ? 'primary' : undefined}>
+						{site.type}
+					</Badge>
+				</HBox>
+				<Text size="sm" emphasis="muted" truncate>
+					{site.backendUrl}
+				</Text>
+				<CertInfo certExpiresAt={site.certExpiresAt} />
+			</VBox>
+		</Card>
 	)
 }
 
-// Create Proxy Site Modal
+// Create Proxy Site dialog
 interface CreateProxySiteModalProps {
 	open: boolean
 	onClose: () => void
@@ -154,14 +309,8 @@ function CreateProxySiteModal({ open, onClose, onCreated }: CreateProxySiteModal
 	const { api } = useApi()
 	const [domain, setDomain] = React.useState('')
 	const [backendUrl, setBackendUrl] = React.useState('')
-	const [type, setType] = React.useState<'basic' | 'advanced'>('basic')
-	const [connectTimeoutSecs, setConnectTimeoutSecs] = React.useState('')
-	const [readTimeoutSecs, setReadTimeoutSecs] = React.useState('')
-	const [preserveHost, setPreserveHost] = React.useState(false)
-	const [forwardHeaders, setForwardHeaders] = React.useState(true)
-	const [websocket, setWebsocket] = React.useState(false)
-	const [proxyProtocol, setProxyProtocol] = React.useState(false)
-	const [customHeadersStr, setCustomHeadersStr] = React.useState('')
+	const [type, setType] = React.useState<ProxyType>('basic')
+	const [draft, setDraft] = React.useState<ConfigDraft>(draftFromSite)
 	const [isSubmitting, setIsSubmitting] = React.useState(false)
 	const [error, setError] = React.useState<string | undefined>()
 	const [backendUrlError, setBackendUrlError] = React.useState<string | undefined>()
@@ -171,13 +320,7 @@ function CreateProxySiteModal({ open, onClose, onCreated }: CreateProxySiteModal
 			setDomain('')
 			setBackendUrl('')
 			setType('basic')
-			setConnectTimeoutSecs('')
-			setReadTimeoutSecs('')
-			setPreserveHost(false)
-			setForwardHeaders(true)
-			setWebsocket(false)
-			setProxyProtocol(false)
-			setCustomHeadersStr('')
+			setDraft(draftFromSite())
 			setError(undefined)
 			setBackendUrlError(undefined)
 		}
@@ -195,25 +338,7 @@ function CreateProxySiteModal({ open, onClose, onCreated }: CreateProxySiteModal
 			domain,
 			backendUrl,
 			type,
-			...(type === 'advanced'
-				? {
-						config: {
-							preserveHost,
-							forwardHeaders,
-							websocket,
-							proxyProtocol,
-							...(connectTimeoutSecs
-								? { connectTimeoutSecs: Number(connectTimeoutSecs) }
-								: {}),
-							...(readTimeoutSecs
-								? { readTimeoutSecs: Number(readTimeoutSecs) }
-								: {}),
-							...(customHeadersStr
-								? { customHeaders: parseHeaders(customHeadersStr) }
-								: {})
-						}
-					}
-				: {})
+			...(type === 'advanced' ? { config: configFromDraft(draft) } : {})
 		}
 
 		try {
@@ -232,152 +357,54 @@ function CreateProxySiteModal({ open, onClose, onCreated }: CreateProxySiteModal
 	}
 
 	return (
-		<Modal open={open} onClose={onClose}>
-			<div className="c-dialog c-panel emph p-4" style={{ maxWidth: '500px', width: '100%' }}>
-				<div className="c-hbox mb-3">
-					<h3 className="flex-fill mb-0">{t('Create Proxy Site')}</h3>
-					<button className="c-link" onClick={onClose} aria-label={t('Close')}>
-						<IcClose />
-					</button>
-				</div>
+		<Dialog
+			open={open}
+			onClose={onClose}
+			title={t('Create Proxy Site')}
+			footer={
+				<ActionBar>
+					<Button onClick={onClose}>{t('Cancel')}</Button>
+					<Button
+						color="primary"
+						disabled={!isValid}
+						loading={isSubmitting}
+						onClick={handleCreate}
+					>
+						{t('Create')}
+					</Button>
+				</ActionBar>
+			}
+		>
+			<VBox gap={3}>
+				{error && <Alert color="error">{error}</Alert>}
 
-				{error && (
-					<div className="c-panel error p-2 mb-3">
-						<span className="text-error">{error}</span>
-					</div>
-				)}
-
-				<div className="mb-3">
-					<label>
-						{t('Domain')} <span className="text-error">*</span>
-					</label>
-					<input
-						className="c-input"
+				<Field label={t('Domain')} required>
+					<Input
 						placeholder="example.com"
 						value={domain}
 						onChange={(e) => setDomain(e.target.value)}
 					/>
-				</div>
+				</Field>
 
-				<div className="mb-3">
-					<label>
-						{t('Backend URL')} <span className="text-error">*</span>
-					</label>
-					<input
-						className={mergeClasses('c-input', backendUrlError && 'error')}
-						placeholder="http://localhost:8080"
-						value={backendUrl}
-						onChange={(e) => setBackendUrl(e.target.value)}
-						onBlur={() => setBackendUrlError(validateBackendUrlValue(backendUrl, t))}
-					/>
-					{backendUrlError && (
-						<div className="c-hint small text-error mt-1">{backendUrlError}</div>
-					)}
-				</div>
-
-				<div className="mb-3">
-					<label>{t('Type')}</label>
-					<select
-						className="c-select"
-						value={type}
-						onChange={(e) => setType(e.target.value as 'basic' | 'advanced')}
-					>
-						<option value="basic">{t('Basic')}</option>
-						<option value="advanced">{t('Advanced')}</option>
-					</select>
-				</div>
-
-				{type === 'advanced' && (
-					<div className="c-panel bg-muted p-2 mb-3">
-						<h4 className="pb-2">{t('Configuration')}</h4>
-						<div className="mb-2">
-							<label>{t('Connect Timeout (seconds)')}</label>
-							<input
-								className="c-input"
-								type="number"
-								placeholder="10"
-								value={connectTimeoutSecs}
-								onChange={(e) => setConnectTimeoutSecs(e.target.value)}
-							/>
-						</div>
-						<div className="mb-2">
-							<label>{t('Read Timeout (seconds)')}</label>
-							<input
-								className="c-input"
-								type="number"
-								placeholder="30"
-								value={readTimeoutSecs}
-								onChange={(e) => setReadTimeoutSecs(e.target.value)}
-							/>
-						</div>
-						<label className="c-hbox align-items-center mb-2">
-							<input
-								type="checkbox"
-								className="c-toggle primary me-2"
-								checked={preserveHost}
-								onChange={(e) => setPreserveHost(e.target.checked)}
-							/>
-							{t('Preserve Host Header')}
-						</label>
-						<label className="c-hbox align-items-center mb-2">
-							<input
-								type="checkbox"
-								className="c-toggle primary me-2"
-								checked={forwardHeaders}
-								onChange={(e) => setForwardHeaders(e.target.checked)}
-							/>
-							{t('Forward Headers')}
-						</label>
-						<label className="c-hbox align-items-center mb-2">
-							<input
-								type="checkbox"
-								className="c-toggle primary me-2"
-								checked={websocket}
-								onChange={(e) => setWebsocket(e.target.checked)}
-							/>
-							{t('WebSocket Support')}
-						</label>
-						<label className="c-hbox align-items-center mb-2">
-							<input
-								type="checkbox"
-								className="c-toggle primary me-2"
-								checked={proxyProtocol}
-								onChange={(e) => setProxyProtocol(e.target.checked)}
-							/>
-							{t('Proxy Protocol')}
-						</label>
-						<div className="mb-2">
-							<label>{t('Custom Headers')}</label>
-							<textarea
-								className="c-input"
-								rows={3}
-								placeholder={'X-Custom: value\nX-Other: value'}
-								value={customHeadersStr}
-								onChange={(e) => setCustomHeadersStr(e.target.value)}
-							/>
-							<div className="c-hint small mt-1">
-								{t('One header per line: Name: Value')}
-							</div>
-						</div>
-					</div>
-				)}
-
-				<div className="c-hbox justify-content-end g-2">
-					<Button onClick={onClose}>{t('Cancel')}</Button>
-					<Button
-						variant="primary"
-						disabled={!isValid || isSubmitting}
-						onClick={handleCreate}
-					>
-						{isSubmitting ? t('Creating...') : t('Create')}
-					</Button>
-				</div>
-			</div>
-		</Modal>
+				<ProxyFields
+					backendUrl={backendUrl}
+					onBackendUrlChange={setBackendUrl}
+					backendUrlError={backendUrlError}
+					onBackendUrlBlur={() =>
+						setBackendUrlError(validateBackendUrlValue(backendUrl, t))
+					}
+					backendUrlRequired
+					type={type}
+					onTypeChange={setType}
+					draft={draft}
+					onDraftChange={setDraft}
+				/>
+			</VBox>
+		</Dialog>
 	)
 }
 
-// Edit Proxy Site Modal
+// Edit Proxy Site dialog
 interface EditProxySiteModalProps {
 	open: boolean
 	site: ProxySiteData | null
@@ -399,14 +426,8 @@ function EditProxySiteModal({
 	const { api } = useApi()
 	const [status, setStatus] = React.useState<ProxySiteStatus>('A')
 	const [backendUrl, setBackendUrl] = React.useState('')
-	const [type, setType] = React.useState<'basic' | 'advanced'>('basic')
-	const [connectTimeoutSecs, setConnectTimeoutSecs] = React.useState('')
-	const [readTimeoutSecs, setReadTimeoutSecs] = React.useState('')
-	const [preserveHost, setPreserveHost] = React.useState(false)
-	const [forwardHeaders, setForwardHeaders] = React.useState(true)
-	const [websocket, setWebsocket] = React.useState(false)
-	const [proxyProtocol, setProxyProtocol] = React.useState(false)
-	const [customHeadersStr, setCustomHeadersStr] = React.useState('')
+	const [type, setType] = React.useState<ProxyType>('basic')
+	const [draft, setDraft] = React.useState<ConfigDraft>(draftFromSite)
 	const [isSubmitting, setIsSubmitting] = React.useState(false)
 	const [error, setError] = React.useState<string | undefined>()
 	const [backendUrlError, setBackendUrlError] = React.useState<string | undefined>()
@@ -416,15 +437,7 @@ function EditProxySiteModal({
 			setStatus(site.status)
 			setBackendUrl(site.backendUrl)
 			setType(site.type)
-			setConnectTimeoutSecs(site.config.connectTimeoutSecs?.toString() ?? '')
-			setReadTimeoutSecs(site.config.readTimeoutSecs?.toString() ?? '')
-			setPreserveHost(site.config.preserveHost ?? false)
-			setForwardHeaders(site.config.forwardHeaders ?? true)
-			setWebsocket(site.config.websocket ?? false)
-			setProxyProtocol(site.config.proxyProtocol ?? false)
-			setCustomHeadersStr(
-				formatHeaders(site.config.customHeaders as Record<string, string> | undefined)
-			)
+			setDraft(draftFromSite(site))
 			setError(undefined)
 			setBackendUrlError(undefined)
 		}
@@ -436,15 +449,7 @@ function EditProxySiteModal({
 		status !== site.status ||
 		backendUrl !== site.backendUrl ||
 		type !== site.type ||
-		(type === 'advanced' &&
-			(connectTimeoutSecs !== (site.config.connectTimeoutSecs?.toString() ?? '') ||
-				readTimeoutSecs !== (site.config.readTimeoutSecs?.toString() ?? '') ||
-				preserveHost !== (site.config.preserveHost ?? false) ||
-				forwardHeaders !== (site.config.forwardHeaders ?? true) ||
-				websocket !== (site.config.websocket ?? false) ||
-				proxyProtocol !== (site.config.proxyProtocol ?? false) ||
-				customHeadersStr !==
-					formatHeaders(site.config.customHeaders as Record<string, string> | undefined)))
+		(type === 'advanced' && !draftEquals(draft, draftFromSite(site)))
 
 	async function handleSave() {
 		if (!api || !site) return
@@ -456,25 +461,7 @@ function EditProxySiteModal({
 			status,
 			backendUrl,
 			type,
-			...(type === 'advanced'
-				? {
-						config: {
-							preserveHost,
-							forwardHeaders,
-							websocket,
-							proxyProtocol,
-							...(connectTimeoutSecs
-								? { connectTimeoutSecs: Number(connectTimeoutSecs) }
-								: {}),
-							...(readTimeoutSecs
-								? { readTimeoutSecs: Number(readTimeoutSecs) }
-								: {}),
-							...(customHeadersStr
-								? { customHeaders: parseHeaders(customHeadersStr) }
-								: {})
-						}
-					}
-				: {})
+			...(type === 'advanced' ? { config: configFromDraft(draft) } : {})
 		}
 
 		try {
@@ -493,169 +480,63 @@ function EditProxySiteModal({
 	}
 
 	return (
-		<Modal open={open} onClose={onClose}>
-			<div className="c-dialog c-panel emph p-4" style={{ maxWidth: '500px', width: '100%' }}>
-				<div className="c-hbox mb-3">
-					<div className="flex-fill">
-						<h3 className="mb-1">{site.domain}</h3>
-						<StatusBadge status={site.status} />
-					</div>
-					<button className="c-link" onClick={onClose} aria-label={t('Close')}>
-						<IcClose />
-					</button>
-				</div>
-
-				{error && (
-					<div className="c-panel error p-2 mb-3">
-						<span className="text-error">{error}</span>
-					</div>
-				)}
-
-				<label className="c-hbox mb-3">
-					<span className="flex-fill">{t('Enabled')}</span>
-					<input
-						type="checkbox"
-						className="c-toggle primary"
-						checked={status === 'A'}
-						onChange={(e) => setStatus(e.target.checked ? 'A' : 'D')}
-					/>
-				</label>
-
-				<div className="mb-3">
-					<label>{t('Backend URL')}</label>
-					<input
-						className={mergeClasses('c-input', backendUrlError && 'error')}
-						placeholder="http://localhost:8080"
-						value={backendUrl}
-						onChange={(e) => setBackendUrl(e.target.value)}
-						onBlur={() => setBackendUrlError(validateBackendUrlValue(backendUrl, t))}
-					/>
-					{backendUrlError && (
-						<div className="c-hint small text-error mt-1">{backendUrlError}</div>
-					)}
-				</div>
-
-				<div className="mb-3">
-					<label>{t('Type')}</label>
-					<select
-						className="c-select"
-						value={type}
-						onChange={(e) => setType(e.target.value as 'basic' | 'advanced')}
+		<Dialog
+			open={open}
+			onClose={onClose}
+			title={site.domain}
+			description={<StatusBadge status={site.status} />}
+			footer={
+				<ActionBar
+					start={
+						<Button color="error" icon={<IcDelete />} onClick={() => onDelete(site)}>
+							{t('Delete')}
+						</Button>
+					}
+				>
+					<Button onClick={onClose}>{t('Cancel')}</Button>
+					<Button
+						color="primary"
+						disabled={!isDirty || !!backendUrlError}
+						loading={isSubmitting}
+						onClick={handleSave}
 					>
-						<option value="basic">{t('Basic')}</option>
-						<option value="advanced">{t('Advanced')}</option>
-					</select>
-				</div>
+						{t('Save')}
+					</Button>
+				</ActionBar>
+			}
+		>
+			<VBox gap={3}>
+				{error && <Alert color="error">{error}</Alert>}
 
-				{/* Configuration - only shown for advanced type */}
-				{type === 'advanced' && (
-					<div className="c-panel bg-muted p-2 mb-3">
-						<h4 className="pb-2">{t('Configuration')}</h4>
-						<div className="mb-2">
-							<label>{t('Connect Timeout (seconds)')}</label>
-							<input
-								className="c-input"
-								type="number"
-								placeholder="10"
-								value={connectTimeoutSecs}
-								onChange={(e) => setConnectTimeoutSecs(e.target.value)}
-							/>
-						</div>
-						<div className="mb-2">
-							<label>{t('Read Timeout (seconds)')}</label>
-							<input
-								className="c-input"
-								type="number"
-								placeholder="30"
-								value={readTimeoutSecs}
-								onChange={(e) => setReadTimeoutSecs(e.target.value)}
-							/>
-						</div>
-						<label className="c-hbox align-items-center mb-2">
-							<input
-								type="checkbox"
-								className="c-toggle primary me-2"
-								checked={preserveHost}
-								onChange={(e) => setPreserveHost(e.target.checked)}
-							/>
-							{t('Preserve Host Header')}
-						</label>
-						<label className="c-hbox align-items-center mb-2">
-							<input
-								type="checkbox"
-								className="c-toggle primary me-2"
-								checked={forwardHeaders}
-								onChange={(e) => setForwardHeaders(e.target.checked)}
-							/>
-							{t('Forward Headers')}
-						</label>
-						<label className="c-hbox align-items-center mb-2">
-							<input
-								type="checkbox"
-								className="c-toggle primary me-2"
-								checked={websocket}
-								onChange={(e) => setWebsocket(e.target.checked)}
-							/>
-							{t('WebSocket Support')}
-						</label>
-						<label className="c-hbox align-items-center mb-2">
-							<input
-								type="checkbox"
-								className="c-toggle primary me-2"
-								checked={proxyProtocol}
-								onChange={(e) => setProxyProtocol(e.target.checked)}
-							/>
-							{t('Proxy Protocol')}
-						</label>
-						<div className="mb-2">
-							<label>{t('Custom Headers')}</label>
-							<textarea
-								className="c-input"
-								rows={3}
-								placeholder={'X-Custom: value\nX-Other: value'}
-								value={customHeadersStr}
-								onChange={(e) => setCustomHeadersStr(e.target.value)}
-							/>
-							<div className="c-hint small mt-1">
-								{t('One header per line: Name: Value')}
-							</div>
-						</div>
-					</div>
-				)}
+				<Toggle
+					label={t('Enabled')}
+					checked={status === 'A'}
+					onChange={(e) => setStatus(e.target.checked ? 'A' : 'D')}
+				/>
 
-				{/* Certificate section */}
-				<div className="c-panel bg-muted p-2 mb-3">
-					<div className="c-hbox jc-between align-items-center">
-						<div>
-							<h4 className="mb-1">{t('TLS Certificate')}</h4>
-							<CertInfo certExpiresAt={site.certExpiresAt} />
-						</div>
-						<Button className="small" onClick={() => onRenewCert(site)}>
-							<IcRenew className="me-1" />
+				<ProxyFields
+					backendUrl={backendUrl}
+					onBackendUrlChange={setBackendUrl}
+					backendUrlError={backendUrlError}
+					onBackendUrlBlur={() =>
+						setBackendUrlError(validateBackendUrlValue(backendUrl, t))
+					}
+					type={type}
+					onTypeChange={setType}
+					draft={draft}
+					onDraftChange={setDraft}
+				/>
+
+				<Panel title={t('TLS Certificate')} padding={3}>
+					<HBox gap={2} align="center" justify="between">
+						<CertInfo certExpiresAt={site.certExpiresAt} />
+						<Button icon={<IcRenew />} onClick={() => onRenewCert(site)}>
 							{t('Renew')}
 						</Button>
-					</div>
-				</div>
-
-				{/* Footer actions */}
-				<footer className="c-hbox g-2 mt-3 pt-3 border-top jc-between">
-					<Button className="error" onClick={() => onDelete(site)}>
-						<IcDelete className="me-1" />
-						{t('Delete')}
-					</Button>
-					<div className="c-hbox g-2">
-						<Button onClick={onClose}>{t('Cancel')}</Button>
-						<Button
-							variant="primary"
-							disabled={!isDirty || !!backendUrlError || isSubmitting}
-							onClick={handleSave}
-						>
-							{isSubmitting ? t('Saving...') : t('Save')}
-						</Button>
-					</div>
-				</footer>
-			</div>
-		</Modal>
+					</HBox>
+				</Panel>
+			</VBox>
+		</Dialog>
 	)
 }
 
@@ -759,7 +640,8 @@ export function ProxySites() {
 			t('Delete {{domain}}?', { domain: site.domain }),
 			t(
 				'This will permanently delete this proxy site configuration. This action cannot be undone.'
-			)
+			),
+			{ color: 'error', confirmLabel: t('Delete') }
 		)
 		if (!confirmed) return
 
@@ -777,7 +659,8 @@ export function ProxySites() {
 	async function handleRenewCert(site: ProxySiteData) {
 		const confirmed = await dialog.confirm(
 			t('Renew certificate?'),
-			t('This will trigger a certificate renewal for {{domain}}.', { domain: site.domain })
+			t('This will trigger a certificate renewal for {{domain}}.', { domain: site.domain }),
+			{ confirmLabel: t('Renew') }
 		)
 		if (!confirmed) return
 
@@ -793,94 +676,94 @@ export function ProxySites() {
 		}
 	}
 
+	function clearFilters() {
+		setSearch('')
+		setStatusFilter(undefined)
+	}
+
 	return (
-		<>
+		<VBox gap={3}>
 			{/* Search and filter bar */}
-			<div className="c-panel mb-3 p-2">
-				<div className="c-hbox g-2 mb-2">
-					<div className="c-input-group flex-fill">
-						<IcSearch className="c-input-icon" />
-						<input
-							className="c-input"
+			<Panel padding={2}>
+				<VBox gap={2}>
+					<HBox gap={2}>
+						<SearchInput
+							className="flex-fill"
 							placeholder={t('Search by domain or backend URL...')}
 							value={search}
 							onChange={(e) => setSearch(e.target.value)}
 							aria-label={t('Search proxy sites')}
 						/>
-						{search && (
-							<button
-								className="c-input-clear"
-								onClick={() => setSearch('')}
-								aria-label={t('Clear search')}
-							>
-								<IcClose />
-							</button>
-						)}
-					</div>
-					<Button variant="primary" onClick={() => setShowCreateModal(true)}>
-						<IcPlus className="me-1" />
-						{t('Create')}
-					</Button>
-				</div>
+						<Button
+							color="primary"
+							icon={<IcPlus />}
+							onClick={() => setShowCreateModal(true)}
+						>
+							{t('Create')}
+						</Button>
+					</HBox>
 
-				{/* Status filter chips */}
-				<div className="c-hbox g-1 flex-wrap">
-					<FilterChip active={!statusFilter} onClick={() => setStatusFilter(undefined)}>
-						{t('All')} ({sites.length})
-					</FilterChip>
-					<FilterChip active={statusFilter === 'A'} onClick={() => setStatusFilter('A')}>
-						{t('Active')} ({counts.A})
-					</FilterChip>
-					<FilterChip active={statusFilter === 'D'} onClick={() => setStatusFilter('D')}>
-						{t('Disabled')} ({counts.D})
-					</FilterChip>
-				</div>
-			</div>
+					{/* Status filter chips */}
+					<Segmented
+						aria-label={t('Status')}
+						value={statusFilter ?? ''}
+						onChange={(value) =>
+							setStatusFilter((value || undefined) as ProxySiteStatus | undefined)
+						}
+					>
+						<SegmentedItem value="">
+							{t('All')} ({sites.length})
+						</SegmentedItem>
+						<SegmentedItem value="A">
+							{t('Active')} ({counts.A})
+						</SegmentedItem>
+						<SegmentedItem value="D">
+							{t('Disabled')} ({counts.D})
+						</SegmentedItem>
+					</Segmented>
+				</VBox>
+			</Panel>
 
 			{/* Site list */}
 			{loading ? (
-				<div className="c-panel p-4 text-center">
-					<p className="c-hint">{t('Loading proxy sites...')}</p>
-				</div>
+				<LoadingSpinner className="auto-bg" label={t('Loading proxy sites...')} />
 			) : filteredSites.length === 0 ? (
-				<div className="c-panel p-4 text-center">
-					{search || statusFilter ? (
-						<>
-							<IcSearch className="text-muted mb-2" style={{ fontSize: '2rem' }} />
-							<p className="c-hint">
-								{search
-									? t('No proxy sites matching "{{query}}"', { query: search })
-									: t('No {{status}} proxy sites', {
-											status:
-												statusFilter === 'A' ? t('active') : t('disabled')
-										})}
-							</p>
-							<Button
-								kind="link"
-								onClick={() => {
-									setSearch('')
-									setStatusFilter(undefined)
-								}}
-							>
+				search || statusFilter ? (
+					<EmptyState
+						className="auto-bg"
+						icon={<IcSearch />}
+						description={
+							search
+								? t('No proxy sites matching "{{query}}"', { query: search })
+								: t('No {{status}} proxy sites', {
+										status: statusFilter === 'A' ? t('active') : t('disabled')
+									})
+						}
+						actions={
+							<Button variant="link" onClick={clearFilters}>
 								{t('Clear filters')}
 							</Button>
-						</>
-					) : (
-						<>
-							<IcProxy className="text-muted mb-2" style={{ fontSize: '3rem' }} />
-							<h4>{t('No proxy sites yet')}</h4>
-							<p className="c-hint mb-3">
-								{t('Create your first proxy site to start reverse proxying.')}
-							</p>
-							<Button variant="primary" onClick={() => setShowCreateModal(true)}>
-								<IcPlus className="me-1" />
+						}
+					/>
+				) : (
+					<EmptyState
+						className="auto-bg"
+						icon={<IcProxy />}
+						title={t('No proxy sites yet')}
+						description={t('Create your first proxy site to start reverse proxying.')}
+						actions={
+							<Button
+								color="primary"
+								icon={<IcPlus />}
+								onClick={() => setShowCreateModal(true)}
+							>
 								{t('Create Proxy Site')}
 							</Button>
-						</>
-					)}
-				</div>
+						}
+					/>
+				)
 			) : (
-				<div>
+				<VBox gap={2}>
 					{filteredSites.map((site) => (
 						<ProxySiteCard
 							key={site.siteId}
@@ -889,10 +772,10 @@ export function ProxySites() {
 							onDelete={handleDelete}
 						/>
 					))}
-				</div>
+				</VBox>
 			)}
 
-			{/* Modals */}
+			{/* Dialogs */}
 			<CreateProxySiteModal
 				open={showCreateModal}
 				onClose={() => setShowCreateModal(false)}
@@ -910,7 +793,7 @@ export function ProxySites() {
 				onDelete={handleDelete}
 				onRenewCert={handleRenewCert}
 			/>
-		</>
+		</VBox>
 	)
 }
 

@@ -3,20 +3,34 @@
 
 import type { ApiClient } from '@cloudillo/core'
 import {
+	Alert,
 	Badge,
 	Button,
+	Card,
+	Divider,
 	EmptyState,
 	Fcd,
-	generateFragments,
+	HBox,
+	IconText,
 	LoadMoreTrigger,
+	Meta,
 	mergeClasses,
+	Nav,
+	Panel,
 	ProfileAudienceCard,
 	ProfileCard,
 	ProfilePicture,
+	RichText,
+	RichTextInput,
+	SearchInput,
 	SkeletonCard,
+	Spacer,
+	Tag,
+	Text,
 	TimeFormat,
 	useApi,
-	useAuth
+	useAuth,
+	VBox
 } from '@cloudillo/react'
 import type { ActionView, NewAction } from '@cloudillo/types'
 import * as T from '@symbion/runtype'
@@ -37,18 +51,15 @@ import {
 	LuUsers as IcPeople,
 	LuGlobe as IcPublic,
 	LuRepeat2 as IcRepost,
-	LuSearch as IcSearch,
 	LuSendHorizontal as IcSend,
 	LuTag as IcTag,
 	LuInbox as IcUnread,
-	LuVideo as IcVideo
+	LuVideo as IcVideo,
+	LuCloudOff as IcOffline
 } from 'react-icons/lu'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { type Position, useEditable } from 'use-editable'
 import '@cloudillo/react/components.css'
-import './feed.css'
 
-import { OfflineBanner } from '../components/OfflineBanner.js'
 import type { CommunityRef } from '../context/index.js'
 import {
 	useApiContext,
@@ -71,7 +82,6 @@ import {
 	useScrollEngaged
 } from '../read-position.js'
 import { feedPath, profilePath } from '../routes.js'
-import { handleEditablePaste } from '../utils/editablePaste.js'
 import { useWsBus } from '../ws-bus.js'
 import { type DocPostIntent, pendingDocPostAtom } from './feed/doc-post-intent.js'
 import {
@@ -93,7 +103,7 @@ import {
 } from './feed/index.js'
 import { LiveDocCard } from './feed/LiveDocCard.js'
 import { parseLiveDocContent } from './feed/live-doc.js'
-import { Document, hasPlayableVariant, Images, renderPostContent, Video } from './feed/PostMedia.js'
+import { Document, hasPlayableVariant, Images, Video } from './feed/PostMedia.js'
 import { pendingQuoteAtom } from './feed/quote-intent.js'
 import { getVisibilityMeta } from './feed/VisibilitySelector.js'
 
@@ -126,27 +136,14 @@ function Comment({ className, action, srcTag }: CommentProps) {
 	if (typeof action.content != 'string') return null
 
 	return (
-		<div className={'c-panel ' + (className || '')}>
-			<div className="c-panel-header d-flex">
+		<Panel className={className}>
+			<VBox gap={1}>
 				<Link to={profilePath(urlContext, action.issuer.idTag)}>
 					<ProfileCard profile={action.issuer} srcTag={srcTag} />
 				</Link>
-			</div>
-			<div>
-				{action.content.split('\n\n').map((paragraph, i) => (
-					<p key={i}>
-						{paragraph.split('\n').map((line, i) => (
-							<React.Fragment key={i}>
-								{generateFragments(line).map((n, i) => (
-									<React.Fragment key={i}>{n}</React.Fragment>
-								))}
-								<br />
-							</React.Fragment>
-						))}
-					</p>
-				))}
-			</div>
-		</div>
+				<RichText text={action.content} />
+			</VBox>
+		</Panel>
 	)
 }
 
@@ -162,20 +159,11 @@ function NewComment({
 	style?: React.CSSProperties
 	onSubmit?: (action: ActionView) => void
 }) {
+	const { t } = useTranslation()
 	const { api } = useApi()
 	const [auth] = useAuth()
 	const [content, setContent] = React.useState('')
 	const editorRef = React.useRef<HTMLDivElement>(null)
-
-	const edit = useEditable(editorRef, onChange)
-
-	React.useEffect(() => {
-		editorRef.current?.focus()
-	}, [editorRef])
-
-	function onChange(text: string, _pos: Position) {
-		setContent(text)
-	}
 
 	async function doSubmit() {
 		if (!api || !auth?.idTag) return
@@ -192,42 +180,30 @@ function NewComment({
 		onSubmit?.(actionRes)
 	}
 
-	function onKeyDown(e: React.KeyboardEvent) {
-		if (e.ctrlKey && e.key == 'Enter') {
-			e.preventDefault()
-			doSubmit()
-		}
-	}
-
 	if (!auth?.name || !auth?.idTag) return false
 
 	return (
-		<div className={mergeClasses('d-flex', className)} style={style}>
+		<HBox gap={1} className={className} style={style}>
 			<ProfilePicture profile={{ profilePic: auth.profilePic }} small />
-			<div className="c-panel p-1 flex-row flex-fill">
-				<div className="c-input-group">
-					<div
-						ref={editorRef}
-						className="c-input"
-						tabIndex={0}
-						onKeyDown={onKeyDown}
-						onPasteCapture={(e) => handleEditablePaste(e, edit, content)}
-					>
-						{generateFragments(content).map((n, i) => (
-							<React.Fragment key={i}>{n}</React.Fragment>
-						))}
-					</div>
-					<Button
-						kind="link"
-						variant="primary"
-						className="align-self-end m-1"
-						onClick={doSubmit}
-					>
-						<IcSend />
-					</Button>
-				</div>
-			</div>
-		</div>
+			<Panel padding={1} className="flex-fill">
+				<RichTextInput
+					ref={editorRef}
+					value={content}
+					onChange={setContent}
+					onSubmit={doSubmit}
+					autoFocus
+					actions={
+						<Button
+							variant="link"
+							color="primary"
+							icon={<IcSend />}
+							aria-label={t('Send')}
+							onClick={doSubmit}
+						/>
+					}
+				/>
+			</Panel>
+		</HBox>
 	)
 }
 
@@ -248,19 +224,19 @@ function SubComments({
 	register?: (node: Element | null) => (() => void) | undefined
 }) {
 	return (
-		<div className={mergeClasses('ms-3', className)}>
+		<VBox gap={1} className={mergeClasses('ms-3', className)}>
 			{comments
 				.filter((action) => action.type == 'CMNT' && action.parentId == parentId)
 				.map((action) => (
-					<div
+					<VBox
 						key={action.actionId}
 						ref={register}
 						data-read-ts={createdAtToSeconds(action.createdAt)}
 					>
-						<Comment className="mb-1" action={action} srcTag={srcTag} />
-					</div>
+						<Comment action={action} srcTag={srcTag} />
+					</VBox>
 				))}
-		</div>
+		</VBox>
 	)
 }
 
@@ -317,24 +293,28 @@ function CommentsTrustPrompt({
 	}
 
 	return (
-		<div className="c-panel p-2 mb-2 c-vbox g-1">
-			<small>
-				{t('Comments are on {{idTag}}. Authenticate to read them?', {
-					idTag: audienceIdTag
-				})}
-			</small>
-			<div className="c-hbox g-2">
-				<Button variant="primary" size="small" onClick={handleJustNow}>
-					{t('Just now')}
-				</Button>
-				<Button variant="secondary" size="small" onClick={handleAlways} disabled={busy}>
-					{t('Always trust')}
-				</Button>
-				<Button variant="warning" size="small" onClick={handleNever} disabled={busy}>
-					{t('Never')}
-				</Button>
-			</div>
-		</div>
+		<Alert
+			color="info"
+			compact
+			className="mb-2"
+			actions={
+				<>
+					<Button color="primary" size="sm" onClick={handleJustNow}>
+						{t('Just now')}
+					</Button>
+					<Button color="secondary" size="sm" onClick={handleAlways} disabled={busy}>
+						{t('Always trust')}
+					</Button>
+					<Button color="warning" size="sm" onClick={handleNever} disabled={busy}>
+						{t('Never')}
+					</Button>
+				</>
+			}
+		>
+			{t('Comments are on {{idTag}}. Authenticate to read them?', {
+				idTag: audienceIdTag
+			})}
+		</Alert>
 	)
 }
 
@@ -457,7 +437,7 @@ function Comments({ parentAction, onCommentsRead, onCommentAdded, ...props }: Co
 	})
 
 	return (
-		<div {...props}>
+		<VBox {...props}>
 			{showTrustPrompt && audienceIdTag && (
 				<CommentsTrustPrompt
 					audienceIdTag={audienceIdTag}
@@ -471,7 +451,7 @@ function Comments({ parentAction, onCommentsRead, onCommentAdded, ...props }: Co
 				register={registerComment}
 			/>
 			{!showTrustPrompt && <NewComment parentAction={parentAction} onSubmit={onSubmit} />}
-		</div>
+		</VBox>
 	)
 }
 
@@ -528,11 +508,11 @@ function RepostControl({ original, onQuote }: RepostControlProps) {
 
 	return (
 		<Button
-			kind="link"
-			variant={hasAnyOwnRepost ? 'primary' : 'secondary'}
-			size="small"
+			variant="link"
+			color={hasAnyOwnRepost ? 'primary' : 'secondary'}
+			size="sm"
 			aria-label={t('Repost')}
-			aria-pressed={hasAnyOwnRepost}
+			pressed={hasAnyOwnRepost}
 			onClick={() => onQuote(original, defaultTarget)}
 		>
 			<IcRepost />
@@ -690,175 +670,147 @@ function Post({
 				: t('Comments ({{count}})', { count: commentCount })
 			: t('Comments')
 	const repostCount = engageAction.stat?.reposts ?? 0
+	const vis = getVisibilityMeta(t, action.visibility)
+	const VisIcon = vis?.icon
+	const reactionSummary = (() => {
+		const reactions = engageAction.stat?.reactions
+		if (!reactions) return undefined
+		const parsed = parseReactionCounts(reactions)
+		const total = totalReactions(reactions)
+		const overflow = Math.max(0, total - parsed.reduce((s, r) => s + r.count, 0))
+		return { parsed, overflow, label: t('View {{count}} reactions', { count: total }) }
+	})()
 
 	return (
 		<>
 			{isRepost && (
-				<div
-					className="c-hbox g-1 align-items-center px-2"
-					style={{ fontSize: '0.85rem', opacity: 0.7 }}
-				>
-					<IcRepost />
-					<span>
+				<Text as="div" size="sm" emphasis="muted" className="px-2">
+					<IconText icon={<IcRepost />}>
 						{t('Reposted by {{name}}', {
 							name: action.issuer.name || action.issuer.idTag
 						})}
-					</span>
-				</div>
+					</IconText>
+				</Text>
 			)}
-			<div
-				className={mergeClasses(
-					'c-panel g-2',
-					isInFlight && 'c-panel--in-flight',
-					className
-				)}
+			<Card
+				color={isInFlight ? 'primary' : undefined}
+				variant={isInFlight ? 'outline' : undefined}
+				className={className}
 			>
-				<div className="c-panel-header c-hbox align-items-center g-2">
-					{action.audience &&
-					action.audience.idTag !== action.issuer.idTag &&
-					action.audience.idTag !== hideAudience ? (
-						<ProfileAudienceCard
-							profile={action.issuer}
-							audience={action.audience}
-							srcTag={fileIdTag}
-							profileBasePath={profilePath(urlContext)}
-						/>
-					) : (
-						<Link to={profilePath(urlContext, action.issuer.idTag)}>
-							<ProfileCard profile={action.issuer} srcTag={fileIdTag} />
-						</Link>
-					)}
-					{isInFlight && (
-						<Badge variant="primary" rounded>
-							{action.status === 'S'
-								? t('Scheduled')
-								: isProcessingMedia
-									? t('Processing')
-									: t('Pending')}
-						</Badge>
-					)}
-					<div className="c-hbox ms-auto g-3">
-						<PostMenu action={action} onDelete={onDelete} />
-					</div>
-				</div>
-				<div className="c-hbox align-items-center g-1 c-post-meta">
-					{(() => {
-						const vis = getVisibilityMeta(t, action.visibility)
-						if (!vis) return null
-						const VisIcon = vis.icon
-						return (
-							<>
-								<span className="c-post-visibility" title={vis.label}>
-									<VisIcon style={{ color: vis.color }} />
-									<span>{vis.label}</span>
-								</span>
-								<span aria-hidden="true">·</span>
-							</>
-						)
-					})()}
-					<TimeFormat time={action.createdAt} />
-				</div>
-				<div className="d-flex flex-column g-2">
-					{!!bodyText && renderPostContent(bodyText)}
-					{!isRepost && liveDoc && <LiveDocCard docRef={liveDoc} width={width} />}
-					{!isRepost &&
-						!!action.attachments?.length &&
-						(action.subType === 'VIDEO' ? (
-							<Video attachments={action.attachments} idTag={fileIdTag} />
-						) : action.subType === 'DOC' ? (
-							<Document
-								attachments={action.attachments}
-								idTag={fileIdTag}
-								token={auth?.token}
+				<VBox gap={2}>
+					<HBox align="center" gap={2}>
+						{action.audience &&
+						action.audience.idTag !== action.issuer.idTag &&
+						action.audience.idTag !== hideAudience ? (
+							<ProfileAudienceCard
+								profile={action.issuer}
+								audience={action.audience}
+								srcTag={fileIdTag}
+								profileBasePath={profilePath(urlContext)}
 							/>
 						) : (
-							<Images
-								width={width}
-								attachments={action.attachments}
-								idTag={fileIdTag}
-							/>
-						))}
-					{isRepost && subjectAction && (
-						<EmbeddedPostCard subjectAction={subjectAction} width={width} />
-					)}
-				</div>
-				<div className="c-hbox align-items-center g-2">
-					<ReactionPicker
-						className="c-reaction-chip"
-						ownReaction={engageAction.stat?.ownReaction}
-						onReact={onReactClick}
-					/>
-					<RepostControl
-						original={repostOriginal}
-						onQuote={(original, target) => onQuote?.(original, target)}
-					/>
-					<div className="c-hbox ms-auto g-2 align-items-center">
+							<Link to={profilePath(urlContext, action.issuer.idTag)}>
+								<ProfileCard profile={action.issuer} srcTag={fileIdTag} />
+							</Link>
+						)}
+						{isInFlight && (
+							<Badge color="primary">
+								{action.status === 'S'
+									? t('Scheduled')
+									: isProcessingMedia
+										? t('Processing')
+										: t('Pending')}
+							</Badge>
+						)}
+						<Spacer />
+						<PostMenu action={action} onDelete={onDelete} />
+					</HBox>
+					<Meta>
+						{vis && VisIcon && (
+							<IconText icon={<VisIcon style={{ color: vis.color }} />}>
+								{vis.label}
+							</IconText>
+						)}
+						<TimeFormat time={action.createdAt} />
+					</Meta>
+					<VBox gap={2}>
+						{!!bodyText && <RichText text={bodyText} />}
+						{!isRepost && liveDoc && <LiveDocCard docRef={liveDoc} width={width} />}
+						{!isRepost &&
+							!!action.attachments?.length &&
+							(action.subType === 'VIDEO' ? (
+								<Video attachments={action.attachments} idTag={fileIdTag} />
+							) : action.subType === 'DOC' ? (
+								<Document
+									attachments={action.attachments}
+									idTag={fileIdTag}
+									token={auth?.token}
+								/>
+							) : (
+								<Images
+									width={width}
+									attachments={action.attachments}
+									idTag={fileIdTag}
+								/>
+							))}
+						{isRepost && subjectAction && (
+							<EmbeddedPostCard subjectAction={subjectAction} width={width} />
+						)}
+					</VBox>
+					<HBox align="center" gap={2}>
+						<ReactionPicker
+							ownReaction={engageAction.stat?.ownReaction}
+							onReact={onReactClick}
+						/>
+						<RepostControl
+							original={repostOriginal}
+							onQuote={(original, target) => onQuote?.(original, target)}
+						/>
+						<Spacer />
 						<Button
-							kind="link"
-							variant="secondary"
-							className={mergeClasses(
-								'c-comment-badge-btn',
-								tab == 'CMNT' ? 'active' : ''
-							)}
+							variant="link"
+							color="secondary"
+							pressed={tab == 'CMNT'}
 							onClick={() => onTabClick('CMNT')}
 							aria-label={commentLabel}
-							title={commentLabel}
 						>
 							<CommentBadge count={commentCount} unread={commentUnread} />
 						</Button>
-						{!!engageAction.stat?.reactions &&
-							(() => {
-								const parsed = parseReactionCounts(engageAction.stat.reactions)
-								const shownSum = parsed.reduce((s, r) => s + r.count, 0)
-								const total = totalReactions(engageAction.stat.reactions)
-								const overflow = Math.max(0, total - shownSum)
-								const label = t('View {{count}} reactions', { count: total })
-								return (
-									<button
-										type="button"
-										className="c-reaction-chip-group"
-										onClick={() => setEngagementTab('all')}
-										aria-label={label}
-										title={label}
-									>
-										{parsed.map((r) => (
-											<span key={r.key} className="c-reaction-chip">
-												{r.emoji}
-												<small>{r.count}</small>
-											</span>
-										))}
-										{overflow > 0 && (
-											<span className="c-reaction-chip c-reaction-chip-more">
-												<small>+{overflow}</small>
-											</span>
-										)}
-									</button>
-								)
-							})()}
+						{reactionSummary && (
+							<Button
+								variant="ghost"
+								size="sm"
+								onClick={() => setEngagementTab('all')}
+								aria-label={reactionSummary.label}
+							>
+								{reactionSummary.parsed.map((r) => (
+									<Tag key={r.key} icon={r.emoji} count={r.count} />
+								))}
+								{reactionSummary.overflow > 0 && (
+									<Tag>+{reactionSummary.overflow}</Tag>
+								)}
+							</Button>
+						)}
 						{repostCount > 0 && (
-							<button
-								type="button"
-								className="c-reaction-chip c-reaction-chip-btn"
+							<Tag
+								icon={<IcRepost />}
+								count={repostCount}
 								onClick={() => setEngagementTab('reposts')}
 								aria-label={t('View {{count}} reposts', { count: repostCount })}
-								title={t('{{count}} reposts', { count: repostCount })}
-							>
-								<IcRepost />
-								<small>{repostCount}</small>
-							</button>
+							/>
 						)}
-					</div>
-				</div>
-				{engagementTab !== undefined && (
-					<EngagementDialog
-						subjectActionId={engageAction.actionId}
-						audienceTag={engageAction.audience?.idTag ?? engageAction.issuer.idTag}
-						initialTab={engagementTab}
-						open={engagementTab !== undefined}
-						onClose={() => setEngagementTab(undefined)}
-					/>
-				)}
-			</div>
+					</HBox>
+					{engagementTab !== undefined && (
+						<EngagementDialog
+							subjectActionId={engageAction.actionId}
+							audienceTag={engageAction.audience?.idTag ?? engageAction.issuer.idTag}
+							initialTab={engagementTab}
+							open={engagementTab !== undefined}
+							onClose={() => setEngagementTab(undefined)}
+						/>
+					)}
+				</VBox>
+			</Card>
 			{tab == 'CMNT' && (
 				<Comments
 					parentAction={engageAction}
@@ -924,44 +876,27 @@ export function ComposeTrigger({ className, onOpen }: ComposeTriggerProps) {
 	if (!auth?.idTag) return null
 
 	return (
-		<div
-			className={mergeClasses('c-panel c-hbox g-2 cursor-pointer', className)}
-			onClick={() => onOpen()}
-		>
-			<ProfilePicture profile={{ profilePic: auth.profilePic }} small />
-			<div className="flex-fill c-input" style={{ opacity: 0.6, cursor: 'pointer' }}>
-				{t("What's on your mind?")}
-			</div>
-			<div className="c-hbox g-2">
-				<Button
-					kind="link"
-					onClick={(e) => {
-						e.stopPropagation()
-						onOpen('image')
-					}}
-				>
+		<Panel className={className}>
+			<HBox gap={2} align="center">
+				<ProfilePicture profile={{ profilePic: auth.profilePic }} small />
+				<Button variant="soft" className="flex-fill" onClick={() => onOpen()}>
+					{t("What's on your mind?")}
+				</Button>
+				<Button variant="ghost" aria-label={t('Add image')} onClick={() => onOpen('image')}>
 					<IcImage />
 				</Button>
 				<Button
-					kind="link"
-					onClick={(e) => {
-						e.stopPropagation()
-						onOpen('camera')
-					}}
+					variant="ghost"
+					aria-label={t('Take photo')}
+					onClick={() => onOpen('camera')}
 				>
 					<IcCamera />
 				</Button>
-				<Button
-					kind="link"
-					onClick={(e) => {
-						e.stopPropagation()
-						onOpen('video')
-					}}
-				>
+				<Button variant="ghost" aria-label={t('Add video')} onClick={() => onOpen('video')}>
 					<IcVideo />
 				</Button>
-			</div>
-		</div>
+			</HBox>
+		</Panel>
 	)
 }
 
@@ -1033,172 +968,111 @@ const FilterBar = React.memo(function FilterBar({
 	tags
 }: FilterBarProps) {
 	const { t } = useTranslation()
-	const [searchInput, setSearchInput] = React.useState(searchQuery || '')
-	const debounceRef = React.useRef<ReturnType<typeof setTimeout>>(undefined)
-
-	function handleSearchInput(e: React.ChangeEvent<HTMLInputElement>) {
-		const value = e.target.value
-		setSearchInput(value)
-		if (debounceRef.current) clearTimeout(debounceRef.current)
-		debounceRef.current = setTimeout(() => {
-			onSearchChange(value || undefined)
-		}, 300)
-	}
-
-	React.useEffect(function cleanup() {
-		return () => {
-			if (debounceRef.current) clearTimeout(debounceRef.current)
-		}
-	}, [])
-
 	const sourceOptions = getSourceFilters(t, isOwnContext)
 
 	return (
-		<div className="c-vbox pt-2">
-			{/* Search */}
-			<div className="c-input-group px-2 py-1">
-				<span className="c-input-suffix">
-					<IcSearch />
-				</span>
-				<input
-					type="text"
-					className="c-input"
-					placeholder={t('Search posts...')}
-					value={searchInput}
-					onChange={handleSearchInput}
-				/>
-			</div>
+		<VBox gap={2} className="pt-2" autoBg>
+			<SearchInput
+				defaultValue={searchQuery}
+				debounce={300}
+				onSearch={(q) => onSearchChange(q || undefined)}
+				placeholder={t('Search posts...')}
+				className="px-2"
+			/>
 
-			<hr className="w-100" />
+			<Divider />
 
-			{/* Source filter — read-state view (Unread) + content sources */}
-			<ul className="c-nav vertical low">
-				<li className="c-nav-item">
-					<span className="c-nav-link text-muted">{t('Source')}</span>
-				</li>
-				{/* Unread is an all-source, read-state view. */}
-				<li>
-					<a
-						className={mergeClasses(
-							'c-nav-item ps-4',
-							viewMode === 'unread' && 'active'
-						)}
-						onClick={(e) => {
-							e.preventDefault()
-							onViewSelect('unread')
-						}}
-					>
-						<IcUnread />
-						{t('Unread')}
-						{ctxUnread > 0 && (
-							<span
-								className="c-badge dot accent ms-1"
-								role="status"
-								aria-label={t('New content')}
-							/>
-						)}
-					</a>
-				</li>
-				{sourceOptions.map((opt) => (
-					<React.Fragment key={opt.value}>
-						<li>
-							<a
-								className={mergeClasses(
-									'c-nav-item ps-4',
+			<Nav aria-label={t('Feed')}>
+				{/* Source filter — read-state view (Unread) + content sources */}
+				<Nav.Section label={t('Source')}>
+					{/* Unread is an all-source, read-state view. */}
+					<Nav.Item
+						icon={<IcUnread />}
+						label={t('Unread')}
+						active={viewMode === 'unread'}
+						onClick={() => onViewSelect('unread')}
+						badge={
+							ctxUnread > 0 ? (
+								<Badge dot color="accent" aria-label={t('New content')} />
+							) : undefined
+						}
+					/>
+					{sourceOptions.map((opt) => (
+						<React.Fragment key={opt.value}>
+							<Nav.Item
+								icon={<opt.icon />}
+								label={opt.value === 'all' ? t('Feed') : opt.label}
+								active={
 									viewMode === 'feed' &&
-										sourceFilter === opt.value &&
-										!(opt.value === 'communities' && narrowToCommunity) &&
-										'active'
-								)}
-								onClick={(e) => {
-									e.preventDefault()
-									onSourceChange(opt.value)
-								}}
-							>
-								<opt.icon />
-								{opt.value === 'all' ? t('Feed') : opt.label}
-							</a>
-						</li>
-						{opt.value === 'communities' &&
-							viewMode === 'feed' &&
-							sourceFilter === 'communities' &&
-							communities.map((c) => (
-								<li key={c.idTag}>
-									<a
-										className={mergeClasses(
-											'c-nav-item ps-5',
-											narrowToCommunity === c.idTag && 'active'
-										)}
-										onClick={(e) => {
-											e.preventDefault()
-											onNarrowToCommunityChange(c.idTag)
-										}}
-									>
-										<ProfilePicture
-											profile={{ profilePic: c.profilePic }}
-											srcTag={c.idTag}
-											small
-										/>
-										{c.name}
-									</a>
-								</li>
-							))}
-					</React.Fragment>
-				))}
-				<li>
-					<hr className="w-100" />
-				</li>
+									sourceFilter === opt.value &&
+									!(opt.value === 'communities' && narrowToCommunity)
+								}
+								onClick={() => onSourceChange(opt.value)}
+							/>
+							{opt.value === 'communities' &&
+								viewMode === 'feed' &&
+								sourceFilter === 'communities' &&
+								communities.map((c) => (
+									<Nav.Item
+										key={c.idTag}
+										depth={1}
+										icon={
+											<ProfilePicture
+												profile={{ profilePic: c.profilePic }}
+												srcTag={c.idTag}
+												small
+											/>
+										}
+										label={c.name}
+										active={narrowToCommunity === c.idTag}
+										onClick={() => onNarrowToCommunityChange(c.idTag)}
+									/>
+								))}
+						</React.Fragment>
+					))}
+				</Nav.Section>
+				<Nav.Divider />
 				{/* Drafts — separate composing view below the source list. */}
-				<li>
-					<a
-						className={mergeClasses(
-							'c-nav-item ps-4',
-							viewMode === 'drafts' && 'active'
-						)}
-						onClick={(e) => {
-							e.preventDefault()
-							onViewSelect('drafts')
-						}}
-					>
-						<IcDraft />
-						{t('Drafts')}
-					</a>
-				</li>
-			</ul>
+				<Nav.Item
+					icon={<IcDraft />}
+					label={t('Drafts')}
+					active={viewMode === 'drafts'}
+					onClick={() => onViewSelect('drafts')}
+				/>
+			</Nav>
 
 			{/* Tag cloud */}
 			{tags.length > 0 && (
 				<>
-					<hr className="w-100" />
-					<div className="c-nav vertical low">
-						<span className="c-nav-link text-muted">
+					<Divider />
+					<HBox gap={1} align="center" className="px-2">
+						<Text size="sm" emphasis="muted" className="flex-fill">
 							<IcTag /> {t('Tags')}
-							{tagFilter && (
-								<Button
-									className="ms-auto"
-									size="small"
-									onClick={() => onTagChange(undefined)}
-								>
-									{t('Clear')}
-								</Button>
-							)}
-						</span>
-					</div>
-					<div className="d-flex flex-wrap g-1 px-2">
+						</Text>
+						{tagFilter && (
+							<Button
+								variant="ghost"
+								size="sm"
+								onClick={() => onTagChange(undefined)}
+							>
+								{t('Clear')}
+							</Button>
+						)}
+					</HBox>
+					<HBox gap={1} wrap className="px-2">
 						{tags.map((tag) => (
-							<button
+							<Tag
 								key={tag}
-								type="button"
-								className={mergeClasses('c-tag', tagFilter === tag && 'accent')}
+								pressed={tagFilter === tag}
 								onClick={() => onTagChange(tagFilter === tag ? undefined : tag)}
 							>
 								#{tag}
-							</button>
+							</Tag>
 						))}
-					</div>
+					</HBox>
 				</>
 			)}
-		</div>
+		</VBox>
 	)
 })
 
@@ -1613,8 +1487,8 @@ export function FeedApp() {
 
 			function measureWidth() {
 				if (!widthRef.current) return
-				// Find the first c-panel inside to measure its padding
-				const panel = widthRef.current.querySelector('.c-panel')
+				// Find the first post card inside to measure its padding
+				const panel = widthRef.current.querySelector('.c-card')
 				if (panel) {
 					const styles = getComputedStyle(panel)
 					const w =
@@ -1940,20 +1814,19 @@ export function FeedApp() {
 			<Fcd.Content
 				ref={setScrollEl}
 				header={
-					<div className="c-hbox align-items-center g-2 p-2">
+					<HBox align="center" gap={2} padding={2} autoBg>
 						<Button
-							kind="link"
+							variant="ghost"
 							className="md-hide lg-hide"
+							aria-label={t('Filters')}
 							onClick={() => setShowFilter(true)}
 						>
 							<IcMenu />
 						</Button>
-					</div>
+					</HBox>
 				}
 			>
-				{!!auth && !composeOpen && (
-					<ComposeTrigger className="col" onOpen={handleComposeOpen} />
-				)}
+				{!!auth && !composeOpen && <ComposeTrigger onOpen={handleComposeOpen} />}
 				{!!auth && (
 					<ComposePanel
 						open={composeOpen}
@@ -1967,26 +1840,27 @@ export function FeedApp() {
 						target={quoteTarget}
 						ownRepostIds={quoteAction?.stat?.ownRepostIds}
 						audiencePicker
-						className="col"
 					/>
 				)}
 				{!composeOpen && viewMode === 'unread' && (
-					<div ref={widthRef} className="c-vbox g-1">
+					<VBox ref={widthRef} gap={1}>
 						{isUnreadLoading && unreadPosts.length === 0 ? (
-							<div className="c-vbox g-2 p-2">
+							<VBox gap={2} padding={2}>
 								<SkeletonCard showAvatar lines={3} />
 								<SkeletonCard showAvatar showImage lines={2} />
-							</div>
+							</VBox>
 						) : unreadPosts.length === 0 && !unreadHasMore ? (
 							<EmptyState
-								icon={<IcAll style={{ fontSize: '2.5rem' }} />}
+								className="auto-bg"
+								size="lg"
+								icon={<IcAll />}
 								title={t("You're all caught up.")}
 								description={t('No new posts since your last visit.')}
 							/>
 						) : (
 							<>
 								{unreadPosts.map((post) => (
-									<div
+									<VBox
 										key={post.actionId}
 										ref={registerReadTracker}
 										data-read-ts={feedReadTs(post)}
@@ -2001,7 +1875,7 @@ export function FeedApp() {
 											width={width}
 											onQuote={handleQuote}
 										/>
-									</div>
+									</VBox>
 								))}
 								<LoadMoreTrigger
 									ref={unreadSentinelRef}
@@ -2014,65 +1888,79 @@ export function FeedApp() {
 									errorPrefix={t('Failed to load:')}
 								/>
 								{!unreadHasMore && (
-									<div className="c-hbox justify-content-center p-2">
-										<Button variant="primary" onClick={markAllRead}>
+									<HBox justify="center" padding={2}>
+										<Button color="primary" onClick={markAllRead}>
 											{t('Mark all as read')}
 										</Button>
-									</div>
+									</HBox>
 								)}
 							</>
 						)}
-					</div>
+					</VBox>
 				)}
 				{!composeOpen && viewMode === 'drafts' && (
 					<DraftsPanel onEdit={handleEditDraft} onPublished={handleDraftPublished} />
 				)}
 				{!composeOpen && !!focusedId && (focusedPost || focusedMissing) && (
-					<div ref={focusedRef} className="c-vbox g-1 c-feed-focused">
-						<div className="c-hbox align-items-center justify-content-between g-2">
-							<span className="small text-muted">{t('Linked post')}</span>
-							<Button
-								kind="link"
-								onClick={() =>
-									navigate(feedPath(urlContext), {
-										replace: true
-									})
-								}
-							>
-								{t('Back to feed')}
-							</Button>
-						</div>
-						{focusedPost ? (
-							<ActionComp
-								action={focusedPost}
-								onPatchStat={patchStat}
-								onDelete={onDelete}
-								hideAudience={!isOwnContext ? contextIdTag : narrowToCommunity}
-								width={width}
-								onQuote={handleQuote}
-							/>
-						) : (
-							<EmptyState title={t('That post is no longer available')} />
-						)}
-					</div>
+					<Panel
+						ref={focusedRef}
+						color="primary"
+						variant="soft"
+						padding={2}
+						className="mb-2"
+					>
+						<VBox gap={1}>
+							<HBox align="center" justify="between" gap={2}>
+								<Text size="sm" emphasis="muted">
+									{t('Linked post')}
+								</Text>
+								<Button
+									variant="link"
+									onClick={() =>
+										navigate(feedPath(urlContext), {
+											replace: true
+										})
+									}
+								>
+									{t('Back to feed')}
+								</Button>
+							</HBox>
+							{focusedPost ? (
+								<ActionComp
+									action={focusedPost}
+									onPatchStat={patchStat}
+									onDelete={onDelete}
+									hideAudience={!isOwnContext ? contextIdTag : narrowToCommunity}
+									width={width}
+									onQuote={handleQuote}
+								/>
+							) : (
+								<EmptyState title={t('That post is no longer available')} />
+							)}
+						</VBox>
+					</Panel>
 				)}
-				{!composeOpen && viewMode === 'feed' && (
-					<OfflineBanner show={isOffline} className="my-2" />
+				{!composeOpen && viewMode === 'feed' && isOffline && (
+					<Alert color="neutral" compact icon={<IcOffline />} className="my-2">
+						{t('Showing cached data — you appear to be offline')}
+					</Alert>
 				)}
 				{!composeOpen && viewMode === 'feed' && newPostsCount > 0 && (
 					<NewPostsBanner count={newPostsCount} onClick={showNewPosts} className="my-2" />
 				)}
 				{!composeOpen && viewMode === 'feed' && (
-					<div ref={widthRef} className="c-vbox g-1">
+					<VBox ref={widthRef} gap={1}>
 						{isLoading && feed.length === 0 ? (
-							<div className="c-vbox g-2 p-2">
+							<VBox gap={2} padding={2}>
 								<SkeletonCard showAvatar showImage lines={2} />
 								<SkeletonCard showAvatar lines={3} />
 								<SkeletonCard showAvatar showImage lines={2} />
-							</div>
+							</VBox>
 						) : mergedFeed.length === 0 ? (
 							<EmptyState
-								icon={<IcAll style={{ fontSize: '2.5rem' }} />}
+								className="auto-bg"
+								size="lg"
+								icon={<IcAll />}
 								title={t('No posts yet')}
 								description={
 									sourceFilter === 'mine'
@@ -2098,11 +1986,15 @@ export function FeedApp() {
 								    dividerIndex and hasUnreadLoaded collapse to falsy, so the
 								    pill needs no separate gate. */}
 								{(dividerIndex > 0 || hasUnreadLoaded) && (
-									<div className="c-hbox justify-content-center pb-1">
-										<Button kind="link" variant="primary" onClick={markAllRead}>
+									<HBox justify="center" className="pb-1">
+										<Button
+											variant="link"
+											color="primary"
+											onClick={markAllRead}
+										>
 											{t('Caught up')} ✓
 										</Button>
-									</div>
+									</HBox>
 								)}
 								{mergedFeed.map((action, i) => (
 									<React.Fragment key={action.actionId}>
@@ -2110,7 +2002,7 @@ export function FeedApp() {
 										    it) and at -1 (no in-list boundary: all read or all
 										    unread); only render it as a real mid-list boundary. */}
 										{i === dividerIndex && i > 0 && <ReadDivider />}
-										<div
+										<VBox
 											ref={registerFeedTracker}
 											data-read-ts={feedReadTs(action)}
 										>
@@ -2124,7 +2016,7 @@ export function FeedApp() {
 												width={width}
 												onQuote={handleQuote}
 											/>
-										</div>
+										</VBox>
 									</React.Fragment>
 								))}
 								<LoadMoreTrigger
@@ -2139,7 +2031,7 @@ export function FeedApp() {
 								/>
 							</>
 						)}
-					</div>
+					</VBox>
 				)}
 			</Fcd.Content>
 			<Fcd.Details></Fcd.Details>

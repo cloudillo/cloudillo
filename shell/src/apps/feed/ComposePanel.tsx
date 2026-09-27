@@ -3,21 +3,31 @@
 
 import type { FileView } from '@cloudillo/core'
 import {
+	Badge,
 	Button,
-	generateFragments,
-	mergeClasses,
+	Divider,
+	HBox,
+	IconText,
+	Panel,
+	Popover,
 	Progress,
+	RichTextInput,
+	type RichTextInputHandle,
+	Spacer,
+	Text,
+	Tooltip,
 	useApi,
 	useAuth,
 	useDialog,
-	useToast
+	useFilePicker,
+	useToast,
+	VBox
 } from '@cloudillo/react'
 import type { ActionView, NewAction } from '@cloudillo/types'
 import data from '@emoji-mart/data'
 import Picker from '@emoji-mart/react'
 import { useAtomValue } from 'jotai'
 import * as React from 'react'
-import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import {
 	LuCamera as IcCamera,
@@ -34,8 +44,6 @@ import {
 	LuSmile as IcSmile,
 	LuVideo as IcVideo
 } from 'react-icons/lu'
-import { usePopper } from 'react-popper'
-import { type Position, useEditable } from 'use-editable'
 
 import { AttachmentPreview } from '../../components/AttachmentPreview.js'
 import { useDocumentPicker } from '../../components/DocumentPicker/index.js'
@@ -43,7 +51,6 @@ import { contextRolesAtom, useApiContext } from '../../context/index.js'
 import { type AttachmentType, useImageUpload } from '../../hooks/useImageUpload.js'
 import { ImageUpload } from '../../image.js'
 import { handAtom } from '../../state/hand.js'
-import { handleEditablePaste } from '../../utils/editablePaste.js'
 import { fetchRow } from '../doc-info.js'
 import { canManageFile, visibilityRank } from '../files/utils.js'
 import { AudienceSelector, type AudienceTarget } from './AudienceSelector.js'
@@ -100,20 +107,13 @@ const SaveStatusIndicator = React.forwardRef<SaveStatusHandle, SaveStatusIndicat
 		React.useImperativeHandle(ref, () => ({ setStatus }), [])
 		if (!status) return null
 		return (
-			<span
-				style={{
-					fontSize: '0.75rem',
-					color: 'var(--col-on-container)',
-					opacity: 0.6,
-					alignSelf: 'center'
-				}}
-			>
+			<Text size="sm" emphasis="muted" className="align-self-center">
 				{status === 'saving'
 					? t('Saving...')
 					: isEditingScheduled
 						? t('Scheduled post updated')
 						: t('Draft saved')}
-			</span>
+			</Text>
 		)
 	}
 )
@@ -211,12 +211,24 @@ export function ComposePanel({
 	const [showSchedule, setShowSchedule] = React.useState(false)
 	const editorRef = React.useRef<HTMLDivElement>(null)
 	const saveStatusRef = React.useRef<SaveStatusHandle>(null)
-	const fileInputRef = React.useRef<HTMLInputElement>(null)
-	const imgInputRef = React.useRef<HTMLInputElement>(null)
-	const videoInputRef = React.useRef<HTMLInputElement>(null)
-	const fileInputId = React.useId()
-	const imgInputId = React.useId()
-	const videoInputId = React.useId()
+	const editHandle = React.useRef<RichTextInputHandle>(null)
+	const filePicker = useFilePicker({
+		accept: 'image/*,video/*,.pdf',
+		multiple: false,
+		onFiles: onFile
+	})
+	const cameraPicker = useFilePicker({
+		accept: 'image/*,.svg',
+		multiple: false,
+		capture: 'environment',
+		onFiles: onFile
+	})
+	const videoPicker = useFilePicker({
+		accept: 'video/*',
+		multiple: false,
+		capture: 'environment',
+		onFiles: onFile
+	})
 	const initialMediaTriggered = React.useRef(false)
 	const draftIdRef = React.useRef<string | undefined>(draft?.actionId)
 	const saveTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
@@ -229,20 +241,7 @@ export function ComposePanel({
 	const isEditingScheduled = draft?.status === 'S'
 
 	const [emojiPickerOpen, setEmojiPickerOpen] = React.useState(false)
-	const [emojiRefEl, setEmojiRefEl] = React.useState<HTMLElement | null>(null)
-	const [emojiPopperEl, setEmojiPopperEl] = React.useState<HTMLElement | null>(null)
 	const savedRangeRef = React.useRef<Range | null>(null)
-	const { styles: emojiPopperStyles, attributes: emojiAttributes } = usePopper(
-		emojiRefEl,
-		emojiPopperEl,
-		{ placement: 'top-end', strategy: 'fixed' }
-	)
-
-	function onChange(text: string, _pos: Position) {
-		setContent(text)
-	}
-
-	const edit = useEditable(editorRef, onChange, { disabled: !open })
 
 	// Pre-fill from draft when editing
 	React.useEffect(() => {
@@ -261,11 +260,8 @@ export function ComposePanel({
 			if (draftDoc) {
 				const text = draftDoc.text ?? ''
 				setContent(text)
-				setTimeout(() => edit.update(text), 0)
 			} else if (typeof draft.content === 'string') {
 				setContent(draft.content)
-				// Sync editable DOM with draft content
-				setTimeout(() => edit.update(draft.content as string), 0)
 			}
 			if (draft.visibility && ['P', 'C', 'F'].includes(draft.visibility)) {
 				setVisibility(draft.visibility as Visibility)
@@ -287,7 +283,7 @@ export function ComposePanel({
 			setAttachedDoc(undefined)
 			imageUpload.reset()
 		}
-	}, [draft, imageUpload.initAttachments, edit])
+	}, [draft, imageUpload.initAttachments])
 
 	// A document handed in from the editor. Runs after the draft effect above so
 	// an explicit intent wins over an empty draft restore.
@@ -455,23 +451,21 @@ export function ComposePanel({
 		const timeout = setTimeout(() => {
 			switch (initialMedia) {
 				case 'image':
-					fileInputRef.current?.click()
+					filePicker.open()
 					break
 				case 'camera':
-					imgInputRef.current?.click()
+					cameraPicker.open()
 					break
 				case 'video':
-					videoInputRef.current?.click()
+					videoPicker.open()
 					break
 			}
 		}, 100)
 		return () => clearTimeout(timeout)
 	}, [open, initialMedia])
 
-	function onFileChange(which: 'file' | 'image' | 'video') {
-		const inputRef =
-			which === 'image' ? imgInputRef : which === 'video' ? videoInputRef : fileInputRef
-		const file = inputRef.current?.files?.[0]
+	function onFile(files: File[]) {
+		const file = files[0]
 		if (!file) return
 
 		if (file.type.startsWith('video/')) {
@@ -483,7 +477,6 @@ export function ComposePanel({
 		} else {
 			imageUpload.selectFile(file)
 		}
-		if (inputRef.current) inputRef.current.value = ''
 	}
 
 	async function attachDocument() {
@@ -757,28 +750,6 @@ export function ComposePanel({
 		imageUpload.reset()
 	}
 
-	function onKeyDown(e: React.KeyboardEvent) {
-		if (e.ctrlKey && e.key === 'Enter') {
-			e.preventDefault()
-			doSubmit()
-		}
-	}
-
-	React.useEffect(() => {
-		if (!emojiPickerOpen || !emojiPopperEl) return
-
-		function handleClickOutside(evt: MouseEvent) {
-			if (!(evt.target instanceof Node)) return
-			if (emojiPopperEl?.contains(evt.target) || emojiRefEl?.contains(evt.target)) return
-			setEmojiPickerOpen(false)
-		}
-
-		document.addEventListener('click', handleClickOutside, true)
-		return () => {
-			document.removeEventListener('click', handleClickOutside, true)
-		}
-	}, [emojiPickerOpen, emojiPopperEl, emojiRefEl])
-
 	function captureEditorSelection() {
 		const sel = window.getSelection()
 		if (sel && sel.rangeCount > 0 && editorRef.current?.contains(sel.anchorNode)) {
@@ -803,9 +774,11 @@ export function ComposePanel({
 			}
 		}
 
-		edit.insert(emoji.native)
+		editHandle.current?.insert(emoji.native)
 		savedRangeRef.current = null
 		setEmojiPickerOpen(false)
+		// The popover hands focus back to its trigger on close; the caret belongs in the editor
+		requestAnimationFrame(() => editor.focus())
 	}
 
 	if (!open || !auth?.idTag) return null
@@ -820,9 +793,9 @@ export function ComposePanel({
 
 	return (
 		<>
-			<div className={mergeClasses('c-vbox', className)}>
-				<div className="c-panel g-2 c-vbox">
-					<div className="c-hbox g-2 align-items-center">
+			<Panel className={className}>
+				<VBox gap={2}>
+					<HBox gap={2} align="center">
 						{audiencePicker && (
 							<AudienceSelector
 								target={audienceTarget}
@@ -831,55 +804,37 @@ export function ComposePanel({
 							/>
 						)}
 						<VisibilitySelector value={visibility} onChange={setVisibility} />
-						<span className="flex-fill" />
-						<Button kind="link" onClick={handleCancel} aria-label={t('Cancel')}>
+						<Spacer />
+						<Button variant="link" onClick={handleCancel} aria-label={t('Cancel')}>
 							<IcClose />
 						</Button>
-					</div>
+					</HBox>
 					{draft && (
-						<div
-							className="c-hbox g-1 align-items-center"
-							style={{
-								color: isEditingScheduled
-									? 'var(--col-primary)'
-									: 'var(--col-warning)',
-								fontSize: '0.85rem'
-							}}
-						>
-							{isEditingScheduled ? <IcSchedule /> : <IcSave />}
-							<span>
+						<Text size="sm" color={isEditingScheduled ? 'primary' : 'warning'}>
+							<IconText icon={isEditingScheduled ? <IcSchedule /> : <IcSave />}>
 								{isEditingScheduled
 									? t('Editing scheduled post')
 									: t('Editing draft')}
-							</span>
-						</div>
+							</IconText>
+						</Text>
 					)}
-					<div className="c-hbox align-items-start">
-						<div className="c-input-group flex-fill">
-							<div
-								ref={editorRef}
-								className="c-input"
-								tabIndex={0}
-								onKeyDown={onKeyDown}
-								onPasteCapture={(e) => handleEditablePaste(e, edit, content)}
-								style={{ minHeight: '6rem' }}
-							>
-								{generateFragments(content).map((n, i) => (
-									<React.Fragment key={i}>{n}</React.Fragment>
-								))}
-							</div>
-							<div className="c-hbox g-1 align-self-end m-1">
+					<RichTextInput
+						ref={editorRef}
+						editRef={editHandle}
+						value={content}
+						onChange={setContent}
+						onSubmit={doSubmit}
+						minRows={4}
+						aria-label={t('Post')}
+						actions={
+							<>
 								<SaveStatusIndicator
 									ref={saveStatusRef}
 									isEditingScheduled={isEditingScheduled}
 								/>
 								{isScheduled ? (
-									<Button
-										variant="primary"
-										size="small"
-										onClick={doSubmit}
-										disabled={imageUpload.isUploading}
-										title={
+									<Tooltip
+										content={
 											imageUpload.isUploading
 												? t('Wait for upload to finish')
 												: isEditingScheduled
@@ -887,37 +842,41 @@ export function ComposePanel({
 													: t('Schedule post')
 										}
 									>
-										<IcSchedule />
-										{isEditingScheduled ? t('Update schedule') : t('Schedule')}
-									</Button>
+										<Button
+											color="primary"
+											size="sm"
+											onClick={doSubmit}
+											disabled={imageUpload.isUploading}
+										>
+											<IcSchedule />
+											{isEditingScheduled
+												? t('Update schedule')
+												: t('Schedule')}
+										</Button>
+									</Tooltip>
 								) : isQuote ? (
-									<Button variant="primary" size="small" onClick={doSubmit}>
+									<Button color="primary" size="sm" onClick={doSubmit}>
 										<IcRepost />
 										{content.trim() ? t('Post quote') : t('Repost')}
 									</Button>
 								) : (
 									<Button
-										kind="link"
-										variant="primary"
+										variant="link"
+										color="primary"
 										onClick={doSubmit}
 										disabled={imageUpload.isUploading}
-										title={
-											imageUpload.isUploading
-												? t('Wait for upload to finish')
-												: undefined
-										}
 										aria-label={
 											imageUpload.isUploading
 												? t('Wait for upload to finish')
-												: undefined
+												: t('Post')
 										}
 									>
 										<IcSend />
 									</Button>
 								)}
-							</div>
-						</div>
-					</div>
+							</>
+						}
+					/>
 					{isQuote && quotedAction && (
 						<EmbeddedPostCard
 							subjectAction={quotedAction}
@@ -928,20 +887,16 @@ export function ComposePanel({
 					{attachedDoc ? (
 						// A post is one thing or the other: the attached document
 						// takes the place of the media strip.
-						<div className="c-hbox g-1 align-items-start">
-							<LiveDocCard
-								docRef={attachedDoc}
-								collapsedOnly
-								className="c-live-doc-card flex-fill"
-							/>
+						<HBox gap={1} align="start">
+							<LiveDocCard docRef={attachedDoc} collapsedOnly className="flex-fill" />
 							<Button
-								kind="link"
+								variant="link"
 								onClick={() => setAttachedDoc(undefined)}
 								aria-label={t('Remove document')}
 							>
 								<IcClose />
 							</Button>
-						</div>
+						</HBox>
 					) : (
 						<AttachmentPreview
 							attachmentIds={imageUpload.attachmentIds}
@@ -950,24 +905,24 @@ export function ComposePanel({
 						/>
 					)}
 					{showAccessNotice && (
-						<div className="c-hbox g-2 align-items-center">
-							<small style={{ color: 'var(--col-warning)' }}>
+						<HBox gap={2} align="center">
+							<Text size="sm" color="warning">
 								{t('This document is visible to fewer people than the post.')}
-							</small>
-							<Button kind="link" size="small" onClick={widenDocument}>
+							</Text>
+							<Button variant="link" size="sm" onClick={widenDocument}>
 								{t('Let people who see this post read it')}
 							</Button>
 							<Button
-								kind="link"
+								variant="link"
 								onClick={() => setNoticeDismissed(true)}
 								aria-label={t('Dismiss')}
 							>
 								<IcClose />
 							</Button>
-						</div>
+						</HBox>
 					)}
 					{imageUpload.isUploading && !imageUpload.attachment && (
-						<div className="c-hbox g-2 align-items-center p-1">
+						<HBox gap={2} align="center" className="p-1">
 							{imageUpload.uploadProgress === undefined ? (
 								<Progress indeterminate className="flex-fill" />
 							) : (
@@ -976,169 +931,140 @@ export function ComposePanel({
 									className="flex-fill"
 								/>
 							)}
-							<span className="text-sm">
+							<Text size="sm">
 								{imageUpload.uploadProgress !== undefined
 									? `${imageUpload.uploadProgress}%`
 									: t('Uploading...')}
-							</span>
-						</div>
+							</Text>
+						</HBox>
 					)}
 					{showSchedule && (
 						<>
-							<hr className="w-100" />
+							<Divider />
 							<SchedulePicker value={scheduleDate} onChange={setScheduleDate} />
 						</>
 					)}
-					<hr className="w-100" />
+					<Divider />
 					{isQuote && (
-						<small style={{ opacity: 0.6 }}>
+						<Text size="sm" emphasis="muted">
 							{t("Attachments aren't supported on reposts")}
-						</small>
+						</Text>
 					)}
 					{handDoc && (
-						<div className="c-hbox g-2 align-items-center">
-							<IcHand />
-							<small className="flex-fill">
-								{t('{{name}} in hand', { name: handDoc.label })}
-							</small>
-							<Button kind="link" size="small" onClick={attachHandDoc}>
+						<HBox gap={2} align="center">
+							<Text size="sm" className="flex-fill">
+								<IconText icon={<IcHand />}>
+									{t('{{name}} in hand', { name: handDoc.label })}
+								</IconText>
+							</Text>
+							<Button variant="link" size="sm" onClick={attachHandDoc}>
 								{t('Attach')}
 							</Button>
-						</div>
+						</HBox>
 					)}
-					<div className="c-hbox g-3">
+					<HBox gap={3} wrap>
 						<Button
-							kind="link"
+							variant="link"
 							disabled={process.env.NODE_ENV === 'production' || isQuote}
 						>
 							<IcPoll />
 							{t('Poll')}
 						</Button>
 						<Button
-							kind="link"
+							variant="link"
 							disabled={process.env.NODE_ENV === 'production' || isQuote}
 						>
 							<IcEvent />
 							{t('Event')}
 						</Button>
 						<Button
-							kind="link"
+							variant="link"
 							disabled={isQuote}
-							className={mergeClasses(
-								'pos-relative',
-								showSchedule ? 'active' : undefined
-							)}
+							pressed={showSchedule}
 							onClick={() => setShowSchedule(!showSchedule)}
 						>
 							<IcSchedule />
 							{t('Schedule')}
 							{!showSchedule && scheduleDate && (
-								<span className="c-badge pos-absolute top-0 left-100 bg bg-primary" />
+								<Badge dot color="primary" aria-label={t('Scheduled')} />
 							)}
 						</Button>
-						<div className="c-hbox g-2 ms-auto">
-							<div ref={setEmojiRefEl} onPointerDown={captureEditorSelection}>
-								<Button
-									kind="link"
-									onClick={() => setEmojiPickerOpen(!emojiPickerOpen)}
-								>
-									<IcSmile />
-								</Button>
-							</div>
-							{emojiPickerOpen &&
-								createPortal(
-									<div
-										ref={setEmojiPopperEl}
-										className="c-popper high"
-										style={{ ...emojiPopperStyles.popper, zIndex: 1000 }}
-										{...emojiAttributes.popper}
+						<Spacer />
+						<HBox gap={2}>
+							<Popover
+								placement="top-end"
+								open={emojiPickerOpen}
+								onOpenChange={setEmojiPickerOpen}
+								trigger={
+									<Button
+										variant="link"
+										aria-label={t('Emoji')}
+										onPointerDown={captureEditorSelection}
 									>
-										<Picker
-											data={data}
-											onEmojiSelect={handleEmojiSelect}
-											locale={i18n.language}
-										/>
-									</div>,
-									document.getElementById('popper-container') ?? document.body
-								)}
+										<IcSmile />
+									</Button>
+								}
+							>
+								<Picker
+									data={data}
+									onEmojiSelect={handleEmojiSelect}
+									locale={i18n.language}
+								/>
+							</Popover>
 							<Button
-								kind="link"
+								variant="link"
 								disabled={isDisabled || isQuote}
-								onClick={() => fileInputRef.current?.click()}
+								aria-label={t('Add image')}
+								onClick={filePicker.open}
 							>
 								<IcImage />
 							</Button>
-							<input
-								ref={fileInputRef}
-								id={fileInputId}
-								type="file"
-								accept="image/*,video/*,.pdf"
-								style={{ display: 'none' }}
-								onChange={() => onFileChange('file')}
-							/>
-
 							<Button
-								kind="link"
+								variant="link"
 								disabled={isDisabled || isQuote}
-								onClick={() => imgInputRef.current?.click()}
+								aria-label={t('Take photo')}
+								onClick={cameraPicker.open}
 							>
 								<IcCamera />
 							</Button>
-							<input
-								ref={imgInputRef}
-								id={imgInputId}
-								type="file"
-								capture="environment"
-								accept="image/*,.svg"
-								style={{ display: 'none' }}
-								onChange={() => onFileChange('image')}
-							/>
-
 							<Button
-								kind="link"
+								variant="link"
 								disabled={
 									imageUpload.attachmentType !== undefined ||
 									imageUpload.isUploading ||
 									isQuote ||
 									!!attachedDoc
 								}
-								onClick={() => videoInputRef.current?.click()}
+								aria-label={t('Add video')}
+								onClick={videoPicker.open}
 							>
 								<IcVideo />
 							</Button>
-							<input
-								ref={videoInputRef}
-								id={videoInputId}
-								type="file"
-								capture="environment"
-								accept="video/*"
-								style={{ display: 'none' }}
-								onChange={() => onFileChange('video')}
-							/>
-
 							<Button
-								kind="link"
+								variant="link"
 								disabled={
 									imageUpload.attachmentType !== undefined ||
 									imageUpload.isUploading ||
 									isQuote ||
 									!!attachedDoc
 								}
-								title={t('Share a document')}
 								aria-label={t('Share a document')}
 								onClick={attachDocument}
 							>
 								<IcDocument />
 							</Button>
-						</div>
-					</div>
-				</div>
-			</div>
+						</HBox>
+					</HBox>
+					{filePicker.input}
+					{cameraPicker.input}
+					{videoPicker.input}
+				</VBox>
+			</Panel>
 			{imageUpload.isPreparing && !imageUpload.attachment && (
-				<div className="c-hbox g-2 align-items-center p-2">
+				<HBox gap={2} align="center" className="p-2">
 					<Progress indeterminate className="flex-fill" />
-					<span className="text-sm">{t('Preparing image...')}</span>
-				</div>
+					<Text size="sm">{t('Preparing image...')}</Text>
+				</HBox>
 			)}
 			{imageUpload.attachment && (
 				<ImageUpload

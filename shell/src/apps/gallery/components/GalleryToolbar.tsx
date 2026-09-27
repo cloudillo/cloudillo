@@ -61,13 +61,11 @@ export function GalleryToolbar({
 			{/* Filter toggle button (mobile) */}
 			{showFilterButton && (
 				<Button
-					mode="icon"
 					className="md-hide lg-hide"
 					onClick={onFilterToggle}
-					title={t('Toggle filters')}
-				>
-					<IcFilter />
-				</Button>
+					icon={<IcFilter />}
+					aria-label={t('Toggle filters')}
+				/>
 			)}
 
 			<ToolbarSpacer />
@@ -96,33 +94,27 @@ export function GalleryToolbar({
 
 			{/* Sort direction toggle */}
 			<Button
-				mode="icon"
 				onClick={toggleSortDir}
-				title={sortDir === 'asc' ? t('Sort ascending') : t('Sort descending')}
-			>
-				{sortDir === 'asc' ? <IcAsc /> : <IcDesc />}
-			</Button>
+				aria-label={sortDir === 'asc' ? t('Sort ascending') : t('Sort descending')}
+				icon={sortDir === 'asc' ? <IcAsc /> : <IcDesc />}
+			/>
 
 			<ToolbarDivider />
 
 			{/* Layout toggle */}
 			<ToolbarGroup>
 				<Button
-					mode="icon"
 					active={layout === 'rows'}
 					onClick={() => onLayoutChange('rows')}
-					title={t('Justified rows layout')}
-				>
-					<IcRows />
-				</Button>
+					icon={<IcRows />}
+					aria-label={t('Justified rows layout')}
+				/>
 				<Button
-					mode="icon"
 					active={layout === 'masonry'}
 					onClick={() => onLayoutChange('masonry')}
-					title={t('Masonry layout')}
-				>
-					<IcMasonry />
-				</Button>
+					icon={<IcMasonry />}
+					aria-label={t('Masonry layout')}
+				/>
 			</ToolbarGroup>
 		</ToolbarContainer>
 	)

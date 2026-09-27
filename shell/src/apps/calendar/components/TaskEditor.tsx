@@ -7,6 +7,7 @@ import type {
 	CalendarOutput,
 	TodoInput
 } from '@cloudillo/core'
+import { Field, Input, NativeSelect, TextArea, VBox } from '@cloudillo/react'
 import dayjs from 'dayjs'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -110,80 +111,62 @@ export function TaskEditor({
 			onClose={onClose}
 			onSubmit={handleSave}
 		>
-			<div className="mb-3">
-				<label className="c-cal-detail-label">{t('Task title')}</label>
-				<input
-					className="c-input"
-					value={summary}
-					onChange={(e) => setSummary(e.target.value)}
-					autoFocus
-				/>
-			</div>
+			<VBox gap={3}>
+				<Field label={t('Task title')}>
+					<Input value={summary} onChange={(e) => setSummary(e.target.value)} autoFocus />
+				</Field>
 
-			<div className="mb-3">
-				<label className="c-cal-detail-label">{t('Calendar')}</label>
-				<select
-					className="c-input"
-					value={calId ?? ''}
-					onChange={(e) => setCalId(Number(e.target.value))}
-				>
-					<option value="">{t('Pick a calendar')}</option>
-					{calendars.map((c) => (
-						<option key={c.calId} value={c.calId}>
-							{c.name}
-						</option>
-					))}
-				</select>
-			</div>
+				<Field label={t('Calendar')}>
+					<NativeSelect
+						value={calId ?? ''}
+						onChange={(e) => setCalId(Number(e.target.value))}
+					>
+						<option value="">{t('Pick a calendar')}</option>
+						{calendars.map((c) => (
+							<option key={c.calId} value={c.calId}>
+								{c.name}
+							</option>
+						))}
+					</NativeSelect>
+				</Field>
 
-			<div className="mb-3">
-				<label className="c-cal-detail-label">{t('Due')}</label>
-				<input
-					className="c-input"
-					type="date"
-					value={due}
-					onChange={(e) => setDue(e.target.value)}
-				/>
-			</div>
+				<Field label={t('Due')}>
+					<Input type="date" value={due} onChange={(e) => setDue(e.target.value)} />
+				</Field>
 
-			<div className="mb-3">
-				<label className="c-cal-detail-label">{t('Priority')}</label>
-				<select
-					className="c-input"
-					value={priority}
-					onChange={(e) =>
-						setPriority(e.target.value === '' ? '' : Number(e.target.value))
-					}
-				>
-					<option value="">{t('None')}</option>
-					<option value="1">{t('High')}</option>
-					<option value="5">{t('Medium')}</option>
-					<option value="9">{t('Low')}</option>
-				</select>
-			</div>
+				<Field label={t('Priority')}>
+					<NativeSelect
+						value={priority}
+						onChange={(e) =>
+							setPriority(e.target.value === '' ? '' : Number(e.target.value))
+						}
+					>
+						<option value="">{t('None')}</option>
+						<option value="1">{t('High')}</option>
+						<option value="5">{t('Medium')}</option>
+						<option value="9">{t('Low')}</option>
+					</NativeSelect>
+				</Field>
 
-			<div className="mb-3">
-				<label className="c-cal-detail-label">{t('Status')}</label>
-				<select
-					className="c-input"
-					value={status}
-					onChange={(e) => setStatus(coerceStatus(e.target.value))}
-				>
-					<option value="NEEDS-ACTION">{t('Not started')}</option>
-					<option value="IN-PROCESS">{t('In progress')}</option>
-					<option value="COMPLETED">{t('Completed')}</option>
-				</select>
-			</div>
+				<Field label={t('Status')}>
+					<NativeSelect
+						value={status}
+						onChange={(e) => setStatus(coerceStatus(e.target.value))}
+					>
+						<option value="NEEDS-ACTION">{t('Not started')}</option>
+						<option value="IN-PROCESS">{t('In progress')}</option>
+						<option value="COMPLETED">{t('Completed')}</option>
+					</NativeSelect>
+				</Field>
 
-			<div className="mb-3">
-				<label className="c-cal-detail-label">{t('Description')}</label>
-				<textarea
-					className="c-input"
-					rows={3}
-					value={description}
-					onChange={(e) => setDescription(e.target.value)}
-				/>
-			</div>
+				<Field label={t('Description')}>
+					<TextArea
+						rows={3}
+						value={description}
+						onChange={(e) => setDescription(e.target.value)}
+					/>
+				</Field>
+			</VBox>
 		</CalendarEditorModal>
 	)
 }

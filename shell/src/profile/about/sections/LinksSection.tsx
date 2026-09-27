@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button, mergeClasses, Popper } from '@cloudillo/react'
+import { Button, HBox, Icon, Input, Link, Menu, MenuItem, VBox } from '@cloudillo/react'
 import type { LinkEntry, LinkIcon } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -32,25 +32,28 @@ const EMPTY: LinksContent = { links: [] }
 // Icon registry
 const LINK_ICONS: {
 	value: LinkIcon
-	icon: React.ComponentType<{ className?: string }>
+	label: string
+	icon: React.ComponentType<React.SVGAttributes<SVGElement>>
 }[] = [
-	{ value: 'globe', icon: IcGlobe },
-	{ value: 'mail', icon: IcMail },
-	{ value: 'phone', icon: IcPhone },
-	{ value: 'map-pin', icon: IcMapPin },
-	{ value: 'code', icon: IcCode },
-	{ value: 'video', icon: IcVideo },
-	{ value: 'music', icon: IcMusic },
-	{ value: 'book', icon: IcBook },
-	{ value: 'briefcase', icon: IcBriefcase },
-	{ value: 'heart', icon: IcHeart },
-	{ value: 'star', icon: IcStar },
-	{ value: 'message', icon: IcMessage },
-	{ value: 'rss', icon: IcRss },
-	{ value: 'file', icon: IcFile }
+	{ value: 'globe', label: 'Website', icon: IcGlobe },
+	{ value: 'mail', label: 'Email', icon: IcMail },
+	{ value: 'phone', label: 'Phone', icon: IcPhone },
+	{ value: 'map-pin', label: 'Location', icon: IcMapPin },
+	{ value: 'code', label: 'Code', icon: IcCode },
+	{ value: 'video', label: 'Video', icon: IcVideo },
+	{ value: 'music', label: 'Music', icon: IcMusic },
+	{ value: 'book', label: 'Book', icon: IcBook },
+	{ value: 'briefcase', label: 'Work', icon: IcBriefcase },
+	{ value: 'heart', label: 'Heart', icon: IcHeart },
+	{ value: 'star', label: 'Star', icon: IcStar },
+	{ value: 'message', label: 'Message', icon: IcMessage },
+	{ value: 'rss', label: 'Feed', icon: IcRss },
+	{ value: 'file', label: 'File', icon: IcFile }
 ]
 
-export function getLinkIconComponent(icon?: LinkIcon): React.ComponentType<{ className?: string }> {
+export function getLinkIconComponent(
+	icon?: LinkIcon
+): React.ComponentType<React.SVGAttributes<SVGElement>> {
 	return LINK_ICONS.find((i) => i.value === icon)?.icon ?? IcGlobe
 }
 
@@ -68,23 +71,20 @@ export function LinksSectionView({ section }: LinksSectionViewProps) {
 	if (!data.links.length) return null
 
 	return (
-		<div className="c-vbox g-1">
-			{data.links.map((link, i) => {
-				const Icon = getLinkIconComponent(link.icon)
-				return (
-					<div key={i} className="c-hbox g-2 align-items-center">
-						<Icon className="c-section-icon f-none" />
-						<a
-							href={ensureUrlProtocol(link.url)}
-							target="_blank"
-							rel="noopener noreferrer"
-						>
-							{link.label || link.url.replace(/^https?:\/\//, '')}
-						</a>
-					</div>
-				)
-			})}
-		</div>
+		<VBox gap={1}>
+			{data.links.map((link, i) => (
+				<HBox key={i} gap={2} align="center">
+					<Icon as={getLinkIconComponent(link.icon)} className="text-muted" />
+					<Link
+						href={ensureUrlProtocol(link.url)}
+						target="_blank"
+						rel="noopener noreferrer"
+					>
+						{link.label || link.url.replace(/^https?:\/\//, '')}
+					</Link>
+				</HBox>
+			))}
+		</VBox>
 	)
 }
 
@@ -98,30 +98,30 @@ interface IconPickerProps {
 }
 
 function IconPicker({ value, onChange }: IconPickerProps) {
-	const current = getLinkIconComponent(value)
-	const CurrentIcon = current
+	const { t } = useTranslation()
+	const CurrentIcon = getLinkIconComponent(value)
 
 	return (
-		<Popper
-			menuClassName="c-button link secondary sm"
-			icon={<CurrentIcon className="c-section-icon f-none" />}
+		<Menu
+			trigger={
+				<Button
+					variant="ghost"
+					size="sm"
+					icon={<CurrentIcon />}
+					aria-label={t('Link icon')}
+				/>
+			}
 		>
-			<div className="c-hbox wrap g-1 p-1 w-md">
-				{LINK_ICONS.map((item) => {
-					const Icon = item.icon
-					return (
-						<Button
-							key={item.value}
-							kind="link"
-							className={mergeClasses('p-1', item.value === value && 'active')}
-							onClick={() => onChange(item.value)}
-						>
-							<Icon />
-						</Button>
-					)
-				})}
-			</div>
-		</Popper>
+			{LINK_ICONS.map((item) => (
+				<MenuItem
+					key={item.value}
+					icon={<item.icon />}
+					label={t(item.label)}
+					selected={item.value === value}
+					onClick={() => onChange(item.value)}
+				/>
+			))}
+		</Menu>
 	)
 }
 
@@ -160,32 +160,38 @@ export function LinksSectionEdit({ section, onChange }: LinksSectionEditProps) {
 	}
 
 	return (
-		<div className="c-vbox g-2">
+		<VBox gap={2}>
 			{data.links.map((link, i) => (
-				<div key={i} className="c-hbox g-1 align-items-center">
+				<HBox key={i} gap={1} align="center">
 					<IconPicker value={link.icon} onChange={(icon) => updateLink(i, { icon })} />
-					<input
-						className="c-input w-sm"
+					<Input
+						className="w-sm"
+						aria-label={t('Label')}
 						placeholder={t('Label')}
 						value={link.label}
 						onChange={(e) => updateLink(i, { label: e.target.value })}
 					/>
-					<input
-						className="c-input flex-fill"
+					<Input
+						className="flex-fill"
 						type="url"
+						aria-label={t('URL')}
 						placeholder={t('URL')}
 						value={link.url}
 						onChange={(e) => updateLink(i, { url: e.target.value })}
 					/>
-					<Button kind="link" onClick={() => removeLink(i)}>
-						<IcRemove />
-					</Button>
-				</div>
+					<Button
+						variant="ghost"
+						size="sm"
+						icon={<IcRemove />}
+						aria-label={t('Remove link')}
+						onClick={() => removeLink(i)}
+					/>
+				</HBox>
 			))}
-			<Button kind="link" onClick={addLink}>
-				<IcPlus /> {t('Add link')}
+			<Button variant="ghost" icon={<IcPlus />} onClick={addLink}>
+				{t('Add link')}
 			</Button>
-		</div>
+		</VBox>
 	)
 }
 

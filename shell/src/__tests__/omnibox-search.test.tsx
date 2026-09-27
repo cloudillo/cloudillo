@@ -78,7 +78,10 @@ const CTX_API = {
 // and a factory cannot import the specifier it stands in for.
 const { useDebouncedValue } = await import('../../../libs/react/src/components/hooks.js')
 
+// Unmocked primitives (layout, list, text) come from source; the overrides below win.
+const realReact = await import('../../../libs/react/src/index.js')
 jest.unstable_mockModule('@cloudillo/react', () => ({
+	...realReact,
 	Button: ({ children, ...props }: React.ComponentProps<'button'>) => (
 		<button type="button" {...props}>
 			{children}
@@ -127,7 +130,10 @@ jest.unstable_mockModule('../context/index', () => ({
 }))
 
 jest.unstable_mockModule('../SearchResultRow', () => ({
-	SearchResultRow: ({ hit }: { hit: { title?: string } }) => <span>{hit.title}</span>
+	// The row is the downshift item now, so it must forward the item's click.
+	SearchResultRow: ({ hit, onClick }: { hit: { title?: string }; onClick?: () => void }) => (
+		<span onClick={onClick}>{hit.title}</span>
+	)
 }))
 
 // Only the site built-in matters here; it is what `getPartAddressing` returns for a published container.

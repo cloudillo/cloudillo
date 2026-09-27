@@ -15,30 +15,51 @@ import type {
 	IdpCreateIdentityResult,
 	IdpIdentity
 } from '@cloudillo/core'
-import { Button, CopyButton, Modal, mergeClasses, useAuth, useDialog } from '@cloudillo/react'
+import {
+	ActionBar,
+	Alert,
+	Badge,
+	Button,
+	Checkbox,
+	CodeBlock,
+	DescriptionList,
+	Dialog,
+	EmptyState,
+	Field,
+	HBox,
+	Input,
+	List,
+	ListItem,
+	LoadingSpinner,
+	Panel,
+	SearchInput,
+	Segmented,
+	SegmentedItem,
+	Text,
+	Toggle,
+	useAuth,
+	useDialog,
+	VBox
+} from '@cloudillo/react'
 import {
 	LuBan as IcBan,
 	LuCheck as IcCheck,
 	LuCircle as IcCircle,
 	LuCircleDot as IcCircleDot,
-	LuX as IcClose,
-	LuCopy as IcCopy,
 	LuTrash as IcDelete,
-	LuEye as IcDetails,
 	LuKey as IcKey,
 	LuPlus as IcPlus,
 	LuSearch as IcSearch,
-	LuUsers as IcUsers,
-	LuTriangleAlert as IcWarning
+	LuUsers as IcUsers
 } from 'react-icons/lu'
 
 import { contextRolesAtom, useApiContext, useCtx } from '../context'
 
 // Status badge configuration
 const STATUS_CONFIG = {
-	active: { class: 'c-badge success', icon: IcCircleDot, label: 'Active' },
-	pending: { class: 'c-badge warning', icon: IcCircle, label: 'Pending' },
-	suspended: { class: 'c-badge error', icon: IcBan, label: 'Suspended' }
+	active: { color: 'success', icon: IcCircleDot, label: 'Active' },
+	pending: { color: 'warning', icon: IcCircle, label: 'Pending' },
+	suspended: { color: 'error', icon: IcBan, label: 'Suspended' }
 } as const
 
 // Helper to format dates
@@ -61,85 +82,49 @@ function StatusBadge({ status }: { status: 'pending' | 'active' | 'suspended' })
 	const config = STATUS_CONFIG[status]
 	const Icon = config.icon
 	return (
-		<span className={config.class}>
-			<Icon className="me-1" style={{ fontSize: '0.8em' }} />
+		<Badge color={config.color} icon={<Icon />}>
 			{t(config.label)}
-		</span>
+		</Badge>
 	)
 }
 
-// Identity card component
-interface IdentityCardProps {
+// Identity row
+interface IdentityRowProps {
 	identity: IdpIdentity
 	onViewDetails: (identity: IdpIdentity) => void
 	onDelete: (identity: IdpIdentity) => void
 }
 
-function IdentityCard({ identity, onViewDetails, onDelete }: IdentityCardProps) {
+function IdentityRow({ identity, onViewDetails, onDelete }: IdentityRowProps) {
 	const { t } = useTranslation()
-	const idTag = identity.idTag
 
 	return (
-		<div className="c-panel mb-2 p-2">
-			<div className="c-hbox align-items-center">
-				<div className="flex-fill">
-					<div className="c-hbox align-items-center g-2 mb-1">
-						<StatusBadge status={identity.status} />
-						<strong>{idTag}</strong>
-					</div>
-					<div className="c-hint small">
-						{identity.email && <span>{identity.email} &middot; </span>}
-						{t('Created {{date}}', { date: formatDate(identity.createdAt) })}
-						{identity.expiresAt && (
-							<span>
-								{' '}
-								&middot;{' '}
-								{t('Expires {{date}}', { date: formatDate(identity.expiresAt) })}
-							</span>
-						)}
-					</div>
-				</div>
-				<div className="c-hbox g-1">
-					<Button
-						kind="link"
-						onClick={() => onViewDetails(identity)}
-						title={t('View details')}
-					>
-						<IcDetails />
-					</Button>
-					<Button
-						kind="link"
-						className="text-error"
-						onClick={() => onDelete(identity)}
-						title={t('Delete identity')}
-					>
-						<IcDelete />
-					</Button>
-				</div>
-			</div>
-		</div>
+		<ListItem
+			title={identity.idTag}
+			subtitle={[
+				identity.email,
+				t('Created {{date}}', { date: formatDate(identity.createdAt) }),
+				identity.expiresAt &&
+					t('Expires {{date}}', { date: formatDate(identity.expiresAt) })
+			]
+				.filter(Boolean)
+				.join(' · ')}
+			trailing={<StatusBadge status={identity.status} />}
+			actions={
+				<Button
+					variant="ghost"
+					color="error"
+					icon={<IcDelete />}
+					aria-label={t('Delete identity')}
+					onClick={() => onDelete(identity)}
+				/>
+			}
+			onClick={() => onViewDetails(identity)}
+		/>
 	)
 }
 
-// Filter chip component
-interface FilterChipProps {
-	active: boolean
-	onClick: () => void
-	children: React.ReactNode
-}
-
-function FilterChip({ active, onClick, children }: FilterChipProps) {
-	return (
-		<button
-			className={mergeClasses('c-badge clickable', active ? 'primary' : '')}
-			onClick={onClick}
-		>
-			{children}
-		</button>
-	)
-}
-
-// Create Identity Modal
+// Create Identity dialog
 interface CreateIdentityModalProps {
 	open: boolean
 	idpDomain: string
@@ -242,159 +227,107 @@ function CreateIdentityModal({ open, idpDomain, onClose, onCreated }: CreateIden
 	}
 
 	return (
-		<Modal open={open} onClose={onClose}>
-			<div className="c-dialog c-panel emph p-4" style={{ maxWidth: '500px', width: '100%' }}>
-				<div className="c-hbox mb-3">
-					<h3 className="flex-fill mb-0">{t('Create New Identity')}</h3>
-					<button className="c-link" onClick={onClose} aria-label={t('Close')}>
-						<IcClose />
-					</button>
-				</div>
+		<Dialog
+			open={open}
+			onClose={onClose}
+			size="md"
+			title={t('Create New Identity')}
+			footer={
+				<ActionBar>
+					<Button onClick={onClose}>{t('Cancel')}</Button>
+					<Button
+						color="primary"
+						disabled={!isValid}
+						loading={isSubmitting}
+						onClick={handleCreate}
+					>
+						{t('Create Identity')}
+					</Button>
+				</ActionBar>
+			}
+		>
+			<VBox gap={3}>
+				{error && <Alert color="error">{error}</Alert>}
 
-				{error && (
-					<div className="c-panel error p-2 mb-3">
-						<span className="text-error">{error}</span>
-					</div>
-				)}
+				<Field
+					label={t('Identity Name')}
+					required
+					error={nameError}
+					hint={t('Letters, numbers, and hyphens. 3-32 characters.')}
+				>
+					<Input
+						placeholder="alice"
+						value={idTagPrefix}
+						onChange={(e) => setIdTagPrefix(e.target.value.toLowerCase())}
+						onBlur={validateName}
+						trailing={`.${idpDomain}`}
+					/>
+				</Field>
 
-				{/* Identity name field */}
-				<div className="mb-3">
-					<label>
-						{t('Identity Name')} <span className="text-error">*</span>
-					</label>
-					<div className="c-hbox">
-						<input
-							className={mergeClasses('c-input flex-fill', nameError && 'error')}
-							placeholder="alice"
-							value={idTagPrefix}
-							onChange={(e) => setIdTagPrefix(e.target.value.toLowerCase())}
-							onBlur={validateName}
-							aria-invalid={!!nameError}
-						/>
-						<span className="c-input-suffix px-2">.{idpDomain}</span>
-					</div>
-					<div className="c-hint small mt-1">
-						{nameError ? (
-							<span className="text-error">{nameError}</span>
-						) : (
-							t('Letters, numbers, and hyphens. 3-32 characters.')
-						)}
-					</div>
-				</div>
-
-				{/* Email field */}
-				<div className="mb-3">
-					<label>
-						{t('Owner Email')} <span className="text-error">*</span>
-					</label>
-					<input
-						className={mergeClasses('c-input', emailError && 'error')}
+				<Field label={t('Owner Email')} required error={emailError}>
+					<Input
 						type="email"
 						placeholder="alice@example.com"
 						value={email}
 						onChange={(e) => setEmail(e.target.value)}
 						onBlur={validateEmail}
-						aria-invalid={!!emailError}
 					/>
-					{emailError && <div className="c-hint small text-error mt-1">{emailError}</div>}
-				</div>
+				</Field>
 
-				{/* Activation email toggle */}
-				<div className="c-panel bg-muted p-2 mb-3">
-					<label className="c-hbox align-items-center">
-						<input
-							type="checkbox"
-							className="c-toggle primary me-2"
-							checked={sendActivationEmail}
-							onChange={(e) => setSendActivationEmail(e.target.checked)}
-						/>
-						<div>
-							<span>{t('Send activation email')}</span>
-							<div className="c-hint small">
-								{sendActivationEmail
-									? t('User will receive an activation link via email.')
-									: t('Identity will be created as active immediately.')}
-							</div>
-						</div>
-					</label>
-				</div>
+				<Checkbox
+					label={t('Send activation email')}
+					description={
+						sendActivationEmail
+							? t('User will receive an activation link via email.')
+							: t('Identity will be created as active immediately.')
+					}
+					checked={sendActivationEmail}
+					onChange={(e) => setSendActivationEmail(e.target.checked)}
+				/>
 
-				{/* API key toggle */}
-				<div className="c-panel bg-muted p-2 mb-3">
-					<label className="c-hbox ai-start">
-						<input
-							type="checkbox"
-							className="c-toggle primary me-2 mt-1"
-							checked={createApiKey}
-							onChange={(e) => setCreateApiKey(e.target.checked)}
-						/>
-						<div>
-							<span>{t('Create API key')}</span>
-							<div className="c-hint small">
-								{t(
-									'Generate an API key for programmatic access (e.g., dynamic DNS updates).'
-								)}
-							</div>
-						</div>
-					</label>
-
-					{createApiKey && (
-						<div className="mt-2">
-							<label>{t('Key Name (optional)')}</label>
-							<input
-								className="c-input"
-								placeholder={t('e.g., Home server DynDNS')}
-								value={apiKeyName}
-								onChange={(e) => setApiKeyName(e.target.value)}
-							/>
-						</div>
+				<Checkbox
+					label={t('Create API key')}
+					description={t(
+						'Generate an API key for programmatic access (e.g., dynamic DNS updates).'
 					)}
-				</div>
+					checked={createApiKey}
+					onChange={(e) => setCreateApiKey(e.target.checked)}
+				/>
 
-				{/* Actions */}
-				<div className="c-hbox justify-content-end g-2">
-					<Button onClick={onClose}>{t('Cancel')}</Button>
-					<Button
-						variant="primary"
-						disabled={!isValid || isSubmitting}
-						onClick={handleCreate}
-					>
-						{isSubmitting ? t('Creating...') : t('Create Identity')}
-					</Button>
-				</div>
-			</div>
-		</Modal>
+				{createApiKey && (
+					<Field label={t('Key Name (optional)')}>
+						<Input
+							placeholder={t('e.g., Home server DynDNS')}
+							value={apiKeyName}
+							onChange={(e) => setApiKeyName(e.target.value)}
+						/>
+					</Field>
+				)}
+			</VBox>
+		</Dialog>
 	)
 }
 
-// API Key Created Modal
-interface ApiKeyCreatedModalProps {
+// Shows a freshly created API key once — after identity creation or from the details dialog
+interface ApiKeyDialogProps {
 	open: boolean
 	identity: IdpIdentity | null
 	apiKey: IdpCreateApiKeyResult | null
 	idpDomain: string
+	/** The key came with a new identity: say so in the title */
+	identityCreated?: boolean
 	onClose: () => void
 }
 
-function ApiKeyCreatedModal({
+function ApiKeyDialog({
 	open,
 	identity,
 	apiKey,
 	idpDomain,
+	identityCreated,
 	onClose
-}: ApiKeyCreatedModalProps) {
+}: ApiKeyDialogProps) {
 	const { t } = useTranslation()
-	const [copied, setCopied] = React.useState<'key' | 'curl' | null>(null)
-
-	async function copyToClipboard(text: string, type: 'key' | 'curl') {
-		try {
-			await navigator.clipboard.writeText(text)
-			setCopied(type)
-			setTimeout(() => setCopied(null), 2000)
-		} catch (err) {
-			console.error('Failed to copy:', err)
-		}
-	}
 
 	if (!identity || !apiKey) return null
 
@@ -404,16 +337,24 @@ function ApiKeyCreatedModal({
   -H "Authorization: Bearer ${apiKey.plaintextKey}"`
 
 	return (
-		<Modal open={open} onClose={onClose} closeOnBackdrop={false}>
-			<div className="c-dialog c-panel emph p-4" style={{ maxWidth: '600px', width: '100%' }}>
-				<div className="c-hbox align-items-center mb-3">
-					<IcCheck className="text-success me-2" style={{ fontSize: '1.5rem' }} />
-					<h3 className="flex-fill mb-0">{t('Identity Created Successfully')}</h3>
-				</div>
-
-				{/* Success message */}
-				<div className="c-panel bg-success-subtle p-2 mb-3">
-					<p className="mb-0">
+		<Dialog
+			open={open}
+			onClose={onClose}
+			dismissable={false}
+			size="md"
+			icon={identityCreated ? <IcCheck /> : <IcKey />}
+			title={identityCreated ? t('Identity Created Successfully') : t('API Key Created')}
+			footer={
+				<ActionBar>
+					<Button color="primary" onClick={onClose}>
+						{t("I've saved the key")}
+					</Button>
+				</ActionBar>
+			}
+		>
+			<VBox gap={3}>
+				{identityCreated && (
+					<Alert color="success">
 						{t(
 							'{{identity}} has been created. An activation email has been sent to {{email}}.',
 							{
@@ -421,81 +362,29 @@ function ApiKeyCreatedModal({
 								email: identity.email
 							}
 						)}
-					</p>
-				</div>
+					</Alert>
+				)}
 
-				{/* Warning */}
-				<div className="c-panel warning p-2 mb-3">
-					<div className="c-hbox ai-start">
-						<IcWarning className="text-warning me-2 mt-1 flex-shrink-0" />
-						<div>
-							<strong>{t('Save this API key now!')}</strong>
-							<p className="c-hint mb-0">
-								{t('This key will only be shown once. Store it securely.')}
-							</p>
-						</div>
-					</div>
-				</div>
+				<Alert color="warning" title={t('Save this API key now!')}>
+					{t('This key will only be shown once. Store it securely.')}
+				</Alert>
 
-				{/* API Key */}
-				<div className="mb-3">
-					<label>{t('API Key')}</label>
-					<div className="c-hbox g-1">
-						<code
-							className="c-mono flex-fill p-2"
-							style={{ wordBreak: 'break-all', userSelect: 'all' }}
-						>
-							{apiKey.plaintextKey}
-						</code>
-						<CopyButton text={apiKey.plaintextKey} label={t('API key')} />
-					</div>
-				</div>
+				<Field label={t('API Key')}>
+					<CodeBlock copyable>{apiKey.plaintextKey}</CodeBlock>
+				</Field>
 
-				{/* Curl command */}
-				<div className="mb-3">
-					<div className="c-hbox jc-between align-items-center mb-1">
-						<label className="mb-0">{t('Example: Update IP Address')}</label>
-						<Button
-							kind="link"
-							className="small"
-							onClick={() => copyToClipboard(curlCommand, 'curl')}
-						>
-							{copied === 'curl' ? (
-								<>
-									<IcCheck className="me-1" />
-									{t('Copied!')}
-								</>
-							) : (
-								<>
-									<IcCopy className="me-1" />
-									{t('Copy command')}
-								</>
-							)}
-						</Button>
-					</div>
-					<pre
-						className="c-mono p-2 overflow-x-auto mb-1"
-						style={{ whiteSpace: 'pre-wrap', fontSize: '0.85em' }}
-					>
-						{curlCommand}
-					</pre>
-					<div className="c-hint small">
-						{t('Updates the IP address automatically from the client IP.')}
-					</div>
-				</div>
-
-				{/* Close button */}
-				<div className="c-hbox justify-content-end">
-					<Button variant="primary" onClick={onClose}>
-						{t("I've saved the key")}
-					</Button>
-				</div>
-			</div>
-		</Modal>
+				<Field
+					label={t('Example: Update IP Address')}
+					hint={t('Updates the IP address automatically from the client IP.')}
+				>
+					<CodeBlock copyable>{curlCommand}</CodeBlock>
+				</Field>
+			</VBox>
+		</Dialog>
 	)
 }
 
-// Identity Details Modal
+// Identity Details dialog
 interface IdentityDetailsModalProps {
 	open: boolean
 	identity: IdpIdentity | null
@@ -514,6 +403,7 @@ function IdentityDetailsModal({
 	onApiKeyCreated
 }: IdentityDetailsModalProps) {
 	const { t } = useTranslation()
+	const dialog = useDialog()
 	const { getClientFor } = useApiContext()
 	// Re-render signal for the proxy token's arrival, not a value we read.
 	const contextRoles = useAtomValue(contextRolesAtom)
@@ -526,8 +416,6 @@ function IdentityDetailsModal({
 	const [showCreateKeyForm, setShowCreateKeyForm] = React.useState(false)
 	const [keyName, setKeyName] = React.useState('')
 	const [creatingKey, setCreatingKey] = React.useState(false)
-	const [confirmRevokeKeyId, setConfirmRevokeKeyId] = React.useState<number | null>(null)
-	const [revokingKey, setRevokingKey] = React.useState(false)
 	const [error, setError] = React.useState<string | null>(null)
 	const [dyndns, setDyndns] = React.useState(false)
 	const [updatingDyndns, setUpdatingDyndns] = React.useState(false)
@@ -543,7 +431,6 @@ function IdentityDetailsModal({
 	// Reset state when modal closes
 	React.useEffect(() => {
 		if (!open) {
-			setConfirmRevokeKeyId(null)
 			setError(null)
 			setUpdatingDyndns(false)
 		}
@@ -585,20 +472,22 @@ function IdentityDetailsModal({
 		}
 	}
 
-	async function handleConfirmRevoke(key: IdpApiKey) {
+	async function handleRevoke(key: IdpApiKey) {
 		if (!api || !identity) return
-		setRevokingKey(true)
+		const confirmed = await dialog.confirm(
+			t('Revoke API key?'),
+			t('Revoke this API key? This cannot be undone.'),
+			{ color: 'error', confirmLabel: t('Revoke') }
+		)
+		if (!confirmed) return
 		setError(null)
 		try {
 			await api.idpManagement.deleteApiKey(key.id, identity.idTag)
-			setConfirmRevokeKeyId(null)
 			await loadApiKeys()
 		} catch (err: unknown) {
 			if (err instanceof Error) {
 				setError(err.message)
 			}
-		} finally {
-			setRevokingKey(false)
 		}
 	}
 
@@ -622,318 +511,145 @@ function IdentityDetailsModal({
 
 	if (!identity) return null
 
-	const idTag = identity.idTag
+	const info = [
+		{ term: t('Email'), description: identity.email || t('Not set') },
+		{
+			term: t('Address'),
+			description: identity.address ? (
+				<CodeBlock inline>{identity.address}</CodeBlock>
+			) : (
+				<Text emphasis="muted">{t('Not configured')}</Text>
+			)
+		},
+		{ term: t('Created'), description: formatDateTime(identity.createdAt) },
+		...(identity.expiresAt
+			? [{ term: t('Expires'), description: formatDateTime(identity.expiresAt) }]
+			: [])
+	]
 
 	return (
-		<Modal open={open} onClose={onClose}>
-			<div className="c-dialog c-panel emph p-4" style={{ maxWidth: '550px', width: '100%' }}>
-				<div className="c-hbox mb-3">
-					<div className="flex-fill">
-						<h3 className="mb-1">{idTag}</h3>
-						<StatusBadge status={identity.status} />
-					</div>
-					<button className="c-link" onClick={onClose} aria-label={t('Close')}>
-						<IcClose />
-					</button>
-				</div>
+		<Dialog
+			open={open}
+			onClose={onClose}
+			size="md"
+			title={identity.idTag}
+			description={<StatusBadge status={identity.status} />}
+			footer={
+				<ActionBar
+					start={
+						<Button
+							color="error"
+							icon={<IcDelete />}
+							onClick={() => onDelete(identity)}
+						>
+							{t('Delete Identity')}
+						</Button>
+					}
+				>
+					<Button onClick={onClose}>{t('Close')}</Button>
+				</ActionBar>
+			}
+		>
+			<VBox gap={3}>
+				{error && <Alert color="error">{error}</Alert>}
 
-				{/* Identity Information */}
-				<div className="c-panel mb-3 p-2">
-					<h4 className="pb-2">{t('Identity Information')}</h4>
-					<div className="c-vbox g-1">
-						<div className="c-hbox">
-							<span className="text-muted" style={{ minWidth: '100px' }}>
-								{t('Email')}
-							</span>
-							<span>{identity.email || t('Not set')}</span>
-						</div>
-						<div className="c-hbox">
-							<span className="text-muted" style={{ minWidth: '100px' }}>
-								{t('Address')}
-							</span>
-							<span>
-								{identity.address ? (
-									<code>{identity.address}</code>
-								) : (
-									<span className="text-muted">{t('Not configured')}</span>
-								)}
-							</span>
-						</div>
-						<div className="c-hbox">
-							<span className="text-muted" style={{ minWidth: '100px' }}>
-								{t('Created')}
-							</span>
-							<span>{formatDateTime(identity.createdAt)}</span>
-						</div>
-						{identity.expiresAt && (
-							<div className="c-hbox">
-								<span className="text-muted" style={{ minWidth: '100px' }}>
-									{t('Expires')}
-								</span>
-								<span>{formatDateTime(identity.expiresAt)}</span>
-							</div>
-						)}
-						<div className="c-hbox align-items-center mt-2 pt-2 border-top">
-							<span className="text-muted" style={{ minWidth: '100px' }}>
-								{t('DNS TTL')}
-							</span>
-							<label className="c-hbox align-items-center flex-fill">
-								<input
-									type="checkbox"
-									className="c-toggle primary me-2"
-									checked={dyndns}
-									disabled={updatingDyndns}
-									onChange={(e) => handleDyndnsChange(e.target.checked)}
-								/>
-								<span className={dyndns ? '' : 'text-muted'}>
-									{dyndns
-										? t('Dynamic DNS (60s TTL)')
-										: t('Standard (1 hour TTL)')}
-								</span>
-							</label>
-						</div>
-						<div className="c-hint small mt-1">
-							{t('Enable Dynamic DNS for identities with changing IP addresses.')}
-						</div>
-					</div>
-				</div>
+				<Panel title={t('Identity Information')} padding={2}>
+					<VBox gap={2}>
+						<DescriptionList items={info} />
+						<Toggle
+							label={dyndns ? t('Dynamic DNS (60s TTL)') : t('Standard (1 hour TTL)')}
+							description={t(
+								'Enable Dynamic DNS for identities with changing IP addresses.'
+							)}
+							checked={dyndns}
+							disabled={updatingDyndns}
+							onChange={(e) => handleDyndnsChange(e.target.checked)}
+						/>
+					</VBox>
+				</Panel>
 
-				{/* API Keys Section */}
-				<div className="c-panel mb-3 p-2">
-					<div className="c-hbox jc-between align-items-center pb-2">
-						<h4 className="mb-0">{t('API Keys')}</h4>
-						{!showCreateKeyForm && (
-							<Button className="small" onClick={() => setShowCreateKeyForm(true)}>
-								<IcPlus className="me-1" />
+				<Panel
+					title={t('API Keys')}
+					padding={2}
+					actions={
+						!showCreateKeyForm && (
+							<Button
+								size="sm"
+								icon={<IcPlus />}
+								onClick={() => setShowCreateKeyForm(true)}
+							>
 								{t('Create Key')}
 							</Button>
+						)
+					}
+				>
+					<VBox gap={2}>
+						{showCreateKeyForm && (
+							<VBox gap={2}>
+								<Field label={t('Key Name (optional)')}>
+									<Input
+										placeholder={t('e.g., Home server')}
+										value={keyName}
+										onChange={(e) => setKeyName(e.target.value)}
+									/>
+								</Field>
+								<ActionBar>
+									<Button size="sm" onClick={() => setShowCreateKeyForm(false)}>
+										{t('Cancel')}
+									</Button>
+									<Button
+										color="primary"
+										size="sm"
+										loading={creatingKey}
+										onClick={handleCreateApiKey}
+									>
+										{t('Create')}
+									</Button>
+								</ActionBar>
+							</VBox>
 						)}
-					</div>
 
-					{showCreateKeyForm && (
-						<div className="c-panel bg-muted p-2 mb-2">
-							<label>{t('Key Name (optional)')}</label>
-							<input
-								className="c-input mb-2"
-								placeholder={t('e.g., Home server')}
-								value={keyName}
-								onChange={(e) => setKeyName(e.target.value)}
-							/>
-							<div className="c-hbox g-2 justify-content-end">
-								<Button
-									className="small"
-									onClick={() => setShowCreateKeyForm(false)}
-								>
-									{t('Cancel')}
-								</Button>
-								<Button
-									variant="primary"
-									className="small"
-									disabled={creatingKey}
-									onClick={handleCreateApiKey}
-								>
-									{creatingKey ? t('Creating...') : t('Create')}
-								</Button>
-							</div>
-						</div>
-					)}
-
-					{error && (
-						<div className="c-panel error p-2 mb-2">
-							<span className="text-error small">{error}</span>
-						</div>
-					)}
-
-					{loading ? (
-						<p className="c-hint">{t('Loading...')}</p>
-					) : apiKeys.length === 0 ? (
-						<p className="c-hint">
-							{t('No API keys. Create one for programmatic access.')}
-						</p>
-					) : (
-						<div>
-							{apiKeys.map((key) => (
-								<div key={key.id} className="py-2 border-bottom">
-									{confirmRevokeKeyId === key.id ? (
-										<div className="c-panel error p-2">
-											<p className="small mb-2">
-												{t('Revoke this API key? This cannot be undone.')}
-											</p>
-											<div className="c-hbox g-2 justify-content-end">
-												<Button
-													className="small"
-													onClick={() => setConfirmRevokeKeyId(null)}
-													disabled={revokingKey}
-												>
-													{t('Cancel')}
-												</Button>
-												<Button
-													variant="primary"
-													className="small bg-error"
-													onClick={() => handleConfirmRevoke(key)}
-													disabled={revokingKey}
-												>
-													{revokingKey ? t('Revoking...') : t('Revoke')}
-												</Button>
-											</div>
-										</div>
-									) : (
-										<div className="c-hbox align-items-center">
-											<IcKey className="me-2 text-muted" />
-											<div className="flex-fill">
-												<div>{key.name || t('Unnamed key')}</div>
-												<div className="c-hint small">
-													<code>{key.keyPrefix}...</code>
-													{key.lastUsedAt && (
-														<span className="ms-2">
-															{t('Last used {{date}}', {
-																date: formatRelative(key.lastUsedAt)
-															})}
-														</span>
-													)}
-												</div>
-											</div>
+						{loading ? (
+							<LoadingSpinner label={t('Loading...')} />
+						) : apiKeys.length === 0 ? (
+							<Text size="sm" emphasis="muted">
+								{t('No API keys. Create one for programmatic access.')}
+							</Text>
+						) : (
+							<List variant="divided">
+								{apiKeys.map((key) => (
+									<ListItem
+										key={key.id}
+										leading={<IcKey />}
+										title={key.name || t('Unnamed key')}
+										subtitle={
+											<>
+												<CodeBlock
+													inline
+												>{`${key.keyPrefix}...`}</CodeBlock>
+												{key.lastUsedAt &&
+													` · ${t('Last used {{date}}', {
+														date: formatRelative(key.lastUsedAt)
+													})}`}
+											</>
+										}
+										actions={
 											<Button
-												kind="link"
-												className="text-error"
-												onClick={() => setConfirmRevokeKeyId(key.id)}
-												title={t('Revoke key')}
-											>
-												<IcDelete />
-											</Button>
-										</div>
-									)}
-								</div>
-							))}
-						</div>
-					)}
-				</div>
-
-				{/* Footer actions */}
-				<footer className="c-hbox g-2 mt-3 pt-3 border-top jc-between">
-					<Button className="error" onClick={() => onDelete(identity)}>
-						<IcDelete className="me-1" />
-						{t('Delete Identity')}
-					</Button>
-					<Button onClick={onClose}>{t('Close')}</Button>
-				</footer>
-			</div>
-		</Modal>
-	)
-}
-
-// Standalone API Key Modal (when created from details)
-interface StandaloneApiKeyModalProps {
-	open: boolean
-	identity: IdpIdentity | null
-	apiKey: IdpCreateApiKeyResult | null
-	idpDomain: string
-	onClose: () => void
-}
-
-function StandaloneApiKeyModal({
-	open,
-	identity,
-	apiKey,
-	idpDomain,
-	onClose
-}: StandaloneApiKeyModalProps) {
-	const { t } = useTranslation()
-	const [copied, setCopied] = React.useState<'key' | 'curl' | null>(null)
-
-	async function copyToClipboard(text: string, type: 'key' | 'curl') {
-		try {
-			await navigator.clipboard.writeText(text)
-			setCopied(type)
-			setTimeout(() => setCopied(null), 2000)
-		} catch (err) {
-			console.error('Failed to copy:', err)
-		}
-	}
-
-	if (!identity || !apiKey) return null
-
-	const idTag = identity.idTag
-	const idPrefix = idTag.split('.')[0]
-	const curlCommand = `curl -X PUT "https://cl-o.${idpDomain}/api/idp/identities/${idPrefix}/address" \\
-  -H "Authorization: Bearer ${apiKey.plaintextKey}"`
-
-	return (
-		<Modal open={open} onClose={onClose} closeOnBackdrop={false}>
-			<div className="c-dialog c-panel emph p-4" style={{ maxWidth: '600px', width: '100%' }}>
-				<div className="c-hbox align-items-center mb-3">
-					<IcKey className="text-primary me-2" style={{ fontSize: '1.5rem' }} />
-					<h3 className="flex-fill mb-0">{t('API Key Created')}</h3>
-				</div>
-
-				{/* Warning */}
-				<div className="c-panel warning p-2 mb-3">
-					<div className="c-hbox ai-start">
-						<IcWarning className="text-warning me-2 mt-1 flex-shrink-0" />
-						<div>
-							<strong>{t('Save this API key now!')}</strong>
-							<p className="c-hint mb-0">
-								{t('This key will only be shown once. Store it securely.')}
-							</p>
-						</div>
-					</div>
-				</div>
-
-				{/* API Key */}
-				<div className="mb-3">
-					<label>{t('API Key')}</label>
-					<div className="c-hbox g-1">
-						<code
-							className="c-mono flex-fill p-2"
-							style={{ wordBreak: 'break-all', userSelect: 'all' }}
-						>
-							{apiKey.plaintextKey}
-						</code>
-						<CopyButton text={apiKey.plaintextKey} label={t('API key')} />
-					</div>
-				</div>
-
-				{/* Curl command */}
-				<div className="mb-3">
-					<div className="c-hbox jc-between align-items-center mb-1">
-						<label className="mb-0">{t('Example: Update IP Address')}</label>
-						<Button
-							kind="link"
-							className="small"
-							onClick={() => copyToClipboard(curlCommand, 'curl')}
-						>
-							{copied === 'curl' ? (
-								<>
-									<IcCheck className="me-1" />
-									{t('Copied!')}
-								</>
-							) : (
-								<>
-									<IcCopy className="me-1" />
-									{t('Copy command')}
-								</>
-							)}
-						</Button>
-					</div>
-					<pre
-						className="c-mono p-2 overflow-x-auto mb-1"
-						style={{ whiteSpace: 'pre-wrap', fontSize: '0.85em' }}
-					>
-						{curlCommand}
-					</pre>
-					<div className="c-hint small">
-						{t('Updates the IP address automatically from the client IP.')}
-					</div>
-				</div>
-
-				{/* Close button */}
-				<div className="c-hbox justify-content-end">
-					<Button variant="primary" onClick={onClose}>
-						{t("I've saved the key")}
-					</Button>
-				</div>
-			</div>
-		</Modal>
+												variant="ghost"
+												color="error"
+												icon={<IcDelete />}
+												aria-label={t('Revoke key')}
+												onClick={() => handleRevoke(key)}
+											/>
+										}
+									/>
+								))}
+							</List>
+						)}
+					</VBox>
+				</Panel>
+			</VBox>
+		</Dialog>
 	)
 }
 
@@ -1020,14 +736,6 @@ export function IdentitiesSettings() {
 		}
 	}, [api])
 
-	// Debounce search input
-	React.useEffect(() => {
-		const timer = setTimeout(() => {
-			setDebouncedSearch(search)
-		}, 300)
-		return () => clearTimeout(timer)
-	}, [search])
-
 	// Initial load when leader status is known
 	React.useEffect(() => {
 		if (isLeader && !rolesLoading) {
@@ -1084,14 +792,15 @@ export function IdentitiesSettings() {
 		setShowDetailsModal(true)
 	}
 
-	// Handle delete identity
+	// Handle delete identity — irreversible identity loss, so a typed-phrase confirm
 	async function handleDeleteIdentity(identity: IdpIdentity) {
 		const idTag = identity.idTag
 		const confirmed = await dialog.confirm(
 			t('Delete {{identity}}?', { identity: idTag }),
 			t(
 				'This will permanently delete this identity and all associated API keys. Users will lose access. This action cannot be undone.'
-			)
+			),
+			{ color: 'error', confirmLabel: t('Delete'), requireText: 'DELETE' }
 		)
 		if (!confirmed) return
 
@@ -1119,133 +828,122 @@ export function IdentitiesSettings() {
 
 	// Loading roles
 	if (rolesLoading) {
-		return (
-			<div className="c-panel p-4">
-				<p className="c-hint">{t('Loading...')}</p>
-			</div>
-		)
+		return <LoadingSpinner className="auto-bg" label={t('Loading...')} />
 	}
 
 	// Access denied
 	if (!isLeader) {
 		return (
-			<div className="c-panel p-4">
-				<p className="text-muted">
-					{t('You need leader permissions to manage identities.')}
-				</p>
-			</div>
+			<EmptyState
+				className="auto-bg"
+				description={t('You need leader permissions to manage identities.')}
+			/>
 		)
 	}
 
 	return (
-		<>
+		<VBox gap={3}>
 			{/* Search and filter bar */}
-			<div className="c-panel mb-3 p-2">
-				<div className="c-hbox g-2 mb-2">
-					<div className="c-input-group flex-fill">
-						<IcSearch className="c-input-icon" />
-						<input
-							className="c-input"
+			<Panel padding={2}>
+				<VBox gap={2}>
+					<HBox gap={2}>
+						<SearchInput
+							className="flex-fill"
 							placeholder={t('Search by name or email...')}
 							value={search}
 							onChange={(e) => setSearch(e.target.value)}
+							onSearch={setDebouncedSearch}
+							debounce={300}
 							aria-label={t('Search identities')}
 						/>
-						{search && (
-							<button
-								className="c-input-clear"
-								onClick={() => setSearch('')}
-								aria-label={t('Clear search')}
-							>
-								<IcClose />
-							</button>
-						)}
-					</div>
-					<Button variant="primary" onClick={() => setShowCreateModal(true)}>
-						<IcPlus className="me-1" />
-						{t('Create')}
-					</Button>
-				</div>
+						<Button
+							color="primary"
+							icon={<IcPlus />}
+							onClick={() => setShowCreateModal(true)}
+						>
+							{t('Create')}
+						</Button>
+					</HBox>
 
-				{/* Status filter chips */}
-				<div className="c-hbox g-1 flex-wrap">
-					<FilterChip active={!statusFilter} onClick={() => setStatusFilter(undefined)}>
-						{t('All')} ({allIdentities.length})
-					</FilterChip>
-					<FilterChip
-						active={statusFilter === 'active'}
-						onClick={() => setStatusFilter('active')}
+					{/* Status filter */}
+					<Segmented
+						aria-label={t('Status')}
+						value={statusFilter ?? ''}
+						onChange={(value) => setStatusFilter(value || undefined)}
 					>
-						{t('Active')} ({counts.active})
-					</FilterChip>
-					<FilterChip
-						active={statusFilter === 'pending'}
-						onClick={() => setStatusFilter('pending')}
-					>
-						{t('Pending')} ({counts.pending})
-					</FilterChip>
-					<FilterChip
-						active={statusFilter === 'suspended'}
-						onClick={() => setStatusFilter('suspended')}
-					>
-						{t('Suspended')} ({counts.suspended})
-					</FilterChip>
-				</div>
-			</div>
+						<SegmentedItem value="">
+							{t('All')} ({allIdentities.length})
+						</SegmentedItem>
+						<SegmentedItem value="active">
+							{t('Active')} ({counts.active})
+						</SegmentedItem>
+						<SegmentedItem value="pending">
+							{t('Pending')} ({counts.pending})
+						</SegmentedItem>
+						<SegmentedItem value="suspended">
+							{t('Suspended')} ({counts.suspended})
+						</SegmentedItem>
+					</Segmented>
+				</VBox>
+			</Panel>
 
 			{/* Identity list */}
 			{loading ? (
-				<div className="c-panel p-4 text-center">
-					<p className="c-hint">{t('Loading identities...')}</p>
-				</div>
+				<LoadingSpinner className="auto-bg" label={t('Loading identities...')} />
 			) : identities.length === 0 ? (
-				<div className="c-panel p-4 text-center">
-					{search || statusFilter ? (
-						<>
-							<IcSearch className="text-muted mb-2" style={{ fontSize: '2rem' }} />
-							<p className="c-hint">
-								{search
-									? t('No identities matching "{{query}}"', { query: search })
-									: t('No {{status}} identities', { status: statusFilter })}
-							</p>
+				search || statusFilter ? (
+					<EmptyState
+						className="auto-bg"
+						icon={<IcSearch />}
+						description={
+							search
+								? t('No identities matching "{{query}}"', { query: search })
+								: t('No {{status}} identities', { status: statusFilter })
+						}
+						actions={
 							<Button
-								kind="link"
+								variant="link"
 								onClick={() => {
 									setSearch('')
+									setDebouncedSearch('')
 									setStatusFilter(undefined)
 								}}
 							>
 								{t('Clear filters')}
 							</Button>
-						</>
-					) : (
-						<>
-							<IcUsers className="text-muted mb-2" style={{ fontSize: '3rem' }} />
-							<h4>{t('No identities yet')}</h4>
-							<p className="c-hint mb-3">
-								{t('Create your first identity to get started.')}
-							</p>
-							<Button variant="primary" onClick={() => setShowCreateModal(true)}>
-								<IcPlus className="me-1" />
+						}
+					/>
+				) : (
+					<EmptyState
+						className="auto-bg"
+						icon={<IcUsers />}
+						title={t('No identities yet')}
+						description={t('Create your first identity to get started.')}
+						actions={
+							<Button
+								color="primary"
+								icon={<IcPlus />}
+								onClick={() => setShowCreateModal(true)}
+							>
 								{t('Create Identity')}
 							</Button>
-						</>
-					)}
-				</div>
+						}
+					/>
+				)
 			) : (
-				<div>
+				<List variant="bordered">
 					{identities.map((identity) => (
-						<IdentityCard
+						<IdentityRow
 							key={identity.idTag}
 							identity={identity}
 							onViewDetails={handleViewDetails}
 							onDelete={handleDeleteIdentity}
 						/>
 					))}
-				</div>
+				</List>
 			)}
 
-			{/* Modals */}
+			{/* Dialogs */}
 			<CreateIdentityModal
 				open={showCreateModal}
 				idpDomain={idpDomain}
@@ -1253,11 +951,12 @@ export function IdentitiesSettings() {
 				onCreated={handleIdentityCreated}
 			/>
 
-			<ApiKeyCreatedModal
+			<ApiKeyDialog
 				open={showApiKeyModal}
 				identity={selectedIdentity}
 				apiKey={createdApiKey}
 				idpDomain={idpDomain}
+				identityCreated
 				onClose={() => {
 					setShowApiKeyModal(false)
 					setCreatedApiKey(null)
@@ -1276,7 +975,7 @@ export function IdentitiesSettings() {
 				onApiKeyCreated={handleApiKeyCreatedFromDetails}
 			/>
 
-			<StandaloneApiKeyModal
+			<ApiKeyDialog
 				open={showStandaloneKeyModal}
 				identity={selectedIdentity}
 				apiKey={createdApiKey}
@@ -1286,7 +985,7 @@ export function IdentitiesSettings() {
 					setCreatedApiKey(null)
 				}}
 			/>
-		</>
+		</VBox>
 	)
 }
 

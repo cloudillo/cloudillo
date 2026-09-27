@@ -3,12 +3,17 @@
 
 import type { ApiClient } from '@cloudillo/core'
 import {
+	ActionBar,
 	Button,
-	mergeClasses,
+	Card,
+	EmptyState,
+	HBox,
 	ProfileCard,
+	Text,
 	TimeFormat,
 	useDialog,
-	useToast
+	useToast,
+	VBox
 } from '@cloudillo/react'
 import type { ActionView } from '@cloudillo/types'
 import * as React from 'react'
@@ -62,7 +67,8 @@ export function PendingRequestsList({
 	async function handleApprove(action: ActionView) {
 		const confirmed = await dialog.confirm(
 			t('Approve'),
-			t('Are you sure you want to approve this request?')
+			t('Are you sure you want to approve this request?'),
+			{ confirmLabel: t('Approve') }
 		)
 		if (!confirmed) return
 		const client = getClientFor(communityIdTag, { explicit: true })
@@ -85,7 +91,7 @@ export function PendingRequestsList({
 		const confirmed = await dialog.confirm(
 			t('Reject'),
 			t('Are you sure you want to reject this request?'),
-			'error'
+			{ color: 'error', confirmLabel: t('Reject') }
 		)
 		if (!confirmed) return
 		const client = getClientFor(communityIdTag, { explicit: true })
@@ -106,44 +112,34 @@ export function PendingRequestsList({
 
 	if (requests === undefined) return null
 	if (requests.length === 0) {
-		return (
-			<div className="c-panel p-3">
-				<p className="text-muted">{t('No pending requests.')}</p>
-			</div>
-		)
+		return <EmptyState className="auto-bg" size="sm" title={t('No pending requests.')} />
 	}
 
 	return (
-		<>
+		<VBox gap={2}>
 			{requests.map((action) => {
 				const message = typeof action.content === 'string' ? action.content : undefined
 				const busy = busyId === action.actionId
 				return (
-					<div
-						key={action.actionId}
-						className={mergeClasses('c-panel p-3 mb-2 g-2 d-flex flex-column')}
-					>
-						<div className="c-hbox g-2 align-items-center">
+					<Card key={action.actionId} padding={3}>
+						<HBox gap={2} align="center">
 							<ProfileCard className="flex-fill" profile={action.issuer} />
 							<TimeFormat time={action.createdAt} />
-						</div>
-						{message && <p className="m-0">{message}</p>}
-						<div className="c-hbox g-2 justify-content-end">
-							<Button
-								variant="primary"
-								disabled={busy}
-								onClick={() => handleApprove(action)}
-							>
-								{t('Approve')}
-							</Button>
+						</HBox>
+						{message && <Text as="p">{message}</Text>}
+						{/* Consent decision, both options carry equal weight */}
+						<ActionBar>
 							<Button disabled={busy} onClick={() => handleReject(action)}>
 								{t('Reject')}
 							</Button>
-						</div>
-					</div>
+							<Button disabled={busy} onClick={() => handleApprove(action)}>
+								{t('Approve')}
+							</Button>
+						</ActionBar>
+					</Card>
 				)
 			})}
-		</>
+		</VBox>
 	)
 }
 

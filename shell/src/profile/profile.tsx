@@ -3,17 +3,36 @@
 
 import { getFileUrl, getInstanceUrl, type ProfilePatch } from '@cloudillo/core'
 import {
+	Avatar,
+	Badge,
 	Button,
+	Center,
 	Fcd,
+	Field,
+	FileButton,
+	HBox,
+	Heading,
 	Input,
 	LoadingSpinner,
-	mergeClasses,
-	Popper,
+	Menu,
+	MenuDivider,
+	MenuItem,
+	NativeSelect,
+	Nav,
+	PageHeader,
+	Panel,
 	ProfileCard,
+	SearchInput,
 	Skeleton,
 	SkeletonText,
+	Tab,
+	Tabs,
+	Text,
+	Toggle,
 	useDialog,
-	useToast
+	useToast,
+	VBox,
+	Image
 } from '@cloudillo/react'
 import { type ActionView, type CommunityRole, type NewAction, ROLE_LEVELS } from '@cloudillo/types'
 import type { TFunction } from 'i18next'
@@ -38,12 +57,10 @@ import {
 	LuUsers as IcMutual,
 	LuUserMinus as IcRemoveMember
 } from 'react-icons/lu'
-import { Link, NavLink, Route, Routes, useLocation, useParams } from 'react-router-dom'
+import { Route, Routes, useLocation, useParams } from 'react-router-dom'
 
 import 'quill/dist/quill.core.css'
 import 'quill/dist/quill.bubble.css'
-import 'react-image-crop/dist/ReactCrop.css'
-import './profile.css'
 
 import { IdentityTag, useApi, useAuth } from '@cloudillo/react'
 import type { Profile } from '@cloudillo/types'
@@ -80,6 +97,7 @@ import {
 	ProfileStatusBadge
 } from './identities.js'
 import { InviteMembersDialog } from './invite-members-dialog.js'
+import { ProfileHero } from './ProfileHero.js'
 import { describeRelationship } from './relationship.js'
 import { TabEditor } from './TabEditor.js'
 import { TrustBanner } from './TrustBanner.js'
@@ -142,9 +160,8 @@ interface ProfileConnectionCmds {
 	onUnblock: () => void
 }
 
-// Existing relations rendered as actionable chips in the name cluster. Each chip
-// opens a Popper menu with the action that changes/breaks that relation. Styled
-// as c-tag chips (like TrustChip) with a caret to signal interactivity.
+// Existing relations rendered as actionable chips under the name. Each chip
+// opens a Menu with the action that changes/breaks that relation.
 function RelationshipChips({
 	localProfile,
 	profileType,
@@ -158,7 +175,12 @@ function RelationshipChips({
 	const dialog = useDialog()
 
 	async function onUnfollow() {
-		if (await dialog.confirm(t('Are you sure?'), t('Unfollow this person?'), 'error'))
+		if (
+			await dialog.confirm(t('Are you sure?'), t('Unfollow this person?'), {
+				color: 'error',
+				confirmLabel: t('Unfollow')
+			})
+		)
 			cmds.onUnfollow()
 	}
 
@@ -171,124 +193,94 @@ function RelationshipChips({
 	// Blocked overrides every other relation: a single actionable chip.
 	if (rel.primary === 'blocked')
 		return (
-			<Popper
-				menuClassName="c-tag error g-1 cursor-pointer"
-				label={
-					<>
-						<IcBlock size="0.9rem" />
-						<span>{t('Blocked')}</span>
-						<IcChevronDown size="0.9rem" />
-					</>
+			<Menu
+				trigger={
+					<Button size="sm" variant="soft" color="error" icon={<IcBlock />}>
+						{t('Blocked')}
+						<IcChevronDown />
+					</Button>
 				}
 			>
-				<ul className="c-nav vertical">
-					<li>
-						<Button kind="nav-item" onClick={cmds.onUnblock}>
-							<IcBlock />
-							{t('Unblock')}
-						</Button>
-					</li>
-				</ul>
-			</Popper>
+				<MenuItem icon={<IcBlock />} label={t('Unblock')} onClick={cmds.onUnblock} />
+			</Menu>
 		)
 
 	const hasConnection = rel.connected || pending
 	const hasFollow = rel.following || rel.followsYou
-	// Block lives on the connection chip when present. In the follow-only case the
-	// CTA button (ProfileActionButton) is visible and carries Block in its menu.
-	const blockOnConnection = hasConnection
 
 	return (
 		<>
 			{hasConnection && (
-				<Popper
-					menuClassName="c-tag secondary g-1 cursor-pointer"
-					label={
-						<>
-							<IcConnect size="0.9rem" />
-							<span>
-								{pending
-									? t('Request sent')
-									: isCommunity
-										? t('Member')
-										: t('Connected')}
-							</span>
-							<IcChevronDown size="0.9rem" />
-						</>
+				<Menu
+					trigger={
+						<Button size="sm" variant="soft" color="secondary" icon={<IcConnect />}>
+							{pending
+								? t('Request sent')
+								: isCommunity
+									? t('Member')
+									: t('Connected')}
+							<IcChevronDown />
+						</Button>
 					}
 				>
-					<ul className="c-nav vertical">
-						<li>
-							<Button kind="nav-item" onClick={cmds.onDisconnect}>
-								<IcConnect />
-								{pending
-									? t('Cancel request')
-									: isCommunity
-										? t('Leave')
-										: t('Disconnect')}
-							</Button>
-						</li>
-						{blockOnConnection && (
-							<li>
-								<Button kind="nav-item" onClick={cmds.onBlock}>
-									<IcBlock />
-									{t('Block')}
-								</Button>
-							</li>
-						)}
-					</ul>
-				</Popper>
+					<MenuItem
+						icon={<IcConnect />}
+						label={
+							pending
+								? t('Cancel request')
+								: isCommunity
+									? t('Leave')
+									: t('Disconnect')
+						}
+						onClick={cmds.onDisconnect}
+					/>
+				</Menu>
 			)}
 
 			{hasFollow && (
-				<Popper
-					menuClassName="c-tag secondary g-1 cursor-pointer"
-					label={
-						<>
-							{rel.mutual ? (
-								<IcMutual size="0.9rem" />
-							) : rel.followsYou ? (
-								<IcFollowsYou size="0.9rem" />
-							) : (
-								<IcFollow size="0.9rem" />
-							)}
-							<span>
-								{rel.mutual
-									? t('Mutual')
-									: rel.followsYou
-										? t('Follows you')
-										: t('Following')}
-							</span>
-							<IcChevronDown size="0.9rem" />
-						</>
+				<Menu
+					trigger={
+						<Button
+							size="sm"
+							variant="soft"
+							color="secondary"
+							icon={
+								rel.mutual ? (
+									<IcMutual />
+								) : rel.followsYou ? (
+									<IcFollowsYou />
+								) : (
+									<IcFollow />
+								)
+							}
+						>
+							{rel.mutual
+								? t('Mutual')
+								: rel.followsYou
+									? t('Follows you')
+									: t('Following')}
+							<IcChevronDown />
+						</Button>
 					}
 				>
-					<ul className="c-nav vertical">
-						<li>
-							{rel.followsYou && !rel.following ? (
-								<Button kind="nav-item" onClick={cmds.onFollow}>
-									<IcFollow />
-									{t('Follow back')}
-								</Button>
-							) : (
-								<Button kind="nav-item" onClick={onUnfollow}>
-									<IcFollow />
-									{t('Unfollow')}
-								</Button>
-							)}
-						</li>
-					</ul>
-				</Popper>
+					{rel.followsYou && !rel.following ? (
+						<MenuItem
+							icon={<IcFollow />}
+							label={t('Follow back')}
+							onClick={cmds.onFollow}
+						/>
+					) : (
+						<MenuItem icon={<IcFollow />} label={t('Unfollow')} onClick={onUnfollow} />
+					)}
+				</Menu>
 			)}
 		</>
 	)
 }
 
-// The "establish a relationship" CTA. Shown whenever the profile is not blocked
-// and has no active or pending connection — including while you already follow
-// them, so a follow can still be upgraded to a connection/membership. Split
-// button: primary Connect/Join, with Follow (only when not already following)
-// and Block in the dropdown.
+// The "establish a relationship" CTAs: Follow (primary) while not following,
+// and Connect/Join while there is no active or pending connection — so a follow
+// can still be upgraded. Nothing when blocked; Block lives in the ⋯ menu.
 function ProfileActionButton({
 	localProfile,
 	profileType,
@@ -303,48 +295,22 @@ function ProfileActionButton({
 
 	const isCommunity = profileType === 'community'
 	const rel = describeRelationship({ ...localProfile, type: profileType })
+	if (rel.primary === 'blocked') return null
 	const pending = localProfile.connected === 'R'
-	const show = rel.primary !== 'blocked' && !rel.connected && !pending
-	if (!show) return null
 
 	return (
-		<div className="c-button accent cursor-default me-3">
-			<Button
-				kind="link"
-				onClick={cmds.onConnect}
-				title={
-					isCommunity
-						? t('Become a member and post here')
-						: t('Connect to share privately')
-				}
-			>
-				<IcConnect />
-				{isCommunity ? t('Join') : t('Connect')}
-			</Button>
-			<div className="separator" />
-			<Popper className="cursor-pointer" label={<IcMore />}>
-				<ul className="c-nav vertical">
-					{!rel.following && (
-						<li>
-							<Button
-								kind="nav-item"
-								onClick={cmds.onFollow}
-								title={t('See their posts in your feed')}
-							>
-								<IcFollow />
-								{t('Follow')}
-							</Button>
-						</li>
-					)}
-					<li>
-						<Button kind="nav-item" onClick={cmds.onBlock}>
-							<IcBlock />
-							{t('Block')}
-						</Button>
-					</li>
-				</ul>
-			</Popper>
-		</div>
+		<>
+			{!rel.following && (
+				<Button color="primary" icon={<IcFollow />} onClick={cmds.onFollow}>
+					{t('Follow')}
+				</Button>
+			)}
+			{!rel.connected && !pending && (
+				<Button icon={<IcConnect />} onClick={cmds.onConnect}>
+					{isCommunity ? t('Join') : t('Connect')}
+				</Button>
+			)}
+		</>
 	)
 }
 
@@ -388,7 +354,7 @@ function ProfileTabs({
 	const basePath = profilePath(base, own ? 'me' : profile.idTag)
 
 	return (
-		<div className="c-tabs">
+		<Tabs>
 			{tabs
 				.filter((tab) => tab.visible)
 				.map((tab) => {
@@ -405,17 +371,13 @@ function ProfileTabs({
 					}
 
 					return (
-						<NavLink key={tab.id} className="c-tab" to={`${basePath}/${route}`} end>
+						<Tab key={tab.id} href={`${basePath}/${route}`}>
 							{label}
-						</NavLink>
+						</Tab>
 					)
 				})}
-			{canAccessSettings && (
-				<NavLink className="c-tab" to={`${basePath}/settings`}>
-					{t('Settings')}
-				</NavLink>
-			)}
-		</div>
+			{canAccessSettings && <Tab href={`${basePath}/settings`}>{t('Settings')}</Tab>}
+		</Tabs>
 	)
 }
 
@@ -444,34 +406,33 @@ interface ProfilePageProps {
 
 /**
  * Loading placeholder shaped like the real profile header so the layout does not
- * jump when the profile data + images arrive. Reuses the same CSS classes as
- * {@link ProfilePage} for matching dimensions.
+ * jump when the profile data + images arrive. Uses the same {@link ProfileHero}
+ * as {@link ProfilePage} for matching dimensions.
  */
 function ProfileSkeleton() {
 	return (
 		<Fcd.Container className="g-1">
 			<Fcd.Filter></Fcd.Filter>
 			<Fcd.Content>
-				<div className="c-panel p-0 pos-relative d-flex flex-column">
-					<div className="c-profile-header pos-relative w-100">
-						<Skeleton variant="rect" width="100%" height={160} />
-						<div className="c-profile-pic-container">
-							<Skeleton variant="circle" width="10rem" height="10rem" />
-						</div>
-					</div>
-					<div className="c-profile-title">
-						<Skeleton variant="text" width="40%" height="2rem" className="mt-2" />
-						<Skeleton variant="text" width="25%" />
-					</div>
-					<div className="c-hbox g-2 p-2">
+				<ProfileHero
+					cover={<Skeleton variant="rect" width="100%" height={160} />}
+					avatar={<Skeleton variant="circle" width="10rem" height="10rem" />}
+					header={
+						<>
+							<Skeleton variant="text" width="40%" height="2rem" />
+							<Skeleton variant="text" width="25%" />
+						</>
+					}
+				>
+					<HBox gap={2}>
 						<Skeleton variant="rounded" width={80} height={32} />
 						<Skeleton variant="rounded" width={80} height={32} />
 						<Skeleton variant="rounded" width={80} height={32} />
-					</div>
-				</div>
-				<div className="c-panel p-2 mt-2">
+					</HBox>
+				</ProfileHero>
+				<Panel padding={2} className="mt-2">
 					<SkeletonText lines={4} />
-				</div>
+				</Panel>
 			</Fcd.Content>
 			<Fcd.Details></Fcd.Details>
 		</Fcd.Container>
@@ -511,8 +472,6 @@ export function ProfilePage({
 	const [profileUpload, setProfileUpload] = React.useState<string | undefined>()
 	const [editMode, setEditMode] = React.useState(false)
 	const [nameDraft, setNameDraft] = React.useState(profile.name)
-	const inputId = React.useId()
-	const profileInputId = React.useId()
 
 	// Keep the name draft in sync when the profile name changes externally,
 	// but never overwrite an in-progress edit.
@@ -692,22 +651,11 @@ export function ProfilePage({
 		// / Upload
 	}
 
-	function changeCover() {
-		const file = (document.getElementById(inputId) as HTMLInputElement)?.files?.[0]
+	function readAsDataUrl(file: File | undefined, set: (url: string) => void) {
 		if (!file) return
 		const reader = new FileReader()
-		reader.onload = function (evt) {
-			if (typeof evt?.target?.result == 'string') setCoverUpload(evt.target.result)
-		}
-		reader.readAsDataURL(file)
-	}
-
-	function changeProfile() {
-		const file = (document.getElementById(profileInputId) as HTMLInputElement)?.files?.[0]
-		if (!file) return
-		const reader = new FileReader()
-		reader.onload = function (evt) {
-			if (typeof evt?.target?.result == 'string') setProfileUpload(evt.target.result)
+		reader.onload = (evt) => {
+			if (typeof evt.target?.result == 'string') set(evt.target.result)
 		}
 		reader.readAsDataURL(file)
 	}
@@ -763,197 +711,193 @@ export function ProfilePage({
 		}
 	}
 
+	const rel = localProfile
+		? describeRelationship({ ...localProfile, type: profile.type })
+		: undefined
+	const canBlock = !own && !!auth && !!localProfile && rel?.primary !== 'blocked'
+	const canEditImages = canAccessSettings && editMode
+
 	return (
 		<Fcd.Container className="g-1">
 			<Fcd.Filter></Fcd.Filter>
 			<Fcd.Content>
 				{!own && auth && <TrustBanner idTag={profile.idTag} onDecision={onTrustDecision} />}
-				<div className="c-panel p-0 pos-relative d-flex flex-column">
-					<div
-						className="c-profile-header pos-relative w-100"
-						style={{ minHeight: '160px' }}
-					>
-						{profile.coverPic && (
-							<img
-								className="c-profile-cover w-100"
+				<ProfileHero
+					cover={
+						profile.coverPic ? (
+							<Image
 								src={getFileUrl(profile.idTag, profile.coverPic, 'vis.hd')}
+								alt=""
 							/>
-						)}
-						{canAccessSettings && editMode && (
-							<>
-								<label
-									htmlFor={inputId}
-									className="c-overlay-icon pos-absolute top-0 right-0 m-2"
-									aria-label={t('Change cover photo')}
-								>
-									<IcCamera size="1.5rem" />
-								</label>
-								<input
-									id={inputId}
-									type="file"
-									accept="image/*"
-									style={{ display: 'none' }}
-									onChange={changeCover}
-								/>
-							</>
-						)}
-						<div className="c-profile-pic-container">
-							{profile.profilePic ? (
-								<img
-									className="c-profile-pic"
-									src={getFileUrl(profile.idTag, profile.profilePic, 'vis.sd')}
-									alt="Profile picture"
-								/>
-							) : (
-								<svg className="c-profile-pic" viewBox="4 4 16 16" fill="none">
-									<path
-										d="M12 22.01C17.5228 22.01 22 17.5329 22 12.01C22 6.48716 17.5228 2.01001 12 2.01001C6.47715 2.01001 2 6.48716 2 12.01C2 17.5329 6.47715 22.01 12 22.01Z"
-										fill="#ADB3BA"
-									/>
-									<path
-										d="M12 6.93994C9.93 6.93994 8.25 8.61994 8.25 10.6899C8.25 12.7199 9.84 14.3699 11.95 14.4299C11.98 14.4299 12.02 14.4299 12.04 14.4299C12.06 14.4299 12.09 14.4299 12.11 14.4299C12.12 14.4299 12.13 14.4299 12.13 14.4299C14.15 14.3599 15.74 12.7199 15.75 10.6899C15.75 8.61994 14.07 6.93994 12 6.93994Z"
-										fill="#292D32"
-									/>
-									<path
-										d="M18.7807 19.36C17.0007 21 14.6207 22.01 12.0007 22.01C9.3807 22.01 7.0007 21 5.2207 19.36C5.4607 18.45 6.1107 17.62 7.0607 16.98C9.7907 15.16 14.2307 15.16 16.9407 16.98C17.9007 17.62 18.5407 18.45 18.7807 19.36Z"
-										fill="#292D32"
-									/>
-								</svg>
-							)}
-							{canAccessSettings && editMode && (
-								<>
-									<label
-										htmlFor={profileInputId}
-										className="c-overlay-icon pos-absolute"
-										style={{ bottom: '1.5rem', right: '2.5rem' }}
-										aria-label={t('Change profile picture')}
-									>
-										<IcCamera size="1.5rem" />
-									</label>
-									<input
-										id={profileInputId}
-										type="file"
-										accept="image/*"
-										style={{ display: 'none' }}
-										onChange={changeProfile}
-									/>
-								</>
-							)}
-						</div>
-					</div>
-					<div className="c-hbox">
-						<div className="c-profile-title">
-							{editMode ? (
-								<Input
-									className="mt-2 c-profile-name-input"
-									value={nameDraft}
-									autoFocus
-									onChange={(e) => setNameDraft(e.target.value)}
-									onKeyDown={(e) => {
-										if (e.key === 'Enter') {
-											e.preventDefault()
-											exitEditMode()
-										} else if (e.key === 'Escape') {
-											e.preventDefault()
-											cancelEditMode()
-										}
-									}}
-									aria-label={t('Display name')}
-								/>
-							) : (
-								<h2 className="mt-2">{profile.name}</h2>
-							)}
-							<h4 className="c-hbox align-items-center g-1">
-								<IdentityTag idTag={profile.idTag} />
-								<Button
-									kind="link"
-									// Keeps the clipboard write inside the click's user-activation
-									// window: `Button` otherwise defers the handler past its press
-									// animation, and Safari and Firefox refuse the write there.
-									immediate
-									icon={<IcCopy />}
-									aria-label={t('Copy identity tag')}
-									onClick={copyIdTag}
-								/>
-							</h4>
-							{!own && auth && (
-								<div className="c-hbox align-items-center flex-wrap g-1 mt-1">
-									<TrustChip idTag={profile.idTag} onChanged={onTrustDecision} />
-									<RelationshipChips
-										localProfile={localProfile}
-										profileType={profile.type}
-										cmds={profileCmds}
-									/>
-								</div>
-							)}
-						</div>
-						<div className="flex-fill" />
-						<div className="c-hbox g-2 align-items-start mt-2 me-2">
-							<Button
-								kind="link"
-								// Same user-activation window as the idTag copy above.
-								immediate
-								icon={<IcRef />}
-								aria-label={t('Copy reference')}
-								title={t('Copy reference')}
-								onClick={copyRef}
+						) : undefined
+					}
+					avatar={
+						<Avatar
+							size="3xl"
+							src={
+								profile.profilePic
+									? getFileUrl(profile.idTag, profile.profilePic, 'vis.sd')
+									: undefined
+							}
+							alt={profile.name}
+						/>
+					}
+					coverAction={
+						canEditImages ? (
+							<FileButton
+								accept="image/*"
+								icon={<IcCamera />}
+								shape="pill"
+								aria-label={t('Change cover photo')}
+								onFiles={(files) => readAsDataUrl(files[0], setCoverUpload)}
 							/>
-							{canAccessSettings &&
-								(editMode ? (
-									<>
-										<Button
-											kind="link"
-											icon={<IcClose />}
-											onClick={cancelEditMode}
-										>
-											{t('Cancel')}
-										</Button>
-										<Button
-											variant="primary"
-											icon={<IcCheck />}
-											onClick={exitEditMode}
-										>
-											{t('Done')}
-										</Button>
-									</>
+						) : undefined
+					}
+					avatarAction={
+						canEditImages ? (
+							<FileButton
+								accept="image/*"
+								icon={<IcCamera />}
+								shape="pill"
+								aria-label={t('Change profile picture')}
+								onFiles={(files) => readAsDataUrl(files[0], setProfileUpload)}
+							/>
+						) : undefined
+					}
+					header={
+						<PageHeader
+							className="auto-bg"
+							title={
+								editMode ? (
+									<Input
+										value={nameDraft}
+										autoFocus
+										onChange={(e) => setNameDraft(e.target.value)}
+										onKeyDown={(e) => {
+											if (e.key === 'Enter') {
+												e.preventDefault()
+												exitEditMode()
+											} else if (e.key === 'Escape') {
+												e.preventDefault()
+												cancelEditMode()
+											}
+										}}
+										aria-label={t('Display name')}
+									/>
 								) : (
-									<Button
-										kind="link"
-										icon={<IcEdit />}
-										onClick={() => setEditMode(true)}
-									>
-										{t('Edit profile')}
-									</Button>
-								))}
-							{auth?.idTag && !own && (
+									profile.name
+								)
+							}
+							subtitle={
 								<>
-									{profile.type == 'person' &&
-										localProfile?.connected == true && (
-											<Link
-												className="c-button"
-												to={messagesPath(ctx.base, profile.idTag)}
-											>
-												<IcMessage />
-												{t('Message')}
-											</Link>
-										)}
-									<ProfileActionButton
-										localProfile={localProfile}
-										profileType={profile.type}
-										cmds={profileCmds}
+									<IdentityTag idTag={profile.idTag} />
+									<Button
+										variant="link"
+										// Keeps the clipboard write inside the click's user-activation
+										// window: `Button` otherwise defers the handler past its press
+										// animation, and Safari and Firefox refuse the write there.
+										immediate
+										icon={<IcCopy />}
+										aria-label={t('Copy identity tag')}
+										onClick={copyIdTag}
 									/>
 								</>
-							)}
-						</div>
-					</div>
-					<ProfileTabs
-						profile={profile}
-						base={ctx.base}
-						own={own}
-						isCommunity={isCommunity}
-						canAccessSettings={canAccessSettings}
-					/>
-				</div>
+							}
+							actions={
+								<>
+									{canAccessSettings &&
+										(editMode ? (
+											<>
+												<Button
+													variant="ghost"
+													icon={<IcClose />}
+													onClick={cancelEditMode}
+												>
+													{t('Cancel')}
+												</Button>
+												<Button
+													color="primary"
+													icon={<IcCheck />}
+													onClick={exitEditMode}
+												>
+													{t('Done')}
+												</Button>
+											</>
+										) : (
+											<Button
+												variant="ghost"
+												icon={<IcEdit />}
+												onClick={() => setEditMode(true)}
+											>
+												{t('Edit profile')}
+											</Button>
+										))}
+									{auth?.idTag && !own && (
+										<>
+											{profile.type == 'person' &&
+												localProfile?.connected == true && (
+													<Button
+														href={messagesPath(ctx.base, profile.idTag)}
+														icon={<IcMessage />}
+													>
+														{t('Message')}
+													</Button>
+												)}
+											<ProfileActionButton
+												localProfile={localProfile}
+												profileType={profile.type}
+												cmds={profileCmds}
+											/>
+										</>
+									)}
+									<Menu
+										trigger={
+											<Button
+												variant="ghost"
+												icon={<IcMore />}
+												aria-label={t('More actions')}
+											/>
+										}
+									>
+										<MenuItem
+											icon={<IcRef />}
+											label={t('Copy reference')}
+											onClick={copyRef}
+										/>
+										{canBlock && (
+											<MenuItem
+												icon={<IcBlock />}
+												label={t('Block')}
+												color="error"
+												onClick={profileCmds.onBlock}
+											/>
+										)}
+									</Menu>
+								</>
+							}
+						/>
+					}
+					tabs={
+						<ProfileTabs
+							profile={profile}
+							base={ctx.base}
+							own={own}
+							isCommunity={isCommunity}
+							canAccessSettings={canAccessSettings}
+						/>
+					}
+				>
+					{!own && auth && (
+						<HBox gap={1} align="center" wrap>
+							<TrustChip idTag={profile.idTag} onChanged={onTrustDecision} />
+							<RelationshipChips
+								localProfile={localProfile}
+								profileType={profile.type}
+								cmds={profileCmds}
+							/>
+						</HBox>
+					)}
+				</ProfileHero>
 				{children}
 				{coverUpload && (
 					<ImageUpload
@@ -1101,7 +1045,7 @@ export function ProfileFeed({ profile }: ProfileTabProps) {
 				/>
 			)}
 			{!composeOpen && !!feed && (
-				<div ref={ref} className="c-vbox g-1">
+				<VBox ref={ref} gap={1}>
 					{feed.map((action) => (
 						<ActionComp
 							key={action.actionId}
@@ -1116,7 +1060,7 @@ export function ProfileFeed({ profile }: ProfileTabProps) {
 							}}
 						/>
 					))}
-				</div>
+				</VBox>
 			)}
 		</>
 	)
@@ -1178,74 +1122,60 @@ function MemberCard({
 
 	const showBadge = showRoleControls || memberRole !== 'follower'
 
-	let menu: React.ReactNode = null
-	if (canChangeRole) {
-		menu = (
-			<ul className="c-nav vertical">
-				{assignableRoles.map((role) => (
-					<li key={role.value}>
-						<Button
-							kind="nav-item"
-							onClick={() => onRoleChange?.(member.idTag, role.value)}
-						>
-							{memberRole === role.value && <IcCheck />}
-							{role.label}
-						</Button>
-					</li>
-				))}
-				{onRemove && (
-					<>
-						<li role="separator" className="border-bottom my-1" />
-						<li>
-							<Button kind="nav-item" onClick={handleRemove}>
-								<IcRemoveMember className="text-error" />
-								<span className="text-error">{t('Remove member')}</span>
-							</Button>
-						</li>
-					</>
-				)}
-			</ul>
-		)
-	} else if (showRoleControls && onRemove) {
-		menu = (
-			<ul className="c-nav vertical">
-				<li>
-					<Button kind="nav-item" onClick={handleRemove}>
-						<IcRemoveMember className="text-error" />
-						<span className="text-error">{t('Remove member')}</span>
-					</Button>
-				</li>
-			</ul>
-		)
-	}
+	const removeItem = onRemove && (
+		<MenuItem
+			icon={<IcRemoveMember />}
+			label={t('Remove member')}
+			color="error"
+			onClick={handleRemove}
+		/>
+	)
+	const hasMenu = canChangeRole || (showRoleControls && !!onRemove)
 
 	return (
-		<div className="c-panel flex-row p-2 mb-1 g-2 align-items-center">
-			<Link
-				className="c-hbox flex-fill g-2 align-items-center"
-				to={profilePath(ctx.base, member.idTag)}
-			>
-				<ProfileCard className="flex-fill" profile={member} srcTag={srcTag} />
-				<ProfileStatusBadge profile={member} />
-			</Link>
-			{menu ? (
-				<Popper
-					className="cursor-pointer"
-					aria-label={t('Member actions')}
-					menuClassName="c-hbox align-items-center"
-					label={
-						<span className="c-badge with-icon">
-							{roleLabel}
-							<IcChevronDown />
-						</span>
-					}
+		<Panel padding={2} className="mb-1">
+			<HBox gap={2} align="center">
+				<Panel
+					variant="plain"
+					padding={0}
+					href={profilePath(ctx.base, member.idTag)}
+					className="flex-fill"
 				>
-					{menu}
-				</Popper>
-			) : (
-				showBadge && <span className="c-badge outline secondary">{roleLabel}</span>
-			)}
-		</div>
+					<HBox gap={2} align="center">
+						<ProfileCard className="flex-fill" profile={member} srcTag={srcTag} />
+						<ProfileStatusBadge profile={member} />
+					</HBox>
+				</Panel>
+				{hasMenu ? (
+					<Menu
+						trigger={
+							<Button size="sm" variant="soft" color="secondary">
+								{roleLabel}
+								<IcChevronDown />
+							</Button>
+						}
+					>
+						{canChangeRole &&
+							assignableRoles.map((role) => (
+								<MenuItem
+									key={role.value}
+									label={role.label}
+									selected={memberRole === role.value}
+									onClick={() => onRoleChange?.(member.idTag, role.value)}
+								/>
+							))}
+						{canChangeRole && onRemove && <MenuDivider />}
+						{removeItem}
+					</Menu>
+				) : (
+					showBadge && (
+						<Badge variant="outline" color="secondary">
+							{roleLabel}
+						</Badge>
+					)
+				)}
+			</HBox>
+		</Panel>
 	)
 }
 
@@ -1260,7 +1190,6 @@ export function ProfileConnections({
 	const { getClientFor } = useApiContext()
 	const [auth] = useAuth()
 	const toast = useToast()
-	const _dialog = useDialog()
 	const [activeContext] = useAtom(activeContextAtom)
 	const [profiles, setProfiles] = React.useState<Profile[]>([])
 	const [subTab, setSubTab] = React.useState<'active' | 'requests' | 'invitations'>('active')
@@ -1461,47 +1390,47 @@ export function ProfileConnections({
 	)
 
 	const filterSidebar = (
-		<div className="c-vbox g-2">
-			<div className="c-input-group">
-				<input
-					type="text"
-					className="c-input"
-					placeholder={t('Search members')}
-					value={search}
-					onChange={(e) => setSearch(e.target.value)}
+		<VBox gap={2} autoBg>
+			<SearchInput
+				aria-label={t('Search members')}
+				placeholder={t('Search members')}
+				value={search}
+				onChange={(e) => setSearch(e.target.value)}
+			/>
+			<Heading level={6} className="m-0">
+				{t('Role')}
+			</Heading>
+			<Nav vertical aria-label={t('Role')}>
+				<Nav.Item
+					label={t('All')}
+					count={memberProfiles.length}
+					active={roleFilter === 'all'}
+					onClick={() => setRoleFilter('all')}
 				/>
-			</div>
-			<h6 className="m-0">{t('Role')}</h6>
-			<ul className="c-nav vertical low">
-				<li className="c-nav-item">
-					<Button
-						kind="nav-item"
-						className={mergeClasses('c-nav-link', roleFilter === 'all' && 'active')}
-						onClick={() => setRoleFilter('all')}
-					>
-						{t('All')}
-						<span className="c-badge ms-auto">{memberProfiles.length}</span>
-					</Button>
-				</li>
 				{roles
 					.filter((r) => roleCounts[r.value] > 0)
 					.map((r) => (
-						<li key={r.value} className="c-nav-item">
-							<Button
-								kind="nav-item"
-								className={mergeClasses(
-									'c-nav-link',
-									roleFilter === r.value && 'active'
-								)}
-								onClick={() => setRoleFilter(r.value)}
-							>
-								{r.label}
-								<span className="c-badge ms-auto">{roleCounts[r.value]}</span>
-							</Button>
-						</li>
+						<Nav.Item
+							key={r.value}
+							label={r.label}
+							count={roleCounts[r.value]}
+							active={roleFilter === r.value}
+							onClick={() => setRoleFilter(r.value)}
+						/>
 					))}
-			</ul>
-		</div>
+			</Nav>
+		</VBox>
+	)
+
+	const filterToggle = (
+		<HBox className="md-hide lg-hide" autoBg>
+			<Button
+				variant="ghost"
+				icon={<IcFilter />}
+				aria-label={t('Filter')}
+				onClick={() => setShowFilter(true)}
+			/>
+		</HBox>
 	)
 
 	// For communities with moderator+ access, show sub-tabs (Active / Requests / Invitations)
@@ -1517,46 +1446,24 @@ export function ProfileConnections({
 						srcTag={profile.idTag}
 					/>
 				)}
-				<div className="c-hbox g-2 align-items-center mb-2">
-					<div className="c-tabs sub flex-fill" role="tablist">
-						<button
-							type="button"
-							role="tab"
-							aria-selected={subTab === 'active'}
-							className={mergeClasses('c-tab', subTab === 'active' && 'active')}
-							onClick={() => setSubTab('active')}
-						>
-							{t('Active')}
-						</button>
-						<button
-							type="button"
-							role="tab"
-							aria-selected={subTab === 'requests'}
-							className={mergeClasses('c-tab', subTab === 'requests' && 'active')}
-							onClick={() => setSubTab('requests')}
-						>
+				<HBox gap={2} align="center" className="mb-2">
+					<Tabs
+						className="flex-fill"
+						value={subTab}
+						onTabChange={(v) => setSubTab(v as typeof subTab)}
+					>
+						<Tab value="active">{t('Active')}</Tab>
+						<Tab value="requests" count={requestCount || undefined}>
 							{t('Requests')}
-							{requestCount > 0 && (
-								<span className="c-badge ms-1">{requestCount}</span>
-							)}
-						</button>
-						<button
-							type="button"
-							role="tab"
-							aria-selected={subTab === 'invitations'}
-							className={mergeClasses('c-tab', subTab === 'invitations' && 'active')}
-							onClick={() => setSubTab('invitations')}
-						>
+						</Tab>
+						<Tab value="invitations" count={invitationCount || undefined}>
 							{t('Invitations')}
-							{invitationCount > 0 && (
-								<span className="c-badge ms-1">{invitationCount}</span>
-							)}
-						</button>
-					</div>
-					<Button variant="primary" onClick={() => setInviteOpen(true)}>
+						</Tab>
+					</Tabs>
+					<Button color="primary" onClick={() => setInviteOpen(true)}>
 						{t('+ Invite members')}
 					</Button>
-				</div>
+				</HBox>
 
 				{subTab === 'active' && activeMembersList}
 				{subTab === 'requests' && (
@@ -1593,9 +1500,7 @@ export function ProfileConnections({
 					{subTab === 'active' ? filterSidebar : null}
 				</Fcd.Filter>
 				<Fcd.Content>
-					<div className="c-nav c-hbox md-hide lg-hide">
-						<IcFilter onClick={() => setShowFilter(true)} />
-					</div>
+					{filterToggle}
 					{communityContent}
 				</Fcd.Content>
 			</Fcd.Container>
@@ -1627,9 +1532,7 @@ export function ProfileConnections({
 					{filterSidebar}
 				</Fcd.Filter>
 				<Fcd.Content>
-					<div className="c-nav c-hbox md-hide lg-hide">
-						<IcFilter onClick={() => setShowFilter(true)} />
-					</div>
+					{filterToggle}
 					{communityContent}
 				</Fcd.Content>
 			</Fcd.Container>
@@ -1812,11 +1715,11 @@ export function ProfileSettings({
 	// Personal profile owners see only tab editor
 	if (isCommunity && !canEditSettings) {
 		return (
-			<div className="c-panel p-3">
-				<p className="text-muted">
+			<Panel padding={3}>
+				<Text as="p" emphasis="muted">
 					{t('You need leader permissions to access community settings.')}
-				</p>
-			</div>
+				</Text>
+			</Panel>
 		)
 	}
 
@@ -1834,56 +1737,66 @@ export function ProfileSettings({
 			{/* Community-only: Connection & Privacy Settings */}
 			{showCommunitySettings && (
 				<>
-					<div className="c-panel mb-2 p-3">
-						<h4 className="pb-2 border-bottom mb-3">{t('Connections')}</h4>
-						<label className="c-settings-field">
-							<span>{t('Connection Mode')}</span>
-							<select
-								className="c-select"
-								name="profile.connection_mode"
-								value={(settings['profile.connection_mode'] as string) ?? 'M'}
-								onChange={onSettingChange}
+					<Panel padding={3} className="mb-2" title={t('Connections')} headingLevel={4}>
+						<VBox gap={3}>
+							<Field
+								orientation="horizontal"
+								label={t('Connection Mode')}
+								hint={
+									<>
+										{t(
+											'Controls how connection requests to this community are handled.'
+										)}{' '}
+										{settings['profile.connection_mode'] === 'A'
+											? t('Anyone can join immediately.')
+											: settings['profile.connection_mode'] === 'I'
+												? t(
+														'Connection requests are auto-rejected. Members can only join via an invitation from a leader or moderator.'
+													)
+												: t(
+														'A leader or moderator must approve each connection request.'
+													)}
+									</>
+								}
 							>
-								<option value="M">{t('Manual approval')}</option>
-								<option value="A">{t('Auto-accept')}</option>
-								<option value="I">{t('Invite only')}</option>
-							</select>
-						</label>
-						<p className="c-hint mt-1">
-							{t('Controls how connection requests to this community are handled.')}{' '}
-							{settings['profile.connection_mode'] === 'A'
-								? t('Anyone can join immediately.')
-								: settings['profile.connection_mode'] === 'I'
-									? t(
-											'Connection requests are auto-rejected. Members can only join via an invitation from a leader or moderator.'
-										)
-									: t(
-											'A leader or moderator must approve each connection request.'
-										)}
-						</p>
+								<NativeSelect
+									name="profile.connection_mode"
+									value={(settings['profile.connection_mode'] as string) ?? 'M'}
+									onChange={onSettingChange}
+								>
+									<option value="M">{t('Manual approval')}</option>
+									<option value="A">{t('Auto-accept')}</option>
+									<option value="I">{t('Invite only')}</option>
+								</NativeSelect>
+							</Field>
 
-						<label className="c-settings-field mt-3">
-							<span>{t('Allow followers')}</span>
-							<input
-								className="c-toggle primary"
-								type="checkbox"
+							<Toggle
+								color="primary"
 								name="profile.allow_followers"
 								checked={settings['profile.allow_followers'] !== false}
 								onChange={onSettingChange}
+								label={t('Allow followers')}
+								description={t(
+									'Allow users to follow this community without becoming members.'
+								)}
 							/>
-						</label>
-						<p className="c-hint mt-1">
-							{t('Allow users to follow this community without becoming members.')}
-						</p>
-					</div>
+						</VBox>
+					</Panel>
 
-					{/* Post Visibility Settings */}
-					<div className="c-panel mb-2 p-3">
-						<h4 className="pb-2 border-bottom mb-3">{t('Post visibility')}</h4>
-						<label className="c-settings-field">
-							<span>{t('Visibility cap')}</span>
-							<select
-								className="c-select"
+					<Panel
+						padding={3}
+						className="mb-2"
+						title={t('Post visibility')}
+						headingLevel={4}
+					>
+						<Field
+							orientation="horizontal"
+							label={t('Visibility cap')}
+							hint={t(
+								'Limits the maximum visibility of posts in this community. Members cannot publish posts more public than this setting.'
+							)}
+						>
+							<NativeSelect
 								name="profile.visibility_cap"
 								value={(settings['profile.visibility_cap'] as string) ?? 'P'}
 								onChange={onSettingChange}
@@ -1891,41 +1804,31 @@ export function ProfileSettings({
 								<option value="P">{t('Public (no limit)')}</option>
 								<option value="F">{t('Followers')}</option>
 								<option value="C">{t('Connected')}</option>
-							</select>
-						</label>
-						<p className="c-hint mt-1">
-							{t(
-								'Limits the maximum visibility of posts in this community. Members cannot publish posts more public than this setting.'
-							)}
-						</p>
-					</div>
+							</NativeSelect>
+						</Field>
+					</Panel>
 
-					{/* Federation Settings */}
-					<div className="c-panel mb-2 p-3">
-						<h4 className="pb-2 border-bottom mb-3">{t('Federation')}</h4>
-						<label className="c-settings-field">
-							<span>{t('Auto-approve incoming actions')}</span>
-							<input
-								className="c-toggle primary"
-								type="checkbox"
-								name="profile.auto_approve_actions"
-								checked={settings['profile.auto_approve_actions'] === true}
-								onChange={onSettingChange}
-							/>
-						</label>
-						<p className="c-hint mt-1">
-							{t(
+					<Panel padding={3} className="mb-2" title={t('Federation')} headingLevel={4}>
+						<Toggle
+							color="primary"
+							name="profile.auto_approve_actions"
+							checked={settings['profile.auto_approve_actions'] === true}
+							onChange={onSettingChange}
+							label={t('Auto-approve incoming actions')}
+							description={t(
 								'When enabled, posts and messages from trusted sources are automatically approved.'
 							)}
-						</p>
-					</div>
+						/>
+					</Panel>
 				</>
 			)}
 
 			{isCommunity && loading && (
-				<div className="c-panel p-3">
-					<p className="text-muted">{t('Loading settings...')}</p>
-				</div>
+				<Panel padding={3}>
+					<Text as="p" emphasis="muted">
+						{t('Loading settings...')}
+					</Text>
+				</Panel>
 			)}
 		</>
 	)
@@ -2278,9 +2181,9 @@ export function PeoplePage() {
 	}
 
 	return (
-		<div className="d-flex align-items-center justify-content-center w-100 h-100">
+		<Center className="w-100 h-100">
 			<LoadingSpinner size="lg" label={t('Loading...')} />
-		</div>
+		</Center>
 	)
 }
 

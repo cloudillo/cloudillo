@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button } from '@cloudillo/react'
+import { Button, Input, Panel, VBox } from '@cloudillo/react'
 import type { EducationEntry } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -9,6 +9,7 @@ import { LuGraduationCap as IcEducation, LuPlus as IcPlus, LuX as IcRemove } fro
 
 import type { EducationContent, SectionWithContent } from '../types.js'
 import { parseContent, stringifyContent } from '../types.js'
+import { EntryDates, EntryView } from './WorkSection.js'
 
 const EMPTY: EducationContent = { entries: [] }
 
@@ -22,22 +23,18 @@ export function EducationSectionView({ section }: EducationSectionViewProps) {
 	if (!data.entries.length) return null
 
 	return (
-		<div className="c-vbox g-2">
+		<VBox gap={2}>
 			{data.entries.map((entry, i) => (
-				<div key={i} className="c-hbox g-2">
-					<IcEducation className="c-section-icon mt-1 f-none" />
-					<div className="c-vbox">
-						<strong>{entry.school}</strong>
-						{entry.degree && <span>{entry.degree}</span>}
-						{(entry.from || entry.to) && (
-							<small className="text-muted">
-								{entry.from || '?'} – {entry.to || 'Present'}
-							</small>
-						)}
-					</div>
-				</div>
+				<EntryView
+					key={i}
+					icon={IcEducation}
+					title={entry.school}
+					subtitle={entry.degree}
+					from={entry.from}
+					to={entry.to}
+				/>
 			))}
-		</div>
+		</VBox>
 	)
 }
 
@@ -72,48 +69,46 @@ export function EducationSectionEdit({ section, onChange }: EducationSectionEdit
 	}
 
 	return (
-		<div className="c-vbox g-3">
+		<VBox gap={3}>
 			{data.entries.map((entry, i) => (
-				<div key={i} className="c-panel p-2 c-vbox g-1 pos-relative">
-					<Button
-						kind="link"
-						className="pos-absolute top-0 right-0 m-1"
-						onClick={() => removeEntry(i)}
-					>
-						<IcRemove />
-					</Button>
-					<input
-						className="c-input"
-						placeholder={t('School / University')}
-						value={entry.school}
-						onChange={(e) => updateEntry(i, { school: e.target.value })}
-					/>
-					<input
-						className="c-input"
-						placeholder={t('Degree / Field of study')}
-						value={entry.degree || ''}
-						onChange={(e) => updateEntry(i, { degree: e.target.value })}
-					/>
-					<div className="c-hbox g-2">
-						<input
-							className="c-input flex-fill"
-							placeholder={t('From')}
-							value={entry.from || ''}
-							onChange={(e) => updateEntry(i, { from: e.target.value })}
+				<Panel
+					key={i}
+					padding={2}
+					actions={
+						<Button
+							variant="ghost"
+							size="sm"
+							icon={<IcRemove />}
+							aria-label={t('Remove entry')}
+							onClick={() => removeEntry(i)}
 						/>
-						<input
-							className="c-input flex-fill"
-							placeholder={t('To')}
-							value={entry.to || ''}
-							onChange={(e) => updateEntry(i, { to: e.target.value })}
+					}
+				>
+					<VBox gap={1}>
+						<Input
+							aria-label={t('School / University')}
+							placeholder={t('School / University')}
+							value={entry.school}
+							onChange={(e) => updateEntry(i, { school: e.target.value })}
 						/>
-					</div>
-				</div>
+						<Input
+							aria-label={t('Degree / Field of study')}
+							placeholder={t('Degree / Field of study')}
+							value={entry.degree || ''}
+							onChange={(e) => updateEntry(i, { degree: e.target.value })}
+						/>
+						<EntryDates
+							from={entry.from}
+							to={entry.to}
+							onChange={(patch) => updateEntry(i, patch)}
+						/>
+					</VBox>
+				</Panel>
 			))}
-			<Button kind="link" onClick={addEntry}>
-				<IcPlus /> {t('Add entry')}
+			<Button variant="ghost" icon={<IcPlus />} onClick={addEntry}>
+				{t('Add entry')}
 			</Button>
-		</div>
+		</VBox>
 	)
 }
 

@@ -2,13 +2,29 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import type { TagInfo } from '@cloudillo/core'
-import { Button, mergeClasses, Popper, useAuth, useDialog } from '@cloudillo/react'
+import {
+	AppIcon,
+	type AppId,
+	Button,
+	Divider,
+	HBox,
+	Menu,
+	MenuItem,
+	Nav,
+	SearchInput,
+	Segmented,
+	SegmentedItem,
+	Tag,
+	Text,
+	useAuth,
+	useDialog,
+	VBox
+} from '@cloudillo/react'
 import * as React from 'react'
+import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
-import { FiSearch as IcSearch } from 'react-icons/fi'
 import {
 	LuFolderOpen as IcBrowse,
-	LuX as IcClear,
 	LuStar as IcFavorites,
 	LuShieldCheck as IcManaged,
 	LuFilePlus2 as IcNewFile,
@@ -20,8 +36,27 @@ import { useNavigate } from 'react-router-dom'
 
 import { useContextAwareApi, useCtx } from '../../../context/index.js'
 import { appPath } from '../../../routes.js'
-import { fileIcons, type IcUnknown } from '../icons.js'
 import type { FileTypeFilter, OwnerFilter, ViewMode } from '../types.js'
+
+const createItems = (t: TFunction): { app: AppId; db?: boolean; label: string }[] => [
+	{ app: 'quillo', label: t('Quillo text document') },
+	{ app: 'calcillo', label: t('Calcillo spreadsheet document') },
+	{ app: 'ideallo', label: t('Ideallo whiteboard document') },
+	{ app: 'prezillo', label: t('Prezillo presentation document') },
+	{ app: 'taskillo', db: true, label: t('Taskillo task list') },
+	{ app: 'notillo', db: true, label: t('Notillo wiki') },
+	{ app: 'scanillo', db: true, label: t('Scanillo document scanner') }
+]
+
+const viewItems = (
+	t: TFunction
+): { mode: ViewMode; icon: React.ComponentType; label: string }[] => [
+	{ mode: 'browse', icon: IcBrowse, label: t('Browse') },
+	{ mode: 'starred', icon: IcFavorites, label: t('Starred') },
+	{ mode: 'recent', icon: IcRecent, label: t('Recent') },
+	{ mode: 'trash', icon: IcTrash, label: t('Trash') },
+	{ mode: 'managed', icon: IcManaged, label: t('Managed') }
+]
 
 interface SidebarProps {
 	className?: string
@@ -190,290 +225,112 @@ export const Sidebar = React.memo(function Sidebar({
 	}
 
 	return (
-		<ul className={mergeClasses('c-nav vertical low', className)}>
-			{/* Create document menu */}
+		<VBox gap={2} className={className} autoBg>
 			{!!auth && (
 				<>
-					<li className="c-nav-item">
-						<Popper icon={<IcNewFile />} label={t('Create document')}>
-							<ul className="c-nav vertical emph">
-								<li>
-									<Button
-										kind="nav-item"
-										onClick={() => createFile('cloudillo/quillo')}
-									>
-										{React.createElement<
-											React.ComponentProps<typeof IcUnknown>
-										>(fileIcons['cloudillo/quillo'], { className: 'me-1' })}
-										{t('Quillo text document')}
-									</Button>
-								</li>
-								<li>
-									<Button
-										kind="nav-item"
-										onClick={() => createFile('cloudillo/calcillo')}
-									>
-										{React.createElement<
-											React.ComponentProps<typeof IcUnknown>
-										>(fileIcons['cloudillo/calcillo'], { className: 'me-1' })}
-										{t('Calcillo spreadsheet document')}
-									</Button>
-								</li>
-								<li>
-									<Button
-										kind="nav-item"
-										onClick={() => createFile('cloudillo/ideallo')}
-									>
-										{React.createElement<
-											React.ComponentProps<typeof IcUnknown>
-										>(fileIcons['cloudillo/ideallo'], { className: 'me-1' })}
-										{t('Ideallo whiteboard document')}
-									</Button>
-								</li>
-								<li>
-									<Button
-										kind="nav-item"
-										onClick={() => createFile('cloudillo/prezillo')}
-									>
-										{React.createElement<
-											React.ComponentProps<typeof IcUnknown>
-										>(fileIcons['cloudillo/prezillo'], { className: 'me-1' })}
-										{t('Prezillo presentation document')}
-									</Button>
-								</li>
-								<li>
-									<Button
-										kind="nav-item"
-										onClick={() => createDb('cloudillo/taskillo')}
-									>
-										{React.createElement<
-											React.ComponentProps<typeof IcUnknown>
-										>(fileIcons['cloudillo/taskillo'], { className: 'me-1' })}
-										{t('Taskillo task list')}
-									</Button>
-								</li>
-								<li>
-									<Button
-										kind="nav-item"
-										onClick={() => createDb('cloudillo/notillo')}
-									>
-										{React.createElement<
-											React.ComponentProps<typeof IcUnknown>
-										>(fileIcons['cloudillo/notillo'], { className: 'me-1' })}
-										{t('Notillo wiki')}
-									</Button>
-								</li>
-								<li>
-									<Button
-										kind="nav-item"
-										onClick={() => createDb('cloudillo/scanillo')}
-									>
-										{React.createElement<
-											React.ComponentProps<typeof IcUnknown>
-										>(fileIcons['cloudillo/scanillo'], { className: 'me-1' })}
-										{t('Scanillo document scanner')}
-									</Button>
-								</li>
-							</ul>
-						</Popper>
-					</li>
-					<hr className="w-100" />
+					<Menu
+						trigger={
+							<Button variant="ghost" icon={<IcNewFile />}>
+								{t('Create document')}
+							</Button>
+						}
+					>
+						{createItems(t).map(({ app, db, label }) => (
+							<MenuItem
+								key={app}
+								icon={<AppIcon app={app} size="sm" tile={false} />}
+								label={label}
+								onClick={() =>
+									db
+										? createDb(`cloudillo/${app}`)
+										: createFile(`cloudillo/${app}`)
+								}
+							/>
+						))}
+					</Menu>
+					<Divider />
 				</>
 			)}
 
-			{/* Navigation section */}
-			<li className="c-nav-item">
-				<a
-					className={mergeClasses('c-nav-link', viewMode === 'browse' && 'active')}
-					href="#"
-					onClick={(e) => {
-						e.preventDefault()
-						onViewModeChange('browse')
-					}}
-				>
-					<IcBrowse /> {t('Browse')}
-				</a>
-			</li>
-			<li className="c-nav-item">
-				<a
-					className={mergeClasses('c-nav-link', viewMode === 'starred' && 'active')}
-					href="#"
-					onClick={(e) => {
-						e.preventDefault()
-						onViewModeChange('starred')
-					}}
-				>
-					<IcFavorites /> {t('Starred')}
-				</a>
-			</li>
-			<li className="c-nav-item">
-				<a
-					className={mergeClasses('c-nav-link', viewMode === 'recent' && 'active')}
-					href="#"
-					onClick={(e) => {
-						e.preventDefault()
-						onViewModeChange('recent')
-					}}
-				>
-					<IcRecent /> {t('Recent')}
-				</a>
-			</li>
-			<li className="c-nav-item">
-				<a
-					className={mergeClasses('c-nav-link', viewMode === 'trash' && 'active')}
-					href="#"
-					onClick={(e) => {
-						e.preventDefault()
-						onViewModeChange('trash')
-					}}
-				>
-					<IcTrash /> {t('Trash')}
-				</a>
-			</li>
-			<li className="c-nav-item">
-				<a
-					className={mergeClasses('c-nav-link', viewMode === 'managed' && 'active')}
-					href="#"
-					onClick={(e) => {
-						e.preventDefault()
-						onViewModeChange('managed')
-					}}
-				>
-					<IcManaged /> {t('Managed')}
-				</a>
-			</li>
+			<Nav aria-label={t('Files')}>
+				{viewItems(t).map(({ mode, icon: ViewIcon, label }) => (
+					<Nav.Item
+						key={mode}
+						icon={<ViewIcon />}
+						label={label}
+						active={viewMode === mode}
+						onClick={() => onViewModeChange(mode)}
+					/>
+				))}
+			</Nav>
 
-			<hr className="w-100" />
+			<Divider />
 
-			{/* Search */}
-			<div className="c-input-group">
-				<input
-					type="text"
-					className="c-input"
-					placeholder={t('Search files...')}
-					value={searchQuery}
-					onChange={(e) => onSearchQueryChange(e.target.value)}
-				/>
-				{searchQuery ? (
-					<Button variant="secondary" onClick={() => onSearchQueryChange('')}>
-						<IcClear />
-					</Button>
-				) : (
-					<Button variant="secondary">
-						<IcSearch />
-					</Button>
-				)}
-			</div>
+			<SearchInput
+				aria-label={t('Search files...')}
+				placeholder={t('Search files...')}
+				value={searchQuery}
+				onChange={(e) => onSearchQueryChange(e.target.value)}
+			/>
 
-			{/* File type filter */}
-			<li className="c-nav-item">
-				<span className="c-nav-link text-muted">{t('Type')}</span>
-			</li>
-			<div className="d-flex g-1 px-2">
-				<button
-					type="button"
-					className={mergeClasses(
-						'c-button small flex-fill',
-						fileTypeFilter === 'all' && 'active'
-					)}
-					onClick={() => onFileTypeFilterChange('all')}
-				>
-					{t('All')}
-				</button>
-				<button
-					type="button"
-					className={mergeClasses(
-						'c-button small flex-fill',
-						fileTypeFilter === 'live' && 'active'
-					)}
-					onClick={() => onFileTypeFilterChange('live')}
-				>
-					{t('Live')}
-				</button>
-				<button
-					type="button"
-					className={mergeClasses(
-						'c-button small flex-fill',
-						fileTypeFilter === 'static' && 'active'
-					)}
-					onClick={() => onFileTypeFilterChange('static')}
-				>
-					{t('Static')}
-				</button>
-			</div>
+			<Text size="sm" emphasis="muted">
+				{t('Type')}
+			</Text>
+			<Segmented
+				size="sm"
+				fill
+				aria-label={t('Type')}
+				value={fileTypeFilter}
+				onChange={(v) => onFileTypeFilterChange(v as FileTypeFilter)}
+			>
+				<SegmentedItem value="all">{t('All')}</SegmentedItem>
+				<SegmentedItem value="live">{t('Live')}</SegmentedItem>
+				<SegmentedItem value="static">{t('Static')}</SegmentedItem>
+			</Segmented>
 
-			{/* Owner filter */}
-			<li className="c-nav-item mt-2">
-				<span className="c-nav-link text-muted">{t('Owner')}</span>
-			</li>
-			<div className="d-flex g-1 px-2">
-				<button
-					type="button"
-					className={mergeClasses(
-						'c-button small flex-fill',
-						ownerFilter === 'anyone' && 'active'
-					)}
-					onClick={() => onOwnerFilterChange('anyone')}
-				>
-					{t('Anyone')}
-				</button>
-				<button
-					type="button"
-					className={mergeClasses(
-						'c-button small flex-fill',
-						ownerFilter === 'me' && 'active'
-					)}
-					onClick={() => onOwnerFilterChange('me')}
-				>
-					{t('Me')}
-				</button>
-				<button
-					type="button"
-					className={mergeClasses(
-						'c-button small flex-fill',
-						ownerFilter === 'others' && 'active'
-					)}
-					onClick={() => onOwnerFilterChange('others')}
-				>
-					{t('Others')}
-				</button>
-			</div>
+			<Text size="sm" emphasis="muted">
+				{t('Owner')}
+			</Text>
+			<Segmented
+				size="sm"
+				fill
+				aria-label={t('Owner')}
+				value={ownerFilter}
+				onChange={(v) => onOwnerFilterChange(v as OwnerFilter)}
+			>
+				<SegmentedItem value="anyone">{t('Anyone')}</SegmentedItem>
+				<SegmentedItem value="me">{t('Me')}</SegmentedItem>
+				<SegmentedItem value="others">{t('Others')}</SegmentedItem>
+			</Segmented>
 
-			{/* Tag Cloud */}
 			{tags.length > 0 && (
 				<>
-					<hr className="w-100" />
-					<li className="c-nav-item">
-						<span className="c-nav-link text-muted">
+					<Divider />
+					<HBox gap={1} align="center">
+						<Text size="sm" emphasis="muted" className="flex-fill">
 							<IcTag /> {t('Tags')}
-							{selectedTags.length > 0 && (
-								<Button className="ms-auto" size="small" onClick={clearTags}>
-									{t('Clear')}
-								</Button>
-							)}
-						</span>
-					</li>
-					<div className="d-flex flex-wrap g-1 px-2">
+						</Text>
+						{selectedTags.length > 0 && (
+							<Button variant="ghost" size="sm" onClick={clearTags}>
+								{t('Clear')}
+							</Button>
+						)}
+					</HBox>
+					<HBox gap={1} wrap>
 						{tags.map((tagInfo) => (
-							<button
+							<Tag
 								key={tagInfo.tag}
-								type="button"
-								className={mergeClasses(
-									'c-tag',
-									selectedTags.includes(tagInfo.tag) && 'accent'
-								)}
+								pressed={selectedTags.includes(tagInfo.tag)}
+								count={tagInfo.count}
 								onClick={() => toggleTag(tagInfo.tag)}
 							>
 								{tagInfo.tag}
-								{tagInfo.count !== undefined && (
-									<span className="c-badge xs ms-1">{tagInfo.count}</span>
-								)}
-							</button>
+							</Tag>
 						))}
-					</div>
+					</HBox>
 				</>
 			)}
-		</ul>
+		</VBox>
 	)
 })
 

@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import type { AddressBookOutput } from '@cloudillo/core'
-import { Button, Modal } from '@cloudillo/react'
+import { ActionBar, Alert, Button, Dialog, Field, Input, VBox } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuX as IcClose } from 'react-icons/lu'
 
 export interface AddressBookEditorProps {
 	open: boolean
@@ -49,66 +48,41 @@ export function AddressBookEditor({ open, book, onClose, onSave }: AddressBookEd
 	}
 
 	return (
-		<Modal open={open} onClose={onClose}>
-			<form
-				className="c-dialog c-panel emph p-4"
-				style={{ maxWidth: '480px', width: '100%' }}
-				onSubmit={handleSave}
-			>
-				<div className="d-flex align-items-center justify-content-between mb-3">
-					<h3 className="m-0">
-						{book ? t('Rename address book') : t('New address book')}
-					</h3>
-					<button
-						type="button"
-						className="c-link"
-						onClick={onClose}
-						aria-label={t('Close')}
-					>
-						<IcClose />
-					</button>
-				</div>
-
+		<Dialog
+			open={open}
+			onClose={onClose}
+			title={book ? t('Rename address book') : t('New address book')}
+			onSubmit={handleSave}
+			footer={
+				<ActionBar>
+					<Button type="button" onClick={onClose}>
+						{t('Cancel')}
+					</Button>
+					<Button type="submit" color="primary" loading={submitting}>
+						{book ? t('Save') : t('Create')}
+					</Button>
+				</ActionBar>
+			}
+		>
+			<VBox gap={3}>
 				{error && (
-					<div
-						className="c-panel bg-container-error p-2 mb-3"
-						role="alert"
-						aria-live="polite"
-					>
-						<span className="text-error">{error}</span>
-					</div>
+					<Alert color="error" compact>
+						{error}
+					</Alert>
 				)}
-
-				<div className="mb-3">
-					<label className="c-contact-field-label">{t('Name')}</label>
-					<input
-						className="c-input"
+				<Field label={t('Name')}>
+					<Input
 						placeholder={t('e.g., Personal')}
 						value={name}
 						onChange={(e) => setName(e.target.value)}
 						autoFocus
 					/>
-				</div>
-
-				<div className="mb-3">
-					<label className="c-contact-field-label">{t('Description (optional)')}</label>
-					<input
-						className="c-input"
-						value={description}
-						onChange={(e) => setDescription(e.target.value)}
-					/>
-				</div>
-
-				<div className="d-flex justify-content-end g-2">
-					<Button type="button" onClick={onClose}>
-						{t('Cancel')}
-					</Button>
-					<Button type="submit" variant="primary" disabled={submitting}>
-						{submitting ? t('Saving...') : book ? t('Save') : t('Create')}
-					</Button>
-				</div>
-			</form>
-		</Modal>
+				</Field>
+				<Field label={t('Description (optional)')}>
+					<Input value={description} onChange={(e) => setDescription(e.target.value)} />
+				</Field>
+			</VBox>
+		</Dialog>
 	)
 }
 

@@ -1,15 +1,26 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { LoadingSpinner, mergeClasses } from '@cloudillo/react'
 import * as React from 'react'
+import {
+	Affix,
+	Badge,
+	Button,
+	Disclosure,
+	HBox,
+	Icon,
+	List,
+	ListItem,
+	LoadingSpinner,
+	Panel,
+	Progress,
+	Text
+} from '@cloudillo/react'
 import { useTranslation } from 'react-i18next'
 import {
 	LuCheck as IcCheck,
 	LuX as IcClose,
-	LuChevronDown as IcCollapse,
 	LuCircleAlert as IcError,
-	LuChevronUp as IcExpand,
 	LuFile as IcFile,
 	LuLink2 as IcLink
 } from 'react-icons/lu'
@@ -39,40 +50,48 @@ function formatFileSize(bytes: number): string {
 function UploadItemRow({ item, onRemove }: { item: UploadItem; onRemove?: (id: string) => void }) {
 	const { t } = useTranslation()
 	return (
-		<div className={mergeClasses('c-upload-item', item.status)}>
-			<div className="c-upload-item-icon">
-				{item.status === 'complete' && <IcCheck />}
-				{item.status === 'error' && <IcError />}
-				{item.status === 'uploading' && <LoadingSpinner size="xs" />}
-				{item.status === 'queued' && <IcFile />}
-			</div>
-			<div className="c-upload-item-content">
-				<div className="c-upload-item-name">{item.file.name}</div>
-				<div className="c-upload-item-meta">
+		<ListItem
+			leading={
+				item.status === 'complete' ? (
+					<Icon as={IcCheck} color="success" />
+				) : item.status === 'error' ? (
+					<Icon as={IcError} color="error" />
+				) : item.status === 'uploading' ? (
+					<LoadingSpinner size="xs" />
+				) : (
+					<Icon as={IcFile} />
+				)
+			}
+			title={item.file.name}
+			subtitle={
+				<HBox gap={1} align="center" wrap>
 					{formatFileSize(item.file.size)}
 					{item.status === 'complete' && item.existed && (
-						<span
-							className="c-badge info compact"
-							title={t('Already on server — reused existing file')}
+						<Badge
+							color="info"
+							size="sm"
+							icon={<IcLink />}
+							aria-label={t('Already on server — reused existing file')}
 						>
-							<IcLink />
 							{t('reused')}
-						</span>
+						</Badge>
 					)}
-					{item.error && <span className="c-upload-item-error">{item.error}</span>}
-				</div>
-			</div>
-			{(item.status === 'complete' || item.status === 'error') && onRemove && (
-				<button
-					type="button"
-					className="c-button link icon compact c-upload-item-remove"
-					onClick={() => onRemove(item.id)}
-					aria-label="Remove"
-				>
-					<IcClose />
-				</button>
-			)}
-		</div>
+					{item.error && <Text color="error">{item.error}</Text>}
+				</HBox>
+			}
+			actions={
+				(item.status === 'complete' || item.status === 'error') &&
+				onRemove && (
+					<Button
+						variant="ghost"
+						size="xs"
+						icon={<IcClose />}
+						onClick={() => onRemove(item.id)}
+						aria-label={t('Remove')}
+					/>
+				)
+			}
+		/>
 	)
 }
 
@@ -84,18 +103,6 @@ export function UploadProgress({
 	onClearAll
 }: UploadProgressProps) {
 	const { t } = useTranslation()
-	const [isCollapsed, setIsCollapsed] = React.useState(false)
-
-	// Auto-collapse after all uploads complete
-	React.useEffect(
-		function autoCollapseOnComplete() {
-			if (stats.pending === 0 && stats.total > 0) {
-				const timer = setTimeout(() => setIsCollapsed(true), 3000)
-				return () => clearTimeout(timer)
-			}
-		},
-		[stats.pending, stats.total]
-	)
 
 	if (queue.length === 0) return null
 
@@ -104,82 +111,62 @@ export function UploadProgress({
 	const isComplete = stats.pending === 0
 
 	return (
-		<div className={mergeClasses('c-upload-panel', isCollapsed && 'collapsed')}>
-			<div
-				className="c-upload-panel-header"
-				onClick={() => setIsCollapsed((c) => !c)}
-				role="button"
-				tabIndex={0}
-				onKeyDown={(e) => e.key === 'Enter' && setIsCollapsed((c) => !c)}
+		<Affix position="bottom-end" offset={3}>
+			<Panel
+				elevation="high"
+				title={
+					<HBox gap={2} align="center" role="status">
+						{!isComplete ? (
+							<>
+								<LoadingSpinner size="xs" />
+								{t('Uploading {{completed}} of {{total}}', {
+									completed: stats.completed,
+									total: stats.total
+								})}
+							</>
+						) : hasErrors ? (
+							<>
+								<Icon as={IcError} color="error" />
+								{t('{{completed}} uploaded, {{errors}} failed', {
+									completed: stats.completed,
+									errors: stats.errors
+								})}
+							</>
+						) : (
+							<>
+								<Icon as={IcCheck} color="success" />
+								{t('{{completed}} files uploaded', { completed: stats.completed })}
+							</>
+						)}
+					</HBox>
+				}
+				actions={
+					isComplete && (
+						<>
+							{stats.completed > 0 && onClearCompleted && (
+								<Button variant="ghost" size="sm" onClick={onClearCompleted}>
+									{t('Clear completed')}
+								</Button>
+							)}
+							{onClearAll && (
+								<Button variant="ghost" size="sm" onClick={onClearAll}>
+									{t('Clear all')}
+								</Button>
+							)}
+						</>
+					)
+				}
 			>
-				<div className="c-upload-panel-title">
-					{!isComplete ? (
-						<>
-							<LoadingSpinner size="xs" />
-							{t('Uploading {{completed}} of {{total}}', {
-								completed: stats.completed,
-								total: stats.total
-							})}
-						</>
-					) : hasErrors ? (
-						<>
-							<IcError className="c-upload-panel-icon error" />
-							{t('{{completed}} uploaded, {{errors}} failed', {
-								completed: stats.completed,
-								errors: stats.errors
-							})}
-						</>
-					) : (
-						<>
-							<IcCheck className="c-upload-panel-icon success" />
-							{t('{{completed}} files uploaded', { completed: stats.completed })}
-						</>
-					)}
-				</div>
-				<button type="button" className="c-button link icon compact">
-					{isCollapsed ? <IcExpand /> : <IcCollapse />}
-				</button>
-			</div>
-
-			{!isComplete && (
-				<div className="c-progress xs">
-					<div className="bar" style={{ width: `${progressPercent}%` }} />
-				</div>
-			)}
-
-			{!isCollapsed && (
-				<>
-					<div className="c-upload-panel-list">
+				{!isComplete && <Progress value={progressPercent} />}
+				<Disclosure summary={t('Files')} defaultOpen>
+					<List>
 						{queue.map((item) => (
 							<UploadItemRow key={item.id} item={item} onRemove={onRemoveItem} />
 						))}
-					</div>
-
-					{isComplete && (
-						<div className="c-upload-panel-actions">
-							{stats.completed > 0 && onClearCompleted && (
-								<button
-									type="button"
-									className="c-button link small"
-									onClick={onClearCompleted}
-								>
-									{t('Clear completed')}
-								</button>
-							)}
-							{onClearAll && (
-								<button
-									type="button"
-									className="c-button link small"
-									onClick={onClearAll}
-								>
-									{t('Clear all')}
-								</button>
-							)}
-						</div>
-					)}
-				</>
-			)}
-		</div>
+					</List>
+				</Disclosure>
+			</Panel>
+		</Affix>
 	)
 }
 

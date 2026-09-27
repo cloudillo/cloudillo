@@ -11,17 +11,24 @@
  * search field next to the thumb, with the best match right above the input.
  */
 
-import { Button, IdentityTag, mergeClasses, useAuth } from '@cloudillo/react'
+import {
+	Badge,
+	Button,
+	HBox,
+	Heading,
+	IdentityTag,
+	mergeClasses,
+	SearchInput,
+	SortableList,
+	Text,
+	useAuth,
+	VBox
+} from '@cloudillo/react'
 import { useAtomValue } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuPin as IcPin,
-	LuPinOff as IcPinOff,
-	LuUserRound as IcProfile,
-	LuSearch as IcSearch
-} from 'react-icons/lu'
-import { Link, useNavigate } from 'react-router-dom'
+import { LuPin as IcPin, LuPinOff as IcPinOff, LuUserRound as IcProfile } from 'react-icons/lu'
+import { useNavigate } from 'react-router-dom'
 
 import {
 	activeContextAtom,
@@ -36,7 +43,7 @@ import {
 import { ProfileContextMenu, useProfileContextMenu } from '../context/profile-context-menu.js'
 import { unreadCountAtom } from '../read-position.js'
 import { profilePath, scopePath } from '../routes.js'
-import { ChipAvatar } from './ChipAvatar.js'
+import { ContextAvatar, ContextChip } from '../ui/ContextChip.js'
 import { buildCommunitySections } from './community-sections.js'
 
 interface CommunityCardProps {
@@ -46,8 +53,6 @@ interface CommunityCardProps {
 	onSwitch: () => void
 	onTogglePin: () => void
 	onProfile: () => void
-	onDragStart?: () => void
-	onDragEnd?: () => void
 }
 
 function CommunityCard({
@@ -56,9 +61,7 @@ function CommunityCard({
 	isPinned,
 	onSwitch,
 	onTogglePin,
-	onProfile,
-	onDragStart,
-	onDragEnd
+	onProfile
 }: CommunityCardProps) {
 	const { t } = useTranslation()
 	const unreadCounts = useAtomValue(unreadCountAtom)
@@ -67,44 +70,33 @@ function CommunityCard({
 	const profileLabel = t('View profile of {{name}}', { name })
 
 	return (
-		<div
+		<HBox
 			className={mergeClasses('c-community-card', isActive && 'active')}
 			aria-current={isActive ? 'true' : undefined}
-			draggable={!!onDragStart}
-			onDragStart={
-				onDragStart &&
-				((evt) => {
-					evt.dataTransfer.effectAllowed = 'move'
-					onDragStart()
-				})
-			}
-			onDragEnd={onDragEnd}
 		>
-			<button type="button" className="c-community-card-main" onClick={onSwitch}>
-				<ChipAvatar
+			<Button variant="ghost" className="c-community-card-main" onClick={onSwitch}>
+				<ContextAvatar
 					idTag={idTag}
 					profilePic={community.profilePic}
 					pending={isPending}
 					unread={!!unreadCounts[idTag]}
-					iconSize={12}
 				/>
-				<span className="c-community-card-text">
-					<span className="c-community-card-name">{name}</span>
-					<span className="c-community-card-sub text-muted">
+				<VBox className="c-community-card-text">
+					<Text weight="medium" truncate>
+						{name}
+					</Text>
+					<Text size="xs" emphasis="muted" truncate>
 						<IdentityTag idTag={idTag} />
 						{isPending && ` · ${t('Setting up...')}`}
-					</span>
-				</span>
-				{!isPending && unreadCount > 0 && (
-					<span className="c-badge bg-error">{unreadCount}</span>
-				)}
-			</button>
+					</Text>
+				</VBox>
+				{!isPending && unreadCount > 0 && <Badge color="error">{unreadCount}</Badge>}
+			</Button>
 			<Button
 				kind="nav-link"
 				className="c-community-card-action"
 				onClick={onTogglePin}
 				aria-label={pinLabel}
-				title={pinLabel}
 				aria-pressed={isPinned}
 			>
 				{isPinned ? <IcPinOff /> : <IcPin />}
@@ -114,11 +106,10 @@ function CommunityCard({
 				className="c-community-card-action"
 				onClick={onProfile}
 				aria-label={profileLabel}
-				title={profileLabel}
 			>
 				<IcProfile />
 			</Button>
-		</div>
+		</HBox>
 	)
 }
 
@@ -147,16 +138,26 @@ function PinnedRow({ onDone }: { onDone: () => void }) {
 	]
 
 	return (
-		<div className="c-community-pinned" role="toolbar" aria-label={t('Pinned communities')}>
+		<HBox
+			scroll
+			gap={2}
+			className="c-community-pinned"
+			role="toolbar"
+			aria-label={t('Pinned communities')}
+		>
 			{entries.map((entry) => {
-				const isActive = activeContext?.idTag === entry.idTag
 				const label = entry.type === 'me' ? t('My profile') : entry.name
 				return (
-					<button
+					<ContextChip
 						key={entry.idTag}
-						type="button"
-						className={mergeClasses('c-community-pinned-item', isActive && 'active')}
-						aria-current={isActive ? 'true' : undefined}
+						orientation="vertical"
+						idTag={entry.idTag}
+						profilePic={entry.profilePic}
+						pending={entry.isPending}
+						unread={!!unreadCounts[entry.idTag]}
+						count={entry.unreadCount || undefined}
+						name={entry.name}
+						active={activeContext?.idTag === entry.idTag}
 						aria-label={
 							entry.isPending ? t('{{name}} (setting up)', { name: label }) : label
 						}
@@ -170,22 +171,7 @@ function PinnedRow({ onDone }: { onDone: () => void }) {
 							name: entry.name,
 							type: entry.type
 						})}
-					>
-						<ChipAvatar
-							idTag={entry.idTag}
-							profilePic={entry.profilePic}
-							pending={entry.isPending}
-							unread={!!unreadCounts[entry.idTag]}
-							iconSize={12}
-						>
-							{!entry.isPending && entry.unreadCount > 0 && (
-								<span className="c-badge bg-error positioned br" aria-hidden="true">
-									{entry.unreadCount}
-								</span>
-							)}
-						</ChipAvatar>
-						<span className="c-community-pinned-name">{entry.name}</span>
-					</button>
+					/>
 				)
 			})}
 			{menuState && (
@@ -195,25 +181,22 @@ function PinnedRow({ onDone }: { onDone: () => void }) {
 					onClose={closeMenu}
 				/>
 			)}
-		</div>
+		</HBox>
 	)
 }
 
 export interface CommunityFinderProps {
 	variant: 'popup' | 'sheet'
-	/** Close the surface — after a switch, a navigation, or a drop onto the strip. */
+	/** Close the surface — after a switch or a navigation. */
 	onDone: () => void
-	/** Desktop only: dragging a card onto the context strip pins it there. */
-	onDragStartRow?: (idTag: string) => void
-	onDragEndRow?: () => void
+	/** Inside a `SortableGroup` (desktop popup): cards drag onto the context strip. */
+	draggable?: boolean
 }
 
-export function CommunityFinder({
-	variant,
-	onDone,
-	onDragStartRow,
-	onDragEndRow
-}: CommunityFinderProps) {
+/** Source-only card lists never receive a reorder; the strip's list handles the drop. */
+const noReorder = () => {}
+
+export function CommunityFinder({ variant, onDone, draggable }: CommunityFinderProps) {
 	const { t } = useTranslation()
 	const ctx = useCtx()
 	const navigate = useNavigate()
@@ -228,73 +211,78 @@ export function CommunityFinder({
 	const sections = buildCommunitySections(communities, recentCommunities, query)
 	const titles = { recent: t('Recent'), all: t('All'), results: t('Results') }
 
+	const renderCard = (community: CommunityRef) => (
+		<CommunityCard
+			key={community.idTag}
+			community={community}
+			isActive={activeContext?.idTag === community.idTag}
+			isPinned={pinnedTags.has(community.idTag)}
+			onSwitch={() => {
+				handleSwitch(community.idTag)
+				onDone()
+			}}
+			onTogglePin={() => toggleFavorite(community.idTag)}
+			onProfile={() => {
+				navigate(profilePath(ctx.base, community.idTag))
+				onDone()
+			}}
+		/>
+	)
+
 	return (
-		<div className={mergeClasses('c-community-finder', variant)}>
+		<VBox className={mergeClasses('c-community-finder', variant)}>
 			{variant === 'sheet' && <PinnedRow onDone={onDone} />}
-			<div className="c-input-group">
-				<IcSearch className="c-input-icon" />
-				<input
-					className="c-input"
-					type="search"
-					value={query}
-					placeholder={t('Find a community…')}
-					aria-label={t('Find a community…')}
-					// The popup is opened to type into; on mobile, don't pop the keyboard
-					// over the list unasked.
-					autoFocus={variant === 'popup'}
-					onChange={(evt) => setQuery(evt.target.value)}
-				/>
-			</div>
-			<div className="c-community-finder-list">
+			<SearchInput
+				value={query}
+				placeholder={t('Find a community…')}
+				aria-label={t('Find a community…')}
+				// The popup is opened to type into; on mobile, don't pop the keyboard
+				// over the list unasked.
+				autoFocus={variant === 'popup'}
+				onChange={(evt) => setQuery(evt.target.value)}
+			/>
+			<VBox className="c-community-finder-list">
 				{sections.map((section) => (
-					<div key={section.key} className="c-community-finder-section">
-						<h6>{titles[section.key]}</h6>
-						<div className="c-community-finder-rows">
-							{section.rows.map((community) => (
-								<CommunityCard
-									key={community.idTag}
-									community={community}
-									isActive={activeContext?.idTag === community.idTag}
-									isPinned={pinnedTags.has(community.idTag)}
-									onSwitch={() => {
-										handleSwitch(community.idTag)
-										onDone()
-									}}
-									onTogglePin={() => toggleFavorite(community.idTag)}
-									onProfile={() => {
-										navigate(profilePath(ctx.base, community.idTag))
-										onDone()
-									}}
-									onDragStart={
-										onDragStartRow && (() => onDragStartRow(community.idTag))
-									}
-									onDragEnd={
-										onDragStartRow &&
-										(() => {
-											onDragEndRow?.()
-											onDone()
-										})
-									}
-								/>
-							))}
-						</div>
-					</div>
+					<VBox key={section.key} className="c-community-finder-section">
+						<Heading level={6} overline>
+							{titles[section.key]}
+						</Heading>
+						{draggable ? (
+							// Keys are bare idTags: the sections are disjoint, and the strip
+							// reads the key of a dropped card as its idTag.
+							<SortableList
+								items={section.rows}
+								getKey={(c) => c.idTag}
+								getLabel={(c) => c.name}
+								group={`finder-${section.key}`}
+								sortable={false}
+								handle={false}
+								onReorder={noReorder}
+								className="c-community-finder-rows"
+								renderItem={renderCard}
+							/>
+						) : (
+							<VBox className="c-community-finder-rows">
+								{section.rows.map(renderCard)}
+							</VBox>
+						)}
+					</VBox>
 				))}
 				{!sections.length && (
-					<p className="text-muted p-2">
+					<Text as="p" emphasis="muted" className="p-2">
 						{communities.length
 							? t('No community matches.')
 							: t('You are not a member of any community yet.')}
-					</p>
+					</Text>
 				)}
-			</div>
-			<div className="c-community-finder-footer">
+			</VBox>
+			<VBox className="c-community-finder-footer">
 				{variant === 'sheet' && <ContextTools onNavigate={onDone} />}
-				<Link to={scopePath(ctx.base, 'communities')} onClick={onDone}>
+				<Button variant="link" href={scopePath(ctx.base, 'communities')} onClick={onDone}>
 					{t('Manage all')} →
-				</Link>
-			</div>
-		</div>
+				</Button>
+			</VBox>
+		</VBox>
 	)
 }
 

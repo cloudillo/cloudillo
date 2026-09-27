@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import { getFileUrl } from '@cloudillo/core'
+import { Button, FileTile, HBox } from '@cloudillo/react'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import { LuX as IcClose } from 'react-icons/lu'
-
-import { ImageWithRetry } from './ImageWithRetry.js'
 
 export interface AttachmentPreviewProps {
 	attachmentIds: string[]
@@ -20,35 +20,33 @@ export function AttachmentPreview({
 	onRemove,
 	compact
 }: AttachmentPreviewProps) {
+	const { t } = useTranslation()
+
 	if (!attachmentIds.length) return null
 
 	return (
-		<div className={`c-hbox wrap ${compact ? 'g-1' : 'mu-2'}`}>
-			{attachmentIds.map((id) => (
-				<div key={id} className="pos-relative d-inline-block">
-					<ImageWithRetry
-						className={compact ? 'c-thumbnail small' : 'c-thumbnail'}
-						skeletonClassName={compact ? 'c-thumbnail small' : 'c-thumbnail'}
+		<HBox wrap gap={compact ? 1 : 2} className={compact ? undefined : 'mu-2'}>
+			{attachmentIds.map((id, i) => {
+				const name = t('Attachment {{n}}', { n: i + 1 })
+				return (
+					<FileTile
+						key={id}
+						name={name}
 						src={getFileUrl(idTag, id, 'vis.tn')}
-						alt=""
+						style={{ width: compact ? '4rem' : '6rem' }}
+						actions={
+							<Button
+								variant="ghost"
+								size="xs"
+								icon={<IcClose />}
+								aria-label={t('Remove {{name}}', { name })}
+								onClick={() => onRemove(id)}
+							/>
+						}
 					/>
-					<button
-						type="button"
-						className="c-button icon small pos-absolute"
-						style={{
-							top: 2,
-							right: 2,
-							padding: 2,
-							minWidth: 'auto',
-							borderRadius: '50%'
-						}}
-						onClick={() => onRemove(id)}
-					>
-						<IcClose size={12} />
-					</button>
-				</div>
-			))}
-		</div>
+				)
+			})}
+		</HBox>
 	)
 }
 

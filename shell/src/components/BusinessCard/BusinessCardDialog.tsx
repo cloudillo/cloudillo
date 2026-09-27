@@ -1,16 +1,22 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button, IdentityTag, ProfilePicture, useAuth } from '@cloudillo/react'
+import {
+	CopyButton,
+	Dialog,
+	HBox,
+	Heading,
+	IdentityTag,
+	ProfilePicture,
+	QRCode,
+	Text,
+	useAuth,
+	VBox
+} from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuCheck as IcCheck, LuX as IcClose, LuCopy as IcCopy } from 'react-icons/lu'
-import ReactQRCode from 'react-qr-code'
 
 import { buildCloudilloUri } from '../../utils/cloudillo-uri.js'
-
-const QRCode = ((ReactQRCode as unknown as Record<string, unknown>).default ??
-	ReactQRCode) as typeof ReactQRCode
 
 export interface BusinessCardDialogProps {
 	open: boolean
@@ -20,68 +26,27 @@ export interface BusinessCardDialogProps {
 export function BusinessCardDialog({ open, onClose }: BusinessCardDialogProps) {
 	const { t } = useTranslation()
 	const [auth] = useAuth()
-	const [copied, setCopied] = React.useState(false)
 
 	if (!open || !auth?.idTag) return null
 
-	const qrValue = buildCloudilloUri('id', auth.idTag)
-
-	async function handleCopy() {
-		if (!auth?.idTag) return
-		try {
-			await navigator.clipboard.writeText(auth.idTag)
-			setCopied(true)
-			setTimeout(() => setCopied(false), 2000)
-		} catch {
-			// Clipboard API not available
-		}
-	}
-
 	return (
-		<div className="c-modal show" tabIndex={-1} onClick={onClose}>
-			<div
-				className="c-dialog c-panel emph p-0"
-				style={{ minWidth: '300px', maxWidth: '360px' }}
-				onClick={(e) => e.stopPropagation()}
-			>
-				{/* Header */}
-				<div className="c-hbox g-2 p-3 border-bottom">
-					<h3 className="m-0 flex-fill">{t('My Card')}</h3>
-					<button
-						type="button"
-						className="c-link"
-						aria-label={t('Close')}
-						onClick={onClose}
-					>
-						<IcClose />
-					</button>
-				</div>
-
-				{/* Content */}
-				<div className="c-vbox align-items-center p-4 g-3">
-					<ProfilePicture profile={auth} />
-					<h2 className="m-0">{auth.name}</h2>
-					<IdentityTag className="text-secondary" idTag={auth.idTag} />
-
-					<QRCode
-						value={qrValue}
-						className="p-3"
-						style={{
-							background: '#fff',
-							width: '100%',
-							maxWidth: '220px',
-							height: 'auto',
-							borderRadius: '8px'
-						}}
-					/>
-
-					<Button className="secondary" onClick={handleCopy}>
-						{copied ? <IcCheck /> : <IcCopy />}
-						{copied ? t('Copied!') : t('Copy identity tag')}
-					</Button>
-				</div>
-			</div>
-		</div>
+		<Dialog open title={t('My Card')} size="sm" onClose={onClose}>
+			<VBox align="center" gap={3}>
+				<ProfilePicture profile={auth} />
+				<Heading level={3}>{auth.name}</Heading>
+				<HBox align="center" gap={1}>
+					<Text emphasis="muted">
+						<IdentityTag idTag={auth.idTag} />
+					</Text>
+					<CopyButton text={auth.idTag} label={t('identity tag')} />
+				</HBox>
+				<QRCode
+					value={buildCloudilloUri('id', auth.idTag)}
+					size={220}
+					label={t('QR code of your identity')}
+				/>
+			</VBox>
+		</Dialog>
 	)
 }
 

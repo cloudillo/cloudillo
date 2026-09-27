@@ -2,19 +2,39 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import { safeHref } from '@cloudillo/core'
-import { Badge, Button, mergeClasses, Segmented, SegmentedItem, useDialog } from '@cloudillo/react'
+import {
+	Badge,
+	Button,
+	HBox,
+	IconText,
+	Input,
+	InputGroup,
+	List,
+	ListItem,
+	Panel,
+	Popover,
+	Segmented,
+	SegmentedItem,
+	Table,
+	TableCell,
+	type TreeDropPosition,
+	TreeItem,
+	TreeView,
+	TableRow,
+	Text,
+	useDialog,
+	VBox
+} from '@cloudillo/react'
 import type { SiteDoc, SiteNavItem, SitePage } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
 	LuTriangleAlert as IcAlert,
 	LuChevronDown as IcDown,
-	LuGripVertical as IcGrip,
 	LuLink as IcLink,
 	LuPlus as IcPlus,
 	LuTrash2 as IcTrash,
-	LuChevronUp as IcUp,
-	LuX as IcX
+	LuChevronUp as IcUp
 } from 'react-icons/lu'
 
 /** The server's own ceiling per level — `validate_nav`'s `MAX_NAV_ITEMS`. */
@@ -28,6 +48,16 @@ const MAX_NAV_ITEMS = 64
 interface NavPos {
 	parent: number | null
 	index: number
+}
+
+/** A position as a TreeItem id, and back — the tree hands `onMove` ids only. */
+function posId(pos: NavPos) {
+	return `nav-${pos.parent ?? 'top'}-${pos.index}`
+}
+
+function parsePosId(id: string): NavPos {
+	const [, parent, index] = id.split('-')
+	return { parent: parent === 'top' ? null : Number(parent), index: Number(index) }
 }
 
 /** Move `from` to `to` within one array, without disturbing anything else. */
@@ -106,8 +136,6 @@ export function SiteNavPanel({
 	const [customising, setCustomising] = React.useState(false)
 	const [saving, setSaving] = React.useState(false)
 	const [error, setError] = React.useState<string | undefined>()
-	const [dragSource, setDragSource] = React.useState<NavPos | undefined>()
-	const [dragOver, setDragOver] = React.useState<NavPos | undefined>()
 	// Which level an "Add" is filling, or nothing while the picker is closed.
 	const [picker, setPicker] = React.useState<{ parent: number | null } | undefined>()
 	const [pages, setPages] = React.useState<SitePage[] | undefined>()
@@ -277,7 +305,7 @@ export function SiteNavPanel({
 	 * nothing protocol-relative. On a community site an entry typed here is rendered
 	 * to every anonymous reader on the owner's own origin, so a `javascript:` target
 	 * would be stored XSS — refused here, and refused again at the parse and render
-	 * layers (`site/detect.ts`, `site/SiteBar.tsx`) for the entries already stored.
+	 * layers (`site/detect.ts`, `ui/SiteBar.tsx`) for the entries already stored.
 	 */
 	const addCustom = React.useCallback(
 		function addCustom() {
@@ -311,15 +339,13 @@ export function SiteNavPanel({
 		})
 	}
 
-	function onDrop(target: NavPos) {
-		if (!dragSource || dragSource.parent !== target.parent) return
-		moveEntry(dragSource, target.index)
-		setDragSource(undefined)
-		setDragOver(undefined)
-	}
-
-	function samePos(a: NavPos | undefined, b: NavPos) {
-		return !!a && a.parent === b.parent && a.index === b.index
+	// A drop only ever lands between siblings of the dragged item: no row accepts
+	// `inside`, and a drop on the other level is ignored rather than re-parenting.
+	function onMove(id: string, targetId: string, position: TreeDropPosition) {
+		const from = parsePosId(id)
+		const target = parsePosId(targetId)
+		if (position === 'inside' || from.parent !== target.parent) return
+		moveEntry(from, target.index + (position === 'after' ? 1 : 0))
 	}
 
 	// --- the picker's three layers ------------------------------------------------
@@ -358,254 +384,250 @@ export function SiteNavPanel({
 	 */
 	function renderTarget(key: string, label: string, target: string, note?: React.ReactNode) {
 		return (
-			<Button
+			<ListItem
 				key={key}
-				kind="nav-item"
-				className="w-100 justify-content-between g-2"
+				title={
+					<>
+						{label}
+						{note}
+					</>
+				}
+				trailing={
+					<Text size="sm" emphasis="muted" className="text-nowrap">
+						{target}
+					</Text>
+				}
 				onClick={() => choose(label, target)}
-			>
-				<span className="text-truncate">
-					{label}
-					{note}
-				</span>
-				<span className="c-hint small text-nowrap">{target}</span>
-			</Button>
+			/>
 		)
 	}
 
-	function renderPicker() {
-		if (!picker) return null
+	function renderTargetGroup(key: string, title: string, children: React.ReactNode) {
 		return (
-			<div className="c-panel emph c-vbox">
-				<div className="c-hbox g-2 align-items-center">
-					<strong className="flex-fill">
-						{picker.parent === null
+			<VBox key={key} gap={1}>
+				<Text size="sm" weight="semibold" emphasis="muted">
+					{title}
+				</Text>
+				<List>{children}</List>
+			</VBox>
+		)
+	}
+
+	/**
+	 * The add picker, anchored to whichever Add button opened it. Escape and
+	 * an outside click close it through `onOpenChange`.
+	 */
+	function renderPicker(parent: number | null, trigger: React.ReactElement) {
+		return (
+			<Popover
+				trigger={trigger}
+				role="dialog"
+				width="lg"
+				open={!!picker && picker.parent === parent}
+				onOpenChange={(open) => {
+					if (open) openPicker(parent)
+					else setPicker(undefined)
+				}}
+				aria-label={
+					parent === null
+						? t('Add a navigation item')
+						: t('Add an item under “{{name}}”', { name: items[parent]?.label ?? '' })
+				}
+			>
+				<VBox gap={2}>
+					<Text weight="semibold">
+						{parent === null
 							? t('Add a navigation item')
 							: t('Add an item under “{{name}}”', {
-									name: items[picker.parent]?.label ?? ''
+									name: items[parent]?.label ?? ''
 								})}
-					</strong>
-					<Button
-						mode="icon"
-						title={t('Cancel')}
-						aria-label={t('Cancel')}
-						onClick={() => setPicker(undefined)}
-					>
-						<IcX />
-					</Button>
-				</div>
+					</Text>
 
-				{!!mountTargets.length && (
-					<div className="c-settings-section">
-						<div className="c-settings-section-title">{t('Documents')}</div>
-						{mountTargets.map((mount) =>
-							renderTarget(
-								mount.target,
-								mount.label,
-								mount.target,
-								!mount.served && (
-									<Badge className="neutral ms-2">{t('not published yet')}</Badge>
+					{!!mountTargets.length &&
+						renderTargetGroup(
+							'documents',
+							t('Documents'),
+							mountTargets.map((mount) =>
+								renderTarget(
+									mount.target,
+									mount.label,
+									mount.target,
+									!mount.served && (
+										<Badge variant="soft" className="ms-2">
+											{t('not published yet')}
+										</Badge>
+									)
 								)
 							)
 						)}
-					</div>
-				)}
 
-				{pagesFailed ? (
-					<span className="c-hint">
-						{t('The published pages could not be listed. Enter a path below.')}
-					</span>
-				) : !pages ? (
-					<span className="c-hint">{t('Reading the published pages…')}</span>
-				) : !pageGroups.length ? (
-					<span className="c-hint">{t('No document has published any pages yet.')}</span>
-				) : (
-					pageGroups.map(([mountPath, group]) => (
-						<div key={mountPath} className="c-settings-section">
-							<div className="c-settings-section-title">{mountPath}</div>
-							{group.map((page) => renderTarget(page.path, page.title, page.path))}
-						</div>
-					))
-				)}
-
-				<div className="c-vbox g-1">
-					<span className="c-hint">
-						{t('Or a path of your own, or an address elsewhere')}
-					</span>
-					<div className="c-input-group">
-						<input
-							className="c-input w-min-0"
-							type="text"
-							value={custom}
-							aria-label={t('Path or address')}
-							placeholder={t('/about or https://example.com')}
-							onChange={(evt) => {
-								setCustom(evt.target.value)
-								setCustomRefused(false)
-							}}
-						/>
-						<Button disabled={!custom.trim()} onClick={addCustom}>
-							{t('Add')}
-						</Button>
-					</div>
-					{customRefused && (
-						<span className="c-hint text-error">
-							{t('Use a path like /about, or an http(s) address.')}
-						</span>
+					{pagesFailed ? (
+						<Text emphasis="muted">
+							{t('The published pages could not be listed. Enter a path below.')}
+						</Text>
+					) : !pages ? (
+						<Text emphasis="muted">{t('Reading the published pages…')}</Text>
+					) : !pageGroups.length ? (
+						<Text emphasis="muted">
+							{t('No document has published any pages yet.')}
+						</Text>
+					) : (
+						pageGroups.map(([mountPath, group]) =>
+							renderTargetGroup(
+								mountPath,
+								mountPath,
+								group.map((page) => renderTarget(page.path, page.title, page.path))
+							)
+						)
 					)}
-				</div>
-			</div>
+
+					<VBox gap={1}>
+						<Text emphasis="muted">
+							{t('Or a path of your own, or an address elsewhere')}
+						</Text>
+						<InputGroup>
+							<Input
+								className="w-min-0"
+								type="text"
+								value={custom}
+								aria-label={t('Path or address')}
+								aria-invalid={customRefused}
+								placeholder={t('/about or https://example.com')}
+								onChange={(evt) => {
+									setCustom(evt.target.value)
+									setCustomRefused(false)
+								}}
+							/>
+							<Button disabled={!custom.trim()} onClick={addCustom}>
+								{t('Add')}
+							</Button>
+						</InputGroup>
+						{customRefused && (
+							<Text size="sm" color="error">
+								{t('Use a path like /about, or an http(s) address.')}
+							</Text>
+						)}
+					</VBox>
+				</VBox>
+			</Popover>
 		)
 	}
 
-	function renderEntry(pos: NavPos, entry: { label: string; target: string }) {
+	function renderEntry(pos: NavPos, entry: SiteNavItem) {
 		const disabled = !isLeader || saving
 		// Said on the offending field as well as gating Save, so a refused target is a
 		// visible refusal rather than a Save button that mysteriously does nothing.
 		const refused = unsafeTarget(entry.target)
-		const refusedId = `nav-target-${pos.parent ?? 'top'}-${pos.index}-refused`
+		const refusedId = `${posId(pos)}-refused`
 		// Its own level's length, which is what bounds the move buttons below.
 		const siblings = pos.parent === null ? items : (items[pos.parent]?.children ?? [])
 		// Position-derived, because that is what the rows are keyed by: after a move
 		// the button at the destination slot is the one this item now owns.
 		const moveId = (at: number, dir: 'up' | 'down') =>
 			`nav-move-${pos.parent ?? 'top'}-${at}-${dir}`
+		const children = pos.parent === null ? (entry.children ?? []) : []
 		return (
-			<div
-				key={`${pos.parent ?? 'top'}-${pos.index}`}
-				role="listitem"
-				className={mergeClasses(
-					'c-nav-editor-item',
-					samePos(dragSource, pos) && 'dragging',
-					samePos(dragOver, pos) && 'drag-over'
-				)}
-				onDragOver={(evt) => {
-					evt.preventDefault()
-					setDragOver(pos)
-				}}
-				onDrop={(evt) => {
-					evt.preventDefault()
-					// The list container below has its own `onDrop` — "dropped past the
-					// last item" — and this event would otherwise bubble into it and
-					// reorder a *second* time, against the already-reordered array.
-					// The `setDragSource(undefined)` inside `onDrop` does not prevent
-					// that: it is a state update, so the container's handler still sees
-					// the source set in this same dispatch and its guard passes.
-					evt.stopPropagation()
-					onDrop(pos)
-				}}
-				onDragEnd={() => {
-					setDragSource(undefined)
-					setDragOver(undefined)
-				}}
+			<TreeItem
+				key={posId(pos)}
+				id={posId(pos)}
+				depth={pos.parent === null ? 0 : 1}
+				expanded
+				allowDropInside={false}
+				isDraggable={!disabled}
+				aria-label={entry.label || t('Item')}
+				label={
+					<VBox gap={1}>
+						<Input
+							className="w-min-0"
+							type="text"
+							value={entry.label}
+							disabled={disabled}
+							aria-label={t('Label')}
+							placeholder={t('Label')}
+							onChange={(evt) => editEntry(pos, { label: evt.target.value })}
+						/>
+						<Input
+							className="w-min-0"
+							type="text"
+							leading={<IcLink />}
+							value={entry.target}
+							disabled={disabled}
+							aria-label={t('Path or address')}
+							aria-invalid={refused}
+							aria-describedby={refused ? refusedId : undefined}
+							placeholder={t('/about or https://example.com')}
+							onChange={(evt) => editEntry(pos, { target: evt.target.value })}
+						/>
+						{refused && (
+							<Text id={refusedId} size="sm" color="error">
+								{t('Use a path like /about, or an http(s) address.')}
+							</Text>
+						)}
+					</VBox>
+				}
+				actions={
+					<>
+						{/* Dragging the row is a pointer gesture; these are how the list is
+						    reordered with a single tap, and how a screen reader does it. */}
+						<Button
+							variant="link"
+							size="sm"
+							id={moveId(pos.index, 'up')}
+							disabled={disabled || pos.index === 0}
+							aria-label={t('Move up')}
+							onClick={() => {
+								focusAfterMoveRef.current = moveId(pos.index - 1, 'up')
+								moveEntry(pos, pos.index - 1)
+							}}
+							icon={<IcUp />}
+						/>
+						<Button
+							variant="link"
+							size="sm"
+							id={moveId(pos.index, 'down')}
+							disabled={disabled || pos.index >= siblings.length - 1}
+							aria-label={t('Move down')}
+							onClick={() => {
+								// `moveEntry` takes an insert-*before* index in the pre-move
+								// list, hence `+ 2`; the item's resulting index is `+ 1`.
+								focusAfterMoveRef.current = moveId(pos.index + 1, 'down')
+								moveEntry(pos, pos.index + 2)
+							}}
+							icon={<IcDown />}
+						/>
+						{pos.parent === null &&
+							renderPicker(
+								pos.index,
+								<Button
+									disabled={
+										disabled ||
+										!!picker ||
+										(entry.children?.length ?? 0) >= MAX_NAV_ITEMS
+									}
+									aria-label={t('Add sub-item')}
+									icon={<IcPlus />}
+								/>
+							)}
+						<Button
+							disabled={disabled}
+							aria-label={t('Remove')}
+							onClick={() => removeEntry(pos)}
+							icon={<IcTrash />}
+						/>
+					</>
+				}
 			>
-				{/* Only the grip is draggable. With the whole row draggable the browser
-				    hands the gesture to drag-and-drop, so text inside the two inputs
-				    below cannot be selected with the mouse at all. */}
-				<span
-					className="c-nav-editor-grip"
-					draggable={isLeader && !saving}
-					aria-hidden="true"
-					onDragStart={(evt) => {
-						setDragSource(pos)
-						evt.dataTransfer.effectAllowed = 'move'
-					}}
-				>
-					<IcGrip />
-				</span>
-				{/* The grip is a mouse affordance and nothing else — these are how the
-				    list is reordered from the keyboard, and the only way a screen
-				    reader can reorder it at all. */}
-				<Button
-					kind="link"
-					mode="icon"
-					size="small"
-					id={moveId(pos.index, 'up')}
-					disabled={disabled || pos.index === 0}
-					title={t('Move up')}
-					aria-label={t('Move up')}
-					onClick={() => {
-						focusAfterMoveRef.current = moveId(pos.index - 1, 'up')
-						moveEntry(pos, pos.index - 1)
-					}}
-				>
-					<IcUp />
-				</Button>
-				<Button
-					kind="link"
-					mode="icon"
-					size="small"
-					id={moveId(pos.index, 'down')}
-					disabled={disabled || pos.index >= siblings.length - 1}
-					title={t('Move down')}
-					aria-label={t('Move down')}
-					onClick={() => {
-						// `moveEntry` takes an insert-*before* index in the pre-move
-						// list, hence `+ 2`; the item's resulting index is `+ 1`.
-						focusAfterMoveRef.current = moveId(pos.index + 1, 'down')
-						moveEntry(pos, pos.index + 2)
-					}}
-				>
-					<IcDown />
-				</Button>
-				<input
-					className="c-input flex-fill w-min-0"
-					type="text"
-					value={entry.label}
-					disabled={disabled}
-					aria-label={t('Label')}
-					placeholder={t('Label')}
-					onChange={(evt) => editEntry(pos, { label: evt.target.value })}
-				/>
-				{pos.parent === null && (
-					<Button
-						mode="icon"
-						disabled={
-							disabled || (items[pos.index]?.children?.length ?? 0) >= MAX_NAV_ITEMS
-						}
-						title={t('Add sub-item')}
-						aria-label={t('Add sub-item')}
-						onClick={() => openPicker(pos.index)}
-					>
-						<IcPlus />
-					</Button>
-				)}
-				<Button
-					mode="icon"
-					disabled={disabled}
-					title={t('Remove')}
-					aria-label={t('Remove')}
-					onClick={() => removeEntry(pos)}
-				>
-					<IcTrash />
-				</Button>
-				<div className="c-nav-editor-target">
-					<IcLink className="text-muted flex-shrink-0" />
-					<input
-						className={mergeClasses('c-input flex-fill w-min-0', refused && 'error')}
-						type="text"
-						value={entry.target}
-						disabled={disabled}
-						aria-label={t('Path or address')}
-						aria-invalid={refused}
-						aria-describedby={refused ? refusedId : undefined}
-						placeholder={t('/about or https://example.com')}
-						onChange={(evt) => editEntry(pos, { target: evt.target.value })}
-					/>
-				</div>
-				{refused && (
-					<span id={refusedId} className="c-hint text-error">
-						{t('Use a path like /about, or an http(s) address.')}
-					</span>
-				)}
-			</div>
+				{children.length
+					? children.map((child, cIndex) =>
+							renderEntry({ parent: pos.index, index: cIndex }, child)
+						)
+					: undefined}
+			</TreeItem>
 		)
 	}
 
 	return (
-		<div className="c-panel c-site-panel">
-			<h4 className="pb-2">{t('Navigation')}</h4>
-
+		<Panel title={t('Navigation')}>
 			{/* A segmented button, not a tab bar: this picks how the navigation is
 			built, it does not navigate to the panel below. */}
 			<Segmented
@@ -630,7 +652,8 @@ export function SiteNavPanel({
 								t('Go back to automatic navigation?'),
 								t(
 									'The navigation you built is discarded and the site lists its top-level pages again.'
-								)
+								),
+								{ color: 'error', confirmLabel: t('Discard') }
 							)
 							if (!confirmed) return
 							setPicker(undefined)
@@ -645,117 +668,91 @@ export function SiteNavPanel({
 
 			{!explicit ? (
 				<>
-					<p className="c-hint">
+					<Text as="p" emphasis="muted">
 						{t(
 							'Automatic: the site lists the top-level pages of the document served at /. Take it over to reorder, rename or add items, including links into another document and addresses elsewhere.'
 						)}
-					</p>
+					</Text>
 					{derivedNav.length ? (
-						<table className="c-table compact c-site-table">
-							<thead>
-								<tr>
-									<th>{t('Label')}</th>
-									<th>{t('Target')}</th>
-								</tr>
-							</thead>
-							<tbody>
-								{derivedNav.map((item, index) => (
-									<tr key={`${index}-${item.target}`}>
-										<td data-label={t('Label')}>{item.label}</td>
-										<td className="c-hint" data-label={t('Target')}>
-											{item.target}
-										</td>
-									</tr>
-								))}
-							</tbody>
-						</table>
+						<Table
+							variant="compact"
+							stack
+							aria-label={t('Navigation')}
+							columns={[t('Label'), t('Target')]}
+						>
+							{derivedNav.map((item, index) => (
+								<TableRow key={`${index}-${item.target}`}>
+									<TableCell>{item.label}</TableCell>
+									<TableCell>
+										<Text emphasis="muted">{item.target}</Text>
+									</TableCell>
+								</TableRow>
+							))}
+						</Table>
 					) : (
-						<p className="c-hint">
+						<Text as="p" emphasis="muted">
 							{t(
 								'Nothing to show yet — the navigation appears once the root document is published.'
 							)}
-						</p>
+						</Text>
 					)}
 				</>
 			) : (
 				<>
-					<p className="c-hint">
+					<Text as="p" emphasis="muted">
 						{t(
 							'Custom: this list is what the site serves, in this order. It takes effect at once — no document has to be published again.'
 						)}
-					</p>
-					<div
-						className="c-nav-editor"
-						role="list"
-						aria-label={t('Navigation items')}
-						onDragOver={(evt) => evt.preventDefault()}
-						onDrop={(evt) => {
-							evt.preventDefault()
-							onDrop({ parent: null, index: items.length })
-						}}
-					>
-						{items.map((item, index) => (
-							<React.Fragment key={`item-${index}`}>
-								{renderEntry({ parent: null, index }, item)}
-								{!!item.children?.length && (
-									// `group`, not a nested `list`: a list's own children
-									// must be list items, and a group of them is the one
-									// other thing ARIA allows directly inside one.
-									<div className="c-nav-editor-child" role="group">
-										{item.children.map((child, cIndex) =>
-											renderEntry({ parent: index, index: cIndex }, child)
-										)}
-									</div>
-								)}
-							</React.Fragment>
-						))}
-						{!items.length && (
-							<span className="c-hint">
-								{t('No items yet — add the first one below.')}
-							</span>
-						)}
-					</div>
+					</Text>
+					{items.length ? (
+						<TreeView aria-label={t('Navigation items')} onMove={onMove}>
+							{items.map((item, index) => renderEntry({ parent: null, index }, item))}
+						</TreeView>
+					) : (
+						<Text as="p" emphasis="muted">
+							{t('No items yet — add the first one below.')}
+						</Text>
+					)}
 
-					{renderPicker()}
-
-					<div className="c-hbox g-2 flex-wrap justify-content-end">
+					<HBox gap={2} wrap justify="end" align="center">
 						{blank ? (
-							<span className="c-hint flex-fill">
+							<Text emphasis="muted" className="flex-fill">
 								{t('Every item needs a label and a target.')}
-							</span>
+							</Text>
 						) : (
 							unsafe && (
-								<span className="c-hint text-error flex-fill">
+								<Text color="error" className="flex-fill">
 									{t('A target must be a path or an http(s) address.')}
-								</span>
+								</Text>
 							)
 						)}
+						{renderPicker(
+							null,
+							<Button
+								disabled={
+									!isLeader || saving || !!picker || items.length >= MAX_NAV_ITEMS
+								}
+							>
+								{t('Add item')}
+							</Button>
+						)}
 						<Button
-							disabled={
-								!isLeader || saving || !!picker || items.length >= MAX_NAV_ITEMS
-							}
-							onClick={() => openPicker(null)}
-						>
-							{t('Add item')}
-						</Button>
-						<Button
-							variant="primary"
+							color="primary"
 							disabled={!isLeader || saving || !dirty || blank || unsafe}
 							onClick={() => write(items.length ? items : null)}
 						>
 							{t('Save')}
 						</Button>
-					</div>
+					</HBox>
 				</>
 			)}
 
 			{error && (
-				<span className="text-error c-hbox align-items-center g-1" role="alert">
-					<IcAlert className="flex-shrink-0" />
-					{error}
-				</span>
+				<Text as="div" color="error" role="alert">
+					<IconText icon={<IcAlert />}>{error}</IconText>
+				</Text>
 			)}
-		</div>
+		</Panel>
 	)
 }
 

@@ -2,7 +2,19 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import { FetchError, type TenantView } from '@cloudillo/core'
-import { ProfilePicture, useApi, useToast } from '@cloudillo/react'
+import {
+	Badge,
+	Button,
+	Field,
+	HBox,
+	Input,
+	Panel,
+	ProfilePicture,
+	Text,
+	useApi,
+	useToast,
+	VBox
+} from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { LuShield as IcAdmin, LuUsers as IcCommunity, LuUser as IcPerson } from 'react-icons/lu'
@@ -176,74 +188,66 @@ export function TenantDetail() {
 	}
 
 	return (
-		<div className="c-vbox g-3">
-			<div className="c-panel flex-row align-items-center g-3 px-3 py-2">
-				<div
-					style={{
-						width: '2rem',
-						height: '2rem',
-						borderRadius: '50%',
-						overflow: 'hidden',
-						flexShrink: 0
-					}}
-				>
-					<ProfilePicture profile={{ profilePic: tenant?.profilePic }} srcTag={idTag} />
-				</div>
-				<div className="flex-fill">
-					<strong>{tenant?.name ?? idTag}</strong>{' '}
-					<span className="text-muted small">@{idTag}</span>
-				</div>
-				{tenant?.type === 'community' ? (
-					<span className="text-muted" title={t('Community')}>
-						<IcCommunity />
-					</span>
-				) : (
-					<span className="text-muted" title={t('Person')}>
-						<IcPerson />
-					</span>
-				)}
-				{tenant?.roles?.includes('admin') && (
-					<span className="c-badge info" title={t('Administrator')}>
-						<IcAdmin />
-					</span>
-				)}
-			</div>
-
-			<div className="c-panel">
-				<h4>{t('Storage')}</h4>
-
-				<label className="c-hbox pb-2 g-2">
-					<span className="flex-fill">{t('Maximum Storage Quota (GB)')}</span>
-					<input
-						className={`c-input w-xs ${storageInputError ? 'is-invalid' : ''}`}
-						name={STORAGE_KEY}
-						type="number"
-						min="1"
-						max="100000"
-						placeholder={String(storageGbDefault)}
-						value={storageInput}
-						onChange={onStorageInput}
+		<VBox gap={3}>
+			<Panel padding={2}>
+				<HBox gap={3} align="center">
+					<ProfilePicture
+						size="sm"
+						profile={{ profilePic: tenant?.profilePic }}
+						srcTag={idTag}
 					/>
-					<button
-						type="button"
-						className="c-link"
-						disabled={tenantStorageGb === undefined || storageBusy}
-						onClick={onStorageReset}
-					>
-						{t('Reset to default')}
-					</button>
-				</label>
-				{storageInputError && (
-					<p className="c-invalid-feedback mb-2">{storageInputError}</p>
-				)}
-				<p className="c-hint mb-4">
-					{t('Default for all tenants: {{n}} GB.', { n: storageGbDefault })}{' '}
-					{tenantStorageGb === undefined
-						? t('No override set — inheriting the default.')
-						: t('Set a value here to override for this tenant.')}
-				</p>
-			</div>
-		</div>
+					<Text as="div" className="flex-fill">
+						<Text weight="bold">{tenant?.name ?? idTag}</Text>{' '}
+						<Text size="sm" emphasis="muted">
+							@{idTag}
+						</Text>
+					</Text>
+					{tenant?.type === 'community' ? (
+						<Badge icon={<IcCommunity />}>{t('Community')}</Badge>
+					) : (
+						<Badge icon={<IcPerson />}>{t('Person')}</Badge>
+					)}
+					{tenant?.roles?.includes('admin') && (
+						<Badge color="info" icon={<IcAdmin />}>
+							{t('Administrator')}
+						</Badge>
+					)}
+				</HBox>
+			</Panel>
+
+			<Panel title={t('Storage')}>
+				<Field
+					label={t('Maximum Storage Quota (GB)')}
+					orientation="horizontal"
+					error={storageInputError}
+					hint={`${t('Default for all tenants: {{n}} GB.', { n: storageGbDefault })} ${
+						tenantStorageGb === undefined
+							? t('No override set — inheriting the default.')
+							: t('Set a value here to override for this tenant.')
+					}`}
+				>
+					<HBox gap={2} align="center">
+						<Input
+							className="w-xs"
+							name={STORAGE_KEY}
+							type="number"
+							min="1"
+							max="100000"
+							placeholder={String(storageGbDefault)}
+							value={storageInput}
+							onChange={onStorageInput}
+						/>
+						<Button
+							variant="link"
+							disabled={tenantStorageGb === undefined || storageBusy}
+							onClick={onStorageReset}
+						>
+							{t('Reset to default')}
+						</Button>
+					</HBox>
+				</Field>
+			</Panel>
+		</VBox>
 	)
 }
 

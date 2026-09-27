@@ -1,7 +1,19 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button, LoadingSpinner, useAuth, useDialog, useToast } from '@cloudillo/react'
+import {
+	Button,
+	Field,
+	HBox,
+	LoadingSpinner,
+	NativeSelect,
+	Panel,
+	Text,
+	Toggle,
+	useAuth,
+	useDialog,
+	useToast
+} from '@cloudillo/react'
 import type { TFunction } from 'i18next'
 import { useAtomValue } from 'jotai'
 import * as React from 'react'
@@ -115,20 +127,16 @@ export function FilesSettings() {
 		}
 	}
 
-	if (!settings) return <LoadingSpinner />
+	if (!settings) return <LoadingSpinner className="auto-bg" />
 
 	return (
 		<>
-			<div className="c-panel">
-				<h4>{t('File Synchronization')}</h4>
-				<p className="text-muted">
-					{t('Control which file variants are synchronized to your device')}
-				</p>
-
-				<label className="c-settings-field">
-					<span>{t('Max image quality')}</span>
-					<select
-						className="c-select"
+			<Panel
+				title={t('File Synchronization')}
+				description={t('Control which file variants are synchronized to your device')}
+			>
+				<Field label={t('Max image quality')} orientation="horizontal">
+					<NativeSelect
 						name="file.sync_max_vis"
 						value={(settings['file.sync_max_vis'] as string) || 'md'}
 						onChange={onSettingChange}
@@ -138,13 +146,11 @@ export function FilesSettings() {
 								{opt.label}
 							</option>
 						))}
-					</select>
-				</label>
+					</NativeSelect>
+				</Field>
 
-				<label className="c-settings-field">
-					<span>{t('Max video quality')}</span>
-					<select
-						className="c-select"
+				<Field label={t('Max video quality')} orientation="horizontal">
+					<NativeSelect
 						name="file.sync_max_vid"
 						value={(settings['file.sync_max_vid'] as string) || 'sd'}
 						onChange={onSettingChange}
@@ -154,13 +160,11 @@ export function FilesSettings() {
 								{opt.label}
 							</option>
 						))}
-					</select>
-				</label>
+					</NativeSelect>
+				</Field>
 
-				<label className="c-settings-field">
-					<span>{t('Max audio quality')}</span>
-					<select
-						className="c-select"
+				<Field label={t('Max audio quality')} orientation="horizontal">
+					<NativeSelect
 						name="file.sync_max_aud"
 						value={(settings['file.sync_max_aud'] as string) || 'md'}
 						onChange={onSettingChange}
@@ -170,47 +174,43 @@ export function FilesSettings() {
 								{opt.label}
 							</option>
 						))}
-					</select>
-				</label>
-			</div>
+					</NativeSelect>
+				</Field>
+			</Panel>
 
 			{canManageIndex && (
-				<div className="c-panel">
-					<h4>{t('Search index')}</h4>
-					{/* Heading and hint stay put in all three states, so the panel
-					    does not jump as the value lands. */}
+				// The hint is the Panel description, so it stays put in all three states and
+				// the panel does not jump as the value lands.
+				<Panel
+					title={t('Search index')}
+					description={t(
+						'Keeps a plain-text copy of your documents and posts alongside the search index so results can show highlighted snippets. Turning this off makes the index substantially smaller; search still works, but snippets are no longer available.'
+					)}
+				>
 					{storeText !== undefined ? (
-						<label className="c-settings-field">
-							<span>{t('Store indexed document text')}</span>
-							<input
-								className="c-toggle primary"
-								type="checkbox"
-								checked={storeText}
-								disabled={busy}
-								onChange={handleStoreTextChange}
-							/>
-						</label>
+						<Toggle
+							color="primary"
+							checked={storeText}
+							disabled={busy}
+							onChange={handleStoreTextChange}
+							label={t('Store indexed document text')}
+						/>
 					) : storeTextError ? (
-						<div className="c-settings-field">
-							<span className="text-error">
+						<HBox gap={2} align="center" justify="between">
+							<Text color="error">
 								{t('Failed to load the search index setting.')}
-							</span>
+							</Text>
 							<Button onClick={() => setReloadKey((key) => key + 1)}>
 								{t('Retry')}
 							</Button>
-						</div>
+						</HBox>
 					) : (
-						<div className="c-settings-field">
-							<span>{t('Store indexed document text')}</span>
+						<HBox gap={2} align="center" justify="between">
+							<Text>{t('Store indexed document text')}</Text>
 							<LoadingSpinner size="sm" />
-						</div>
+						</HBox>
 					)}
-					<p className="c-hint">
-						{t(
-							'Keeps a plain-text copy of your documents and posts alongside the search index so results can show highlighted snippets. Turning this off makes the index substantially smaller; search still works, but snippets are no longer available.'
-						)}
-					</p>
-				</div>
+				</Panel>
 			)}
 		</>
 	)

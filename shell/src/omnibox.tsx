@@ -19,9 +19,17 @@
 import type { Profile } from '@cloudillo/core'
 import {
 	Button,
+	HBox,
+	Kbd,
+	List,
+	ListItem,
 	LoadingSpinner,
-	mergeClasses,
+	Meta,
+	overlayContainer,
 	ProfilePicture,
+	SearchInput,
+	Text,
+	useAnchoredPosition,
 	useApi,
 	useAuth,
 	useDebouncedValue,
@@ -40,7 +48,6 @@ import {
 	LuLink as IcRef,
 	LuSearch as IcSearch
 } from 'react-icons/lu'
-import { usePopper } from 'react-popper'
 import { useMatch, useNavigate } from 'react-router-dom'
 
 import {
@@ -223,7 +230,7 @@ export function Omnibox() {
 	// keystroke ends it.
 	const [pristine, setPristine] = React.useState(!!search.selectAll)
 
-	const [popperRef, setPopperRef] = React.useState<HTMLElement | null>(null)
+	const [anchorEl, setAnchorEl] = React.useState<HTMLElement | null>(null)
 	const [popperEl, setPopperEl] = React.useState<HTMLUListElement | null>(null)
 	const fieldRef = React.useRef<HTMLDivElement | null>(null)
 	const inputRef = React.useRef<HTMLInputElement | null>(null)
@@ -247,10 +254,11 @@ export function Omnibox() {
 	// reporting (see the effect below).
 	const [showSpinner, setShowSpinner] = React.useState(false)
 
-	const { styles: popperStyles, attributes } = usePopper(popperRef, popperEl, {
-		placement: 'bottom-start',
-		strategy: 'fixed'
-	})
+	const { style: listStyle, attributes: listAttributes } = useAnchoredPosition(
+		anchorEl,
+		popperEl,
+		{ offset: 0 }
+	)
 
 	const debouncedQuery = useDebouncedValue(query, FTS_DEBOUNCE_MS)
 	// The network effects gate on *both* modes: `mode` alone would fire for a stale
@@ -635,12 +643,10 @@ export function Omnibox() {
 
 	const inputProps = cb.getInputProps({
 		autoFocus: true,
-		type: 'search',
 		// Otherwise the browser's own history dropdown overlaps the combobox menu.
 		autoComplete: 'off',
 		placeholder: t('Search this space'),
 		'aria-label': t('Search'),
-		className: 'c-input flex-fill',
 		// downshift composes a passed ref via `handleRefs`; this is how the
 		// select-on-recall effect reaches the field.
 		ref: (el: HTMLInputElement) => {
@@ -743,191 +749,197 @@ export function Omnibox() {
 	const shortcutHint =
 		typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || '') ? '⌘K' : 'Ctrl K'
 
-	function renderRow(item: OmniItem) {
+	function renderRow(item: OmniItem, idx: number) {
+		// `isItemDisabled` keeps the highlight off the status rows, so the index
+		// comparison alone suffices. Select on mousedown-without-blur: the input stays
+		// focused so the blur-to-close handler doesn't fire before the click selects.
+		const { onClick, ...itemProps } = cb.getItemProps({ item, index: idx })
+		const row = {
+			...itemProps,
+			tabIndex: -1,
+			selected: cb.highlightedIndex === idx,
+			onClick: onClick as ((evt: React.SyntheticEvent<HTMLElement>) => void) | undefined,
+			onMouseDown: (e: React.MouseEvent) => e.preventDefault()
+		}
 		if (item.kind === 'command') {
 			const { menuItem } = item
 			return (
-				<span className="c-hbox align-items-center g-2">
-					{menuItem.icon && React.createElement(menuItem.icon)}
-					<span>{menuItem.trans?.[i18n.language] || menuItem.label}</span>
-				</span>
+				<ListItem
+					{...row}
+					leading={menuItem.icon && React.createElement(menuItem.icon)}
+					title={menuItem.trans?.[i18n.language] || menuItem.label}
+				/>
 			)
 		}
 		if (item.kind === 'profile') {
 			const { profile } = item
 			return (
-				<span className="c-hbox align-items-center g-2">
-					{/* Full size, matching the `'hit'` rows below: the two kinds sit in
-					    one list and a half-height avatar between them reads as a glitch. */}
-					<ProfilePicture profile={profile} srcTag={profile.idTag} />
-					<span className="c-vbox">
-						<span>{profile.name || profile.idTag}</span>
-						<span className="small text-muted">@{profile.idTag}</span>
-					</span>
-				</span>
+				<ListItem
+					{...row}
+					// Full size, matching the `'hit'` rows below: the two kinds sit in one
+					// list and a half-height avatar between them reads as a glitch.
+					leading={<ProfilePicture profile={profile} srcTag={profile.idTag} />}
+					title={profile.name || profile.idTag}
+					subtitle={`@${profile.idTag}`}
+				/>
 			)
 		}
 		if (item.kind === 'hit') {
-			return <SearchResultRow hit={item.hit} compact contextIdTag={contextIdTag} />
+			return <SearchResultRow {...row} hit={item.hit} compact contextIdTag={contextIdTag} />
 		}
 		if (item.kind === 'see-all') {
 			return (
-				<span className="c-hbox align-items-center g-2">
-					<IcSearch />
-					<span>{t('See all {{count}} results', { count: item.total ?? 0 })}</span>
-				</span>
+				<ListItem
+					{...row}
+					leading={<IcSearch />}
+					title={t('See all {{count}} results', { count: item.total ?? 0 })}
+				/>
 			)
 		}
 		if (item.kind === 'recent') {
 			return (
-				<span className="c-hbox align-items-center g-2 w-100">
-					<IcHistory />
-					<span className="flex-fill c-omnibox-recent-term">{item.query}</span>
-					<Button
-						className="icon flat c-omnibox-recent-remove"
-						// Same blur guard as the close button: keep the input focused
-						// so the dropdown is still there when the click lands.
-						onMouseDown={(e) => e.preventDefault()}
-						onClick={(e) => {
-							// Otherwise the row underneath selects the term the
-							// click was meant to delete.
-							e.stopPropagation()
-							removeRecent(item.query)
-						}}
-						aria-label={t('Remove from search history')}
-						title={t('Remove from search history')}
-					>
-						<IcClose size={14} />
-					</Button>
-				</span>
+				<ListItem
+					{...row}
+					leading={<IcHistory />}
+					title={item.query}
+					trailing={
+						<Button
+							variant="ghost"
+							size="sm"
+							icon={<IcClose size={14} />}
+							// Same blur guard as the close button: keep the input focused
+							// so the dropdown is still there when the click lands.
+							onMouseDown={(e) => e.preventDefault()}
+							onClick={(e) => {
+								// Otherwise the row underneath selects the term the
+								// click was meant to delete.
+								e.stopPropagation()
+								removeRecent(item.query)
+							}}
+							aria-label={t('Remove from search history')}
+						/>
+					}
+				/>
 			)
 		}
 		if (item.kind === 'recent-clear') {
 			return (
-				<span className="c-hbox align-items-center g-2 text-muted small">
-					<IcClose size={14} />
-					<span>{t('Clear search history')}</span>
-				</span>
+				<ListItem
+					{...row}
+					leading={<IcClose size={14} />}
+					title={
+						<Text size="sm" emphasis="muted">
+							{t('Clear search history')}
+						</Text>
+					}
+				/>
 			)
 		}
-		if (item.kind === 'fts-loading') {
+		if (item.kind === 'fts-loading' || item.kind === 'fts-empty') {
 			return (
-				<span className="c-hbox align-items-center g-2 text-muted">
-					<LoadingSpinner size="sm" />
-					<span>{t('Searching...')}</span>
-				</span>
-			)
-		}
-		if (item.kind === 'fts-empty') {
-			return (
-				<span className="c-hbox align-items-center g-2 text-muted">
-					<IcSearch />
-					<span>{t('No results found')}</span>
-				</span>
+				<ListItem
+					{...row}
+					disabled
+					leading={
+						item.kind === 'fts-loading' ? <LoadingSpinner size="sm" /> : <IcSearch />
+					}
+					title={
+						<Text emphasis="muted">
+							{item.kind === 'fts-loading'
+								? t('Searching...')
+								: t('No results found')}
+						</Text>
+					}
+				/>
 			)
 		}
 		const target = resolveRef(item.raw)
 		return (
-			<span className="c-hbox align-items-center g-2">
-				<IcRef />
-				<span className="c-vbox">
-					<span>{t('Open reference')}</span>
-					{target && <span className="small text-muted">{target}</span>}
-				</span>
-			</span>
+			<ListItem
+				{...row}
+				leading={<IcRef />}
+				title={t('Open reference')}
+				subtitle={target || undefined}
+			/>
 		)
 	}
 
 	return (
-		<div
-			className="c-hbox align-items-center g-1 flex-fill"
+		<HBox
+			align="center"
+			gap={1}
+			fill
 			role="search"
 			// Labelled because /search puts a second search landmark on the page.
 			aria-label={t('Quick search')}
 			style={{ minWidth: 0 }}
 		>
-			<div
-				ref={(el) => {
-					// Two owners: popper positions against it, and the blur guard asks
+			<HBox
+				ref={(el: HTMLDivElement | null) => {
+					// Two owners: the listbox positions against it, and the blur guard asks
 					// whether focus merely moved inside the field.
 					fieldRef.current = el
-					setPopperRef(el)
+					setAnchorEl(el)
 				}}
+				align="center"
+				gap={1}
+				fill
 				className="c-omnibox-field"
 			>
-				<span className="c-omnibox-field-icon">
-					<IcSearch />
-				</span>
-				<input {...inputProps} />
-				{!query && (
-					<kbd className="c-omnibox-kbd" aria-hidden="true">
-						{shortcutHint}
-					</kbd>
-				)}
+				<SearchInput
+					{...inputProps}
+					className="flex-fill"
+					shortcut={query ? undefined : shortcutHint}
+				/>
 				<Button
-					className="icon flat"
+					variant="ghost"
+					icon={<IcClose />}
 					onMouseDown={(e) => e.preventDefault()}
 					onClick={() => setSearch({})}
 					aria-label={t('Close search')}
-				>
-					<IcClose />
-				</Button>
-			</div>
+				/>
+			</HBox>
 			{createPortal(
-				<ul
+				<List
+					selectable="single"
 					{...getMenuProps()}
 					style={{
-						...popperStyles.popper,
+						...listStyle,
 						// Decoupled from the ARIA open state: with zero rows there is
 						// nothing to expand to, but the legend must stay paintable or a
 						// cold start never discovers the sigils.
 						...(cb.isOpen || showLegend ? {} : { display: 'none' })
 					}}
-					className="c-nav c-omnibox-menu flex-column text-start c-card p-1"
-					{...attributes.popper}
+					className="c-omnibox-menu c-card p-1"
+					{...listAttributes}
 				>
 					{items.map((item, idx) => (
-						<li
-							key={idx}
-							// `isItemDisabled` keeps the highlight off the status rows,
-							// so the index comparison alone suffices.
-							className={mergeClasses(
-								'c-nav-item',
-								cb.highlightedIndex === idx && 'selected'
-							)}
-							// Select on mousedown-without-blur: keep input focused so
-							// the blur-to-close handler doesn't fire before the click
-							// selects.
-							onMouseDown={(e) => e.preventDefault()}
-							{...cb.getItemProps({ item, index: idx })}
-						>
-							{renderRow(item)}
-						</li>
+						<React.Fragment key={idx}>{renderRow(item, idx)}</React.Fragment>
 					))}
 					{showLegend && (
 						// Not selectable, and a listbox child without `role="option"`
 						// must say so.
-						<li className="c-omnibox-legend small text-muted" role="presentation">
+						<ListItem className="c-omnibox-legend" role="presentation">
 							{/* Sigils stay outside the translated strings: i18next uses
 							    keySeparator '@' and nsSeparator '$', so a literal `@` in
 							    a key would never resolve. */}
-							<span>
-								<code>/</code> {t('apps')}
-							</span>
-							<span aria-hidden="true">·</span>
-							<span>
-								<code>@</code> {t('people')}
-							</span>
-							<span aria-hidden="true">·</span>
-							<span>
-								<code>cl:</code> {t('links')}
-							</span>
-						</li>
+							<Meta>
+								<Text>
+									<Kbd>/</Kbd> {t('apps')}
+								</Text>
+								<Text>
+									<Kbd>@</Kbd> {t('people')}
+								</Text>
+								<Text>
+									<Kbd>cl:</Kbd> {t('links')}
+								</Text>
+							</Meta>
+						</ListItem>
 					)}
-				</ul>,
-				document.getElementById('popper-container')!
+				</List>,
+				overlayContainer(anchorEl)
 			)}
-		</div>
+		</HBox>
 	)
 }
 

@@ -1,24 +1,38 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { MiniCalendar } from '@cloudillo/calendar-ui'
 import type { CalendarOutput } from '@cloudillo/core'
-import { Menu, MenuItem, mergeClasses, useDialog } from '@cloudillo/react'
-import dayjs, { type Dayjs } from 'dayjs'
+import {
+	Button,
+	ColorDot,
+	HBox,
+	Heading,
+	List,
+	ListItem,
+	Menu,
+	MenuItem,
+	Panel,
+	Text,
+	Toggle,
+	useDialog,
+	VBox
+} from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
 	LuPlus as IcAdd,
 	LuTrash as IcDelete,
 	LuPencil as IcEdit,
-	LuEllipsisVertical as IcMore,
-	LuChevronRight as IcNext,
-	LuChevronLeft as IcPrev
+	LuEllipsisVertical as IcMore
 } from 'react-icons/lu'
 
 export interface CalendarSidebarProps {
 	calendars: CalendarOutput[]
 	visible: Set<number> | null
 	currentDate: string
+	/** 0 = Sunday, 1 = Monday; undefined = locale default */
+	firstDayOfWeek?: 0 | 1
 	onToggle: (calId: number) => void
 	onEdit: (cal: CalendarOutput) => void
 	onDelete: (cal: CalendarOutput) => Promise<void>
@@ -36,17 +50,18 @@ export function CalendarSidebar({
 	calendars,
 	visible,
 	currentDate,
+	firstDayOfWeek,
 	onToggle,
 	onEdit,
 	onDelete,
 	onCreate,
 	onPickDate
 }: CalendarSidebarProps) {
-	const { t } = useTranslation()
+	const { t, i18n } = useTranslation()
 	const dialog = useDialog()
 	const [calMenu, setCalMenu] = React.useState<CalMenuState | null>(null)
 
-	function openMenu(e: React.MouseEvent<HTMLButtonElement>, cal: CalendarOutput) {
+	function openMenu(e: React.MouseEvent<HTMLElement>, cal: CalendarOutput) {
 		e.stopPropagation()
 		const rect = e.currentTarget.getBoundingClientRect()
 		const MENU_WIDTH = 180
@@ -57,79 +72,77 @@ export function CalendarSidebar({
 	async function handleDelete(cal: CalendarOutput) {
 		const confirmed = await dialog.confirm(
 			t('Delete calendar?'),
-			t('All events and tasks in "{{name}}" will be permanently removed.', { name: cal.name })
+			t('All events and tasks in "{{name}}" will be permanently removed.', {
+				name: cal.name
+			}),
+			{ color: 'error', confirmLabel: t('Delete') }
 		)
 		if (!confirmed) return
 		await onDelete(cal)
 	}
 
 	return (
-		<div className="c-cal-sidebar">
-			<MiniNavigator currentDate={currentDate} onPickDate={onPickDate} />
+		<Panel padding={0} className="flex-fill h-min-0 overflow-y-auto">
+			<VBox>
+				<MiniCalendar
+					date={currentDate}
+					onDateChange={onPickDate}
+					locale={i18n.language}
+					firstDayOfWeek={firstDayOfWeek}
+					prevLabel={t('Previous month')}
+					nextLabel={t('Next month')}
+				/>
 
-			<div className="c-cal-sidebar__section-header">
-				<span className="c-cal-sidebar__section-title">{t('My calendars')}</span>
-				<button
-					type="button"
-					className="c-link"
-					onClick={onCreate}
-					aria-label={t('New calendar')}
-					title={t('New calendar')}
-				>
-					<IcAdd />
-				</button>
-			</div>
+				<HBox align="center" justify="between" className="px-2 pt-2">
+					<Heading level={2} size="xs" overline>
+						{t('My calendars')}
+					</Heading>
+					<Button
+						variant="ghost"
+						size="sm"
+						onClick={onCreate}
+						aria-label={t('New calendar')}
+						icon={<IcAdd />}
+					/>
+				</HBox>
 
-			<div className="c-cal-list">
-				{calendars.map((cal) => {
-					const isVisible = visible === null || visible.has(cal.calId)
-					return (
-						<div
-							key={cal.calId}
-							className={mergeClasses('c-cal-item', !isVisible && 'dimmed')}
-							onClick={() => onToggle(cal.calId)}
-							onKeyDown={(e) => {
-								if (e.key === 'Enter' || e.key === ' ') {
-									e.preventDefault()
-									onToggle(cal.calId)
+				<List className="p-1">
+					{calendars.map((cal) => {
+						const isVisible = visible === null || visible.has(cal.calId)
+						return (
+							<ListItem
+								key={cal.calId}
+								leading={<ColorDot color={cal.color || 'var(--col-primary)'} />}
+								title={
+									<Text truncate emphasis={isVisible ? undefined : 'muted'}>
+										{cal.name}
+									</Text>
 								}
-							}}
-							tabIndex={0}
-							role="button"
-							aria-pressed={isVisible}
-							aria-label={
-								isVisible
-									? t('Hide {{name}}', { name: cal.name })
-									: t('Show {{name}}', { name: cal.name })
-							}
-						>
-							<span
-								className="c-cal-item__swatch"
-								style={{
-									background: isVisible
-										? cal.color || 'var(--col-primary)'
-										: 'transparent',
-									borderColor: cal.color || 'var(--col-primary)'
-								}}
-								aria-hidden="true"
+								actions={
+									<Button
+										variant="ghost"
+										size="sm"
+										immediate
+										aria-label={t('More actions for {{name}}', {
+											name: cal.name
+										})}
+										aria-haspopup="menu"
+										onClick={(e) => openMenu(e, cal)}
+										icon={<IcMore />}
+									/>
+								}
+								trailing={
+									<Toggle
+										checked={isVisible}
+										onChange={() => onToggle(cal.calId)}
+										aria-label={t('Show {{name}}', { name: cal.name })}
+									/>
+								}
 							/>
-							<span className="c-cal-item__name" title={cal.name}>
-								{cal.name}
-							</span>
-							<button
-								type="button"
-								className="c-link c-cal-item__more"
-								title={t('More actions')}
-								aria-label={t('More actions for {{name}}', { name: cal.name })}
-								aria-haspopup="menu"
-								onClick={(e) => openMenu(e, cal)}
-							>
-								<IcMore />
-							</button>
-						</div>
-					)
-				})}
-			</div>
+						)
+					})}
+				</List>
+			</VBox>
 
 			{calMenu && (
 				<Menu position={{ x: calMenu.x, y: calMenu.y }} onClose={() => setCalMenu(null)}>
@@ -154,103 +167,7 @@ export function CalendarSidebar({
 					/>
 				</Menu>
 			)}
-		</div>
-	)
-}
-
-function MiniNavigator({
-	currentDate,
-	onPickDate
-}: {
-	currentDate: string
-	onPickDate: (date: string) => void
-}) {
-	const { t, i18n } = useTranslation()
-	const [viewMonth, setViewMonth] = React.useState<Dayjs>(() => dayjs(currentDate).startOf('day'))
-
-	React.useEffect(
-		function syncMonth() {
-			setViewMonth(dayjs(currentDate).startOf('day'))
-		},
-		[currentDate]
-	)
-
-	const monthStart = viewMonth.startOf('month')
-	const gridStart = monthStart.subtract(monthStart.day(), 'day')
-	const cells: Dayjs[] = []
-	for (let i = 0; i < 42; i++) cells.push(gridStart.add(i, 'day'))
-
-	const selected = dayjs(currentDate).startOf('day')
-	const today = dayjs()
-	const label = new Intl.DateTimeFormat(i18n.language, {
-		month: 'long',
-		year: 'numeric'
-	}).format(viewMonth.toDate())
-	const dowFormat = new Intl.DateTimeFormat(i18n.language, { weekday: 'narrow' })
-	const dowHeaders = Array.from({ length: 7 }, (_, i) => {
-		// Sun Jan 7 2024 is a known Sunday; advance by weekday index.
-		const anchor = dayjs('2024-01-07').add(i, 'day').toDate()
-		return dowFormat.format(anchor)
-	})
-
-	function stepMonth(delta: number) {
-		setViewMonth((m) => m.add(delta, 'month'))
-	}
-
-	return (
-		<div className="c-vbox">
-			<div className="d-flex align-items-center justify-content-between px-2 pt-2">
-				<button
-					type="button"
-					className="c-link"
-					onClick={() => stepMonth(-1)}
-					aria-label={t('Previous month')}
-				>
-					<IcPrev />
-				</button>
-				<strong className="text-center" aria-live="polite">
-					{label}
-				</strong>
-				<button
-					type="button"
-					className="c-link"
-					onClick={() => stepMonth(1)}
-					aria-label={t('Next month')}
-				>
-					<IcNext />
-				</button>
-			</div>
-			<div className="c-cal-mini">
-				{dowHeaders.map((dow, i) => (
-					<div key={`h${i}`} className="c-cal-mini__header">
-						{dow}
-					</div>
-				))}
-				{cells.map((d) => {
-					const iso = d.format('YYYY-MM-DD')
-					const isOther = d.month() !== monthStart.month()
-					const isToday = d.isSame(today, 'day')
-					const isSelected = d.isSame(selected, 'day')
-					return (
-						<button
-							key={iso}
-							type="button"
-							className={mergeClasses(
-								'c-cal-mini__cell',
-								isOther && 'other-month',
-								isToday && 'today',
-								isSelected && 'selected'
-							)}
-							onClick={() => onPickDate(iso)}
-							aria-current={isSelected ? 'date' : undefined}
-							aria-label={iso}
-						>
-							{d.date()}
-						</button>
-					)
-				})}
-			</div>
-		</div>
+		</Panel>
 	)
 }
 

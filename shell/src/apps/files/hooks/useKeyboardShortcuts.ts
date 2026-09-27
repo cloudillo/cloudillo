@@ -64,7 +64,7 @@ export function useKeyboardShortcuts({
 					if (!el) return DEFAULT_PAGE_SIZE
 
 					// Find the scrollable container
-					const container = el.closest('.c-file-grid-container') as HTMLElement | null
+					const container = el.closest('[data-file-grid]') as HTMLElement | null
 					if (!container) return DEFAULT_PAGE_SIZE
 
 					const itemHeight = el.offsetHeight

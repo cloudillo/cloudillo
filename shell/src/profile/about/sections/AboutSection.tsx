@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { VBox } from '@cloudillo/react'
 import QuillMarkdown from 'quilljs-markdown'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -20,9 +21,9 @@ export function AboutSectionView({ section }: AboutSectionViewProps) {
 	if (!section.content) return null
 
 	return (
-		<div>
+		<VBox className="c-markdown">
 			<Markdown>{section.content}</Markdown>
-		</div>
+		</VBox>
 	)
 }
 
@@ -42,7 +43,7 @@ export function AboutSectionEdit({ section, onChange }: AboutSectionEditProps) {
 	}
 
 	return (
-		<div ref={setBoundsEl}>
+		<VBox ref={setBoundsEl}>
 			{boundsEl && (
 				<ReactQuill
 					theme="bubble"
@@ -69,7 +70,7 @@ export function AboutSectionEdit({ section, onChange }: AboutSectionEditProps) {
 					}}
 				/>
 			)}
-		</div>
+		</VBox>
 	)
 }
 

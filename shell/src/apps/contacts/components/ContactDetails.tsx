@@ -2,7 +2,22 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import type { ContactOutput } from '@cloudillo/core'
-import { Button, LoadingSpinner, useDialog } from '@cloudillo/react'
+import {
+	ActionBar,
+	Avatar,
+	Button,
+	DescriptionList,
+	type DescriptionListItem,
+	EmptyState,
+	HBox,
+	Icon,
+	Link,
+	LoadingSpinner,
+	PageHeader,
+	Text,
+	useDialog,
+	VBox
+} from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -42,30 +57,30 @@ function fullNameFromN(n: ContactOutput['n']): string | undefined {
 const NOISE_EMAIL_TYPES = new Set(['INTERNET'])
 const NOISE_PHONE_TYPES = new Set(['VOICE'])
 
-function emailTypeIcon(type: string | undefined): React.ReactNode {
+function emailTypeIcon(type: string | undefined): React.ComponentType {
 	switch (type?.toUpperCase()) {
 		case 'HOME':
-			return <IcHome />
+			return IcHome
 		case 'WORK':
-			return <IcWork />
+			return IcWork
 		default:
-			return <IcOther />
+			return IcOther
 	}
 }
 
-function phoneTypeIcon(type: string | undefined): React.ReactNode {
+function phoneTypeIcon(type: string | undefined): React.ComponentType {
 	switch (type?.toUpperCase()) {
 		case 'CELL':
 		case 'MOBILE':
-			return <IcCell />
+			return IcCell
 		case 'HOME':
-			return <IcHome />
+			return IcHome
 		case 'WORK':
-			return <IcWork />
+			return IcWork
 		case 'FAX':
-			return <IcFax />
+			return IcFax
 		default:
-			return <IcOther />
+			return IcOther
 	}
 }
 
@@ -73,11 +88,12 @@ function firstMeaningfulType(types: string[] | undefined, noise: Set<string>): s
 	return (types ?? []).find((tp) => !noise.has(tp.toUpperCase()))
 }
 
-function ContactTypeIcon({ icon, label }: { icon: React.ReactNode; label: string }) {
+function Term({ icon, children }: { icon: React.ComponentType; children: React.ReactNode }) {
 	return (
-		<span className="c-contact-type-icon" role="img" aria-label={label} title={label}>
-			{icon}
-		</span>
+		<HBox gap={1} align="center">
+			<Icon as={icon} />
+			{children}
+		</HBox>
 	)
 }
 
@@ -89,26 +105,29 @@ export function ContactDetails({ contact, loading, onEdit, onDelete }: ContactDe
 		if (!contact) return
 		const confirmed = await dialog.confirm(
 			t('Delete contact?'),
-			t('"{{name}}" will be permanently removed.', { name: contact.fn || contact.uid })
+			t('"{{name}}" will be permanently removed.', { name: contact.fn || contact.uid }),
+			{ color: 'error', confirmLabel: t('Delete') }
 		)
 		if (!confirmed) return
 		await onDelete()
 	}
 
 	if (loading) {
-		return (
-			<div className="d-flex align-items-center justify-content-center p-4">
-				<LoadingSpinner size="md" />
-			</div>
-		)
+		return <LoadingSpinner fill className="auto-bg" />
 	}
 
 	if (!contact) {
-		return <div className="c-hint p-3">{t('Select a contact to see details')}</div>
+		return (
+			<EmptyState
+				fill
+				className="auto-bg"
+				description={t('Select a contact to see details')}
+			/>
+		)
 	}
 
 	const displayName = contact.fn || fullNameFromN(contact.n) || contact.uid
-	// Use a higher-resolution variant for the 96px hero photo so it stays crisp on retina.
+	// Use a higher-resolution variant for the hero photo so it stays crisp on retina.
 	const overlayPic = contact.profile?.profilePic
 	const localPic = contact.photo
 	const heroUrl = isAbsoluteUrl(overlayPic)
@@ -117,107 +136,97 @@ export function ContactDetails({ contact, loading, onEdit, onDelete }: ContactDe
 			? withVariant(localPic, 'vis.sd')
 			: undefined
 
-	return (
-		<div className="c-contact-details c-vbox h-100" style={{ overflowY: 'auto' }}>
-			<div className="c-contact-hero">
-				{heroUrl ? (
-					<img className="c-contact-hero__photo" src={heroUrl} alt="" />
-				) : (
-					<div className="c-contact-hero__photo c-contact-hero__photo--placeholder">
-						<IcUser size={40} />
-					</div>
-				)}
+	function typedLinks(
+		values: { value: string; type?: string[] }[],
+		scheme: 'mailto' | 'tel',
+		noise: Set<string>,
+		iconFor: (type: string | undefined) => React.ComponentType
+	) {
+		return (
+			<VBox gap={1}>
+				{values.map((v, i) => {
+					const tp = firstMeaningfulType(v.type, noise)
+					return (
+						<Link
+							key={i}
+							href={`${scheme}:${v.value}`}
+							icon={
+								<Icon as={iconFor(tp)} label={tp ? tp.toLowerCase() : t('other')} />
+							}
+						>
+							{v.value}
+						</Link>
+					)
+				})}
+			</VBox>
+		)
+	}
 
-				<h2 className="c-contact-hero__name">{displayName}</h2>
-
-				{(contact.title || contact.org) && (
-					<div className="c-contact-hero__meta">
-						{contact.title && <span>{contact.title}</span>}
-						{contact.org && <span>{contact.org}</span>}
-					</div>
-				)}
-
-				<div className="d-flex g-2 mt-2">
-					<Button className="small" onClick={onEdit}>
-						<IcEdit className="me-1" />
-						{t('Edit')}
-					</Button>
-					<Button className="small" onClick={handleDelete}>
-						<IcDelete className="me-1 text-error" />
-						{t('Delete')}
-					</Button>
-				</div>
-			</div>
-
-			{contact.profile && (
-				<section className="c-contact-section">
-					<h3 className="c-contact-section__title">
-						<IcLinked />
-						{t('Linked Cloudillo profile')}
-					</h3>
-					<div className="d-flex align-items-center g-2">
-						<span className="font-medium">{contact.profile.idTag}</span>
-					</div>
+	const items: DescriptionListItem[] = []
+	if (contact.profile) {
+		items.push({
+			key: 'profile',
+			term: <Term icon={IcLinked}>{t('Linked Cloudillo profile')}</Term>,
+			description: (
+				<VBox>
+					<Text weight="medium">{contact.profile.idTag}</Text>
 					{contact.profile.name && contact.profile.name !== displayName && (
-						<div className="c-hint">{contact.profile.name}</div>
+						<Text emphasis="muted">{contact.profile.name}</Text>
 					)}
-				</section>
-			)}
+				</VBox>
+			)
+		})
+	}
+	if (contact.emails && contact.emails.length > 0) {
+		items.push({
+			key: 'email',
+			term: <Term icon={IcMail}>{t('Email')}</Term>,
+			description: typedLinks(contact.emails, 'mailto', NOISE_EMAIL_TYPES, emailTypeIcon)
+		})
+	}
+	if (contact.phones && contact.phones.length > 0) {
+		items.push({
+			key: 'phone',
+			term: <Term icon={IcPhone}>{t('Phone')}</Term>,
+			description: typedLinks(contact.phones, 'tel', NOISE_PHONE_TYPES, phoneTypeIcon)
+		})
+	}
+	if (contact.note) {
+		items.push({
+			key: 'note',
+			term: <Term icon={IcNote}>{t('Notes')}</Term>,
+			description: (
+				<Text size="sm" preWrap>
+					{contact.note}
+				</Text>
+			)
+		})
+	}
 
-			{contact.emails && contact.emails.length > 0 && (
-				<section className="c-contact-section">
-					<h3 className="c-contact-section__title">
-						<IcMail />
-						{t('Email')}
-					</h3>
-					{contact.emails.map((e, i) => {
-						const tp = firstMeaningfulType(e.type, NOISE_EMAIL_TYPES)
-						return (
-							<a key={i} href={`mailto:${e.value}`} className="c-contact-row-link">
-								<ContactTypeIcon
-									icon={emailTypeIcon(tp)}
-									label={tp ? tp.toLowerCase() : t('other')}
-								/>
-								<span className="c-contact-row-link__value">{e.value}</span>
-							</a>
-						)
-					})}
-				</section>
-			)}
+	return (
+		<VBox gap={3} padding={3} autoBg>
+			<PageHeader
+				level={2}
+				leading={<Avatar size="2xl" src={heroUrl} fallback={<Icon as={IcUser} />} />}
+				title={displayName}
+				subtitle={
+					contact.title || contact.org
+						? [contact.title, contact.org].filter(Boolean).join(' · ')
+						: undefined
+				}
+			/>
 
-			{contact.phones && contact.phones.length > 0 && (
-				<section className="c-contact-section">
-					<h3 className="c-contact-section__title">
-						<IcPhone />
-						{t('Phone')}
-					</h3>
-					{contact.phones.map((p, i) => {
-						const tp = firstMeaningfulType(p.type, NOISE_PHONE_TYPES)
-						return (
-							<a key={i} href={`tel:${p.value}`} className="c-contact-row-link">
-								<ContactTypeIcon
-									icon={phoneTypeIcon(tp)}
-									label={tp ? tp.toLowerCase() : t('other')}
-								/>
-								<span className="c-contact-row-link__value">{p.value}</span>
-							</a>
-						)
-					})}
-				</section>
-			)}
+			<ActionBar>
+				<Button size="sm" onClick={onEdit} icon={<IcEdit />}>
+					{t('Edit')}
+				</Button>
+				<Button size="sm" color="error" onClick={handleDelete} icon={<IcDelete />}>
+					{t('Delete')}
+				</Button>
+			</ActionBar>
 
-			{contact.note && (
-				<section className="c-contact-section">
-					<h3 className="c-contact-section__title">
-						<IcNote />
-						{t('Notes')}
-					</h3>
-					<div style={{ whiteSpace: 'pre-wrap' }} className="text-sm">
-						{contact.note}
-					</div>
-				</section>
-			)}
-		</div>
+			{items.length > 0 && <DescriptionList items={items} />}
+		</VBox>
 	)
 }
 

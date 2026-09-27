@@ -3,15 +3,25 @@
 
 import type { TenantView } from '@cloudillo/core'
 import {
+	Alert,
+	Badge,
 	Button,
+	EmptyState,
+	HBox,
+	Link,
 	Menu,
 	MenuDivider,
 	MenuItem,
-	Modal,
 	ProfilePicture,
+	SearchInput,
+	Table,
+	TableCell,
+	TableRow,
+	Text,
 	useApi,
 	useAuth,
-	useDialog
+	useDialog,
+	VBox
 } from '@cloudillo/react'
 import debounce from 'debounce'
 import * as React from 'react'
@@ -20,14 +30,11 @@ import {
 	LuShield as IcAdmin,
 	LuUsers as IcCommunity,
 	LuKey as IcKey,
-	LuRefreshCw as IcLoading,
 	LuEllipsisVertical as IcMore,
 	LuUser as IcPerson,
-	LuSearch as IcSearch,
 	LuSettings as IcSettings,
 	LuTrash2 as IcTrash
 } from 'react-icons/lu'
-import { Link, useNavigate } from 'react-router-dom'
 
 import { siteAdminPath } from '../routes.js'
 
@@ -43,129 +50,69 @@ function TenantRow({
 	onDelete: (idTag: string) => void
 }) {
 	const { t } = useTranslation()
-	const navigate = useNavigate()
-	const [menuPos, setMenuPos] = React.useState<{ x: number; y: number } | null>(null)
 
 	const isAdmin = tenant.roles?.includes('admin')
-	const statusLabel = tenant.status === 'A' ? t('Active') : (tenant.status ?? t('Unknown'))
-	const statusColor = tenant.status === 'A' ? 'var(--col-success)' : 'var(--col-warning)'
-
-	function openMenu(e: React.MouseEvent<HTMLButtonElement>) {
-		const rect = e.currentTarget.getBoundingClientRect()
-		const MENU_WIDTH = 220
-		const x = Math.max(8, Math.min(rect.right - MENU_WIDTH, window.innerWidth - MENU_WIDTH - 8))
-		setMenuPos({ x, y: rect.bottom + 4 })
-	}
+	const isActive = tenant.status === 'A'
 
 	return (
-		<div className="c-panel flex-row align-items-center g-3 px-3 py-2">
-			<div
-				style={{
-					width: '2rem',
-					height: '2rem',
-					borderRadius: '50%',
-					overflow: 'hidden',
-					flexShrink: 0
-				}}
-			>
-				<ProfilePicture profile={{ profilePic: tenant.profilePic }} srcTag={tenant.idTag} />
-			</div>
-
-			<div className="flex-fill c-hbox align-items-center g-2" style={{ minWidth: 0 }}>
-				<Link
-					to={siteAdminPath(['tenants', tenant.idTag])}
-					style={{
-						minWidth: 0,
-						overflow: 'hidden',
-						textOverflow: 'ellipsis',
-						whiteSpace: 'nowrap'
-					}}
-				>
-					<strong>{tenant.name}</strong>{' '}
-					<span className="text-muted small">@{tenant.idTag}</span>
-				</Link>
-				<span
-					className="text-muted"
-					title={tenant.type === 'community' ? t('Community') : t('Person')}
-					style={{
-						width: '1.25rem',
-						height: '1.25rem',
-						display: 'inline-flex',
-						alignItems: 'center',
-						justifyContent: 'center',
-						flexShrink: 0
-					}}
-				>
-					{tenant.type === 'community' ? <IcCommunity /> : <IcPerson />}
-				</span>
-				{isAdmin && (
-					<span
-						className="c-badge info"
-						title={t('Administrator')}
-						style={{ flexShrink: 0 }}
+		<TableRow>
+			<TableCell>
+				<HBox gap={2} align="center">
+					<ProfilePicture
+						size="sm"
+						profile={{ profilePic: tenant.profilePic }}
+						srcTag={tenant.idTag}
+					/>
+					<Link href={siteAdminPath(['tenants', tenant.idTag])}>
+						<Text weight="bold">{tenant.name}</Text>{' '}
+						<Text size="sm" emphasis="muted">
+							@{tenant.idTag}
+						</Text>
+					</Link>
+					<Text
+						emphasis="muted"
+						aria-label={tenant.type === 'community' ? t('Community') : t('Person')}
 					>
-						<IcAdmin />
-					</span>
-				)}
-			</div>
-
-			<div
-				className="sm-hide text-muted small"
-				style={{
-					width: '14rem',
-					overflow: 'hidden',
-					textOverflow: 'ellipsis',
-					whiteSpace: 'nowrap',
-					flexShrink: 0
-				}}
-				title={tenant.email}
-			>
-				{tenant.email}
-			</div>
-
-			<span
-				title={statusLabel}
-				aria-label={statusLabel}
-				style={{
-					width: '0.625rem',
-					height: '0.625rem',
-					borderRadius: '50%',
-					background: statusColor,
-					flexShrink: 0
-				}}
-			/>
-
-			<button
-				type="button"
-				className="c-button icon link"
-				aria-label={t('Tenant actions')}
-				aria-haspopup="menu"
-				aria-expanded={menuPos !== null}
-				title={t('Tenant actions')}
-				onClick={openMenu}
-			>
-				<IcMore />
-			</button>
-
-			{menuPos && (
-				<Menu position={menuPos} onClose={() => setMenuPos(null)}>
+						{tenant.type === 'community' ? <IcCommunity /> : <IcPerson />}
+					</Text>
+					{isAdmin && (
+						<Badge color="info" icon={<IcAdmin />}>
+							{t('Administrator')}
+						</Badge>
+					)}
+				</HBox>
+			</TableCell>
+			<TableCell>
+				<Text size="sm" emphasis="muted" truncate>
+					{tenant.email}
+				</Text>
+			</TableCell>
+			<TableCell>
+				<Badge color={isActive ? 'success' : 'warning'}>
+					{isActive ? t('Active') : (tenant.status ?? t('Unknown'))}
+				</Badge>
+			</TableCell>
+			<TableCell align="end">
+				<Menu
+					trigger={
+						<Button
+							variant="ghost"
+							icon={<IcMore />}
+							aria-label={t('Tenant actions')}
+						/>
+					}
+				>
 					<MenuItem
 						icon={<IcSettings />}
 						label={t('Settings')}
-						onClick={() => {
-							setMenuPos(null)
-							navigate(siteAdminPath(['tenants', tenant.idTag]))
-						}}
+						href={siteAdminPath(['tenants', tenant.idTag])}
 					/>
 					<MenuItem
 						icon={<IcKey />}
 						label={t('Reset Password')}
 						disabled={!tenant.email}
-						title={tenant.email ? undefined : t('No email address set')}
-						onClick={() => {
-							setMenuPos(null)
-							onPasswordReset(tenant.idTag)
-						}}
+						description={tenant.email ? undefined : t('No email address set')}
+						onClick={() => onPasswordReset(tenant.idTag)}
 					/>
 					{canDelete && (
 						<>
@@ -173,17 +120,14 @@ function TenantRow({
 							<MenuItem
 								icon={<IcTrash />}
 								label={t('Delete tenant')}
-								danger
-								onClick={() => {
-									setMenuPos(null)
-									onDelete(tenant.idTag)
-								}}
+								color="error"
+								onClick={() => onDelete(tenant.idTag)}
 							/>
 						</>
 					)}
 				</Menu>
-			)}
-		</div>
+			</TableCell>
+		</TableRow>
 	)
 }
 
@@ -196,9 +140,6 @@ export function Tenants() {
 	const [loading, setLoading] = React.useState(false)
 	const [search, setSearch] = React.useState('')
 	const [error, setError] = React.useState<string | undefined>()
-	const [purgeTarget, setPurgeTarget] = React.useState<string | undefined>()
-	const [purgeInput, setPurgeInput] = React.useState('')
-	const [purgeBusy, setPurgeBusy] = React.useState(false)
 
 	// Load tenants on mount and when search changes
 	const loadTenants = React.useCallback(
@@ -242,7 +183,8 @@ export function Tenants() {
 			t('Send Password Reset Email'),
 			t('Are you sure you want to send a password reset email to the owner of {{idTag}}?', {
 				idTag
-			})
+			}),
+			{ confirmLabel: t('Send') }
 		)
 
 		if (!confirmed) return
@@ -262,112 +204,59 @@ export function Tenants() {
 	async function handleDelete(idTag: string) {
 		if (!api) return
 
-		setPurgeTarget(idTag)
-		setPurgeInput('')
-	}
+		const confirmed = await dialog.confirm(
+			t('Type the tenant ID to confirm'),
+			t('Type {{idTag}} below to confirm immediate deletion.', { idTag }),
+			{ color: 'error', confirmLabel: t('Delete tenant'), requireText: idTag }
+		)
+		if (!confirmed) return
 
-	async function confirmPurge() {
-		if (!api || !purgeTarget) return
-		const target = purgeTarget
-		setPurgeBusy(true)
 		try {
-			const res = await api.admin.purgeTenant(target, { confirmIdTag: target })
-			setPurgeBusy(false)
-			setPurgeTarget(undefined)
-			setPurgeInput('')
+			const res = await api.admin.purgeTenant(idTag, { confirmIdTag: idTag })
 			await dialog.tell(
 				t('Tenant deleted'),
 				t('{{idTag}} has been removed.', { idTag: res.idTag })
 			)
 			loadTenants(search || undefined)
 		} catch (err) {
-			setPurgeBusy(false)
-			setPurgeTarget(undefined)
-			setPurgeInput('')
 			await dialog.tell(t('Delete failed'), err instanceof Error ? err.message : String(err))
 		}
 	}
 
 	return (
-		<div className="c-vbox g-3">
-			<div className="c-input-group">
-				<div className="c-button icon">
-					{loading ? <IcLoading className="animate-rotate-cw" /> : <IcSearch />}
-				</div>
-				<input
-					className="c-input"
-					type="text"
-					placeholder={t('Search tenants...')}
-					value={search}
-					onChange={(e) => setSearch(e.target.value)}
-				/>
-			</div>
+		<VBox gap={3} autoBg>
+			<SearchInput
+				aria-label={t('Search tenants...')}
+				placeholder={t('Search tenants...')}
+				value={search}
+				onChange={(e) => setSearch(e.target.value)}
+			/>
 
-			{error && <div className="c-panel error">{error}</div>}
+			{error && <Alert color="error">{error}</Alert>}
 
 			{!loading && tenants && tenants.length === 0 && (
-				<div className="c-panel info">{t('No tenants found')}</div>
+				<EmptyState className="auto-bg" title={t('No tenants found')} />
 			)}
 
-			{tenants?.map((tenant) => (
-				<TenantRow
-					key={tenant.idTag}
-					tenant={tenant}
-					canDelete={tenant.idTag !== auth?.idTag}
-					onPasswordReset={handlePasswordReset}
-					onDelete={handleDelete}
-				/>
-			))}
-
-			<Modal
-				open={!!purgeTarget}
-				onClose={() => {
-					if (!purgeBusy) {
-						setPurgeTarget(undefined)
-						setPurgeInput('')
-					}
-				}}
-			>
-				<div className="c-panel p-3" style={{ minWidth: '20rem', maxWidth: '32rem' }}>
-					<h3>{t('Type the tenant ID to confirm')}</h3>
-					<p>
-						{t('Type {{idTag}} below to confirm immediate deletion.', {
-							idTag: purgeTarget ?? ''
-						})}
-					</p>
-					<input
-						className="c-input w-100"
-						type="text"
-						placeholder={purgeTarget}
-						value={purgeInput}
-						onChange={(e) => setPurgeInput(e.target.value)}
-						autoFocus
-						disabled={purgeBusy}
-					/>
-					<div className="c-hbox g-2 mt-3">
-						<div className="fill" />
-						<Button
-							kind="link"
-							onClick={() => {
-								setPurgeTarget(undefined)
-								setPurgeInput('')
-							}}
-							disabled={purgeBusy}
-						>
-							{t('Cancel')}
-						</Button>
-						<Button
-							className="text-error"
-							onClick={confirmPurge}
-							disabled={purgeBusy || purgeInput !== purgeTarget}
-						>
-							{purgeBusy ? <IcLoading className="animate-rotate-cw" /> : <IcTrash />}
-							{t('Delete tenant')}
-						</Button>
-					</div>
-				</div>
-			</Modal>
-		</div>
+			{!!tenants?.length && (
+				<Table
+					stack
+					variant="hoverable"
+					aria-label={t('Tenants')}
+					columns={[t('Tenant'), t('Email'), t('Status'), t('Actions')]}
+				>
+					{tenants.map((tenant) => (
+						<TenantRow
+							key={tenant.idTag}
+							tenant={tenant}
+							canDelete={tenant.idTag !== auth?.idTag}
+							onPasswordReset={handlePasswordReset}
+							onDelete={handleDelete}
+						/>
+					))}
+				</Table>
+			)}
+		</VBox>
 	)
 }
 

@@ -78,11 +78,7 @@ export function BlobViewer({ file, token, idTag, onBack }: BlobViewerProps) {
 	// it embeds it in the media URLs instead of 401-ing.
 	const { ready: tokenReady, useUrlToken } = useInstalledToken(token)
 	if (!tokenReady) {
-		return (
-			<div className="c-panel flex-fill d-flex align-items-center justify-content-center">
-				<LoadingSpinner size="lg" />
-			</div>
-		)
+		return <LoadingSpinner fill size="lg" className="auto-bg" />
 	}
 
 	return (

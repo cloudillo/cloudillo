@@ -4,11 +4,19 @@
 import {
 	Badge,
 	Button,
-	mergeClasses,
+	EmptyState,
+	Heading,
+	HBox,
+	Icon,
+	List,
+	ListItem,
+	Panel,
 	ProfileCard,
 	SkeletonList,
+	Text,
 	useApi,
-	useDialog
+	useDialog,
+	VBox
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -94,97 +102,115 @@ export function GroupDetailsPanel({
 		}
 	}
 
+	const invitedCount = members?.filter((m) => m.status === 'invited').length || 0
+
 	return (
-		<div className="c-vbox h-100 g-1">
+		<VBox gap={1} className="h-100">
 			{/* Header panel */}
-			<div className="c-panel p-3">
-				<div className="c-hbox align-items-center">
-					<div className="c-hbox align-items-center g-2 fill">
-						<IcGroup size={24} />
-						<h3 className="m-0 text-truncate">{conversation.name}</h3>
-					</div>
-					<Button kind="link" className="lg-hide" onClick={onClose}>
-						<IcClose />
-					</Button>
-				</div>
+			<Panel padding={3}>
+				<HBox align="center" gap={2}>
+					<Icon as={IcGroup} size="lg" />
+					<Heading level={3} className="flex-fill text-truncate">
+						{conversation.name}
+					</Heading>
+					<Button
+						variant="ghost"
+						icon={<IcClose />}
+						aria-label={t('Close')}
+						className="lg-hide"
+						onClick={onClose}
+					/>
+				</HBox>
 				{conversation.description && (
-					<p className="text-muted mt-2 mb-0">{conversation.description}</p>
+					<Text as="p" emphasis="muted" className="mt-2">
+						{conversation.description}
+					</Text>
 				)}
-				<div className="c-hbox align-items-center mt-3">
-					<span className="font-medium fill">
+				<HBox align="center" gap={1} className="mt-3">
+					<Text weight="medium">
 						{t('Members')} ({members?.filter((m) => m.status === 'active').length || 0})
-						{members?.some((m) => m.status === 'invited') && (
-							<span className="text-muted ms-1">
-								+{members.filter((m) => m.status === 'invited').length}{' '}
-								{t('invited')}
-							</span>
-						)}
-					</span>
-					{isModerator && (
-						<Button kind="link" title={t('Invite member')} onClick={onInvite}>
-							<IcInvite size={18} />
-						</Button>
+					</Text>
+					{invitedCount > 0 && (
+						<Text emphasis="muted" className="flex-fill">
+							+{invitedCount} {t('invited')}
+						</Text>
 					)}
-				</div>
-			</div>
+					{isModerator && (
+						<Button
+							variant="ghost"
+							icon={<IcInvite />}
+							aria-label={t('Invite member')}
+							className="ms-auto"
+							onClick={onInvite}
+						/>
+					)}
+				</HBox>
+			</Panel>
 
 			{/* Members list panel */}
-			<div className="c-panel c-nav vertical low fill overflow-y-auto">
+			<Panel className="flex-fill overflow-y-auto">
 				{members === undefined ? (
 					<SkeletonList count={3} showAvatar />
 				) : members.length === 0 ? (
-					<span className="text-muted p-2">{t('No members')}</span>
+					<EmptyState title={t('No members')} />
 				) : (
-					members.map((member) => {
-						const isCurrentUser = member.profile.idTag === currentUserIdTag
-						const isInvited = member.status === 'invited'
-						return (
-							<div
-								key={member.profile.idTag}
-								className={mergeClasses(
-									'c-hbox align-items-center g-2 p-2',
-									isInvited && 'opacity-70'
-								)}
-							>
-								<div className="fill overflow-hidden">
-									<ProfileCard profile={member.profile} className="small" />
-								</div>
-								{isInvited ? (
-									<Badge className="warning" title={t('Invited')}>
-										{t('Inv')}
-									</Badge>
-								) : (
-									member.role !== 'member' && (
-										<Badge
-											className={mergeClasses(
-												member.role === 'admin' && 'primary',
-												member.role === 'moderator' && 'secondary'
+					<List>
+						{members.map((member) => {
+							const isCurrentUser = member.profile.idTag === currentUserIdTag
+							const isInvited = member.status === 'invited'
+							return (
+								<ListItem
+									key={member.profile.idTag}
+									disabled={isInvited}
+									title={
+										<ProfileCard profile={member.profile} className="small" />
+									}
+									trailing={
+										<>
+											{isInvited ? (
+												<Badge color="warning" aria-label={t('Invited')}>
+													{t('Inv')}
+												</Badge>
+											) : (
+												member.role !== 'member' && (
+													<Badge
+														color={
+															member.role === 'admin'
+																? 'primary'
+																: 'secondary'
+														}
+														aria-label={roleTitles[member.role]}
+													>
+														{roleLabels[member.role]}
+													</Badge>
+												)
 											)}
-											title={roleTitles[member.role]}
-										>
-											{roleLabels[member.role]}
-										</Badge>
-									)
-								)}
-								{isCurrentUser && (
-									<Badge className="outline" title={t('You')}>
-										✓
-									</Badge>
-								)}
-							</div>
-						)
-					})
+											{isCurrentUser && (
+												<Badge variant="outline" aria-label={t('You')}>
+													✓
+												</Badge>
+											)}
+										</>
+									}
+								/>
+							)
+						})}
+					</List>
 				)}
-			</div>
+			</Panel>
 
 			{/* Actions panel */}
-			<div className="c-panel c-vbox g-2 p-3">
-				<Button className="w-100 text-error" onClick={handleLeaveGroup}>
-					<IcLeave className="me-2" />
+			<Panel padding={3}>
+				<Button
+					color="error"
+					icon={<IcLeave />}
+					className="w-100"
+					onClick={handleLeaveGroup}
+				>
 					{t('Leave Group')}
 				</Button>
-			</div>
-		</div>
+			</Panel>
+		</VBox>
 	)
 }
 

@@ -3,24 +3,40 @@
 
 import type * as Types from '@cloudillo/core'
 import {
+	Alert,
+	Badge,
 	Button,
+	Dialog,
+	Disclosure,
+	EmptyState,
+	Field,
+	FileTypeIcon,
+	Heading,
+	HBox,
+	Input,
+	List,
+	ListItem,
 	LoadingSpinner,
-	Popper,
+	Menu,
+	MenuItem,
+	NativeSelect,
+	Panel,
 	ProfileCard,
 	ProfileMultiSelect,
 	QRCodeDialog,
+	Text,
 	Toggle,
 	useAuth,
-	useToast
+	useDialog,
+	useToast,
+	VBox
 } from '@cloudillo/react'
 import type { Profile } from '@cloudillo/types'
 import dayjs from 'dayjs'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-	LuX as IcClose,
 	LuCopy as IcCopy,
-	LuChevronRight as IcDisclosure,
 	LuLink as IcLink,
 	LuEllipsisVertical as IcMore,
 	LuPencil as IcPencil,
@@ -35,7 +51,6 @@ import { getCachedProfile, getCachedProfiles } from '../../../utils/profileCache
 import { canUseRefCredential, refLifecycle, shareLinkErrorMessage } from '../../../utils/refs.js'
 import { isMissingError, isPermissionError } from '../../../utils.js'
 import { type FileOwnerScopeOverride, useFileOwnerScope } from '../hooks/useFileOwnerScope.js'
-import { getFileIcon, IcUnknown } from '../icons.js'
 import type { File } from '../types.js'
 import {
 	type FileAccessLevel,
@@ -56,6 +71,11 @@ import { AccessLevelMenu } from './AccessLevelMenu.js'
 type PermLevel = SharePermLevel
 /** A share link's level. Never 'admin' — the backend rejects it on refs. */
 type LinkLevel = 'read' | 'comment' | 'write'
+
+/** Folders carry no MIME type; FileTypeIcon knows them as `cloudillo/folder`. */
+function iconContentType(contentType: string | undefined, fileTp: string | undefined) {
+	return fileTp === 'FLDR' ? 'cloudillo/folder' : contentType
+}
 
 export interface ShareDialogProps {
 	open: boolean
@@ -92,6 +112,7 @@ export function ShareDialog({
 	} = useFileOwnerScope(file, ownerScope)
 	const [auth] = useAuth()
 	const toast = useToast()
+	const dialog = useDialog()
 	/*
 	 * Whether the server actually served the share listing. The dialog is opened by an explicit user
 	 * action on ONE file, so a probing request is affordable here — and it is the only way an
@@ -128,10 +149,7 @@ export function ShareDialog({
 	 */
 	const shareOrigin = useShareOrigin(api, scopeIdTag, auth?.idTag)
 
-	const dialogRef = React.useRef<HTMLDivElement>(null)
-
 	// People state
-	const [confirmingRemovePerm, setConfirmingRemovePerm] = React.useState<string | null>(null)
 	const [defaultAddLevel, setDefaultAddLevel] = React.useState<PermLevel>('READ')
 	// Profile lookup for share-entry subjectIds. Populated lazily after share
 	// entries load; missing entries render with a minimal {idTag} fallback.
@@ -147,7 +165,6 @@ export function ShareDialog({
 	const [neverExpires, setNeverExpires] = React.useState(true)
 	const [creatingLink, setCreatingLink] = React.useState(false)
 	const [createError, setCreateError] = React.useState<string | null>(null)
-	const [confirmingDeleteRef, setConfirmingDeleteRef] = React.useState<string | null>(null)
 	const [qrCodeUrl, setQrCodeUrl] = React.useState<string | undefined>()
 	const [createLinkOpen, setCreateLinkOpen] = React.useState(false)
 	const [editingRefId, setEditingRefId] = React.useState<string | null>(null)
@@ -162,7 +179,6 @@ export function ShareDialog({
 	// File-share entries (subjectType='F'): "Used in N documents" footer.
 	const [fileShareEntries, setFileShareEntries] = React.useState<Types.ShareEntry[]>([])
 	const [loadingEntries, setLoadingEntries] = React.useState(false)
-	const [confirmingDeleteEntry, setConfirmingDeleteEntry] = React.useState<number | null>(null)
 
 	// The predicate is the optimistic answer; what the server told us is the authoritative one. An
 	// explicit 'A' grant confers share management server-side and is only visible from here — from
@@ -172,7 +188,6 @@ export function ShareDialog({
 		authoritativeLevel === 'admin' ||
 		hasAdminGrant(userShareEntries, auth?.idTag)
 
-	const Icon = getFileIcon(file.contentType, file.fileTp)
 	// Backend convention: missing fileTp defaults to BLOB (immutable)
 	const isImmutable = file.fileTp === 'BLOB' || file.fileTp == null
 	/*
@@ -401,24 +416,22 @@ export function ShareDialog({
 		return permCharToLevel(permCharFor(idTag))
 	}
 
-	function requestRemovePerm(idTag: string) {
-		setConfirmingRemovePerm(idTag)
+	async function requestRemovePerm(profile: Profile) {
+		const ok = await dialog.confirm(
+			t('Remove access'),
+			t('Remove access for {{name}}?', { name: profile.name || profile.idTag }),
+			{ color: 'error', confirmLabel: t('Remove') }
+		)
+		if (ok) await removePerm(profile.idTag)
 	}
 
-	function cancelRemovePerm() {
-		setConfirmingRemovePerm(null)
-	}
-
-	async function confirmRemovePerm(idTag: string) {
+	async function removePerm(idTag: string) {
 		if (!file || !api) return
 
 		const entry = userShareEntries.find(
 			(e) => e.subjectType === 'U' && e.subjectId.toString() === idTag
 		)
-		if (!entry) {
-			setConfirmingRemovePerm(null)
-			return
-		}
+		if (!entry) return
 
 		try {
 			// deleteShare removes the share_entry AND emits the FSHR DEL notification.
@@ -429,8 +442,6 @@ export function ShareDialog({
 		} catch (err) {
 			console.error('Failed to remove permission', err)
 			toast.error(t('Failed to revoke permission'))
-		} finally {
-			setConfirmingRemovePerm(null)
 		}
 	}
 
@@ -465,15 +476,15 @@ export function ShareDialog({
 		}
 	}
 
-	function requestDeleteShareLink(refId: string) {
-		setConfirmingDeleteRef(refId)
+	async function requestDeleteShareLink(refId: string) {
+		const ok = await dialog.confirm(t('Delete link'), t('Delete this link?'), {
+			color: 'error',
+			confirmLabel: t('Delete')
+		})
+		if (ok) await deleteShareLink(refId)
 	}
 
-	function cancelDeleteShareLink() {
-		setConfirmingDeleteRef(null)
-	}
-
-	async function confirmDeleteShareLink(refId: string) {
+	async function deleteShareLink(refId: string) {
 		if (!api) return
 
 		try {
@@ -485,8 +496,6 @@ export function ShareDialog({
 		} catch (err) {
 			console.error('Failed to delete share link', err)
 			toast.error(t('Failed to delete share link'))
-		} finally {
-			setConfirmingDeleteRef(null)
 		}
 	}
 
@@ -567,15 +576,15 @@ export function ShareDialog({
 		}
 	}
 
-	function requestDeleteEntry(entryId: number) {
-		setConfirmingDeleteEntry(entryId)
+	async function requestDeleteEntry(entryId: number) {
+		const ok = await dialog.confirm(t('Remove link'), t('Remove this link?'), {
+			color: 'error',
+			confirmLabel: t('Remove')
+		})
+		if (ok) await deleteEntry(entryId)
 	}
 
-	function cancelDeleteEntry() {
-		setConfirmingDeleteEntry(null)
-	}
-
-	async function confirmDeleteEntry(entryId: number) {
+	async function deleteEntry(entryId: number) {
 		if (!api) return
 
 		try {
@@ -586,32 +595,8 @@ export function ShareDialog({
 		} catch (err) {
 			console.error('Failed to delete share entry', err)
 			toast.error(t('Failed to remove link'))
-		} finally {
-			setConfirmingDeleteEntry(null)
 		}
 	}
-
-	function handleClose() {
-		onClose()
-	}
-
-	function handleBackdropClick(e: React.MouseEvent) {
-		if (e.target === dialogRef.current) {
-			handleClose()
-		}
-	}
-
-	React.useEffect(
-		function closeOnEscape() {
-			if (!open) return
-			function onKey(e: KeyboardEvent) {
-				if (e.key === 'Escape') onClose()
-			}
-			document.addEventListener('keydown', onKey)
-			return () => document.removeEventListener('keydown', onKey)
-		},
-		[open, onClose]
-	)
 
 	// The owner profile the dialog labels "Owner". The backend back-fills `owner` to the serving
 	// tenant, so the fallbacks only cover rows the shell built itself.
@@ -653,433 +638,382 @@ export function ShareDialog({
 
 	// Shared by the editable and the read-only people list below, so the two cannot drift
 	const ownerRow = ownerIdTag ? (
-		<div className="c-hbox g-2 align-items-center p-2">
-			<div className="c-hbox g-2 flex-fill align-items-center text-truncate">
-				<ProfileCard
-					profile={ownerProfile ?? { idTag: ownerIdTag, name: ownerIdTag }}
-					srcTag={profileSrcTag}
-				/>
-				{ownerIdTag === auth?.idTag && <span className="text-secondary">({t('you')})</span>}
-			</div>
-			<span className="c-badge">{t('Owner')}</span>
-		</div>
+		<List>
+			<ListItem
+				title={
+					<HBox gap={2} align="center">
+						<ProfileCard
+							profile={ownerProfile ?? { idTag: ownerIdTag, name: ownerIdTag }}
+							srcTag={profileSrcTag}
+						/>
+						{ownerIdTag === auth?.idTag && <Text emphasis="muted">({t('you')})</Text>}
+					</HBox>
+				}
+				trailing={<Badge>{t('Owner')}</Badge>}
+			/>
+		</List>
 	) : null
 
+	const credentialUnavailable = t('Resolving the share address for this file…')
+	const today = dayjs().format('YYYY-MM-DD')
+
 	return (
-		<div ref={dialogRef} className="c-modal show" tabIndex={-1} onClick={handleBackdropClick}>
-			<div className="c-dialog c-panel emph p-0 c-share-dialog">
-				{/* Header */}
-				<div className="c-hbox g-2 p-3 border-bottom">
-					<div className="c-hbox g-2 flex-fill align-items-center">
-						{React.createElement<React.ComponentProps<typeof IcUnknown>>(Icon, {
-							style: { fontSize: '1.25rem' }
-						})}
-						<div>
-							<h3 className="m-0">{t('Share')}</h3>
-							<div className="text-secondary text-small text-truncate c-share-dialog__filename">
-								{file.fileName}
-							</div>
-						</div>
-					</div>
-					<button
-						type="button"
-						className="c-link p-1"
-						onClick={handleClose}
-						aria-label={t('Close')}
-					>
-						<IcClose style={{ fontSize: '1.25rem' }} />
-					</button>
-				</div>
-
-				{/* Body */}
-				<div
-					className="p-3"
-					style={{ minHeight: '300px', maxHeight: '70vh', overflowY: 'auto' }}
-				>
-					{/*
-						Four states, and they must not be conflated. `resolving`: a token is still
-						in flight, so a refusal here would be a lie. `!api` once settled: the
-						owner's node could not be reached at all. Then the listing itself, whose
-						verdict is the SERVER's: still in flight, or refused.
-					*/}
-					{resolving ? (
-						<div className="c-vbox align-items-center justify-content-center py-4">
-							<LoadingSpinner />
-						</div>
-					) : !api ? (
-						/* Must precede the listing states: with no client the effect never runs,
-						   so `shareAccess` would sit at 'loading' and spin forever. */
-						<div className="text-secondary text-center py-4">
-							{t(
-								'Could not reach the server that holds this file. Please try again.'
-							)}
-						</div>
-					) : shareAccess === 'loading' ? (
-						<div className="c-vbox align-items-center justify-content-center py-4">
-							<LoadingSpinner />
-						</div>
-					) : shareAccess === 'denied' ? (
-						<div className="text-secondary text-center py-4">
-							{t('You do not have permission to see who this file is shared with.')}
-						</div>
-					) : shareAccess === 'error' ? (
-						/* A transport failure is not an empty file: reported as one it reads "No one
-						   else has access yet" for a file that may be shared with anyone. */
-						<div className="text-secondary text-center py-4">
-							{t('Could not load who this file is shared with. Please try again.')}
-						</div>
-					) : (
-						<div className="c-vbox g-4">
-							{/* Reader standing: the list is served, the mutating controls are not */}
-							{!canShare && (
-								<div className="text-secondary text-small">
-									{t(
-										'You can see who this is shared with, but only the owner can change it.'
-									)}
-								</div>
-							)}
-
-							{/* People with access */}
-							<div className="c-vbox g-1">
-								<h4 className="mb-2 text-secondary text-uppercase text-small">
-									{t('People with access')}
-								</h4>
-
-								{!canShare ? (
-									<>
-										{ownerRow}
-										{allPeopleProfiles.map((profile) => (
-											<div
-												key={profile.idTag}
-												className="c-hbox g-2 align-items-center p-2"
-											>
-												<div className="flex-fill text-truncate">
-													<ProfileCard
-														profile={profile}
-														srcTag={profileSrcTag}
-													/>
-												</div>
-												<span
-													className={
-														isAdminPerm(permCharFor(profile.idTag))
-															? 'c-badge warning'
-															: 'c-badge'
-													}
-												>
-													{sharePermLabel(permCharFor(profile.idTag), t)}
-												</span>
-											</div>
-										))}
-										{allPeopleProfiles.length === 0 && (
-											<span className="text-muted text-small">
-												{t('No one else has access yet')}
-											</span>
-										)}
-									</>
-								) : (
-									<ProfileMultiSelect
-										variant="list"
-										placeholder={t('Add people…')}
-										listProfiles={listProfiles}
-										value={allPeopleProfiles}
-										onAdd={(p) => addPerm(p, defaultAddLevel)}
-										onRemove={(p) => confirmRemovePerm(p.idTag)}
-										searchAddon={
-											<AccessLevelMenu<PermLevel>
-												value={defaultAddLevel}
-												onChange={setDefaultAddLevel}
-												disabledLevels={disabledLevels}
-												ariaLabel={t('Default access for new people')}
-											/>
-										}
-										renderActions={(p) =>
-											// An 'A' grant is a standing this picker cannot
-											// express; show it as-is rather than offering
-											// edits that would silently downgrade it. Its own
-											// 'warning' colour, matching DetailsPanel's
-											// PermChip - on 'accent' it read as an editor grant.
-											isAdminPerm(permCharFor(p.idTag)) ? (
-												<span className="c-badge warning">
-													{t('Admin')}
-												</span>
-											) : (
-												<AccessLevelMenu<PermLevel>
-													value={levelFor(p.idTag)}
-													onChange={(lvl) => changePerm(p.idTag, lvl)}
-													onRemove={() => requestRemovePerm(p.idTag)}
-													disabledLevels={disabledLevels}
-													ariaLabel={t('Change access for {{name}}', {
-														name: p.name || p.idTag
-													})}
-												/>
-											)
-										}
-										confirmingRemove={confirmingRemovePerm}
-										onCancelRemove={cancelRemovePerm}
-										removePrompt={(p) =>
-											t('Remove access for {{name}}?', {
-												name: p.name || p.idTag
-											})
-										}
-										emptyText={t('No one else has access yet')}
-									>
-										{ownerRow}
-									</ProfileMultiSelect>
+		<>
+			<Dialog
+				open
+				onClose={onClose}
+				size="md"
+				icon={
+					<FileTypeIcon
+						contentType={iconContentType(file.contentType, file.fileTp)}
+						size="md"
+						tile={false}
+					/>
+				}
+				title={t('Share')}
+				description={file.fileName}
+			>
+				{/*
+					Four states, and they must not be conflated. `resolving`: a token is still
+					in flight, so a refusal here would be a lie. `!api` once settled: the
+					owner's node could not be reached at all. Then the listing itself, whose
+					verdict is the SERVER's: still in flight, or refused.
+				*/}
+				{resolving ? (
+					<LoadingSpinner fill />
+				) : !api ? (
+					/* Must precede the listing states: with no client the effect never runs,
+					   so `shareAccess` would sit at 'loading' and spin forever. */
+					<EmptyState
+						size="sm"
+						color="error"
+						description={t(
+							'Could not reach the server that holds this file. Please try again.'
+						)}
+					/>
+				) : shareAccess === 'loading' ? (
+					<LoadingSpinner fill />
+				) : shareAccess === 'denied' ? (
+					<EmptyState
+						size="sm"
+						description={t(
+							'You do not have permission to see who this file is shared with.'
+						)}
+					/>
+				) : shareAccess === 'error' ? (
+					/* A transport failure is not an empty file: reported as one it reads "No one
+					   else has access yet" for a file that may be shared with anyone. */
+					<EmptyState
+						size="sm"
+						color="error"
+						description={t(
+							'Could not load who this file is shared with. Please try again.'
+						)}
+					/>
+				) : (
+					<VBox gap={4}>
+						{/* Reader standing: the list is served, the mutating controls are not */}
+						{!canShare && (
+							<Alert compact color="info">
+								{t(
+									'You can see who this is shared with, but only the owner can change it.'
 								)}
-							</div>
+							</Alert>
+						)}
 
-							{/* Anyone with the link */}
-							<div className="c-vbox g-1">
-								<h4 className="mb-2 text-secondary text-uppercase text-small">
-									{t('Anyone with the link')}
-								</h4>
+						{/* People with access */}
+						<VBox gap={1}>
+							<Heading level={4} overline>
+								{t('People with access')}
+							</Heading>
 
-								{shareRefs.map((ref) => {
-									if (confirmingDeleteRef === ref.refId) {
-										return (
-											<div
-												key={ref.refId}
-												className="c-hbox g-2 align-items-center p-2"
-											>
-												<span className="flex-fill text-small">
-													{t('Delete this link?')}
-												</span>
-												<Button
-													size="small"
-													onClick={cancelDeleteShareLink}
-												>
-													{t('Cancel')}
-												</Button>
-												<Button
-													size="small"
-													variant="primary"
-													onClick={() =>
-														confirmDeleteShareLink(ref.refId)
+							{!canShare ? (
+								<>
+									{ownerRow}
+									{allPeopleProfiles.length > 0 ? (
+										<List>
+											{allPeopleProfiles.map((profile) => (
+												<ListItem
+													key={profile.idTag}
+													title={
+														<ProfileCard
+															profile={profile}
+															srcTag={profileSrcTag}
+														/>
 													}
-												>
-													{t('Delete')}
-												</Button>
-											</div>
+													trailing={
+														<Badge
+															color={
+																isAdminPerm(
+																	permCharFor(profile.idTag)
+																)
+																	? 'warning'
+																	: undefined
+															}
+														>
+															{sharePermLabel(
+																permCharFor(profile.idTag),
+																t
+															)}
+														</Badge>
+													}
+												/>
+											))}
+										</List>
+									) : (
+										<Text size="sm" emphasis="muted">
+											{t('No one else has access yet')}
+										</Text>
+									)}
+								</>
+							) : (
+								<ProfileMultiSelect
+									variant="list"
+									placeholder={t('Add people…')}
+									listProfiles={listProfiles}
+									value={allPeopleProfiles}
+									onAdd={(p) => addPerm(p, defaultAddLevel)}
+									onRemove={(p) => removePerm(p.idTag)}
+									searchAddon={
+										<AccessLevelMenu<PermLevel>
+											value={defaultAddLevel}
+											onChange={setDefaultAddLevel}
+											disabledLevels={disabledLevels}
+											ariaLabel={t('Default access for new people')}
+										/>
+									}
+									renderActions={(p) =>
+										// An 'A' grant is a standing this picker cannot
+										// express; show it as-is rather than offering
+										// edits that would silently downgrade it. Its own
+										// 'warning' colour, matching DetailsPanel's
+										// PermChip - on 'accent' it read as an editor grant.
+										isAdminPerm(permCharFor(p.idTag)) ? (
+											<Badge color="warning">{t('Admin')}</Badge>
+										) : (
+											<AccessLevelMenu<PermLevel>
+												value={levelFor(p.idTag)}
+												onChange={(lvl) => changePerm(p.idTag, lvl)}
+												onRemove={() => requestRemovePerm(p)}
+												disabledLevels={disabledLevels}
+												ariaLabel={t('Change access for {{name}}', {
+													name: p.name || p.idTag
+												})}
+											/>
 										)
 									}
-									const isEditing = editingRefId === ref.refId
-									const lifecycle = refLifecycle(ref, new Date())
-									const isDead = lifecycle !== 'active'
-									const formattedExpiry = formatRefDate(ref.expiresAt)
-									const expiryText = formattedExpiry
-										? `${lifecycle === 'expired' ? t('Expired') : t('Expires')} ${formattedExpiry}`
-										: t('Never expires')
-									// The refId is the credential; the label must never leak it, and a
-									// `redacted` refId is an opaque digest (r1~…) that is not even a
-									// working one. Copy is the way to obtain the value.
-									const usable = canUseRefCredential(ref, canShare)
-									return (
-										<div key={ref.refId} className="c-vbox g-1">
-											<div className="c-hbox g-2 align-items-center p-2">
-												<IcLink className="flex-shrink-0" />
-												<div className="flex-fill text-truncate">
-													<div>{ref.description || t('Share link')}</div>
-													<div className="text-secondary text-small">
-														{expiryText}
-													</div>
-												</div>
-												{lifecycle === 'expired' && (
-													<span className="c-badge warning">
-														{t('Expired')}
-													</span>
-												)}
-												{lifecycle === 'used' && (
-													<span className="c-badge warning">
-														{t('Used')}
-													</span>
-												)}
-												{/* `refs.update` addresses the ref by its refId too, so a
-												    redacted row falls back to the read-only badge. A dead
-												    link's level cannot be changed either: the backend
-												    refuses to resurrect a fully-used ref, and widening an
-												    expired one grants nothing. */}
-												{usable && !isDead ? (
-													<AccessLevelMenu<LinkLevel>
-														value={ref.accessLevel ?? 'read'}
-														onChange={(lvl) =>
-															changeLinkAccess(ref, lvl)
-														}
-														disabledLevels={disabledLevels}
-														ariaLabel={t('Change access for link')}
-													/>
-												) : (
-													<span className="c-badge">
-														{sharePermLabel(
-															levelToPermChar(
-																linkAccessToPermLevel(
-																	ref.accessLevel
-																)
-															),
-															t
+									emptyText={t('No one else has access yet')}
+								>
+									{ownerRow}
+								</ProfileMultiSelect>
+							)}
+						</VBox>
+
+						{/* Anyone with the link */}
+						<VBox gap={1}>
+							<Heading level={4} overline>
+								{t('Anyone with the link')}
+							</Heading>
+
+							{shareRefs.length > 0 && (
+								<List>
+									{shareRefs.map((ref) => {
+										const isEditing = editingRefId === ref.refId
+										const lifecycle = refLifecycle(ref, new Date())
+										const isDead = lifecycle !== 'active'
+										const formattedExpiry = formatRefDate(ref.expiresAt)
+										const expiryText = formattedExpiry
+											? `${lifecycle === 'expired' ? t('Expired') : t('Expires')} ${formattedExpiry}`
+											: t('Never expires')
+										// The refId is the credential; the label must never leak it, and a
+										// `redacted` refId is an opaque digest (r1~…) that is not even a
+										// working one. Copy is the way to obtain the value.
+										const usable = canUseRefCredential(ref, canShare)
+										return (
+											<ListItem
+												key={ref.refId}
+												leading={<IcLink />}
+												title={ref.description || t('Share link')}
+												subtitle={expiryText}
+												trailing={
+													<HBox gap={1} align="center">
+														{lifecycle === 'expired' && (
+															<Badge color="warning">
+																{t('Expired')}
+															</Badge>
 														)}
-													</span>
-												)}
-												{/* Copy and QR need canManageShares, not canReadShares:
-												    the refId IS the credential, so handing it out is
-												    itself an act of re-sharing. A reader may see that a
-												    link exists and at what level, never its value.
-												    `redacted` is the SERVER saying it withheld the
-												    credential, which outranks the local predicate:
-												    the digest builds no working URL and no valid QR.
-												    `shareOrigin.trusted` is the third gate: until the
-												    tenant's real app domain lands, the only origin we
-												    have is our own, and /s/:refId resolves against the
-												    origin's tenant — that URL would 404 for the
-												    recipient. A dead link's URL is dead too. */}
-												{usable && !isDead && (
-													<>
-														<button
-															type="button"
-															className="c-link p-1"
-															title={
-																shareOrigin.trusted
-																	? t('Copy link')
-																	: t(
-																			'Resolving the share address for this file…'
+														{lifecycle === 'used' && (
+															<Badge color="warning">
+																{t('Used')}
+															</Badge>
+														)}
+														{/* `refs.update` addresses the ref by its refId too, so a
+														    redacted row falls back to the read-only badge. A dead
+														    link's level cannot be changed either: the backend
+														    refuses to resurrect a fully-used ref, and widening an
+														    expired one grants nothing. */}
+														{usable && !isDead ? (
+															<AccessLevelMenu<LinkLevel>
+																value={ref.accessLevel ?? 'read'}
+																onChange={(lvl) =>
+																	changeLinkAccess(ref, lvl)
+																}
+																disabledLevels={disabledLevels}
+																ariaLabel={t(
+																	'Change access for link'
+																)}
+															/>
+														) : (
+															<Badge>
+																{sharePermLabel(
+																	levelToPermChar(
+																		linkAccessToPermLevel(
+																			ref.accessLevel
 																		)
-															}
-															disabled={!shareOrigin.trusted}
-															onClick={() => copyShareLink(ref.refId)}
-														>
-															<IcCopy />
-														</button>
-														<button
-															type="button"
-															className="c-link p-1"
-															title={
-																shareOrigin.trusted
-																	? t('Show QR code')
-																	: t(
-																			'Resolving the share address for this file…'
-																		)
-															}
-															disabled={!shareOrigin.trusted}
-															onClick={() =>
-																setQrCodeUrl(
-																	`${shareOrigin.href}/s/${ref.refId}`
-																)
-															}
-														>
-															<IcQrCode />
-														</button>
-													</>
-												)}
-												{/* Edit/delete address the ref BY its refId, which a
-												    redacted digest is not: both calls would 404. They
-												    need no origin, and they stay on DEAD rows too —
-												    deleting one, or pushing its expiry forward, is the
-												    only thing left to do with it. */}
-												{usable && (
-													<Popper
-														menuClassName="c-button link p-1"
-														icon={<IcMore />}
-														aria-label={t('More actions')}
-													>
-														<ul className="c-nav vertical emph">
-															<li>
+																	),
+																	t
+																)}
+															</Badge>
+														)}
+														{/* Copy and QR need canManageShares, not canReadShares:
+														    the refId IS the credential, so handing it out is
+														    itself an act of re-sharing. A reader may see that a
+														    link exists and at what level, never its value.
+														    `redacted` is the SERVER saying it withheld the
+														    credential, which outranks the local predicate:
+														    the digest builds no working URL and no valid QR.
+														    `shareOrigin.trusted` is the third gate: until the
+														    tenant's real app domain lands, the only origin we
+														    have is our own, and /s/:refId resolves against the
+														    origin's tenant — that URL would 404 for the
+														    recipient. A dead link's URL is dead too. */}
+														{usable && !isDead && (
+															<>
 																<Button
-																	kind="nav-item"
+																	variant="ghost"
+																	size="sm"
+																	icon={<IcCopy />}
+																	aria-label={t('Copy link')}
+																	disabled={!shareOrigin.trusted}
+																	disabledReason={
+																		credentialUnavailable
+																	}
+																	onClick={() =>
+																		copyShareLink(ref.refId)
+																	}
+																/>
+																<Button
+																	variant="ghost"
+																	size="sm"
+																	icon={<IcQrCode />}
+																	aria-label={t('Show QR code')}
+																	disabled={!shareOrigin.trusted}
+																	disabledReason={
+																		credentialUnavailable
+																	}
+																	onClick={() =>
+																		setQrCodeUrl(
+																			`${shareOrigin.href}/s/${ref.refId}`
+																		)
+																	}
+																/>
+															</>
+														)}
+														{/* Edit/delete address the ref BY its refId, which a
+														    redacted digest is not: both calls would 404. They
+														    need no origin, and they stay on DEAD rows too —
+														    deleting one, or pushing its expiry forward, is the
+														    only thing left to do with it. */}
+														{usable && (
+															<Menu
+																trigger={
+																	<Button
+																		variant="ghost"
+																		size="sm"
+																		icon={<IcMore />}
+																		aria-label={t(
+																			'More actions'
+																		)}
+																	/>
+																}
+															>
+																<MenuItem
+																	icon={<IcPencil />}
+																	label={t('Edit link details')}
 																	onClick={() =>
 																		isEditing
 																			? cancelEditLink()
 																			: beginEditLink(ref)
 																	}
-																>
-																	<IcPencil />
-																	{t('Edit link details')}
-																</Button>
-															</li>
-															<li>
-																<Button
-																	kind="nav-item"
+																/>
+																<MenuItem
+																	icon={<IcTrash />}
+																	color="error"
+																	label={t('Delete link')}
 																	onClick={() =>
 																		requestDeleteShareLink(
 																			ref.refId
 																		)
 																	}
-																>
-																	<IcTrash
-																		style={{
-																			color: 'var(--col-error)'
-																		}}
-																	/>
-																	{t('Delete link')}
-																</Button>
-															</li>
-														</ul>
-													</Popper>
-												)}
-											</div>
-											{isEditing && (
-												<div
-													className="c-panel mid p-3 mb-2"
-													onKeyDown={(e) => {
-														if (e.key === 'Escape') {
-															e.stopPropagation()
-															e.preventDefault()
-															cancelEditLink()
-														}
-													}}
-												>
-													<div className="c-vbox g-2">
-														<div className="c-hbox g-2 align-items-center">
-															<label
-																htmlFor={`link-desc-${ref.refId}`}
-																className="text-nowrap"
-																style={{ minWidth: '80px' }}
+																/>
+															</Menu>
+														)}
+													</HBox>
+												}
+											>
+												{isEditing && (
+													<Panel
+														className="mb-2"
+														onKeyDown={(e) => {
+															if (e.key === 'Escape') {
+																e.stopPropagation()
+																e.preventDefault()
+																cancelEditLink()
+															}
+														}}
+													>
+														<VBox gap={2}>
+															<Field
+																label={t('Label')}
+																orientation="horizontal"
 															>
-																{t('Label')}
-															</label>
-															<input
-																id={`link-desc-${ref.refId}`}
-																type="text"
-																className="c-input flex-fill"
-																value={editDraft.description}
-																onChange={(e) =>
-																	setEditDraft((d) => ({
-																		...d,
-																		description: e.target.value
-																	}))
-																}
-															/>
-														</div>
-														<div className="c-hbox g-2 align-items-center">
-															<label
-																htmlFor={`link-expires-${ref.refId}`}
-																className="text-nowrap"
-																style={{ minWidth: '80px' }}
-															>
-																{t('Expires')}
-															</label>
-															<div className="c-hbox g-2 flex-fill align-items-center">
-																<input
-																	id={`link-expires-${ref.refId}`}
-																	type="date"
-																	className="c-input flex-fill"
-																	value={editDraft.expiresAt}
+																<Input
+																	value={editDraft.description}
 																	onChange={(e) =>
 																		setEditDraft((d) => ({
 																			...d,
-																			expiresAt:
-																				e.target.value,
-																			neverExpires: e.target
-																				.value
-																				? false
-																				: d.neverExpires
+																			description:
+																				e.target.value
 																		}))
 																	}
-																	disabled={
-																		editDraft.neverExpires
-																	}
-																	min={dayjs().format(
-																		'YYYY-MM-DD'
-																	)}
 																/>
+															</Field>
+															<HBox gap={2} align="center">
+																<Field
+																	label={t('Expires')}
+																	orientation="horizontal"
+																	className="flex-fill"
+																>
+																	<Input
+																		type="date"
+																		value={editDraft.expiresAt}
+																		onChange={(e) =>
+																			setEditDraft((d) => ({
+																				...d,
+																				expiresAt:
+																					e.target.value,
+																				neverExpires: e
+																					.target.value
+																					? false
+																					: d.neverExpires
+																			}))
+																		}
+																		disabled={
+																			editDraft.neverExpires
+																		}
+																		min={today}
+																	/>
+																</Field>
 																<Toggle
 																	label={t('Never')}
 																	checked={editDraft.neverExpires}
@@ -1095,275 +1029,192 @@ export function ShareDialog({
 																		}))
 																	}
 																/>
-															</div>
-														</div>
-														<div className="c-hbox g-2 justify-content-end mt-2">
-															<Button onClick={cancelEditLink}>
-																{t('Cancel')}
-															</Button>
-															<Button
-																variant="primary"
-																onClick={() => saveLinkEdits(ref)}
-															>
-																{t('Save')}
-															</Button>
-														</div>
-													</div>
-												</div>
-											)}
-										</div>
-									)
-								})}
-
-								{/* An empty list is only one of three reasons nothing is here, and the
-								    other two are not "no share links yet". */}
-								{shareRefs.length === 0 && !loadingRefs && (
-									<div className="text-secondary text-small px-2">
-										{refsAccess === 'denied'
-											? t(
-													"You do not have permission to see this file's share links."
-												)
-											: refsAccess === 'error'
-												? t(
-														"Could not load this file's share links. Please try again."
-													)
-												: t('No share links yet')}
-									</div>
-								)}
-
-								{/* Create link disclosure */}
-								{canShare && (
-									<details
-										className="mt-2"
-										open={createLinkOpen}
-										onToggle={(e) =>
-											setCreateLinkOpen(
-												(e.currentTarget as HTMLDetailsElement).open
-											)
-										}
-									>
-										<summary className="c-link p-2 c-hbox g-2 align-items-center">
-											<IcPlus />
-											<span>{t('Create share link')}</span>
-										</summary>
-										<div className="c-panel mid p-3 mt-2">
-											<div className="c-vbox g-2">
-												<div className="c-hbox g-2 align-items-center">
-													<label
-														className="text-nowrap"
-														style={{ minWidth: '80px' }}
-													>
-														{t('Access')}
-													</label>
-													<select
-														className="c-input flex-fill"
-														value={newLinkAccess}
-														onChange={(e) =>
-															setNewLinkAccess(
-																e.target.value as LinkLevel
-															)
-														}
-													>
-														{/* Same `disabledLevels` the per-row menus get:
-														    an immutable file has no editor level, and
-														    the grant ceiling caps what we may mint at
-														    what we hold. */}
-														<option value="read">{t('Viewer')}</option>
-														{!disabledLevels.includes('COMMENT') && (
-															<option value="comment">
-																{t('Commenter')}
-															</option>
-														)}
-														{!disabledLevels.includes('WRITE') && (
-															<option value="write">
-																{t('Editor')}
-															</option>
-														)}
-													</select>
-												</div>
-
-												<div className="c-hbox g-2 align-items-center">
-													<label
-														className="text-nowrap"
-														style={{ minWidth: '80px' }}
-													>
-														{t('Label')}
-													</label>
-													<input
-														type="text"
-														className="c-input flex-fill"
-														placeholder={t(
-															'e.g. For review, Public access...'
-														)}
-														value={newLinkLabel}
-														onChange={(e) =>
-															setNewLinkLabel(e.target.value)
-														}
-													/>
-												</div>
-
-												<div className="c-hbox g-2 align-items-center">
-													<label
-														className="text-nowrap"
-														style={{ minWidth: '80px' }}
-													>
-														{t('Expires')}
-													</label>
-													<div className="c-hbox g-2 flex-fill align-items-center">
-														<input
-															type="date"
-															className="c-input flex-fill"
-															value={newLinkExpires}
-															onChange={(e) => {
-																setNewLinkExpires(e.target.value)
-																if (e.target.value)
-																	setNeverExpires(false)
-															}}
-															disabled={neverExpires}
-															min={dayjs().format('YYYY-MM-DD')}
-														/>
-														<Toggle
-															label={t('Never')}
-															checked={neverExpires}
-															onChange={(e) => {
-																setNeverExpires(e.target.checked)
-																if (e.target.checked)
-																	setNewLinkExpires('')
-															}}
-														/>
-													</div>
-												</div>
-
-												{createError && (
-													<div className="text-error mt-1" role="alert">
-														{createError}
-													</div>
+															</HBox>
+															<HBox gap={2} justify="end">
+																<Button onClick={cancelEditLink}>
+																	{t('Cancel')}
+																</Button>
+																<Button
+																	color="primary"
+																	onClick={() =>
+																		saveLinkEdits(ref)
+																	}
+																>
+																	{t('Save')}
+																</Button>
+															</HBox>
+														</VBox>
+													</Panel>
 												)}
+											</ListItem>
+										)
+									})}
+								</List>
+							)}
 
-												<div className="mt-2">
-													<Button
-														variant="primary"
-														onClick={createShareLink}
-														disabled={creatingLink}
-													>
-														{creatingLink
-															? t('Creating...')
-															: t('Create Link')}
-													</Button>
-												</div>
-											</div>
-										</div>
-									</details>
-								)}
-							</div>
-
-							{/* Embedded in (collapsible footer) */}
-							{fileShareEntries.length > 0 && (
-								<details className="mt-2">
-									<summary className="c-link p-2 c-hbox g-2 align-items-center text-secondary">
-										<IcDisclosure />
-										<span>
-											{t('Used in {{count}} documents', {
-												count: fileShareEntries.length
-											})}
-										</span>
-									</summary>
-									<div className="c-vbox g-2 mt-2">
-										{fileShareEntries.map((entry) => {
-											const EntryIcon = entry.subjectContentType
-												? getFileIcon(
-														entry.subjectContentType,
-														entry.subjectFileTp
-													)
-												: IcUnknown
-
-											if (confirmingDeleteEntry === entry.id) {
-												return (
-													<div
-														key={entry.id}
-														className="c-hbox g-2 align-items-center p-2"
-													>
-														<span className="flex-fill text-small">
-															{t('Remove this link?')}
-														</span>
-														<Button
-															size="small"
-															onClick={cancelDeleteEntry}
-														>
-															{t('Cancel')}
-														</Button>
-														<Button
-															size="small"
-															variant="primary"
-															onClick={() =>
-																confirmDeleteEntry(entry.id)
-															}
-														>
-															{t('Remove')}
-														</Button>
-													</div>
+							{/* An empty list is only one of three reasons nothing is here, and the
+							    other two are not "no share links yet". */}
+							{shareRefs.length === 0 && !loadingRefs && (
+								<Text size="sm" emphasis="muted">
+									{refsAccess === 'denied'
+										? t(
+												"You do not have permission to see this file's share links."
+											)
+										: refsAccess === 'error'
+											? t(
+													"Could not load this file's share links. Please try again."
 												)
-											}
-											return (
-												<div
-													key={entry.id}
-													className="c-hbox g-2 align-items-center p-2"
-												>
-													{React.createElement<
-														React.ComponentProps<typeof IcUnknown>
-													>(EntryIcon, {
-														className: 'flex-shrink-0'
-													})}
-													<div className="flex-fill text-truncate">
-														<div>
-															{entry.subjectFileName ||
-																entry.subjectId}
-														</div>
-														<div className="text-secondary text-small">
-															{sharePermLabel(
-																toSharePermChar(entry.permission),
-																t
-															)}
-															{(() => {
-																const f = formatRefDate(
-																	entry.expiresAt
-																)
-																return f
-																	? ` · ${t('Expires')} ${f}`
-																	: ''
-															})()}
-														</div>
-													</div>
-													{canShare && (
-														<button
-															type="button"
-															className="c-link p-1"
-															title={t('Remove link')}
+											: t('No share links yet')}
+								</Text>
+							)}
+
+							{/* Create link disclosure */}
+							{canShare && (
+								<Disclosure
+									variant="panel"
+									icon={<IcPlus />}
+									summary={t('Create share link')}
+									open={createLinkOpen}
+									onToggle={setCreateLinkOpen}
+								>
+									<VBox gap={2}>
+										<Field label={t('Access')} orientation="horizontal">
+											<NativeSelect
+												value={newLinkAccess}
+												onChange={(e) =>
+													setNewLinkAccess(e.target.value as LinkLevel)
+												}
+											>
+												{/* Same `disabledLevels` the per-row menus get:
+												    an immutable file has no editor level, and
+												    the grant ceiling caps what we may mint at
+												    what we hold. */}
+												<option value="read">{t('Viewer')}</option>
+												{!disabledLevels.includes('COMMENT') && (
+													<option value="comment">
+														{t('Commenter')}
+													</option>
+												)}
+												{!disabledLevels.includes('WRITE') && (
+													<option value="write">{t('Editor')}</option>
+												)}
+											</NativeSelect>
+										</Field>
+
+										<Field label={t('Label')} orientation="horizontal">
+											<Input
+												placeholder={t('e.g. For review, Public access...')}
+												value={newLinkLabel}
+												onChange={(e) => setNewLinkLabel(e.target.value)}
+											/>
+										</Field>
+
+										<HBox gap={2} align="center">
+											<Field
+												label={t('Expires')}
+												orientation="horizontal"
+												className="flex-fill"
+											>
+												<Input
+													type="date"
+													value={newLinkExpires}
+													onChange={(e) => {
+														setNewLinkExpires(e.target.value)
+														if (e.target.value) setNeverExpires(false)
+													}}
+													disabled={neverExpires}
+													min={today}
+												/>
+											</Field>
+											<Toggle
+												label={t('Never')}
+												checked={neverExpires}
+												onChange={(e) => {
+													setNeverExpires(e.target.checked)
+													if (e.target.checked) setNewLinkExpires('')
+												}}
+											/>
+										</HBox>
+
+										{createError && (
+											<Alert compact color="error">
+												{createError}
+											</Alert>
+										)}
+
+										<HBox>
+											<Button
+												color="primary"
+												onClick={createShareLink}
+												loading={creatingLink}
+											>
+												{creatingLink ? t('Creating...') : t('Create Link')}
+											</Button>
+										</HBox>
+									</VBox>
+								</Disclosure>
+							)}
+						</VBox>
+
+						{/* Embedded in (collapsible footer) */}
+						{fileShareEntries.length > 0 && (
+							<Disclosure
+								variant="ghost"
+								summary={t('Used in {{count}} documents', {
+									count: fileShareEntries.length
+								})}
+							>
+								<List>
+									{fileShareEntries.map((entry) => {
+										const f = formatRefDate(entry.expiresAt)
+										return (
+											<ListItem
+												key={entry.id}
+												leading={
+													<FileTypeIcon
+														contentType={iconContentType(
+															entry.subjectContentType,
+															entry.subjectFileTp
+														)}
+														size="sm"
+														tile={false}
+													/>
+												}
+												title={entry.subjectFileName || entry.subjectId}
+												subtitle={`${sharePermLabel(
+													toSharePermChar(entry.permission),
+													t
+												)}${f ? ` · ${t('Expires')} ${f}` : ''}`}
+												trailing={
+													canShare && (
+														<Button
+															variant="ghost"
+															size="sm"
+															icon={<IcTrash />}
+															aria-label={t('Remove link')}
 															onClick={() =>
 																requestDeleteEntry(entry.id)
 															}
-														>
-															<IcTrash />
-														</button>
-													)}
-												</div>
-											)
-										})}
-										{loadingEntries && (
-											<div className="text-secondary text-small px-2">
-												{t('Loading...')}
-											</div>
-										)}
-									</div>
-								</details>
-							)}
-						</div>
-					)}
-				</div>
-			</div>
+														/>
+													)
+												}
+											/>
+										)
+									})}
+								</List>
+								{loadingEntries && (
+									<Text size="sm" emphasis="muted">
+										{t('Loading...')}
+									</Text>
+								)}
+							</Disclosure>
+						)}
+					</VBox>
+				)}
+			</Dialog>
 
 			<QRCodeDialog value={qrCodeUrl} onClose={() => setQrCodeUrl(undefined)} />
-		</div>
+		</>
 	)
 }
 

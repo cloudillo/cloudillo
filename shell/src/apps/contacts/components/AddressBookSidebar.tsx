@@ -2,7 +2,19 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import type { AddressBookOutput } from '@cloudillo/core'
-import { Menu, MenuItem, mergeClasses, useDebouncedValue, useDialog } from '@cloudillo/react'
+import {
+	Button,
+	Icon,
+	List,
+	ListItem,
+	Menu,
+	MenuItem,
+	Panel,
+	SearchInput,
+	Text,
+	useDialog,
+	VBox
+} from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -10,8 +22,7 @@ import {
 	LuBookOpen as IcBook,
 	LuTrash as IcDelete,
 	LuPencil as IcEdit,
-	LuEllipsisVertical as IcMore,
-	LuSearch as IcSearch
+	LuEllipsisVertical as IcMore
 } from 'react-icons/lu'
 
 import type { AddressBookSelection } from '../types.js'
@@ -47,18 +58,7 @@ export function AddressBookSidebar({
 	const dialog = useDialog()
 	const [bookMenu, setBookMenu] = React.useState<BookMenuState | null>(null)
 
-	// Owning the input state locally keeps typing from re-rendering ContactsApp
-	// on every keystroke — the parent only hears about the debounced value.
-	const [input, setInput] = React.useState(initialQuery)
-	const debouncedInput = useDebouncedValue(input, 250)
-	React.useEffect(
-		function commitDebouncedQuery() {
-			onSearchChange(debouncedInput)
-		},
-		[debouncedInput, onSearchChange]
-	)
-
-	function openBookMenu(e: React.MouseEvent<HTMLButtonElement>, book: AddressBookOutput) {
+	function openBookMenu(e: React.MouseEvent<HTMLElement>, book: AddressBookOutput) {
 		e.stopPropagation()
 		const rect = e.currentTarget.getBoundingClientRect()
 		const MENU_WIDTH = 180
@@ -69,72 +69,55 @@ export function AddressBookSidebar({
 	async function handleDelete(book: AddressBookOutput) {
 		const confirmed = await dialog.confirm(
 			t('Delete address book?'),
-			t('All contacts in "{{name}}" will be permanently removed.', { name: book.name })
+			t('All contacts in "{{name}}" will be permanently removed.', { name: book.name }),
+			{ color: 'error', confirmLabel: t('Delete') }
 		)
 		if (!confirmed) return
 		await onDelete(book)
 	}
 
 	return (
-		<div className="c-ab-sidebar">
-			<div className="c-input-group">
-				<span className="d-flex align-items-center px-2" aria-hidden="true">
-					<IcSearch />
-				</span>
-				<input
-					className="c-input"
-					type="search"
+		<Panel padding={2} className="flex-fill h-min-0 overflow-y-auto">
+			<VBox gap={2}>
+				{/* Uncontrolled + debounced so typing never re-renders ContactsApp */}
+				<SearchInput
 					placeholder={t('Search contacts')}
-					value={input}
-					onChange={(e) => setInput(e.target.value)}
 					aria-label={t('Search contacts')}
+					defaultValue={initialQuery}
+					onSearch={onSearchChange}
+					debounce={250}
 				/>
-			</div>
 
-			<div className="c-ab-list" role="list">
-				<button
-					type="button"
-					role="listitem"
-					aria-current={selection === 'all' ? 'page' : undefined}
-					className={mergeClasses('c-ab-item', selection === 'all' && 'active')}
-					onClick={() => onSelect('all')}
-				>
-					<IcAll />
-					<span className="c-ab-item__name">{t('All contacts')}</span>
-				</button>
-
-				{addressBooks.map((book) => {
-					const isActive = selection === book.abId
-					return (
-						<div
+				<List>
+					<ListItem
+						leading={<Icon as={IcAll} />}
+						title={t('All contacts')}
+						selected={selection === 'all'}
+						onClick={() => onSelect('all')}
+					/>
+					{addressBooks.map((book) => (
+						<ListItem
 							key={book.abId}
-							role="listitem"
-							className={mergeClasses('c-ab-item', isActive && 'active')}
-						>
-							<button
-								type="button"
-								className="c-ab-item__select d-flex align-items-center g-2 flex-fill text-left"
-								onClick={() => onSelect(book.abId)}
-								aria-current={isActive ? 'page' : undefined}
-							>
-								<IcBook />
-								<span className="c-ab-item__name">{book.name}</span>
-							</button>
-							<button
-								type="button"
-								className="c-link c-ab-item__menu-trigger"
-								title={t('More actions')}
-								aria-label={t('More actions for {{name}}', { name: book.name })}
-								aria-haspopup="menu"
-								aria-expanded={bookMenu?.book.abId === book.abId}
-								onClick={(e) => openBookMenu(e, book)}
-							>
-								<IcMore />
-							</button>
-						</div>
-					)
-				})}
-			</div>
+							leading={<Icon as={IcBook} />}
+							title={<Text truncate>{book.name}</Text>}
+							selected={selection === book.abId}
+							onClick={() => onSelect(book.abId)}
+							actions={
+								<Button
+									variant="ghost"
+									size="sm"
+									immediate
+									aria-label={t('More actions for {{name}}', { name: book.name })}
+									aria-haspopup="menu"
+									aria-expanded={bookMenu?.book.abId === book.abId}
+									onClick={(e) => openBookMenu(e, book)}
+									icon={<IcMore />}
+								/>
+							}
+						/>
+					))}
+				</List>
+			</VBox>
 
 			{bookMenu && (
 				<Menu position={{ x: bookMenu.x, y: bookMenu.y }} onClose={() => setBookMenu(null)}>
@@ -159,7 +142,7 @@ export function AddressBookSidebar({
 					/>
 				</Menu>
 			)}
-		</div>
+		</Panel>
 	)
 }
 

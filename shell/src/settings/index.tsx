@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Fcd, mergeClasses, useApi, useAuth } from '@cloudillo/react'
+import { Fcd, Nav } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -9,19 +9,17 @@ import {
 	LuLayoutGrid as IcApps,
 	LuCalendar as IcCalendar,
 	LuHardDrive as IcFiles,
-	LuMenu as IcMenu,
 	LuBell as IcNotifications,
 	LuShield as IcPrivacy,
 	LuKeyRound as IcSecurity,
 	LuGlobe as IcSite,
 	LuShieldCheck as IcTrust
 } from 'react-icons/lu'
-import { NavLink, Outlet, Route, useLocation, useMatch, useNavigate } from 'react-router-dom'
+import { Outlet, Route, useLocation, useMatch } from 'react-router-dom'
 
 import { useCtx } from '../context/index.js'
 import type { UsePWA } from '../pwa.js'
 import { sectionMatch, settingsPath } from '../routes.js'
-import { useAppConfig } from '../utils.js'
 import { AppearanceSettings } from './appearance.js'
 import { NotificationSettings } from './notifications.js'
 import { SecuritySettings } from './security.js'
@@ -41,94 +39,57 @@ interface SettingsProps {
 	children?: React.ReactNode
 }
 
-/** The rail's `NavLink` class, as `site-admin/index.tsx` writes it. */
-function navItemClass({ isActive }: { isActive: boolean }) {
-	return mergeClasses('c-nav-item', isActive && 'active')
-}
-
 export function Settings({ title, children }: SettingsProps) {
-	const _navigate = useNavigate()
-	const location = useLocation()
 	const { t } = useTranslation()
-	const [_appConfig] = useAppConfig()
-	useApi()
-	const [_auth] = useAuth()
-	const [showFilter, setShowFilter] = React.useState<boolean>(false)
+	const location = useLocation()
 	const basePath = settingsPath(useCtx().base)
 
-	React.useEffect(
-		function onLocationEffect() {
-			setShowFilter(false)
-		},
-		[location]
-	)
-
 	return (
-		<Fcd.Container className="g-1">
-			<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
-				{/* `className` has to be the callback form: a bare string never gets
-				    `.active`, so the rail could not show which page you were on. */}
-				<ul className="c-nav vertical low">
-					<li>
-						<NavLink className={navItemClass} to={`${basePath}/security`}>
-							<IcSecurity /> {t('Security')}
-						</NavLink>
-					</li>
-					<li>
-						<NavLink className={navItemClass} to={`${basePath}/privacy`}>
-							<IcPrivacy /> {t('Privacy')}
-						</NavLink>
-					</li>
-					<li>
-						<NavLink className={navItemClass} to={`${basePath}/trust`}>
-							<IcTrust /> {t('Trusted profiles')}
-						</NavLink>
-					</li>
-					<li>
-						<NavLink className={navItemClass} to={`${basePath}/notifications`}>
-							<IcNotifications /> {t('Notifications')}
-						</NavLink>
-					</li>
-					<li>
-						<NavLink className={navItemClass} to={`${basePath}/appearance`}>
-							<IcAppearance /> {t('Appearance')}
-						</NavLink>
-					</li>
-					<li>
-						<NavLink className={navItemClass} to={`${basePath}/calendar`}>
-							<IcCalendar /> {t('Calendar')}
-						</NavLink>
-					</li>
-					<li>
-						<NavLink className={navItemClass} to={`${basePath}/apps`}>
-							<IcApps /> {t('App menu')}
-						</NavLink>
-					</li>
-					<li>
-						<NavLink className={navItemClass} to={`${basePath}/files`}>
-							<IcFiles /> {t('Files & Storage')}
-						</NavLink>
-					</li>
-					<li>
-						<NavLink className={navItemClass} to={`${basePath}/site`}>
-							<IcSite /> {t('Site')}
-						</NavLink>
-					</li>
-				</ul>
+		// Keyed on the path so the mobile rail drawer closes once a page is picked: the
+		// built-in `filterLabel` state has no close-on-navigate of its own.
+		<Fcd.Container key={location.pathname} className="g-1" filterLabel={title}>
+			<Fcd.Filter>
+				<Nav aria-label={t('Settings')}>
+					<Nav.Item
+						href={`${basePath}/security`}
+						icon={<IcSecurity />}
+						label={t('Security')}
+					/>
+					<Nav.Item
+						href={`${basePath}/privacy`}
+						icon={<IcPrivacy />}
+						label={t('Privacy')}
+					/>
+					<Nav.Item
+						href={`${basePath}/trust`}
+						icon={<IcTrust />}
+						label={t('Trusted profiles')}
+					/>
+					<Nav.Item
+						href={`${basePath}/notifications`}
+						icon={<IcNotifications />}
+						label={t('Notifications')}
+					/>
+					<Nav.Item
+						href={`${basePath}/appearance`}
+						icon={<IcAppearance />}
+						label={t('Appearance')}
+					/>
+					<Nav.Item
+						href={`${basePath}/calendar`}
+						icon={<IcCalendar />}
+						label={t('Calendar')}
+					/>
+					<Nav.Item href={`${basePath}/apps`} icon={<IcApps />} label={t('App menu')} />
+					<Nav.Item
+						href={`${basePath}/files`}
+						icon={<IcFiles />}
+						label={t('Files & Storage')}
+					/>
+					<Nav.Item href={`${basePath}/site`} icon={<IcSite />} label={t('Site')} />
+				</Nav>
 			</Fcd.Filter>
-			<Fcd.Content>
-				<div className="c-nav c-hbox md-hide lg-hide">
-					<IcMenu onClick={() => setShowFilter(true)} />
-					<h3>{title}</h3>
-				</div>
-				{children}
-			</Fcd.Content>
-			{/*
-		<Fcd.Details isVisible={!!selectedFile} hide={() => setSelectedFile(undefined)}>
-			{ selectedFile && <div className="c-panel h-min-100">
-			</div> }
-		</Fcd.Details>
-		*/}
+			<Fcd.Content>{children}</Fcd.Content>
 		</Fcd.Container>
 	)
 }

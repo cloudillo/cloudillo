@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { Segmented, SegmentedItem } from '@cloudillo/react'
 import dayjs from 'dayjs'
 import * as React from 'react'
 
@@ -15,9 +16,8 @@ interface Props {
 	'aria-label'?: string
 }
 
-/** Weekday toggle chips for the recurrence builder. Implements the WAI-ARIA roving-tabindex
- *  pattern so screen readers announce pressed state and the group is reachable as a single
- *  tab stop. Locale-aware short weekday labels ("Mon"/"M"/"пн"/...) via `Intl.DateTimeFormat`. */
+/** Weekday multi-toggle for the recurrence builder. Locale-aware narrow weekday labels
+ *  ("M"/"п"/...) via `Intl.DateTimeFormat`. */
 export function DayChipGroup({
 	value,
 	onChange,
@@ -41,84 +41,22 @@ export function DayChipGroup({
 		return codes.map((_, i) => fmt.format(sunday.add((firstDayOfWeek + i) % 7, 'day').toDate()))
 	}, [codes, firstDayOfWeek, locale])
 
-	// Roving tabindex: exactly one chip at a time is in the tab order.
-	const [focusIdx, setFocusIdx] = React.useState(() => {
-		const first = codes.findIndex((c) => value.includes(c))
-		return first >= 0 ? first : 0
-	})
-	const refs = React.useRef<(HTMLButtonElement | null)[]>([])
-
-	const toggle = (code: IcalDayCode) => {
-		const next = value.includes(code) ? value.filter((c) => c !== code) : [...value, code]
-		// Preserve a stable order so the stored RRULE is deterministic.
-		const sorted = ICAL_DOW_CODES.filter((c) => next.includes(c))
-		onChange(sorted)
-	}
-
-	const handleKey = (idx: number) => (e: React.KeyboardEvent<HTMLButtonElement>) => {
-		switch (e.key) {
-			case 'ArrowLeft': {
-				e.preventDefault()
-				const next = (idx - 1 + codes.length) % codes.length
-				setFocusIdx(next)
-				refs.current[next]?.focus()
-				break
-			}
-			case 'ArrowRight': {
-				e.preventDefault()
-				const next = (idx + 1) % codes.length
-				setFocusIdx(next)
-				refs.current[next]?.focus()
-				break
-			}
-			case 'Home': {
-				e.preventDefault()
-				setFocusIdx(0)
-				refs.current[0]?.focus()
-				break
-			}
-			case 'End': {
-				e.preventDefault()
-				setFocusIdx(codes.length - 1)
-				refs.current[codes.length - 1]?.focus()
-				break
-			}
-			case ' ':
-			case 'Enter': {
-				e.preventDefault()
-				toggle(codes[idx])
-				break
-			}
-			default:
-				break
-		}
-	}
-
 	return (
-		<div className="c-cal-daychips" role="group" aria-label={ariaLabel ?? 'Repeat days'}>
-			{codes.map((code, idx) => {
-				const pressed = value.includes(code)
-				return (
-					<button
-						key={code}
-						ref={(el) => {
-							refs.current[idx] = el
-						}}
-						type="button"
-						className="c-cal-daychips__chip"
-						aria-pressed={pressed}
-						tabIndex={idx === focusIdx ? 0 : -1}
-						onClick={() => {
-							setFocusIdx(idx)
-							toggle(code)
-						}}
-						onFocus={() => setFocusIdx(idx)}
-						onKeyDown={handleKey(idx)}
-					>
-						{labels[idx]}
-					</button>
-				)
-			})}
-		</div>
+		<Segmented
+			multiple
+			size="sm"
+			aria-label={ariaLabel ?? 'Repeat days'}
+			value={value}
+			onChange={(next) => {
+				// Preserve a stable order so the stored RRULE is deterministic.
+				onChange(ICAL_DOW_CODES.filter((c) => next.includes(c)))
+			}}
+		>
+			{codes.map((code, idx) => (
+				<SegmentedItem key={code} value={code}>
+					{labels[idx]}
+				</SegmentedItem>
+			))}
+		</Segmented>
 	)
 }

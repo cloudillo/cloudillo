@@ -1,18 +1,11 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import {
-	Button,
-	LoadingSpinner,
-	Modal,
-	ProfileMultiSelect,
-	useApi,
-	useAuth
-} from '@cloudillo/react'
+import { Button, Dialog, Field, ProfileMultiSelect, useApi, useAuth } from '@cloudillo/react'
 import type { Profile } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuX as IcClose, LuUserPlus as IcInvite } from 'react-icons/lu'
+import { LuUserPlus as IcInvite } from 'react-icons/lu'
 
 import type { Conversation, ConversationMember } from '../types.js'
 
@@ -74,52 +67,39 @@ export function InviteMemberDialog({
 	}
 
 	return (
-		<Modal open={open} onClose={onClose} className="p-0">
-			<div className="c-dialog c-panel emph p-4" style={{ maxWidth: '400px', width: '90vw' }}>
-				<div className="c-hbox align-items-center mb-3">
-					<h2 className="fill m-0">{t('Invite Members')}</h2>
-					<Button kind="link" onClick={onClose}>
-						<IcClose />
-					</Button>
-				</div>
-
-				<div className="c-vbox g-3">
-					<div className="c-vbox g-1">
-						<label className="font-medium">{t('Select members to invite')}</label>
-						<ProfileMultiSelect
-							placeholder={t('Search contacts...')}
-							emptyText={t('Search for connections to invite')}
-							listProfiles={listProfiles}
-							value={selectedInvites}
-							onAdd={(p) => setSelectedInvites((prev) => [...prev, p])}
-							onRemove={(p) =>
-								setSelectedInvites((prev) =>
-									prev.filter((m) => m.idTag !== p.idTag)
-								)
-							}
-						/>
-					</div>
-				</div>
-
-				<div className="c-hbox justify-content-end g-2 mt-4">
+		<Dialog
+			open={open}
+			onClose={onClose}
+			size="sm"
+			title={t('Invite Members')}
+			footer={
+				<>
 					<Button onClick={onClose}>{t('Cancel')}</Button>
 					<Button
-						variant="primary"
-						disabled={selectedInvites.length === 0 || isInviting}
+						color="primary"
+						icon={<IcInvite />}
+						disabled={selectedInvites.length === 0}
+						loading={isInviting}
 						onClick={handleInviteMembers}
 					>
-						{isInviting ? (
-							<LoadingSpinner size="sm" />
-						) : (
-							<>
-								<IcInvite className="me-1" />
-								{t('Send Invites')}
-							</>
-						)}
+						{t('Send Invites')}
 					</Button>
-				</div>
-			</div>
-		</Modal>
+				</>
+			}
+		>
+			<Field label={t('Select members to invite')}>
+				<ProfileMultiSelect
+					placeholder={t('Search contacts...')}
+					emptyText={t('Search for connections to invite')}
+					listProfiles={listProfiles}
+					value={selectedInvites}
+					onAdd={(p) => setSelectedInvites((prev) => [...prev, p])}
+					onRemove={(p) =>
+						setSelectedInvites((prev) => prev.filter((m) => m.idTag !== p.idTag))
+					}
+				/>
+			</Field>
+		</Dialog>
 	)
 }
 

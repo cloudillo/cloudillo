@@ -2,31 +2,36 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import type { ApiKeyListItem, WebAuthnCredential } from '@cloudillo/core'
-import { Button, useApi, useAuth, useDialog, useToast } from '@cloudillo/react'
+import {
+	Button,
+	HBox,
+	IconText,
+	Link,
+	List,
+	ListItem,
+	Panel,
+	Text,
+	useApi,
+	useAuth,
+	useDialog,
+	useToast
+} from '@cloudillo/react'
 import { browserSupportsWebAuthn } from '@simplewebauthn/browser'
 import { useAtomValue } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-	LuPalette as IcAppearance,
 	LuChevronRight as IcArrow,
-	LuCalendar as IcCalendar,
 	LuDatabase as IcDatabase,
 	LuMonitor as IcDevice,
-	LuHardDrive as IcFiles,
 	LuDownload as IcInstall,
-	LuKeyRound as IcKey,
-	LuLoaderCircle as IcLoading,
 	LuBell as IcNotifications,
 	LuFingerprint as IcPasskey,
-	LuEye as IcPrivacy,
 	LuRefreshCw as IcRefresh,
 	LuDatabaseZap as IcReindex,
 	LuShield as IcSecurity,
-	LuServerCog as IcServer,
-	LuGlobe as IcSite
+	LuServerCog as IcServer
 } from 'react-icons/lu'
-import { useNavigate } from 'react-router-dom'
 
 import { activeContextAtom, isContextLeader, useContextAwareApi, useCtx } from '../context/index.js'
 import { resetAppCache, type UsePWA } from '../pwa.js'
@@ -39,7 +44,6 @@ interface SettingsOverviewProps {
 
 export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 	const { t } = useTranslation()
-	const navigate = useNavigate()
 	const dialog = useDialog()
 	const { toast } = useToast()
 	const { api } = useApi()
@@ -200,248 +204,133 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 
 	return (
 		<>
-			{/* Setup Recommendations */}
 			{hasRecommendations && (
-				<div className="c-panel">
-					<h4 className="pb-2">{t('Enhance Your Experience')}</h4>
-
-					{canInstall && (
-						<div className="c-hbox py-3 border-bottom">
-							<IcInstall className="me-3" size={24} />
-							<div className="flex-fill">
-								<div className="font-medium">{t('Install App')}</div>
-								<div className="c-hint small">
-									{t('Get faster access with the app on your device')}
-								</div>
-							</div>
-							<Button variant="primary" onClick={handleInstall}>
-								{t('Install')}
-							</Button>
-						</div>
-					)}
-
-					{!notificationsEnabled && canEnableNotifications && (
-						<div className="c-hbox py-3 border-bottom">
-							<IcNotifications className="me-3" size={24} />
-							<div className="flex-fill">
-								<div className="font-medium">{t('Enable Notifications')}</div>
-								<div className="c-hint small">
-									{t('Stay updated when someone messages you')}
-								</div>
-							</div>
-							<Button variant="primary" onClick={handleEnableNotifications}>
-								{t('Enable')}
-							</Button>
-						</div>
-					)}
-
-					{!hasPasskeys && webAuthnSupported && (
-						<div className="c-hbox py-3">
-							<IcPasskey className="me-3" size={24} />
-							<div className="flex-fill">
-								<div className="font-medium">{t('Add a Passkey')}</div>
-								<div className="c-hint small">
-									{t('Login faster with fingerprint or face ID')}
-								</div>
-							</div>
-							<Button
-								variant="primary"
-								onClick={() => navigate(`${basePath}/security`)}
-							>
-								{t('Add')}
-							</Button>
-						</div>
-					)}
-				</div>
+				<Panel title={t('Enhance Your Experience')}>
+					<List variant="divided">
+						{canInstall && (
+							<ListItem
+								leading={<IcInstall size={24} />}
+								title={t('Install App')}
+								subtitle={t('Get faster access with the app on your device')}
+								trailing={
+									<Button color="primary" onClick={handleInstall}>
+										{t('Install')}
+									</Button>
+								}
+							/>
+						)}
+						{!notificationsEnabled && canEnableNotifications && (
+							<ListItem
+								leading={<IcNotifications size={24} />}
+								title={t('Enable Notifications')}
+								subtitle={t('Stay updated when someone messages you')}
+								trailing={
+									<Button color="primary" onClick={handleEnableNotifications}>
+										{t('Enable')}
+									</Button>
+								}
+							/>
+						)}
+						{!hasPasskeys && webAuthnSupported && (
+							<ListItem
+								leading={<IcPasskey size={24} />}
+								title={t('Add a Passkey')}
+								subtitle={t('Login faster with fingerprint or face ID')}
+								trailing={
+									<Button color="primary" href={`${basePath}/security`}>
+										{t('Add')}
+									</Button>
+								}
+							/>
+						)}
+					</List>
+				</Panel>
 			)}
 
-			{/* Security Summary */}
-			<div className="c-panel">
-				<h4 className="c-hbox pb-2">
-					<IcSecurity className="me-2" />
-					{t('Security')}
-				</h4>
+			<Panel title={<IconText icon={<IcSecurity />}>{t('Security')}</IconText>}>
+				<HBox gap={4} className="py-2">
+					<IconText icon={<IcPasskey className="text-muted" />}>
+						{passkeys.length} {passkeys.length === 1 ? t('Passkey') : t('Passkeys')}
+					</IconText>
+					<IconText icon={<IcDevice className="text-muted" />}>
+						{apiKeys.length} {apiKeys.length === 1 ? t('Device') : t('Devices')}
+					</IconText>
+				</HBox>
+				<Link href={`${basePath}/security`} className="mt-2">
+					{t('Security Settings')}
+					<IcArrow />
+				</Link>
+			</Panel>
 
-				<div className="c-hbox g-4 py-2">
-					<div className="c-hbox">
-						<IcPasskey className="me-2 text-muted" />
-						<span>
-							{passkeys.length} {passkeys.length === 1 ? t('Passkey') : t('Passkeys')}
-						</span>
-					</div>
-					<div className="c-hbox">
-						<IcDevice className="me-2 text-muted" />
-						<span>
-							{apiKeys.length} {apiKeys.length === 1 ? t('Device') : t('Devices')}
-						</span>
-					</div>
-				</div>
-
-				<div className="pt-2">
-					<button
-						className="c-link c-hbox"
-						onClick={() => navigate(`${basePath}/security`)}
-					>
-						{t('Security Settings')}
-						<IcArrow className="ms-1" />
-					</button>
-				</div>
-			</div>
-
-			{/* Quick Actions */}
-			<div className="c-panel">
-				<h4 className="pb-3">{t('Settings')}</h4>
-
-				<div
-					style={{
-						display: 'grid',
-						gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
-						gap: '1rem'
-					}}
-				>
-					<QuickActionCard
-						icon={<IcKey size={28} />}
-						label={t('Security')}
-						onClick={() => navigate(`${basePath}/security`)}
-					/>
-					<QuickActionCard
-						icon={<IcPrivacy size={28} />}
-						label={t('Privacy')}
-						onClick={() => navigate(`${basePath}/privacy`)}
-					/>
-					<QuickActionCard
-						icon={<IcNotifications size={28} />}
-						label={t('Notifications')}
-						onClick={() => navigate(`${basePath}/notifications`)}
-					/>
-					<QuickActionCard
-						icon={<IcAppearance size={28} />}
-						label={t('Appearance')}
-						onClick={() => navigate(`${basePath}/appearance`)}
-					/>
-					<QuickActionCard
-						icon={<IcCalendar size={28} />}
-						label={t('Calendar')}
-						onClick={() => navigate(`${basePath}/calendar`)}
-					/>
-					<QuickActionCard
-						icon={<IcFiles size={28} />}
-						label={t('Files')}
-						onClick={() => navigate(`${basePath}/files`)}
-					/>
-					<QuickActionCard
-						icon={<IcSite size={28} />}
-						label={t('Site')}
-						onClick={() => navigate(`${basePath}/site`)}
-					/>
-				</div>
-			</div>
-
-			{/* Server Settings Link (for admins) */}
 			{auth?.roles?.includes('SADM') && (
-				<div className="c-panel">
-					<button
-						className="c-hbox align-items-center p-2 w-100 text-start"
-						onClick={() => navigate(siteAdminPath())}
-						style={{ cursor: 'pointer', border: 'none', background: 'transparent' }}
-					>
-						<IcServer className="text-primary me-3" size={24} />
-						<div className="flex-fill">
-							<div className="font-medium">{t('Server Settings')}</div>
-							<div className="c-hint small">
-								{t('Configure server-wide settings and policies')}
-							</div>
-						</div>
-						<IcArrow className="text-muted" />
-					</button>
-				</div>
+				<Panel>
+					<List>
+						<ListItem
+							href={siteAdminPath()}
+							leading={<IcServer className="text-primary" size={24} />}
+							title={t('Server Settings')}
+							subtitle={t('Configure server-wide settings and policies')}
+						/>
+					</List>
+				</Panel>
 			)}
 
-			{/* Troubleshooting */}
-			<div className="c-panel">
-				<h4 className="pb-2">{t('Troubleshooting')}</h4>
-				<div className="c-hbox py-3 border-bottom">
-					<IcRefresh className="me-3" size={24} />
-					<div className="flex-fill">
-						<div className="font-medium">{t('Reset App Cache')}</div>
-						<div className="c-hint small">
-							{t(
-								'Clear cached files and reload. Use if the app behaves unexpectedly.'
+			<Panel title={t('Troubleshooting')}>
+				<List variant="divided">
+					<ListItem
+						leading={<IcRefresh size={24} />}
+						title={t('Reset App Cache')}
+						subtitle={t(
+							'Clear cached files and reload. Use if the app behaves unexpectedly.'
+						)}
+						trailing={
+							<Button color="secondary" onClick={handleResetCache}>
+								{t('Reset')}
+							</Button>
+						}
+					/>
+					{canReindex && (
+						<ListItem
+							leading={<IcReindex size={24} />}
+							title={t('Rebuild Search Index')}
+							subtitle={t(
+								'Re-scan your files and posts. Use if search results are missing or stale.'
 							)}
-						</div>
-					</div>
-					<Button variant="secondary" onClick={handleResetCache}>
-						{t('Reset')}
-					</Button>
-				</div>
-				{canReindex && (
-					<div className="c-hbox py-3 border-bottom">
-						<IcReindex className="me-3" size={24} />
-						<div className="flex-fill">
-							<div className="font-medium">{t('Rebuild Search Index')}</div>
-							<div className="c-hint small">
-								{t(
-									'Re-scan your files and posts. Use if search results are missing or stale.'
-								)}
-							</div>
-						</div>
-						<Button variant="secondary" onClick={handleReindex} disabled={reindexing}>
-							{reindexing ? (
-								<IcLoading className="animate-rotate-cw" />
-							) : (
-								t('Rebuild')
+							trailing={
+								<Button
+									color="secondary"
+									onClick={handleReindex}
+									loading={reindexing}
+								>
+									{t('Rebuild')}
+								</Button>
+							}
+						/>
+					)}
+					{auth?.roles?.includes('SADM') && (
+						<ListItem
+							leading={<IcDatabase size={24} />}
+							title={t('Optimize Database')}
+							subtitle={t(
+								'Compact the search index and reclaim unused disk space. Affects the whole server.'
 							)}
-						</Button>
-					</div>
-				)}
-				{auth?.roles?.includes('SADM') && (
-					<div className="c-hbox py-3">
-						<IcDatabase className="me-3" size={24} />
-						<div className="flex-fill">
-							<div className="font-medium">{t('Optimize Database')}</div>
-							<div className="c-hint small">
-								{t(
-									'Compact the search index and reclaim unused disk space. Affects the whole server.'
-								)}
-							</div>
-						</div>
-						<Button
-							variant="secondary"
-							onClick={handleOptimizeDb}
-							disabled={optimizing}
-						>
-							{optimizing ? (
-								<IcLoading className="animate-rotate-cw" />
-							) : (
-								t('Optimize')
-							)}
-						</Button>
-					</div>
-				)}
-				<div className="c-hint small pt-2">
+							trailing={
+								<Button
+									color="secondary"
+									onClick={handleOptimizeDb}
+									loading={optimizing}
+								>
+									{t('Optimize')}
+								</Button>
+							}
+						/>
+					)}
+				</List>
+				<Text as="p" size="sm" emphasis="muted" className="pt-2">
 					{t('Version')}: {process.env.CLOUDILLO_VERSION}
-				</div>
-			</div>
+				</Text>
+			</Panel>
 		</>
-	)
-}
-
-interface QuickActionCardProps {
-	icon: React.ReactNode
-	label: string
-	onClick: () => void
-}
-
-function QuickActionCard({ icon, label, onClick }: QuickActionCardProps) {
-	return (
-		<button
-			type="button"
-			className="c-card interactive text-center p-3 border-0"
-			onClick={onClick}
-		>
-			<div className="mb-2 text-primary">{icon}</div>
-			<div className="small">{label}</div>
-		</button>
 	)
 }
 

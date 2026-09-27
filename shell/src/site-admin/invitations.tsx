@@ -3,19 +3,34 @@
 
 import type * as Types from '@cloudillo/core'
 import {
+	Badge,
 	Button,
+	Card,
+	Checkbox,
+	CopyButton,
+	DescriptionList,
+	EmptyState,
+	FAB,
+	Field,
+	Fieldset,
+	HBox,
 	IdentityTag,
-	mergeClasses,
+	Input,
+	NativeSelect,
+	Panel,
 	ProfilePicture,
 	ProfileSelect,
 	QRCodeDialog,
 	Tab,
 	Tabs,
+	Text,
+	TextArea,
 	TimeFormat,
 	Toggle,
 	useApi,
 	useAuth,
-	useDialog
+	useDialog,
+	VBox
 } from '@cloudillo/react'
 import type { Profile } from '@cloudillo/types'
 import dayjs from 'dayjs'
@@ -24,7 +39,6 @@ import { useTranslation } from 'react-i18next'
 import {
 	LuPlus as IcAdd,
 	LuCheck as IcAvailable,
-	LuCopy as IcCopy,
 	LuTrash as IcDelete,
 	LuPencil as IcEdit,
 	LuQrCode as IcQrCode,
@@ -68,6 +82,30 @@ interface RegistrationInviteCardProps {
 	deleteRef: () => void
 }
 
+function RefDates({ createdAt, expiresAt }: { createdAt: Date; expiresAt?: Date }) {
+	const { t } = useTranslation()
+	return (
+		<DescriptionList
+			items={[
+				{
+					key: 'created',
+					term: t('Created'),
+					description: <TimeFormat time={createdAt} />
+				},
+				...(expiresAt
+					? [
+							{
+								key: 'expires',
+								term: t('Expires'),
+								description: <TimeFormat time={expiresAt} />
+							}
+						]
+					: [])
+			]}
+		/>
+	)
+}
+
 function RegistrationInviteCard({
 	invite,
 	isEditing,
@@ -81,70 +119,56 @@ function RegistrationInviteCard({
 	const { t } = useTranslation()
 	const [qrCode, setQrCode] = React.useState<string | undefined>()
 	const url = `https://${location.host}/register/${invite.refId}`
-
-	function copyUrlToClipboard() {
-		navigator.clipboard.writeText(url)
-	}
-
-	function showQrCode() {
-		setQrCode(url)
-	}
+	const available = !!invite.count && (!invite.expiresAt || invite.expiresAt > new Date())
 
 	return (
-		<div className="c-panel">
-			<div className="c-hbox">
-				<h2 className="fill">{invite.description || ''}</h2>
-				<div className="c-hbox g-3">
+		<Card
+			title={invite.description || ''}
+			actions={
+				<HBox gap={1}>
 					<Button
-						kind="link"
-						className={isEditing ? 'active' : undefined}
+						variant="ghost"
+						icon={<IcEdit />}
+						pressed={isEditing}
 						aria-label={
 							isEditing ? t('Cancel editing invitation') : t('Edit invitation')
 						}
-						aria-pressed={isEditing}
 						onClick={() => (isEditing ? onCancelEdit() : onBeginEdit())}
-					>
-						<IcEdit />
-					</Button>
-					<Button kind="link" onClick={() => copyUrlToClipboard()}>
-						<IcCopy />
-					</Button>
-					<Button kind="link" onClick={() => showQrCode()}>
-						<IcQrCode />
-					</Button>
-					<Button kind="link" onClick={() => deleteRef()}>
-						<IcDelete />
-					</Button>
-				</div>
-			</div>
-			<div className="c-hbox">
-				<div className="c-hbox fill g-3 align-items-center">
-					<span className="c-hbox g-1 align-items-center">
-						<span className="text-secondary">{t('Created')}:</span>
-						<TimeFormat time={invite.createdAt} />
-					</span>
-					{invite.expiresAt && (
-						<span className="c-hbox g-1 align-items-center">
-							<span className="text-secondary">{t('Expires')}:</span>
-							<TimeFormat time={invite.expiresAt} />
-						</span>
-					)}
-				</div>
-				<div>
-					{invite.count && (!invite.expiresAt || invite.expiresAt > new Date()) ? (
-						<div className="c-hbox text-success g-0">
-							<IcAvailable />
-							{invite.count > 1 && <span>{invite.count}</span>}
-						</div>
-					) : (
-						<IcUnavailable className="text-warning" />
-					)}
-				</div>
-			</div>
+					/>
+					<CopyButton text={url} label={t('Copy invitation link')} />
+					<Button
+						variant="ghost"
+						icon={<IcQrCode />}
+						aria-label={t('Show QR code')}
+						onClick={() => setQrCode(url)}
+					/>
+					<Button
+						variant="ghost"
+						icon={<IcDelete />}
+						aria-label={t('Delete invitation')}
+						onClick={deleteRef}
+					/>
+				</HBox>
+			}
+		>
+			<HBox gap={3} align="center" justify="between" wrap>
+				<RefDates createdAt={invite.createdAt} expiresAt={invite.expiresAt} />
+				{available ? (
+					<Badge color="success" icon={<IcAvailable />}>
+						{invite.count > 1
+							? t('{{count}} uses left', { count: invite.count })
+							: t('Active')}
+					</Badge>
+				) : (
+					<Badge color="warning" icon={<IcUnavailable />}>
+						{t('Used')}
+					</Badge>
+				)}
+			</HBox>
 
 			{isEditing && (
-				<div
-					className="c-panel mid p-3 mb-2"
+				<Panel
+					padding={3}
 					onKeyDown={(e) => {
 						if (e.key === 'Escape') {
 							e.stopPropagation()
@@ -153,19 +177,13 @@ function RegistrationInviteCard({
 						}
 					}}
 				>
-					<div className="c-vbox g-2">
-						<div className="c-hbox g-2 align-items-center">
-							<label
-								htmlFor={`invite-desc-${invite.refId}`}
-								className="text-nowrap"
-								style={{ minWidth: '80px' }}
-							>
-								{t('Label')}
-							</label>
-							<input
-								id={`invite-desc-${invite.refId}`}
-								type="text"
-								className="c-input flex-fill"
+					<VBox gap={2}>
+						<Field
+							orientation="horizontal"
+							label={t('Label')}
+							id={`invite-desc-${invite.refId}`}
+						>
+							<Input
 								value={editDraft.description}
 								onChange={(e) =>
 									onEditDraftChange((d) => ({
@@ -174,91 +192,75 @@ function RegistrationInviteCard({
 									}))
 								}
 							/>
-						</div>
-						<div className="c-hbox g-2 align-items-center">
-							<label
-								htmlFor={`invite-expires-${invite.refId}`}
-								className="text-nowrap"
-								style={{ minWidth: '80px' }}
-							>
-								{t('Expires')}
-							</label>
-							<div className="c-hbox g-2 flex-fill align-items-center">
-								<input
-									id={`invite-expires-${invite.refId}`}
-									type="date"
-									className="c-input flex-fill"
-									value={editDraft.expiresAt}
-									onChange={(e) =>
-										onEditDraftChange((d) => ({
-											...d,
-											expiresAt: e.target.value,
-											neverExpires: e.target.value ? false : d.neverExpires
-										}))
-									}
-									disabled={editDraft.neverExpires}
-									min={dayjs().format('YYYY-MM-DD')}
-								/>
-								<Toggle
-									label={t('Never')}
-									checked={editDraft.neverExpires}
-									onChange={(e) =>
-										onEditDraftChange((d) => ({
-											...d,
-											neverExpires: e.target.checked,
-											expiresAt: e.target.checked ? '' : d.expiresAt
-										}))
-									}
-								/>
-							</div>
-						</div>
-						<div className="c-hbox g-2 align-items-center">
-							<label
-								htmlFor={`invite-count-${invite.refId}`}
-								className="text-nowrap"
-								style={{ minWidth: '80px' }}
-							>
-								{t('Max uses')}
-							</label>
-							<div className="c-hbox g-2 flex-fill align-items-center">
-								<input
-									id={`invite-count-${invite.refId}`}
-									type="number"
-									min={1}
-									className="c-input flex-fill"
-									value={editDraft.count}
-									onChange={(e) =>
-										onEditDraftChange((d) => ({
-											...d,
-											count: e.target.value,
-											unlimitedCount: e.target.value
-												? false
-												: d.unlimitedCount
-										}))
-									}
-									disabled={editDraft.unlimitedCount}
-								/>
-								<Toggle
-									label={t('Unlimited')}
-									checked={editDraft.unlimitedCount}
-									onChange={(e) =>
-										onEditDraftChange((d) => ({
-											...d,
-											unlimitedCount: e.target.checked,
-											count: e.target.checked ? '' : d.count
-										}))
-									}
-								/>
-							</div>
-						</div>
-						<div className="c-hbox g-2 justify-content-end mt-2">
+						</Field>
+						<Field
+							orientation="horizontal"
+							label={t('Expires')}
+							id={`invite-expires-${invite.refId}`}
+						>
+							<Input
+								type="date"
+								value={editDraft.expiresAt}
+								onChange={(e) =>
+									onEditDraftChange((d) => ({
+										...d,
+										expiresAt: e.target.value,
+										neverExpires: e.target.value ? false : d.neverExpires
+									}))
+								}
+								disabled={editDraft.neverExpires}
+								min={dayjs().format('YYYY-MM-DD')}
+							/>
+						</Field>
+						<Toggle
+							label={t('Never')}
+							checked={editDraft.neverExpires}
+							onChange={(e) =>
+								onEditDraftChange((d) => ({
+									...d,
+									neverExpires: e.target.checked,
+									expiresAt: e.target.checked ? '' : d.expiresAt
+								}))
+							}
+						/>
+						<Field
+							orientation="horizontal"
+							label={t('Max uses')}
+							id={`invite-count-${invite.refId}`}
+						>
+							<Input
+								type="number"
+								min={1}
+								value={editDraft.count}
+								onChange={(e) =>
+									onEditDraftChange((d) => ({
+										...d,
+										count: e.target.value,
+										unlimitedCount: e.target.value ? false : d.unlimitedCount
+									}))
+								}
+								disabled={editDraft.unlimitedCount}
+							/>
+						</Field>
+						<Toggle
+							label={t('Unlimited')}
+							checked={editDraft.unlimitedCount}
+							onChange={(e) =>
+								onEditDraftChange((d) => ({
+									...d,
+									unlimitedCount: e.target.checked,
+									count: e.target.checked ? '' : d.count
+								}))
+							}
+						/>
+						<HBox gap={2} justify="end">
 							<Button onClick={onCancelEdit}>{t('Cancel')}</Button>
-							<Button variant="primary" onClick={onSaveEdit}>
+							<Button color="primary" onClick={onSaveEdit}>
 								{t('Save')}
 							</Button>
-						</div>
-					</div>
-				</div>
+						</HBox>
+					</VBox>
+				</Panel>
 			)}
 
 			<QRCodeDialog
@@ -266,7 +268,7 @@ function RegistrationInviteCard({
 				onClose={() => setQrCode(undefined)}
 				title={t('Invitation link')}
 			/>
-		</div>
+		</Card>
 	)
 }
 
@@ -280,34 +282,20 @@ function CommunityTile({
 	onToggle: (idTag: string) => void
 }) {
 	return (
-		<button
-			type="button"
-			className={mergeClasses(
-				'c-card interactive flex-row align-items-center g-2 p-2 border-0',
-				selected && 'primary'
-			)}
-			aria-pressed={selected}
-			onClick={() => onToggle(community.idTag)}
-			title={community.name}
-		>
-			<ProfilePicture
-				className="flex-shrink-0"
-				profile={{ profilePic: community.profilePic }}
-				srcTag={community.idTag}
-			/>
-			<span className="c-vbox align-items-start" style={{ maxWidth: '12rem' }}>
-				<span className="text-truncate w-100">{community.name}</span>
-				<IdentityTag
-					className="text-truncate w-100 small text-muted"
-					idTag={community.idTag}
+		<Checkbox
+			variant="card"
+			leading={
+				<ProfilePicture
+					size="sm"
+					profile={{ profilePic: community.profilePic }}
+					srcTag={community.idTag}
 				/>
-			</span>
-			{selected && (
-				<span className="c-badge accent positioned tr xs" aria-hidden>
-					<IcAvailable size={12} />
-				</span>
-			)}
-		</button>
+			}
+			label={community.name}
+			description={<IdentityTag idTag={community.idTag} />}
+			checked={selected}
+			onChange={() => onToggle(community.idTag)}
+		/>
 	)
 }
 
@@ -522,7 +510,8 @@ function RegistrationInvites() {
 		if (
 			!(await dialog.confirm(
 				t('Delete invitation'),
-				t('Are you sure you want to delete this invitation?')
+				t('Are you sure you want to delete this invitation?'),
+				{ color: 'error', confirmLabel: t('Delete') }
 			))
 		)
 			return
@@ -533,21 +522,17 @@ function RegistrationInvites() {
 	}
 
 	return (
-		<>
+		<VBox gap={3}>
 			{showForm && (
-				<div className="c-panel p-3 mb-3">
-					<h3 className="mb-3">{t('Create invitation')}</h3>
-					<div className="c-vbox g-3">
-						<label className="c-vbox g-1">
-							<span>{t('Label')}</span>
-							<input
-								type="text"
-								className="c-input"
+				<Panel title={t('Create invitation')}>
+					<VBox gap={3}>
+						<Field label={t('Label')} id="invite-new-desc">
+							<Input
 								value={newDescription}
 								onChange={(e) => setNewDescription(e.target.value)}
 								placeholder={t('Optional note to identify this invitation')}
 							/>
-						</label>
+						</Field>
 
 						<Toggle
 							label={t('Auto-connect on signup')}
@@ -555,92 +540,91 @@ function RegistrationInvites() {
 							onChange={(e) => setAutoConnect(e.target.checked)}
 						/>
 
-						<div className="c-vbox g-2">
-							<span>{t('Add to communities')}</span>
-
-							{memberCommunities.length === 0 && (
-								<span className="text-muted small">
-									{t("You're not a member of any community yet.")}
-								</span>
-							)}
-
-							{pinned.length > 0 && (
-								<>
-									<span className="text-muted small">{t('Pinned')}</span>
-									<div className="c-hbox flex-wrap g-2">
-										{pinned.map((c) => (
-											<CommunityTile
-												key={c.idTag}
-												community={c}
-												selected={selectedCommunities.has(c.idTag)}
-												onToggle={toggleCommunity}
-											/>
-										))}
-									</div>
-								</>
-							)}
-
-							{more.length > 0 && (
-								<>
-									{pinned.length > 0 && (
-										<span className="text-muted small">
-											{t('More communities')}
-										</span>
-									)}
-									<div className="c-hbox flex-wrap g-2">
-										{more.map((c) => (
-											<CommunityTile
-												key={c.idTag}
-												community={c}
-												selected={selectedCommunities.has(c.idTag)}
-												onToggle={toggleCommunity}
-											/>
-										))}
-									</div>
-								</>
-							)}
-
-							<span className="text-muted small">
-								{t(
-									'You can only invite to communities where you are a moderator; others are skipped.'
+						<Fieldset legend={t('Add to communities')}>
+							<VBox gap={2}>
+								{memberCommunities.length === 0 && (
+									<Text size="sm" emphasis="muted">
+										{t("You're not a member of any community yet.")}
+									</Text>
 								)}
-							</span>
-						</div>
 
-						<div className="c-hbox g-2 justify-content-end mt-2">
+								{pinned.length > 0 && (
+									<>
+										<Text size="sm" emphasis="muted">
+											{t('Pinned')}
+										</Text>
+										<HBox gap={2} wrap>
+											{pinned.map((c) => (
+												<CommunityTile
+													key={c.idTag}
+													community={c}
+													selected={selectedCommunities.has(c.idTag)}
+													onToggle={toggleCommunity}
+												/>
+											))}
+										</HBox>
+									</>
+								)}
+
+								{more.length > 0 && (
+									<>
+										{pinned.length > 0 && (
+											<Text size="sm" emphasis="muted">
+												{t('More communities')}
+											</Text>
+										)}
+										<HBox gap={2} wrap>
+											{more.map((c) => (
+												<CommunityTile
+													key={c.idTag}
+													community={c}
+													selected={selectedCommunities.has(c.idTag)}
+													onToggle={toggleCommunity}
+												/>
+											))}
+										</HBox>
+									</>
+								)}
+
+								<Text size="sm" emphasis="muted">
+									{t(
+										'You can only invite to communities where you are a moderator; others are skipped.'
+									)}
+								</Text>
+							</VBox>
+						</Fieldset>
+
+						<HBox gap={2} justify="end">
 							<Button onClick={resetForm}>{t('Cancel')}</Button>
-							<Button variant="primary" onClick={createRef} disabled={creating}>
+							<Button color="primary" onClick={createRef} loading={creating}>
 								{t('Create')}
 							</Button>
-						</div>
-					</div>
-				</div>
+						</HBox>
+					</VBox>
+				</Panel>
 			)}
 
-			<div className="c-vbox">
-				{refs?.map((ref) => (
-					<RegistrationInviteCard
-						key={ref.refId}
-						invite={ref}
-						isEditing={editingRefId === ref.refId}
-						editDraft={editDraft}
-						onEditDraftChange={setEditDraft}
-						onBeginEdit={() => beginEdit(ref)}
-						onCancelEdit={cancelEdit}
-						onSaveEdit={() => saveEdit(ref)}
-						deleteRef={() => deleteRef(ref.refId)}
-					/>
-				))}
-			</div>
+			{refs?.map((ref) => (
+				<RegistrationInviteCard
+					key={ref.refId}
+					invite={ref}
+					isEditing={editingRefId === ref.refId}
+					editDraft={editDraft}
+					onEditDraftChange={setEditDraft}
+					onBeginEdit={() => beginEdit(ref)}
+					onCancelEdit={cancelEdit}
+					onSaveEdit={() => saveEdit(ref)}
+					deleteRef={() => deleteRef(ref.refId)}
+				/>
+			))}
 			{!showForm && (
-				<button
-					className="c-button primary float mb-5 me-2"
+				<FAB
+					icon={<IcAdd />}
+					aria-label={t('Create invitation')}
 					onClick={() => setShowForm(true)}
-				>
-					<IcAdd />
-				</button>
+				/>
 			)}
-		</>
+		</VBox>
 	)
 }
 
@@ -671,31 +655,24 @@ function CommunityInviteCard({
 		(!invite.expiresAt || invite.expiresAt > new Date())
 
 	return (
-		<div className="c-panel p-3">
-			<div className="c-hbox g-3 align-items-center">
-				<div className="fill">
-					<h3 className="m-0">{invite.description || invite.refId}</h3>
-				</div>
-				<span className={`c-badge ${isAvailable ? 'success' : 'warning'}`}>
-					{isAvailable ? t('Active') : t('Used')}
-				</span>
-				<Button kind="link" onClick={onDelete}>
-					<IcDelete />
-				</Button>
-			</div>
-			<div className="c-vbox g-1 mt-2">
-				<div className="c-hbox g-2 text-muted small">
-					<span>{t('Created')}:</span>
-					<TimeFormat time={invite.createdAt} />
-				</div>
-				{invite.expiresAt && (
-					<div className="c-hbox g-2 text-muted small">
-						<span>{t('Expires')}:</span>
-						<TimeFormat time={invite.expiresAt} />
-					</div>
-				)}
-			</div>
-		</div>
+		<Card
+			title={invite.description || invite.refId}
+			actions={
+				<HBox gap={2} align="center">
+					<Badge color={isAvailable ? 'success' : 'warning'}>
+						{isAvailable ? t('Active') : t('Used')}
+					</Badge>
+					<Button
+						variant="ghost"
+						icon={<IcDelete />}
+						aria-label={t('Delete invitation')}
+						onClick={onDelete}
+					/>
+				</HBox>
+			}
+		>
+			<RefDates createdAt={invite.createdAt} expiresAt={invite.expiresAt} />
+		</Card>
 	)
 }
 
@@ -784,7 +761,8 @@ function CommunityInvites() {
 		if (
 			!(await dialog.confirm(
 				t('Delete invitation'),
-				t('Are you sure you want to delete this invitation?')
+				t('Are you sure you want to delete this invitation?'),
+				{ color: 'error', confirmLabel: t('Delete') }
 			))
 		)
 			return
@@ -802,81 +780,71 @@ function CommunityInvites() {
 	}
 
 	return (
-		<>
+		<VBox gap={3}>
 			{showForm && (
-				<div className="c-panel p-3 mb-3">
-					<h3 className="mb-3">{t('Send community invite')}</h3>
-					<label className="d-block mb-2">
-						{t('Target user')}
-						<ProfileSelect
-							placeholder={t('Search user')}
-							listProfiles={listProfiles}
-							value={targetProfile}
-							onChange={setTargetProfile}
-						/>
-					</label>
-					<label className="d-block mb-2">
-						{t('Message (optional)')}
-						<textarea
-							className="c-input px-3 py-2"
-							value={message}
-							onChange={(e) => setMessage(e.target.value)}
-							placeholder={t('Optional message for the recipient')}
-							rows={2}
-						/>
-					</label>
-					<label className="d-block mb-3">
-						{t('Expires in')}
-						<select
-							className="c-input px-3"
-							value={expiresInDays}
-							onChange={(e) => setExpiresInDays(Number(e.target.value))}
-						>
-							<option value={7}>{t('{{count}} days', { count: 7 })}</option>
-							<option value={30}>{t('{{count}} days', { count: 30 })}</option>
-							<option value={90}>{t('{{count}} days', { count: 90 })}</option>
-						</select>
-					</label>
-					<div className="c-hbox g-2">
-						<Button
-							className="primary"
-							onClick={sendInvite}
-							disabled={!targetProfile || sending}
-						>
-							<IcSend />
-							{t('Send invite')}
-						</Button>
-						<Button className="container-secondary" onClick={() => setShowForm(false)}>
-							{t('Cancel')}
-						</Button>
-					</div>
-				</div>
+				<Panel title={t('Send community invite')}>
+					<VBox gap={3}>
+						<Fieldset legend={t('Target user')}>
+							<ProfileSelect
+								placeholder={t('Search user')}
+								listProfiles={listProfiles}
+								value={targetProfile}
+								onChange={setTargetProfile}
+							/>
+						</Fieldset>
+						<Field label={t('Message (optional)')} id="community-invite-message">
+							<TextArea
+								value={message}
+								onChange={(e) => setMessage(e.target.value)}
+								placeholder={t('Optional message for the recipient')}
+								rows={2}
+							/>
+						</Field>
+						<Field label={t('Expires in')} id="community-invite-expires">
+							<NativeSelect
+								value={expiresInDays}
+								onChange={(e) => setExpiresInDays(Number(e.target.value))}
+							>
+								<option value={7}>{t('{{count}} days', { count: 7 })}</option>
+								<option value={30}>{t('{{count}} days', { count: 30 })}</option>
+								<option value={90}>{t('{{count}} days', { count: 90 })}</option>
+							</NativeSelect>
+						</Field>
+						<HBox gap={2} justify="end">
+							<Button onClick={() => setShowForm(false)}>{t('Cancel')}</Button>
+							<Button
+								color="primary"
+								icon={<IcSend />}
+								onClick={sendInvite}
+								disabled={!targetProfile}
+								loading={sending}
+							>
+								{t('Send invite')}
+							</Button>
+						</HBox>
+					</VBox>
+				</Panel>
 			)}
 
-			<div className="c-vbox g-2">
-				{invites?.map((invite) => (
-					<CommunityInviteCard
-						key={invite.refId}
-						invite={invite}
-						onDelete={() => deleteInvite(invite.refId)}
-					/>
-				))}
-				{invites && invites.length === 0 && !showForm && (
-					<div className="c-panel text-muted text-center p-4">
-						{t('No community invitations yet.')}
-					</div>
-				)}
-			</div>
+			{invites?.map((invite) => (
+				<CommunityInviteCard
+					key={invite.refId}
+					invite={invite}
+					onDelete={() => deleteInvite(invite.refId)}
+				/>
+			))}
+			{invites && invites.length === 0 && !showForm && (
+				<EmptyState className="auto-bg" title={t('No community invitations yet.')} />
+			)}
 
 			{!showForm && (
-				<button
-					className="c-button primary float mb-5 me-2"
+				<FAB
+					icon={<IcAdd />}
+					aria-label={t('Send community invite')}
 					onClick={() => setShowForm(true)}
-				>
-					<IcAdd />
-				</button>
+				/>
 			)}
-		</>
+		</VBox>
 	)
 }
 
@@ -889,15 +857,15 @@ export function Invitations() {
 	const [tab, setTab] = React.useState<string>('registration')
 
 	return (
-		<>
-			<Tabs className="mb-3" value={tab} onTabChange={setTab}>
+		<VBox gap={3} autoBg>
+			<Tabs value={tab} onTabChange={setTab}>
 				<Tab value="registration">{t('Registration')}</Tab>
 				<Tab value="community">{t('Community')}</Tab>
 			</Tabs>
 
 			{tab === 'registration' && <RegistrationInvites />}
 			{tab === 'community' && <CommunityInvites />}
-		</>
+		</VBox>
 	)
 }
 

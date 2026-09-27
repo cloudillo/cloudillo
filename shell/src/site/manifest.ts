@@ -28,7 +28,7 @@ import { siteContextAtom } from './state.js'
  * One step of a breadcrumb trail: an ancestor page, or the current one.
  *
  * No `href` where `siteHref` refused the page's path — the crumb still reads as text,
- * as a rejected nav target does in `SiteBar.tsx`.
+ * as a rejected nav target does in `ui/SiteBar.tsx`.
  */
 export interface SiteCrumb {
 	href?: string

@@ -2,17 +2,35 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import type * as Types from '@cloudillo/core'
-import { Button, ProfileCard, TimeFormat, useApi, useAuth } from '@cloudillo/react'
+import {
+	ActionBar,
+	Alert,
+	Button,
+	Card,
+	EmptyState,
+	Field,
+	Form,
+	Heading,
+	HBox,
+	Input,
+	LoadingSpinner,
+	Logo,
+	Panel,
+	ProfileCard,
+	Text,
+	TimeFormat,
+	useApi,
+	useAuth,
+	VBox
+} from '@cloudillo/react'
 import type { ActionView } from '@cloudillo/types'
 import debounce from 'debounce'
 import { useAtom } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-	LuUsers as IcCommunity,
 	LuPlus as IcCreate,
 	LuChevronsLeft as IcGoBack,
-	LuInfo as IcInfo,
 	LuArrowRight as IcUseInvite
 } from 'react-icons/lu'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
@@ -23,11 +41,11 @@ import {
 	useContextSwitch,
 	useCtx
 } from '../context/index.js'
-import { CloudilloLogo } from '../logo.js'
 import { communityCreatePath } from '../routes.js'
 import {
 	AppDomainErrorPanel,
 	AppDomainInput,
+	CommunityTitle,
 	DnsInstructions,
 	type IdTagError,
 	IdTagErrorPanel,
@@ -39,6 +57,29 @@ import {
 // Extended local type that includes 'network' error (not returned by API, but used for local error handling)
 type LocalVerifyResult = Omit<Types.CommunityVerifyResult, 'idTagError'> & {
 	idTagError?: IdTagError
+}
+
+function DisplayNameField({
+	value,
+	onChange,
+	placeholder
+}: {
+	value: string
+	onChange: (value: string) => void
+	placeholder: string
+}) {
+	const { t } = useTranslation()
+	return (
+		<Field label={t('Display name')} className="my-3">
+			<Input
+				name="displayName"
+				type="text"
+				onChange={(evt: React.ChangeEvent<HTMLInputElement>) => onChange(evt.target.value)}
+				value={value}
+				placeholder={placeholder}
+			/>
+		</Field>
+	)
 }
 
 /////////////////
@@ -74,24 +115,19 @@ function IdpNameStep({
 
 	return (
 		<>
-			<header>
-				<h1 className="mb-3">
-					<IcCommunity className="me-2" />
-					{t('Create a Community')}
-				</h1>
-			</header>
+			<CommunityTitle />
 
-			<h3 className="my-3">
+			<Heading level={3} className="my-3">
 				{t('Name your community on {{provider}}', {
 					provider: providerInfo?.name || selectedProvider
 				})}
-			</h3>
-			<p className="text-muted mb-3">
+			</Heading>
+			<Text as="p" emphasis="muted" className="mb-3">
 				{t('Your community will be')}{' '}
-				<b>
+				<Text weight="bold">
 					@{idTagInput || 'communityname'}.{selectedProvider}
-				</b>
-			</p>
+				</Text>
+			</Text>
 
 			<IdTagInput
 				value={idTagInput}
@@ -106,37 +142,29 @@ function IdpNameStep({
 			/>
 			<IdTagErrorPanel error={verifyState?.idTagError} mode="idp" />
 
-			<label className="d-block my-3">
-				{t('Display name')}
-				<input
-					className="c-input px-3"
-					name="displayName"
-					type="text"
-					onChange={(evt: React.ChangeEvent<HTMLInputElement>) =>
-						setDisplayName(evt.target.value)
-					}
-					value={displayName}
-					placeholder={t('My Community')}
-					aria-label={t('Display name')}
-				/>
-			</label>
+			<DisplayNameField
+				value={displayName}
+				onChange={setDisplayName}
+				placeholder={t('My Community')}
+			/>
 
-			<p className="small text-muted">{t('You can change the display name later.')}</p>
+			<Text as="p" size="sm" emphasis="muted">
+				{t('You can change the display name later.')}
+			</Text>
 
-			<footer className="c-group g-2 mt-4">
-				<Button className="container-secondary" onClick={onGoBack}>
-					<IcGoBack />
+			<ActionBar>
+				<Button icon={<IcGoBack />} onClick={onGoBack}>
 					{t('Back')}
 				</Button>
 				<Button
-					className="primary"
+					color="primary"
 					type="submit"
+					icon={<IcCreate />}
 					disabled={verifyState?.idTagError !== '' || !idTagInput}
 				>
-					<IcCreate />
 					{t('Create Community')}
 				</Button>
-			</footer>
+			</ActionBar>
 		</>
 	)
 }
@@ -187,14 +215,11 @@ function DomainSetupStep({
 
 	return (
 		<>
-			<header>
-				<h1 className="mb-3">
-					<IcCommunity className="me-2" />
-					{t('Create a Community')}
-				</h1>
-			</header>
+			<CommunityTitle />
 
-			<h3 className="my-3">{t('Use your domain for your community')}</h3>
+			<Heading level={3} className="my-3">
+				{t('Use your domain for your community')}
+			</Heading>
 
 			<IdTagInput
 				value={idTagInput}
@@ -241,36 +266,26 @@ function DomainSetupStep({
 			)}
 
 			{showNameField && (
-				<label className="d-block my-3">
-					{t('Display name')}
-					<input
-						className="c-input px-3"
-						name="displayName"
-						type="text"
-						onChange={(evt: React.ChangeEvent<HTMLInputElement>) =>
-							setDisplayName(evt.target.value)
-						}
-						value={displayName}
-						placeholder={t('My Team')}
-						aria-label={t('Display name')}
-					/>
-				</label>
+				<DisplayNameField
+					value={displayName}
+					onChange={setDisplayName}
+					placeholder={t('My Team')}
+				/>
 			)}
 
-			<footer className="c-group g-2 mt-4">
-				<Button className="container-secondary" onClick={onGoBack}>
-					<IcGoBack />
+			<ActionBar>
+				<Button icon={<IcGoBack />} onClick={onGoBack}>
 					{t('Back')}
 				</Button>
 				<Button
-					className="primary"
+					color="primary"
 					type="submit"
+					icon={<IcCreate />}
 					disabled={verifyState?.idTagError !== '' || verifyState?.appDomainError !== ''}
 				>
-					<IcCreate />
 					{t('Create Community')}
 				</Button>
-			</footer>
+			</ActionBar>
 		</>
 	)
 }
@@ -296,77 +311,85 @@ function ProgressStep({
 	onOpenCommunity
 }: ProgressStepProps) {
 	const { t } = useTranslation()
+	const created = (
+		<>
+			<Text weight="bold">{communityName}</Text> ({communityIdTag})
+		</>
+	)
 
 	return (
 		<>
-			<header>
-				<h1 className="mb-3">
-					<IcCommunity className="me-2" />
-					{t('Create a Community')}
-				</h1>
-			</header>
+			<CommunityTitle />
 
 			{progress === 'creating' && (
-				<div className="c-vbox align-items-center p-5">
-					<CloudilloLogo className="c-logo w-50 ps-3 pb-3 slow" />
-					<h3 className="my-3">{t('Creating your community...')}</h3>
-					<p>{t('This usually takes only a few seconds, please be patient...')}</p>
-				</div>
+				<EmptyState
+					size="lg"
+					icon={<Logo animated />}
+					title={t('Creating your community...')}
+					description={t('This usually takes only a few seconds, please be patient...')}
+				/>
 			)}
 
 			{progress === 'checking' && (
-				<div className="c-vbox align-items-center p-5">
-					<CloudilloLogo className="c-logo w-50 ps-3 pb-3 slow" />
-					<h3 className="my-3">{t('Community created!')}</h3>
-					<p>{t('Checking if your community is accessible...')}</p>
-				</div>
+				<EmptyState
+					size="lg"
+					icon={<Logo animated />}
+					title={t('Community created!')}
+					description={t('Checking if your community is accessible...')}
+				/>
 			)}
 
 			{progress === 'done' && (
-				<div className="c-vbox align-items-center p-5">
-					<CloudilloLogo className="c-logo w-50 ps-3 pb-3" />
-					<h3 className="my-3">{t('Your community is ready!')}</h3>
-					<p>
-						<strong>{communityName}</strong> ({communityIdTag})
-					</p>
-					<Button className="primary mt-3" onClick={onOpenCommunity}>
-						{t('Open Community')}
-					</Button>
-				</div>
+				<EmptyState
+					size="lg"
+					icon={<Logo />}
+					title={t('Your community is ready!')}
+					description={created}
+					actions={
+						<Button color="primary" onClick={onOpenCommunity}>
+							{t('Open Community')}
+						</Button>
+					}
+				/>
 			)}
 
 			{progress === 'pending-dns' && (
-				<div className="c-vbox align-items-center p-5">
-					<CloudilloLogo className="c-logo w-50 ps-3 pb-3" />
-					<h3 className="my-3">{t('Community created!')}</h3>
-					<p>
-						<strong>{communityName}</strong> ({communityIdTag})
-					</p>
-					<div className="c-panel warning mt-3">
-						<p>
-							{t(
-								'Your community has been created, but DNS propagation is still in progress.'
-							)}
-						</p>
-						<p className="small text-muted mb-0">
-							{t(
-								"It's been added to your sidebar. You can try opening it in a few minutes."
-							)}
-						</p>
-					</div>
-				</div>
+				<>
+					<EmptyState
+						size="lg"
+						icon={<Logo />}
+						title={t('Community created!')}
+						description={created}
+					/>
+					<Alert
+						color="warning"
+						title={t(
+							'Your community has been created, but DNS propagation is still in progress.'
+						)}
+					>
+						{t(
+							"It's been added to your sidebar. You can try opening it in a few minutes."
+						)}
+					</Alert>
+				</>
 			)}
 
 			{progress === 'error' && (
-				<div className="c-vbox align-items-center p-5">
-					<CloudilloLogo className="c-logo w-50 ps-3 pb-3" />
-					<h3 className="my-3">{t('Something went wrong')}</h3>
-					{error && <p className="c-panel error">{error}</p>}
-					<p>{t('Please try again or contact support.')}</p>
-					<Button className="primary mt-3" onClick={onRetry}>
-						{t('Try Again')}
-					</Button>
-				</div>
+				<>
+					<EmptyState
+						size="lg"
+						color="error"
+						icon={<Logo />}
+						title={t('Something went wrong')}
+						description={t('Please try again or contact support.')}
+						actions={
+							<Button color="primary" onClick={onRetry}>
+								{t('Try Again')}
+							</Button>
+						}
+					/>
+					{error && <Alert color="error">{error}</Alert>}
+				</>
 			)}
 		</>
 	)
@@ -405,26 +428,19 @@ function InviteChooserStep({ onSelectInvite }: InviteChooserStepProps) {
 
 	return (
 		<>
-			<header>
-				<h1 className="mb-3">
-					<IcCommunity className="me-2" />
-					{t('Create a Community')}
-				</h1>
-			</header>
+			<CommunityTitle />
 
-			<h3 className="my-3">{t('Select an invitation')}</h3>
-			<p className="text-muted mb-3">
+			<Heading level={3} className="my-3">
+				{t('Select an invitation')}
+			</Heading>
+			<Text as="p" emphasis="muted" className="mb-3">
 				{t('Community creation requires an invitation from a server administrator.')}
-			</p>
+			</Text>
 
-			{loading && (
-				<div className="c-vbox align-items-center p-4">
-					<p className="text-muted">{t('Loading invitations...')}</p>
-				</div>
-			)}
+			{loading && <LoadingSpinner label={t('Loading invitations...')} />}
 
 			{!loading && invites && invites.length > 0 && (
-				<div className="c-vbox g-2">
+				<VBox gap={2}>
 					{invites.map((invite) => {
 						const content = invite.content as
 							| {
@@ -435,45 +451,40 @@ function InviteChooserStep({ onSelectInvite }: InviteChooserStepProps) {
 							  }
 							| undefined
 						return (
-							<div key={invite.actionId} className="c-panel g-2">
-								<div className="c-hbox align-items-center">
-									<ProfileCard profile={invite.issuer} />
-									<div className="c-hbox ms-auto g-3 align-items-center">
-										<TimeFormat time={invite.createdAt} />
-									</div>
-								</div>
+							<Card key={invite.actionId}>
+								<HBox gap={2} align="center">
+									<ProfileCard className="flex-fill" profile={invite.issuer} />
+									<TimeFormat time={invite.createdAt} />
+								</HBox>
 								{content?.message && (
-									<p className="text-muted mb-2">{content.message}</p>
+									<Text as="p" emphasis="muted">
+										{content.message}
+									</Text>
 								)}
-								<footer>
+								<ActionBar>
 									<Button
-										className="primary"
+										color="primary"
+										icon={<IcUseInvite />}
 										onClick={() =>
 											content?.refId && onSelectInvite(content.refId)
 										}
 										disabled={!content?.refId}
 									>
-										<IcUseInvite />
 										{t('Use this invite')}
 									</Button>
-								</footer>
-							</div>
+								</ActionBar>
+							</Card>
 						)
 					})}
-				</div>
+				</VBox>
 			)}
 
 			{!loading && (!invites || invites.length === 0) && (
-				<div className="c-panel info">
-					<div className="c-hbox g-2 align-items-center">
-						<IcInfo />
-						<p className="mb-0">
-							{t(
-								"You don't have any community creation invites yet. Ask your server administrator for one."
-							)}
-						</p>
-					</div>
-				</div>
+				<Alert color="info">
+					{t(
+						"You don't have any community creation invites yet. Ask your server administrator for one."
+					)}
+				</Alert>
 			)}
 		</>
 	)
@@ -739,7 +750,7 @@ export function CreateCommunity() {
 			identityProvider === 'domain' ? idTagInput : idTagInput + '.' + selectedProvider
 
 		return (
-			<div className="c-panel d-block p-4">
+			<Panel padding={4}>
 				<ProgressStep
 					progress={progress}
 					error={error}
@@ -748,7 +759,7 @@ export function CreateCommunity() {
 					onRetry={handleRetry}
 					onOpenCommunity={handleOpenCommunity}
 				/>
-			</div>
+			</Panel>
 		)
 	}
 
@@ -757,68 +768,73 @@ export function CreateCommunity() {
 
 	// Render the appropriate step
 	return (
-		<form className="c-panel d-block p-4" onSubmit={onSubmit}>
-			{/* Invite chooser step for non-SADM users */}
-			{needsInvite && !identityProvider && (
-				<InviteChooserStep onSelectInvite={(refId) => setInviteRef(refId)} />
-			)}
+		<Panel padding={4}>
+			<Form onSubmit={onSubmit}>
+				{/* Invite chooser step for non-SADM users */}
+				{needsInvite && !identityProvider && (
+					<InviteChooserStep onSelectInvite={(refId) => setInviteRef(refId)} />
+				)}
 
-			{/* Gateway: Choose IDP vs Domain */}
-			{!needsInvite && !identityProvider && (
-				<ProviderSelectionStep mode="community" onSelectProvider={onSelectProviderType} />
-			)}
+				{/* Gateway: Choose IDP vs Domain */}
+				{!needsInvite && !identityProvider && (
+					<ProviderSelectionStep
+						mode="community"
+						onSelectProvider={onSelectProviderType}
+					/>
+				)}
 
-			{/* IDP flow - Step 1: Provider selection */}
-			{identityProvider === 'idp' && idpStep === 'select' && (
-				<ProviderSelectorStep
-					mode="community"
-					identityProviders={identityProviders}
-					providerInfoMap={providerInfoMap}
-					selectedProvider={selectedProvider}
-					onSelectProvider={setSelectedProvider}
-					onProviderInfoFetched={(provider, info) =>
-						setProviderInfoMap((prev) => ({ ...prev, [provider]: info }))
-					}
-					onContinue={onIdpProviderContinue}
-					onGoBack={onGoBack}
-					api={api}
-				/>
-			)}
+				{/* IDP flow - Step 1: Provider selection */}
+				{identityProvider === 'idp' && idpStep === 'select' && (
+					<ProviderSelectorStep
+						mode="community"
+						identityProviders={identityProviders}
+						providerInfoMap={providerInfoMap}
+						selectedProvider={selectedProvider}
+						onSelectProvider={setSelectedProvider}
+						onProviderInfoFetched={(provider, info) =>
+							setProviderInfoMap((prev) => ({ ...prev, [provider]: info }))
+						}
+						onContinue={onIdpProviderContinue}
+						onGoBack={onGoBack}
+						api={api}
+					/>
+				)}
 
-			{/* IDP flow - Step 2: Name entry */}
-			{identityProvider === 'idp' && idpStep === 'name' && (
-				<IdpNameStep
-					selectedProvider={selectedProvider}
-					providerInfo={providerInfoMap[selectedProvider]}
-					idTagInput={idTagInput}
-					setIdTagInput={setIdTagInput}
-					displayName={displayName}
-					setDisplayName={setDisplayName}
-					verifyState={verifyState}
-					progress={verifyProgress}
-					onVerify={(idTag) => onChangeVerify(idTag, selectedProvider)}
-					onSubmit={onSubmit}
-					onGoBack={onGoBack}
-				/>
-			)}
+				{/* IDP flow - Step 2: Name entry */}
+				{identityProvider === 'idp' && idpStep === 'name' && (
+					<IdpNameStep
+						selectedProvider={selectedProvider}
+						providerInfo={providerInfoMap[selectedProvider]}
+						idTagInput={idTagInput}
+						setIdTagInput={setIdTagInput}
+						displayName={displayName}
+						setDisplayName={setDisplayName}
+						verifyState={verifyState}
+						progress={verifyProgress}
+						onVerify={(idTag) => onChangeVerify(idTag, selectedProvider)}
+						onSubmit={onSubmit}
+						onGoBack={onGoBack}
+					/>
+				)}
 
-			{/* Domain setup */}
-			{identityProvider === 'domain' && (
-				<DomainSetupStep
-					idTagInput={idTagInput}
-					setIdTagInput={setIdTagInput}
-					appDomain={appDomain}
-					setAppDomain={setAppDomain}
-					displayName={displayName}
-					setDisplayName={setDisplayName}
-					verifyState={verifyState}
-					progress={verifyProgress}
-					onVerify={onChangeVerify}
-					onSubmit={onSubmit}
-					onGoBack={onGoBack}
-				/>
-			)}
-		</form>
+				{/* Domain setup */}
+				{identityProvider === 'domain' && (
+					<DomainSetupStep
+						idTagInput={idTagInput}
+						setIdTagInput={setIdTagInput}
+						appDomain={appDomain}
+						setAppDomain={setAppDomain}
+						displayName={displayName}
+						setDisplayName={setDisplayName}
+						verifyState={verifyState}
+						progress={verifyProgress}
+						onVerify={onChangeVerify}
+						onSubmit={onSubmit}
+						onGoBack={onGoBack}
+					/>
+				)}
+			</Form>
+		</Panel>
 	)
 }
 // vim: ts=4

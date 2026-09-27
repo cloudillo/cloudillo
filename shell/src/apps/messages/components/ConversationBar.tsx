@@ -4,22 +4,28 @@
 import {
 	Badge,
 	Button,
-	Dropdown,
+	Disclosure,
 	EmptyState,
-	mergeClasses,
+	HBox,
+	Icon,
+	Link,
+	List,
+	ListItem,
+	Menu,
+	MenuItem,
+	Panel,
 	ProfileCard,
+	SearchInput,
 	SkeletonList,
 	Tab,
-	Tabs
+	Tabs,
+	VBox
 } from '@cloudillo/react'
 import type { ActionView } from '@cloudillo/types'
-import debounce from 'debounce'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
 	LuCheck as IcCheck,
-	LuChevronDown as IcChevronDown,
-	LuChevronRight as IcChevronRight,
 	LuX as IcClose,
 	LuMessagesSquare as IcConvList,
 	LuUser as IcDirect,
@@ -27,7 +33,6 @@ import {
 	LuPlus as IcNew,
 	LuSquarePen as IcNewMsg
 } from 'react-icons/lu'
-import { Link } from 'react-router-dom'
 
 import { useCtx } from '../../../context/index.js'
 import { profilePath } from '../../../routes.js'
@@ -66,20 +71,9 @@ export function ConversationBar({
 }: ConversationBarProps) {
 	const { t } = useTranslation()
 	const urlContext = useCtx().base
-	const [search, setSearch] = React.useState(filter.q || '')
-	const [showArchived, setShowArchived] = React.useState(false)
 
-	const setFilterDebounced = React.useMemo(
-		() =>
-			debounce(function setFilterD({ q }: { q?: string }) {
-				setFilter((filter) => ({ ...filter, q }))
-			}, 300),
-		[setFilter]
-	)
-
-	function onSearchChange(e: React.ChangeEvent<HTMLInputElement>) {
-		setSearch(e.target.value)
-		setFilterDebounced({ q: e.target.value })
+	function onSearch(q: string) {
+		setFilter((filter) => ({ ...filter, q }))
 	}
 
 	function onTabChange(tab: ConversationTab) {
@@ -104,77 +98,67 @@ export function ConversationBar({
 	const archived = filteredConversations?.filter((c) => c.archived)
 
 	return (
-		<div className={mergeClasses('c-vbox h-100 g-1', className)}>
+		<VBox gap={1} className={className ? `h-100 ${className}` : 'h-100'}>
 			{/* Header panel: Tabs + Search */}
-			<div className="c-panel p-2">
-				<div className="c-hbox align-items-center g-1 mb-2">
+			<Panel padding={2}>
+				<HBox align="center" gap={1} className="mb-2">
 					<Tabs
 						value={filter.tab}
 						onTabChange={(value) => onTabChange(value as ConversationTab)}
-						className="fill"
+						className="flex-fill"
 					>
-						<Tab value="all" title={t('All')}>
-							<IcConvList className="me-1" />
+						<Tab value="all" icon={<IcConvList />}>
 							{t('All')}
 						</Tab>
-						<Tab value="direct" title={t('Direct')}>
-							<IcDirect className="me-1" />
+						<Tab value="direct" icon={<IcDirect />}>
 							{t('Direct')}
 						</Tab>
-						<Tab value="groups" title={t('Groups')}>
-							<IcGroup className="me-1" />
+						<Tab value="groups" icon={<IcGroup />}>
 							{t('Groups')}
 						</Tab>
 					</Tabs>
-					<Dropdown
+					<Menu
 						placement="bottom-end"
-						triggerClassName="c-button primary icon flex-shrink-0"
-						triggerProps={{ 'aria-label': t('New conversation') }}
-						trigger={<IcNew />}
+						trigger={
+							<Button
+								color="primary"
+								icon={<IcNew />}
+								aria-label={t('New conversation')}
+							/>
+						}
 					>
-						<ul className="c-nav vertical emph" style={{ minWidth: '12rem' }}>
-							<li>
-								<Button
-									kind="nav-item"
-									className="c-hbox g-2 align-items-center w-100"
-									onClick={onNewMessage}
-								>
-									<IcNewMsg />
-									<span className="flex-fill text-start">{t('New message')}</span>
-								</Button>
-							</li>
-							<li>
-								<Button
-									kind="nav-item"
-									className="c-hbox g-2 align-items-center w-100"
-									onClick={onCreateGroup}
-								>
-									<IcGroup />
-									<span className="flex-fill text-start">{t('New group')}</span>
-								</Button>
-							</li>
-						</ul>
-					</Dropdown>
-				</div>
-				<div className="c-input-group">
-					<input
-						type="text"
-						className="c-input"
-						placeholder={t('Search conversations...')}
-						value={search}
-						onChange={onSearchChange}
-					/>
-				</div>
-			</div>
+						<MenuItem
+							icon={<IcNewMsg />}
+							label={t('New message')}
+							onClick={onNewMessage}
+						/>
+						<MenuItem
+							icon={<IcGroup />}
+							label={t('New group')}
+							onClick={onCreateGroup}
+						/>
+					</Menu>
+				</HBox>
+				<SearchInput
+					placeholder={t('Search conversations...')}
+					aria-label={t('Search conversations...')}
+					defaultValue={filter.q}
+					debounce={300}
+					onSearch={onSearch}
+				/>
+			</Panel>
 
 			{/* Pending Invitations */}
 			{pendingInvites && pendingInvites.length > 0 && (
-				<div className="c-panel">
-					<div className="c-panel-header p-2">
-						<span className="font-medium">{t('Pending Invitations')}</span>
-						<Badge className="ms-2">{pendingInvites.length}</Badge>
-					</div>
-					<div className="c-nav vertical low">
+				<Panel
+					title={
+						<HBox gap={2} align="center">
+							{t('Pending Invitations')}
+							<Badge>{pendingInvites.length}</Badge>
+						</HBox>
+					}
+				>
+					<List>
 						{pendingInvites.map((invite) => {
 							const inviteContent = invite.content as
 								| { groupName?: string; message?: string }
@@ -189,15 +173,13 @@ export function ConversationBar({
 									? undefined
 									: inviteContent?.groupName
 							return (
-								<div
+								<ListItem
 									key={invite.actionId}
-									className="c-hbox align-items-center g-2 p-2"
-								>
-									<IcGroup className="text-muted flex-shrink-0" />
-									<div className="c-vbox fill overflow-hidden">
-										{invite.subjectProfile ? (
+									leading={<Icon as={IcGroup} />}
+									title={
+										invite.subjectProfile ? (
 											<Link
-												to={profilePath(
+												href={profilePath(
 													urlContext,
 													invite.subjectProfile.idTag
 												)}
@@ -208,57 +190,50 @@ export function ConversationBar({
 												/>
 											</Link>
 										) : (
-											<span className="font-medium text-truncate">
-												{inviteGroupName || t('Group invitation')}
-											</span>
-										)}
-										<span className="text-muted text-small text-truncate">
-											{t('From')} {invite.issuer.name || invite.issuer.idTag}
-										</span>
-										{inviteMessage && (
-											<span
-												className="text-small text-truncate"
-												title={inviteMessage}
-											>
-												{inviteMessage}
-											</span>
-										)}
-									</div>
-									<Button
-										kind="link"
-										variant="primary"
-										title={t('Accept')}
-										onClick={() => onAcceptInvite?.(invite)}
-									>
-										<IcCheck size={16} />
-									</Button>
-									<Button
-										kind="link"
-										title={t('Reject')}
-										onClick={() => onRejectInvite?.(invite)}
-									>
-										<IcClose size={16} />
-									</Button>
-								</div>
+											inviteGroupName || t('Group invitation')
+										)
+									}
+									subtitle={`${t('From')} ${invite.issuer.name || invite.issuer.idTag}`}
+									meta={inviteMessage}
+									actions={
+										<>
+											<Button
+												variant="ghost"
+												color="primary"
+												size="sm"
+												icon={<IcCheck />}
+												aria-label={t('Accept')}
+												onClick={() => onAcceptInvite?.(invite)}
+											/>
+											<Button
+												variant="ghost"
+												size="sm"
+												icon={<IcClose />}
+												aria-label={t('Reject')}
+												onClick={() => onRejectInvite?.(invite)}
+											/>
+										</>
+									}
+								/>
 							)
 						})}
-					</div>
-				</div>
+					</List>
+				</Panel>
 			)}
 
 			{/* List panel */}
-			<div className="c-panel c-nav vertical low fill overflow-y-auto">
+			<Panel className="flex-fill overflow-y-auto">
 				{filteredConversations === undefined || !active || !archived ? (
 					<SkeletonList count={5} showAvatar />
 				) : active.length === 0 && archived.length === 0 ? (
 					<EmptyState
 						icon={
 							filter.tab === 'groups' ? (
-								<IcGroup style={{ fontSize: '2rem' }} />
+								<IcGroup />
 							) : filter.tab === 'direct' ? (
-								<IcDirect style={{ fontSize: '2rem' }} />
+								<IcDirect />
 							) : (
-								<IcConvList style={{ fontSize: '2rem' }} />
+								<IcConvList />
 							)
 						}
 						title={
@@ -277,8 +252,7 @@ export function ConversationBar({
 						}
 						action={
 							filter.tab === 'groups' ? (
-								<Button variant="primary" onClick={onCreateGroup}>
-									<IcNew className="me-1" />
+								<Button color="primary" icon={<IcNew />} onClick={onCreateGroup}>
 									{t('Create Group')}
 								</Button>
 							) : undefined
@@ -286,45 +260,39 @@ export function ConversationBar({
 					/>
 				) : (
 					<>
-						{active.map((con) => (
-							<ConversationCard
-								key={con.id}
-								conversation={con}
-								className={
-									activeId === con.id ? 'bg bg-container-primary' : undefined
-								}
-							/>
-						))}
+						<List>
+							{active.map((con) => (
+								<ConversationCard
+									key={con.id}
+									conversation={con}
+									selected={activeId === con.id}
+								/>
+							))}
+						</List>
 						{archived.length > 0 && (
-							<>
-								<button
-									type="button"
-									className="c-nav-item c-hbox align-items-center g-2 text-muted font-medium"
-									onClick={() => setShowArchived((v) => !v)}
-									aria-expanded={showArchived}
-								>
-									{showArchived ? <IcChevronDown /> : <IcChevronRight />}
-									<span className="fill text-start">{t('Archived')}</span>
-									<Badge>{archived.length}</Badge>
-								</button>
-								{showArchived &&
-									archived.map((con) => (
+							<Disclosure
+								summary={
+									<HBox gap={2} align="center">
+										{t('Archived')}
+										<Badge>{archived.length}</Badge>
+									</HBox>
+								}
+							>
+								<List>
+									{archived.map((con) => (
 										<ConversationCard
 											key={con.id}
 											conversation={con}
-											className={
-												activeId === con.id
-													? 'bg bg-container-primary'
-													: undefined
-											}
+											selected={activeId === con.id}
 										/>
 									))}
-							</>
+								</List>
+							</Disclosure>
 						)}
 					</>
 				)}
-			</div>
-		</div>
+			</Panel>
+		</VBox>
 	)
 }
 

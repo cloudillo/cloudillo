@@ -1,16 +1,21 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button, useDebouncedValue } from '@cloudillo/react'
+import {
+	Button,
+	HBox,
+	SearchInput,
+	Segmented,
+	SegmentedItem,
+	Spacer,
+	Text,
+	VBox
+} from '@cloudillo/react'
 import dayjs from 'dayjs'
 import type { TFunction } from 'i18next'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuChevronRight as IcNext,
-	LuChevronLeft as IcPrev,
-	LuSearch as IcSearch
-} from 'react-icons/lu'
+import { LuChevronRight as IcNext, LuChevronLeft as IcPrev } from 'react-icons/lu'
 
 import type { CalendarView } from '../types.js'
 
@@ -27,13 +32,10 @@ export interface CalendarToolbarProps {
 	trail?: React.ReactNode
 }
 
-const getGridViews = (t: TFunction): { value: CalendarView; label: string }[] => [
+const getViews = (t: TFunction): { value: CalendarView; label: string }[] => [
 	{ value: 'month', label: t('Month') },
 	{ value: 'week', label: t('Week') },
-	{ value: 'day', label: t('Day') }
-]
-
-const getListViews = (t: TFunction): { value: CalendarView; label: string }[] => [
+	{ value: 'day', label: t('Day') },
 	{ value: 'agenda', label: t('Agenda') },
 	{ value: 'tasks', label: t('Tasks') }
 ]
@@ -49,17 +51,7 @@ export function CalendarToolbar({
 	trail
 }: CalendarToolbarProps) {
 	const { t, i18n } = useTranslation()
-	const [input, setInput] = React.useState(searchQuery)
-	const debounced = useDebouncedValue(input, 250)
-	const gridViews = React.useMemo(() => getGridViews(t), [t])
-	const listViews = React.useMemo(() => getListViews(t), [t])
-
-	React.useEffect(
-		function commitSearch() {
-			onSearchChange(debounced)
-		},
-		[debounced, onSearchChange]
-	)
+	const views = React.useMemo(() => getViews(t), [t])
 
 	function step(delta: number) {
 		const d = dayjs(currentDate).startOf('day')
@@ -98,85 +90,62 @@ export function CalendarToolbar({
 	}, [currentDate, view, i18n.language])
 
 	return (
-		<div className="c-cal-toolbar">
-			<div className="c-cal-toolbar__row">
+		<VBox gap={2} padding={2} autoBg>
+			<HBox gap={2} align="center" wrap>
 				{lead}
-				<div className="d-flex align-items-center g-1">
-					<Button size="small" onClick={today}>
+				<HBox gap={1} align="center">
+					<Button size="sm" onClick={today}>
 						{t('Today')}
 					</Button>
 					<Button
-						mode="icon"
-						size="small"
+						size="sm"
 						onClick={() => step(-1)}
 						aria-label={t('Previous')}
 						icon={<IcPrev />}
 					/>
 					<Button
-						mode="icon"
-						size="small"
+						size="sm"
 						onClick={() => step(1)}
 						aria-label={t('Next')}
 						icon={<IcNext />}
 					/>
-				</div>
+				</HBox>
 
-				<strong className="c-cal-toolbar__label">{label}</strong>
+				<Text size="lg" weight="semibold" truncate>
+					{label}
+				</Text>
 
-				<div className="flex-fill" />
+				<Spacer />
 
 				{trail}
-			</div>
+			</HBox>
 
-			<div className="c-cal-toolbar__row">
-				<div role="tablist" aria-label={t('Calendar view')} className="c-cal-view-switcher">
-					<div className="c-cal-view-group">
-						{gridViews.map((v) => (
-							<button
-								key={v.value}
-								type="button"
-								role="tab"
-								aria-selected={view === v.value}
-								className="c-cal-view-tab"
-								onClick={() => onViewChange(v.value)}
-							>
-								{v.label}
-							</button>
-						))}
-					</div>
-					<div className="c-cal-view-group">
-						{listViews.map((v) => (
-							<button
-								key={v.value}
-								type="button"
-								role="tab"
-								aria-selected={view === v.value}
-								className="c-cal-view-tab"
-								onClick={() => onViewChange(v.value)}
-							>
-								{v.label}
-							</button>
-						))}
-					</div>
-				</div>
+			<HBox gap={2} align="center" wrap>
+				<Segmented
+					size="sm"
+					aria-label={t('Calendar view')}
+					value={view}
+					onChange={(v) => onViewChange(v as CalendarView)}
+				>
+					{views.map((v) => (
+						<SegmentedItem key={v.value} value={v.value}>
+							{v.label}
+						</SegmentedItem>
+					))}
+				</Segmented>
 
-				<div className="flex-fill" />
+				<Spacer />
 
-				<div className="c-input-group c-cal-toolbar__search">
-					<span className="d-flex align-items-center px-2" aria-hidden="true">
-						<IcSearch />
-					</span>
-					<input
-						className="c-input"
-						type="search"
-						placeholder={t('Search events')}
-						value={input}
-						onChange={(e) => setInput(e.target.value)}
-						aria-label={t('Search events')}
-					/>
-				</div>
-			</div>
-		</div>
+				<SearchInput
+					size="sm"
+					placeholder={t('Search events')}
+					aria-label={t('Search events')}
+					defaultValue={searchQuery}
+					debounce={250}
+					onSearch={onSearchChange}
+				/>
+			</HBox>
+		</VBox>
 	)
 }
 

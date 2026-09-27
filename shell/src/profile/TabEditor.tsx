@@ -1,10 +1,10 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { Field, HBox, Input, NativeSelect, Panel, SortableList, Toggle } from '@cloudillo/react'
 import type { TabEntry } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuGripVertical as IcDrag } from 'react-icons/lu'
 
 import { getEffectiveTabs, LOCKED_TABS, type TabConfig } from './about/types.js'
 
@@ -35,9 +35,10 @@ export function TabEditor({ tabConfig, onChange, isCommunity }: TabEditorProps) 
 	const tabs = getEffectiveTabs(tabConfig)
 	const defaultTab = tabConfig?.defaultTab || tabs.find((tab) => tab.visible)?.id || 'feed'
 
-	// Drag state: fromIndex is set on drag start, overIndex tracks the current drop target
-	const [dragFrom, setDragFrom] = React.useState<number | null>(null)
-	const [dragOver, setDragOver] = React.useState<number | null>(null)
+	function defaultLabel(tab: TabEntry): string {
+		if (tab.id === 'connections') return isCommunity ? t('Members') : t('Connections')
+		return t(TAB_LABELS[tab.id] || tab.id)
+	}
 
 	function updateTab(id: string, patch: Partial<TabEntry>) {
 		const next = tabs.map((tab) => (tab.id === id ? { ...tab, ...patch } : tab))
@@ -48,119 +49,55 @@ export function TabEditor({ tabConfig, onChange, isCommunity }: TabEditorProps) 
 		onChange({ tabs, defaultTab: id })
 	}
 
-	function onDragStart(e: React.DragEvent, index: number) {
-		setDragFrom(index)
-		e.dataTransfer.effectAllowed = 'move'
-	}
-
-	function onDragOver(e: React.DragEvent, index: number) {
-		e.preventDefault()
-		e.dataTransfer.dropEffect = 'move'
-		if (dragFrom === null || index === dragFrom) {
-			setDragOver(null)
-			return
-		}
-		setDragOver(index)
-	}
-
-	function onDrop(e: React.DragEvent, toIndex: number) {
-		e.preventDefault()
-		if (dragFrom === null || dragFrom === toIndex) return
+	function reorder(from: number, to: number) {
 		const next = [...tabs]
-		const [moved] = next.splice(dragFrom, 1)
-		next.splice(toIndex, 0, moved)
-		next.forEach((tab, i) => {
-			tab.order = i
-		})
-		onChange({ tabs: next, defaultTab })
-		setDragFrom(null)
-		setDragOver(null)
-	}
-
-	function onDragEnd() {
-		setDragFrom(null)
-		setDragOver(null)
+		const [moved] = next.splice(from, 1)
+		next.splice(to, 0, moved)
+		onChange({ tabs: next.map((tab, i) => ({ ...tab, order: i })), defaultTab })
 	}
 
 	const visibleTabs = tabs.filter((tab) => tab.visible)
 
 	return (
-		<div className="c-panel p-3 c-vbox g-3">
-			<h4 className="pb-2 border-bottom mb-1">{t('Profile Tabs')}</h4>
+		<Panel padding={3} title={t('Profile Tabs')} headingLevel={4}>
+			<SortableList
+				items={tabs}
+				getKey={(tab) => tab.id}
+				getLabel={(tab) => tab.label || defaultLabel(tab)}
+				onReorder={reorder}
+				renderItem={(tab, { handle }) => (
+					<HBox gap={2} align="center" padding={1}>
+						{handle}
+						<Toggle
+							color="primary"
+							aria-label={t('Show tab')}
+							checked={tab.visible}
+							disabled={LOCKED_TABS.includes(tab.id)}
+							onChange={(e) => updateTab(tab.id, { visible: e.target.checked })}
+						/>
+						<Input
+							className="flex-fill"
+							aria-label={t('Tab label')}
+							placeholder={defaultLabel(tab)}
+							value={tab.label || ''}
+							onChange={(e) =>
+								updateTab(tab.id, { label: e.target.value || undefined })
+							}
+						/>
+					</HBox>
+				)}
+			/>
 
-			<div className="c-vbox">
-				{tabs.map((tab, index) => {
-					const isLocked = LOCKED_TABS.includes(tab.id)
-					const defaultLabel =
-						tab.id === 'connections'
-							? isCommunity
-								? t('Members')
-								: t('Connections')
-							: t(TAB_LABELS[tab.id] || tab.id)
-
-					const isDragged = dragFrom === index
-					const isDropTarget = dragOver === index
-
-					return (
-						<div
-							key={tab.id}
-							className="c-hbox g-2 align-items-center p-1"
-							style={{
-								opacity: isDragged ? 0.4 : 1,
-								borderTop:
-									isDropTarget && dragFrom !== null && dragFrom > index
-										? '2px solid var(--col-primary)'
-										: undefined,
-								borderBottom:
-									isDropTarget && dragFrom !== null && dragFrom < index
-										? '2px solid var(--col-primary)'
-										: undefined,
-								transition: 'border 0.1s ease'
-							}}
-							draggable
-							onDragStart={(e) => onDragStart(e, index)}
-							onDragOver={(e) => onDragOver(e, index)}
-							onDrop={(e) => onDrop(e, index)}
-							onDragEnd={onDragEnd}
-						>
-							<span style={{ cursor: 'grab', opacity: 0.5, touchAction: 'none' }}>
-								<IcDrag />
-							</span>
-							<input
-								className="c-toggle primary"
-								type="checkbox"
-								checked={tab.visible}
-								disabled={isLocked}
-								onChange={(e) => updateTab(tab.id, { visible: e.target.checked })}
-							/>
-							<input
-								className="c-input flex-fill"
-								placeholder={defaultLabel}
-								value={tab.label || ''}
-								onChange={(e) =>
-									updateTab(tab.id, { label: e.target.value || undefined })
-								}
-							/>
-						</div>
-					)
-				})}
-			</div>
-
-			<label className="c-settings-field">
-				<span>{t('Default tab')}</span>
-				<select
-					className="c-select"
-					value={defaultTab}
-					onChange={(e) => updateDefaultTab(e.target.value)}
-				>
+			<Field label={t('Default tab')} orientation="horizontal">
+				<NativeSelect value={defaultTab} onChange={(e) => updateDefaultTab(e.target.value)}>
 					{visibleTabs.map((tab) => (
 						<option key={tab.id} value={tab.id}>
 							{tab.label || t(TAB_LABELS[tab.id] || tab.id)}
 						</option>
 					))}
-				</select>
-			</label>
-		</div>
+				</NativeSelect>
+			</Field>
+		</Panel>
 	)
 }
 

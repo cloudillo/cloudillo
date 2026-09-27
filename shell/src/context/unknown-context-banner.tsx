@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button } from '@cloudillo/react'
+import { Alert, Button } from '@cloudillo/react'
 import { useAtom } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -53,21 +53,25 @@ export function UnknownContextBanner() {
 	}
 
 	return (
-		<div className="c-panel warning d-flex align-items-center g-3 m-2 p-3" role="alert">
-			<IcWarning className="flex-shrink-0" size={24} />
-			<div className="flex-fill">
-				<strong>{t('Open {{idTag}}?', { idTag: pending })}</strong>
-				<div className="text-muted small">
-					{t(
-						'Continuing identifies you to that server: Cloudillo signs in on your behalf so it can load the page. Only continue if you trust this address.'
-					)}
-				</div>
-			</div>
-			<Button onClick={onCancel}>{t('Cancel')}</Button>
-			<Button className="primary" onClick={onContinue} disabled={busy}>
-				{t('Continue')}
-			</Button>
-		</div>
+		<Alert
+			color="warning"
+			role="alert"
+			className="m-2"
+			icon={<IcWarning size={24} />}
+			title={t('Open {{idTag}}?', { idTag: pending })}
+			actions={
+				<>
+					<Button onClick={onCancel}>{t('Cancel')}</Button>
+					<Button color="primary" onClick={onContinue} disabled={busy}>
+						{t('Continue')}
+					</Button>
+				</>
+			}
+		>
+			{t(
+				'Continuing identifies you to that server: Cloudillo signs in on your behalf so it can load the page. Only continue if you trust this address.'
+			)}
+		</Alert>
 	)
 }
 

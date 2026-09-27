@@ -14,19 +14,25 @@
 import {
 	Button,
 	EmptyState,
+	HBox,
+	Heading,
+	List,
 	LoadMoreTrigger,
+	SearchInput,
 	SkeletonList,
 	Tab,
 	Tabs,
+	Text,
 	useAuth,
 	useDebouncedValue,
-	useInfiniteScroll
+	useInfiniteScroll,
+	VBox
 } from '@cloudillo/react'
 import type { SearchHit } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { LuSearch as IcSearch } from 'react-icons/lu'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 
 import { useContextAwareApi, useCtx, useCurrentContextIdTag } from './context/index.js'
 import { getPartAddressing } from './manifest-registry.js'
@@ -201,30 +207,28 @@ export function SearchPage() {
 	return (
 		// `flex-fill`, not a percentage height: the route outlet may put a banner
 		// above this page, and `h-100` would claim the whole column on top of it.
-		<div className="c-panel c-vbox flex-fill h-min-0 p-0 g-0 c-search-page">
-			<div className="c-vbox g-2 c-search-page-header">
-				<div className="c-hbox align-items-baseline g-2">
-					<h1 className="c-h5 flex-fill">{t('Search results')}</h1>
+		<VBox fill className="h-min-0 c-search-page" autoBg>
+			<VBox gap={2} className="c-search-page-header">
+				<HBox align="baseline" gap={2}>
+					<Heading level={1} size="lg" className="flex-fill">
+						{t('Search results')}
+					</Heading>
 					{/* Mounted unconditionally: a live region that appears together with
 					    its first content is usually not announced at all. */}
-					<span className="text-sm text-muted" aria-live="polite">
+					<Text size="sm" emphasis="muted" aria-live="polite">
 						{total !== undefined ? t('{{count}} results', { count: total }) : ''}
-					</span>
-				</div>
-				<div className="c-search-page-field" role="search" aria-label={t('Search results')}>
-					<span className="c-search-page-field-icon" aria-hidden="true">
-						<IcSearch />
-					</span>
-					<input
-						type="search"
-						className="c-input w-100"
+					</Text>
+				</HBox>
+				<HBox role="search" aria-label={t('Search results')}>
+					<SearchInput
+						className="flex-fill"
 						value={input}
 						maxLength={FTS_MAX_QUERY}
 						placeholder={t('Search')}
 						aria-label={t('Search')}
 						onChange={(e) => setInput(e.target.value)}
 					/>
-				</div>
+				</HBox>
 				<Tabs value={tabValue} onTabChange={setType}>
 					<Tab value="">{t('All')}</Tab>
 					<Tab value="file">{t('Files')}</Tab>
@@ -233,11 +237,11 @@ export function SearchPage() {
 					{/* No People for a guest — the server excludes profile rows. */}
 					{!!auth && <Tab value="profile">{t('People')}</Tab>}
 				</Tabs>
-			</div>
+			</VBox>
 
 			{/* The sentinel below must live *inside* this scroller: outside it, the
 			    IntersectionObserver would see it permanently visible and auto-page. */}
-			<div className="c-vbox g-1 fill h-min-0 c-search-page-results">
+			<VBox gap={1} fill scroll className="h-min-0 c-search-page-results">
 				{!q ? (
 					<EmptyState
 						icon={<IcSearch />}
@@ -256,17 +260,14 @@ export function SearchPage() {
 						description={t('Try different words, or clear the filters.')}
 						action={
 							tabValue ? (
-								<Button kind="link" onClick={() => setType('')}>
+								<Button variant="link" onClick={() => setType('')}>
 									{t('Clear filters')}
 								</Button>
 							) : undefined
 						}
 					/>
 				) : (
-					// The explicit `role="list"` survives the `list-style: none` that
-					// otherwise strips list semantics in Safari. No role on the anchors:
-					// one would replace their implicit `link` role.
-					<ul className="c-vbox g-1 c-search-page-hits" role="list">
+					<List className="c-search-page-hits">
 						{items.map((hit) => {
 							const target = searchHitTarget(
 								hit,
@@ -277,14 +278,15 @@ export function SearchPage() {
 							)
 							if (!target) return null
 							return (
-								<li key={`${hit.objTp}:${hit.objId}:${hit.partId ?? ''}`}>
-									<Link className="c-search-page-hit" to={target}>
-										<SearchResultRow hit={hit} contextIdTag={contextIdTag} />
-									</Link>
-								</li>
+								<SearchResultRow
+									key={`${hit.objTp}:${hit.objId}:${hit.partId ?? ''}`}
+									hit={hit}
+									contextIdTag={contextIdTag}
+									href={target}
+								/>
 							)
 						})}
-					</ul>
+					</List>
 				)}
 
 				<LoadMoreTrigger
@@ -300,8 +302,8 @@ export function SearchPage() {
 					retryLabel={t('Retry')}
 					errorPrefix={t('Failed to load:')}
 				/>
-			</div>
-		</div>
+			</VBox>
+		</VBox>
 	)
 }
 

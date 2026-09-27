@@ -1,7 +1,16 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { LoadingSpinner, useApi } from '@cloudillo/react'
+import {
+	Field,
+	LoadingSpinner,
+	NativeSelect,
+	Panel,
+	Toggle,
+	useApi,
+	type VisibilityCode,
+	VisibilitySelect
+} from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -12,55 +21,67 @@ export function PrivacySettings() {
 	useApi()
 	const { settings, onSettingChange } = useSettings('profile')
 
-	if (!settings) return <LoadingSpinner />
+	if (!settings) return <LoadingSpinner className="auto-bg" />
+
+	// VisibilitySelect reports a value, onSettingChange reads a select-shaped event target
+	function onVisibilityChange(value: VisibilityCode) {
+		void onSettingChange({
+			target: {
+				name: 'profile.default_visibility',
+				value,
+				type: 'select-one',
+				tagName: 'SELECT'
+			}
+		} as unknown as React.ChangeEvent<HTMLSelectElement>)
+	}
 
 	return (
 		<>
-			<div className="c-panel">
-				<h4 className="pb-2">{t('Post visibility')}</h4>
-				<label className="c-settings-field">
-					<span>{t('Default visibility for new posts')}</span>
-					<select
-						className="c-select"
-						name="profile.default_visibility"
-						value={(settings['profile.default_visibility'] as string) || 'F'}
-						onChange={onSettingChange}
-					>
-						<option value="F">{t('Followers')}</option>
-						<option value="C">{t('Connected')}</option>
-						<option value="P">{t('Public')}</option>
-					</select>
-				</label>
-				<p className="c-hint">
-					{t('You can change visibility for individual posts when creating them.')}
-				</p>
-			</div>
-
-			<div className="c-panel">
-				<h4 className="pb-2">{t('Followers')}</h4>
-				<label className="c-settings-field">
-					<span>{t('Allow others to follow you')}</span>
-					<input
-						className="c-toggle primary"
-						name="profile.allow_followers"
-						type="checkbox"
-						checked={settings['profile.allow_followers'] !== false}
-						onChange={onSettingChange}
+			<Panel title={t('Post visibility')}>
+				<Field
+					label={t('Default visibility for new posts')}
+					orientation="horizontal"
+					hint={t('You can change visibility for individual posts when creating them.')}
+				>
+					<VisibilitySelect
+						value={
+							((settings['profile.default_visibility'] as string) ||
+								'F') as VisibilityCode
+						}
+						onChange={onVisibilityChange}
 					/>
-				</label>
-				<p className="c-hint">
-					{t(
+				</Field>
+			</Panel>
+
+			<Panel title={t('Followers')}>
+				<Toggle
+					color="primary"
+					name="profile.allow_followers"
+					checked={settings['profile.allow_followers'] !== false}
+					onChange={onSettingChange}
+					label={t('Allow others to follow you')}
+					description={t(
 						'When disabled, new follow requests will be rejected and your posts will only be visible to your connections.'
 					)}
-				</p>
-			</div>
+				/>
+			</Panel>
 
-			<div className="c-panel">
-				<h4 className="pb-2">{t('Connections')}</h4>
-				<label className="c-settings-field">
-					<span>{t('Connection mode')}</span>
-					<select
-						className="c-select"
+			<Panel title={t('Connections')}>
+				<Field
+					label={t('Connection mode')}
+					orientation="horizontal"
+					hint={
+						<>
+							{t('Controls how connection requests to your profile are handled.')}{' '}
+							{settings['profile.connection_mode'] === 'A'
+								? t('Anyone can connect with you immediately.')
+								: settings['profile.connection_mode'] === 'I'
+									? t('Connection requests are automatically rejected.')
+									: t('You will be asked to approve each connection request.')}
+						</>
+					}
+				>
+					<NativeSelect
 						name="profile.connection_mode"
 						value={(settings['profile.connection_mode'] as string) ?? 'M'}
 						onChange={onSettingChange}
@@ -68,36 +89,22 @@ export function PrivacySettings() {
 						<option value="M">{t('Manual approval')}</option>
 						<option value="A">{t('Auto-accept')}</option>
 						<option value="I">{t('Ignore (reject all)')}</option>
-					</select>
-				</label>
-				<p className="c-hint">
-					{t('Controls how connection requests to your profile are handled.')}{' '}
-					{settings['profile.connection_mode'] === 'A'
-						? t('Anyone can connect with you immediately.')
-						: settings['profile.connection_mode'] === 'I'
-							? t('Connection requests are automatically rejected.')
-							: t('You will be asked to approve each connection request.')}
-				</p>
-			</div>
+					</NativeSelect>
+				</Field>
+			</Panel>
 
-			<div className="c-panel">
-				<h4 className="pb-2">{t('Federation')}</h4>
-				<label className="c-settings-field">
-					<span>{t('Auto-approve incoming actions')}</span>
-					<input
-						className="c-toggle primary"
-						name="profile.auto_approve_actions"
-						type="checkbox"
-						checked={!!settings['profile.auto_approve_actions']}
-						onChange={onSettingChange}
-					/>
-				</label>
-				<p className="c-hint">
-					{t(
+			<Panel title={t('Federation')}>
+				<Toggle
+					color="primary"
+					name="profile.auto_approve_actions"
+					checked={!!settings['profile.auto_approve_actions']}
+					onChange={onSettingChange}
+					label={t('Auto-approve incoming actions')}
+					description={t(
 						'When enabled, posts and messages from trusted sources are automatically approved without manual review.'
 					)}
-				</p>
-			</div>
+				/>
+			</Panel>
 		</>
 	)
 }

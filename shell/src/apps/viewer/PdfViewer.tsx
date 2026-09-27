@@ -1,7 +1,16 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button, LoadingSpinner, mergeClasses } from '@cloudillo/react'
+import {
+	Button,
+	EmptyState,
+	ImmersiveOverlay,
+	LoadingSpinner,
+	Text,
+	Toolbar,
+	ToolbarDivider,
+	VBox
+} from '@cloudillo/react'
 import * as pdfjsLib from 'pdfjs-dist'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -14,8 +23,6 @@ import {
 	LuZoomOut as IcZoomOut
 } from 'react-icons/lu'
 
-import './viewer.css'
-
 declare const process: { env: { CLOUDILLO_VERSION: string } }
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `/assets-${process.env.CLOUDILLO_VERSION}/pdf.worker.min.mjs`
@@ -25,7 +32,6 @@ interface PdfViewerProps {
 	fileName: string
 	onBack: () => void
 	onDownload: () => void
-	toolbarVisible: boolean
 }
 
 const ZOOM_STEP = 0.25
@@ -33,7 +39,7 @@ const MIN_SCALE = 0.5
 const MAX_SCALE = 4
 const SWIPE_THRESHOLD = 50
 
-export function PdfViewer({ url, fileName, onBack, onDownload, toolbarVisible }: PdfViewerProps) {
+export function PdfViewer({ url, fileName, onBack, onDownload }: PdfViewerProps) {
 	const { t } = useTranslation()
 
 	const canvasRef = React.useRef<HTMLCanvasElement>(null)
@@ -232,103 +238,85 @@ export function PdfViewer({ url, fileName, onBack, onDownload, toolbarVisible }:
 		[numPages, fitWidthScale]
 	)
 
-	if (loading) {
-		return (
-			<div className="c-file-viewer">
-				<div className={mergeClasses('c-file-viewer-toolbar', !toolbarVisible && 'hidden')}>
-					<Button icon onClick={onBack} title={t('Back')}>
-						<IcBack />
-					</Button>
-					<span className="c-file-viewer-toolbar-filename">{fileName}</span>
-				</div>
-				<div className="c-file-viewer-content">
-					<LoadingSpinner size="lg" label={t('Loading...')} />
-				</div>
-			</div>
-		)
-	}
-
-	if (error) {
-		return (
-			<div className="c-file-viewer">
-				<div className={mergeClasses('c-file-viewer-toolbar', !toolbarVisible && 'hidden')}>
-					<Button icon onClick={onBack} title={t('Back')}>
-						<IcBack />
-					</Button>
-					<span className="c-file-viewer-toolbar-filename">{fileName}</span>
-				</div>
-				<div className="c-file-viewer-content">
-					<div className="c-file-viewer-error">
-						<p>{error}</p>
-						<Button onClick={onBack}>{t('Go back')}</Button>
-					</div>
-				</div>
-			</div>
-		)
-	}
+	const zoomOut = () => setScale((s) => Math.max(MIN_SCALE, (s ?? fitWidthScale) - ZOOM_STEP))
+	const zoomIn = () => setScale((s) => Math.min(MAX_SCALE, (s ?? fitWidthScale) + ZOOM_STEP))
+	const ready = !loading && !error
 
 	return (
-		<div className="c-file-viewer">
-			<div className={mergeClasses('c-file-viewer-toolbar', !toolbarVisible && 'hidden')}>
-				<Button icon onClick={onBack} title={t('Back')}>
-					<IcBack />
-				</Button>
-				<span className="c-file-viewer-toolbar-filename">{fileName}</span>
-				<div className="c-file-viewer-toolbar-divider" />
-				<Button icon onClick={onDownload} title={t('Download')}>
-					<IcDownload />
-				</Button>
-			</div>
-
-			<div
-				ref={containerRef}
-				className="c-file-viewer-pdf-container"
-				onTouchStart={handleTouchStart}
-				onTouchEnd={handleTouchEnd}
-			>
-				<canvas ref={canvasRef} className="c-file-viewer-pdf-canvas" />
-			</div>
-
-			<div className={mergeClasses('c-file-viewer-pdf-nav', !toolbarVisible && 'hidden')}>
-				<Button
-					icon
-					onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-					disabled={currentPage <= 1}
+		<ImmersiveOverlay
+			open
+			onClose={onBack}
+			aria-label={fileName}
+			controls={
+				<Toolbar floating autoHide>
+					<Button onClick={onBack} icon={<IcBack />} aria-label={t('Back')} />
+					<Text size="sm" weight="medium" truncate className="flex-fill">
+						{fileName}
+					</Text>
+					{ready && (
+						<>
+							<ToolbarDivider />
+							<Button
+								icon={<IcPrev />}
+								aria-label={t('Previous page')}
+								onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+								disabled={currentPage <= 1}
+							/>
+							<Text size="sm" weight="medium" align="center">
+								{currentPage} / {numPages}
+							</Text>
+							<Button
+								icon={<IcNext />}
+								aria-label={t('Next page')}
+								onClick={() => setCurrentPage((p) => Math.min(numPages, p + 1))}
+								disabled={currentPage >= numPages}
+							/>
+							<ToolbarDivider />
+							<Button
+								icon={<IcZoomOut />}
+								aria-label={t('Zoom out')}
+								onClick={zoomOut}
+							/>
+							<Button variant="ghost" onClick={() => setScale(null)}>
+								{scale ? `${Math.round(effectiveScale * 100)}%` : t('Fit')}
+							</Button>
+							<Button
+								icon={<IcZoomIn />}
+								aria-label={t('Zoom in')}
+								onClick={zoomIn}
+							/>
+							<ToolbarDivider />
+							<Button
+								icon={<IcDownload />}
+								aria-label={t('Download')}
+								onClick={onDownload}
+							/>
+						</>
+					)}
+				</Toolbar>
+			}
+		>
+			{loading ? (
+				<LoadingSpinner size="lg" inverse label={t('Loading...')} />
+			) : error ? (
+				<EmptyState
+					inverse
+					color="error"
+					title={error}
+					actions={<Button onClick={onBack}>{t('Go back')}</Button>}
+				/>
+			) : (
+				<VBox
+					ref={containerRef}
+					align="center"
+					className="w-100 h-100 overflow-auto p-3"
+					onTouchStart={handleTouchStart}
+					onTouchEnd={handleTouchEnd}
 				>
-					<IcPrev />
-				</Button>
-				<span className="c-file-viewer-pdf-page-info">
-					{currentPage} / {numPages}
-				</span>
-				<Button
-					icon
-					onClick={() => setCurrentPage((p) => Math.min(numPages, p + 1))}
-					disabled={currentPage >= numPages}
-				>
-					<IcNext />
-				</Button>
-				<div className="c-file-viewer-toolbar-divider" />
-				<Button
-					icon
-					onClick={() =>
-						setScale((s) => Math.max(MIN_SCALE, (s ?? fitWidthScale) - ZOOM_STEP))
-					}
-				>
-					<IcZoomOut />
-				</Button>
-				<Button icon onClick={() => setScale(null)} title={t('Fit width')}>
-					{scale ? `${Math.round(effectiveScale * 100)}%` : t('Fit')}
-				</Button>
-				<Button
-					icon
-					onClick={() =>
-						setScale((s) => Math.min(MAX_SCALE, (s ?? fitWidthScale) + ZOOM_STEP))
-					}
-				>
-					<IcZoomIn />
-				</Button>
-			</div>
-		</div>
+					<canvas ref={canvasRef} />
+				</VBox>
+			)}
+		</ImmersiveOverlay>
 	)
 }
 

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { LoadingSpinner, useApi } from '@cloudillo/react'
+import { Field, LoadingSpinner, NativeSelect, Panel, useApi } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -157,26 +157,22 @@ export function AppearanceSettings() {
 		if (evt.target.name == 'ui.colors') setTheme(settings['ui.theme'], evt.target.value)
 	}
 
-	if (!settings) return <LoadingSpinner />
+	if (!settings) return <LoadingSpinner className="auto-bg" />
 
 	return (
-		<div className="c-panel">
-			<label className="c-settings-field">
-				<span>{t('Theme')}</span>
-				<select
-					className="c-select"
+		<Panel>
+			<Field label={t('Theme')} orientation="horizontal">
+				<NativeSelect
 					name="ui.theme"
 					value={settings['ui.theme'] as string}
 					onChange={onThemeChange}
 				>
 					<option value="glass">{t('Glass')}</option>
 					<option value="opaque">{t('Opaque')}</option>
-				</select>
-			</label>
-			<label className="c-settings-field">
-				<span>{t('Colors')}</span>
-				<select
-					className="c-select"
+				</NativeSelect>
+			</Field>
+			<Field label={t('Colors')} orientation="horizontal">
+				<NativeSelect
 					name="ui.colors"
 					value={settings['ui.colors'] as string}
 					onChange={onThemeChange}
@@ -184,9 +180,9 @@ export function AppearanceSettings() {
 					<option value="default">{t('Use browser settings')}</option>
 					<option value="light">{t('Light')}</option>
 					<option value="dark">{t('Dark')}</option>
-				</select>
-			</label>
-		</div>
+				</NativeSelect>
+			</Field>
+		</Panel>
 	)
 }
 

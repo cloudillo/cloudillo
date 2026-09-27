@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button, mergeClasses } from '@cloudillo/react'
+import { Affix, Button, Center } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { LuChevronUp as IcUp } from 'react-icons/lu'
@@ -12,23 +12,27 @@ export interface NewPostsBannerProps {
 	className?: string
 }
 
+// Sticky pill above the feed; the count is announced politely.
 export function NewPostsBanner({ count, onClick, className }: NewPostsBannerProps) {
 	const { t } = useTranslation()
 
 	if (count === 0) return null
 
 	return (
-		<div
-			className={mergeClasses(
-				'c-new-posts-banner',
-				'd-flex justify-content-center',
-				className
-			)}
-		>
-			<Button variant="primary" size="small" onClick={onClick} icon={<IcUp />}>
-				{t('{{count}} new posts', { count })}
-			</Button>
-		</div>
+		<Affix mode="sticky" position="top" className={className}>
+			<Center>
+				<Button
+					color="primary"
+					shape="pill"
+					size="sm"
+					onClick={onClick}
+					icon={<IcUp />}
+					aria-live="polite"
+				>
+					{t('{{count}} new posts', { count })}
+				</Button>
+			</Center>
+		</Affix>
 	)
 }
 

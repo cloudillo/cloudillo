@@ -6,11 +6,17 @@ import { getJwtTimes } from '@cloudillo/core/jwt'
 import {
 	Button,
 	DropZone,
+	FileButton,
+	FileTile,
+	Grid,
+	HBox,
 	EmptyState,
 	LoadingSpinner,
 	Progress,
+	Text,
 	useDialog,
-	useToast
+	useToast,
+	VBox
 } from '@cloudillo/react'
 import { useAtom } from 'jotai'
 import * as React from 'react'
@@ -30,13 +36,10 @@ import { getStoredGuestName } from '../../utils/random-name.js'
 import type { AppConfigState } from '../../utils.js'
 import { Breadcrumbs } from '../files/components/Breadcrumbs.js'
 import type { BreadcrumbItem } from '../files/hooks/useFileNavigation.js'
-import { getFileIcon } from '../files/icons.js'
 import { triggerDownload } from '../viewer/MediaViewer.js'
 import { folderGuestNameAtom, sharedCacheRefIdAtom, sharedFolderCacheAtom } from './atoms.js'
 import { BlobViewer, renderSharedApp } from './shared-app.js'
 import { useInstalledToken } from './useInstalledToken.js'
-
-import './SharedFolderView.css'
 
 interface UploadProgress {
 	done: number
@@ -417,7 +420,8 @@ export function SharedFolderView({
 			isFolder ? t('Move folder to trash') : t('Move to trash'),
 			isFolder
 				? t('Are you sure you want to move this folder and its contents to trash?')
-				: t('Are you sure you want to move "{{name}}" to trash?', { name: file.fileName })
+				: t('Are you sure you want to move "{{name}}" to trash?', { name: file.fileName }),
+			{ color: 'error', confirmLabel: t('Move to trash') }
 		)
 		if (!ok) return
 		try {
@@ -478,28 +482,28 @@ export function SharedFolderView({
 				guestName: folderGuestName
 			})
 			return (
-				<div className="c-vbox flex-fill h-100">
-					<div className="c-hbox g-2 p-2 align-items-center">
+				<VBox fill className="h-100">
+					<HBox gap={2} padding={2} align="center" autoBg>
 						<Button
-							mode="icon"
 							onClick={() => closeFileInUrl()}
-							title={t('Back')}
 							aria-label={t('Back')}
-						>
-							<IcBack />
-						</Button>
-						<span className="text-secondary">{openFile.fileName}</span>
-					</div>
-					<div className="flex-fill" style={{ minHeight: 0 }}>
+							icon={<IcBack />}
+						/>
+						<Text emphasis="muted">{openFile.fileName}</Text>
+					</HBox>
+					<VBox fill>
 						{appEl ?? (
-							<div className="c-panel flex-fill d-flex flex-column align-items-center justify-content-center g-2">
-								<IcError size="4rem" className="text-warning" />
-								<h2>{t('Unsupported file type')}</h2>
-								<p className="text-secondary">{openFile.contentType}</p>
-							</div>
+							<EmptyState
+								fill
+								className="auto-bg"
+								color="warning"
+								icon={<IcError />}
+								title={t('Unsupported file type')}
+								description={openFile.contentType}
+							/>
 						)}
-					</div>
-				</div>
+					</VBox>
+				</VBox>
 			)
 		}
 		// BLOB: inline viewer (image/video/PDF/download), back returns to listing
@@ -532,7 +536,7 @@ export function SharedFolderView({
 			overlay
 		>
 			{/* Breadcrumbs + actions */}
-			<div className="c-hbox g-1 align-items-center">
+			<HBox gap={1} align="center">
 				<Breadcrumbs
 					className="flex-fill"
 					items={crumbItems}
@@ -543,52 +547,51 @@ export function SharedFolderView({
 				{canWrite && (
 					<UploadButton onFiles={handleUpload} disabled={uploading} label={t('Upload')} />
 				)}
-			</div>
+			</HBox>
 
 			{uploadProgress && (
-				<div className="c-vbox g-1">
-					<span className="text-secondary">
+				<VBox gap={1}>
+					<Text emphasis="muted">
 						{t('Uploading {{completed}} of {{total}}', {
 							completed: uploadProgress.done,
 							total: uploadProgress.total
 						})}
-					</span>
+					</Text>
 					<Progress
-						variant="primary"
+						color="primary"
 						value={
 							uploadProgress.total
 								? (uploadProgress.done / uploadProgress.total) * 100
 								: 0
 						}
 					/>
-				</div>
+				</VBox>
 			)}
 
 			{error ? (
 				<EmptyState
-					className="flex-fill"
-					icon={<IcError size="3rem" className="text-error" />}
+					fill
+					color="error"
+					icon={<IcError />}
 					title={t('Could not load this folder')}
 					description={t('Failed to load folder contents')}
-					action={
-						<Button variant="primary" onClick={() => setRefreshKey((k) => k + 1)}>
+					actions={
+						<Button color="primary" onClick={() => setRefreshKey((k) => k + 1)}>
 							{t('Retry')}
 						</Button>
 					}
 				/>
 			) : loading ? (
-				<div className="flex-fill d-flex align-items-center justify-content-center">
-					<LoadingSpinner size="lg" label={t('Loading folder…')} />
-				</div>
+				<LoadingSpinner fill size="lg" label={t('Loading folder…')} />
 			) : children.length === 0 ? (
 				<EmptyState
-					className="flex-fill"
-					icon={<IcFolder size="3rem" className="text-secondary" />}
+					fill
+					icon={<IcFolder />}
 					title={t('This folder is empty')}
 					description={
 						canWrite ? t('Drop files here or click Upload to add them') : undefined
 					}
-					action={
+					actions={
 						canWrite ? (
 							<UploadButton
 								onFiles={handleUpload}
@@ -599,7 +602,7 @@ export function SharedFolderView({
 					}
 				/>
 			) : (
-				<div className="g-2 c-shared-folder-grid">
+				<Grid min="8rem" gap={2}>
 					{children.map((file) => (
 						<FolderItem
 							key={file.fileId}
@@ -613,7 +616,7 @@ export function SharedFolderView({
 							onDelete={() => handleDelete(file)}
 						/>
 					))}
-				</div>
+				</Grid>
 			)}
 		</DropZone>
 	)
@@ -642,7 +645,6 @@ function FolderItem({
 	onDelete
 }: FolderItemProps) {
 	const { t } = useTranslation()
-	const Icon = getFileIcon(file.contentType, file.fileTp)
 	const isImage = file.contentType.startsWith('image/')
 	const fileTp = file.fileTp || 'BLOB'
 	const isBlob = fileTp === 'BLOB'
@@ -656,55 +658,34 @@ function FolderItem({
 			: undefined
 
 	return (
-		<div
-			className="c-card c-shared-folder-item"
-			style={{ position: 'relative' }}
-			title={file.fileName}
-		>
-			<div
-				className="c-shared-folder-actions c-hbox g-2 pos-absolute top-0 right-0 p-1"
-				style={{ zIndex: 1 }}
-			>
-				{isBlob && (
-					<Button
-						mode="icon"
-						title={t('Download')}
-						aria-label={t('Download {{name}}', { name: file.fileName })}
-						onClick={() => onDownload()}
-					>
-						<IcDownload />
-					</Button>
-				)}
-				{canWrite && (
-					<Button
-						mode="icon"
-						variant="error"
-						title={t('Delete')}
-						aria-label={t('Delete {{name}}', { name: file.fileName })}
-						onClick={() => onDelete()}
-					>
-						<IcTrash />
-					</Button>
-				)}
-			</div>
-			<button
-				type="button"
-				className="c-shared-folder-item__open c-vbox g-1 p-2 align-items-center w-100"
-				onClick={onOpen}
-			>
-				<div
-					className="d-flex align-items-center justify-content-center"
-					style={{ width: '100%', height: '5rem' }}
-				>
-					{thumbUrl ? (
-						<img className="c-shared-folder-thumb" src={thumbUrl} alt={file.fileName} />
-					) : (
-						<Icon width="3rem" height="3rem" />
+		<FileTile
+			name={file.fileName}
+			src={thumbUrl}
+			alt={file.fileName}
+			contentType={fileTp === 'FLDR' ? 'cloudillo/folder' : file.contentType}
+			onClick={onOpen}
+			actions={
+				<>
+					{isBlob && (
+						<Button
+							variant="ghost"
+							aria-label={t('Download {{name}}', { name: file.fileName })}
+							onClick={() => onDownload()}
+							icon={<IcDownload />}
+						/>
 					)}
-				</div>
-				<span className="text-center c-shared-folder-name">{file.fileName}</span>
-			</button>
-		</div>
+					{canWrite && (
+						<Button
+							variant="ghost"
+							color="error"
+							aria-label={t('Delete {{name}}', { name: file.fileName })}
+							onClick={() => onDelete()}
+							icon={<IcTrash />}
+						/>
+					)}
+				</>
+			}
+		/>
 	)
 }
 
@@ -715,31 +696,16 @@ interface UploadButtonProps {
 }
 
 function UploadButton({ onFiles, disabled, label }: UploadButtonProps) {
-	const inputRef = React.useRef<HTMLInputElement>(null)
-
 	return (
-		<>
-			<input
-				ref={inputRef}
-				type="file"
-				multiple
-				style={{ display: 'none' }}
-				onChange={(e) => {
-					const files = e.target.files ? Array.from(e.target.files) : []
-					if (files.length > 0) onFiles(files)
-					e.target.value = ''
-				}}
-			/>
-			<Button
-				variant="primary"
-				icon={<IcUpload />}
-				disabled={disabled}
-				immediate
-				onClick={() => inputRef.current?.click()}
-			>
-				{label}
-			</Button>
-		</>
+		<FileButton
+			multiple
+			color="primary"
+			icon={<IcUpload />}
+			disabled={disabled}
+			onFiles={onFiles}
+		>
+			{label}
+		</FileButton>
 	)
 }
 

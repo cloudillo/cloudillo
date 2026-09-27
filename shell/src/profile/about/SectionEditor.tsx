@@ -1,17 +1,29 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button, mergeClasses, Popper, useDialog } from '@cloudillo/react'
+import {
+	Button,
+	COMMUNITY_VISIBILITY,
+	HBox,
+	Input,
+	Menu,
+	MenuDivider,
+	MenuItem,
+	PERSONAL_VISIBILITY,
+	Panel,
+	Text,
+	useDialog,
+	type VisibilityCode,
+	VisibilitySelect
+} from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
 	LuTrash2 as IcDelete,
-	LuGripVertical as IcDrag,
 	LuEllipsisVertical as IcMore,
 	LuPencil as IcRename
 } from 'react-icons/lu'
 
-import { SectionVisibilitySelector } from './SectionVisibilitySelector.js'
 import { AboutSectionEdit } from './sections/AboutSection.js'
 import { ContactSectionEdit } from './sections/ContactSection.js'
 import { EducationSectionEdit } from './sections/EducationSection.js'
@@ -64,7 +76,8 @@ interface SectionEditorProps {
 	isCommunity: boolean
 	onUpdate: (patch: Partial<SectionWithContent>) => void
 	onDelete: () => void
-	className?: string
+	/** Drag handle from SortableList */
+	handle?: React.ReactNode
 }
 
 export function SectionEditor({
@@ -72,7 +85,7 @@ export function SectionEditor({
 	isCommunity,
 	onUpdate,
 	onDelete,
-	className
+	handle
 }: SectionEditorProps) {
 	const { t } = useTranslation()
 	const dialog = useDialog()
@@ -83,7 +96,8 @@ export function SectionEditor({
 	async function handleDelete() {
 		const confirmed = await dialog.confirm(
 			t('Delete section'),
-			t('Are you sure you want to delete "{{title}}"?', { title })
+			t('Are you sure you want to delete "{{title}}"?', { title }),
+			{ color: 'error', confirmLabel: t('Delete') }
 		)
 		if (confirmed) onDelete()
 	}
@@ -109,54 +123,62 @@ export function SectionEditor({
 	}
 
 	return (
-		<div className={mergeClasses('c-panel c-section-card c-vbox g-2', className)}>
-			{/* Header */}
-			<div className="c-hbox align-items-center g-2">
-				<span className="c-drag-handle f-none">
-					<IcDrag size="1.2rem" />
-				</span>
-
-				{renaming ? (
-					<input
-						className="c-input flex-fill"
-						value={titleInput}
-						onChange={(e) => setTitleInput(e.target.value)}
-						onBlur={commitRename}
-						onKeyDown={onRenameKeyDown}
-						autoFocus
+		<Panel
+			title={
+				<HBox gap={2} align="center">
+					{handle}
+					{renaming ? (
+						<Input
+							className="flex-fill"
+							aria-label={t('Section title')}
+							value={titleInput}
+							onChange={(e) => setTitleInput(e.target.value)}
+							onBlur={commitRename}
+							onKeyDown={onRenameKeyDown}
+							autoFocus
+						/>
+					) : (
+						<Text weight="semibold">{title}</Text>
+					)}
+				</HBox>
+			}
+			headingLevel={4}
+			actions={
+				<HBox gap={1} align="center">
+					<VisibilitySelect
+						value={section.visibility as VisibilityCode}
+						onChange={(visibility) => onUpdate({ visibility })}
+						options={isCommunity ? COMMUNITY_VISIBILITY : PERSONAL_VISIBILITY}
+						aria-label={t('Visibility')}
 					/>
-				) : (
-					<h4 className="m-0 flex-fill text-base">{title}</h4>
-				)}
-
-				<SectionVisibilitySelector
-					value={section.visibility}
-					onChange={(visibility) => onUpdate({ visibility })}
-					isCommunity={isCommunity}
-				/>
-
-				<Popper menuClassName="c-button link secondary sm" icon={<IcMore />}>
-					<ul className="c-nav vertical">
-						<li>
-							<Button kind="nav-item" onClick={handleRename}>
-								<IcRename />
-								{t('Rename section')}
-							</Button>
-						</li>
-						<li role="separator" className="border-bottom my-1" />
-						<li>
-							<Button kind="nav-item" onClick={handleDelete}>
-								<IcDelete className="text-error" />
-								<span className="text-error">{t('Delete section')}</span>
-							</Button>
-						</li>
-					</ul>
-				</Popper>
-			</div>
-
-			{/* Content editor */}
+					<Menu
+						trigger={
+							<Button
+								variant="ghost"
+								size="sm"
+								icon={<IcMore />}
+								aria-label={t('Section options')}
+							/>
+						}
+					>
+						<MenuItem
+							icon={<IcRename />}
+							label={t('Rename section')}
+							onClick={handleRename}
+						/>
+						<MenuDivider />
+						<MenuItem
+							icon={<IcDelete />}
+							label={t('Delete section')}
+							color="error"
+							onClick={handleDelete}
+						/>
+					</Menu>
+				</HBox>
+			}
+		>
 			<SectionContentEditor section={section} onChange={(content) => onUpdate({ content })} />
-		</div>
+		</Panel>
 	)
 }
 

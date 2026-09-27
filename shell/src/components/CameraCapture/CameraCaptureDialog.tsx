@@ -3,10 +3,12 @@
 
 import type { OverlayItem } from '@cloudillo/core'
 import { PROTOCOL_VERSION } from '@cloudillo/core'
-import { Button } from '@cloudillo/react'
+import { Button, EmptyState, HBox, ImmersiveOverlay } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
+	LuCamera as IcCamera,
+	LuCameraOff as IcCameraOff,
 	LuX as IcClose,
 	LuZap as IcFlash,
 	LuZapOff as IcFlashOff,
@@ -19,8 +21,6 @@ import {
 	setCameraCaptureCallback,
 	setCameraPreviewCallbacks
 } from '../../message-bus/handlers/camera.js'
-
-import './camera-capture.css'
 
 interface CaptureSession {
 	options: CameraCaptureOpenOptions
@@ -363,46 +363,65 @@ export function CameraCaptureDialog() {
 	if (!session) return null
 
 	return (
-		<div className="camera-capture-overlay">
-			<div className="camera-capture-header">
-				<h3>{t('Capture Photo')}</h3>
-				<Button className="icon" onClick={handleClose}>
-					<IcClose color="#fff" />
-				</Button>
-			</div>
+		<ImmersiveOverlay
+			open
+			onClose={handleClose}
+			aria-label={t('Capture Photo')}
+			controls={
+				<HBox align="center" justify="between" className="w-100">
+					<Button onClick={handleClose} icon={<IcClose />} aria-label={t('Close')} />
+					<Button
+						size="xl"
+						shape="pill"
+						color="primary"
+						onClick={handleCapture}
+						disabled={!!error}
+						icon={<IcCamera />}
+						aria-label={t('Take photo')}
+					/>
+					<HBox gap={2}>
+						<Button
+							onClick={handleSwitchCamera}
+							icon={<IcSwitch />}
+							aria-label={t('Switch camera')}
+						/>
+						{torchAvailable && (
+							<Button
+								pressed={torchEnabled}
+								onClick={handleToggleTorch}
+								icon={torchEnabled ? <IcFlash /> : <IcFlashOff />}
+								aria-label={t('Flash')}
+							/>
+						)}
+					</HBox>
+				</HBox>
+			}
+		>
 			{error ? (
-				<div className="camera-capture-error">
-					<p>{error}</p>
-				</div>
+				<EmptyState inverse color="error" icon={<IcCameraOff />} title={error} />
 			) : (
 				<>
-					<video ref={videoRef} autoPlay playsInline muted />
-					<canvas ref={overlayCanvasRef} className="camera-overlay-canvas" />
+					{/* Media surface: driven imperatively via refs (getUserMedia, overlay drawing) */}
+					<video
+						ref={videoRef}
+						autoPlay
+						playsInline
+						muted
+						style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+					/>
+					<canvas
+						ref={overlayCanvasRef}
+						style={{
+							position: 'absolute',
+							inset: 0,
+							width: '100%',
+							height: '100%',
+							pointerEvents: 'none'
+						}}
+					/>
 				</>
 			)}
-			<div className="camera-capture-controls">
-				<button className="camera-switch-button" onClick={handleSwitchCamera}>
-					<IcSwitch />
-				</button>
-				<button
-					className="camera-capture-button"
-					onClick={handleCapture}
-					disabled={!!error}
-				>
-					<div className="camera-capture-button-inner" />
-				</button>
-				{torchAvailable ? (
-					<button
-						className={'camera-flash-button' + (torchEnabled ? ' active' : '')}
-						onClick={handleToggleTorch}
-					>
-						{torchEnabled ? <IcFlash /> : <IcFlashOff />}
-					</button>
-				) : (
-					<div style={{ width: 44 }} />
-				)}
-			</div>
-		</div>
+		</ImmersiveOverlay>
 	)
 }
 

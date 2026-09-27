@@ -3,6 +3,7 @@
 
 import * as React from 'react'
 
+import { Modal } from '../Modal/Modal.js'
 import { useMergedRefs, usePrefersReducedMotion } from '../hooks.js'
 import { createComponent, mergeClasses } from '../utils.js'
 
@@ -34,9 +35,9 @@ export interface BottomSheetProps extends Omit<React.HTMLAttributes<HTMLDivEleme
 	header?: React.ReactNode
 	/** Main content */
 	children?: React.ReactNode
-	/** Whether to show backdrop when open (default: false) */
+	/** Modal sheet: native `<dialog>.showModal()` with a dimmed, inert page (default: false) */
 	showBackdrop?: boolean
-	/** Callback when backdrop is clicked */
+	/** Escape or a backdrop click on a modal sheet; default snaps to `'closed'` */
 	onBackdropClick?: () => void
 }
 
@@ -230,54 +231,72 @@ export const BottomSheet = createComponent<HTMLDivElement, BottomSheetProps>(
 		// Animation duration
 		const transitionDuration = prefersReducedMotion ? '0ms' : '300ms'
 
-		return (
-			<>
-				{/* Backdrop */}
-				{showBackdrop && isVisible && (
-					<div
-						className={mergeClasses('c-bottom-sheet-backdrop', isVisible && 'show')}
-						onClick={onBackdropClick}
-						style={{
-							transitionDuration
-						}}
-					/>
+		// Lift the sheet above the on-screen keyboard (visualViewport inset → --kb-inset)
+		React.useEffect(() => {
+			const vv = window.visualViewport
+			if (!isVisible || !vv) return
+			function onViewport() {
+				if (!vv) return
+				const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop)
+				sheetRef.current?.style.setProperty('--kb-inset', `${inset}px`)
+			}
+			onViewport()
+			vv.addEventListener('resize', onViewport)
+			vv.addEventListener('scroll', onViewport)
+			return () => {
+				vv.removeEventListener('resize', onViewport)
+				vv.removeEventListener('scroll', onViewport)
+			}
+		}, [isVisible])
+
+		const sheet = (
+			<div
+				ref={mergedRef}
+				className={mergeClasses(
+					'c-bottom-sheet',
+					isVisible && 'show',
+					isDragging && 'dragging',
+					className
 				)}
-
-				{/* Sheet */}
+				style={{
+					...style,
+					height: currentHeight,
+					transitionDuration: isDragging ? '0ms' : transitionDuration
+				}}
+				role={showBackdrop ? undefined : 'dialog'}
+				aria-hidden={!isVisible}
+				{...props}
+			>
+				{/* Drag handle area */}
 				<div
-					ref={mergedRef}
-					className={mergeClasses(
-						'c-bottom-sheet',
-						isVisible && 'show',
-						isDragging && 'dragging',
-						className
-					)}
-					style={{
-						...style,
-						height: currentHeight,
-						transitionDuration: isDragging ? '0ms' : transitionDuration
-					}}
-					role="dialog"
-					aria-hidden={!isVisible}
-					{...props}
+					className="c-bottom-sheet-handle-area"
+					onMouseDown={handleMouseDown}
+					onTouchStart={handleTouchStart}
+					onClick={handleHandleTap}
 				>
-					{/* Drag handle area */}
-					<div
-						className="c-bottom-sheet-handle-area"
-						onMouseDown={handleMouseDown}
-						onTouchStart={handleTouchStart}
-						onClick={handleHandleTap}
-					>
-						<div className="c-bottom-sheet-handle" />
-					</div>
-
-					{/* Header */}
-					{header && <div className="c-bottom-sheet-header">{header}</div>}
-
-					{/* Content */}
-					<div className="c-bottom-sheet-content">{children}</div>
+					<div className="c-bottom-sheet-handle" />
 				</div>
-			</>
+
+				{/* Header */}
+				{header && <div className="c-bottom-sheet-header">{header}</div>}
+
+				{/* Content */}
+				<div className="c-bottom-sheet-content">{children}</div>
+			</div>
+		)
+
+		// Non-modal: stays in-page beside the main view (prezillo's peek panel over the canvas)
+		if (!showBackdrop) return sheet
+
+		// Modal: native <dialog>.showModal() — top layer, inert page, Escape + backdrop dismiss
+		return (
+			<Modal
+				open={isVisible}
+				onClose={onBackdropClick ?? (() => onSnapChange('closed'))}
+				className="c-bottom-sheet-modal"
+			>
+				{sheet}
+			</Modal>
 		)
 	}
 )

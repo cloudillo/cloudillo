@@ -2,12 +2,9 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
-import { createPortal } from 'react-dom'
-import { usePopper } from 'react-popper'
 
-import { useOutsideDismiss } from '../hooks.js'
+import { Popover } from '../Popover/Popover.js'
 import type { Elevation } from '../types.js'
-import { mergeClasses } from '../utils.js'
 
 export interface PopperProps {
 	className?: string
@@ -20,6 +17,7 @@ export interface PopperProps {
 	children?: React.ReactNode
 }
 
+/** @deprecated Use `Popover` with a Button `trigger`. Kept for app consumers. */
 export function Popper({
 	className,
 	menuClassName,
@@ -30,54 +28,30 @@ export function Popper({
 	'aria-label': ariaLabel,
 	children
 }: PopperProps) {
-	const [popperRef, setPopperRef] = React.useState<HTMLElement | null>(null)
-	const [popperEl, setPopperEl] = React.useState<HTMLElement | null>(null)
 	const [isOpen, setIsOpen] = React.useState(false)
-	const { styles: popperStyles, attributes } = usePopper(popperRef, popperEl, {
-		placement: 'bottom-start',
-		strategy: 'fixed'
-	})
-
-	useOutsideDismiss([popperEl], () => setIsOpen(false))
 
 	return (
-		<details
-			className={className}
-			open={isOpen}
-			onClick={(evt) => {
-				evt.stopPropagation()
-				setIsOpen(!isOpen)
-			}}
-		>
-			<summary
-				ref={setPopperRef}
-				className={menuClassName || 'c-nav-item g-2'}
-				onClick={(evt) => {
-					evt.stopPropagation()
-					setIsOpen(!isOpen)
-				}}
-				aria-label={ariaLabel}
-				aria-expanded={isOpen}
-				aria-haspopup="true"
-			>
-				{icon}
-				{label}
-			</summary>
-			{isOpen &&
-				createPortal(
-					<div
-						ref={setPopperEl}
-						className={mergeClasses('c-popper', elevation, contentClassName)}
-						style={popperStyles.popper}
-						onClick={(_evt) => setIsOpen(false)}
-						{...attributes.popper}
+		// Portaled content bubbles through here in the React tree; keep it from rows behind
+		<details className={className} open={isOpen} onClick={(evt) => evt.stopPropagation()}>
+			<Popover
+				open={isOpen}
+				onOpenChange={setIsOpen}
+				elevation={elevation}
+				className={contentClassName}
+				onClick={() => setIsOpen(false)}
+				trigger={
+					<summary
+						className={menuClassName || 'c-nav-item g-2'}
+						aria-label={ariaLabel}
+						onClick={(evt) => evt.preventDefault()}
 					>
-						{children}
-					</div>,
-					// `body` fallback: a non-null assertion here THROWS in any app
-					// whose index.html lacks the container.
-					document.getElementById('popper-container') ?? document.body
-				)}
+						{icon}
+						{label}
+					</summary>
+				}
+			>
+				{children}
+			</Popover>
 		</details>
 	)
 }

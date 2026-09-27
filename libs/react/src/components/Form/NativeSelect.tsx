@@ -4,16 +4,26 @@
 import * as React from 'react'
 
 import { createComponent, mergeClasses } from '../utils.js'
+import { useFieldControl } from './Field.js'
 
-export interface NativeSelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
+export interface NativeSelectProps
+	extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>, 'size'> {
+	size?: 'sm' | 'md' | 'lg'
 	children?: React.ReactNode
 }
 
 export const NativeSelect = createComponent<HTMLSelectElement, NativeSelectProps>(
 	'NativeSelect',
-	({ className, children, ...props }, ref) => {
+	({ className, size, children, ...props }, ref) => {
+		const field = useFieldControl(props, ref, 'NativeSelect')
+		const sizeClass = (size ?? field.size) !== 'md' && (size ?? field.size)
 		return (
-			<select ref={ref} className={mergeClasses('c-select', className)} {...props}>
+			<select
+				{...props}
+				{...field.controlProps}
+				ref={field.ref}
+				className={mergeClasses('c-select', sizeClass, className)}
+			>
 				{children}
 			</select>
 		)

@@ -8,14 +8,14 @@ import { createComponent, mergeClasses } from '../utils.js'
 
 export interface ProgressProps extends React.HTMLAttributes<HTMLDivElement> {
 	value?: number // 0-100
-	variant?: ColorVariant
+	color?: ColorVariant
 	indeterminate?: boolean
 	children?: React.ReactNode
 }
 
 export const Progress = createComponent<HTMLDivElement, ProgressProps>(
 	'Progress',
-	({ className, value = 0, variant, indeterminate, style, children, ...props }, ref) => {
+	({ className, value = 0, color, indeterminate, style, children, ...props }, ref) => {
 		const clamped = Math.min(100, Math.max(0, value))
 		const barStyle: React.CSSProperties | undefined = indeterminate
 			? undefined
@@ -26,7 +26,7 @@ export const Progress = createComponent<HTMLDivElement, ProgressProps>(
 				ref={ref}
 				className={mergeClasses(
 					'c-progress',
-					variant,
+					color,
 					indeterminate && 'indeterminate',
 					className
 				)}

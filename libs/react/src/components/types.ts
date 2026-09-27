@@ -2,25 +2,21 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 // Color variants used across components
-export type ColorVariant = 'primary' | 'secondary' | 'accent' | 'error' | 'warning' | 'success'
-
-// Container color variants (for backgrounds)
-export type ContainerColorVariant =
-	| 'container-primary'
-	| 'container-secondary'
-	| 'container-accent'
-	| 'container-error'
-	| 'container-warning'
-	| 'container-success'
+export type ColorVariant =
+	| 'primary'
+	| 'secondary'
+	| 'accent'
+	| 'neutral'
+	| 'info'
+	| 'error'
+	| 'warning'
+	| 'success'
 
 // Elevation levels for panels and containers
 export type Elevation = 'low' | 'mid' | 'high'
 
 // Common size variants
 export type Size = 'xs' | 'sm' | 'md' | 'lg' | 'xl'
-
-// Button size variants
-export type ButtonSize = 'compact' | 'small' | 'default' | 'large'
 
 // Position variants for positioned elements
 export type VerticalPosition = 'top' | 'middle' | 'bottom'
@@ -30,10 +26,13 @@ export type HorizontalPosition = 'left' | 'center' | 'right'
 export type Position = `${VerticalPosition}-${HorizontalPosition}`
 
 // Avatar status types
-export type AvatarStatus = 'online' | 'offline' | 'busy' | 'away'
+export type AvatarStatus = 'online' | 'offline' | 'busy' | 'away' | 'pending'
 
-// Avatar shape types
-export type AvatarShape = 'circle' | 'square' | 'rounded'
+// Avatar sizes: the common scale plus Avatar-only hero sizes
+export type AvatarSize = Size | '2xl' | '3xl'
+
+// Avatar shape types (`square`/`rounded` are legacy, kept for compatibility)
+export type AvatarShape = 'circle' | 'squircle' | 'square' | 'rounded'
 
 // Avatar ring variants
 export type AvatarRing = boolean | 'secondary' | 'success'

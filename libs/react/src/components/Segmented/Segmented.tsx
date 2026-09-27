@@ -7,17 +7,35 @@ import { useMergedRefs } from '../hooks.js'
 import { createComponent, mergeClasses } from '../utils.js'
 
 export interface SegmentedContextValue {
-	value?: string
+	/** An array when `multiple` */
+	value?: string | readonly string[]
+	/** Called with the clicked item's value; in `multiple` mode the group turns it into a toggle */
 	onChange?: (value: string) => void
+	multiple?: boolean
 }
 
 export const SegmentedContext = React.createContext<SegmentedContextValue>({})
 
-export interface SegmentedProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'onChange'> {
-	value?: string
-	onChange?: (value: string) => void
+interface SegmentedBaseProps
+	extends Omit<React.HTMLAttributes<HTMLDivElement>, 'onChange' | 'defaultValue'> {
+	size?: 'sm' | 'md' | 'lg'
+	/** Stretch to the container width, items sharing it equally */
+	fill?: boolean
+	/** `grid` wraps items into auto-fill columns (icon pickers); column min via `--segmented-min` */
+	layout?: 'row' | 'grid'
 	children?: React.ReactNode
 }
+
+export type SegmentedProps = SegmentedBaseProps &
+	(
+		| { multiple?: false; value?: string; onChange?: (value: string) => void }
+		| {
+				/** Multi-toggle: items become `aria-pressed` buttons in a `group` */
+				multiple: true
+				value?: readonly string[]
+				onChange?: (value: string[]) => void
+		  }
+	)
 
 /**
  * A segmented button: one of N mutually exclusive values, picked in place.
@@ -27,16 +45,33 @@ export interface SegmentedProps extends Omit<React.HTMLAttributes<HTMLDivElement
  * the value, so it is a `radiogroup` and its items are `radio`s, which is what
  * makes a screen reader announce "2 of 3" rather than a panel change.
  *
+ * With `multiple` it is a set of toggle buttons instead: a `group` of
+ * `aria-pressed` items, each its own tab stop, and `value` is a `string[]`.
+ *
  * Give it an `aria-label`: a radiogroup with no name is announced as a bare
  * group, and unlike a tab bar there is no surrounding heading convention to
  * borrow one from.
  */
 export const Segmented = createComponent<HTMLDivElement, SegmentedProps>(
 	'Segmented',
-	({ className, value, onChange, children, ...props }, ref) => {
+	({ className, value, onChange, multiple, size, fill, layout, children, ...props }, ref) => {
 		// A fresh object per render would re-render every item on any parent render;
-		// the two fields are the whole state, so memoizing on them is exact.
-		const context = React.useMemo(() => ({ value, onChange }), [value, onChange])
+		// these fields are the whole state, so memoizing on them is exact.
+		const context = React.useMemo<SegmentedContextValue>(() => {
+			if (!multiple) return { value, onChange: onChange as SegmentedContextValue['onChange'] }
+			const values = (value ?? []) as readonly string[]
+			const onToggle = onChange as ((value: string[]) => void) | undefined
+			return {
+				value: values,
+				multiple: true,
+				onChange:
+					onToggle &&
+					((v: string) =>
+						onToggle(
+							values.includes(v) ? values.filter((x) => x !== v) : [...values, v]
+						))
+			}
+		}, [value, onChange, multiple])
 
 		const groupRef = React.useRef<HTMLDivElement>(null)
 		const mergedRef = useMergedRefs(ref, groupRef)
@@ -76,8 +111,14 @@ export const Segmented = createComponent<HTMLDivElement, SegmentedProps>(
 			<SegmentedContext.Provider value={context}>
 				<div
 					ref={mergedRef}
-					className={mergeClasses('c-segmented', className)}
-					role="radiogroup"
+					className={mergeClasses(
+						'c-segmented',
+						size !== 'md' && size,
+						fill && 'fill',
+						layout === 'grid' && 'grid',
+						className
+					)}
+					role={multiple ? 'group' : 'radiogroup'}
 					{...props}
 				>
 					{children}

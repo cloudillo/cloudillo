@@ -15,17 +15,19 @@ export const TabsContext = React.createContext<TabsContextValue>({})
 export interface TabsProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'onChange'> {
 	value?: string
 	onTabChange?: (value: string) => void
+	/** Wrap tabs onto more lines instead of overflowing */
+	wrap?: boolean
 	children?: React.ReactNode
 }
 
 export const Tabs = createComponent<HTMLDivElement, TabsProps>(
 	'Tabs',
-	({ className, value, onTabChange, children, ...props }, ref) => {
+	({ className, value, onTabChange, wrap, children, ...props }, ref) => {
 		return (
 			<TabsContext.Provider value={{ value, onTabChange }}>
 				<div
 					ref={ref}
-					className={mergeClasses('c-tabs', className)}
+					className={mergeClasses('c-tabs', wrap && 'wrap', className)}
 					role="tablist"
 					{...props}
 				>

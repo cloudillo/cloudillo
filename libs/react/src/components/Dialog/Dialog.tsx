@@ -3,88 +3,150 @@
 
 import { atom, useAtom } from 'jotai'
 import * as React from 'react'
-import { createPortal } from 'react-dom'
 import { LuX as IcClose } from 'react-icons/lu'
 import Markdown from 'react-markdown'
 
 import { useLibTranslation } from '../../i18n.js'
+import { ActionBar } from '../ActionBar/ActionBar.js'
 import { Button } from '../Button/Button.js'
-import type { Elevation } from '../types.js'
+import { Field } from '../Form/Field.js'
+import { Input } from '../Form/Input.js'
+import { TextArea } from '../Form/TextArea.js'
+import { Modal } from '../Modal/Modal.js'
+import type { ColorVariant, Elevation } from '../types.js'
 import { mergeClasses } from '../utils.js'
 
-/* Dialog component for HTML5 dialog */
-/*************************************/
+/* Dialog component on the native <dialog> */
+/*************************************************/
 export interface DialogProps {
 	className?: string
 	open?: boolean
-	title?: string
+	/** Rendered as the h2 heading and the dialog's accessible name. */
+	title?: React.ReactNode
+	/** Short text under the title; the dialog's accessible description. */
+	description?: React.ReactNode
+	/** Leading icon of the title row. */
+	icon?: React.ReactNode
+	/** Width. Unset keeps the default panel width. */
+	size?: 'sm' | 'md' | 'lg' | 'full'
+	/** Pinned under the scrolling body, usually an `<ActionBar>`. */
+	footer?: React.ReactNode
 	elevation?: Elevation
 	onClose?: () => void
-	/** When true, the dialog also closes on Escape and on a backdrop click.
-	 * Default false: existing consumers keep close-button-only behavior. */
+	/**
+	 * Escape, a backdrop click and the close button close the dialog (default).
+	 * `false` = blocking: the user has to pick one of the footer actions.
+	 */
 	dismissable?: boolean
-	children: React.ReactNode
+	/** Form mode: the panel is a `<form>`, Enter or a `type="submit"` button submits. */
+	onSubmit?: (evt: React.FormEvent<HTMLFormElement>) => void
+	children?: React.ReactNode
 }
 
 export function Dialog({
 	className,
 	open,
 	title,
+	description,
+	icon,
+	size,
+	footer,
 	elevation = 'high',
 	onClose,
-	dismissable = false,
+	dismissable = true,
+	onSubmit,
 	children
 }: DialogProps) {
-	// Close on Escape while open. Declared before the early return so the hook
-	// order stays stable across open/closed renders.
-	React.useEffect(() => {
-		if (!open || !onClose || !dismissable) return
-		const onKey = (e: KeyboardEvent) => {
-			if (e.key === 'Escape') onClose()
-		}
-		window.addEventListener('keydown', onKey)
-		return () => window.removeEventListener('keydown', onKey)
-	}, [open, onClose, dismissable])
+	const { t } = useLibTranslation()
+	const titleId = React.useId()
+	const descrId = React.useId()
+	const closable = dismissable && !!onClose
 
-	if (!open) return null
-
+	const panelProps = {
+		className: mergeClasses('c-dialog c-panel emph p-3', elevation, size, className)
+	}
 	const content = (
-		// When dismissable, a backdrop click closes the dialog; clicks inside the
-		// panel are stopped so they don't bubble up to the backdrop handler.
-		<div className="c-modal show" tabIndex={-1} onClick={dismissable ? onClose : undefined}>
-			<div
-				className={mergeClasses('c-dialog c-panel emph p-3', elevation, className)}
-				onClick={(e) => e.stopPropagation()}
-			>
-				<div className="c-hbox mb-2">
-					<h2 className="fill">{title}</h2>
-					<button type="button" className="c-link" aria-label="Close" onClick={onClose}>
-						<IcClose />
-					</button>
+		<>
+			{(title || icon || closable) && (
+				<div className="c-dialog-header">
+					{icon}
+					<h2 id={titleId} className="fill">
+						{title}
+					</h2>
+					{closable && (
+						<Button
+							variant="ghost"
+							size="sm"
+							icon={<IcClose />}
+							aria-label={t('Close')}
+							onClick={onClose}
+						/>
+					)}
 				</div>
+			)}
+			<div className="c-dialog-body">
+				{description && (
+					<p id={descrId} className="c-dialog-description">
+						{description}
+					</p>
+				)}
 				{children}
 			</div>
-		</div>
+			{footer && <div className="c-dialog-footer">{footer}</div>}
+		</>
 	)
 
-	if (typeof document !== 'undefined') {
-		return createPortal(content, document.body)
-	}
-	return content
+	return (
+		<Modal
+			open={open}
+			onClose={closable ? onClose : undefined}
+			closeOnBackdrop={closable}
+			aria-labelledby={title ? titleId : undefined}
+			aria-describedby={description ? descrId : undefined}
+		>
+			{onSubmit ? (
+				<form
+					{...panelProps}
+					onSubmit={(evt) => {
+						evt.preventDefault()
+						onSubmit(evt)
+					}}
+				>
+					{content}
+				</form>
+			) : (
+				<div {...panelProps}>{content}</div>
+			)}
+		</Modal>
+	)
 }
 
 /* useDialog() hook */
 /********************/
-type DialogType = 'Tell' | 'OkCancel' | 'YesNo' | 'Text'
-
-interface DialogState {
-	type: DialogType
-	title: string
-	descr: string
+export interface DialogOptions {
+	/** Confirm button colour; `error` for destructive actions. Default `primary`. */
+	color?: ColorVariant
+	/** Confirm button label, named after the action ("Delete"), never "OK" for destructive ones. */
+	confirmLabel?: string
+	cancelLabel?: string
+	/** Typed-phrase confirm for irreversible actions: confirm stays disabled until typed. */
+	requireText?: string
+	/** @deprecated Use `color`. Extra class on the dialog panel. */
 	className?: string
+}
+
+export interface AskTextOptions extends DialogOptions {
 	placeholder?: string
 	defaultValue?: string
 	multiline?: boolean
+}
+
+type DialogType = 'Tell' | 'OkCancel' | 'YesNo' | 'Text'
+
+interface DialogState extends AskTextOptions {
+	type: DialogType
+	title: string
+	descr: string
 }
 
 const dialogAtom = atom<DialogState | undefined>()
@@ -95,6 +157,12 @@ export function DialogContainer() {
 	const { t } = useLibTranslation()
 	const [dialog, setDialog] = useAtom(dialogAtom)
 	const [value, setValue] = React.useState('')
+	const [phrase, setPhrase] = React.useState('')
+
+	React.useEffect(() => {
+		setValue(dialog?.defaultValue ?? '')
+		setPhrase('')
+	}, [dialog])
 
 	function onButtonClick(value: unknown) {
 		setDialog(undefined)
@@ -108,173 +176,119 @@ export function DialogContainer() {
 
 	if (!dialog) return null
 
-	const content = (
-		<div className={mergeClasses('c-modal', dialog.className, 'show')} tabIndex={-1}>
-			<div className="c-dialog c-panel h-max-100 emph p-4">
-				<div className="c-hbox">
-					<h2 className="fill mb-3">{dialog.title}</h2>
-					<button
-						type="button"
-						className="c-link pos-absolute top-0 right-0 m-3"
-						data-bs-dismiss="modal"
-						aria-label="Close"
-						onClick={onCancel}
-					>
-						<IcClose />
-					</button>
-				</div>
-				<div className="c-markdown overflow-y-auto">
-					<Markdown>{dialog.descr}</Markdown>
-				</div>
+	const { type, requireText } = dialog
+	const canConfirm = !requireText || phrase === requireText
+	const destructive = dialog.color === 'error'
+	const defaultLabels = {
+		Tell: [t('OK'), undefined],
+		OkCancel: [t('OK'), t('Cancel')],
+		YesNo: [t('Yes'), t('No')],
+		Text: [t('OK'), t('Cancel')]
+	}[type]
+	const confirmLabel = dialog.confirmLabel ?? defaultLabels[0]
+	const cancelLabel = defaultLabels[1] && (dialog.cancelLabel ?? defaultLabels[1])
 
-				{dialog.type == 'Tell' && (
-					<div className="c-group g-2 mt-4">
-						<Button variant="primary" autoFocus onClick={() => onButtonClick(true)}>
-							{t('OK')}
-						</Button>
-					</div>
-				)}
-				{dialog.type == 'OkCancel' && (
-					<div className="c-group g-2 mt-4">
-						<Button variant="primary" autoFocus onClick={() => onButtonClick(true)}>
-							{t('OK')}
-						</Button>
-						<Button onClick={onCancel}>{t('Cancel')}</Button>
-					</div>
-				)}
-				{dialog.type == 'YesNo' && (
-					<div className="c-group g-2 mt-4">
-						<Button variant="primary" onClick={() => onButtonClick(true)}>
-							{t('Yes')}
-						</Button>
-						<Button onClick={() => onButtonClick(false)}>{t('No')}</Button>
-					</div>
-				)}
-				{dialog.type == 'Text' && (
-					<>
-						<form
-							onSubmit={(e) => {
-								e.preventDefault()
-								onButtonClick(value)
-							}}
+	return (
+		<Dialog
+			open
+			className={dialog.className}
+			title={dialog.title}
+			onClose={onCancel}
+			onSubmit={() => {
+				if (canConfirm) onButtonClick(type === 'Text' ? value : true)
+			}}
+			footer={
+				<ActionBar>
+					{cancelLabel && (
+						<Button
+							autoFocus={destructive && !requireText}
+							onClick={type === 'YesNo' ? () => onButtonClick(false) : onCancel}
 						>
-							{!dialog.multiline ? (
-								<input
-									className="c-input mt-3"
-									type="text"
-									placeholder={dialog.placeholder}
-									defaultValue={dialog.defaultValue}
-									autoFocus
-									onChange={(e) => setValue(e.target.value)}
-								/>
-							) : (
-								<textarea
-									className="c-input mt-3"
-									placeholder={dialog.placeholder}
-									defaultValue={dialog.defaultValue}
-									autoFocus
-									onChange={(e) => setValue(e.target.value)}
-								/>
-							)}
-						</form>
-						<div className="c-group g-2 mt-4">
-							<Button variant="primary" onClick={() => onButtonClick(value)}>
-								{t('OK')}
-							</Button>
-							<Button onClick={onCancel}>{t('Cancel')}</Button>
-						</div>
-					</>
-				)}
+							{cancelLabel}
+						</Button>
+					)}
+					<Button
+						type="submit"
+						color={dialog.color ?? 'primary'}
+						autoFocus={type !== 'Text' && !destructive && !requireText}
+						disabled={!canConfirm}
+					>
+						{confirmLabel}
+					</Button>
+				</ActionBar>
+			}
+		>
+			<div className="c-markdown">
+				<Markdown>{dialog.descr}</Markdown>
 			</div>
-		</div>
+			{type === 'Text' &&
+				(dialog.multiline ? (
+					<TextArea
+						placeholder={dialog.placeholder}
+						value={value}
+						autoFocus
+						onChange={(e) => setValue(e.target.value)}
+					/>
+				) : (
+					<Input
+						type="text"
+						placeholder={dialog.placeholder}
+						value={value}
+						autoFocus
+						onChange={(e) => setValue(e.target.value)}
+					/>
+				))}
+			{requireText && (
+				<Field label={t('Type {{phrase}} to confirm', { phrase: requireText })}>
+					<Input
+						type="text"
+						value={phrase}
+						placeholder={requireText}
+						autoComplete="off"
+						spellCheck={false}
+						autoFocus={type !== 'Text'}
+						onChange={(e) => setPhrase(e.target.value)}
+					/>
+				</Field>
+			)}
+		</Dialog>
 	)
+}
 
-	if (typeof document !== 'undefined') {
-		return createPortal(content, document.body)
-	}
-	return content
+/** A string is the deprecated `className` argument. */
+type DialogOptionsArg = DialogOptions | string
+
+function toOptions(opts: DialogOptionsArg | undefined): DialogOptions {
+	return typeof opts === 'string' ? { className: opts } : (opts ?? {})
 }
 
 export interface UseDialogReturn {
 	isOpen: boolean
-	tell: (title: string, descr: string, className?: string) => Promise<void>
-	confirm: (title: string, descr: string, className?: string) => Promise<boolean | undefined>
-	ask: (title: string, descr: string, className?: string) => Promise<boolean | undefined>
-	askText: (
-		title: string,
-		descr: string,
-		opts?: {
-			className?: string
-			placeholder?: string
-			defaultValue?: string
-			multiline?: boolean
-		}
-	) => Promise<string | undefined>
+	tell: (title: string, descr: string, opts?: DialogOptionsArg) => Promise<void>
+	confirm: (title: string, descr: string, opts?: DialogOptionsArg) => Promise<boolean | undefined>
+	ask: (title: string, descr: string, opts?: DialogOptionsArg) => Promise<boolean | undefined>
+	askText: (title: string, descr: string, opts?: AskTextOptions) => Promise<string | undefined>
 }
 
 export function useDialog(): UseDialogReturn {
 	const [dialog, setDialog] = useAtom(dialogAtom)
 
-	function ret() {
+	function open<T>(state: DialogState): Promise<T> {
+		setDialog(state)
 		return new Promise(function (resolve) {
 			// Resolve previous dialog if still pending (prevents hanging promises)
 			if (dialogResolve) dialogResolve(undefined)
-			dialogResolve = resolve
+			dialogResolve = resolve as (value?: unknown) => void
 		})
-	}
-
-	function tell(
-		title: string,
-		descr: string,
-		className: string | undefined = undefined
-	): Promise<void> {
-		setDialog({ type: 'Tell', title, descr, className })
-		return ret() as Promise<void>
-	}
-
-	function confirm(
-		title: string,
-		descr: string,
-		className: string | undefined = undefined
-	): Promise<boolean | undefined> {
-		setDialog({ type: 'OkCancel', title, descr, className })
-		return ret() as Promise<boolean | undefined>
-	}
-
-	function ask(
-		title: string,
-		descr: string,
-		className: string | undefined = undefined
-	): Promise<boolean | undefined> {
-		setDialog({ type: 'YesNo', title, descr, className })
-		return ret() as Promise<boolean | undefined>
-	}
-
-	function askText(
-		title: string,
-		descr: string,
-		{
-			className,
-			placeholder,
-			defaultValue,
-			multiline
-		}: {
-			className?: string
-			placeholder?: string
-			defaultValue?: string
-			multiline?: boolean
-		} = {}
-	): Promise<string | undefined> {
-		setDialog({ type: 'Text', title, descr, className, placeholder, defaultValue, multiline })
-		return ret() as Promise<string | undefined>
 	}
 
 	return {
 		isOpen: !!dialog,
-		tell,
-		confirm,
-		ask,
-		askText
+		tell: (title, descr, opts) => open({ ...toOptions(opts), type: 'Tell', title, descr }),
+		confirm: (title, descr, opts) =>
+			open({ ...toOptions(opts), type: 'OkCancel', title, descr }),
+		ask: (title, descr, opts) => open({ ...toOptions(opts), type: 'YesNo', title, descr }),
+		askText: (title, descr, opts = {}) => open({ ...opts, type: 'Text', title, descr })
 	}
 }
 

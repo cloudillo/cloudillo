@@ -27,7 +27,8 @@
 	"exports": {
 		".": "./lib/index.js",
 		"./components.css": "./lib/components.css",
-		"./doc-bar": "./lib/doc-bar.js"
+		"./doc-bar": "./lib/doc-bar.js",
+		"./site/prose.css": "./lib/site/prose.css"
 	},
 	"files": [
 		"lib",
@@ -36,8 +37,8 @@
 	"scripts": {
 		"ts": "tsgo --noEmit",
 		"ts-test": "tsgo --noEmit -p tsconfig.test.json",
-		"build": "tsgo && cp src/components.css lib/",
-		"build-ts": "tsc && cp src/components.css lib/",
+		"build": "tsgo && cp src/components.css lib/ && mkdir -p lib/site && cp src/site/prose.css lib/site/",
+		"build-ts": "tsc && cp src/components.css lib/ && mkdir -p lib/site && cp src/site/prose.css lib/site/",
 		"watch": "tsgo -w",
 		"test": "NODE_OPTIONS=\"--experimental-vm-modules\" jest",
 		"test:watch": "NODE_OPTIONS=\"--experimental-vm-modules\" jest --watch",
@@ -55,15 +56,20 @@
 		"@cloudillo/fonts": "workspace:^",
 		"@cloudillo/rtdb": "workspace:^",
 		"@cloudillo/types": "workspace:^",
+		"@dnd-kit/core": "^6.3.1",
+		"@dnd-kit/sortable": "^10.0.0",
+		"@dnd-kit/utilities": "^3.2.2",
 		"dayjs": "^1.11.23",
 		"downshift": "^9.4.0",
 		"jotai": "^3.0.0",
 		"react-i18next": "^17.0.15",
 		"react-icons": "^5.7.0",
+		"react-image-crop": "^11.1.2",
 		"react-markdown": "^10.1.0",
 		"react-popper": "^2.3.0",
 		"react-qr-code": "^2.2.0",
 		"react-router-dom": "^7.18.4",
+		"use-editable": "^2.3.3",
 		"y-protocols": "^1.0.7",
 		"y-websocket": "^3.1.0",
 		"yjs": "^13.6.33"

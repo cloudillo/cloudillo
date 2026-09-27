@@ -8,5 +8,6 @@ export * from './ProfileAudienceCard.js'
 export * from './ProfileCard.js'
 export * from './ProfilePicture.js'
 export * from './UnknownProfilePicture.js'
+export * from './VisibilitySelect.js'
 
 // vim: ts=4

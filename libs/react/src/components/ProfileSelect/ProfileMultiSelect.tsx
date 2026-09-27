@@ -7,16 +7,17 @@ import { LuX as IcClose } from 'react-icons/lu'
 
 import { useLibTranslation } from '../../i18n.js'
 import { Button } from '../Button/index.js'
-import { ProfileCard } from '../Profile/index.js'
+import { Combobox } from '../Combobox/index.js'
+import { ProfileCard, ProfilePicture } from '../Profile/index.js'
+import { Tag } from '../Tag/index.js'
 import { mergeClasses } from '../utils.js'
-import { ProfileSelect } from './ProfileSelect.js'
 
 export interface ProfileMultiSelectProps {
 	className?: string
 	placeholder?: string
 	/** Shown below the search when `value` is empty. */
 	emptyText?: React.ReactNode
-	/** Server-side typeahead source (the underlying Select debounces). */
+	/** Server-side typeahead source (the underlying Combobox debounces). */
 	listProfiles: (q: string) => Promise<Profile[] | undefined>
 	/** Managed profiles (controlled). */
 	value: Profile[]
@@ -59,12 +60,13 @@ export function ProfileMultiSelect({
 	const { t } = useLibTranslation()
 
 	async function filtered(q: string): Promise<Profile[] | undefined> {
+		if (!q) return []
 		const profiles = await listProfiles(q)
 		return profiles?.filter((p) => !value.some((v) => v.idTag === p.idTag))
 	}
 
-	function pick(profile: Profile | undefined) {
-		if (!profile || value.some((v) => v.idTag === profile.idTag)) return
+	function pick(profile: Profile) {
+		if (value.some((v) => v.idTag === profile.idTag)) return
 		onAdd(profile)
 	}
 
@@ -75,10 +77,10 @@ export function ProfileMultiSelect({
 					{removePrompt?.(profile) ??
 						t('Remove {{name}}?', { name: profile.name || profile.idTag })}
 				</span>
-				<Button size="small" onClick={onCancelRemove}>
+				<Button size="sm" onClick={onCancelRemove}>
 					{t('Cancel')}
 				</Button>
-				<Button size="small" variant="primary" onClick={() => onRemove(profile)}>
+				<Button size="sm" color="primary" onClick={() => onRemove(profile)}>
 					{t('Remove')}
 				</Button>
 			</div>
@@ -89,10 +91,14 @@ export function ProfileMultiSelect({
 		<div className={mergeClasses('c-vbox g-1', className)}>
 			<div className="c-hbox g-2 align-items-center">
 				<div className="flex-fill">
-					<ProfileSelect
-						placeholder={placeholder}
-						listProfiles={filtered}
-						onChange={pick}
+					<Combobox
+						multiple
+						placeholder={placeholder ?? t('Search user')}
+						getData={filtered}
+						itemToId={(p) => p.idTag}
+						itemToString={(p) => p?.idTag || ''}
+						renderItem={(p) => <ProfileCard profile={p} />}
+						onSelect={pick}
 					/>
 				</div>
 				{searchAddon}
@@ -108,20 +114,13 @@ export function ProfileMultiSelect({
 								confirmingRemove === profile.idTag ? (
 									renderConfirmRow(profile)
 								) : (
-									<div
+									<Tag
 										key={profile.idTag}
-										className="c-hbox align-items-center g-1"
+										avatar={<ProfilePicture profile={profile} size="xs" />}
+										onRemove={() => onRemove(profile)}
 									>
-										<ProfileCard profile={profile} />
-										<button
-											type="button"
-											className="c-link p-1"
-											aria-label={t('Remove')}
-											onClick={() => onRemove(profile)}
-										>
-											<IcClose />
-										</button>
-									</div>
+										{profile.name || profile.idTag}
+									</Tag>
 								)
 							)}
 						</div>
@@ -141,14 +140,13 @@ export function ProfileMultiSelect({
 								{renderActions ? (
 									renderActions(profile)
 								) : (
-									<button
-										type="button"
-										className="c-link p-1"
+									<Button
+										variant="ghost"
+										size="sm"
+										icon={<IcClose />}
 										aria-label={t('Remove')}
 										onClick={() => onRemove(profile)}
-									>
-										<IcClose />
-									</button>
+									/>
 								)}
 							</div>
 						)

@@ -12,15 +12,37 @@ export interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {
 	width?: string | number
 	height?: string | number
 	animate?: boolean
+	/** CSS aspect-ratio, e.g. `"16/9"` — reserves the final media box */
+	aspectRatio?: string
+	/** Image shown under the placeholder (e.g. a video poster) */
+	backgroundSrc?: string
+	/** Centred overlay content (e.g. a labelled LoadingSpinner); the skeleton stays exposed to AT when set */
+	children?: React.ReactNode
 }
 
 export const Skeleton = createComponent<HTMLDivElement, SkeletonProps>(
 	'Skeleton',
-	({ className, variant = 'text', width, height, animate = true, style, ...props }, ref) => {
+	(
+		{
+			className,
+			variant = 'text',
+			width,
+			height,
+			animate = true,
+			aspectRatio,
+			backgroundSrc,
+			style,
+			children,
+			...props
+		},
+		ref
+	) => {
 		const combinedStyle: React.CSSProperties = {
 			...style,
 			width: typeof width === 'number' ? `${width}px` : width,
-			height: typeof height === 'number' ? `${height}px` : height
+			height: typeof height === 'number' ? `${height}px` : height,
+			aspectRatio,
+			backgroundImage: backgroundSrc ? `url(${JSON.stringify(backgroundSrc)})` : undefined
 		}
 
 		return (
@@ -29,13 +51,16 @@ export const Skeleton = createComponent<HTMLDivElement, SkeletonProps>(
 				className={mergeClasses(
 					'c-skeleton',
 					`c-skeleton--${variant}`,
-					animate && 'c-skeleton--animate',
+					animate && !children && 'c-skeleton--animate',
+					backgroundSrc && 'c-skeleton--image',
 					className
 				)}
 				style={combinedStyle}
-				aria-hidden="true"
+				aria-hidden={children ? undefined : true}
 				{...props}
-			/>
+			>
+				{children && <div className="c-skeleton-overlay">{children}</div>}
+			</div>
 		)
 	}
 )

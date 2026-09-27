@@ -32,6 +32,20 @@ export function resolveDefaultExport<T>(mod: T): T {
 	return m.default ?? mod
 }
 
+/** `/…` (not `//…`) is an in-app route, rendered as a router Link */
+export function isInternal(href: string): boolean {
+	return href.startsWith('/') && !href.startsWith('//')
+}
+
+/** Absolute links to another origin get `rel="noopener"` */
+export function isCrossOrigin(href: string): boolean {
+	try {
+		return new URL(href, window.location.href).origin !== window.location.origin
+	} catch {
+		return false
+	}
+}
+
 /**
  * Create a forwardRef component with displayName
  */
@@ -44,18 +58,6 @@ export function createComponent<T, P>(
 	) as unknown as React.ForwardRefExoticComponent<P & React.RefAttributes<T>>
 	Component.displayName = displayName
 	return Component
-}
-
-/**
- * Convert size prop to CSS class for buttons
- */
-export function buttonSizeClass(
-	size: 'compact' | 'small' | 'default' | 'large' | undefined
-): string | undefined {
-	if (size === 'compact') return 'compact'
-	if (size === 'small') return 'small'
-	if (size === 'large') return 'large'
-	return undefined
 }
 
 // vim: ts=4

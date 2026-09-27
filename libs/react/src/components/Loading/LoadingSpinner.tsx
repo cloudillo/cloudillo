@@ -3,24 +3,38 @@
 
 import * as React from 'react'
 
+import { useLibTranslation } from '../../i18n.js'
 import type { ColorVariant, Size } from '../types.js'
 import { createComponent, mergeClasses } from '../utils.js'
 
 export interface LoadingSpinnerProps extends React.HTMLAttributes<HTMLDivElement> {
 	size?: Size
-	variant?: ColorVariant
+	color?: ColorVariant
+	/** Visible label; the accessible name falls back to "Loading" */
 	label?: string
+	/** Grow to fill and centre in the parent area */
+	fill?: boolean
+	/** Light-on-dark colours for use over media / dark overlays */
+	inverse?: boolean
 }
 
 export const LoadingSpinner = createComponent<HTMLDivElement, LoadingSpinnerProps>(
 	'LoadingSpinner',
-	({ className, size = 'md', variant, label, ...props }, ref) => {
+	({ className, size = 'md', color, label, fill, inverse, ...props }, ref) => {
+		const { t } = useLibTranslation()
 		return (
 			<div
 				ref={ref}
-				className={mergeClasses('c-loading-spinner', size, variant, className)}
+				className={mergeClasses(
+					'c-loading-spinner',
+					size,
+					color,
+					fill && 'fill',
+					inverse && 'inverse',
+					className
+				)}
 				role="status"
-				aria-label={label || 'Loading'}
+				aria-label={label || t('Loading')}
 				{...props}
 			>
 				<svg viewBox="0 0 48 48" fill="none" className="c-loading-spinner-svg">

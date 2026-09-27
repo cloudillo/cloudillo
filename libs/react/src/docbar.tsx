@@ -203,7 +203,7 @@ export function AppDocBar({
 				state === 'ready' &&
 				info?.resId && (
 					<Button
-						kind="link"
+						variant="link"
 						immediate
 						icon={<IcRef />}
 						title={t('Copy reference')}
@@ -231,7 +231,7 @@ export function AppDocBar({
 			    navigate them out of the document they were sent. */}
 			{state === 'ready' && canPost && (
 				<Button
-					kind="link"
+					variant="link"
 					icon={<IcShare />}
 					title={t('Share to feed')}
 					aria-label={t('Share to feed')}

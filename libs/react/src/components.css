@@ -1,3 +1,6 @@
+/* ImageCropper base styles; @import must precede every rule. */
+@import 'react-image-crop/dist/ReactCrop.css';
+
 /* ==========================================================================
    CSS Variable Compatibility Layer
    Maps legacy --c-* prefixes to OpalUI --col-* system for backward compatibility
@@ -16,35 +19,7 @@
    Focus rings and screen reader utilities
    ========================================================================== */
 
-/* Screen reader only - visually hidden but accessible */
-.sr-only {
-	position: absolute;
-	width: 1px;
-	height: 1px;
-	padding: 0;
-	margin: -1px;
-	overflow: hidden;
-	clip: rect(0, 0, 0, 0);
-	white-space: nowrap;
-	border: 0;
-}
-
-/* Skip link for keyboard navigation */
-.skip-link {
-	position: absolute;
-	top: -100%;
-	left: 0;
-	z-index: var(--z-tooltip, 800);
-	padding: 0.5rem 1rem;
-	background: var(--col-primary);
-	color: var(--col-on-primary);
-	text-decoration: none;
-	transition: top 0.2s;
-}
-
-.skip-link:focus {
-	top: 0;
-}
+/* `.sr-only` lives in OpalUI utils.css */
 
 /* Reduce motion for users who prefer it */
 @media (prefers-reduced-motion: reduce) {
@@ -66,18 +41,19 @@
 	display: flex;
 	text-align: left;
 
-	.picture {
+	/* Legacy <img>s only — an Avatar (ProfilePicture) sizes itself via `size` */
+	.picture:not(.c-avatar) {
 		width: 2.5rem;
 		height: 2.5rem;
 		border-radius: 50%;
 	}
 
-	.picture.small {
+	.picture.small:not(.c-avatar) {
 		width: 2rem;
 		height: 2rem;
 	}
 
-	.picture.tiny {
+	.picture.tiny:not(.c-avatar) {
 		width: 1.5rem;
 		height: 1.5rem;
 	}
@@ -202,7 +178,227 @@
 }
 
 /* ==========================================================================
+   Color dot — swatch for a user-chosen colour (ColorDot)
+   ========================================================================== */
+
+.c-color-dot {
+	display: inline-block;
+	flex-shrink: 0;
+	width: 0.75rem;
+	height: 0.75rem;
+	border-radius: 50%;
+	background-color: var(--dot-color);
+	box-shadow: inset 0 0 0 1px lch(from var(--col-on-container) l c h / 0.2);
+}
+
+.c-color-dot.sm {
+	width: 0.5rem;
+	height: 0.5rem;
+}
+
+.c-color-dot.lg {
+	width: 1rem;
+	height: 1rem;
+}
+
+/* ==========================================================================
+   List / ListItem / DescriptionList, Meta, IconText
+   ========================================================================== */
+
+.c-list {
+	display: flex;
+	flex-direction: column;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.c-list.scroll {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow-y: auto;
+}
+
+.c-list.bordered {
+	border: 1px solid var(--col-outline);
+	border-radius: var(--radius-md);
+	overflow: hidden;
+}
+
+.c-list.divided > li + li,
+.c-list.bordered > li + li {
+	border-top: 1px solid var(--col-outline);
+}
+
+.c-list.marker-bullet,
+.c-list.marker-number {
+	display: block;
+	padding-inline-start: 1.5em;
+}
+
+.c-list.marker-bullet {
+	list-style: disc;
+}
+
+.c-list.marker-number {
+	list-style: decimal;
+}
+
+.c-list-item {
+	position: relative;
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	padding: var(--space-2) var(--space-3);
+	min-height: var(--min-touch-target, 44px);
+}
+
+.c-list-item.interactive {
+	cursor: pointer;
+}
+
+.c-list-item.interactive:hover {
+	background: var(--col-container-high);
+}
+
+.c-list-item.selected {
+	background: var(--col-container-primary);
+}
+
+.c-list-item.disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.c-list-item[role='option']:focus-visible,
+.c-list-item:has(.c-list-item-title.stretched:focus-visible) {
+	outline: 2px solid var(--col-accent);
+	outline-offset: -2px;
+}
+
+.c-list-item-leading {
+	display: flex;
+	align-items: center;
+	flex-shrink: 0;
+}
+
+.c-list-item-body {
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.c-list-item-title {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	background: none;
+	color: inherit;
+	font: inherit;
+	font-weight: 500;
+	text-align: start;
+	text-decoration: none;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	cursor: inherit;
+}
+
+/* Stretched link: the title's hit area covers the whole row */
+.c-list-item-title.stretched::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+}
+
+.c-list-item-title.stretched:focus-visible {
+	outline: none;
+}
+
+.c-list-item-subtitle,
+.c-list-item-meta {
+	font-size: var(--text-sm);
+	color: color-mix(in srgb, var(--col-on-container) 70%, transparent);
+}
+
+.c-list-item-subtitle {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.c-list-item-meta {
+	flex-shrink: 0;
+}
+
+/* Sit above the stretched title so they stay separately clickable */
+.c-list-item-actions,
+.c-list-item-trailing {
+	position: relative;
+	z-index: 1;
+	display: flex;
+	align-items: center;
+	gap: var(--space-1);
+	flex-shrink: 0;
+}
+
+.c-list-item-actions {
+	opacity: 0;
+}
+
+.c-list-item:hover .c-list-item-actions,
+.c-list-item:focus-within .c-list-item-actions {
+	opacity: 1;
+}
+
+@media (pointer: coarse) {
+	.c-list-item-actions {
+		opacity: 1;
+	}
+}
+
+.c-list-item-chevron {
+	flex-shrink: 0;
+	opacity: 0.5;
+}
+
+.c-dl {
+	display: grid;
+	grid-template-columns: max-content 1fr;
+	gap: var(--space-2) var(--space-4);
+	margin: 0;
+}
+
+.c-dl > dt {
+	color: color-mix(in srgb, var(--col-on-container) 70%, transparent);
+}
+
+.c-dl > dd {
+	margin: 0;
+	min-width: 0;
+}
+
+.c-meta {
+	font-size: var(--text-sm);
+	color: color-mix(in srgb, var(--col-on-container) 70%, transparent);
+}
+
+.c-icon-text {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.375em;
+}
+
+.c-icon-text-icon {
+	display: inline-flex;
+	flex-shrink: 0;
+}
+
+/* ==========================================================================
    Reaction chip — mode-neutral pill for reaction/comment buttons + counters
+   @deprecated Visuals live in `.c-tag.interactive` (<Tag icon count pressed>).
+   Kept only for shell/src/apps/feed.tsx; remove with the feed migration.
    ========================================================================== */
 
 .c-reaction-chip {
@@ -250,49 +446,6 @@
 
 .c-reaction-remove-btn:hover {
 	opacity: 1;
-}
-
-/* ==========================================================================
-   Comment badge — message icon + total count + unread dot
-   ========================================================================== */
-
-.c-comment-badge {
-	display: inline-flex;
-	align-items: center;
-	gap: 0.25rem;
-}
-
-.c-comment-badge-icon {
-	position: relative;
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	width: 1.75rem;
-	height: 1.75rem;
-	line-height: 1;
-}
-
-.c-comment-badge-unread {
-	position: absolute;
-	top: -0.2rem;
-	right: -0.25rem;
-	box-shadow: 0 0 0 2px var(--col-surface);
-}
-
-.c-comment-badge-count {
-	position: absolute;
-	top: 45%;
-	left: 50%;
-	transform: translate(-50%, -50%);
-	font-size: 0.75rem;
-	font-weight: 600;
-	line-height: 1;
-	pointer-events: none;
-}
-
-.c-comment-badge-btn.active .c-comment-badge svg,
-.c-comment-badge-btn.active .c-comment-badge-count {
-	color: var(--col-accent);
 }
 
 .c-markdown {
@@ -343,10 +496,6 @@
 
 .c-time-picker-menu .c-nav-item.active {
 	font-weight: 600;
-}
-
-.c-select-menu .c-nav-item.selected {
-	background: lch(from var(--col-primary) l c h / 0.18);
 }
 
 /* Loading Spinner — "Federated Pulse" (Cloudillo logo network) */
@@ -479,6 +628,21 @@
 	color: color-mix(in lch, var(--col-on-container), transparent 35%);
 }
 
+.c-loading-spinner.fill {
+	display: flex;
+	flex: 1;
+	width: 100%;
+	min-height: 100%;
+}
+
+.c-loading-spinner.inverse {
+	--c-loading-spinner-color: var(--c-inverse-fg);
+}
+
+.c-loading-spinner.inverse .c-loading-spinner-label {
+	color: var(--c-inverse-muted);
+}
+
 @keyframes c-loading-spinner-hub-pulse {
 	0%,
 	100% {
@@ -549,6 +713,28 @@
 
 .c-skeleton--animate {
 	animation: c-skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+.c-skeleton--image {
+	background-size: cover;
+	background-position: center;
+}
+
+.c-skeleton:has(> .c-skeleton-overlay) {
+	position: relative;
+	overflow: hidden;
+}
+
+.c-skeleton-overlay {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-2);
+	background: var(--c-inverse-bg, rgb(0 0 0 / 0.25));
+	color: rgb(255 255 255 / 0.95);
 }
 
 @keyframes c-skeleton-pulse {
@@ -625,51 +811,6 @@
 	flex-shrink: 0;
 }
 
-/* FilterBar */
-.c-filter-bar {
-	display: flex;
-	flex-direction: column;
-	gap: var(--space-1);
-}
-
-.c-filter-bar.horizontal {
-	flex-direction: row;
-	flex-wrap: wrap;
-}
-
-.c-filter-bar-item-label {
-	flex: 1;
-}
-
-.c-filter-bar-item-badge {
-	margin-left: auto;
-}
-
-.c-filter-bar-divider {
-	margin: 0.5rem 0;
-	border: none;
-	border-top: 1px solid var(--col-outline);
-}
-
-.c-filter-bar-section {
-	display: flex;
-	flex-direction: column;
-	gap: var(--space-1);
-}
-
-.c-filter-bar-section-title {
-	font-size: 0.75rem;
-	font-weight: 600;
-	text-transform: uppercase;
-	letter-spacing: 0.05em;
-	color: color-mix(in lch, var(--col-on-container), transparent 35%);
-	padding: 0.5rem 0.75rem 0.25rem;
-}
-
-.c-filter-bar-search {
-	margin-top: 0.5rem;
-}
-
 /* EmptyState */
 .c-empty-state {
 	display: flex;
@@ -744,6 +885,59 @@
 
 .c-empty-state-action {
 	margin-top: 0.5rem;
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	gap: var(--space-2);
+}
+
+.c-empty-state.fill {
+	flex: 1;
+	min-height: 100%;
+}
+
+.c-empty-state:is(.primary, .secondary, .accent, .neutral, .info, .success, .warning, .error)
+	:is(.c-empty-state-icon, .c-empty-state-title) {
+	color: var(--c-empty-state-tone);
+}
+.c-empty-state.primary {
+	--c-empty-state-tone: var(--col-primary);
+}
+.c-empty-state.secondary {
+	--c-empty-state-tone: var(--col-secondary);
+}
+.c-empty-state.accent {
+	--c-empty-state-tone: var(--col-accent);
+}
+.c-empty-state.neutral {
+	--c-empty-state-tone: var(--col-neutral);
+}
+.c-empty-state.info {
+	--c-empty-state-tone: var(--col-info);
+}
+.c-empty-state.success {
+	--c-empty-state-tone: var(--col-success);
+}
+.c-empty-state.warning {
+	--c-empty-state-tone: var(--col-warning);
+}
+.c-empty-state.error {
+	--c-empty-state-tone: var(--col-error);
+}
+
+/* Inverse — light-on-dark over media / dark overlays (EmptyState, LoadingSpinner, Alert) */
+.inverse {
+	--c-inverse-fg: rgb(255 255 255 / 0.95);
+	--c-inverse-muted: rgb(255 255 255 / 0.72);
+	--c-inverse-bg: rgb(0 0 0 / 0.55);
+}
+
+.c-empty-state.inverse :is(.c-empty-state-icon, .c-empty-state-title) {
+	color: var(--c-inverse-fg);
+}
+
+.c-empty-state.inverse .c-empty-state-description {
+	color: var(--c-inverse-muted);
 }
 
 /* ==========================================================================
@@ -769,10 +963,6 @@
 	height: 1.5rem;
 	background: var(--col-outline);
 	margin: 0 var(--space-1);
-}
-
-.c-toolbar-spacer {
-	flex: 1;
 }
 
 .c-toolbar-group {
@@ -808,13 +998,12 @@
 	overflow: hidden;
 }
 
-.c-menu-backdrop {
-	position: fixed;
-	inset: 0;
-	background: transparent;
-	/* iOS only delivers clicks to elements that look clickable */
-	cursor: pointer;
-	z-index: calc(var(--z-popover, 1000) - 1);
+/* A submenu is its own manual popover; drop the UA [popover] box so Popper's inline
+   left/top win. Zero specificity: the parent surface's .c-popper rules stay in charge. */
+:where(.c-menu[popover]) {
+	inset: auto;
+	margin: 0;
+	color: inherit;
 }
 
 .c-menu-item {
@@ -992,87 +1181,6 @@
 }
 
 /* ==========================================================================
-   Accordion Component
-   ========================================================================== */
-
-.c-accordion {
-	display: flex;
-	flex-direction: column;
-	gap: 0;
-	border: 1px solid var(--col-outline);
-	border-radius: var(--radius-md);
-	overflow: hidden;
-}
-
-.c-accordion.borderless {
-	border: none;
-	gap: var(--space-1);
-}
-
-.c-accordion.compact .c-accordion-header {
-	padding: var(--space-2);
-}
-
-.c-accordion-item {
-	border-bottom: 1px solid var(--col-outline);
-}
-
-.c-accordion.borderless .c-accordion-item {
-	border-bottom: none;
-	border-radius: var(--radius-sm);
-	overflow: hidden;
-}
-
-.c-accordion-item:last-child {
-	border-bottom: none;
-}
-
-.c-accordion-header {
-	display: flex;
-	align-items: center;
-	gap: var(--space-2);
-	width: 100%;
-	padding: var(--space-3);
-	border: none;
-	background: transparent;
-	color: var(--col-on-surface);
-	font-size: var(--text-sm);
-	font-weight: 500;
-	text-align: left;
-	cursor: pointer;
-	transition: background var(--duration-fast) var(--ease-default);
-}
-
-.c-accordion-header:hover {
-	background: var(--col-container-low);
-}
-
-.c-accordion-header-icon {
-	display: flex;
-	align-items: center;
-	flex-shrink: 0;
-}
-
-.c-accordion-icon {
-	margin-left: auto;
-	flex-shrink: 0;
-	transition: transform var(--duration-fast) var(--ease-default);
-}
-
-.c-accordion-item.open .c-accordion-icon {
-	transform: rotate(90deg);
-}
-
-.c-accordion-content {
-	display: none;
-	padding: 0 var(--space-3) var(--space-3);
-}
-
-.c-accordion-item.open .c-accordion-content {
-	display: block;
-}
-
-/* ==========================================================================
    Fcd layout tokens
 
    The container's own width cap is not set here — it comes from
@@ -1143,6 +1251,91 @@
 	.c-fcd-content-scroll {
 		/* Extra padding on mobile for browser bottom bars */
 		padding-bottom: 4rem;
+	}
+}
+
+/* Content layout="column": children handle their own scrolling, so the
+   scroll padding above is dead space. */
+.c-fcd-content-scroll.column {
+	padding-bottom: 0;
+}
+
+/* Built-in mobile filter toggle row (Fcd.Container filterLabel) */
+.c-fcd-filter-toggle {
+	flex-shrink: 0;
+	padding: 0.25rem 0;
+}
+
+/* Collapsed filter (md+): the rail disappears and content takes its span.
+   Below md the filter is the slide-in drawer and `collapsed` has no effect. */
+@media (width >= 48rem) {
+	.c-fcd > .row > .c-fcd-filter.collapsed {
+		display: none;
+	}
+
+	.c-fcd > .row:has(> .c-fcd-filter.collapsed) > .c-fcd-content.c-fcd-content {
+		flex: 1 1 0;
+		max-width: none;
+		min-width: 0;
+	}
+}
+
+/* PageHeader */
+.c-page-header {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+	padding-block: 0.5rem;
+}
+
+/* Hero: cover band with an avatar overlapping its bottom edge */
+.c-hero {
+	position: relative;
+	padding-bottom: 5rem;
+}
+
+.c-hero-cover {
+	position: relative;
+	min-height: 10rem;
+	overflow: hidden;
+	border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
+	background: var(--col-container);
+
+	& > img {
+		display: block;
+		width: 100%;
+	}
+}
+
+.c-hero-cover-action {
+	position: absolute;
+	top: var(--space-2);
+	right: var(--space-2);
+}
+
+.c-hero-avatar {
+	position: absolute;
+	left: var(--space-4);
+	bottom: 0;
+
+	& > .c-avatar {
+		box-shadow: 0 0 0 0.5rem var(--col-surface);
+	}
+}
+
+.c-hero-avatar-action {
+	position: absolute;
+	right: var(--space-2);
+	bottom: var(--space-2);
+}
+
+@media screen and (width < 48rem) {
+	.c-hero {
+		padding-bottom: 4rem;
+	}
+
+	.c-hero-avatar > .c-avatar {
+		--avatar-size: 8rem;
 	}
 }
 
@@ -1391,7 +1584,8 @@
 
 .c-bottom-sheet {
 	position: fixed;
-	bottom: 0;
+	/* --kb-inset: on-screen keyboard height, set from visualViewport by BottomSheet */
+	bottom: var(--kb-inset, 0px);
 	left: 0;
 	right: 0;
 	background-color: lch(from var(--col-container) l c h / var(--op-panel, 0.95));
@@ -1414,21 +1608,10 @@
 	transition-duration: 0ms !important;
 }
 
-.c-bottom-sheet-backdrop {
-	position: fixed;
-	inset: 0;
+/* Modal sheet (showBackdrop): the Modal <dialog> is the backdrop, lighter than a Dialog's */
+dialog.c-modal.c-bottom-sheet-modal {
 	background: lch(from var(--col-shadow) l c h / 0.3);
 	backdrop-filter: blur(2px);
-	z-index: calc(var(--z-modal, 600) - 1);
-	opacity: 0;
-	transition-property: opacity;
-	transition-timing-function: var(--ease-default);
-	pointer-events: none;
-}
-
-.c-bottom-sheet-backdrop.show {
-	opacity: 1;
-	pointer-events: auto;
 }
 
 .c-bottom-sheet-handle-area {
@@ -1685,6 +1868,32 @@
 	outline: 2px dashed var(--col-primary);
 }
 
+/* Drag preview under TreeView `onMove` */
+.c-tree-drag-overlay {
+	background: var(--col-container-high);
+	box-shadow: var(--shadow-lg);
+	cursor: grabbing;
+}
+
+/* SortableList */
+.c-sortable-list {
+	min-height: var(--min-touch-target, 44px);
+}
+
+.c-sortable-item {
+	position: relative;
+}
+
+.c-sortable-item.dragging {
+	z-index: 1;
+	opacity: 0.7;
+}
+
+.c-sortable-handle {
+	cursor: grab;
+	touch-action: none;
+}
+
 .c-tree-item-toggle {
 	display: flex;
 	align-items: center;
@@ -1803,6 +2012,35 @@
 	background: var(--col-container-primary);
 }
 
+.c-drop-zone.area {
+	gap: var(--space-1);
+	text-align: center;
+	cursor: pointer;
+}
+
+.c-drop-zone.area:hover {
+	border-color: var(--col-primary);
+}
+
+.c-drop-zone.area:focus-visible {
+	outline: 2px solid var(--col-primary);
+	outline-offset: 2px;
+}
+
+.c-drop-zone-icon {
+	display: inline-flex;
+	color: var(--col-primary);
+}
+
+.c-drop-zone-title {
+	font-weight: 500;
+}
+
+.c-drop-zone-hint-text {
+	font-size: 0.875em;
+	opacity: 0.7;
+}
+
 .c-drop-zone.disabled {
 	opacity: var(--op-disabled, 0.5);
 	pointer-events: none;
@@ -1821,6 +2059,12 @@
 	pointer-events: none;
 	font-weight: 500;
 	color: var(--col-on-container-primary);
+}
+
+/* target="viewport": portaled to <body>, covers the page */
+.c-drop-zone-overlay.viewport {
+	position: fixed;
+	inset: var(--space-2);
 }
 
 .c-drop-zone-hint {
@@ -1978,8 +2222,7 @@
 /* `--col-container-low` and not `--col-em-container`: the latter is an
    emphasis *foreground* token (L20 light / L80 dark), so as a background it
    paints dark-on-dark in light mode and light-on-light in dark mode. This is
-   the hover idiom opalui itself uses for `.c-menu-item`, `.c-button.link` and
-   toolbar buttons. */
+   the hover idiom opalui itself uses for `.c-menu-item` and toolbar buttons. */
 .c-docbar-title-button:hover:not(:disabled) {
 	background: var(--col-container-low);
 }
@@ -2019,13 +2262,12 @@
 
 /* One chrome for every action in the bar, whoever renders it: the built-in copy and
    share buttons, an app's own, and the `DocBarMenu` trigger. Needed because OpalUI
-   nests `.icon` and `.small` under `.c-button` — a `kind="link"` button drops both
-   silently, so the row otherwise mixes bare 16px glyphs (built-ins), bare 20px ones
+   nests `.icon` and `.sm` under `.c-button` — a `variant="link"` button renders
+   `.c-link` and drops both silently, so the row otherwise mixes bare 16px glyphs (built-ins), bare 20px ones
    (apps passing `size={20}`) and one full 40px plate (the menu trigger).
 
    `min-width` rather than `width`: a text action would grow instead of squashing. */
-.c-docbar-actions .c-link,
-.c-docbar-actions .c-button.link {
+.c-docbar-actions .c-link {
 	--docbar-action-size: var(--size-sm);
 	justify-content: center;
 	min-width: var(--docbar-action-size);
@@ -2037,31 +2279,28 @@
 /* On the element, not via `font-size`: these buttons may carry a text badge, whose
    size must not follow the glyph's. Overrides react-icons' `size` attribute, so an
    app setting its own stays in step. */
-.c-docbar-actions .c-link > svg,
-.c-docbar-actions .c-button.link > svg {
+.c-docbar-actions .c-link > svg {
 	width: 1.25rem;
 	height: 1.25rem;
 }
 
 /* A plate, not `.c-link`'s 1px hop — which is invisible on a glyph this size and
-   leaves the hit area unmarked. Same plate `.c-button.link` already hovers with. */
+   leaves the hit area unmarked. Same plate `.c-menu-item` hovers with. */
 .c-docbar-actions .c-link:hover:not([disabled]) {
 	transform: none;
 	background: var(--col-container-low);
 }
 
 /* A toggle has to look toggled: the app-side ones are `aria-pressed`, which neither
-   base class styles. Mirrors `.c-button.link.active`. */
-.c-docbar-actions .c-link[aria-pressed='true'],
-.c-docbar-actions .c-button.link[aria-pressed='true'] {
+   base class styles. */
+.c-docbar-actions .c-link[aria-pressed='true'] {
 	background: var(--col-container-primary);
 	color: var(--col-primary);
 }
 
 /* 32px clears WCAG 2.5.8's 24px, but not a thumb. */
 @media (pointer: coarse) {
-	.c-docbar-actions .c-link,
-	.c-docbar-actions .c-button.link {
+	.c-docbar-actions .c-link {
 		--docbar-action-size: 2.75rem;
 	}
 }
@@ -2179,6 +2418,7 @@ body.dark .c-id-color {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
+	gap: 0.375rem;
 	text-align: center;
 	font-size: 0.85rem;
 	cursor: pointer;
@@ -2190,11 +2430,12 @@ body.dark .c-id-color {
 	border-right: none;
 }
 
-.c-segmented-item:hover:not([aria-checked='true']) {
+.c-segmented-item:hover:not([aria-checked='true'], [aria-pressed='true']) {
 	background: lch(from var(--col-on) l c h / 0.06);
 }
 
-.c-segmented-item[aria-checked='true'] {
+.c-segmented-item[aria-checked='true'],
+.c-segmented-item[aria-pressed='true'] {
 	background: var(--col-primary);
 	color: var(--col-on-primary);
 }
@@ -2209,6 +2450,872 @@ body.dark .c-id-color {
 .c-segmented-item:disabled {
 	opacity: 0.5;
 	cursor: not-allowed;
+}
+
+/* Icon-only items: square, no text minimum */
+.c-segmented-item.icon {
+	min-width: var(--min-touch-target, 36px);
+	padding-inline: 0.5rem;
+}
+
+.c-segmented.sm > .c-segmented-item {
+	min-height: 1.75rem;
+	padding: 0.15rem 0.5rem;
+	font-size: var(--text-sm, 0.8rem);
+}
+.c-segmented.sm > .c-segmented-item:not(.icon) {
+	min-width: 3.5rem;
+}
+.c-segmented.sm > .c-segmented-item.icon {
+	min-width: 1.75rem;
+}
+
+.c-segmented.lg > .c-segmented-item {
+	min-height: 2.75rem;
+	padding: 0.5rem 1rem;
+	font-size: 1rem;
+}
+
+.c-segmented.fill {
+	display: flex;
+	width: 100%;
+}
+/* Items share the row, so no per-item minimum: seven weekdays fit a phone width */
+.c-segmented.fill > .c-segmented-item {
+	flex: 1;
+	min-width: 0;
+	padding-inline: 0.25rem;
+}
+
+/* Grid layout (icon pickers): cells separated by a 1px gap showing the border colour */
+.c-segmented.grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(var(--segmented-min, 2.5rem), 1fr));
+	gap: 1px;
+	width: auto;
+	background: lch(from var(--col-on) l c h / 0.12);
+}
+.c-segmented.grid > .c-segmented-item {
+	min-width: 0;
+	border-right: none;
+	background: var(--col-container);
+}
+.c-segmented.grid > .c-segmented-item[aria-checked='true'],
+.c-segmented.grid > .c-segmented-item[aria-pressed='true'] {
+	background: var(--col-primary);
+}
+
+/* ==========================================================================
+   Heading overline and Icon
+   ========================================================================== */
+
+.overline {
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	font-weight: 600;
+}
+
+/* The glyph is 1em square (react-icons), so size is font-size */
+.c-icon {
+	display: inline-flex;
+	flex-shrink: 0;
+	align-items: center;
+	justify-content: center;
+	line-height: 1;
+	vertical-align: -0.125em;
+}
+.c-icon.xs {
+	font-size: 0.75rem;
+}
+.c-icon.sm {
+	font-size: 1rem;
+}
+.c-icon.md {
+	font-size: 1.25rem;
+}
+.c-icon.lg {
+	font-size: 1.5rem;
+}
+.c-icon.xl {
+	font-size: 2rem;
+}
+
+/* Affix: full-width strip pinned to an edge; clicks pass through the strip */
+.c-affix {
+	--affix-offset: 0px;
+	display: flex;
+	justify-content: center;
+	z-index: 100;
+	pointer-events: none;
+	padding-inline: var(--affix-offset);
+}
+.c-affix > * {
+	pointer-events: auto;
+}
+.c-affix.offset-1 {
+	--affix-offset: 0.25rem;
+}
+.c-affix.offset-2 {
+	--affix-offset: 0.5rem;
+}
+.c-affix.offset-3 {
+	--affix-offset: 1rem;
+}
+.c-affix.offset-4 {
+	--affix-offset: 2rem;
+}
+.c-affix.offset-5 {
+	--affix-offset: 4rem;
+}
+.c-affix:is(.top-start, .bottom-start) {
+	justify-content: flex-start;
+}
+.c-affix:is(.top-end, .bottom-end) {
+	justify-content: flex-end;
+}
+.c-affix.sticky {
+	position: sticky;
+}
+.c-affix.sticky:is(.top, .top-start, .top-end) {
+	top: var(--affix-offset);
+}
+.c-affix.sticky:is(.bottom, .bottom-start, .bottom-end) {
+	bottom: var(--affix-offset);
+}
+.c-affix.fixed {
+	position: fixed;
+	left: env(safe-area-inset-left, 0px);
+	right: env(safe-area-inset-right, 0px);
+}
+.c-affix.fixed:is(.top, .top-start, .top-end) {
+	top: calc(var(--affix-offset) + env(safe-area-inset-top, 0px));
+}
+.c-affix.fixed:is(.bottom, .bottom-start, .bottom-end) {
+	bottom: calc(
+		var(--affix-offset) +
+		env(safe-area-inset-bottom, 0px) +
+		env(keyboard-inset-height, 0px)
+	);
+}
+
+/* CodeBlock: inline `code.c-code`, block `div.c-code-block > pre` + optional copy button */
+.c-code {
+	padding: 0.1em 0.35em;
+	border-radius: var(--radius-sm);
+	background: var(--col-container-low);
+	font-size: 0.9em;
+}
+.c-code-block {
+	position: relative;
+}
+.c-code-block > pre {
+	margin: 0;
+	padding: var(--space-3);
+	overflow-x: auto;
+	border-radius: var(--radius-md);
+	background: var(--col-container-low);
+	font-size: 0.875rem;
+}
+.c-code-block > .c-code-block-copy {
+	position: absolute;
+	top: var(--space-1);
+	right: var(--space-1);
+}
+
+/* ==========================================================================
+   AppIcon — app and file-type glyphs (from claude-docs/icons.html, "Solid")
+   App hues live here, not in OpalUI: OpalUI must not know app names.
+   ========================================================================== */
+
+:root {
+	--p-blue: #008cb6;
+	--p-orange: #e98a54;
+	--p-yellow: oklch(0.83 0.15 88);
+	--p-green: oklch(0.68 0.15 150);
+	--p-violet: oklch(0.58 0.16 295);
+	--p-pink: oklch(0.68 0.17 0);
+	--p-teal: oklch(0.72 0.11 195);
+	--p-navy: oklch(0.42 0.09 250);
+	--p-paper: #fff;
+
+	--h-quillo: oklch(0.58 0.14 252);
+	--h-prezillo: oklch(0.63 0.14 68);
+	--h-calcillo: oklch(0.6 0.13 152);
+	--h-taskillo: oklch(0.6 0.11 188);
+	--h-formillo: oklch(0.56 0.15 300);
+	--h-notillo: oklch(0.52 0.14 272);
+	--h-ideallo: oklch(0.64 0.13 88);
+	--h-scanillo: oklch(0.62 0.11 218);
+	--h-mapillo: oklch(0.6 0.11 128);
+	--h-files: oklch(0.56 0.07 250);
+	--h-feed: oklch(0.63 0.16 25);
+	--h-messages: oklch(0.64 0.12 235);
+	--h-gallery: oklch(0.58 0.17 348);
+	--h-calendar: oklch(0.58 0.18 22);
+	--h-contacts: oklch(0.55 0.07 55);
+	/* file types: one neutral navy, the folder borrows the Files hue */
+	--h-image: var(--p-navy);
+	--h-video: var(--p-navy);
+	--h-pdf: var(--p-navy);
+	--h-generic: var(--p-navy);
+	--h-folder: var(--h-files);
+}
+
+/* --hue/--fg2 are set per icon; --tile is what cut-outs show through.
+   --fg clamps the hue's lightness per surface so every glyph keeps >= 3:1 contrast */
+.c-app-icon {
+	--tile: var(--app-icon-surface, var(--col-container));
+	--fg: oklch(from var(--hue) min(l, 0.53) c h);
+	--node: var(--p-orange);
+	display: inline-block;
+	flex-shrink: 0;
+	vertical-align: middle;
+}
+/* the fixed-light tile looks the same in both themes, so glyph colours never adapt */
+.c-app-icon.tile {
+	--tile: #eceff2;
+	--fg: oklch(from var(--hue) min(l, 0.61) c h);
+}
+body.dark .c-app-icon:not(.tile) {
+	--fg: oklch(from var(--hue) max(l, 0.58) c h);
+}
+.c-app-icon-tile {
+	fill: var(--tile);
+}
+.c-app-icon .gs {
+	fill: none;
+	stroke: var(--fg);
+	stroke-width: 4;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+.c-app-icon .gf {
+	fill: var(--fg);
+}
+.c-app-icon .gh {
+	fill: var(--fg2);
+}
+.c-app-icon .gd {
+	fill: var(--tile);
+	fill-opacity: 0.3;
+}
+.c-app-icon .gt {
+	fill: var(--tile);
+}
+.c-app-icon .gtl {
+	fill: none;
+	stroke: var(--tile);
+	stroke-width: 3.5;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+.c-app-icon .go {
+	fill: var(--p-orange);
+}
+
+/* ==========================================================================
+   Surface header (Panel/Card title/actions)
+   ========================================================================== */
+
+/* Stretched link: the title's link covers the whole surface */
+.c-surface-link {
+	font: inherit;
+	color: inherit;
+	text-align: inherit;
+	text-decoration: none;
+	background: none;
+	border: none;
+	padding: 0;
+	cursor: pointer;
+
+	&::after {
+		content: '';
+		position: absolute;
+		inset: 0;
+		border-radius: inherit;
+	}
+
+	&:focus-visible {
+		outline: none;
+	}
+}
+
+/* Actions sit above the stretched link */
+.surface-actions {
+	position: relative;
+	z-index: 1;
+	flex-shrink: 0;
+}
+
+/* ==========================================================================
+   Divider
+   ========================================================================== */
+
+.c-divider {
+	--divider-col: var(--col-outline);
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	color: var(--divider-col);
+	font-size: 0.875rem;
+	margin-block: var(--space-2);
+
+	&::before,
+	&::after {
+		content: '';
+		flex: 1;
+		border-top: 1px solid var(--divider-col);
+	}
+
+	/* No label: a single line */
+	&:empty::after {
+		display: none;
+	}
+
+	&.vertical {
+		flex-direction: column;
+		align-self: stretch;
+		margin-block: 0;
+		margin-inline: var(--space-2);
+
+		&::before,
+		&::after {
+			border-top: none;
+			border-left: 1px solid var(--divider-col);
+		}
+	}
+
+	&.primary {
+		--divider-col: var(--col-primary);
+	}
+	&.secondary {
+		--divider-col: var(--col-secondary);
+	}
+	&.accent {
+		--divider-col: var(--col-accent);
+	}
+	&.neutral {
+		--divider-col: var(--col-neutral);
+	}
+	&.info {
+		--divider-col: var(--col-info);
+	}
+	&.error {
+		--divider-col: var(--col-error);
+	}
+	&.warning {
+		--divider-col: var(--col-warning);
+	}
+	&.success {
+		--divider-col: var(--col-success);
+	}
+}
+
+/* ActionBar: right-aligned, primary last; below 48rem stacked, primary on top */
+.c-action-bar {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+	margin-top: 1rem;
+}
+
+.c-action-bar__start,
+.c-action-bar__end {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.c-action-bar__end {
+	margin-inline-start: auto;
+}
+
+.c-action-bar.stretch > .c-action-bar__end {
+	flex: 1 1 auto;
+}
+
+.c-action-bar.stretch > .c-action-bar__end > * {
+	flex: 1 1 0;
+}
+
+@media (width < 48rem) {
+	.c-action-bar,
+	.c-action-bar__start,
+	.c-action-bar__end {
+		flex-direction: column-reverse;
+		align-items: stretch;
+	}
+
+	.c-action-bar__start,
+	.c-action-bar__end {
+		margin-inline-start: 0;
+	}
+}
+
+/* ==========================================================================
+   ImmersiveOverlay — full-screen, always-dark media stage (Modal base)
+   ========================================================================== */
+
+dialog.c-modal.c-immersive {
+	color-scheme: dark;
+	flex-direction: column;
+	background: #000;
+	backdrop-filter: none;
+	color: var(--c-inverse-fg);
+}
+
+.c-immersive-stage {
+	flex: 1 1 auto;
+	min-height: 0;
+	width: 100%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	overflow: hidden;
+}
+
+.c-immersive-controls {
+	flex-shrink: 0;
+	width: 100%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-3);
+	padding: var(--space-3) var(--space-3) calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
+	background: var(--c-inverse-bg);
+}
+
+/* ============================================================================
+   Logo — the Cloudillo mark; `animated` pulses the nodes (busy states)
+   ============================================================================ */
+
+.c-logo {
+	max-width: 16rem;
+}
+.c-logo.animated .circle.main {
+	animation: 3s infinite normal c-logo-1;
+}
+.c-logo.animated .circle.small {
+	animation: 3s infinite normal c-logo-3;
+}
+.c-logo.animated .line {
+	animation: 3s infinite normal c-logo-2;
+}
+@keyframes c-logo-1 {
+	from,
+	20% {
+		fill: #e98a54;
+	}
+	23% {
+		fill: #fff;
+	}
+	29% {
+		fill: #e98a54;
+	}
+}
+@keyframes c-logo-2 {
+	from,
+	23% {
+		fill: #e98a54;
+	}
+	26% {
+		fill: #fff;
+	}
+	32% {
+		fill: #e98a54;
+	}
+}
+@keyframes c-logo-3 {
+	from,
+	26% {
+		fill: #e98a54;
+	}
+	29% {
+		fill: #fff;
+	}
+	35% {
+		fill: #e98a54;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.c-logo.animated .circle,
+	.c-logo.animated .line {
+		animation: none;
+	}
+}
+
+/* ============================================================================
+   Stepper — progress dots for multi-step flows
+   ============================================================================ */
+
+.c-stepper > ol {
+	display: flex;
+	justify-content: center;
+	gap: 0.5rem;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+
+	> li {
+		width: 0.625rem;
+		height: 0.625rem;
+		border-radius: 50%;
+		background: var(--col-outline);
+	}
+	> li.done {
+		background: var(--col-primary);
+	}
+}
+
+/* ============================================================================
+   ImageCropper — INV-105
+   ============================================================================ */
+
+/* Fills its parent (a dialog body): the image area takes the free row. */
+.c-image-cropper {
+	display: grid;
+	grid-template-rows: 1fr auto;
+	height: 100%;
+	min-height: 0;
+	overflow: hidden;
+
+	> .c-image-cropper-area {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		min-height: 0;
+		padding: var(--space-3);
+		overflow: hidden;
+	}
+	> .c-image-cropper-area[inert] {
+		opacity: 0.6;
+	}
+	> .c-toolbar {
+		border-radius: 0;
+		border-top: 1px solid var(--col-outline);
+	}
+}
+
+/* ds-allow: third-party react-image-crop — size and background of its wrapper and image */
+.c-image-cropper .ReactCrop {
+	max-width: 100%;
+	max-height: 100%;
+}
+.c-image-cropper .ReactCrop img {
+	display: block;
+	/* Fits a Dialog size="lg": min(90vw, 56.25rem) x min(85vh, 43.75rem),
+	   minus ~4rem padding and ~13rem header + tabs + toolbar */
+	max-width: min(calc(90vw - 4rem), 52rem);
+	max-height: min(calc(85vh - 13rem), 30rem);
+}
+.c-image-cropper .ReactCrop__child-wrapper {
+	background: transparent !important;
+}
+
+/* ============================================================================
+   Image, Thumbnail — D27
+   ============================================================================ */
+
+.c-image {
+	display: block;
+	max-width: 100%;
+}
+
+.c-image-fallback {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-1);
+	color: var(--col-on-container);
+	background: var(--col-container-low);
+	opacity: 0.7;
+}
+
+.c-thumb {
+	position: relative;
+	display: inline-block;
+	flex-shrink: 0;
+	padding: 0;
+	border: 0;
+	background: none;
+	border-radius: var(--radius-sm);
+	overflow: hidden;
+	cursor: inherit;
+
+	&:is(a, button) {
+		cursor: pointer;
+	}
+	&:focus-visible {
+		outline: 2px solid var(--col-accent);
+		outline-offset: 2px;
+	}
+}
+
+.c-thumb-icon {
+	position: absolute;
+	right: var(--space-1);
+	bottom: var(--space-1);
+	display: flex;
+	padding: 0.125rem;
+	border-radius: var(--radius-sm);
+	color: rgb(255 255 255 / 0.95);
+	background: rgb(0 0 0 / 0.55);
+}
+
+/* ============================================================================
+   FileTile — D27 (stretched name link, actions above it)
+   ============================================================================ */
+
+.c-file-tile {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-1);
+	padding: var(--space-2);
+	border-radius: var(--radius-md);
+	min-width: 0;
+
+	&:hover {
+		background: var(--col-container-high);
+	}
+	&.selected {
+		background: var(--col-container-primary);
+		outline: 2px solid var(--col-primary);
+	}
+	&:has(.c-surface-link:focus-visible) {
+		outline: 2px solid var(--col-accent);
+	}
+}
+
+.c-file-tile-media {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	aspect-ratio: 1;
+	border-radius: var(--radius-sm);
+	overflow: hidden;
+	background: var(--col-container-low);
+
+	> .c-image,
+	> .c-skeleton,
+	> .c-image-fallback {
+		width: 100%;
+		height: 100%;
+	}
+}
+
+.c-file-tile-name {
+	font-weight: 500;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.c-file-tile-meta {
+	font-size: var(--text-sm);
+	color: color-mix(in srgb, var(--col-on-container) 70%, transparent);
+}
+
+.c-file-tile-check {
+	position: absolute;
+	top: var(--space-1);
+	left: var(--space-1);
+	display: flex;
+	padding: 0.125rem;
+	border-radius: 50%;
+	color: var(--col-on-primary);
+	background: var(--col-primary);
+}
+
+.c-file-tile-actions {
+	position: absolute;
+	top: var(--space-1);
+	right: var(--space-1);
+	display: flex;
+	gap: var(--space-1);
+	opacity: 0;
+}
+
+.c-file-tile:hover .c-file-tile-actions,
+.c-file-tile:focus-within .c-file-tile-actions {
+	opacity: 1;
+}
+
+@media (pointer: coarse) {
+	.c-file-tile-actions {
+		opacity: 1;
+	}
+}
+
+/* ============================================================================
+   VideoPlayer — D27
+   ============================================================================ */
+
+.c-video-player {
+	display: block;
+	max-width: 100%;
+	background: #000;
+}
+
+.c-video-player.placeholder {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: var(--col-container-low);
+}
+
+.c-video-player.placeholder.inverse {
+	background: var(--c-inverse-bg);
+	color: var(--c-inverse-fg);
+}
+
+/* ============================================================================
+   Breadcrumbs — B1.11
+   ============================================================================ */
+
+.c-breadcrumbs {
+	min-width: 0;
+
+	> ol {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: var(--space-1);
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+	li {
+		display: flex;
+		align-items: center;
+		gap: var(--space-1);
+		min-width: 0;
+	}
+}
+
+.c-breadcrumbs-sep {
+	flex-shrink: 0;
+	opacity: 0.5;
+}
+
+.c-breadcrumbs-current {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	font-weight: 500;
+}
+
+/* ============================================================================
+   RichText / RichTextInput — D30
+   ============================================================================ */
+
+.c-rich-text p {
+	margin: 0;
+}
+
+.c-rich-text p + p {
+	margin-top: var(--space-2);
+}
+
+.c-input.rich-text {
+	position: relative;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+
+.c-input.rich-text[data-placeholder]::before {
+	content: attr(data-placeholder);
+	position: absolute;
+	pointer-events: none;
+	opacity: 0.6;
+}
+
+.c-rich-text-actions {
+	display: flex;
+	align-self: flex-end;
+	gap: var(--space-1);
+	margin: var(--space-1);
+}
+
+/* ============================================================================
+   ChatBubble — B1.15
+   ============================================================================ */
+
+.c-chat-bubble {
+	max-width: 90%;
+
+	&.start {
+		align-self: flex-start;
+	}
+	&.end {
+		align-self: flex-end;
+	}
+}
+
+/* ============================================================================
+   Auto background — see opalui utils.css `.auto-bg`
+   Painters paint a glass surface only when no ancestor surface does; surfaces
+   reset the inherited vars on themselves. Kept last so it lands after the
+   rules it extends; state rules (:hover, .selected, variants) still win.
+   ============================================================================ */
+
+.c-list,
+.c-dl,
+.c-tree-view,
+.c-sortable-list,
+.c-file-tile,
+.c-fcd-filter-toggle {
+	background-color: var(
+		--auto-bg,
+		lch(from var(--auto-bg-col, var(--col-container-low)) l c h / var(--op-panel))
+	);
+	backdrop-filter: var(--auto-bg-blur, blur(var(--blur-radius)));
+	color: var(--auto-bg-fg, var(--auto-bg-on, var(--col-on-container-low)));
+}
+
+.c-list,
+.c-dl,
+.c-tree-view,
+.c-sortable-list,
+.c-fcd-filter-toggle {
+	border-radius: var(--border-radius-lg);
+}
+
+.c-list > *,
+.c-dl > *,
+.c-tree-view > *,
+.c-sortable-list > *,
+.c-file-tile > *,
+.c-fcd-filter-toggle > *,
+.c-bottom-sheet,
+.c-action-sheet,
+.c-menu,
+.c-toolbar,
+.c-time-picker-menu,
+.c-font-picker__menu,
+.c-drop-zone:not(.overlay) {
+	--auto-bg: transparent;
+	--auto-bg-blur: none;
+	--auto-bg-fg: currentcolor;
+}
+
+@media (width >= 48rem) {
+	.c-container.details-overlay > .row > .c-fcd-details,
+	.c-container.details-adaptive > .row > .c-fcd-details {
+		--auto-bg: transparent;
+		--auto-bg-blur: none;
+		--auto-bg-fg: currentcolor;
+	}
+}
+
+@media (48rem <= width < 72rem) {
+	.c-fcd:not(.details-overlay):not(.details-adaptive) > .row > .c-fcd-details {
+		--auto-bg: transparent;
+		--auto-bg-blur: none;
+		--auto-bg-fg: currentcolor;
+	}
 }
 
 /*

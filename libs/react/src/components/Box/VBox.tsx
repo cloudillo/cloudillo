@@ -4,25 +4,47 @@
 import * as React from 'react'
 
 import { createComponent, mergeClasses } from '../utils.js'
+import { type BoxLayoutProps, boxClasses } from './HBox.js'
 
-export interface VBoxProps extends React.HTMLAttributes<HTMLDivElement> {
-	wrap?: boolean
-	gap?: 0 | 1 | 2 | 3
-	fill?: boolean
+export interface VBoxProps extends React.HTMLAttributes<HTMLDivElement>, BoxLayoutProps {
 	children?: React.ReactNode
 }
 
 export const VBox = createComponent<HTMLDivElement, VBoxProps>(
 	'VBox',
-	({ className, wrap, gap, fill, children, ...props }, ref) => {
+	(
+		{
+			className,
+			gap,
+			padding,
+			align,
+			justify,
+			wrap,
+			fill,
+			scroll,
+			reverse,
+			autoBg,
+			children,
+			...props
+		},
+		ref
+	) => {
 		return (
 			<div
 				ref={ref}
 				className={mergeClasses(
 					'c-vbox',
-					wrap && 'flex-wrap',
-					gap !== undefined && `g-${gap}`,
-					fill && 'fill',
+					boxClasses({
+						gap,
+						padding,
+						align,
+						justify,
+						wrap,
+						fill,
+						scroll,
+						reverse,
+						autoBg
+					}),
 					className
 				)}
 				{...props}

@@ -6,8 +6,9 @@ import * as React from 'react'
 import { LuX as IcClear } from 'react-icons/lu'
 
 import { useLibTranslation } from '../../i18n.js'
+import { Button } from '../Button/index.js'
+import { Combobox } from '../Combobox/index.js'
 import { ProfileCard } from '../Profile/index.js'
-import { Select } from '../Select/index.js'
 
 export interface ProfileSelectProps {
 	className?: string
@@ -40,28 +41,27 @@ export function ProfileSelect({
 			<div className={className}>
 				<div className="c-hbox g-2 align-items-center c-input">
 					<ProfileCard className="flex-fill" profile={value} />
-					<button
-						type="button"
-						className="c-link p-1"
-						onClick={() => onChange?.(undefined)}
+					<Button
+						variant="ghost"
+						size="sm"
+						icon={<IcClear />}
 						aria-label={t('Clear')}
-					>
-						<IcClear />
-					</button>
+						onClick={() => onChange?.(undefined)}
+					/>
 				</div>
 			</div>
 		)
 	}
 
 	return (
-		<Select
+		<Combobox
 			className={className}
 			placeholder={placeholder ?? t('Search user')}
 			getData={getData}
 			itemToId={(i) => i.idTag}
 			itemToString={(i) => i?.idTag || ''}
 			renderItem={renderItem}
-			onSelectItem={(profile) => profile && onChange?.(profile)}
+			onSelect={(profile) => onChange?.(profile)}
 		/>
 	)
 }

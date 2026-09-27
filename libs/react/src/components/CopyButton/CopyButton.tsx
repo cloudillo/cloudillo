@@ -39,7 +39,14 @@ export function CopyButton({ text, label, className }: CopyButtonProps) {
 	const shownLabel = copied ? t('Copied') : t('Copy {{label}}', { label })
 
 	return (
-		<Button onClick={doCopy} title={shownLabel} aria-label={shownLabel} className={className}>
+		// `immediate`: the clipboard write must stay inside the click's user-activation window.
+		<Button
+			immediate
+			onClick={doCopy}
+			title={shownLabel}
+			aria-label={shownLabel}
+			className={className}
+		>
 			{copied ? <IcCheck /> : <IcCopy />}
 		</Button>
 	)

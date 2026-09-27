@@ -4,6 +4,7 @@
 import * as React from 'react'
 
 import { createComponent, mergeClasses } from '../utils.js'
+import { useFieldControl } from './Field.js'
 
 export interface TextAreaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
 	resize?: boolean
@@ -12,11 +13,13 @@ export interface TextAreaProps extends React.TextareaHTMLAttributes<HTMLTextArea
 export const TextArea = createComponent<HTMLTextAreaElement, TextAreaProps>(
 	'TextArea',
 	({ className, resize, ...props }, ref) => {
+		const field = useFieldControl(props, ref, 'TextArea')
 		return (
 			<textarea
-				ref={ref}
-				className={mergeClasses('c-input', resize && 'resize', className)}
 				{...props}
+				{...field.controlProps}
+				ref={field.ref}
+				className={mergeClasses('c-input', resize && 'resize', className)}
 			/>
 		)
 	}

@@ -3,14 +3,11 @@
 
 import * as React from 'react'
 import { LuCheck as IcCheck, LuCopy as IcCopy, LuShare2 as IcShare } from 'react-icons/lu'
-import ReactQRCode from 'react-qr-code'
 
 import { useLibTranslation } from '../../i18n.js'
 import { Button } from '../Button/Button.js'
 import { Dialog } from '../Dialog/Dialog.js'
-import { resolveDefaultExport } from '../utils.js'
-
-const QRCode = resolveDefaultExport(ReactQRCode)
+import { QRCode } from '../QRCode/QRCode.js'
 
 const COPIED_RESET_MS = 1500
 
@@ -81,18 +78,7 @@ export function QRCodeDialog({ value, onClose, title, description }: QRCodeDialo
 			<div className="c-vbox g-3">
 				<p className="m-0 text-muted">{dialogDescription}</p>
 
-				<div
-					className="mx-auto p-3"
-					style={{
-						background: '#fff',
-						borderRadius: 8,
-						width: '100%',
-						maxWidth: 'min(100%,40vh)'
-					}}
-					aria-hidden="true"
-				>
-					<QRCode value={shareValue} style={{ width: '100%', height: 'auto' }} />
-				</div>
+				<QRCode value={shareValue} size="min(100%,40vh)" />
 
 				<div className="c-hbox g-2 align-items-center">
 					<input
@@ -105,7 +91,7 @@ export function QRCodeDialog({ value, onClose, title, description }: QRCodeDialo
 						aria-label={t('Shareable link')}
 					/>
 					<Button
-						variant={copied ? 'success' : 'primary'}
+						color={copied ? 'success' : 'primary'}
 						onClick={handleCopy}
 						icon={copied ? <IcCheck /> : <IcCopy />}
 					>
@@ -118,7 +104,7 @@ export function QRCodeDialog({ value, onClose, title, description }: QRCodeDialo
 
 				{canShare && (
 					<div className="c-hbox g-2">
-						<Button kind="link" onClick={handleShare} icon={<IcShare />}>
+						<Button variant="link" onClick={handleShare} icon={<IcShare />}>
 							{t('Share…')}
 						</Button>
 					</div>

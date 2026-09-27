@@ -10,6 +10,7 @@ export interface TagListProps extends React.HTMLAttributes<HTMLDivElement> {
 	children?: React.ReactNode
 }
 
+/** @deprecated Use `<HBox wrap gap={1}>` with `Tag` children. */
 export const TagList = createComponent<HTMLDivElement, TagListProps>(
 	'TagList',
 	({ className, gap = 1, children, ...props }, ref) => {

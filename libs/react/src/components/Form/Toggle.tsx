@@ -5,41 +5,51 @@ import * as React from 'react'
 
 import type { ColorVariant } from '../types.js'
 import { createComponent, mergeClasses } from '../utils.js'
+import { useFieldControl } from './Field.js'
 
+/** On/off setting that takes effect immediately: switch on the trailing side, whole row clickable */
 export interface ToggleProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'type'> {
-	variant?: ColorVariant
+	color?: ColorVariant
 	label?: React.ReactNode
+	/** Muted second line under the label */
+	description?: React.ReactNode
 }
 
 export const Toggle = createComponent<HTMLInputElement, ToggleProps>(
 	'Toggle',
-	({ className, variant, label, id, ...props }, ref) => {
-		const generatedId = React.useId()
-		const toggleId = id || generatedId
+	({ className, color, label, description, ...props }, ref) => {
+		const field = useFieldControl(props, ref, 'Toggle')
+		const descId = React.useId()
+		const hasDesc = label != null && description != null
+		const describedBy =
+			[field.controlProps['aria-describedby'], hasDesc && descId].filter(Boolean).join(' ') ||
+			undefined
 
-		if (label) {
-			return (
-				<label className="c-hbox g-2 align-items-center">
-					<input
-						ref={ref}
-						id={toggleId}
-						type="checkbox"
-						className={mergeClasses('c-toggle', variant, className)}
-						{...props}
-					/>
-					<span>{label}</span>
-				</label>
-			)
-		}
+		const input = (
+			<input
+				{...props}
+				{...field.controlProps}
+				aria-describedby={describedBy}
+				ref={field.ref}
+				type="checkbox"
+				role="switch"
+				className={mergeClasses('c-toggle', color, label == null && className)}
+			/>
+		)
+		if (label == null) return input
 
 		return (
-			<input
-				ref={ref}
-				id={toggleId}
-				type="checkbox"
-				className={mergeClasses('c-toggle', variant, className)}
-				{...props}
-			/>
+			<label className={mergeClasses('c-choice', className)}>
+				<span className="c-choice-text">
+					<span className="c-choice-label">{label}</span>
+					{hasDesc && (
+						<span id={descId} className="c-choice-description">
+							{description}
+						</span>
+					)}
+				</span>
+				{input}
+			</label>
 		)
 	}
 )

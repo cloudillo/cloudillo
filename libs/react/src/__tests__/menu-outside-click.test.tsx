@@ -16,30 +16,8 @@ import { jest } from '@jest/globals'
 import { render, screen } from '@testing-library/react'
 import * as React from 'react'
 
-import { Menu, MenuItem } from '../components/Menu/index.js'
-
-/**
- * What a real pointer produces: jsdom's constructed events are `isTrusted === false`, and
- * even `el.click()` is. The flag is a non-configurable own getter over the event's internal
- * impl object, so it cannot be redefined — it has to be flipped on the impl itself.
- */
-function trustedClick(target: Element) {
-	const evt = new MouseEvent('click', { bubbles: true, cancelable: true })
-	// `dispatchEvent()` stamps isTrusted=false per spec, so the flag has to be flipped back
-	// mid-flight: `window` is the first hop of the capture path, ahead of the `document`
-	// listener under test.
-	const forge = (e: Event) => {
-		const implSym = Object.getOwnPropertySymbols(e).find((s) => String(s) === 'Symbol(impl)')
-		if (!implSym) throw new Error('jsdom event impl not found')
-		;(e as unknown as Record<symbol, { isTrusted: boolean }>)[implSym].isTrusted = true
-	}
-	window.addEventListener('click', forge, true)
-	try {
-		target.dispatchEvent(evt)
-	} finally {
-		window.removeEventListener('click', forge, true)
-	}
-}
+import { MENU_SHEET_QUERY, Menu, MenuItem } from '../components/Menu/index.js'
+import { trustedClick } from './helpers.js'
 
 function setup() {
 	const onClose = jest.fn()
@@ -84,12 +62,12 @@ describe('Menu outside click', () => {
 	})
 })
 
-describe('Menu touch backdrop', () => {
+describe('Menu touch sheet', () => {
 	const originalMatchMedia = window.matchMedia
-	function stubCoarse(matches: boolean) {
+	function stubSheet(matches: boolean) {
 		window.matchMedia = ((query: string) =>
 			({
-				matches: matches && query === '(pointer: coarse)'
+				matches: matches && query === MENU_SHEET_QUERY
 			}) as MediaQueryList) as typeof window.matchMedia
 	}
 	afterEach(() => {
@@ -97,22 +75,23 @@ describe('Menu touch backdrop', () => {
 	})
 
 	it('closes on a backdrop tap without activating what is behind', () => {
-		stubCoarse(true)
+		stubSheet(true)
 		const { onClose, onSibling } = setup()
 
-		const backdrop = document.querySelector('.c-menu-backdrop')
-		if (!backdrop) throw new Error('backdrop not rendered')
+		const backdrop = document.querySelector('.c-action-sheet-backdrop')
+		if (!backdrop) throw new Error('sheet backdrop not rendered')
 		trustedClick(backdrop)
 
 		expect(onClose).toHaveBeenCalledTimes(1)
 		expect(onSibling).not.toHaveBeenCalled()
 	})
 
-	it('renders no backdrop on a fine pointer', () => {
-		stubCoarse(false)
+	it('renders a popover menu, not a sheet, on a fine pointer', () => {
+		stubSheet(false)
 		setup()
 
-		expect(document.querySelector('.c-menu-backdrop')).toBeNull()
+		expect(document.querySelector('.c-action-sheet-backdrop')).toBeNull()
+		expect(screen.getByRole('menu')).toBeTruthy()
 	})
 })
 

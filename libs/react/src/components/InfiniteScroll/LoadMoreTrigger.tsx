@@ -92,8 +92,8 @@ export const LoadMoreTrigger = createComponent<HTMLDivElement, LoadMoreTriggerPr
 						</span>
 						{onRetry && (
 							<Button
-								size="small"
-								variant="secondary"
+								size="sm"
+								color="secondary"
 								onClick={onRetry}
 								className="c-load-more-trigger-retry"
 							>

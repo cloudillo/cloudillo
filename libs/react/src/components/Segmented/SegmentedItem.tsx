@@ -3,15 +3,28 @@
 
 import * as React from 'react'
 
+import { Icon } from '../Icon/Icon.js'
 import { createComponent, mergeClasses } from '../utils.js'
 import { SegmentedContext } from './Segmented.js'
 
-export interface SegmentedItemProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+type IconComponent = React.ComponentType<React.SVGAttributes<SVGElement>>
+
+interface SegmentedItemBaseProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 	value?: string
 	/** Overrides the context comparison, for a group driven from outside. */
 	active?: boolean
-	children?: React.ReactNode
 }
+
+export type SegmentedItemProps = SegmentedItemBaseProps &
+	(
+		| {
+				/** Icon-only item: `label` is required and becomes its accessible name and title */
+				icon: IconComponent
+				label: string
+				children?: never
+		  }
+		| { icon?: IconComponent; label?: undefined; children: React.ReactNode }
+	)
 
 /** Arrow keys wrap, so the group is a ring rather than a line with two dead ends. */
 function step(from: number, delta: number, length: number) {
@@ -20,12 +33,31 @@ function step(from: number, delta: number, length: number) {
 
 export const SegmentedItem = createComponent<HTMLButtonElement, SegmentedItemProps>(
 	'SegmentedItem',
-	({ className, value, active: activeProp, onClick, onKeyDown, children, ...props }, ref) => {
+	(
+		{
+			className,
+			value,
+			active: activeProp,
+			icon,
+			label,
+			onClick,
+			onKeyDown,
+			children,
+			...props
+		},
+		ref
+	) => {
 		const context = React.useContext(SegmentedContext)
-		const isActive = activeProp ?? (value !== undefined && context.value === value)
+		const { multiple } = context
+		const isActive =
+			activeProp ??
+			(value !== undefined &&
+				(multiple
+					? (context.value as readonly string[] | undefined)?.includes(value) === true
+					: context.value === value))
 		// Roving tabindex, except when nothing is selected: a group where every item
-		// answers -1 cannot be reached by Tab at all.
-		const unselected = activeProp === undefined && context.value === undefined
+		// answers -1 cannot be reached by Tab at all. Multi-toggle items are each a tab stop.
+		const unselected = multiple || (activeProp === undefined && context.value === undefined)
 
 		function handleClick(evt: React.MouseEvent<HTMLButtonElement>) {
 			if (value !== undefined && context.onChange) context.onChange(value)
@@ -71,9 +103,18 @@ export const SegmentedItem = createComponent<HTMLButtonElement, SegmentedItemPro
 			<button
 				ref={ref}
 				type="button"
-				className={mergeClasses('c-segmented-item', isActive && 'active', className)}
-				role="radio"
-				aria-checked={isActive}
+				className={mergeClasses(
+					'c-segmented-item',
+					isActive && 'active',
+					icon && children == null && 'icon',
+					className
+				)}
+				// Multi-toggle: plain buttons, so the arrow-key handler's radio query matches nothing
+				{...(multiple
+					? { 'aria-pressed': isActive }
+					: { role: 'radio', 'aria-checked': isActive })}
+				aria-label={label}
+				title={label}
 				// A roving tabindex: the group is one tab stop and the arrows move
 				// within it, so Tab never has to walk past every option to leave.
 				tabIndex={isActive || unselected ? 0 : -1}
@@ -81,6 +122,7 @@ export const SegmentedItem = createComponent<HTMLButtonElement, SegmentedItemPro
 				onKeyDown={handleKeyDown}
 				{...props}
 			>
+				{icon && <Icon as={icon} />}
 				{children}
 			</button>
 		)

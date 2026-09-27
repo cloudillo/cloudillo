@@ -1,10 +1,15 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { useDraggable, useDroppable } from '@dnd-kit/core'
 import * as React from 'react'
 import { LuChevronDown, LuChevronRight } from 'react-icons/lu'
 
 import { createComponent, mergeClasses } from '../utils.js'
+import { TreeDndContext, type TreeMoveData } from './TreeView.js'
+
+/** True below the item being dragged under `onMove`: it cannot drop into itself */
+const InsideActiveContext = React.createContext(false)
 
 export interface TreeItemDragData {
 	id: string
@@ -40,7 +45,7 @@ export interface TreeItemProps extends React.HTMLAttributes<HTMLDivElement> {
 	onToggle?: () => void
 	/** Callback when item is selected */
 	onSelect?: () => void
-	/** Enable drag-drop functionality */
+	/** HTML5 drag-drop (the `onItem*` callbacks); under TreeView `onMove`, `false` opts out */
 	isDraggable?: boolean
 	/** Data to pass during drag operations */
 	dragData?: TreeItemDragData
@@ -59,6 +64,7 @@ export interface TreeItemProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 const INDENT_SIZE = 16 // pixels per depth level
+const INTERACTIVE = 'input, textarea, select, button, a[href], [contenteditable="true"]'
 
 export const TreeItem = createComponent<HTMLDivElement, TreeItemProps>(
 	'TreeItem',
@@ -79,7 +85,7 @@ export const TreeItem = createComponent<HTMLDivElement, TreeItemProps>(
 			dropPosition = null,
 			onToggle,
 			onSelect,
-			isDraggable = false,
+			isDraggable,
 			dragData,
 			onItemDragStart,
 			onItemDragOver,
@@ -92,6 +98,56 @@ export const TreeItem = createComponent<HTMLDivElement, TreeItemProps>(
 		ref
 	) => {
 		const rowRef = React.useRef<HTMLDivElement>(null)
+		const dnd = React.useContext(TreeDndContext)
+		const insideActive = React.useContext(InsideActiveContext)
+		const html5Drag = !dnd && !!isDraggable
+		const isActive = dnd?.activeId === id
+		const moveData: TreeMoveData = {
+			label:
+				typeof label === 'string'
+					? label
+					: ((props['aria-label'] as string | undefined) ?? id),
+			node: label,
+			allowDropInside
+		}
+		const {
+			attributes,
+			listeners,
+			setNodeRef: setDragRef
+		} = useDraggable({ id, data: moveData, disabled: !dnd || isDraggable === false })
+		const { setNodeRef: setDropRef } = useDroppable({
+			id,
+			data: moveData,
+			disabled: !dnd || insideActive || isActive
+		})
+		const setRowRef = React.useCallback(
+			(el: HTMLDivElement | null) => {
+				rowRef.current = el
+				setDragRef(el)
+				setDropRef(el)
+			},
+			[setDragRef, setDropRef]
+		)
+		// The row is not a button; `treeitem` is the outer element's role
+		const { role: _role, 'aria-pressed': _pressed, ...dragAttributes } = attributes
+		// Controls inside the row keep their own pointer and keyboard input: typing a
+		// space or selecting text in an input must not pick the row up
+		const dragListeners = React.useMemo(
+			() =>
+				listeners &&
+				Object.fromEntries(
+					Object.entries(listeners).map(([name, handler]) => [
+						name,
+						(e: React.SyntheticEvent) => {
+							const hit = (e.target as Element).closest?.(INTERACTIVE)
+							if (hit && e.currentTarget.contains(hit)) return
+							handler(e)
+						}
+					])
+				),
+			[listeners]
+		)
+		const dropAt = dropPosition ?? (dnd && dnd.overId === id ? dnd.position : null)
 
 		const handleClick = React.useCallback(
 			(e: React.MouseEvent) => {
@@ -112,7 +168,7 @@ export const TreeItem = createComponent<HTMLDivElement, TreeItemProps>(
 		// Drag handlers
 		const handleDragStart = React.useCallback(
 			(e: React.DragEvent) => {
-				if (!isDraggable || !dragData) return
+				if (!html5Drag || !dragData) return
 				e.dataTransfer.effectAllowed = 'move'
 				e.dataTransfer.setData('application/json', JSON.stringify(dragData))
 				onItemDragStart?.(e, dragData)
@@ -216,9 +272,9 @@ export const TreeItem = createComponent<HTMLDivElement, TreeItemProps>(
 				className={mergeClasses(
 					'c-tree-item',
 					selected && 'selected',
-					dragging && 'dragging',
+					(dragging || isActive) && 'dragging',
 					dropTarget && 'drop-target',
-					dropPosition && `drop-${dropPosition}`,
+					dropAt && `drop-${dropAt}`,
 					className
 				)}
 				role="treeitem"
@@ -228,16 +284,20 @@ export const TreeItem = createComponent<HTMLDivElement, TreeItemProps>(
 				{...props}
 			>
 				<div
-					ref={rowRef}
+					ref={setRowRef}
 					className="c-tree-item-row c-hbox"
 					style={{ paddingLeft: depth * INDENT_SIZE }}
 					onClick={handleClick}
-					draggable={isDraggable}
-					onDragStart={handleDragStart}
-					onDragOver={handleDragOver}
-					onDragLeave={handleDragLeave}
-					onDrop={handleDrop}
-					onDragEnd={handleDragEnd}
+					{...(dnd
+						? { ...dragAttributes, ...dragListeners }
+						: {
+								draggable: html5Drag,
+								onDragStart: handleDragStart,
+								onDragOver: handleDragOver,
+								onDragLeave: handleDragLeave,
+								onDrop: handleDrop,
+								onDragEnd: handleDragEnd
+							})}
 				>
 					{/* Expand/collapse toggle */}
 					<span
@@ -268,7 +328,9 @@ export const TreeItem = createComponent<HTMLDivElement, TreeItemProps>(
 				{/* Child items */}
 				{expanded && children && (
 					<div className="c-tree-item-children" role="group">
-						{children}
+						<InsideActiveContext.Provider value={insideActive || isActive}>
+							{children}
+						</InsideActiveContext.Provider>
 					</div>
 				)}
 			</div>

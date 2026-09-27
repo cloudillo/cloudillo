@@ -13,6 +13,7 @@ export interface NavItemProps extends React.HTMLAttributes<HTMLElement> {
 	children?: React.ReactNode
 }
 
+/** @deprecated use `Nav.Item` */
 export const NavItem = createComponent<HTMLElement, NavItemProps>(
 	'NavItem',
 	({ as: Component = 'li', className, active, disabled, gap, children, ...props }, ref) => {

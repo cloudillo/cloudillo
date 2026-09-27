@@ -3,6 +3,7 @@
 
 import * as React from 'react'
 
+import { Field } from '../Form/Field.js'
 import { createComponent, mergeClasses } from '../utils.js'
 
 export interface PropertyFieldProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -11,23 +12,25 @@ export interface PropertyFieldProps extends React.HTMLAttributes<HTMLDivElement>
 	children?: React.ReactNode
 }
 
+/** @deprecated Use `<Field orientation="horizontal" size="sm">` */
 export const PropertyField = createComponent<HTMLDivElement, PropertyFieldProps>(
 	'PropertyField',
-	({ className, label, labelWidth = 60, children, ...props }, ref) => {
+	({ className, label, labelWidth = 60, style, children, ...props }, ref) => {
 		return (
-			<div
+			<Field
 				ref={ref}
-				className={mergeClasses('c-property-field c-hbox g-1', className)}
+				label={label}
+				orientation="horizontal"
+				size="sm"
+				className={mergeClasses('c-property-field', className)}
+				style={
+					{ '--c-field-label-width': `${labelWidth}px`, ...style } as React.CSSProperties
+				}
 				{...props}
 			>
-				<span
-					className="c-property-field-label"
-					style={{ width: labelWidth, minWidth: labelWidth }}
-				>
-					{label}
-				</span>
-				<div className="c-property-field-control flex-fill">{children}</div>
-			</div>
+				{/* apps style their controls through `.c-property-field-control` */}
+				<div className="c-property-field-control">{children}</div>
+			</Field>
 		)
 	}
 )

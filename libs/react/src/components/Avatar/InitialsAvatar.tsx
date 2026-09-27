@@ -4,9 +4,12 @@
 import { idHue } from '@cloudillo/core'
 import * as React from 'react'
 
-import type { AvatarRing, AvatarShape, Size } from '../types.js'
+import type { AvatarRing, AvatarShape, AvatarSize } from '../types.js'
 import { mergeClasses } from '../utils.js'
-import { Avatar } from './Avatar.js'
+import { Avatar, initialsFor } from './Avatar.js'
+
+// Re-exported for existing importers of this module; the source lives in Avatar.tsx
+export { initialsFor }
 
 export interface InitialsAvatarProps extends React.HTMLAttributes<HTMLDivElement> {
 	/** Display name the initials are derived from. */
@@ -21,34 +24,9 @@ export interface InitialsAvatarProps extends React.HTMLAttributes<HTMLDivElement
 	 * the colour is stable across sessions and identical in every app.
 	 */
 	seed?: string
-	size?: Size
+	size?: AvatarSize
 	shape?: AvatarShape
 	ring?: AvatarRing
-}
-
-/**
- * Two characters from a display name, or a neutral glyph when there is nothing
- * to work with.
- *
- * The two cases are capitalised differently on purpose, because they are
- * different things: several words give initials (`Ada Lovelace` -> `AL`, both
- * upper), a single word is read as a word the way {@link monogramFor} reads an
- * idTag (`Guest` -> `Gu`, first upper, second lower) — one letter alone would
- * leave every share-link guest with a bare `G`.
- */
-export function initialsFor(name?: string): string {
-	const words = (name ?? '').trim().split(/\s+/).filter(Boolean)
-	if (!words.length) return '?'
-	// `[...word]` rather than charAt: an emoji or an astral-plane letter is one
-	// grapheme but two UTF-16 units, and half of one renders as a replacement box.
-	if (words.length === 1) {
-		const [first, second] = [...words[0]]
-		// Guard the uppercase to one grapheme — 'ß'.toLocaleUpperCase() is 'SS'
-		const head = [...(first ?? '').toLocaleUpperCase()][0] ?? ''
-		return head + (second ?? '').toLocaleLowerCase()
-	}
-	const letters = words.slice(0, 2).map((w) => [...w][0] ?? '')
-	return letters.join('').toLocaleUpperCase()
 }
 
 /**
@@ -78,6 +56,9 @@ export function monogramFor(idTag?: string, name?: string): string {
  * the `.c-id-color` rules in components.css, which have a `body.dark` variant.
  * So a theme switch recolours it with no re-render and can never leave a stale
  * colour behind.
+ *
+ * @deprecated Use `<ProfilePicture profile size />` for a person, or `<Avatar alt>` whose
+ * default fallback is the initials. Kept for app consumers.
  */
 export function InitialsAvatar({
 	className,

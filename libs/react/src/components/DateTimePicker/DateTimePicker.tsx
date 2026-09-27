@@ -7,15 +7,17 @@ import { TimePicker } from '../TimePicker/TimePicker.js'
 import { mergeClasses } from '../utils.js'
 
 export interface DateTimePickerProps {
-	/** Combined local datetime as `YYYY-MM-DDTHH:MM`, or empty when unset. */
+	/** `datetime`: local `YYYY-MM-DDTHH:MM`; `month`: `YYYY-MM`. Empty when unset. */
 	value: string
 	onChange: (value: string) => void
+	/** `month` renders a month/year input only (no time half). Default `datetime`. */
+	mode?: 'datetime' | 'month'
 	/** Time applied when a date is picked while the time half is empty.
 	 *  Defaults to `09:00`. */
 	defaultTime?: string
-	/** `YYYY-MM-DD` lower bound for the date input. */
+	/** Lower bound for the date input (`YYYY-MM-DD`, or `YYYY-MM` in month mode). */
 	min?: string
-	/** `YYYY-MM-DD` upper bound for the date input. */
+	/** Upper bound for the date input (`YYYY-MM-DD`, or `YYYY-MM` in month mode). */
 	max?: string
 	/** Minutes step for the TimePicker. Default 15. */
 	step?: number
@@ -35,11 +37,13 @@ function splitValue(v: string): { date: string; time: string } {
 /**
  * Combined date + time input. Pairs the browser's native `<input type="date">`
  * (which renders a real popover calendar on desktop) with the library's
- * `TimePicker`, and emits a single `YYYY-MM-DDTHH:MM` string.
+ * `TimePicker`, and emits a single `YYYY-MM-DDTHH:MM` string. `mode="month"`
+ * swaps in a native `<input type="month">` and emits `YYYY-MM`.
  */
 export function DateTimePicker({
 	value,
 	onChange,
+	mode = 'datetime',
 	defaultTime = '09:00',
 	min,
 	max,
@@ -58,6 +62,21 @@ export function DateTimePicker({
 		}
 		const t = nextTime || defaultTime
 		onChange(`${nextDate}T${t}`)
+	}
+
+	if (mode === 'month') {
+		return (
+			<input
+				className={mergeClasses('c-input c-datetime-picker', className)}
+				type="month"
+				value={value}
+				min={min}
+				max={max}
+				disabled={disabled}
+				aria-label={dateLabel}
+				onChange={(e) => onChange(e.target.value)}
+			/>
+		)
 	}
 
 	return (

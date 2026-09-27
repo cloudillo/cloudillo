@@ -1,0 +1,360 @@
+/* SPDX-FileCopyrightText: Szilárd Hajba
+   SPDX-License-Identifier: LGPL-3.0-or-later */
+
+/* ── Published content ───────────────────────────────────────────────────────
+   The article itself, as `apps/notillo/src/publish/render/serializer.ts` emits it: semantic
+   HTML plus `cl-site-*` classes, and *no OpalUI component classes at all* — the
+   publisher runs with no design system in scope and must produce markup that a
+   crawler and a reader with the bundle blocked can both make sense of. So the
+   styling lives here, scoped to `#cl-site-content`, and this is the only place
+   that knows what a published page looks like.
+
+   Everything below is expressed in OpalUI tokens rather than literal colours, so
+   a published page follows the reader's theme the way every other shell surface
+   does. Scoped by id, never by element, so none of it can leak into the chrome
+   or into an island's own React subtree. */
+
+/* Reading measure for the server-rendered article, applied to the node itself
+   rather than to whatever contains it: the same element is a child of `<body>`
+   before boot and of the React tree after `SitePage` adopts it. */
+#cl-site-content {
+	max-width: 48rem;
+	margin-inline: auto;
+	/* The card's own gutter — against the site bar above, the viewport below. */
+	margin-block: 1rem;
+	padding-inline: 1.5rem;
+	padding-block: 2rem;
+	/* A published page is read on the shell's textured `<body>` (the glass theme's
+	   noise + gradient, `@symbion/opalui/themes/glass.css`), and prose sitting straight on
+	   that has no surface of its own. `--col-surface`, not `--col-container`: `pre`,
+	   `code`, `th` and `.cl-site-tag` below already paint `--col-container` and would
+	   lose all contrast against a page of the same colour. */
+	background: var(--col-surface);
+	color: var(--col-on-surface);
+	border-radius: var(--border-radius-lg, 0.5rem);
+	box-shadow: var(--shadow-lg);
+}
+
+/* Below the width where the gutter still has room to show, the card *is* the page:
+   rounded corners against the viewport edge read as a rendering fault, not as a card.
+   48rem of measure plus two 1rem gutters is where it runs out. */
+@media screen and (width < 52rem) {
+	#cl-site-content {
+		margin-block: 0;
+		border-radius: 0;
+	}
+}
+
+#cl-site-content {
+	line-height: 1.65;
+	overflow-wrap: break-word;
+}
+
+/* A bare `<a>` inherits `color` and the shell's reset removes the underline, but
+   published prose is the one surface where a link must be obvious without hovering. */
+#cl-site-content a {
+	color: var(--col-primary);
+	text-decoration: underline;
+	text-underline-offset: 0.15em;
+}
+
+#cl-site-content a:hover {
+	color: var(--col-em-primary);
+}
+
+#cl-site-content h1,
+#cl-site-content h2,
+#cl-site-content h3,
+#cl-site-content h4,
+#cl-site-content h5,
+#cl-site-content h6 {
+	line-height: 1.25;
+	margin-block: 1.5em 0.5em;
+	font-weight: 600;
+}
+
+/* The page title is the first thing in the article and needs no space above it —
+   `#cl-site-content`'s own `padding-block` already provides that. */
+#cl-site-content > :first-child {
+	margin-block-start: 0;
+}
+
+/* Six steps, because `renderHeading` shifts every body heading down one level —
+   the archetype layout owns the page's single `<h1>` — so Notillo levels 1..6 land
+   on `<h2>`..`<h6>` and levels 5 and 6 both hit `<h6>` through its
+   `Math.min(level + 1, 6)` clamp. That is why the last two share a size, and
+   `apps/notillo/src/style.css` mirrors this table so the editor shows what gets
+   published. Without rules for h4-h6 they fell back to browser defaults, which put
+   a level-4 heading *below* body-text size. */
+#cl-site-content h1,
+#cl-site-content .cl-site-page-title {
+	font-size: 1.875rem;
+}
+
+#cl-site-content h2 {
+	font-size: 1.5rem;
+}
+
+#cl-site-content h3 {
+	font-size: 1.25rem;
+}
+
+#cl-site-content h4 {
+	font-size: 1.125rem;
+}
+
+#cl-site-content h5 {
+	font-size: 1rem;
+}
+
+#cl-site-content h6 {
+	font-size: 0.9375rem;
+}
+
+#cl-site-content p,
+#cl-site-content ul,
+#cl-site-content ol,
+#cl-site-content figure,
+#cl-site-content pre,
+#cl-site-content blockquote,
+#cl-site-content table {
+	margin-block: 0 1em;
+}
+
+#cl-site-content ul,
+#cl-site-content ol {
+	padding-inline-start: 1.5rem;
+}
+
+#cl-site-content li {
+	margin-block: 0.25em;
+}
+
+/* Notillo's check-list blocks keep their `<ul>` semantics but carry their own
+   marker, so the list bullet would double up. */
+#cl-site-content .cl-site-checklist {
+	list-style: none;
+	padding-inline-start: 0;
+}
+
+#cl-site-content blockquote {
+	margin-inline: 0;
+	padding-inline-start: 1rem;
+	border-inline-start: 3px solid var(--col-outline);
+	color: var(--col-on-container);
+}
+
+#cl-site-content code,
+#cl-site-content .cl-site-code {
+	font-family: ui-monospace, monospace;
+	font-size: 0.9375em;
+}
+
+#cl-site-content :not(pre) > code {
+	padding: 0.1em 0.35em;
+	border-radius: 0.25rem;
+	background: var(--col-container);
+}
+
+#cl-site-content pre {
+	padding: 0.75rem 1rem;
+	border-radius: 0.5rem;
+	background: var(--col-container);
+	color: var(--col-on-container);
+	/* A long line must scroll in its own box rather than widen the article and
+	   hand the page a horizontal scrollbar. */
+	overflow-x: auto;
+}
+
+/* Images are published at their intrinsic size with an `srcset` ladder; the
+   measure is what constrains them. */
+#cl-site-content img {
+	max-width: 100%;
+	height: auto;
+}
+
+#cl-site-content figure {
+	margin-inline: 0;
+}
+
+#cl-site-content figcaption {
+	margin-block-start: 0.5em;
+	font-size: 0.875em;
+	color: var(--col-on-container);
+}
+
+#cl-site-content .cl-site-table {
+	/* Same reason as `pre`: a wide table scrolls inside its own container. */
+	overflow-x: auto;
+}
+
+#cl-site-content table {
+	border-collapse: collapse;
+	width: 100%;
+}
+
+#cl-site-content th,
+#cl-site-content td {
+	padding: 0.375rem 0.625rem;
+	border: 1px solid var(--col-outline);
+	text-align: start;
+}
+
+#cl-site-content th {
+	background: var(--col-container);
+	font-weight: 600;
+}
+
+/* Bylines, dates and the "updated" stamp: present, never competing with the
+   prose around them. */
+#cl-site-content .cl-site-byline,
+#cl-site-content .cl-site-post-meta,
+#cl-site-content .cl-site-date,
+#cl-site-content .cl-site-updated,
+#cl-site-content .cl-site-listing-meta {
+	font-size: 0.875em;
+	color: var(--col-on-container);
+}
+
+#cl-site-content .cl-site-byline {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+#cl-site-content .cl-site-byline-avatar {
+	width: 1.75rem;
+	height: 1.75rem;
+	border-radius: 50%;
+	object-fit: cover;
+}
+
+/* The listings an `index` block bakes, and a generated tag page. Four layouts off
+   one entry markup: `list` (below), `compact`, `tree` and `cards`. */
+#cl-site-content .cl-site-listing {
+	list-style: none;
+	margin-block: 0;
+	padding-inline-start: 0;
+}
+
+#cl-site-content .cl-site-listing-item {
+	margin-block: 0 1rem;
+	padding-block-end: 1rem;
+	border-block-end: 1px solid var(--col-outline);
+}
+
+#cl-site-content .cl-site-listing-item:last-child {
+	border-block-end: none;
+}
+
+#cl-site-content .cl-site-listing-title {
+	margin-block: 0 0.25em;
+	font-size: 1.125rem;
+	font-weight: 600;
+}
+
+#cl-site-content .cl-site-listing-desc {
+	margin-block: 0.25em 0;
+}
+
+/* `compact` — one line per entry, no rules between them: a table of contents,
+   not a feed. */
+#cl-site-content .cl-site-listing--compact .cl-site-listing-item {
+	display: flex;
+	gap: 0.75rem;
+	align-items: baseline;
+	margin-block: 0;
+	padding-block-end: 0.25rem;
+	border-block-end: none;
+}
+
+/* `tree` — the nesting is the information, so the indent is all the layout does. */
+#cl-site-content .cl-site-listing--tree,
+#cl-site-content .cl-site-listing--tree ul {
+	list-style: none;
+	margin-block: 0;
+	padding-inline-start: 0;
+}
+
+#cl-site-content .cl-site-listing--tree ul {
+	padding-inline-start: 1.25rem;
+}
+
+#cl-site-content .cl-site-listing--tree li {
+	padding-block: 0.125rem;
+}
+
+/* `cards` — a grid that reflows on its own, so no breakpoint is baked into a
+   published container. */
+#cl-site-content .cl-site-listing--cards {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+	gap: 1rem;
+}
+
+#cl-site-content .cl-site-listing--cards .cl-site-listing-item {
+	margin-block: 0;
+	padding: 0.75rem;
+	border: 1px solid var(--col-outline);
+	border-radius: var(--radius-md);
+}
+
+#cl-site-content .cl-site-listing-image {
+	display: block;
+	width: 100%;
+	aspect-ratio: 16 / 9;
+	margin-block-end: 0.5rem;
+	border-radius: var(--radius-sm);
+	object-fit: cover;
+}
+
+#cl-site-content .cl-site-tag {
+	display: inline-block;
+	padding: 0.05em 0.5em;
+	border-radius: 1rem;
+	background: var(--col-container);
+	color: var(--col-on-container);
+	font-size: 0.8125em;
+	text-decoration: none;
+}
+
+/* A wiki link that resolves looks like any other link; the serializer emits the
+   label alone when it does not, so there is no "broken link" state to paint. */
+#cl-site-content .cl-site-wikilink {
+	text-decoration-style: dotted;
+}
+
+/* Islands before they mount — and, for a reader with the bundle blocked, for
+   good. The static `<img>` of an `image` island is already visible; this is the
+   `replace` kinds, which are a labelled placeholder until React arrives. */
+#cl-site-content .cl-site-embed,
+#cl-site-content .cl-site-media {
+	display: block;
+	border: 1px solid var(--col-outline);
+	border-radius: 0.5rem;
+	overflow: hidden;
+}
+
+/* Once an island mounts, the intrinsic `width`/`height` attributes it carries would
+   overflow the measure and be cropped by `.cl-site-media`'s `overflow: hidden` — the
+   reported "video blows up vertically, cropped horizontally". That `overflow` stays:
+   it clips the placeholder's rounded corners, and a constrained player never
+   overflows for it to hide. */
+#cl-site-content .cl-site-video-player,
+#cl-site-content .cl-site-media-poster {
+	display: block;
+	max-width: 100%;
+	height: auto;
+}
+
+#cl-site-content .cl-site-audio-player {
+	display: block;
+	width: 100%;
+}
+
+#cl-site-content .cl-site-island-label {
+	display: block;
+	padding: 0.75rem 1rem;
+	color: var(--col-on-container);
+	font-size: 0.875em;
+}

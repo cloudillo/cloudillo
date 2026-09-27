@@ -2,8 +2,11 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
+import { LuMenu as IcMenu } from 'react-icons/lu'
 
+import { Button } from '../Button/Button.js'
 import { mergeClasses } from '../utils.js'
+import { FcdFilterContext } from './FcdContainer.js'
 
 export interface FcdContentProps {
 	className?: string
@@ -12,10 +15,17 @@ export interface FcdContentProps {
 	children?: React.ReactNode
 	/** When true, content expands to fill available space (use when no details panel) */
 	fluid?: boolean
+	/**
+	 * `'scroll'` (default): children scroll, with extra bottom padding for mobile browser chrome.
+	 * `'column'`: a plain flex column for children that handle their own scrolling.
+	 */
+	layout?: 'scroll' | 'column'
 }
 
 export const FcdContent = React.forwardRef<HTMLDivElement, FcdContentProps>(
-	function FcdContentInside({ className, onScroll, header, children, fluid }, ref) {
+	function FcdContentInside({ className, onScroll, header, children, fluid, layout }, ref) {
+		const ctx = React.useContext(FcdFilterContext)
+
 		return (
 			<div
 				className={mergeClasses(
@@ -24,11 +34,25 @@ export const FcdContent = React.forwardRef<HTMLDivElement, FcdContentProps>(
 					className
 				)}
 			>
+				{ctx && (
+					<div className="c-fcd-filter-toggle md-hide lg-hide">
+						<Button
+							variant="ghost"
+							aria-expanded={ctx.filterOpen}
+							aria-controls={ctx.filterId}
+							onClick={() => ctx.setFilterOpen(!ctx.filterOpen)}
+						>
+							<IcMenu aria-hidden="true" />
+							{ctx.filterLabel}
+						</Button>
+					</div>
+				)}
 				{header}
 				<div
 					ref={ref}
 					className={mergeClasses(
 						'c-fcd-content-scroll c-vbox fill overflow-y-auto',
+						layout === 'column' && 'column',
 						className
 					)}
 					onScroll={onScroll}

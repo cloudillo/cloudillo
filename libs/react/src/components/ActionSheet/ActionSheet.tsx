@@ -7,6 +7,7 @@ import { createPortal } from 'react-dom'
 import { useBodyScrollLock, useEscapeKey, useMergedRefs } from '../hooks.js'
 import { createComponent, mergeClasses } from '../utils.js'
 
+/** @deprecated Use `Menu` — it renders as a sheet on touch and below 48rem by itself. */
 export interface ActionSheetProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'children'> {
 	isOpen: boolean
 	onClose: () => void
@@ -14,6 +15,7 @@ export interface ActionSheetProps extends Omit<React.HTMLAttributes<HTMLDivEleme
 	children?: React.ReactNode
 }
 
+/** @deprecated Use `Menu` — it renders as a sheet on touch and below 48rem by itself. */
 export const ActionSheet = createComponent<HTMLDivElement, ActionSheetProps>(
 	'ActionSheet',
 	({ isOpen, onClose, title, children, className, ...props }, ref) => {
@@ -122,12 +124,14 @@ export const ActionSheet = createComponent<HTMLDivElement, ActionSheetProps>(
 	}
 )
 
+/** @deprecated Use `Menu` — it renders as a sheet on touch and below 48rem by itself. */
 export interface ActionSheetItemProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 	icon?: React.ReactNode
 	label: string
 	danger?: boolean
 }
 
+/** @deprecated Use `Menu` — it renders as a sheet on touch and below 48rem by itself. */
 export const ActionSheetItem = createComponent<HTMLButtonElement, ActionSheetItemProps>(
 	'ActionSheetItem',
 	({ icon, label, danger, disabled, onClick, className, ...props }, ref) => (
@@ -145,8 +149,10 @@ export const ActionSheetItem = createComponent<HTMLButtonElement, ActionSheetIte
 	)
 )
 
+/** @deprecated Use `Menu` — it renders as a sheet on touch and below 48rem by itself. */
 export interface ActionSheetDividerProps extends React.HTMLAttributes<HTMLDivElement> {}
 
+/** @deprecated Use `Menu` — it renders as a sheet on touch and below 48rem by itself. */
 export const ActionSheetDivider = createComponent<HTMLDivElement, ActionSheetDividerProps>(
 	'ActionSheetDivider',
 	({ className, ...props }, ref) => (
@@ -154,7 +160,8 @@ export const ActionSheetDivider = createComponent<HTMLDivElement, ActionSheetDiv
 	)
 )
 
-// ActionSheetSubItem - expands/collapses sub-items inline on mobile
+// ActionSheetSubItem - expands/collapses sub-items inline on mobile (Menu's SubMenuItem in sheet mode)
+/** @deprecated Use `Menu` — it renders as a sheet on touch and below 48rem by itself. */
 export interface ActionSheetSubItemProps
 	extends Omit<React.HTMLAttributes<HTMLDivElement>, 'children'> {
 	icon?: React.ReactNode
@@ -165,6 +172,7 @@ export interface ActionSheetSubItemProps
 	children?: React.ReactNode
 }
 
+/** @deprecated Use `Menu` — it renders as a sheet on touch and below 48rem by itself. */
 export const ActionSheetSubItem = createComponent<HTMLDivElement, ActionSheetSubItemProps>(
 	'ActionSheetSubItem',
 	({ icon, label, detail, disabled, children, className, ...props }, ref) => {

@@ -31,18 +31,15 @@ function ToastDemo() {
 		<VBox gap={2}>
 			<HBox gap={2} className="flex-wrap">
 				<Button
-					variant="success"
+					color="success"
 					onClick={() => toast.success('Operation completed successfully!')}
 				>
 					Success Toast
 				</Button>
-				<Button variant="error" onClick={() => toast.error('An error occurred!')}>
+				<Button color="error" onClick={() => toast.error('An error occurred!')}>
 					Error Toast
 				</Button>
-				<Button
-					variant="warning"
-					onClick={() => toast.warning('Please review your input.')}
-				>
+				<Button color="warning" onClick={() => toast.warning('Please review your input.')}>
 					Warning Toast
 				</Button>
 				<Button onClick={() => toast.info('Here is some information.')}>Info Toast</Button>

@@ -60,7 +60,7 @@ export function InlineEditFormStory() {
 						<div className="c-hbox g-2 align-items-center">
 							<span>{value1}</span>
 							<button
-								className="c-button small secondary"
+								className="c-button sm secondary"
 								onClick={() => setEditing1(true)}
 							>
 								Edit

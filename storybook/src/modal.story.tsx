@@ -10,7 +10,7 @@ export function ModalStory() {
 	return (
 		<Story
 			name="Modal"
-			description="Modal/dialog backdrop component for displaying overlays and dialogs."
+			description="Deprecated: use Dialog. Native <dialog> backdrop (showModal) kept as the internal base for Dialog and the sheets."
 			props={[
 				{ name: 'open', type: 'boolean', descr: 'Whether the modal is open' },
 				{ name: 'onClose', type: '() => void', descr: 'Callback when modal should close' },
@@ -23,7 +23,7 @@ export function ModalStory() {
 		>
 			<Variant name="Basic Modal">
 				<div>
-					<Button variant="primary" onClick={() => setIsOpen(true)}>
+					<Button color="primary" onClick={() => setIsOpen(true)}>
 						Open Modal
 					</Button>
 					<Modal open={isOpen} onClose={() => setIsOpen(false)}>
@@ -32,7 +32,7 @@ export function ModalStory() {
 							<p>This is a basic modal dialog with some content.</p>
 							<HBox gap={2} className="justify-content-end">
 								<Button onClick={() => setIsOpen(false)}>Cancel</Button>
-								<Button variant="primary" onClick={() => setIsOpen(false)}>
+								<Button color="primary" onClick={() => setIsOpen(false)}>
 									Confirm
 								</Button>
 							</HBox>
@@ -43,7 +43,7 @@ export function ModalStory() {
 
 			<Variant name="Form Modal">
 				<div>
-					<Button variant="secondary" onClick={() => setIsFormOpen(true)}>
+					<Button color="secondary" onClick={() => setIsFormOpen(true)}>
 						Open Form
 					</Button>
 					<Modal open={isFormOpen} onClose={() => setIsFormOpen(false)}>
@@ -55,7 +55,7 @@ export function ModalStory() {
 							</VBox>
 							<HBox gap={2} className="justify-content-end mt-3">
 								<Button onClick={() => setIsFormOpen(false)}>Cancel</Button>
-								<Button variant="primary" onClick={() => setIsFormOpen(false)}>
+								<Button color="primary" onClick={() => setIsFormOpen(false)}>
 									Create
 								</Button>
 							</HBox>

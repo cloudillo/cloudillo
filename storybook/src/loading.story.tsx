@@ -20,11 +20,17 @@ export function LoadingSpinnerStory() {
 			props={[
 				{ name: 'size', type: '"sm" | "md" | "lg"', descr: 'Size of the spinner' },
 				{
-					name: 'variant',
-					type: '"primary" | "secondary" | "accent" | "error" | "warning" | "success"',
-					descr: 'Color variant'
+					name: 'color',
+					type: 'ColorVariant',
+					descr: 'Tone'
 				},
-				{ name: 'label', type: 'string', descr: 'Optional loading text to display' }
+				{
+					name: 'label',
+					type: 'string',
+					descr: 'Optional loading text to display (aria-label falls back to "Loading")'
+				},
+				{ name: 'fill', type: 'boolean', descr: 'Fill and centre in the parent' },
+				{ name: 'inverse', type: 'boolean', descr: 'Light-on-dark, for dark overlays' }
 			]}
 		>
 			<Variant name="Sizes">
@@ -37,12 +43,12 @@ export function LoadingSpinnerStory() {
 
 			<Variant name="Color Variants">
 				<div className="c-hbox g-4 align-items-center">
-					<LoadingSpinner variant="primary" />
-					<LoadingSpinner variant="secondary" />
-					<LoadingSpinner variant="accent" />
-					<LoadingSpinner variant="success" />
-					<LoadingSpinner variant="warning" />
-					<LoadingSpinner variant="error" />
+					<LoadingSpinner color="primary" />
+					<LoadingSpinner color="secondary" />
+					<LoadingSpinner color="accent" />
+					<LoadingSpinner color="success" />
+					<LoadingSpinner color="warning" />
+					<LoadingSpinner color="error" />
 				</div>
 			</Variant>
 
@@ -51,6 +57,18 @@ export function LoadingSpinnerStory() {
 					<LoadingSpinner size="sm" label="Loading..." />
 					<LoadingSpinner size="md" label="Please wait" />
 					<LoadingSpinner size="lg" label="Fetching data" />
+				</div>
+			</Variant>
+
+			<Variant name="Fill">
+				<div style={{ height: 200, border: '1px dashed currentColor' }}>
+					<LoadingSpinner fill label="Loading page" />
+				</div>
+			</Variant>
+
+			<Variant name="Inverse">
+				<div className="p-3" style={{ background: '#222' }}>
+					<LoadingSpinner inverse label="Processing…" />
 				</div>
 			</Variant>
 		</Story>
@@ -74,6 +92,13 @@ export function SkeletonStory() {
 					name: 'animate',
 					type: 'boolean',
 					descr: 'Enable shimmer animation (default: true)'
+				},
+				{ name: 'aspectRatio', type: 'string', descr: 'CSS aspect-ratio, e.g. "16/9"' },
+				{ name: 'backgroundSrc', type: 'string', descr: 'Image shown under the skeleton' },
+				{
+					name: 'children',
+					type: 'ReactNode',
+					descr: 'Centred overlay (animation off, announced to AT)'
 				}
 			]}
 		>
@@ -91,6 +116,30 @@ export function SkeletonStory() {
 					<Skeleton variant="rect" width={100} height={100} animate={false} />
 					<Skeleton variant="circle" width={48} height={48} animate={false} />
 				</div>
+			</Variant>
+
+			<Variant name="Aspect Ratio">
+				<Skeleton variant="rounded" width={320} aspectRatio="16/9" />
+			</Variant>
+
+			<Variant name="Background Image">
+				<Skeleton
+					variant="rounded"
+					width={320}
+					aspectRatio="16/9"
+					backgroundSrc="https://picsum.photos/seed/cloudillo/320/180"
+				/>
+			</Variant>
+
+			<Variant name="Processing Overlay (video placeholder)">
+				<Skeleton
+					variant="rounded"
+					width={320}
+					aspectRatio="16/9"
+					backgroundSrc="https://picsum.photos/seed/cloudillo/320/180"
+				>
+					<LoadingSpinner inverse label="Processing…" />
+				</Skeleton>
 			</Variant>
 		</Story>
 	)

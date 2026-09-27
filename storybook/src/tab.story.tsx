@@ -1,5 +1,6 @@
 import { Panel, Tab, Tabs } from '@cloudillo/react'
 import * as React from 'react'
+import { LuFile, LuHouse, LuUser } from 'react-icons/lu'
 
 import { Story, Variant } from './storybook.js'
 
@@ -19,9 +20,16 @@ export function TabStory() {
 				},
 				{ name: 'value', type: 'string', descr: 'Tab: unique value for this tab' },
 				{ name: 'active', type: 'boolean', descr: 'Tab: manually set active state' },
-				{ name: 'variant', type: 'ColorVariant', descr: 'Tab: color variant' },
+				{ name: 'color', type: 'ColorVariant', descr: 'Tab: color' },
 				{ name: 'as', type: '"button" | "a"', descr: 'Tab: render as button or link' },
-				{ name: 'href', type: 'string', descr: 'Tab: URL when rendered as link' }
+				{
+					name: 'href',
+					type: 'string',
+					descr: 'Tab: URL; "/…" (without as) → router link, active when the route matches'
+				},
+				{ name: 'icon', type: 'ReactNode', descr: 'Tab: leading icon' },
+				{ name: 'count', type: 'number', descr: 'Tab: muted trailing count' },
+				{ name: 'wrap', type: 'boolean', descr: 'Tabs: wrap onto more lines' }
 			]}
 		>
 			<Variant name="Basic Tabs">
@@ -42,9 +50,9 @@ export function TabStory() {
 			<Variant name="Color Variants">
 				<Tabs>
 					<Tab active>Default</Tab>
-					<Tab variant="primary">Primary</Tab>
-					<Tab variant="secondary">Secondary</Tab>
-					<Tab variant="accent">Accent</Tab>
+					<Tab color="primary">Primary</Tab>
+					<Tab color="secondary">Secondary</Tab>
+					<Tab color="accent">Accent</Tab>
 				</Tabs>
 			</Variant>
 
@@ -53,6 +61,45 @@ export function TabStory() {
 					<Tab active>Active Tab</Tab>
 					<Tab>Tab 2</Tab>
 					<Tab>Tab 3</Tab>
+				</Tabs>
+			</Variant>
+
+			<Variant name="Icons and counts">
+				<Tabs value={activeTab} onTabChange={setActiveTab}>
+					<Tab value="tab1" icon={<LuHouse />}>
+						Home
+					</Tab>
+					<Tab value="tab2" icon={<LuFile />} count={12}>
+						Files
+					</Tab>
+					<Tab value="tab3" icon={<LuUser />} count={3}>
+						People
+					</Tab>
+				</Tabs>
+			</Variant>
+
+			<Variant name="Router tabs (href)">
+				<Tabs>
+					<Tab href="/">Home (active on /)</Tab>
+					<Tab href="/profile">Profile</Tab>
+					<Tab href="/files">Files</Tab>
+				</Tabs>
+			</Variant>
+
+			<Variant name="Wrapping">
+				<Tabs wrap style={{ maxWidth: 280 }}>
+					{[
+						'Overview',
+						'Activity',
+						'Members',
+						'Permissions',
+						'Integrations',
+						'Billing'
+					].map((label, i) => (
+						<Tab key={label} active={i === 0}>
+							{label}
+						</Tab>
+					))}
 				</Tabs>
 			</Variant>
 

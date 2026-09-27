@@ -3,7 +3,11 @@ import {
 	ProfileAudienceCard,
 	ProfileCard,
 	ProfilePicture,
-	UnknownProfilePicture
+	UnknownProfilePicture,
+	type VisibilityCode,
+	COMMUNITY_VISIBILITY,
+	Field,
+	VisibilitySelect
 } from '@cloudillo/react'
 import * as React from 'react'
 
@@ -53,15 +57,30 @@ export function ProfilePictureStory() {
 				<ProfilePicture profile={mockProfile} />
 			</Variant>
 
-			<Variant name="Profile Picture (Small)">
-				<ProfilePicture profile={mockProfile} small />
+			<Variant name="Profile Picture (Sizes & Shape)">
+				<div className="c-hbox g-2 align-items-end">
+					<ProfilePicture profile={mockProfile} size="xs" />
+					<ProfilePicture profile={mockProfile} size="lg" />
+					<ProfilePicture profile={mockProfile} size="2xl" shape="squircle" />
+				</div>
 			</Variant>
 
-			<Variant name="Profile Picture (Tiny)">
-				<ProfilePicture profile={mockProfile} tiny />
+			<Variant name="Profile Picture (Monogram Fallback)">
+				<div className="c-hbox g-2 align-items-end">
+					<ProfilePicture profile={{ idTag: 'alice.example.com', name: 'Alice' }} />
+					<ProfilePicture profile={{ idTag: 'bob.example.com', name: 'Bob' }} size="xl" />
+					<ProfilePicture profile={{ name: 'Carol Danvers' }} size="3xl" />
+				</div>
 			</Variant>
 
-			<Variant name="Unknown Profile Picture (Standalone)">
+			<Variant name="Profile Picture (Deprecated small / tiny)">
+				<div className="c-hbox g-2 align-items-end">
+					<ProfilePicture profile={mockProfile} small />
+					<ProfilePicture profile={mockProfile} tiny />
+				</div>
+			</Variant>
+
+			<Variant name="Unknown Profile Picture (Deprecated)">
 				<div className="c-profile-card">
 					<UnknownProfilePicture />
 				</div>
@@ -170,6 +189,55 @@ export function ProfileAudienceCardStory() {
 						name: 'Dana Engineer'
 					}}
 				/>
+			</Variant>
+		</Story>
+	)
+}
+
+export function VisibilitySelectStory() {
+	const [personal, setPersonal] = React.useState<VisibilityCode>('F')
+	const [community, setCommunity] = React.useState<VisibilityCode>('supporter')
+	return (
+		<Story
+			name="VisibilitySelect"
+			description="Visibility picker: ghost button (icon + label + caret) opening a radio menu. Reads the enclosing Field."
+			props={[
+				{
+					name: 'value',
+					type: 'VisibilityCode',
+					descr: "'P' | 'F' | 'C' | community role level",
+					required: true
+				},
+				{
+					name: 'onChange',
+					type: '(value: VisibilityCode) => void',
+					descr: 'Selection handler',
+					required: true
+				},
+				{
+					name: 'options',
+					type: 'VisibilityCode[]',
+					descr: 'Codes offered (PERSONAL_VISIBILITY default, COMMUNITY_VISIBILITY)'
+				},
+				{ name: 'size', type: 'Size', descr: "Defaults to the Field's size, else sm" }
+			]}
+		>
+			<Variant name="Personal (standalone, aria-label)">
+				<VisibilitySelect
+					value={personal}
+					onChange={setPersonal}
+					aria-label="Post visibility"
+				/>
+			</Variant>
+
+			<Variant name="Community, inside a Field">
+				<Field label="Who can see this section">
+					<VisibilitySelect
+						value={community}
+						onChange={setCommunity}
+						options={COMMUNITY_VISIBILITY}
+					/>
+				</Field>
 			</Variant>
 		</Story>
 	)

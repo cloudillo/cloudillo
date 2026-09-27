@@ -16,8 +16,17 @@ export function EmptyStateStory() {
 				{ name: 'icon', type: 'ReactNode', descr: 'Icon to display at the top' },
 				{ name: 'title', type: 'ReactNode', descr: 'Main heading text' },
 				{ name: 'description', type: 'ReactNode', descr: 'Secondary description text' },
-				{ name: 'action', type: 'ReactNode', descr: 'Action button or element' },
-				{ name: 'size', type: '"sm" | "md" | "lg"', descr: 'Size variant (default: md)' }
+				{ name: 'actions', type: 'ReactNode', descr: 'Action buttons or elements' },
+				{ name: 'action', type: 'ReactNode', descr: 'Deprecated alias of actions' },
+				{ name: 'color', type: 'ColorVariant', descr: 'Tone of the icon' },
+				{ name: 'size', type: '"sm" | "md" | "lg"', descr: 'Size variant (default: md)' },
+				{ name: 'fill', type: 'boolean', descr: 'Fill and centre in the parent' },
+				{ name: 'inverse', type: 'boolean', descr: 'Light-on-dark, for dark overlays' },
+				{
+					name: 'headingLevel',
+					type: 'HeadingLevel',
+					descr: 'Title heading level (default: 3)'
+				}
 			]}
 		>
 			<Variant name="Basic Empty State">
@@ -33,7 +42,7 @@ export function EmptyStateStory() {
 					icon={<LuInbox style={{ fontSize: '2.5rem' }} />}
 					title="Your inbox is empty"
 					description="Messages you receive will appear here"
-					action={<Button variant="primary">Check settings</Button>}
+					actions={<Button color="primary">Check settings</Button>}
 				/>
 			</Variant>
 
@@ -42,7 +51,7 @@ export function EmptyStateStory() {
 					icon={<LuSearch style={{ fontSize: '2.5rem' }} />}
 					title="No results found"
 					description="Try adjusting your search terms or filters"
-					action={<Button variant="secondary">Clear filters</Button>}
+					actions={<Button color="secondary">Clear filters</Button>}
 				/>
 			</Variant>
 
@@ -80,8 +89,33 @@ export function EmptyStateStory() {
 					icon={<LuImage style={{ fontSize: '2.5rem' }} />}
 					title="No images yet"
 					description="Upload photos to see them in your gallery"
-					action={<Button variant="primary">Upload images</Button>}
+					actions={<Button color="primary">Upload images</Button>}
 				/>
+			</Variant>
+
+			<Variant name="Colors">
+				<div className="c-hbox g-4" style={{ flexWrap: 'wrap' }}>
+					<EmptyState color="error" icon={<LuFileQuestion />} title="Failed to load" />
+					<EmptyState color="warning" icon={<LuInbox />} title="Quota almost full" />
+					<EmptyState color="success" icon={<LuFolder />} title="All caught up" />
+				</div>
+			</Variant>
+
+			<Variant name="Fill">
+				<div style={{ height: 240, border: '1px dashed currentColor' }}>
+					<EmptyState fill icon={<LuFolder />} title="Centred in the parent" />
+				</div>
+			</Variant>
+
+			<Variant name="Inverse">
+				<div className="p-3" style={{ background: '#222' }}>
+					<EmptyState
+						inverse
+						icon={<LuImage />}
+						title="No preview"
+						description="On a dark overlay"
+					/>
+				</div>
 			</Variant>
 
 			<Variant name="Custom Content">
@@ -96,8 +130,8 @@ export function EmptyStateStory() {
 						className="c-hbox g-2 justify-content-center"
 						style={{ marginTop: '1rem' }}
 					>
-						<Button variant="primary">Create project</Button>
-						<Button variant="secondary">Import files</Button>
+						<Button color="primary">Create project</Button>
+						<Button color="secondary">Import files</Button>
 					</div>
 				</EmptyState>
 			</Variant>

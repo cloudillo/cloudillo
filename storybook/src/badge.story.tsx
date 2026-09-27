@@ -1,5 +1,6 @@
-import { Badge } from '@cloudillo/react'
+import { Avatar, Badge, BadgeAnchor, Button, HBox } from '@cloudillo/react'
 import * as React from 'react'
+import { LuBell as IcBell, LuCheck as IcCheck, LuTriangleAlert as IcWarn } from 'react-icons/lu'
 
 import { Story, Variant } from './storybook.js'
 
@@ -7,51 +8,121 @@ export function BadgeStory() {
 	return (
 		<Story
 			name="Badge"
-			description="Badge/pill component for displaying counts, status, or labels."
+			description="Non-interactive status or count label. For clickable chips use Tag. Corner overlays go through BadgeAnchor."
 			props={[
+				{ name: 'color', type: 'ColorVariant', descr: 'Tone' },
 				{
 					name: 'variant',
-					type: '"primary" | "secondary" | "accent" | "error" | "warning" | "success"',
-					descr: 'Color variant'
+					type: "'filled' | 'soft' | 'outline'",
+					descr: 'Fill style (default filled)'
 				},
-				{ name: 'rounded', type: 'boolean', descr: 'Fully rounded pill style' }
+				{ name: 'size', type: 'Size', descr: 'Badge size' },
+				{ name: 'icon', type: 'ReactNode', descr: 'Leading icon' },
+				{
+					name: 'dot',
+					type: 'boolean',
+					descr: 'Text-less dot; requires aria-label'
+				},
+				{
+					name: 'BadgeAnchor badge',
+					type: 'ReactNode',
+					descr: 'Overlay rendered on a corner of the child'
+				},
+				{
+					name: 'BadgeAnchor position',
+					type: "'top-end' | 'top-start' | 'bottom-end' | 'bottom-start'",
+					descr: 'Logical corner (default top-end)'
+				}
 			]}
 		>
-			<Variant name="Color Variants">
-				<div className="c-hbox g-2">
+			<Variant name="Filled">
+				<HBox gap={2} wrap>
 					<Badge>Default</Badge>
-					<Badge variant="primary">Primary</Badge>
-					<Badge variant="secondary">Secondary</Badge>
-					<Badge variant="accent">Accent</Badge>
-					<Badge variant="error">Error</Badge>
-					<Badge variant="warning">Warning</Badge>
-					<Badge variant="success">Success</Badge>
-				</div>
+					<Badge color="primary">Primary</Badge>
+					<Badge color="accent">Accent</Badge>
+					<Badge color="error">Error</Badge>
+					<Badge color="warning">Warning</Badge>
+					<Badge color="success">Success</Badge>
+				</HBox>
 			</Variant>
 
-			<Variant name="Rounded (Pill)">
-				<div className="c-hbox g-2">
-					<Badge rounded variant="primary">
-						5
+			<Variant name="Soft and Outline">
+				<HBox gap={2} wrap>
+					<Badge variant="soft" color="primary">
+						Soft
 					</Badge>
-					<Badge rounded variant="error">
-						99+
+					<Badge variant="soft" color="success">
+						Active
 					</Badge>
-					<Badge rounded variant="success">
-						New
+					<Badge variant="soft" color="neutral">
+						Draft
 					</Badge>
-				</div>
+					<Badge variant="outline" color="warning">
+						Outline
+					</Badge>
+					<Badge variant="outline" color="error">
+						Blocked
+					</Badge>
+				</HBox>
 			</Variant>
 
-			<Variant name="In Context">
-				<div className="c-hbox g-2">
-					<button className="c-nav-item pos-relative">
-						Notifications
-						<Badge rounded variant="error" className="pos-absolute top-0 right-0">
-							3
-						</Badge>
-					</button>
-				</div>
+			<Variant name="Sizes">
+				<HBox gap={2} className="align-items-center">
+					<Badge size="xs">xs</Badge>
+					<Badge size="sm">sm</Badge>
+					<Badge>md</Badge>
+					<Badge size="lg">lg</Badge>
+					<Badge size="xl">xl</Badge>
+				</HBox>
+			</Variant>
+
+			<Variant name="With Icon (status never by colour alone)">
+				<HBox gap={2}>
+					<Badge variant="soft" color="success" icon={<IcCheck />}>
+						Verified
+					</Badge>
+					<Badge variant="soft" color="warning" icon={<IcWarn />}>
+						Expiring
+					</Badge>
+				</HBox>
+			</Variant>
+
+			<Variant name="Dot">
+				<HBox gap={2} className="align-items-center">
+					<Badge dot color="success" aria-label="Online" />
+					<Badge dot color="warning" aria-label="Away" />
+					<Badge dot size="lg" color="error" aria-label="Offline" />
+				</HBox>
+			</Variant>
+
+			<Variant name="BadgeAnchor">
+				<HBox gap={4} className="align-items-center">
+					<BadgeAnchor
+						badge={
+							<Badge color="error" size="sm">
+								3
+							</Badge>
+						}
+					>
+						<Button variant="ghost" icon={<IcBell />} aria-label="Notifications" />
+					</BadgeAnchor>
+					<BadgeAnchor
+						position="bottom-end"
+						badge={<Badge dot color="success" aria-label="Online" />}
+					>
+						<Avatar alt="Alice" />
+					</BadgeAnchor>
+					<BadgeAnchor
+						position="top-start"
+						badge={
+							<Badge color="primary" size="xs">
+								New
+							</Badge>
+						}
+					>
+						<Avatar alt="Bob" />
+					</BadgeAnchor>
+				</HBox>
 			</Variant>
 		</Story>
 	)

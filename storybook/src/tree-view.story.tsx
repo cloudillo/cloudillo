@@ -76,7 +76,7 @@ function RecursiveItem({
 			onSelect={() => onSelect(node.id)}
 			actions={
 				withActions ? (
-					<Button variant="secondary" size="small" aria-label="More">
+					<Button color="secondary" size="sm" aria-label="More">
 						<LuEllipsisVertical />
 					</Button>
 				) : undefined
@@ -100,9 +100,35 @@ function RecursiveItem({
 	)
 }
 
+type Position = 'before' | 'after' | 'inside'
+
+/** Removes `id` from the tree, then reinserts it relative to `targetId` */
+function moveNode(tree: Node[], id: string, targetId: string, position: Position): Node[] {
+	let moved: Node | undefined
+	const without = (nodes: Node[]): Node[] =>
+		nodes.flatMap((n) => {
+			if (n.id === id) {
+				moved = n
+				return []
+			}
+			return [{ ...n, children: n.children && without(n.children) }]
+		})
+	const insert = (nodes: Node[]): Node[] =>
+		nodes.flatMap((n) => {
+			if (n.id !== targetId || !moved) {
+				return [{ ...n, children: n.children && insert(n.children) }]
+			}
+			if (position === 'inside') return [{ ...n, children: [...(n.children ?? []), moved] }]
+			return position === 'before' ? [moved, n] : [n, moved]
+		})
+	const rest = without(tree)
+	return moved ? insert(rest) : tree
+}
+
 export function TreeViewStory() {
 	const [expanded, setExpanded] = React.useState<Set<string>>(new Set(['docs', 'media']))
 	const [selected, setSelected] = React.useState<string | null>('doc-1')
+	const [tree, setTree] = React.useState(sampleTree)
 
 	function toggle(id: string) {
 		setExpanded((prev) => {
@@ -116,12 +142,17 @@ export function TreeViewStory() {
 	return (
 		<Story
 			name="TreeView"
-			description="Hierarchical tree with expand/collapse, selection, per-row hover actions, and built-in drag-drop support. Consumer owns state (expanded set, selected id) and renders TreeItem recursively."
+			description="Hierarchical tree with expand/collapse, selection, per-row hover actions, and drag-to-move via `onMove` (pointer, or Space on a focused row then arrow keys). Consumer owns state (expanded set, selected id) and renders TreeItem recursively."
 			props={[
 				{
 					name: 'children',
 					type: 'ReactNode',
 					descr: 'Tree items (use TreeItem, typically recursively)'
+				},
+				{
+					name: 'onMove',
+					type: "(id, targetId, position: 'before' | 'after' | 'inside') => void",
+					descr: 'Enables drag of every TreeItem (opt out with isDraggable={false}); called on drop'
 				}
 			]}
 		>
@@ -166,6 +197,29 @@ export function TreeViewStory() {
 			</Variant>
 
 			<Variant
+				name="Drag to move (onMove)"
+				description="Drop on the upper/lower quarter of a folder row to place before/after it, on its middle to move inside. Folders carry allowDropInside via hasChildren."
+			>
+				<div style={{ width: 320, border: '1px solid var(--col-outline)' }}>
+					<TreeView
+						onMove={(id, target, pos) => setTree((t) => moveNode(t, id, target, pos))}
+					>
+						{tree.map((node) => (
+							<RecursiveItem
+								key={node.id}
+								node={node}
+								depth={0}
+								expanded={expanded}
+								selected={selected}
+								onToggle={toggle}
+								onSelect={setSelected}
+							/>
+						))}
+					</TreeView>
+				</div>
+			</Variant>
+
+			<Variant
 				name="Empty"
 				description="Wrap a TreeView with an EmptyState when no nodes exist."
 			>
@@ -179,7 +233,7 @@ export function TreeViewStory() {
 				>
 					<LuFolder size={32} style={{ opacity: 0.4 }} />
 					<p style={{ margin: '0.5rem 0' }}>No pages yet</p>
-					<Button variant="primary" size="small">
+					<Button color="primary" size="sm">
 						<LuPlus /> New page
 					</Button>
 				</div>

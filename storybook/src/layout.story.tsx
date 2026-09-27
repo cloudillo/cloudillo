@@ -1,4 +1,4 @@
-import { Button, Fcd } from '@cloudillo/react'
+import { Button, Fcd, PageHeader } from '@cloudillo/react'
 import * as React from 'react'
 
 import { Story, Variant } from './storybook.js'
@@ -9,6 +9,7 @@ export function FcdStory() {
 	const [showOverlay, setShowOverlay] = React.useState(false)
 	const [showAdaptive, setShowAdaptive] = React.useState(false)
 	const [showFluidAdaptive, setShowFluidAdaptive] = React.useState(false)
+	const [filterCollapsed, setFilterCollapsed] = React.useState(false)
 
 	return (
 		<Story
@@ -205,7 +206,7 @@ export function FcdStory() {
 								header={
 									<>
 										<span className="fill font-semibold">Comments</span>
-										<Button kind="link" size="small">
+										<Button variant="link" size="sm">
 											+
 										</Button>
 									</>
@@ -262,6 +263,63 @@ export function FcdStory() {
 						</Fcd.Container>
 					</div>
 				</div>
+			</Variant>
+			<Variant name="filterLabel (built-in mobile toggle), collapsible filter, detailsWidth">
+				<div style={{ height: '300px', border: '1px solid #ccc' }}>
+					<Fcd.Container filterLabel="Filters" detailsWidth="28rem">
+						<Fcd.Filter collapsed={filterCollapsed}>
+							<div className="p-3">
+								<h4>Filters</h4>
+								<p>Below md, the toggle row in Content opens this drawer.</p>
+							</div>
+						</Fcd.Filter>
+						<Fcd.Content>
+							<div className="p-3">
+								<Button onClick={() => setFilterCollapsed(!filterCollapsed)}>
+									{filterCollapsed ? 'Show filter rail' : 'Collapse filter rail'}
+								</Button>
+								<p>No isVisible/hide state needed on Fcd.Filter.</p>
+							</div>
+						</Fcd.Content>
+					</Fcd.Container>
+				</div>
+			</Variant>
+
+			<Variant name="Content layout='column'">
+				<div style={{ height: '200px', border: '1px solid #ccc' }}>
+					<Fcd.Container>
+						<Fcd.Content fluid layout="column">
+							<div className="fill overflow-y-auto p-3">
+								<p>The child owns scrolling; no mobile scroll padding.</p>
+							</div>
+						</Fcd.Content>
+					</Fcd.Container>
+				</div>
+			</Variant>
+		</Story>
+	)
+}
+
+export function PageHeaderStory() {
+	return (
+		<Story
+			name="PageHeader"
+			description="The page's own title (h1 by default) with subtitle, leading, actions and back link"
+		>
+			<Variant name="Basic">
+				<PageHeader title="Settings" subtitle="Manage your account" />
+			</Variant>
+			<Variant name="With back, leading and actions">
+				<PageHeader
+					back="/"
+					leading={<span className="c-badge">AB</span>}
+					title="Alice Bob"
+					subtitle="alice.example.org"
+					actions={<Button variant="soft">Edit</Button>}
+				/>
+			</Variant>
+			<Variant name="level=2">
+				<PageHeader level={2} title="Section page" />
 			</Variant>
 		</Story>
 	)

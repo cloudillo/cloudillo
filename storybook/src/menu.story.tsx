@@ -5,6 +5,7 @@ import { Button, Menu, MenuDivider, MenuHeader, MenuItem, SubMenuItem } from '@c
 import * as React from 'react'
 import {
 	LuClipboard,
+	LuEllipsis,
 	LuCopy,
 	LuDownload,
 	LuPencil,
@@ -18,6 +19,9 @@ import { Story, Variant } from './storybook.js'
 export function MenuStory() {
 	const [basicPos, setBasicPos] = React.useState<{ x: number; y: number } | null>(null)
 	const [fullPos, setFullPos] = React.useState<{ x: number; y: number } | null>(null)
+	const [anchorEl, setAnchorEl] = React.useState<HTMLElement | null>(null)
+	const [view, setView] = React.useState('list')
+	const [hidden, setHidden] = React.useState(false)
 
 	function openAt(
 		e: React.MouseEvent,
@@ -30,19 +34,42 @@ export function MenuStory() {
 	return (
 		<Story
 			name="Menu"
-			description="Positioned context menu rendered via portal. Renders at an absolute (x, y) position, adjusts to stay within the viewport, supports keyboard navigation (Arrow keys / Home / End / Escape), and submenu expansion via SubMenuItem."
+			description="One menu for context, anchored and triggered use, in the top layer. Keyboard: Arrow keys / Home / End / Escape and typeahead. On touch or below 48rem it renders as a bottom sheet automatically — never switch to ActionSheet yourself. Activating an item closes the menu unless its onClick calls preventDefault()."
 			props={[
+				{
+					name: 'trigger',
+					type: 'ReactElement',
+					descr: 'Triggered mode: a Button that toggles the menu'
+				},
 				{
 					name: 'position',
 					type: '{ x: number; y: number }',
-					required: true,
-					descr: 'Absolute viewport coordinates for the top-left corner'
+					descr: 'Context-menu mode: open at viewport coordinates while mounted'
+				},
+				{
+					name: 'anchor',
+					type: 'HTMLElement',
+					descr: 'Anchored mode: open against this element while mounted'
+				},
+				{
+					name: 'placement',
+					type: 'AnchorPlacement',
+					descr: "Anchored / triggered modes (default 'bottom-start')"
+				},
+				{
+					name: 'open / onOpenChange',
+					type: 'boolean / (open) => void',
+					descr: 'Triggered mode, controlled'
 				},
 				{
 					name: 'onClose',
 					type: '() => void',
-					required: true,
 					descr: 'Called on Escape, outside click, or item activation'
+				},
+				{
+					name: 'MenuItem',
+					type: 'icon, label, description, shortcut, trailing, color="error", checked, selected, href',
+					descr: '`checked` → menuitemcheckbox, `selected` → menuitemradio; `danger` is a deprecated alias of color="error"'
 				}
 			]}
 		>
@@ -52,7 +79,7 @@ export function MenuStory() {
 			>
 				<div style={{ padding: 16 }}>
 					<Button
-						variant="secondary"
+						color="secondary"
 						onClick={(e) => openAt(e, setBasicPos)}
 						onContextMenu={(e) => openAt(e, setBasicPos)}
 					>
@@ -64,7 +91,7 @@ export function MenuStory() {
 							<MenuItem icon={<LuCopy />} label="Copy" shortcut="⌘C" />
 							<MenuItem icon={<LuClipboard />} label="Paste" shortcut="⌘V" />
 							<MenuDivider />
-							<MenuItem icon={<LuTrash2 />} label="Delete" danger />
+							<MenuItem icon={<LuTrash2 />} label="Delete" color="error" />
 						</Menu>
 					)}
 				</div>
@@ -76,7 +103,7 @@ export function MenuStory() {
 			>
 				<div style={{ padding: 16 }}>
 					<Button
-						variant="secondary"
+						color="secondary"
 						onClick={(e) => openAt(e, setFullPos)}
 						onContextMenu={(e) => openAt(e, setFullPos)}
 					>
@@ -94,7 +121,70 @@ export function MenuStory() {
 							</SubMenuItem>
 							<MenuItem icon={<LuDownload />} label="Download" disabled />
 							<MenuDivider />
-							<MenuItem icon={<LuTrash2 />} label="Move to trash" danger />
+							<MenuItem icon={<LuTrash2 />} label="Move to trash" color="error" />
+						</Menu>
+					)}
+				</div>
+			</Variant>
+
+			<Variant
+				name="Triggered"
+				description="`trigger` wires aria-expanded and toggling; checked / selected items, description, trailing, href."
+			>
+				<div style={{ padding: 16 }}>
+					<Menu
+						trigger={
+							<Button variant="ghost" aria-label="View options">
+								<LuEllipsis />
+							</Button>
+						}
+					>
+						<MenuHeader>View</MenuHeader>
+						<MenuItem
+							label="List"
+							selected={view === 'list'}
+							onClick={() => setView('list')}
+						/>
+						<MenuItem
+							label="Grid"
+							description="Large thumbnails"
+							selected={view === 'grid'}
+							onClick={() => setView('grid')}
+						/>
+						<MenuDivider />
+						<MenuItem
+							label="Show hidden files"
+							checked={hidden}
+							onClick={(e) => {
+								e.preventDefault()
+								setHidden(!hidden)
+							}}
+							trailing={hidden ? 'on' : 'off'}
+						/>
+						<MenuItem label="Help" href="https://cloudillo.org" />
+					</Menu>
+				</div>
+			</Variant>
+
+			<Variant
+				name="Anchored"
+				description="`anchor` opens against an element the caller already has (here: the clicked button)."
+			>
+				<div style={{ padding: 16 }}>
+					<Button
+						color="secondary"
+						onClick={(e) => setAnchorEl(anchorEl ? null : e.currentTarget)}
+					>
+						Anchor here
+					</Button>
+					{anchorEl && (
+						<Menu
+							anchor={anchorEl}
+							placement="bottom-end"
+							onClose={() => setAnchorEl(null)}
+						>
+							<MenuItem icon={<LuPencil />} label="Rename" />
+							<MenuItem icon={<LuTrash2 />} label="Delete" color="error" />
 						</Menu>
 					)}
 				</div>

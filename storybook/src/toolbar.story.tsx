@@ -1,7 +1,15 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button, Toolbar, ToolbarDivider, ToolbarGroup, ToolbarSpacer } from '@cloudillo/react'
+import {
+	Button,
+	CodeBlock,
+	FAB,
+	Toolbar,
+	ToolbarDivider,
+	ToolbarGroup,
+	ToolbarSpacer
+} from '@cloudillo/react'
 import * as React from 'react'
 import {
 	LuAlignCenter,
@@ -37,14 +45,14 @@ export function ToolbarStory() {
 		>
 			<Variant name="Basic Toolbar">
 				<Toolbar>
-					<Button variant="secondary">
+					<Button color="secondary">
 						<LuSave /> Save
 					</Button>
-					<Button variant="secondary">
+					<Button color="secondary">
 						<LuDownload /> Export
 					</Button>
 					<ToolbarDivider />
-					<Button variant="secondary">
+					<Button color="secondary">
 						<LuTrash2 /> Delete
 					</Button>
 				</Toolbar>
@@ -56,34 +64,34 @@ export function ToolbarStory() {
 			>
 				<Toolbar>
 					<ToolbarGroup>
-						<Button variant="secondary" aria-label="Bold">
+						<Button color="secondary" aria-label="Bold">
 							<LuBold />
 						</Button>
-						<Button variant="secondary" aria-label="Italic">
+						<Button color="secondary" aria-label="Italic">
 							<LuItalic />
 						</Button>
-						<Button variant="secondary" aria-label="Underline">
+						<Button color="secondary" aria-label="Underline">
 							<LuUnderline />
 						</Button>
 					</ToolbarGroup>
 					<ToolbarDivider />
 					<ToolbarGroup>
-						<Button variant="secondary" aria-label="Align left">
+						<Button color="secondary" aria-label="Align left">
 							<LuAlignLeft />
 						</Button>
-						<Button variant="secondary" aria-label="Align center">
+						<Button color="secondary" aria-label="Align center">
 							<LuAlignCenter />
 						</Button>
-						<Button variant="secondary" aria-label="Align right">
+						<Button color="secondary" aria-label="Align right">
 							<LuAlignRight />
 						</Button>
 					</ToolbarGroup>
 					<ToolbarSpacer />
 					<ToolbarGroup>
-						<Button variant="secondary" aria-label="Undo">
+						<Button color="secondary" aria-label="Undo">
 							<LuUndo />
 						</Button>
-						<Button variant="secondary" aria-label="Redo">
+						<Button color="secondary" aria-label="Redo">
 							<LuRedo />
 						</Button>
 					</ToolbarGroup>
@@ -95,17 +103,17 @@ export function ToolbarStory() {
 				description="compact={true} — for dense tool palettes in prezillo, ideallo."
 			>
 				<Toolbar compact>
-					<Button variant="secondary" aria-label="Add">
+					<Button color="secondary" aria-label="Add">
 						<LuPlus />
 					</Button>
-					<Button variant="secondary" aria-label="Search">
+					<Button color="secondary" aria-label="Search">
 						<LuSearch />
 					</Button>
 					<ToolbarDivider />
-					<Button variant="secondary" aria-label="Undo">
+					<Button color="secondary" aria-label="Undo">
 						<LuUndo />
 					</Button>
-					<Button variant="secondary" aria-label="Redo">
+					<Button color="secondary" aria-label="Redo">
 						<LuRedo />
 					</Button>
 				</Toolbar>
@@ -118,10 +126,50 @@ export function ToolbarStory() {
 				<Toolbar>
 					<strong style={{ padding: '0 0.5rem' }}>My Document</strong>
 					<ToolbarSpacer />
-					<Button variant="primary">
+					<Button color="primary">
 						<LuSave /> Save
 					</Button>
 				</Toolbar>
+			</Variant>
+
+			<Variant name="Padding, soft and floating">
+				<Toolbar padding={0}>
+					<Button aria-label="Bold" icon={<LuBold />} />
+					<Button aria-label="Italic" icon={<LuItalic />} />
+				</Toolbar>
+				<Toolbar variant="soft">
+					<Button aria-label="Undo" icon={<LuUndo />} />
+					<Button aria-label="Redo" icon={<LuRedo />} />
+				</Toolbar>
+				<Toolbar floating autoHide>
+					<Button aria-label="Search" icon={<LuSearch />} />
+					<Button aria-label="Delete" icon={<LuTrash2 />} />
+				</Toolbar>
+			</Variant>
+
+			<Variant
+				name="FAB"
+				description='`<FAB icon aria-label size color>` — pinned via Affix by default; affix={false} renders it in flow. Successor of Button mode="float".'
+			>
+				<FAB affix={false} icon={<LuPlus />} aria-label="Create" />
+				<FAB
+					affix={false}
+					size="sm"
+					color="secondary"
+					icon={<LuPlus />}
+					aria-label="Create"
+				/>
+				<FAB affix={false} size="lg" color="accent" icon={<LuPlus />} aria-label="Create" />
+			</Variant>
+
+			<Variant
+				name="CodeBlock"
+				description="`inline` renders `<code>`; `copyable` adds a copy button."
+			>
+				<p>
+					Run <CodeBlock inline>pnpm install</CodeBlock> first.
+				</p>
+				<CodeBlock copyable>{'pnpm -r build\npnpm -C shell dev'}</CodeBlock>
 			</Variant>
 		</Story>
 	)

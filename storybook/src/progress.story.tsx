@@ -13,9 +13,9 @@ export function ProgressStory() {
 			props={[
 				{ name: 'value', type: 'number', descr: 'Progress value (0-100)' },
 				{
-					name: 'variant',
-					type: '"primary" | "secondary" | "accent" | "error" | "warning" | "success"',
-					descr: 'Color variant'
+					name: 'color',
+					type: 'ColorVariant',
+					descr: 'Tone'
 				},
 				{ name: 'indeterminate', type: 'boolean', descr: 'Show indeterminate animation' }
 			]}
@@ -32,18 +32,18 @@ export function ProgressStory() {
 			<Variant name="Color Variants">
 				<div className="c-vbox g-2">
 					<Progress value={60} />
-					<Progress value={60} variant="primary" />
-					<Progress value={60} variant="secondary" />
-					<Progress value={60} variant="accent" />
-					<Progress value={60} variant="success" />
-					<Progress value={60} variant="warning" />
-					<Progress value={60} variant="error" />
+					<Progress value={60} color="primary" />
+					<Progress value={60} color="secondary" />
+					<Progress value={60} color="accent" />
+					<Progress value={60} color="success" />
+					<Progress value={60} color="warning" />
+					<Progress value={60} color="error" />
 				</div>
 			</Variant>
 
 			<Variant name="Interactive">
 				<div className="c-vbox g-2">
-					<Progress value={value} variant="primary" />
+					<Progress value={value} color="primary" />
 					<input
 						type="range"
 						min={0}

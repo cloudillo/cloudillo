@@ -29,7 +29,7 @@ export function ActionSheetStory() {
 	return (
 		<Story
 			name="ActionSheet"
-			description="Bottom-anchored mobile menu that slides up. Preferred over Menu on touch devices — items are larger (≥44px), content spans full width, and it dismisses on backdrop tap / Escape. Use for the same kinds of actions Menu covers, but when the viewport is narrow or interaction is touch-first."
+			description="Deprecated: use Menu — it renders as this bottom sheet by itself on touch devices and below 48rem. Kept for existing app callers; shown here as the sheet renderer Menu uses."
 			props={[
 				{ name: 'isOpen', type: 'boolean', required: true, descr: 'Open state' },
 				{
@@ -43,7 +43,7 @@ export function ActionSheetStory() {
 		>
 			<Variant name="Basic actions">
 				<div>
-					<Button variant="primary" onClick={() => setBasicOpen(true)}>
+					<Button color="primary" onClick={() => setBasicOpen(true)}>
 						Open action sheet
 					</Button>
 					<ActionSheet
@@ -65,7 +65,7 @@ export function ActionSheetStory() {
 				description="ActionSheetSubItem expands inline on tap — no nested overlays, stays thumb-reachable."
 			>
 				<div>
-					<Button variant="primary" onClick={() => setFullOpen(true)}>
+					<Button color="primary" onClick={() => setFullOpen(true)}>
 						Open full sheet
 					</Button>
 					<ActionSheet

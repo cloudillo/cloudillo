@@ -24,14 +24,14 @@ export function ThemeSwitcher() {
 	return (
 		<div className="theme-switcher">
 			<Button
-				kind="link"
+				variant="link"
 				onClick={toggleMode}
 				title={mode === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
 			>
 				{mode === 'light' ? '🌙' : '☀️'}
 			</Button>
 			<Button
-				kind="link"
+				variant="link"
 				onClick={toggleTheme}
 				title={theme === 'glass' ? 'Switch to opaque theme' : 'Switch to glass theme'}
 			>

@@ -1,10 +1,8 @@
 // Cloudillo Storybook Utility Components
 // Based on patron storybook structure
 
-import { atom, useAtom } from 'jotai'
 import * as React from 'react'
-import { useLocation } from 'react-router'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 
 /* Utils */
 /*********/
@@ -104,13 +102,26 @@ export type RegistryState = Record<
 	}
 >
 
-const registryAtom = atom<RegistryState>({})
+// Not a jotai atom: jotai 3.0.0 drops writes made in child effects before the
+// parent's useAtom subscribes. useSyncExternalStore re-reads on subscribe.
+let registry: RegistryState = {}
+const listeners = new Set<() => void>()
+
+function subscribeRegistry(cb: () => void) {
+	listeners.add(cb)
+	return () => {
+		listeners.delete(cb)
+	}
+}
+
+function useRegistry() {
+	return React.useSyncExternalStore(subscribeRegistry, () => registry)
+}
 
 export function useRegister() {
-	const [_reg, setReg] = useAtom(registryAtom)
-
 	return function register(path: string, title?: string) {
-		setReg((r) => ({ ...r, [path]: { path, title: title ?? path } }))
+		registry = { ...registry, [path]: { path, title: title ?? path } }
+		for (const cb of listeners) cb()
 	}
 }
 
@@ -123,7 +134,7 @@ export function Page({
 	description?: string
 	children?: React.ReactNode
 }) {
-	const [registry] = useAtom(registryAtom)
+	const registry = useRegistry()
 
 	return (
 		<div className="sb--m-page">
@@ -232,13 +243,15 @@ export function Variant({
 }: {
 	name: string
 	description?: string
-	children: React.ReactElement
+	children: React.ReactNode
 }) {
 	const [more, setMore] = React.useState(false)
 
 	let code: string | undefined
 	if (typeof children != 'string') {
-		code = stringify(children)
+		code = (Array.isArray(children) ? children : [children])
+			.map((child: React.ReactNode) => stringify(child))
+			.join('')
 	}
 
 	return (

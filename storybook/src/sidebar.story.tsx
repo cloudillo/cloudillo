@@ -39,7 +39,7 @@ function SidebarDemo() {
 						<HBox className="justify-content-between align-items-center">
 							<h4 className="m-0">Menu</h4>
 							<Button
-								kind="link"
+								variant="link"
 								onClick={sidebar.togglePin}
 								title={sidebar.isPinned ? 'Unpin' : 'Pin'}
 							>

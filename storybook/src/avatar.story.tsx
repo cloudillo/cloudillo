@@ -1,4 +1,4 @@
-import { Avatar, AvatarBadge, AvatarGroup, AvatarStatus } from '@cloudillo/react'
+import { Avatar, AvatarGroup, AvatarStatus } from '@cloudillo/react'
 import * as React from 'react'
 
 import { Story, Variant } from './storybook.js'
@@ -32,14 +32,25 @@ export function AvatarStory() {
 					<Avatar size="md" fallback="MD" />
 					<Avatar size="lg" fallback="LG" />
 					<Avatar size="xl" fallback="XL" />
+					<Avatar size="2xl" fallback="2X" />
+					<Avatar size="3xl" fallback="3X" />
 				</div>
 			</Variant>
 
 			<Variant name="Shapes">
 				<div className="c-hbox g-2">
 					<Avatar fallback="C" />
+					<Avatar shape="squircle" fallback="SQ" />
 					<Avatar shape="square" fallback="S" />
 					<Avatar shape="rounded" fallback="R" />
+				</div>
+			</Variant>
+
+			<Variant name="Default Initials Fallback">
+				<div className="c-hbox g-2">
+					<Avatar alt="Ada Lovelace" />
+					<Avatar alt="Guest" size="lg" />
+					<Avatar alt="Ada Lovelace" src="/broken.png" shape="squircle" />
 				</div>
 			</Variant>
 
@@ -65,16 +76,8 @@ export function AvatarStory() {
 					<Avatar fallback="AW">
 						<AvatarStatus status="away" />
 					</Avatar>
-				</div>
-			</Variant>
-
-			<Variant name="With Badge">
-				<div className="c-hbox g-2">
-					<Avatar fallback="JD">
-						<AvatarBadge count={5} />
-					</Avatar>
-					<Avatar fallback="JD">
-						<AvatarBadge variant="error" count={99} />
+					<Avatar fallback="PE">
+						<AvatarStatus status="pending" />
 					</Avatar>
 				</div>
 			</Variant>

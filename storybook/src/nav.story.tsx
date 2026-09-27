@@ -1,9 +1,11 @@
-import { Nav, NavGroup, NavItem, NavLink } from '@cloudillo/react'
+import { Badge, Nav } from '@cloudillo/react'
 import * as React from 'react'
 import {
+	LuBell as IcBell,
 	LuFolder as IcFolder,
 	LuHouse as IcHome,
 	LuSettings as IcSettings,
+	LuShield as IcShield,
 	LuUser as IcUser
 } from 'react-icons/lu'
 
@@ -15,114 +17,72 @@ export function NavStory() {
 	return (
 		<Story
 			name="Nav"
-			description="Navigation component system with Nav, NavGroup, NavItem, and NavLink for building menus and navigation bars."
+			description="Compound navigation menu: <Nav> + Nav.Section / Nav.Item / Nav.Divider, rendered as <nav><ul><li>. Router hrefs get aria-current from the current route. NavItem is deprecated."
 			props={[
+				{ name: 'aria-label', type: 'string', descr: 'Nav: accessible name of the menu' },
 				{
-					name: 'as',
-					type: '"nav" | "ul" | "div"',
-					descr: 'Nav/NavGroup: HTML element to render'
+					name: 'orientation',
+					type: '"vertical" | "horizontal"',
+					descr: 'Nav: layout (default: vertical)'
 				},
-				{ name: 'vertical', type: 'boolean', descr: 'Nav/NavGroup: vertical layout' },
+				{ name: 'size', type: 'Size', descr: 'Nav: text size' },
+				{ name: 'elevation', type: '"low" | "mid" | "high"', descr: 'Nav: background' },
+				{ name: 'label', type: 'ReactNode', descr: 'Nav.Section: heading; Nav.Item: text' },
 				{
-					name: 'elevation',
-					type: '"low" | "mid" | "high"',
-					descr: 'Nav: elevation level'
+					name: 'href',
+					type: 'string',
+					descr: 'Nav.Item: "/…" → router link, active when the route matches exactly'
 				},
-				{ name: 'emph', type: 'boolean', descr: 'Nav: emphasized state' },
-				{ name: 'active', type: 'boolean', descr: 'NavItem/NavLink: active state' },
-				{ name: 'disabled', type: 'boolean', descr: 'NavItem: disabled state' },
-				{ name: 'gap', type: '0 | 1 | 2 | 3', descr: 'NavGroup/NavItem: gap between items' }
+				{ name: 'onClick', type: '(evt) => void', descr: 'Nav.Item: button item' },
+				{ name: 'icon', type: 'ReactNode', descr: 'Nav.Item: leading icon' },
+				{ name: 'badge', type: 'ReactNode', descr: 'Nav.Item: trailing node (Badge)' },
+				{ name: 'count', type: 'number', descr: 'Nav.Item: muted trailing count' },
+				{ name: 'depth', type: 'number', descr: 'Nav.Item: indent level' },
+				{ name: 'active', type: 'boolean', descr: 'Nav.Item: overrides router state' },
+				{ name: 'disabled', type: 'boolean', descr: 'Nav.Item: disabled' }
 			]}
 		>
-			<Variant name="Horizontal Nav">
-				<Nav>
-					<NavGroup gap={1}>
-						<NavItem
-							active={activeItem === 'home'}
-							onClick={() => setActiveItem('home')}
-						>
-							<IcHome /> Home
-						</NavItem>
-						<NavItem
-							active={activeItem === 'profile'}
-							onClick={() => setActiveItem('profile')}
-						>
-							<IcUser /> Profile
-						</NavItem>
-						<NavItem
-							active={activeItem === 'files'}
-							onClick={() => setActiveItem('files')}
-						>
-							<IcFolder /> Files
-						</NavItem>
-						<NavItem
-							active={activeItem === 'settings'}
-							onClick={() => setActiveItem('settings')}
-						>
-							<IcSettings /> Settings
-						</NavItem>
-					</NavGroup>
+			<Variant name="Settings sidebar (router links)">
+				<Nav aria-label="Settings" elevation="low" style={{ width: 240 }}>
+					<Nav.Section label="Account">
+						<Nav.Item href="/" icon={<IcHome />} label="Home (active on /)" />
+						<Nav.Item href="/profile" icon={<IcUser />} label="Profile" />
+						<Nav.Item href="/security" icon={<IcShield />} label="Security" />
+					</Nav.Section>
+					<Nav.Divider />
+					<Nav.Section label="Preferences">
+						<Nav.Item
+							href="/notifications"
+							icon={<IcBell />}
+							label="Notifications"
+							badge={<Badge color="error">3</Badge>}
+						/>
+						<Nav.Item href="/files" icon={<IcFolder />} label="Files" count={42} />
+						<Nav.Item href="/files/shared" label="Shared" depth={1} count={5} />
+						<Nav.Item icon={<IcSettings />} label="Advanced" disabled />
+					</Nav.Section>
 				</Nav>
 			</Variant>
 
-			<Variant name="Vertical Nav">
-				<Nav vertical emph style={{ width: '200px' }}>
-					<NavGroup vertical>
-						<NavItem active gap={2}>
-							<IcHome /> Home
-						</NavItem>
-						<NavItem gap={2}>
-							<IcUser /> Profile
-						</NavItem>
-						<NavItem gap={2}>
-							<IcFolder /> Files
-						</NavItem>
-						<NavItem gap={2}>
-							<IcSettings /> Settings
-						</NavItem>
-					</NavGroup>
+			<Variant name="Button items (filter)">
+				<Nav aria-label="Filter" style={{ width: 220 }}>
+					{(['home', 'profile', 'files'] as const).map((key) => (
+						<Nav.Item
+							key={key}
+							label={key[0].toUpperCase() + key.slice(1)}
+							active={activeItem === key}
+							onClick={() => setActiveItem(key)}
+						/>
+					))}
 				</Nav>
 			</Variant>
 
-			<Variant name="Elevation Levels">
-				<div className="c-vbox g-2">
-					<Nav elevation="low">
-						<NavGroup>
-							<NavItem>Low Elevation</NavItem>
-						</NavGroup>
-					</Nav>
-					<Nav elevation="mid">
-						<NavGroup>
-							<NavItem>Mid Elevation</NavItem>
-						</NavGroup>
-					</Nav>
-					<Nav elevation="high">
-						<NavGroup>
-							<NavItem>High Elevation</NavItem>
-						</NavGroup>
-					</Nav>
-				</div>
-			</Variant>
-
-			<Variant name="With Disabled Items">
-				<Nav>
-					<NavGroup gap={1}>
-						<NavItem>Active Item</NavItem>
-						<NavItem disabled>Disabled Item</NavItem>
-						<NavItem>Another Item</NavItem>
-					</NavGroup>
-				</Nav>
-			</Variant>
-
-			<Variant name="Nav Links">
-				<Nav>
-					<NavGroup gap={1}>
-						<NavLink href="#home" active>
-							Home
-						</NavLink>
-						<NavLink href="#about">About</NavLink>
-						<NavLink href="#contact">Contact</NavLink>
-					</NavGroup>
+			<Variant name="Horizontal">
+				<Nav aria-label="Sections" orientation="horizontal" size="sm">
+					<Nav.Item href="/" icon={<IcHome />} label="Home" />
+					<Nav.Item href="/profile" icon={<IcUser />} label="Profile" />
+					<Nav.Divider />
+					<Nav.Item href="/files" icon={<IcFolder />} label="Files" count={7} />
 				</Nav>
 			</Variant>
 		</Story>

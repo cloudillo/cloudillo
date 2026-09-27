@@ -345,7 +345,7 @@ export function PagePropertiesPanel({
 						<IcHome />
 						<span className="fill text-sm">{t('Home page')}</span>
 						{!readOnly && (
-							<Button size="small" onClick={onToggleHome}>
+							<Button size="sm" onClick={onToggleHome}>
 								{t('Remove as home page')}
 							</Button>
 						)}
@@ -355,7 +355,7 @@ export function PagePropertiesPanel({
 					<div className="c-hbox align-items-center g-2">
 						<IcHome />
 						<span className="fill text-sm text-muted">{t('Not your home page.')}</span>
-						<Button size="small" onClick={onToggleHome}>
+						<Button size="sm" onClick={onToggleHome}>
 							{t('Set as home page')}
 						</Button>
 					</div>

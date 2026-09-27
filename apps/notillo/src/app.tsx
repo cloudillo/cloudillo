@@ -42,6 +42,7 @@ import {
 
 import '@symbion/opalui'
 import '@symbion/opalui/themes/glass.css'
+import '@cloudillo/fonts/fonts.css'
 import '@cloudillo/react/components.css'
 import './i18n.js'
 import './style.css'
@@ -1148,15 +1149,14 @@ export function NotilloApp() {
 				<AppDocBar
 					start={
 						<Button
-							kind="link"
-							mode="icon"
-							size="small"
+							variant="link"
+							size="sm"
 							className="md-hide lg-hide"
 							onClick={() => setShowFilter(true)}
 							title={t('Open sidebar')}
-						>
-							<IcSidebar />
-						</Button>
+							icon={<IcSidebar />}
+							aria-label={t('Open sidebar')}
+						/>
 					}
 					sub={
 						activePage
@@ -1181,25 +1181,24 @@ export function NotilloApp() {
 								    so with site mode off it would open empty. */}
 								{siteMode && (
 									<Button
-										kind="link"
-										mode="icon"
-										size="small"
+										variant="link"
+										size="sm"
 										aria-pressed={showProperties}
 										onClick={toggleProperties}
 										title={t('Page settings')}
-									>
-										<IcProperties size={20} />
-									</Button>
+										icon={<IcProperties size={20} />}
+										aria-label={t('Page settings')}
+									/>
 								)}
 								{canComment && (
 									// The badge is absolutely positioned against this wrapper.
 									<div style={{ position: 'relative' }}>
 										<Button
-											kind="link"
-											mode="icon"
-											size="small"
+											variant="link"
+											size="sm"
 											onClick={toggleComments}
 											title={t('Comments')}
+											aria-label={t('Comments')}
 										>
 											<IcComment size={20} />
 											{threadCount > 0 && (
@@ -1348,7 +1347,7 @@ export function NotilloApp() {
 								<span className="flex-fill">
 									{t('Page list may be out of date.')}
 								</span>
-								<Button kind="link" size="small" onClick={retryPages}>
+								<Button variant="link" size="sm" onClick={retryPages}>
 									{t('Try again')}
 								</Button>
 							</div>

@@ -17,6 +17,7 @@ import { PiTrashBold as IcDelete, PiPlusBold as IcPlus } from 'react-icons/pi'
 
 import '@symbion/opalui'
 import '@symbion/opalui/themes/glass.css'
+import '@cloudillo/fonts/fonts.css'
 import '@cloudillo/react/components.css'
 import './style.css'
 
@@ -429,7 +430,7 @@ function TaskItem({
 						<button
 							onClick={handleDelete}
 							disabled={deleting}
-							className="c-button error small"
+							className="c-button error sm"
 							aria-label={`Confirm delete "${task.text}"`}
 						>
 							<IcDelete /> Delete?
@@ -438,7 +439,7 @@ function TaskItem({
 						<button
 							onClick={handleDelete}
 							disabled={deleting}
-							className="c-button icon small"
+							className="c-button icon sm"
 							title="Delete task"
 							aria-label={`Delete "${task.text}"`}
 						>

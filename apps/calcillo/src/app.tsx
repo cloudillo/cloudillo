@@ -14,6 +14,7 @@ import type * as Y from 'yjs'
 
 import '@symbion/opalui'
 import '@symbion/opalui/themes/glass.css'
+import '@cloudillo/fonts/fonts.css'
 import '@cloudillo/react/components.css'
 import '@fortune-sheet/react/dist/index.css'
 import './style.css'

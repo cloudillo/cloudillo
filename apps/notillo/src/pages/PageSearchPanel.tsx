@@ -408,7 +408,7 @@ export function PageSearchPanel({
 								<div className="text-muted text-sm">
 									{t('Page content search is unavailable.')}
 								</div>
-								<Button kind="link" size="small" onClick={onRetryContentSearch}>
+								<Button variant="link" size="sm" onClick={onRetryContentSearch}>
 									{t('Try again')}
 								</Button>
 							</div>
@@ -438,14 +438,14 @@ export function PageSearchPanel({
 									</div>
 								)}
 								{activeTags.size > 0 && (
-									<Button kind="link" size="small" onClick={onClearTags}>
+									<Button variant="link" size="sm" onClick={onClearTags}>
 										{t('Clear tag filter')}
 									</Button>
 								)}
 								{!readOnly && searchQuery.trim() && (
 									<Button
-										kind="link"
-										size="small"
+										variant="link"
+										size="sm"
 										onClick={async () => {
 											try {
 												const id = await createPage(

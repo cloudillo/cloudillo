@@ -65,14 +65,13 @@ export function DocSettingsDialog({
 				<div className="c-hbox align-items-center g-2">
 					<h2 className="fill m-0">{t('Document settings')}</h2>
 					<Button
-						kind="link"
-						mode="icon"
-						size="small"
+						variant="link"
+						size="sm"
 						title={t('Close')}
 						onClick={onClose}
-					>
-						<IcClose />
-					</Button>
+						icon={<IcClose />}
+						aria-label={t('Close')}
+					/>
 				</div>
 
 				<div className="c-vbox g-4 overflow-y-auto">
@@ -105,7 +104,7 @@ export function DocSettingsDialog({
 								<IcHome />
 								<span className="fill">{homeTitle ?? t('No home page yet.')}</span>
 								{!readOnly && (
-									<Button size="small" onClick={onChooseHome}>
+									<Button size="sm" onClick={onChooseHome}>
 										{homeTitle ? t('Change') : t('Choose a home page')}
 									</Button>
 								)}

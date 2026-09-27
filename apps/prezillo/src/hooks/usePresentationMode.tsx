@@ -59,7 +59,7 @@ export function usePresentationMode({
 					duration: 4000,
 					actions: (
 						<button
-							className="c-button primary small"
+							className="c-button primary sm"
 							onClick={() => prezillo.followPresenter(presenter.clientId)}
 						>
 							Follow

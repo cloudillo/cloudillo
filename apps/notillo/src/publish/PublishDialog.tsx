@@ -127,12 +127,12 @@ function BlockedRefRow({
 						: refItem.fileName || refItem.fileId}
 				</span>
 				{canMakePublic && (
-					<Button size="small" disabled={busy} onClick={onMakePublic}>
+					<Button size="sm" disabled={busy} onClick={onMakePublic}>
 						{busy ? t('Working…') : t('Make public')}
 					</Button>
 				)}
 				{removable && (
-					<Button size="small" disabled={busy} onClick={onRemove}>
+					<Button size="sm" disabled={busy} onClick={onRemove}>
 						{t('Remove')}
 					</Button>
 				)}
@@ -213,7 +213,7 @@ function IssueRow({
 				{icon ?? <IcAlert />}
 				<span className="fill">{title}</span>
 				{onGoToPage && (
-					<Button size="small" onClick={onGoToPage}>
+					<Button size="sm" onClick={onGoToPage}>
 						{t('Open page')}
 					</Button>
 				)}
@@ -295,14 +295,13 @@ export function PublishDialog({
 						{checking ? t('Check references') : t('Publish site')}
 					</h2>
 					<Button
-						kind="link"
-						mode="icon"
-						size="small"
+						variant="link"
+						size="sm"
 						title={t('Close')}
 						onClick={onClose}
-					>
-						<IcClose />
-					</Button>
+						icon={<IcClose />}
+						aria-label={t('Close')}
+					/>
 				</div>
 
 				<div className="c-vbox g-4 overflow-y-auto">
@@ -426,7 +425,7 @@ export function PublishDialog({
 											path: mountPath ?? '/'
 										})}
 									</span>
-									<Button size="small" onClick={onChooseHome}>
+									<Button size="sm" onClick={onChooseHome}>
 										{t('Choose a home page')}
 									</Button>
 								</li>
@@ -540,7 +539,7 @@ export function PublishDialog({
 						{checking ? t('Close') : t('Cancel')}
 					</Button>
 					{!checking && (
-						<Button variant="primary" disabled={!canPublish} onClick={onPublish}>
+						<Button color="primary" disabled={!canPublish} onClick={onPublish}>
 							{publishing ? t('Publishing…') : t('Publish')}
 						</Button>
 					)}

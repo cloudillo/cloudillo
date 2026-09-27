@@ -11,6 +11,10 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 
 buildAppEntry(esbuild, {
 	projectDir: __dirname,
+	extra: {
+		// Mark font paths as external - they're served at runtime from shell's /fonts/
+		external: ['/fonts/*']
+	},
 	onBuild: async (_pkg, config) => {
 		// Copy OpenCV.js from jscanify for dynamic loading
 		const outdir = join(__dirname, config.outdir)

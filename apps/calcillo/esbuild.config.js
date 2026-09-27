@@ -8,6 +8,12 @@ import { buildAppEntry } from '../../scripts/esbuild-common.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
-buildAppEntry(esbuild, { projectDir: __dirname })
+buildAppEntry(esbuild, {
+	projectDir: __dirname,
+	extra: {
+		// Mark font paths as external - they're served at runtime from shell's /fonts/
+		external: ['/fonts/*']
+	}
+})
 
 // vim: ts=4

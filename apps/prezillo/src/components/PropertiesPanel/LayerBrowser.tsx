@@ -402,7 +402,7 @@ export function LayerBrowser({
 					<>
 						<button
 							type="button"
-							className="c-button icon compact"
+							className="c-button icon xs"
 							onClick={(e) =>
 								handleToggleContainerVisibility(e, containerId as ContainerId)
 							}
@@ -412,7 +412,7 @@ export function LayerBrowser({
 						</button>
 						<button
 							type="button"
-							className="c-button icon compact"
+							className="c-button icon xs"
 							onClick={(e) =>
 								handleToggleContainerLock(e, containerId as ContainerId)
 							}
@@ -474,7 +474,7 @@ export function LayerBrowser({
 					<>
 						<button
 							type="button"
-							className="c-button icon compact"
+							className="c-button icon xs"
 							onClick={(e) => handleToggleObjectVisibility(e, objectId as ObjectId)}
 							title={isVisible ? 'Hide' : 'Show'}
 						>
@@ -482,7 +482,7 @@ export function LayerBrowser({
 						</button>
 						<button
 							type="button"
-							className="c-button icon compact"
+							className="c-button icon xs"
 							onClick={(e) => handleToggleObjectLock(e, objectId as ObjectId)}
 							title={isLocked ? 'Unlock' : 'Lock'}
 						>

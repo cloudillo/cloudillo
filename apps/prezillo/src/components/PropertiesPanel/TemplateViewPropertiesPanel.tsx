@@ -255,7 +255,7 @@ export function TemplateViewPropertiesPanel({
 					<div className="c-hbox g-1 mt-2">
 						<button
 							type="button"
-							className="c-button compact flex-1"
+							className="c-button xs flex-1"
 							onClick={() => handleAddGuide('horizontal')}
 							title="Add horizontal guide"
 						>
@@ -263,7 +263,7 @@ export function TemplateViewPropertiesPanel({
 						</button>
 						<button
 							type="button"
-							className="c-button compact flex-1"
+							className="c-button xs flex-1"
 							onClick={() => handleAddGuide('vertical')}
 							title="Add vertical guide"
 						>

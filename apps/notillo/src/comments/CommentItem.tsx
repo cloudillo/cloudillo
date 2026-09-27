@@ -125,10 +125,10 @@ export function CommentItem({ comment, isOwn, readOnly, onEdit, onDelete }: Comm
 						rows={3}
 					/>
 					<div className="comment-input-actions">
-						<Button size="small" onClick={handleSave}>
+						<Button size="sm" onClick={handleSave}>
 							<IcCheck size={14} /> {t('Save')}
 						</Button>
-						<Button kind="link" size="small" onClick={handleCancel}>
+						<Button variant="link" size="sm" onClick={handleCancel}>
 							{t('Cancel')}
 						</Button>
 					</div>

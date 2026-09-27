@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next'
 
 import '@symbion/opalui'
 import '@symbion/opalui/themes/glass.css'
+import '@cloudillo/fonts/fonts.css'
 import '@cloudillo/react/components.css'
 
 import { AppDocBar, Toasts, useApi, useCloudillo } from '@cloudillo/react'

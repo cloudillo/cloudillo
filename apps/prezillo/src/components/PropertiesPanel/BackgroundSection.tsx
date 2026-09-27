@@ -203,7 +203,7 @@ export function BackgroundSection({ doc, yDoc, view }: BackgroundSectionProps) {
 				<div className="c-hbox jc-end mb-2">
 					<button
 						type="button"
-						className="c-button compact small"
+						className="c-button xs"
 						onClick={handleResetToTemplate}
 						title="Reset to template background"
 					>

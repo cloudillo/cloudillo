@@ -16,6 +16,8 @@ const bufferDir = dirname(require.resolve('buffer/package.json'))
 buildAppEntry(esbuild, {
 	projectDir: __dirname,
 	extra: {
+		// Mark font paths as external - they're served at runtime from shell's /fonts/
+		external: ['/fonts/*'],
 		conditions: ['style'],
 		inject: [join(__dirname, 'src/buffer-shim.js')],
 		alias: { buffer: bufferDir }

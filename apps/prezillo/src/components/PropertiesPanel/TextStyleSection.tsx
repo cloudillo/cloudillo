@@ -307,7 +307,7 @@ export function TextStyleSection({
 					<div className="c-hbox">
 						<button
 							className={mergeClasses(
-								'c-button icon compact',
+								'c-button icon xs',
 								selectionFormat.bold ? 'active' : ''
 							)}
 							onClick={handleInlineBold}
@@ -317,7 +317,7 @@ export function TextStyleSection({
 						</button>
 						<button
 							className={mergeClasses(
-								'c-button icon compact',
+								'c-button icon xs',
 								selectionFormat.italic ? 'active' : ''
 							)}
 							onClick={handleInlineItalic}
@@ -327,7 +327,7 @@ export function TextStyleSection({
 						</button>
 						<button
 							className={mergeClasses(
-								'c-button icon compact',
+								'c-button icon xs',
 								selectionFormat.underline ? 'active' : ''
 							)}
 							onClick={handleInlineUnderline}
@@ -337,7 +337,7 @@ export function TextStyleSection({
 						</button>
 						<button
 							className={mergeClasses(
-								'c-button icon compact',
+								'c-button icon xs',
 								selectionFormat.strike ? 'active' : ''
 							)}
 							onClick={handleInlineStrikethrough}
@@ -348,7 +348,7 @@ export function TextStyleSection({
 						<div className="c-toolbar-divider" />
 						<button
 							className={mergeClasses(
-								'c-button icon compact',
+								'c-button icon xs',
 								selectionFormat.list === 'bullet' ? 'active' : ''
 							)}
 							onClick={handleListBullet}
@@ -358,7 +358,7 @@ export function TextStyleSection({
 						</button>
 						<button
 							className={mergeClasses(
-								'c-button icon compact',
+								'c-button icon xs',
 								selectionFormat.list === 'ordered' ? 'active' : ''
 							)}
 							onClick={handleListOrdered}
@@ -376,7 +376,7 @@ export function TextStyleSection({
 					<div className="c-hbox">
 						<button
 							className={mergeClasses(
-								'c-button icon compact',
+								'c-button icon xs',
 								resolvedStyle.textAlign === 'left' ? 'active' : ''
 							)}
 							onClick={() => handleTextAlignChange('left')}
@@ -387,7 +387,7 @@ export function TextStyleSection({
 						</button>
 						<button
 							className={mergeClasses(
-								'c-button icon compact',
+								'c-button icon xs',
 								resolvedStyle.textAlign === 'center' ? 'active' : ''
 							)}
 							onClick={() => handleTextAlignChange('center')}
@@ -398,7 +398,7 @@ export function TextStyleSection({
 						</button>
 						<button
 							className={mergeClasses(
-								'c-button icon compact',
+								'c-button icon xs',
 								resolvedStyle.textAlign === 'right' ? 'active' : ''
 							)}
 							onClick={() => handleTextAlignChange('right')}
@@ -409,7 +409,7 @@ export function TextStyleSection({
 						</button>
 						<button
 							className={mergeClasses(
-								'c-button icon compact',
+								'c-button icon xs',
 								resolvedStyle.textAlign === 'justify' ? 'active' : ''
 							)}
 							onClick={() => handleTextAlignChange('justify')}
@@ -434,7 +434,7 @@ export function TextStyleSection({
 					<div className="c-hbox">
 						<button
 							className={mergeClasses(
-								'c-button icon compact',
+								'c-button icon xs',
 								resolvedStyle.verticalAlign === 'top' ? 'active' : ''
 							)}
 							onClick={() => handleVerticalAlignChange('top')}
@@ -445,7 +445,7 @@ export function TextStyleSection({
 						</button>
 						<button
 							className={mergeClasses(
-								'c-button icon compact',
+								'c-button icon xs',
 								resolvedStyle.verticalAlign === 'middle' ? 'active' : ''
 							)}
 							onClick={() => handleVerticalAlignChange('middle')}
@@ -456,7 +456,7 @@ export function TextStyleSection({
 						</button>
 						<button
 							className={mergeClasses(
-								'c-button icon compact',
+								'c-button icon xs',
 								resolvedStyle.verticalAlign === 'bottom' ? 'active' : ''
 							)}
 							onClick={() => handleVerticalAlignChange('bottom')}
@@ -503,7 +503,7 @@ export function TextStyleSection({
 					<div className="c-bullet-picker">
 						<button
 							className={mergeClasses(
-								'c-button icon compact',
+								'c-button icon xs',
 								currentBulletId ? 'active' : ''
 							)}
 							onClick={() => !bulletLocked && setShowBulletPicker(!showBulletPicker)}

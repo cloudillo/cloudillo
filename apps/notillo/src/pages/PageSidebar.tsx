@@ -768,7 +768,7 @@ export function PageSidebar({
 					{t('Not set — visitors to / see nothing yet.')}
 				</div>
 				{!readOnly && (
-					<Button size="small" onClick={() => setHomePickerOpen(true)}>
+					<Button size="sm" onClick={() => setHomePickerOpen(true)}>
 						{t('Choose a page…')}
 					</Button>
 				)}
@@ -809,22 +809,20 @@ export function PageSidebar({
 				{!readOnly && (
 					<>
 						<Button
-							mode="icon"
-							size="small"
+							size="sm"
 							onClick={handleCreatePage}
 							title={t('New page')}
-						>
-							<IcPlus />
-						</Button>
+							icon={<IcPlus />}
+							aria-label={t('New page')}
+						/>
 						<div ref={menuRef} style={{ position: 'relative' }}>
 							<Button
-								mode="icon"
-								size="small"
+								size="sm"
 								onClick={() => setMenuOpen(!menuOpen)}
 								title={t('More actions')}
-							>
-								<IcMore />
-							</Button>
+								icon={<IcMore />}
+								aria-label={t('More actions')}
+							/>
 							{menuOpen && (
 								<div
 									className="c-menu"
@@ -1031,7 +1029,7 @@ export function PageSidebar({
 								{topLevelPages.map((page) => (
 									<Button
 										key={page.id}
-										kind="link"
+										variant="link"
 										className="justify-content-start"
 										disabled={homeBusy || creatingHome}
 										onClick={() => {
@@ -1050,7 +1048,7 @@ export function PageSidebar({
 						<div className="c-hbox justify-content-end g-2">
 							<Button onClick={() => setHomePickerOpen(false)}>{t('Cancel')}</Button>
 							<Button
-								variant="primary"
+								color="primary"
 								disabled={homeBusy || creatingHome}
 								onClick={handleCreateHomePage}
 							>

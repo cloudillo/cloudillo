@@ -26,6 +26,7 @@
 		"@blocknote/xl-odt-exporter": "^0.55.0",
 		"@blocknote/xl-pdf-exporter": "^0.55.0",
 		"@cloudillo/core": "workspace:^",
+		"@cloudillo/fonts": "workspace:^",
 		"@cloudillo/react": "workspace:^",
 		"@cloudillo/rtdb": "workspace:^",
 		"@jest/globals": "^30.5.2",

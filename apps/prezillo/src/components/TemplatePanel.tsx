@@ -187,7 +187,7 @@ export function TemplatePanel({
 				{!readOnly && (
 					<button
 						type="button"
-						className="c-button icon compact"
+						className="c-button icon xs"
 						onClick={handleCreate}
 						title="Create template"
 					>
@@ -200,7 +200,7 @@ export function TemplatePanel({
 				<div className="c-template-panel__empty">
 					<p>No templates yet</p>
 					{!readOnly && (
-						<button type="button" className="c-button compact" onClick={handleCreate}>
+						<button type="button" className="c-button xs" onClick={handleCreate}>
 							<IcAdd />
 							Create Template
 						</button>

@@ -649,7 +649,7 @@ export function ViewPicker({
 											</div>
 										</div>
 										<button
-											className={`c-button compact${isFollowing ? ' accent' : ' primary'}`}
+											className={`c-button xs${isFollowing ? ' accent' : ' primary'}`}
 											onClick={() => handleFollowClick(presenter.clientId)}
 										>
 											{isFollowing ? t('Following') : t('Follow')}

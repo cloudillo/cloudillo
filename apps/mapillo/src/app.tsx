@@ -7,6 +7,7 @@ import * as React from 'react'
 
 import '@symbion/opalui'
 import '@symbion/opalui/themes/glass.css'
+import '@cloudillo/fonts/fonts.css'
 import './style.css'
 
 import { MapView } from './map.js'

@@ -84,9 +84,13 @@ export function CommentPopup({
 					<span className="font-semibold flex-fill" style={{ fontSize: '0.85rem' }}>
 						{t('Comments')}
 					</span>
-					<Button kind="link" mode="icon" size="small" onClick={onClose}>
-						<IcClose size={16} />
-					</Button>
+					<Button
+						variant="link"
+						size="sm"
+						onClick={onClose}
+						icon={<IcClose size={16} />}
+						aria-label={t('Close')}
+					/>
 				</div>
 				{threads.map((thread) => (
 					<PopupThread
@@ -170,19 +174,18 @@ function PopupThread({
 						rows={1}
 					/>
 					<Button
-						mode="icon"
-						size="small"
+						size="sm"
 						onClick={handleReply}
 						disabled={!replyText.trim() || submitting}
 						title={t('Send')}
-					>
-						<IcSend size={14} />
-					</Button>
+						icon={<IcSend size={14} />}
+						aria-label={t('Send')}
+					/>
 				</div>
 			)}
 			{!readOnly && (
 				<div className="comment-thread-status">
-					<Button kind="link" size="small" onClick={handleToggleStatus}>
+					<Button variant="link" size="sm" onClick={handleToggleStatus}>
 						{thread.status === 'open' ? (
 							<>
 								<IcResolved size={12} /> {t('Resolve')}

@@ -34,6 +34,7 @@ import { FAB } from './components/FAB.js'
 
 import '@symbion/opalui'
 import '@symbion/opalui/themes/glass.css'
+import '@cloudillo/fonts/fonts.css'
 import '@cloudillo/react/components.css'
 import './style.css'
 

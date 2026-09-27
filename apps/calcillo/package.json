@@ -21,6 +21,7 @@
 	"license": "LGPL-3.0-or-later",
 	"devDependencies": {
 		"@cloudillo/core": "workspace:^",
+		"@cloudillo/fonts": "workspace:^",
 		"@cloudillo/crdt": "workspace:^",
 		"@cloudillo/react": "workspace:^",
 		"@fortune-sheet/core": "^1.0.4",

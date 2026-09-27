@@ -55,14 +55,13 @@ export function ThreadListHeader({ readOnly, onNewComment }: ThreadListHeaderPro
 			<span className="font-semibold flex-fill">{t('Comments')}</span>
 			{!readOnly && onNewComment && (
 				<Button
-					kind="link"
-					mode="icon"
-					size="small"
+					variant="link"
+					size="sm"
 					onClick={onNewComment}
 					title={t('New comment')}
-				>
-					<IcPlus />
-				</Button>
+					icon={<IcPlus />}
+					aria-label={t('New comment')}
+				/>
 			)}
 		</>
 	)
@@ -141,14 +140,13 @@ function ExpandedThread({
 		>
 			<div className="comment-thread-collapse">
 				<Button
-					kind="link"
-					mode="icon"
-					size="small"
+					variant="link"
+					size="sm"
 					onClick={onCollapse}
 					title={t('Collapse')}
-				>
-					<IcCollapse size={14} />
-				</Button>
+					icon={<IcCollapse size={14} />}
+					aria-label={t('Collapse')}
+				/>
 			</div>
 			{commentList.map((comment) => (
 				<CommentItem
@@ -171,19 +169,18 @@ function ExpandedThread({
 						rows={1}
 					/>
 					<Button
-						mode="icon"
-						size="small"
+						size="sm"
 						onClick={handleReply}
 						disabled={!replyText.trim() || submitting}
 						title={t('Send')}
-					>
-						<IcSend size={14} />
-					</Button>
+						icon={<IcSend size={14} />}
+						aria-label={t('Send')}
+					/>
 				</div>
 			)}
 			{!readOnly && (
 				<div className="comment-thread-status">
-					<Button kind="link" size="small" onClick={onToggleStatus}>
+					<Button variant="link" size="sm" onClick={onToggleStatus}>
 						{thread.status === 'open' ? (
 							<>
 								<IcResolved size={12} /> {t('Resolve')}
@@ -518,14 +515,10 @@ export const ThreadList = React.forwardRef<ThreadListHandle, ThreadListProps>(fu
 					rows={3}
 				/>
 				<div className="comment-input-actions">
-					<Button
-						size="small"
-						onClick={handleSubmit}
-						disabled={!text.trim() || submitting}
-					>
+					<Button size="sm" onClick={handleSubmit} disabled={!text.trim() || submitting}>
 						<IcSend size={14} /> {t('Send')}
 					</Button>
-					<Button kind="link" size="small" onClick={handleCancel}>
+					<Button variant="link" size="sm" onClick={handleCancel}>
 						{t('Cancel')}
 					</Button>
 				</div>

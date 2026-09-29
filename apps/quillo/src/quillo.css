@@ -506,6 +506,17 @@ body {
    Mobile & Touch Improvements
    ============================================ */
 
+/* Groups never shrink: a shrunk group wraps its buttons into a vertical stack.
+   Above 40rem whole groups wrap to a second row instead of scrolling, because
+   the picker dropdowns are positioned inside #toolbar and a scroller clips them */
+#toolbar {
+	flex-wrap: wrap;
+}
+
+#toolbar > * {
+	flex-shrink: 0;
+}
+
 /* Responsive toolbar - scrollable on mobile */
 @media (width <= 40rem) {
 	#toolbar {
@@ -519,10 +530,6 @@ body {
 
 	#toolbar::-webkit-scrollbar {
 		display: none; /* Chrome/Safari */
-	}
-
-	#toolbar .ql-formats {
-		flex-shrink: 0;
 	}
 
 	/* Hide less-used buttons on small screens */

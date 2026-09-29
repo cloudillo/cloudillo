@@ -41,6 +41,7 @@ export {
 	isContextLeader,
 	LEADER_ONLY_APPS,
 	loadIdpEnabled,
+	useActiveCommunity,
 	useApiContext,
 	useCommunitiesList,
 	useContextSwitch,

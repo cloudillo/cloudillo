@@ -14,11 +14,9 @@ import {
 	IconText,
 	LoadMoreTrigger,
 	Meta,
-	mergeClasses,
 	Nav,
+	PageHeader,
 	Panel,
-	ProfileAudienceCard,
-	ProfileCard,
 	ProfilePicture,
 	RichText,
 	RichTextInput,
@@ -28,6 +26,7 @@ import {
 	Tag,
 	Text,
 	TimeFormat,
+	Tooltip,
 	useApi,
 	useAuth,
 	VBox
@@ -37,14 +36,13 @@ import * as T from '@symbion/runtype'
 import type { TFunction } from 'i18next'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import * as React from 'react'
-import { useTranslation } from 'react-i18next'
+import { Trans, useTranslation } from 'react-i18next'
 import {
 	LuCloud as IcAll,
 	LuCamera as IcCamera,
 	LuUsersRound as IcCommunities,
 	LuLock as IcDirect,
 	LuSave as IcDraft,
-	LuMenu as IcMenu,
 	LuBookmark as IcFollowing,
 	LuImage as IcImage,
 	LuUser as IcMine,
@@ -81,6 +79,7 @@ import {
 	useReadPositionTracker,
 	useScrollEngaged
 } from '../read-position.js'
+import { FilterToggle } from '../ui/FilterToggle.js'
 import { feedPath, profilePath } from '../routes.js'
 import { useWsBus } from '../ws-bus.js'
 import { type DocPostIntent, pendingDocPostAtom } from './feed/doc-post-intent.js'
@@ -134,16 +133,28 @@ interface CommentProps {
 function Comment({ className, action, srcTag }: CommentProps) {
 	const urlContext = useCtx().base
 	if (typeof action.content != 'string') return null
+	const to = profilePath(urlContext, action.issuer.idTag)
 
 	return (
-		<Panel className={className}>
-			<VBox gap={1}>
-				<Link to={profilePath(urlContext, action.issuer.idTag)}>
-					<ProfileCard profile={action.issuer} srcTag={srcTag} />
+		<HBox gap={2} className={className}>
+			<Tooltip content={`@${action.issuer.idTag}`}>
+				<Link to={to}>
+					<ProfilePicture profile={action.issuer} srcTag={srcTag} size="sm" />
 				</Link>
+			</Tooltip>
+			<VBox className="flex-fill w-min-0">
+				<Text as="div" size="sm">
+					<Link to={to} className="font-semibold">
+						{action.issuer.name || action.issuer.idTag}
+					</Link>
+					<Text emphasis="muted">
+						{' · '}
+						<TimeFormat time={action.createdAt} />
+					</Text>
+				</Text>
 				<RichText text={action.content} />
 			</VBox>
-		</Panel>
+		</HBox>
 	)
 }
 
@@ -224,7 +235,7 @@ function SubComments({
 	register?: (node: Element | null) => (() => void) | undefined
 }) {
 	return (
-		<VBox gap={1} className={mergeClasses('ms-3', className)}>
+		<VBox gap={2} className={className}>
 			{comments
 				.filter((action) => action.type == 'CMNT' && action.parentId == parentId)
 				.map((action) => (
@@ -508,8 +519,8 @@ function RepostControl({ original, onQuote }: RepostControlProps) {
 
 	return (
 		<Button
-			variant="link"
-			color={hasAnyOwnRepost ? 'primary' : 'secondary'}
+			variant={hasAnyOwnRepost ? 'soft' : 'ghost'}
+			color={hasAnyOwnRepost ? 'primary' : undefined}
 			size="sm"
 			aria-label={t('Repost')}
 			pressed={hasAnyOwnRepost}
@@ -670,6 +681,15 @@ function Post({
 				: t('Comments ({{count}})', { count: commentCount })
 			: t('Comments')
 	const repostCount = engageAction.stat?.reposts ?? 0
+	const issuerTo = profilePath(urlContext, action.issuer.idTag)
+	const issuerName = action.issuer.name || action.issuer.idTag
+	// A post shown outside its community's own feed names the community in the header.
+	const communityAudience =
+		action.audience &&
+		action.audience.idTag !== action.issuer.idTag &&
+		action.audience.idTag !== hideAudience
+			? action.audience
+			: undefined
 	const vis = getVisibilityMeta(t, action.visibility)
 	const VisIcon = vis?.icon
 	const reactionSummary = (() => {
@@ -698,21 +718,61 @@ function Post({
 				className={className}
 			>
 				<VBox gap={2}>
-					<HBox align="center" gap={2}>
-						{action.audience &&
-						action.audience.idTag !== action.issuer.idTag &&
-						action.audience.idTag !== hideAudience ? (
-							<ProfileAudienceCard
-								profile={action.issuer}
-								audience={action.audience}
-								srcTag={fileIdTag}
-								profileBasePath={profilePath(urlContext)}
-							/>
-						) : (
-							<Link to={profilePath(urlContext, action.issuer.idTag)}>
-								<ProfileCard profile={action.issuer} srcTag={fileIdTag} />
+					<HBox align="start" gap={2}>
+						<Tooltip content={`@${action.issuer.idTag}`}>
+							<Link to={issuerTo}>
+								<ProfilePicture
+									profile={action.issuer}
+									srcTag={fileIdTag}
+									size="md"
+								/>
 							</Link>
-						)}
+						</Tooltip>
+						<VBox className="flex-fill w-min-0">
+							<Text as="div">
+								{communityAudience ? (
+									<Trans
+										i18nKey="<0>{{name}}</0> in <1>{{community}}</1>"
+										values={{
+											name: issuerName,
+											community:
+												communityAudience.name || communityAudience.idTag
+										}}
+										components={[
+											<Link
+												key="issuer"
+												to={issuerTo}
+												className="font-semibold"
+											/>,
+											<Link
+												key="community"
+												to={profilePath(
+													urlContext,
+													communityAudience.idTag
+												)}
+												className="font-semibold"
+											/>
+										]}
+									/>
+								) : (
+									<Link to={issuerTo} className="font-semibold">
+										{issuerName}
+									</Link>
+								)}
+								<Text size="sm" emphasis="muted">
+									{' · '}
+									<TimeFormat time={action.createdAt} />
+								</Text>
+							</Text>
+							<Meta>
+								{!communityAudience && <Text>@{action.issuer.idTag}</Text>}
+								{vis && VisIcon && (
+									<IconText icon={<VisIcon style={{ color: vis.color }} />}>
+										{vis.label}
+									</IconText>
+								)}
+							</Meta>
+						</VBox>
 						{isInFlight && (
 							<Badge color="primary">
 								{action.status === 'S'
@@ -722,17 +782,8 @@ function Post({
 										: t('Pending')}
 							</Badge>
 						)}
-						<Spacer />
 						<PostMenu action={action} onDelete={onDelete} />
 					</HBox>
-					<Meta>
-						{vis && VisIcon && (
-							<IconText icon={<VisIcon style={{ color: vis.color }} />}>
-								{vis.label}
-							</IconText>
-						)}
-						<TimeFormat time={action.createdAt} />
-					</Meta>
 					<VBox gap={2}>
 						{!!bodyText && <RichText text={bodyText} />}
 						{!isRepost && liveDoc && <LiveDocCard docRef={liveDoc} width={width} />}
@@ -747,11 +798,7 @@ function Post({
 									token={auth?.token}
 								/>
 							) : (
-								<Images
-									width={width}
-									attachments={action.attachments}
-									idTag={fileIdTag}
-								/>
+								<Images attachments={action.attachments} idTag={fileIdTag} />
 							))}
 						{isRepost && subjectAction && (
 							<EmbeddedPostCard subjectAction={subjectAction} width={width} />
@@ -768,8 +815,9 @@ function Post({
 						/>
 						<Spacer />
 						<Button
-							variant="link"
-							color="secondary"
+							variant={tab == 'CMNT' ? 'soft' : 'ghost'}
+							color={tab == 'CMNT' ? 'primary' : undefined}
+							size="sm"
 							pressed={tab == 'CMNT'}
 							onClick={() => onTabClick('CMNT')}
 							aria-label={commentLabel}
@@ -800,6 +848,16 @@ function Post({
 							/>
 						)}
 					</HBox>
+					{tab == 'CMNT' && (
+						<>
+							<Divider />
+							<Comments
+								parentAction={engageAction}
+								onCommentsRead={onCommentsRead}
+								onCommentAdded={onCommentAdded}
+							/>
+						</>
+					)}
 					{engagementTab !== undefined && (
 						<EngagementDialog
 							subjectActionId={engageAction.actionId}
@@ -811,14 +869,6 @@ function Post({
 					)}
 				</VBox>
 			</Card>
-			{tab == 'CMNT' && (
-				<Comments
-					parentAction={engageAction}
-					onCommentsRead={onCommentsRead}
-					onCommentAdded={onCommentAdded}
-					className="mt-1"
-				/>
-			)}
 		</>
 	)
 }
@@ -879,20 +929,26 @@ export function ComposeTrigger({ className, onOpen }: ComposeTriggerProps) {
 		<Panel className={className}>
 			<HBox gap={2} align="center">
 				<ProfilePicture profile={{ profilePic: auth.profilePic }} small />
-				<Button variant="soft" className="flex-fill" onClick={() => onOpen()}>
-					{t("What's on your mind?")}
+				<Button variant="soft" className="flex-fill w-min-0" onClick={() => onOpen()}>
+					<Text truncate>{t("What's on your mind?")}</Text>
 				</Button>
 				<Button variant="ghost" aria-label={t('Add image')} onClick={() => onOpen('image')}>
 					<IcImage />
 				</Button>
 				<Button
 					variant="ghost"
+					className="sm-hide"
 					aria-label={t('Take photo')}
 					onClick={() => onOpen('camera')}
 				>
 					<IcCamera />
 				</Button>
-				<Button variant="ghost" aria-label={t('Add video')} onClick={() => onOpen('video')}>
+				<Button
+					variant="ghost"
+					className="sm-hide"
+					aria-label={t('Add video')}
+					onClick={() => onOpen('video')}
+				>
 					<IcVideo />
 				</Button>
 			</HBox>
@@ -971,7 +1027,7 @@ const FilterBar = React.memo(function FilterBar({
 	const sourceOptions = getSourceFilters(t, isOwnContext)
 
 	return (
-		<VBox gap={2} className="pt-2" autoBg>
+		<VBox gap={2} className="pt-2">
 			<SearchInput
 				defaultValue={searchQuery}
 				debounce={300}
@@ -1149,6 +1205,7 @@ export function FeedApp() {
 	// Determine audience for feed (undefined for own context, contextIdTag for community)
 	const isOwnContext = !contextIdTag || contextIdTag === auth?.idTag
 	const audience = isOwnContext ? undefined : contextIdTag
+	const contextCommunity = audience ? communities.find((c) => c.idTag === audience) : undefined
 	// All feeds — home, community, profile — order and track reads by ingestion
 	// time (received_at) so a late-federated post (old author time, recent
 	// arrival) surfaces at the top and is correctly unread everywhere, not just
@@ -1813,17 +1870,22 @@ export function FeedApp() {
 			</Fcd.Filter>
 			<Fcd.Content
 				ref={setScrollEl}
+				width="reading"
 				header={
-					<HBox align="center" gap={2} padding={2} autoBg>
-						<Button
-							variant="ghost"
-							className="md-hide lg-hide"
-							aria-label={t('Filters')}
-							onClick={() => setShowFilter(true)}
-						>
-							<IcMenu />
-						</Button>
-					</HBox>
+					<PageHeader
+						title={t('Feed')}
+						subtitle={contextCommunity?.name}
+						leading={
+							contextCommunity && (
+								<ProfilePicture
+									profile={contextCommunity}
+									srcTag={contextCommunity.idTag}
+									size="sm"
+								/>
+							)
+						}
+						actions={<FilterToggle onClick={() => setShowFilter(true)} />}
+					/>
 				}
 			>
 				{!!auth && !composeOpen && <ComposeTrigger onOpen={handleComposeOpen} />}
@@ -1843,7 +1905,7 @@ export function FeedApp() {
 					/>
 				)}
 				{!composeOpen && viewMode === 'unread' && (
-					<VBox ref={widthRef} gap={1}>
+					<VBox ref={widthRef} gap={2}>
 						{isUnreadLoading && unreadPosts.length === 0 ? (
 							<VBox gap={2} padding={2}>
 								<SkeletonCard showAvatar lines={3} />
@@ -1949,7 +2011,7 @@ export function FeedApp() {
 					<NewPostsBanner count={newPostsCount} onClick={showNewPosts} className="my-2" />
 				)}
 				{!composeOpen && viewMode === 'feed' && (
-					<VBox ref={widthRef} gap={1}>
+					<VBox ref={widthRef} gap={2}>
 						{isLoading && feed.length === 0 ? (
 							<VBox gap={2} padding={2}>
 								<SkeletonCard showAvatar showImage lines={2} />
@@ -2034,7 +2096,6 @@ export function FeedApp() {
 					</VBox>
 				)}
 			</Fcd.Content>
-			<Fcd.Details></Fcd.Details>
 		</Fcd.Container>
 	)
 }

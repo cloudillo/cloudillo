@@ -1,18 +1,20 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { getFileUrl, getInstanceUrl, type ProfilePatch } from '@cloudillo/core'
+import { getFileUrl, getInstanceUrl, idHue, type ProfilePatch } from '@cloudillo/core'
 import {
 	Avatar,
 	Badge,
 	Button,
 	Center,
+	FAB,
 	Fcd,
 	Field,
 	FileButton,
 	HBox,
-	Heading,
 	Input,
+	List,
+	ListItem,
 	LoadingSpinner,
 	Menu,
 	MenuDivider,
@@ -21,7 +23,7 @@ import {
 	Nav,
 	PageHeader,
 	Panel,
-	ProfileCard,
+	ProfilePicture,
 	SearchInput,
 	Skeleton,
 	SkeletonText,
@@ -48,13 +50,13 @@ import {
 	LuHandshake as IcConnect,
 	LuCopy as IcCopy,
 	LuPencil as IcEdit,
-	LuFilter as IcFilter,
 	LuLink as IcRef,
 	LuUserPlus as IcFollow,
 	LuUserCheck as IcFollowsYou,
 	LuMessageCircle as IcMessage,
 	LuEllipsisVertical as IcMore,
 	LuUsers as IcMutual,
+	LuPlus as IcPlus,
 	LuUserMinus as IcRemoveMember
 } from 'react-icons/lu'
 import { Route, Routes, useLocation, useParams } from 'react-router-dom'
@@ -96,6 +98,7 @@ import {
 	ProfileListCard,
 	ProfileStatusBadge
 } from './identities.js'
+import { FilterToggle } from '../ui/FilterToggle.js'
 import { InviteMembersDialog } from './invite-members-dialog.js'
 import { ProfileHero } from './ProfileHero.js'
 import { describeRelationship } from './relationship.js'
@@ -160,9 +163,47 @@ interface ProfileConnectionCmds {
 	onUnblock: () => void
 }
 
-// Existing relations rendered as actionable chips under the name. Each chip
-// opens a Menu with the action that changes/breaks that relation.
-function RelationshipChips({
+// The existing relation as a read-only Badge next to the name.
+// Its actions live in the Follow button and the ⋯ menu.
+function RelationshipBadge({
+	localProfile,
+	profileType
+}: {
+	localProfile?: Partial<Profile>
+	profileType?: 'person' | 'community'
+}) {
+	const { t } = useTranslation()
+	if (!localProfile) return null
+
+	const rel = describeRelationship({ ...localProfile, type: profileType })
+	const [label, icon, color] =
+		rel.primary === 'blocked'
+			? [t('Blocked'), <IcBlock key="i" />, 'error' as const]
+			: rel.primary === 'pending'
+				? [t('Request sent'), <IcConnect key="i" />, 'secondary' as const]
+				: rel.connected
+					? [
+							profileType === 'community' ? t('Member') : t('Connected'),
+							<IcConnect key="i" />,
+							'secondary' as const
+						]
+					: rel.mutual
+						? [t('Mutual'), <IcMutual key="i" />, 'secondary' as const]
+						: rel.followsYou
+							? [t('Follows you'), <IcFollowsYou key="i" />, 'secondary' as const]
+							: []
+	if (!label) return null
+	return (
+		<Badge color={color} icon={icon}>
+			{label}
+		</Badge>
+	)
+}
+
+// The one relationship CTA: primary Follow (or Follow back) while not
+// following, a quiet Following button (click to unfollow) once followed.
+// Nothing when blocked; Unblock lives in the ⋯ menu.
+function ProfileFollowButton({
 	localProfile,
 	profileType,
 	cmds
@@ -173,6 +214,10 @@ function RelationshipChips({
 }) {
 	const { t } = useTranslation()
 	const dialog = useDialog()
+	if (!localProfile) return null
+
+	const rel = describeRelationship({ ...localProfile, type: profileType })
+	if (rel.primary === 'blocked') return null
 
 	async function onUnfollow() {
 		if (
@@ -184,133 +229,53 @@ function RelationshipChips({
 			cmds.onUnfollow()
 	}
 
-	if (!localProfile) return null
-
-	const isCommunity = profileType === 'community'
-	const rel = describeRelationship({ ...localProfile, type: profileType })
-	const pending = localProfile.connected === 'R'
-
-	// Blocked overrides every other relation: a single actionable chip.
-	if (rel.primary === 'blocked')
-		return (
-			<Menu
-				trigger={
-					<Button size="sm" variant="soft" color="error" icon={<IcBlock />}>
-						{t('Blocked')}
-						<IcChevronDown />
-					</Button>
-				}
-			>
-				<MenuItem icon={<IcBlock />} label={t('Unblock')} onClick={cmds.onUnblock} />
-			</Menu>
-		)
-
-	const hasConnection = rel.connected || pending
-	const hasFollow = rel.following || rel.followsYou
-
-	return (
-		<>
-			{hasConnection && (
-				<Menu
-					trigger={
-						<Button size="sm" variant="soft" color="secondary" icon={<IcConnect />}>
-							{pending
-								? t('Request sent')
-								: isCommunity
-									? t('Member')
-									: t('Connected')}
-							<IcChevronDown />
-						</Button>
-					}
-				>
-					<MenuItem
-						icon={<IcConnect />}
-						label={
-							pending
-								? t('Cancel request')
-								: isCommunity
-									? t('Leave')
-									: t('Disconnect')
-						}
-						onClick={cmds.onDisconnect}
-					/>
-				</Menu>
-			)}
-
-			{hasFollow && (
-				<Menu
-					trigger={
-						<Button
-							size="sm"
-							variant="soft"
-							color="secondary"
-							icon={
-								rel.mutual ? (
-									<IcMutual />
-								) : rel.followsYou ? (
-									<IcFollowsYou />
-								) : (
-									<IcFollow />
-								)
-							}
-						>
-							{rel.mutual
-								? t('Mutual')
-								: rel.followsYou
-									? t('Follows you')
-									: t('Following')}
-							<IcChevronDown />
-						</Button>
-					}
-				>
-					{rel.followsYou && !rel.following ? (
-						<MenuItem
-							icon={<IcFollow />}
-							label={t('Follow back')}
-							onClick={cmds.onFollow}
-						/>
-					) : (
-						<MenuItem icon={<IcFollow />} label={t('Unfollow')} onClick={onUnfollow} />
-					)}
-				</Menu>
-			)}
-		</>
+	return rel.following ? (
+		<Button icon={<IcFollowsYou />} onClick={onUnfollow}>
+			{t('Following')}
+		</Button>
+	) : (
+		<Button color="primary" icon={<IcFollow />} onClick={cmds.onFollow}>
+			{rel.followsYou ? t('Follow back') : t('Follow')}
+		</Button>
 	)
 }
 
-// The "establish a relationship" CTAs: Follow (primary) while not following,
-// and Connect/Join while there is no active or pending connection — so a follow
-// can still be upgraded. Nothing when blocked; Block lives in the ⋯ menu.
-function ProfileActionButton({
-	localProfile,
-	profileType,
-	cmds
-}: {
-	localProfile?: Partial<Profile>
-	profileType?: 'person' | 'community'
+// Connection/membership actions for the ⋯ menu: establish, cancel, break, or
+// unblock — whichever applies to the current relation.
+function relationshipMenuItems(
+	t: TFunction,
+	localProfile: Partial<Profile> | undefined,
+	profileType: 'person' | 'community' | undefined,
 	cmds: ProfileConnectionCmds
-}) {
-	const { t } = useTranslation()
+) {
 	if (!localProfile) return null
-
 	const isCommunity = profileType === 'community'
 	const rel = describeRelationship({ ...localProfile, type: profileType })
-	if (rel.primary === 'blocked') return null
-	const pending = localProfile.connected === 'R'
 
+	if (rel.primary === 'blocked')
+		return <MenuItem icon={<IcBlock />} label={t('Unblock')} onClick={cmds.onUnblock} />
+	if (rel.primary === 'pending')
+		return (
+			<MenuItem
+				icon={<IcConnect />}
+				label={t('Cancel request')}
+				onClick={cmds.onDisconnect}
+			/>
+		)
+	if (rel.connected)
+		return (
+			<MenuItem
+				icon={<IcConnect />}
+				label={isCommunity ? t('Leave') : t('Disconnect')}
+				onClick={cmds.onDisconnect}
+			/>
+		)
 	return (
-		<>
-			{!rel.following && (
-				<Button color="primary" icon={<IcFollow />} onClick={cmds.onFollow}>
-					{t('Follow')}
-				</Button>
-			)}
-			{!rel.connected && !pending && (
-				<Button icon={<IcConnect />} onClick={cmds.onConnect}>
-					{isCommunity ? t('Join') : t('Connect')}
-				</Button>
-			)}
-		</>
+		<MenuItem
+			icon={<IcConnect />}
+			label={isCommunity ? t('Join') : t('Connect')}
+			onClick={cmds.onConnect}
+		/>
 	)
 }
 
@@ -351,7 +316,16 @@ function ProfileTabs({
 	const tabLabels = React.useMemo(() => getTabLabels(t), [t])
 	const tabConfig = parseTabConfig(profile.x)
 	const tabs = getEffectiveTabs(tabConfig)
-	const basePath = profilePath(base, own ? 'me' : profile.idTag)
+	const pathname = useLocation().pathname.replace(/\/$/, '')
+	// The own profile is reachable as both `/me` and `/<idTag>`: link within the one in use,
+	// or no tab ever matches the URL
+	const idPath = profilePath(base, profile.idTag)
+	const basePath =
+		!own || pathname === idPath || pathname.startsWith(`${idPath}/`)
+			? idPath
+			: profilePath(base, 'me')
+	// The bare profile URL renders About, but route matching is exact
+	const atIndex = pathname === basePath
 
 	return (
 		<Tabs>
@@ -371,7 +345,11 @@ function ProfileTabs({
 					}
 
 					return (
-						<Tab key={tab.id} href={`${basePath}/${route}`}>
+						<Tab
+							key={tab.id}
+							href={`${basePath}/${route}`}
+							active={tab.id === 'about' && atIndex ? true : undefined}
+						>
 							{label}
 						</Tab>
 					)
@@ -412,11 +390,11 @@ interface ProfilePageProps {
 function ProfileSkeleton() {
 	return (
 		<Fcd.Container className="g-1">
-			<Fcd.Filter></Fcd.Filter>
+			<Fcd.Filter collapsed />
 			<Fcd.Content>
 				<ProfileHero
 					cover={<Skeleton variant="rect" width="100%" height={160} />}
-					avatar={<Skeleton variant="circle" width="10rem" height="10rem" />}
+					avatar={<Skeleton variant="circle" width="6rem" height="6rem" />}
 					header={
 						<>
 							<Skeleton variant="text" width="40%" height="2rem" />
@@ -719,7 +697,7 @@ export function ProfilePage({
 
 	return (
 		<Fcd.Container className="g-1">
-			<Fcd.Filter></Fcd.Filter>
+			<Fcd.Filter collapsed />
 			<Fcd.Content>
 				{!own && auth && <TrustBanner idTag={profile.idTag} onDecision={onTrustDecision} />}
 				<ProfileHero
@@ -731,9 +709,10 @@ export function ProfilePage({
 							/>
 						) : undefined
 					}
+					hue={idHue(profile.idTag)}
 					avatar={
 						<Avatar
-							size="3xl"
+							size="2xl"
 							src={
 								profile.profilePic
 									? getFileUrl(profile.idTag, profile.profilePic, 'vis.sd')
@@ -789,19 +768,34 @@ export function ProfilePage({
 								)
 							}
 							subtitle={
-								<>
-									<IdentityTag idTag={profile.idTag} />
-									<Button
-										variant="link"
-										// Keeps the clipboard write inside the click's user-activation
-										// window: `Button` otherwise defers the handler past its press
-										// animation, and Safari and Firefox refuse the write there.
-										immediate
-										icon={<IcCopy />}
-										aria-label={t('Copy identity tag')}
-										onClick={copyIdTag}
-									/>
-								</>
+								<HBox gap={1} align="center" wrap>
+									<HBox gap={1} align="center">
+										<IdentityTag idTag={profile.idTag} />
+										<Button
+											variant="link"
+											size="sm"
+											// Keeps the clipboard write inside the click's user-activation
+											// window: `Button` otherwise defers the handler past its press
+											// animation, and Safari and Firefox refuse the write there.
+											immediate
+											icon={<IcCopy />}
+											aria-label={t('Copy identity tag')}
+											onClick={copyIdTag}
+										/>
+									</HBox>
+									{!own && auth && (
+										<>
+											<TrustChip
+												idTag={profile.idTag}
+												onChanged={onTrustDecision}
+											/>
+											<RelationshipBadge
+												localProfile={localProfile}
+												profileType={profile.type}
+											/>
+										</>
+									)}
+								</HBox>
 							}
 							actions={
 								<>
@@ -843,7 +837,7 @@ export function ProfilePage({
 														{t('Message')}
 													</Button>
 												)}
-											<ProfileActionButton
+											<ProfileFollowButton
 												localProfile={localProfile}
 												profileType={profile.type}
 												cmds={profileCmds}
@@ -864,6 +858,14 @@ export function ProfilePage({
 											label={t('Copy reference')}
 											onClick={copyRef}
 										/>
+										{auth?.idTag &&
+											!own &&
+											relationshipMenuItems(
+												t,
+												localProfile,
+												profile.type,
+												profileCmds
+											)}
 										{canBlock && (
 											<MenuItem
 												icon={<IcBlock />}
@@ -886,18 +888,7 @@ export function ProfilePage({
 							canAccessSettings={canAccessSettings}
 						/>
 					}
-				>
-					{!own && auth && (
-						<HBox gap={1} align="center" wrap>
-							<TrustChip idTag={profile.idTag} onChanged={onTrustDecision} />
-							<RelationshipChips
-								localProfile={localProfile}
-								profileType={profile.type}
-								cmds={profileCmds}
-							/>
-						</HBox>
-					)}
-				</ProfileHero>
+				/>
 				{children}
 				{coverUpload && (
 					<ImageUpload
@@ -1133,49 +1124,45 @@ function MemberCard({
 	const hasMenu = canChangeRole || (showRoleControls && !!onRemove)
 
 	return (
-		<Panel padding={2} className="mb-1">
-			<HBox gap={2} align="center">
-				<Panel
-					variant="plain"
-					padding={0}
-					href={profilePath(ctx.base, member.idTag)}
-					className="flex-fill"
-				>
-					<HBox gap={2} align="center">
-						<ProfileCard className="flex-fill" profile={member} srcTag={srcTag} />
-						<ProfileStatusBadge profile={member} />
-					</HBox>
-				</Panel>
-				{hasMenu ? (
-					<Menu
-						trigger={
-							<Button size="sm" variant="soft" color="secondary">
+		<ListItem
+			leading={<ProfilePicture profile={member} srcTag={srcTag} />}
+			title={member.name}
+			subtitle={<IdentityTag className="c-list-item-handle" idTag={member.idTag} />}
+			href={profilePath(ctx.base, member.idTag)}
+			trailing={
+				<>
+					<ProfileStatusBadge profile={member} />
+					{hasMenu ? (
+						<Menu
+							trigger={
+								<Button size="sm" variant="soft" color="secondary">
+									{roleLabel}
+									<IcChevronDown />
+								</Button>
+							}
+						>
+							{canChangeRole &&
+								assignableRoles.map((role) => (
+									<MenuItem
+										key={role.value}
+										label={role.label}
+										selected={memberRole === role.value}
+										onClick={() => onRoleChange?.(member.idTag, role.value)}
+									/>
+								))}
+							{canChangeRole && onRemove && <MenuDivider />}
+							{removeItem}
+						</Menu>
+					) : (
+						showBadge && (
+							<Badge variant="outline" color="secondary">
 								{roleLabel}
-								<IcChevronDown />
-							</Button>
-						}
-					>
-						{canChangeRole &&
-							assignableRoles.map((role) => (
-								<MenuItem
-									key={role.value}
-									label={role.label}
-									selected={memberRole === role.value}
-									onClick={() => onRoleChange?.(member.idTag, role.value)}
-								/>
-							))}
-						{canChangeRole && onRemove && <MenuDivider />}
-						{removeItem}
-					</Menu>
-				) : (
-					showBadge && (
-						<Badge variant="outline" color="secondary">
-							{roleLabel}
-						</Badge>
-					)
-				)}
-			</HBox>
-		</Panel>
+							</Badge>
+						)
+					)}
+				</>
+			}
+		/>
 	)
 }
 
@@ -1363,7 +1350,7 @@ export function ProfileConnections({
 	}
 
 	const activeMembersList = (
-		<>
+		<List variant="divided" aria-label={t('Members')}>
 			{filteredMembers.map((p) => {
 				const targetLevel = ROLE_LEVELS[getHighestRole(p.roles) || 'follower']
 				const isSelf = p.idTag === auth?.idTag
@@ -1386,67 +1373,59 @@ export function ProfileConnections({
 					/>
 				)
 			})}
-		</>
+		</List>
 	)
 
 	const filterSidebar = (
-		<VBox gap={2} autoBg>
+		<VBox gap={2} padding={2}>
 			<SearchInput
 				aria-label={t('Search members')}
 				placeholder={t('Search members')}
 				value={search}
 				onChange={(e) => setSearch(e.target.value)}
 			/>
-			<Heading level={6} className="m-0">
-				{t('Role')}
-			</Heading>
 			<Nav vertical aria-label={t('Role')}>
-				<Nav.Item
-					label={t('All')}
-					count={memberProfiles.length}
-					active={roleFilter === 'all'}
-					onClick={() => setRoleFilter('all')}
-				/>
-				{roles
-					.filter((r) => roleCounts[r.value] > 0)
-					.map((r) => (
-						<Nav.Item
-							key={r.value}
-							label={r.label}
-							count={roleCounts[r.value]}
-							active={roleFilter === r.value}
-							onClick={() => setRoleFilter(r.value)}
-						/>
-					))}
+				<Nav.Section label={t('Role')}>
+					<Nav.Item
+						label={t('All')}
+						count={memberProfiles.length}
+						active={roleFilter === 'all'}
+						onClick={() => setRoleFilter('all')}
+					/>
+					{roles
+						.filter((r) => roleCounts[r.value] > 0)
+						.map((r) => (
+							<Nav.Item
+								key={r.value}
+								label={r.label}
+								count={roleCounts[r.value]}
+								active={roleFilter === r.value}
+								onClick={() => setRoleFilter(r.value)}
+							/>
+						))}
+				</Nav.Section>
 			</Nav>
 		</VBox>
 	)
 
-	const filterToggle = (
-		<HBox className="md-hide lg-hide" autoBg>
-			<Button
-				variant="ghost"
-				icon={<IcFilter />}
-				aria-label={t('Filter')}
-				onClick={() => setShowFilter(true)}
-			/>
-		</HBox>
+	const pageHeader = (actions?: React.ReactNode) => (
+		<PeopleHeader
+			variant="community"
+			title={t('Members')}
+			subtitle={`${profile.name || profile.idTag} · ${memberProfiles.length}`}
+			profilePic={profile.profilePic}
+			srcTag={profile.idTag}
+			actions={actions}
+		/>
 	)
 
 	// For communities with moderator+ access, show sub-tabs (Active / Requests / Invitations)
 	if (isCommunity && canManageMembers) {
 		const communityContent = (
 			<>
-				{showPageHeader && (
-					<PeopleHeader
-						variant="community"
-						title={profile.name}
-						subtitle={`${t('Members')} · ${memberProfiles.length}`}
-						profilePic={profile.profilePic}
-						srcTag={profile.idTag}
-					/>
-				)}
-				<HBox gap={2} align="center" className="mb-2">
+				{/* On the routed page Invite members lives in the PageHeader
+				    (FAB below md); embedded in a profile tab it wraps under the tabs. */}
+				<HBox gap={2} align="center" wrap className="mb-2">
 					<Tabs
 						className="flex-fill"
 						value={subTab}
@@ -1460,9 +1439,15 @@ export function ProfileConnections({
 							{t('Invitations')}
 						</Tab>
 					</Tabs>
-					<Button color="primary" onClick={() => setInviteOpen(true)}>
-						{t('+ Invite members')}
-					</Button>
+					{!showPageHeader && (
+						<Button
+							color="primary"
+							icon={<IcPlus />}
+							onClick={() => setInviteOpen(true)}
+						>
+							{t('Invite members')}
+						</Button>
+					)}
 				</HBox>
 
 				{subTab === 'active' && activeMembersList}
@@ -1495,45 +1480,56 @@ export function ProfileConnections({
 		if (!showPageHeader) return communityContent
 
 		return (
-			<Fcd.Container className="g-1">
-				<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
-					{subTab === 'active' ? filterSidebar : null}
-				</Fcd.Filter>
-				<Fcd.Content>
-					{filterToggle}
-					{communityContent}
-				</Fcd.Content>
-			</Fcd.Container>
+			<>
+				<Fcd.Container className="g-1">
+					<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
+						{subTab === 'active' ? filterSidebar : null}
+					</Fcd.Filter>
+					<Fcd.Content
+						width="reading"
+						header={pageHeader(
+							<>
+								{subTab === 'active' && (
+									<FilterToggle onClick={() => setShowFilter(true)} />
+								)}
+								<Button
+									className="sm-hide"
+									color="primary"
+									icon={<IcPlus />}
+									onClick={() => setInviteOpen(true)}
+								>
+									{t('Invite members')}
+								</Button>
+							</>
+						)}
+					>
+						{communityContent}
+					</Fcd.Content>
+				</Fcd.Container>
+				<FAB
+					className="md-hide lg-hide"
+					icon={<IcPlus />}
+					aria-label={t('Invite members')}
+					onClick={() => setInviteOpen(true)}
+				/>
+			</>
 		)
 	}
 
 	// For communities (non-moderators), use MemberCard with no role controls
 	if (isCommunity) {
-		const communityContent = (
-			<>
-				{showPageHeader && (
-					<PeopleHeader
-						variant="community"
-						title={profile.name}
-						subtitle={`${t('Members')} · ${memberProfiles.length}`}
-						profilePic={profile.profilePic}
-						srcTag={profile.idTag}
-					/>
-				)}
-				{activeMembersList}
-			</>
-		)
-
-		if (!showPageHeader) return communityContent
+		if (!showPageHeader) return activeMembersList
 
 		return (
 			<Fcd.Container className="g-1">
 				<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
 					{filterSidebar}
 				</Fcd.Filter>
-				<Fcd.Content>
-					{filterToggle}
-					{communityContent}
+				<Fcd.Content
+					width="reading"
+					header={pageHeader(<FilterToggle onClick={() => setShowFilter(true)} />)}
+				>
+					{activeMembersList}
 				</Fcd.Content>
 			</Fcd.Container>
 		)
@@ -1541,11 +1537,11 @@ export function ProfileConnections({
 
 	// For personal profiles, use original ProfileListCard
 	return (
-		<>
+		<List variant="divided" aria-label={t('Connections')}>
 			{profiles.map((p) => (
 				<ProfileListCard key={p.idTag} profile={p} srcTag={profile.idTag} />
 			))}
-		</>
+		</List>
 	)
 }
 

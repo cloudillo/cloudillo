@@ -868,7 +868,8 @@ export function Omnibox() {
 		<HBox
 			align="center"
 			gap={1}
-			fill
+			// `fill` only applies under a box; the parent is the header's plain flex `li`.
+			className="flex-fill"
 			role="search"
 			// Labelled because /search puts a second search landmark on the page.
 			aria-label={t('Quick search')}
@@ -910,7 +911,7 @@ export function Omnibox() {
 						// cold start never discovers the sigils.
 						...(cb.isOpen || showLegend ? {} : { display: 'none' })
 					}}
-					className="c-omnibox-menu c-card p-1"
+					className="c-omnibox-menu p-1"
 					{...listAttributes}
 				>
 					{items.map((item, idx) => (

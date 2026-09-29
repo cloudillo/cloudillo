@@ -15,9 +15,9 @@ import {
 	Button,
 	EmptyState,
 	HBox,
-	Heading,
 	List,
 	LoadMoreTrigger,
+	PageHeader,
 	SearchInput,
 	SkeletonList,
 	Tab,
@@ -209,16 +209,16 @@ export function SearchPage() {
 		// above this page, and `h-100` would claim the whole column on top of it.
 		<VBox fill className="h-min-0 c-search-page" autoBg>
 			<VBox gap={2} className="c-search-page-header">
-				<HBox align="baseline" gap={2}>
-					<Heading level={1} size="lg" className="flex-fill">
-						{t('Search results')}
-					</Heading>
-					{/* Mounted unconditionally: a live region that appears together with
-					    its first content is usually not announced at all. */}
-					<Text size="sm" emphasis="muted" aria-live="polite">
-						{total !== undefined ? t('{{count}} results', { count: total }) : ''}
-					</Text>
-				</HBox>
+				<PageHeader
+					title={t('Search results')}
+					subtitle={
+						/* Mounted unconditionally: a live region that appears together with
+						   its first content is usually not announced at all. */
+						<Text aria-live="polite">
+							{total !== undefined ? t('{{count}} results', { count: total }) : ''}
+						</Text>
+					}
+				/>
 				<HBox role="search" aria-label={t('Search results')}>
 					<SearchInput
 						className="flex-fill"
@@ -244,6 +244,7 @@ export function SearchPage() {
 			<VBox gap={1} fill scroll className="h-min-0 c-search-page-results">
 				{!q ? (
 					<EmptyState
+						fill
 						icon={<IcSearch />}
 						title={t('Search this space')}
 						description={t(
@@ -253,21 +254,20 @@ export function SearchPage() {
 				) : isLoading || isPending || !api || contextResolving ? (
 					<SkeletonList count={5} />
 				) : forbidden ? (
-					<EmptyState title={t('Search is not available in this space')} />
+					<EmptyState fill title={t('Search is not available in this space')} />
 				) : !items.length && !error ? (
 					<EmptyState
+						fill
 						title={t('No results found')}
 						description={t('Try different words, or clear the filters.')}
-						action={
+						actions={
 							tabValue ? (
-								<Button variant="link" onClick={() => setType('')}>
-									{t('Clear filters')}
-								</Button>
+								<Button onClick={() => setType('')}>{t('Clear filters')}</Button>
 							) : undefined
 						}
 					/>
 				) : (
-					<List className="c-search-page-hits">
+					<List variant="divided" className="c-search-page-hits">
 						{items.map((hit) => {
 							const target = searchHitTarget(
 								hit,

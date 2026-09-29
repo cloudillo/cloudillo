@@ -10,10 +10,10 @@ import {
 	Field,
 	HBox,
 	Input,
+	List,
 	NativeSelect,
 	Panel,
 	Text,
-	Toggle,
 	useApi,
 	useAuth,
 	VBox,
@@ -22,6 +22,8 @@ import {
 import * as T from '@symbion/runtype'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
+
+import { SwitchRow } from '../settings/settings.js'
 
 interface TestEmailError {
 	message: string
@@ -338,14 +340,16 @@ export function EmailSettings() {
 	return (
 		<>
 			<Panel title={t('Email Configuration')}>
-				<Toggle
-					checked={formState.enabled}
-					onChange={(e) => updateField('enabled', e.target.checked)}
-					label={t('Enable email sending')}
-					description={t(
-						'Disable for testing. When disabled, email features will be silently skipped.'
-					)}
-				/>
+				<List variant="divided">
+					<SwitchRow
+						checked={formState.enabled}
+						onChange={(e) => updateField('enabled', e.target.checked)}
+						label={t('Enable email sending')}
+						description={t(
+							'Disable for testing. When disabled, email features will be silently skipped.'
+						)}
+					/>
+				</List>
 			</Panel>
 
 			{formState.enabled && (
@@ -360,7 +364,6 @@ export function EmailSettings() {
 								hint={t('SMTP server hostname. Example: smtp.gmail.com')}
 							>
 								<Input
-									className="w-lg"
 									type="text"
 									placeholder="smtp.gmail.com"
 									value={formState.smtpHost}
@@ -374,7 +377,6 @@ export function EmailSettings() {
 								hint={t('STARTTLS on port 587, TLS/SSL on port 465')}
 							>
 								<NativeSelect
-									className="w-sm"
 									value={formState.smtpTlsMode}
 									onChange={(e) => handleTlsModeChange(e.target.value)}
 								>
@@ -431,7 +433,6 @@ export function EmailSettings() {
 								hint={t('SMTP authentication username (optional)')}
 							>
 								<Input
-									className="w-lg"
 									type="text"
 									placeholder="your@email.com"
 									value={formState.smtpUsername}
@@ -447,7 +448,6 @@ export function EmailSettings() {
 							>
 								<PasswordInput
 									id="email-smtp-password"
-									className="w-lg"
 									value={formState.smtpPassword}
 									onChange={(e) => updateField('smtpPassword', e.target.value)}
 									autoComplete="new-password"
@@ -472,7 +472,6 @@ export function EmailSettings() {
 								}
 							>
 								<Input
-									className="w-lg"
 									type="email"
 									placeholder={fromAddressPlaceholder}
 									value={formState.fromAddress}
@@ -486,7 +485,6 @@ export function EmailSettings() {
 								hint={t('Display name for the sender')}
 							>
 								<Input
-									className="w-md"
 									type="text"
 									placeholder="Cloudillo"
 									value={formState.fromName}

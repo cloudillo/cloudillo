@@ -911,4 +911,10 @@ export function useCurrentContextIdTag(): string | undefined {
 	return activeContext?.idTag || auth?.idTag || apiState.idTag
 }
 
+/** The active context when it is a community, else `undefined` (home). */
+export function useActiveCommunity() {
+	const ctx = useAtomValue(activeContextAtom)
+	return ctx?.type === 'community' ? ctx : undefined
+}
+
 // vim: ts=4

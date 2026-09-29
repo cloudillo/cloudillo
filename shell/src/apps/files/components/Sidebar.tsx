@@ -6,11 +6,12 @@ import {
 	AppIcon,
 	type AppId,
 	Button,
-	Divider,
 	HBox,
+	IconText,
 	Menu,
 	MenuItem,
 	Nav,
+	Panel,
 	SearchInput,
 	Segmented,
 	SegmentedItem,
@@ -48,7 +49,7 @@ const createItems = (t: TFunction): { app: AppId; db?: boolean; label: string }[
 	{ app: 'scanillo', db: true, label: t('Scanillo document scanner') }
 ]
 
-const viewItems = (
+export const viewItems = (
 	t: TFunction
 ): { mode: ViewMode; icon: React.ComponentType; label: string }[] => [
 	{ mode: 'browse', icon: IcBrowse, label: t('Browse') },
@@ -58,10 +59,77 @@ const viewItems = (
 	{ mode: 'managed', icon: IcManaged, label: t('Managed') }
 ]
 
-interface SidebarProps {
-	className?: string
+interface CreateDocumentMenuProps {
 	contextIdTag?: string
 	currentFolderId?: string | null
+}
+
+/** "Create document" menu — the Files page's primary action, rendered in its PageHeader. */
+export function CreateDocumentMenu({ contextIdTag, currentFolderId }: CreateDocumentMenuProps) {
+	const { t } = useTranslation()
+	const { api } = useContextAwareApi()
+	const [auth] = useAuth()
+	// URL form of the context (`~` at home); the resId below carries the real owner.
+	const urlCtx = useCtx().base
+	const navigate = useNavigate()
+	const dialog = useDialog()
+
+	async function create(app: AppId, db: boolean | undefined) {
+		if (!api) return
+		const contentType = `cloudillo/${app}`
+
+		const fileName = await dialog.askText(
+			db ? t('Create database') : t('Create document'),
+			db
+				? t('Provide a name for the new database')
+				: t('Provide a name for the new document'),
+			{ placeholder: db ? t('Untitled database') : t('Untitled document') }
+		)
+		if (fileName === undefined) return
+
+		const res = await api.files.create({
+			fileTp: db ? 'RTDB' : 'CRDT',
+			contentType,
+			parentId: currentFolderId || undefined
+		})
+		if (res?.fileId) {
+			await api.files.update(res.fileId, {
+				fileName: (fileName ||
+					(db ? t('Untitled database') : t('Untitled document'))) as string
+			})
+
+			// `contextIdTag` is the real idTag: it belongs in the resId's owner half,
+			// never in the context segment.
+			const ownerTag = contextIdTag || auth?.idTag
+			navigate(appPath(urlCtx, app, `${ownerTag}:${res.fileId}`))
+		}
+	}
+
+	if (!auth) return null
+
+	return (
+		<Menu
+			trigger={
+				<Button color="primary" icon={<IcNewFile />} aria-label={t('Create document')}>
+					{/* Icon-only on phones, so the page title keeps its line */}
+					<Text className="sm-hide">{t('Create document')}</Text>
+				</Button>
+			}
+		>
+			{createItems(t).map(({ app, db, label }) => (
+				<MenuItem
+					key={app}
+					icon={<AppIcon app={app} size="sm" tile={false} />}
+					label={label}
+					onClick={() => create(app, db)}
+				/>
+			))}
+		</Menu>
+	)
+}
+
+interface SidebarProps {
+	className?: string
 	viewMode: ViewMode
 	onViewModeChange: (mode: ViewMode) => void
 	fileTypeFilter: FileTypeFilter
@@ -74,10 +142,9 @@ interface SidebarProps {
 	onTagFilter?: (tags: string[]) => void
 }
 
+// Rail recipe: padded VBox → SearchInput → Nav → `Panel variant="plain"` facets.
 export const Sidebar = React.memo(function Sidebar({
 	className,
-	contextIdTag,
-	currentFolderId,
 	viewMode,
 	onViewModeChange,
 	fileTypeFilter,
@@ -95,10 +162,6 @@ export const Sidebar = React.memo(function Sidebar({
 	// which tracks the home session) is what changes when a context token lands.
 	const { api, authenticated } = useContextAwareApi()
 	const [auth] = useAuth()
-	// URL form of the context (`~` at home); the resId below carries the real owner.
-	const urlCtx = useCtx().base
-	const navigate = useNavigate()
-	const dialog = useDialog()
 
 	// Tags with counts for tag cloud
 	const [tags, setTags] = React.useState<TagInfo[]>([])
@@ -139,118 +202,14 @@ export const Sidebar = React.memo(function Sidebar({
 		[onTagFilter]
 	)
 
-	async function createFile(contentType: string) {
-		if (!contentType || !api) return
-
-		const fileName = await dialog.askText(
-			t('Create document'),
-			t('Provide a name for the new document'),
-			{ placeholder: t('Untitled document') }
-		)
-		if (fileName === undefined) return
-
-		const res = await api.files.create({
-			fileTp: 'CRDT',
-			contentType,
-			parentId: currentFolderId || undefined
-		})
-		if (res?.fileId) {
-			await api.files.update(res.fileId, {
-				fileName: (fileName || t('Untitled document')) as string
-			})
-
-			// `contextIdTag` is the real idTag: it belongs in the resId's owner half,
-			// never in the context segment.
-			const ownerTag = contextIdTag || auth?.idTag
-			const docPath = (appId: string) => appPath(urlCtx, appId, `${ownerTag}:${res.fileId}`)
-
-			switch (contentType) {
-				case 'cloudillo/quillo':
-					navigate(docPath('quillo'))
-					break
-				case 'cloudillo/calcillo':
-					navigate(docPath('calcillo'))
-					break
-				case 'cloudillo/ideallo':
-					navigate(docPath('ideallo'))
-					break
-				case 'cloudillo/prezillo':
-					navigate(docPath('prezillo'))
-					break
-				case 'cloudillo/formillo':
-					navigate(docPath('formillo'))
-					break
-				case 'cloudillo/taskillo':
-					navigate(docPath('taskillo'))
-					break
-			}
-		}
-	}
-
-	async function createDb(contentType: string) {
-		if (!contentType || !api) return
-
-		const fileName = await dialog.askText(
-			t('Create database'),
-			t('Provide a name for the new database'),
-			{ placeholder: t('Untitled database') }
-		)
-		if (fileName === undefined) return
-
-		const res = await api.files.create({
-			fileTp: 'RTDB',
-			contentType,
-			parentId: currentFolderId || undefined
-		})
-		if (res?.fileId) {
-			await api.files.update(res.fileId, {
-				fileName: (fileName || t('Untitled database')) as string
-			})
-
-			const ownerTag = contextIdTag || auth?.idTag
-			const docPath = (appId: string) => appPath(urlCtx, appId, `${ownerTag}:${res.fileId}`)
-
-			switch (contentType) {
-				case 'cloudillo/taskillo':
-					navigate(docPath('taskillo'))
-					break
-				case 'cloudillo/notillo':
-					navigate(docPath('notillo'))
-					break
-				case 'cloudillo/scanillo':
-					navigate(docPath('scanillo'))
-					break
-			}
-		}
-	}
-
 	return (
-		<VBox gap={2} className={className} autoBg>
-			{!!auth && (
-				<>
-					<Menu
-						trigger={
-							<Button variant="ghost" icon={<IcNewFile />}>
-								{t('Create document')}
-							</Button>
-						}
-					>
-						{createItems(t).map(({ app, db, label }) => (
-							<MenuItem
-								key={app}
-								icon={<AppIcon app={app} size="sm" tile={false} />}
-								label={label}
-								onClick={() =>
-									db
-										? createDb(`cloudillo/${app}`)
-										: createFile(`cloudillo/${app}`)
-								}
-							/>
-						))}
-					</Menu>
-					<Divider />
-				</>
-			)}
+		<VBox gap={2} padding={2} className={className}>
+			<SearchInput
+				aria-label={t('Search files...')}
+				placeholder={t('Search files...')}
+				value={searchQuery}
+				onChange={(e) => onSearchQueryChange(e.target.value)}
+			/>
 
 			<Nav aria-label={t('Files')}>
 				{viewItems(t).map(({ mode, icon: ViewIcon, label }) => (
@@ -264,58 +223,46 @@ export const Sidebar = React.memo(function Sidebar({
 				))}
 			</Nav>
 
-			<Divider />
+			<Panel variant="plain" title={t('Type')}>
+				<Segmented
+					size="sm"
+					fill
+					aria-label={t('Type')}
+					value={fileTypeFilter}
+					onChange={(v) => onFileTypeFilterChange(v as FileTypeFilter)}
+				>
+					<SegmentedItem value="all">{t('All')}</SegmentedItem>
+					<SegmentedItem value="live">{t('Live')}</SegmentedItem>
+					<SegmentedItem value="static">{t('Static')}</SegmentedItem>
+				</Segmented>
+			</Panel>
 
-			<SearchInput
-				aria-label={t('Search files...')}
-				placeholder={t('Search files...')}
-				value={searchQuery}
-				onChange={(e) => onSearchQueryChange(e.target.value)}
-			/>
-
-			<Text size="sm" emphasis="muted">
-				{t('Type')}
-			</Text>
-			<Segmented
-				size="sm"
-				fill
-				aria-label={t('Type')}
-				value={fileTypeFilter}
-				onChange={(v) => onFileTypeFilterChange(v as FileTypeFilter)}
-			>
-				<SegmentedItem value="all">{t('All')}</SegmentedItem>
-				<SegmentedItem value="live">{t('Live')}</SegmentedItem>
-				<SegmentedItem value="static">{t('Static')}</SegmentedItem>
-			</Segmented>
-
-			<Text size="sm" emphasis="muted">
-				{t('Owner')}
-			</Text>
-			<Segmented
-				size="sm"
-				fill
-				aria-label={t('Owner')}
-				value={ownerFilter}
-				onChange={(v) => onOwnerFilterChange(v as OwnerFilter)}
-			>
-				<SegmentedItem value="anyone">{t('Anyone')}</SegmentedItem>
-				<SegmentedItem value="me">{t('Me')}</SegmentedItem>
-				<SegmentedItem value="others">{t('Others')}</SegmentedItem>
-			</Segmented>
+			<Panel variant="plain" title={t('Owner')}>
+				<Segmented
+					size="sm"
+					fill
+					aria-label={t('Owner')}
+					value={ownerFilter}
+					onChange={(v) => onOwnerFilterChange(v as OwnerFilter)}
+				>
+					<SegmentedItem value="anyone">{t('Anyone')}</SegmentedItem>
+					<SegmentedItem value="me">{t('Me')}</SegmentedItem>
+					<SegmentedItem value="others">{t('Others')}</SegmentedItem>
+				</Segmented>
+			</Panel>
 
 			{tags.length > 0 && (
-				<>
-					<Divider />
-					<HBox gap={1} align="center">
-						<Text size="sm" emphasis="muted" className="flex-fill">
-							<IcTag /> {t('Tags')}
-						</Text>
-						{selectedTags.length > 0 && (
+				<Panel
+					variant="plain"
+					title={<IconText icon={<IcTag />}>{t('Tags')}</IconText>}
+					actions={
+						selectedTags.length > 0 && (
 							<Button variant="ghost" size="sm" onClick={clearTags}>
 								{t('Clear')}
 							</Button>
-						)}
-					</HBox>
+						)
+					}
+				>
 					<HBox gap={1} wrap>
 						{tags.map((tagInfo) => (
 							<Tag
@@ -328,7 +275,7 @@ export const Sidebar = React.memo(function Sidebar({
 							</Tag>
 						))}
 					</HBox>
-				</>
+				</Panel>
 			)}
 		</VBox>
 	)

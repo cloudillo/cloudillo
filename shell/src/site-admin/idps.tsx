@@ -113,7 +113,8 @@ export function SuggestedProvidersSettings() {
 			{/* Add new domain */}
 			<HBox gap={2} className="mb-4">
 				<Input
-					className="w-lg"
+					className="flex-fill"
+					style={{ minWidth: 0 }}
 					type="text"
 					aria-label={t('Domain')}
 					placeholder={t('Enter domain (e.g., cloudillo.net)')}

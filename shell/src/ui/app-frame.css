@@ -1,6 +1,10 @@
 /* SPDX-FileCopyrightText: Szilárd Hajba */
 /* SPDX-License-Identifier: LGPL-3.0-or-later */
 
+.c-app-frame {
+	--app-frame-strip: 1.25rem;
+}
+
 .c-app-frame-iframe {
 	position: absolute;
 	inset: 0;
@@ -10,29 +14,45 @@
 	border: none;
 }
 
-/* Trust frame: 2px on every side (the filter-rail breakpoint note in libs/react/src/components.css counts it) */
-.c-app-frame {
-	border: 2px solid var(--col-success);
+/* Trust frame drawn *over* the iframe, not around it: the app keeps the full column
+   width (a real border cost 4px and pushed 768px tablets into phone layout), and the
+   app cannot paint over a layer above its own document. Every trust level keeps one. */
+.c-app-frame::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+	z-index: 3;
+	pointer-events: none;
+	border: 1px solid color-mix(in srgb, var(--col-success) 50%, transparent);
 }
 
-.c-app-frame.semi-trusted {
-	border-color: var(--col-warning);
+.c-app-frame.semi-trusted::after {
+	border: 2px solid var(--col-warning);
 }
 
-.c-app-frame.untrusted {
-	border-color: var(--col-error);
+.c-app-frame.untrusted::after {
+	border: 2px solid var(--col-error);
+}
+
+/* The badge gets a shell-owned strip above the iframe instead of sitting over the
+   app's DocBar actions. Height only — widths, and so the app's breakpoints, are untouched. */
+.c-app-frame:has(> .c-app-frame-badge) > .c-app-frame-iframe {
+	top: var(--app-frame-strip);
+	height: calc(100% - var(--app-frame-strip));
 }
 
 .c-app-frame-badge {
 	position: absolute;
-	top: 0.25rem;
-	right: 0.25rem;
+	top: 0;
+	inset-inline: 0;
 	z-index: 2;
-	padding: 0.125rem 0.5rem;
-	border-radius: 999px;
-	font-size: 0.75rem;
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	height: var(--app-frame-strip);
+	padding-inline: 0.75rem;
+	font-size: 0.7rem;
 	pointer-events: none;
-	opacity: 0.85;
 	background: var(--col-warning);
 	color: var(--col-on-warning);
 }

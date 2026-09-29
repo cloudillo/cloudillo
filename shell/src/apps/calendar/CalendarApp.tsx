@@ -4,11 +4,12 @@
 import {
 	Button,
 	EmptyState,
+	FAB,
 	Fcd,
-	HBox,
 	Menu,
 	MenuDivider,
 	MenuItem,
+	PageHeader,
 	useIsMobile,
 	useToast
 } from '@cloudillo/react'
@@ -22,7 +23,8 @@ import {
 	LuGhost as IcGhost,
 	LuEllipsisVertical as IcMore,
 	LuCalendarPlus as IcNewCal,
-	LuPanelLeft as IcSidebar
+	LuPanelLeft as IcSidebar,
+	LuCalendarCheck as IcToday
 } from 'react-icons/lu'
 import '@cloudillo/react/components.css'
 import type {
@@ -56,6 +58,7 @@ import {
 	TaskEditor,
 	TaskList
 } from './components/index.js'
+import { getViews } from './components/CalendarToolbar.js'
 import { useCalendars, useEventRange, useRecurringScopeOps, useTaskList } from './hooks/index.js'
 import type { CalendarView } from './types.js'
 import { calendarSupports } from './utils.js'
@@ -66,7 +69,10 @@ export function CalendarApp() {
 	const toast = useToast()
 
 	const [currentDate, setCurrentDate] = useAtom(currentDateAtom)
-	const [view, setView] = useAtom(viewModeAtom)
+	const isMobile = useIsMobile()
+	// Phones open on Agenda unless the user already picked a view
+	const [storedView, setView] = useAtom(viewModeAtom)
+	const view = storedView ?? (isMobile ? 'agenda' : 'week')
 	const [visibleCalendars, setVisibleCalendars] = useAtom(visibleCalendarsAtom)
 	const [selectedRef, setSelectedRef] = useAtom(selectedObjectAtom)
 	const [searchQuery, setSearchQuery] = useAtom(searchQueryAtom)
@@ -155,8 +161,7 @@ export function CalendarApp() {
 
 	// Left sidebar visibility. On mobile it's overlay-only (initial closed); on
 	// desktop it's a flex child that can be collapsed to give the grid the full
-	// width. `useIsMobile` returns true below the md breakpoint.
-	const isMobile = useIsMobile()
+	// width.
 	const [sidebarOpen, setSidebarOpen] = React.useState(!isMobile)
 	// Sync once when the viewport crosses the breakpoint; respect any manual
 	// toggle the user has made since.
@@ -512,6 +517,7 @@ export function CalendarApp() {
 	const eventCalendars = calendars.filter((c) => calendarSupports(c.components, 'VEVENT'))
 	const taskCalendars = calendars.filter((c) => calendarSupports(c.components, 'VTODO'))
 	const defaultCalId = calendars[0]?.calId
+	const canCreate = !noCalendars && !calsError
 
 	const handleViewChange = React.useCallback(
 		function handleViewChange(v: CalendarView) {
@@ -540,55 +546,62 @@ export function CalendarApp() {
 						onDelete={handleDeleteCalendar}
 						onCreate={openCreateCalendar}
 						onPickDate={setCurrentDate}
+						searchQuery={searchQuery}
+						onSearchChange={setSearchQuery}
 					/>
 				</Fcd.Filter>
 
 				<Fcd.Content
 					layout="column"
+					width="fluid"
 					header={
-						<CalendarToolbar
-							currentDate={currentDate}
-							view={view}
-							searchQuery={searchQuery}
-							onDateChange={setCurrentDate}
-							onViewChange={handleViewChange}
-							onSearchChange={setSearchQuery}
-							lead={
-								<Button
-									variant="ghost"
-									size="sm"
-									onClick={() => setSidebarOpen((v) => !v)}
-									aria-label={t('Toggle calendars')}
-									pressed={sidebarOpen}
-									icon={<IcSidebar />}
-								/>
-							}
-							trail={
-								<HBox gap={1} align="center">
-									<Button
-										color="primary"
-										size="sm"
-										disabled={noCalendars || !!calsError}
-										onClick={
-											view === 'tasks' ? openCreateTask : openCreateEvent
-										}
-										icon={<IcAdd />}
-									>
-										{view === 'tasks' ? t('New task') : t('New event')}
-									</Button>
-									<Button
-										variant="ghost"
-										size="sm"
-										immediate
-										onClick={openToolbarMenu}
-										aria-label={t('More actions')}
-										aria-haspopup="menu"
-										aria-expanded={!!toolbarMenu}
-										icon={<IcMore />}
-									/>
-								</HBox>
-							}
-						/>
+						<>
+							<PageHeader
+								title={t('Calendar')}
+								actions={
+									<>
+										<Button
+											variant="ghost"
+											onClick={() => setSidebarOpen((v) => !v)}
+											aria-label={t('Toggle calendars')}
+											pressed={sidebarOpen}
+											icon={<IcSidebar />}
+										/>
+										{canCreate && (
+											<Button
+												className="sm-hide"
+												color="primary"
+												onClick={
+													view === 'tasks'
+														? openCreateTask
+														: openCreateEvent
+												}
+												icon={<IcAdd />}
+											>
+												{view === 'tasks' ? t('New task') : t('New event')}
+											</Button>
+										)}
+										<Button
+											variant="ghost"
+											immediate
+											onClick={openToolbarMenu}
+											aria-label={t('More actions')}
+											aria-haspopup="menu"
+											aria-expanded={!!toolbarMenu}
+											icon={<IcMore />}
+										/>
+									</>
+								}
+							/>
+							<CalendarToolbar
+								currentDate={currentDate}
+								view={view}
+								searchQuery={searchQuery}
+								onDateChange={setCurrentDate}
+								onViewChange={handleViewChange}
+								onSearchChange={setSearchQuery}
+							/>
+						</>
 					}
 				>
 					{calsError ? (
@@ -677,6 +690,15 @@ export function CalendarApp() {
 				</Fcd.Details>
 			</Fcd.Container>
 
+			{canCreate && (
+				<FAB
+					className="md-hide lg-hide"
+					icon={<IcAdd />}
+					aria-label={view === 'tasks' ? t('New task') : t('New event')}
+					onClick={view === 'tasks' ? openCreateTask : openCreateEvent}
+				/>
+			)}
+
 			<CalendarEditor
 				open={calEditorOpen}
 				calendar={editingCal}
@@ -718,6 +740,31 @@ export function CalendarApp() {
 
 			{toolbarMenu && (
 				<Menu position={toolbarMenu} onClose={() => setToolbarMenu(null)}>
+					{isMobile && (
+						<>
+							<MenuItem
+								icon={<IcToday />}
+								label={t('Today')}
+								onClick={() => {
+									setToolbarMenu(null)
+									setCurrentDate(dayjs().format('YYYY-MM-DD'))
+								}}
+							/>
+							<MenuDivider />
+							{getViews(t).map((v) => (
+								<MenuItem
+									key={v.value}
+									selected={view === v.value}
+									label={v.label}
+									onClick={() => {
+										setToolbarMenu(null)
+										handleViewChange(v.value)
+									}}
+								/>
+							))}
+							<MenuDivider />
+						</>
+					)}
 					<MenuItem
 						icon={<IcAdd />}
 						label={t('New event')}

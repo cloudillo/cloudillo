@@ -12,7 +12,7 @@ import {
 	ListItem,
 	Menu,
 	MenuItem,
-	Panel,
+	SearchInput,
 	Text,
 	Toggle,
 	useDialog,
@@ -38,6 +38,8 @@ export interface CalendarSidebarProps {
 	onDelete: (cal: CalendarOutput) => Promise<void>
 	onCreate: () => void
 	onPickDate: (date: string) => void
+	searchQuery: string
+	onSearchChange: (q: string) => void
 }
 
 interface CalMenuState {
@@ -55,7 +57,9 @@ export function CalendarSidebar({
 	onEdit,
 	onDelete,
 	onCreate,
-	onPickDate
+	onPickDate,
+	searchQuery,
+	onSearchChange
 }: CalendarSidebarProps) {
 	const { t, i18n } = useTranslation()
 	const dialog = useDialog()
@@ -82,7 +86,17 @@ export function CalendarSidebar({
 	}
 
 	return (
-		<Panel padding={0} className="flex-fill h-min-0 overflow-y-auto">
+		<VBox gap={2} padding={2} className="flex-fill h-min-0 overflow-y-auto">
+			{/* Below md the toolbar hides its search; the drawer carries it instead */}
+			<SearchInput
+				className="md-hide lg-hide"
+				size="sm"
+				placeholder={t('Search events')}
+				aria-label={t('Search events')}
+				defaultValue={searchQuery}
+				debounce={250}
+				onSearch={onSearchChange}
+			/>
 			<VBox>
 				<MiniCalendar
 					date={currentDate}
@@ -93,7 +107,7 @@ export function CalendarSidebar({
 					nextLabel={t('Next month')}
 				/>
 
-				<HBox align="center" justify="between" className="px-2 pt-2">
+				<HBox align="center" justify="between" className="pt-2">
 					<Heading level={2} size="xs" overline>
 						{t('My calendars')}
 					</Heading>
@@ -106,7 +120,7 @@ export function CalendarSidebar({
 					/>
 				</HBox>
 
-				<List className="p-1">
+				<List>
 					{calendars.map((cal) => {
 						const isVisible = visible === null || visible.has(cal.calId)
 						return (
@@ -158,7 +172,7 @@ export function CalendarSidebar({
 					<MenuItem
 						icon={<IcDelete />}
 						label={t('Delete')}
-						danger
+						color="error"
 						onClick={() => {
 							const cal = calMenu.cal
 							setCalMenu(null)
@@ -167,7 +181,7 @@ export function CalendarSidebar({
 					/>
 				</Menu>
 			)}
-		</Panel>
+		</VBox>
 	)
 }
 

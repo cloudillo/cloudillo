@@ -151,8 +151,8 @@ export function ReactionPicker({ className, ownReaction, onReact }: ReactionPick
 			trigger={
 				<Button
 					className={className}
-					variant={ownReaction ? 'filled' : 'link'}
-					color={ownReaction ? 'primary' : 'accent'}
+					variant={ownReaction ? 'soft' : 'ghost'}
+					color={ownReaction ? 'primary' : undefined}
 					size="sm"
 					aria-label={ownReaction ? t('Change reaction') : t('Like')}
 					icon={ownReaction ? getReactionEmoji(ownReaction) : <IcThumbsUp />}

@@ -2,17 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import { setApiToken } from '@cloudillo/core'
-import {
-	Alert,
-	Button,
-	Center,
-	LoadingSpinner,
-	Panel,
-	QRCode,
-	Text,
-	useApi,
-	useAuth
-} from '@cloudillo/react'
+import { Alert, Button, Center, Panel, QRCode, Text, useApi, useAuth } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { LuQrCode as IcQr, LuRefreshCw as IcRefresh } from 'react-icons/lu'
@@ -169,7 +159,19 @@ export function QrLoginPanel({ className }: { className?: string }) {
 			}
 		>
 			<Center>
-				{state === 'loading' && <LoadingSpinner />}
+				{state === 'loading' && (
+					<>
+						<Text
+							as="div"
+							aria-hidden="true"
+							className="c-skeleton c-skeleton--rounded"
+							style={{ width: 200, height: 200 }}
+						/>
+						<Text as="p" emphasis="muted" role="status">
+							{t('Preparing QR code...')}
+						</Text>
+					</>
+				)}
 
 				{state === 'showing' && (
 					<>

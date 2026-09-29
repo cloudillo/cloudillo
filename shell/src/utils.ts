@@ -6,6 +6,8 @@ import { bytesToBase64 } from '@cloudillo/core/base64'
 import { atom, useAtom } from 'jotai'
 import * as React from 'react'
 
+import { appConfig as defaultAppConfig } from './manifest-registry.js'
+
 /** A transparent 1×1 GIF. The `src` for a slide whose URL `getFileUrl` refused: it keeps
  *  the array index-aligned with `lbIndex` the way `''` did, but `<img src="">` resolves to
  *  the document URL and refetches the shell's own HTML, and a data: URI fetches nothing. */
@@ -149,7 +151,8 @@ export interface AppConfigState {
 	defaultMenu?: string
 }
 
-const appConfigAtom = atom<AppConfigState | undefined>(undefined)
+// Seeded with the static default so no reader ever sees `undefined` before the boot write.
+const appConfigAtom = atom<AppConfigState | undefined>(defaultAppConfig)
 
 export function useAppConfig() {
 	return useAtom(appConfigAtom)

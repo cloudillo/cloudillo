@@ -2,7 +2,17 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import type { TagInfo } from '@cloudillo/core'
-import { Button, Divider, HBox, Nav, Tag, Text, useApi, VBox } from '@cloudillo/react'
+import {
+	Button,
+	HBox,
+	IconText,
+	Nav,
+	Panel,
+	SearchInput,
+	Tag,
+	useApi,
+	VBox
+} from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -17,6 +27,8 @@ import type { GalleryViewMode, TimeFilter } from '../types.js'
 
 interface GallerySidebarProps {
 	className?: string
+	searchQuery: string
+	onSearchQueryChange: (query: string) => void
 	viewMode: GalleryViewMode
 	onViewModeChange: (mode: GalleryViewMode) => void
 	timeFilter: TimeFilter
@@ -26,8 +38,11 @@ interface GallerySidebarProps {
 	onClearTags: () => void
 }
 
+// Rail recipe: padded VBox → SearchInput → Nav → `Panel variant="plain"` facets.
 export const GallerySidebar = React.memo(function GallerySidebar({
 	className,
+	searchQuery,
+	onSearchQueryChange,
 	viewMode,
 	onViewModeChange,
 	timeFilter,
@@ -73,7 +88,13 @@ export const GallerySidebar = React.memo(function GallerySidebar({
 	]
 
 	return (
-		<VBox gap={2} className={className} autoBg>
+		<VBox gap={2} padding={2} className={className}>
+			<SearchInput
+				aria-label={t('Search photos...')}
+				placeholder={t('Search photos...')}
+				value={searchQuery}
+				onChange={(e) => onSearchQueryChange(e.target.value)}
+			/>
 			<Nav aria-label={t('Gallery')}>
 				{viewItems.map(({ mode, icon, label }) => (
 					<Nav.Item
@@ -85,13 +106,7 @@ export const GallerySidebar = React.memo(function GallerySidebar({
 					/>
 				))}
 				<Nav.Divider />
-				<Nav.Section
-					label={
-						<>
-							<IcTime /> {t('Time')}
-						</>
-					}
-				>
+				<Nav.Section label={<IconText icon={<IcTime />}>{t('Time')}</IconText>}>
 					{timeItems.map(({ filter, label }) => (
 						<Nav.Item
 							key={filter}
@@ -104,18 +119,17 @@ export const GallerySidebar = React.memo(function GallerySidebar({
 			</Nav>
 
 			{tags.length > 0 && (
-				<>
-					<Divider />
-					<HBox gap={1} align="center">
-						<Text size="sm" emphasis="muted" className="flex-fill">
-							<IcTag /> {t('Tags')}
-						</Text>
-						{selectedTags.length > 0 && (
+				<Panel
+					variant="plain"
+					title={<IconText icon={<IcTag />}>{t('Tags')}</IconText>}
+					actions={
+						selectedTags.length > 0 && (
 							<Button variant="ghost" size="sm" onClick={onClearTags}>
 								{t('Clear')}
 							</Button>
-						)}
-					</HBox>
+						)
+					}
+				>
 					<HBox gap={1} wrap>
 						{tags.map((tagInfo) => (
 							<Tag
@@ -128,7 +142,7 @@ export const GallerySidebar = React.memo(function GallerySidebar({
 							</Tag>
 						))}
 					</HBox>
-				</>
+				</Panel>
 			)}
 		</VBox>
 	)

@@ -16,7 +16,6 @@ import {
 	LuArrowUp as IcAsc,
 	LuChevronDown as IcChevron,
 	LuArrowDown as IcDesc,
-	LuFilter as IcFilter,
 	LuLayoutList as IcMasonry,
 	LuLayoutGrid as IcRows
 } from 'react-icons/lu'
@@ -30,8 +29,6 @@ interface GalleryToolbarProps {
 	sort: SortOption
 	sortDir: SortDir
 	onSortChange: (sort: SortOption, dir?: SortDir) => void
-	onFilterToggle: () => void
-	showFilterButton?: boolean
 }
 
 const getSortLabels = (t: TFunction): Record<SortOption, string> => ({
@@ -45,9 +42,7 @@ export function GalleryToolbar({
 	onLayoutChange,
 	sort,
 	sortDir,
-	onSortChange,
-	onFilterToggle,
-	showFilterButton = true
+	onSortChange
 }: GalleryToolbarProps) {
 	const { t } = useTranslation()
 	const sortLabels = React.useMemo(() => getSortLabels(t), [t])
@@ -58,16 +53,6 @@ export function GalleryToolbar({
 
 	return (
 		<ToolbarContainer className={className}>
-			{/* Filter toggle button (mobile) */}
-			{showFilterButton && (
-				<Button
-					className="md-hide lg-hide"
-					onClick={onFilterToggle}
-					icon={<IcFilter />}
-					aria-label={t('Toggle filters')}
-				/>
-			)}
-
 			<ToolbarSpacer />
 
 			{/* Sort dropdown */}

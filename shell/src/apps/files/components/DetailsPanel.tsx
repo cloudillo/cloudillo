@@ -12,8 +12,8 @@ import {
 	Disclosure,
 	EmptyState,
 	FileTypeIcon,
-	Heading,
 	HBox,
+	Heading,
 	IconText,
 	List,
 	ListItem,
@@ -29,17 +29,20 @@ import {
 	VBox
 } from '@cloudillo/react'
 import type { Profile } from '@cloudillo/types'
+import type { TFunction } from 'i18next'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { FiEdit2 as IcEdit, FiMoreVertical as IcMore } from 'react-icons/fi'
+import { FiMoreVertical as IcMore } from 'react-icons/fi'
 import {
 	LuChevronDown as IcChevronDown,
 	LuCopy as IcCopy,
+	LuPencil as IcEdit,
 	LuLink as IcLink,
 	LuPin as IcPin,
 	LuQrCode as IcQrCode,
 	LuShare2 as IcShare,
-	LuStar as IcStar
+	LuStar as IcStar,
+	LuEye as IcView
 } from 'react-icons/lu'
 
 import { useCurrentContextIdTag } from '../../../context/index.js'
@@ -51,6 +54,7 @@ import { isMissingError, isPermissionError } from '../../../utils.js'
 import { type FileOwnerScopeOverride, useFileOwnerScope } from '../hooks/useFileOwnerScope.js'
 import type { File, FileOps } from '../types.js'
 import {
+	canWrite,
 	formatRelativeTime,
 	getVisibilityDropdownOptions,
 	getVisibilityIcon,
@@ -85,6 +89,28 @@ function AccessChip({ level }: { level: PermLevel }) {
 /** Folders carry no MIME type; FileTypeIcon knows them as `cloudillo/folder`. */
 function iconContentType(contentType: string | undefined, fileTp: string | undefined) {
 	return fileTp === 'FLDR' ? 'cloudillo/folder' : contentType
+}
+
+/** Human label for a content type ("Quillo document", "Folder", "PDF document"), shown
+ *  instead of the raw MIME type. Unknown types fall back to the MIME type itself. */
+export function contentTypeLabel(
+	t: TFunction,
+	contentType: string | undefined,
+	fileTp?: string
+): string | undefined {
+	const ct = iconContentType(contentType, fileTp)
+	if (!ct) return undefined
+	if (ct === 'cloudillo/folder') return t('Folder')
+	if (ct.startsWith('cloudillo/')) {
+		const app = ct.slice('cloudillo/'.length)
+		return t('{{app}} document', { app: app.charAt(0).toUpperCase() + app.slice(1) })
+	}
+	if (ct === 'application/pdf') return t('PDF document')
+	if (ct.startsWith('image/')) return t('Image')
+	if (ct.startsWith('video/')) return t('Video')
+	if (ct.startsWith('audio/')) return t('Audio')
+	if (ct.startsWith('text/')) return t('Text file')
+	return ct
 }
 
 // Abbreviate deeply nested paths so they stay on one line.
@@ -363,6 +389,8 @@ export function DetailsPanel({
 	const sharedPeopleCount = allPeople?.length ?? 0
 	const sharedLinkCount = shareRefs?.length ?? 0
 	const isSharingLoading = userShareEntries === undefined || shareRefs === undefined
+	const noShares =
+		sharedPeopleCount === 0 && sharedLinkCount === 0 && (fileShareEntries?.length ?? 0) === 0
 	const sharingSummary =
 		sharedPeopleCount > 0 || sharedLinkCount > 0
 			? [
@@ -441,7 +469,13 @@ export function DetailsPanel({
 			)
 		},
 		...(file.contentType
-			? [{ key: 'type', term: t('Type'), description: file.contentType }]
+			? [
+					{
+						key: 'type',
+						term: t('Type'),
+						description: contentTypeLabel(t, file.contentType, file.fileTp)
+					}
+				]
 			: []),
 		{ key: 'created', term: t('Created'), description: formatRelativeTime(file.createdAt) },
 		...(file.userData?.modifiedAt
@@ -491,13 +525,18 @@ export function DetailsPanel({
 							size="lg"
 						/>
 					)}
-					<VBox className="flex-fill min-w-0">
+					<VBox className="flex-fill w-min-0">
 						<Heading level={2} size="lg" className="text-truncate">
 							{file.fileName}
 						</Heading>
 						{(file.contentType || file.owner?.name) && (
 							<Text size="sm" emphasis="muted">
-								{[file.contentType, file.owner?.name].filter(Boolean).join(' · ')}
+								{[
+									contentTypeLabel(t, file.contentType, file.fileTp),
+									file.owner?.name
+								]
+									.filter(Boolean)
+									.join(' · ')}
 							</Text>
 						)}
 					</VBox>
@@ -508,7 +547,7 @@ export function DetailsPanel({
 					{!isFolder && (
 						<Button
 							variant="ghost"
-							icon={<IcEdit />}
+							icon={canWrite(file.accessLevel) ? <IcEdit /> : <IcView />}
 							aria-label={t('Open')}
 							onClick={() =>
 								fileOps.openFile(file.fileId, toAppAccess(file.accessLevel))
@@ -529,14 +568,6 @@ export function DetailsPanel({
 						aria-label={file.userData?.pinned ? t('Pinned') : t('Pin')}
 						onClick={() => fileOps.togglePinned?.(file.fileId)}
 					/>
-					{onShare && canShare && (
-						<Button
-							variant="ghost"
-							icon={<IcShare />}
-							aria-label={t('Share')}
-							onClick={() => onShare(file)}
-						/>
-					)}
 					{/* Same cross-owner exclusion as Visibility below: a placed row's file_id names
 					    a row on two nodes, so we do not offer a write we cannot route. */}
 					{canManage && !isCrossOwner && (
@@ -574,12 +605,9 @@ export function DetailsPanel({
 						// and that listing is also the only way an explicit 'A' grant, which no
 						// predicate here can see, becomes visible. Only the label changes.
 						onShare && (
-							<Button
-								size="sm"
-								icon={<IcShare />}
-								aria-label={canShare ? t('Manage sharing') : t('View sharing')}
-								onClick={() => onShare(file)}
-							/>
+							<Button size="sm" icon={<IcShare />} onClick={() => onShare(file)}>
+								{canShare ? t('Manage sharing') : t('View sharing')}
+							</Button>
 						)
 					}
 				>
@@ -593,22 +621,23 @@ export function DetailsPanel({
 								<List>
 									<ListItem
 										title={
-											<HBox gap={2} align="center">
-												<ProfileCard
-													profile={
-														ownerProfile ?? {
-															idTag: ownerIdTag,
-															name: ownerIdTag
-														}
+											<ProfileCard
+												profile={
+													ownerProfile ?? {
+														idTag: ownerIdTag,
+														name: ownerIdTag
 													}
-													srcTag={scope.profileSrcTag}
-												/>
-												{ownerIdTag === auth?.idTag && file.owner && (
-													<Text emphasis="muted">({t('you')})</Text>
-												)}
-											</HBox>
+												}
+												srcTag={scope.profileSrcTag}
+											/>
 										}
-										trailing={<Badge>{t('Owner')}</Badge>}
+										trailing={
+											<Badge>
+												{ownerIdTag === auth?.idTag && file.owner
+													? t('Owner (you)')
+													: t('Owner')}
+											</Badge>
+										}
 									/>
 								</List>
 							)}
@@ -616,6 +645,8 @@ export function DetailsPanel({
 
 						{isSharingLoading ? (
 							<Text emphasis="muted">{t('Loading…')}</Text>
+						) : noShares && refsAccess !== 'denied' && refsAccess !== 'error' ? (
+							<EmptyState size="sm" description={t('This file is private')} />
 						) : (
 							<>
 								{/* People with access (other than owner) */}
@@ -786,26 +817,6 @@ export function DetailsPanel({
 										</List>
 									</Disclosure>
 								)}
-
-								{/* Empty state */}
-								{(allPeople?.length ?? 0) === 0 &&
-									(shareRefs?.length ?? 0) === 0 &&
-									(fileShareEntries?.length ?? 0) === 0 && (
-										<EmptyState
-											size="sm"
-											description={t('This file is private')}
-											actions={
-												onShare && (
-													<Button
-														icon={<IcShare />}
-														onClick={() => onShare(file)}
-													>
-														{t('Share file')}
-													</Button>
-												)
-											}
-										/>
-									)}
 							</>
 						)}
 					</VBox>

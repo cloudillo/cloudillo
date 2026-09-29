@@ -100,23 +100,31 @@ export function ConversationBar({
 	return (
 		<VBox gap={1} className={className ? `h-100 ${className}` : 'h-100'}>
 			{/* Header panel: Tabs + Search */}
-			<Panel padding={2}>
-				<HBox align="center" gap={1} className="mb-2">
-					<Tabs
-						value={filter.tab}
-						onTabChange={(value) => onTabChange(value as ConversationTab)}
-						className="flex-fill"
-					>
-						<Tab value="all" icon={<IcConvList />}>
-							{t('All')}
-						</Tab>
-						<Tab value="direct" icon={<IcDirect />}>
-							{t('Direct')}
-						</Tab>
-						<Tab value="groups" icon={<IcGroup />}>
-							{t('Groups')}
-						</Tab>
-					</Tabs>
+			<Panel variant="plain" padding={2}>
+				<Tabs
+					value={filter.tab}
+					onTabChange={(value) => onTabChange(value as ConversationTab)}
+					className="mb-2"
+				>
+					<Tab value="all" icon={<IcConvList />}>
+						{t('All')}
+					</Tab>
+					<Tab value="direct" icon={<IcDirect />}>
+						{t('Direct')}
+					</Tab>
+					<Tab value="groups" icon={<IcGroup />}>
+						{t('Groups')}
+					</Tab>
+				</Tabs>
+				<HBox align="center" gap={1}>
+					<SearchInput
+						className="flex-fill w-min-0"
+						placeholder={t('Search conversations...')}
+						aria-label={t('Search conversations...')}
+						defaultValue={filter.q}
+						debounce={300}
+						onSearch={onSearch}
+					/>
 					<Menu
 						placement="bottom-end"
 						trigger={
@@ -139,18 +147,12 @@ export function ConversationBar({
 						/>
 					</Menu>
 				</HBox>
-				<SearchInput
-					placeholder={t('Search conversations...')}
-					aria-label={t('Search conversations...')}
-					defaultValue={filter.q}
-					debounce={300}
-					onSearch={onSearch}
-				/>
 			</Panel>
 
 			{/* Pending Invitations */}
 			{pendingInvites && pendingInvites.length > 0 && (
 				<Panel
+					variant="plain"
 					title={
 						<HBox gap={2} align="center">
 							{t('Pending Invitations')}
@@ -222,7 +224,7 @@ export function ConversationBar({
 			)}
 
 			{/* List panel */}
-			<Panel className="flex-fill overflow-y-auto">
+			<Panel variant="plain" className="flex-fill overflow-y-auto">
 				{filteredConversations === undefined || !active || !archived ? (
 					<SkeletonList count={5} showAvatar />
 				) : active.length === 0 && archived.length === 0 ? (
@@ -250,7 +252,7 @@ export function ConversationBar({
 									? t('Connect with someone to start messaging')
 									: t('Start a conversation or create a group')
 						}
-						action={
+						actions={
 							filter.tab === 'groups' ? (
 								<Button color="primary" icon={<IcNew />} onClick={onCreateGroup}>
 									{t('Create Group')}

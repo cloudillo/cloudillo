@@ -3,10 +3,10 @@
 
 import {
 	Field,
+	List,
 	LoadingSpinner,
 	NativeSelect,
 	Panel,
-	Toggle,
 	useApi,
 	type VisibilityCode,
 	VisibilitySelect
@@ -14,7 +14,7 @@ import {
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { useSettings } from './settings.js'
+import { SwitchRow, useSettings } from './settings.js'
 
 export function PrivacySettings() {
 	const { t } = useTranslation()
@@ -53,19 +53,6 @@ export function PrivacySettings() {
 				</Field>
 			</Panel>
 
-			<Panel title={t('Followers')}>
-				<Toggle
-					color="primary"
-					name="profile.allow_followers"
-					checked={settings['profile.allow_followers'] !== false}
-					onChange={onSettingChange}
-					label={t('Allow others to follow you')}
-					description={t(
-						'When disabled, new follow requests will be rejected and your posts will only be visible to your connections.'
-					)}
-				/>
-			</Panel>
-
 			<Panel title={t('Connections')}>
 				<Field
 					label={t('Connection mode')}
@@ -91,19 +78,26 @@ export function PrivacySettings() {
 						<option value="I">{t('Ignore (reject all)')}</option>
 					</NativeSelect>
 				</Field>
-			</Panel>
-
-			<Panel title={t('Federation')}>
-				<Toggle
-					color="primary"
-					name="profile.auto_approve_actions"
-					checked={!!settings['profile.auto_approve_actions']}
-					onChange={onSettingChange}
-					label={t('Auto-approve incoming actions')}
-					description={t(
-						'When enabled, posts and messages from trusted sources are automatically approved without manual review.'
-					)}
-				/>
+				<List variant="divided">
+					<SwitchRow
+						name="profile.allow_followers"
+						checked={settings['profile.allow_followers'] !== false}
+						onChange={onSettingChange}
+						label={t('Allow others to follow you')}
+						description={t(
+							'When disabled, new follow requests will be rejected and your posts will only be visible to your connections.'
+						)}
+					/>
+					<SwitchRow
+						name="profile.auto_approve_actions"
+						checked={!!settings['profile.auto_approve_actions']}
+						onChange={onSettingChange}
+						label={t('Auto-approve incoming actions')}
+						description={t(
+							'When enabled, posts and messages from trusted sources are automatically approved without manual review.'
+						)}
+					/>
+				</List>
 			</Panel>
 		</>
 	)

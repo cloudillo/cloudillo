@@ -24,7 +24,6 @@ import {
 	LoadingSpinner,
 	Panel,
 	Text,
-	Toggle,
 	useApi,
 	useAuth,
 	useDialog,
@@ -55,7 +54,7 @@ import {
 	setApiKey as swSetApiKey
 } from '../pwa.js'
 import { registerPasskey } from './passkey.js'
-import { useSettings } from './settings.js'
+import { SwitchRow, useSettings } from './settings.js'
 
 interface ScopeDef {
 	value: string
@@ -755,7 +754,6 @@ export function SecuritySettings() {
 					>
 						<PasswordInput
 							id="sec-current-password"
-							className="w-md"
 							name="sec.current_password"
 							autoComplete="current-password"
 							value={currentPassword}
@@ -768,7 +766,6 @@ export function SecuritySettings() {
 					<Field label={t('New password')} orientation="horizontal" id="sec-new-password">
 						<PasswordInput
 							id="sec-new-password"
-							className="w-md"
 							name="sec.new_password"
 							autoComplete="new-password"
 							value={newPassword}
@@ -791,7 +788,6 @@ export function SecuritySettings() {
 					>
 						<PasswordInput
 							id="sec-confirm-new-password"
-							className="w-md"
 							name="sec.confirm_new_password"
 							autoComplete="new-password"
 							value={confirmNewPassword}
@@ -822,88 +818,68 @@ export function SecuritySettings() {
 
 			{webAuthnSupported && (
 				<Panel
-					title={
-						<>
-							<IcPasskey className="me-2" />
-							{t('Passkeys')}
-						</>
-					}
+					title={t('Passkeys')}
 					description={t(
 						'Use biometric authentication or security keys for passwordless login.'
 					)}
 				>
-					<VBox gap={3}>
-						{passkeys.length > 0 && (
-							<List variant="divided">
-								{passkeys.map((pk) => (
-									<ListItem
-										key={pk.credentialId}
-										leading={<IcPasskey />}
-										title={pk.description}
-										trailing={
-											<Button
-												variant="ghost"
-												color="error"
-												icon={<IcDelete />}
-												aria-label={t('Delete passkey')}
-												onClick={() => deletePasskey(pk.credentialId)}
-											/>
-										}
-									/>
-								))}
-							</List>
-						)}
+					{passkeys.length > 0 && (
+						<List variant="divided">
+							{passkeys.map((pk) => (
+								<ListItem
+									key={pk.credentialId}
+									leading={<IcPasskey />}
+									title={pk.description}
+									trailing={
+										<Button
+											variant="ghost"
+											color="error"
+											icon={<IcDelete />}
+											aria-label={t('Delete passkey')}
+											onClick={() => deletePasskey(pk.credentialId)}
+										/>
+									}
+								/>
+							))}
+						</List>
+					)}
 
-						<InputGroup>
-							<Input
-								aria-label={t('Passkey name (optional)')}
-								placeholder={t('Passkey name (optional)')}
-								value={passkeyDescription}
-								onChange={(e) => setPasskeyDescription(e.target.value)}
-							/>
-							<Button
-								color="primary"
-								icon={<IcAdd />}
-								loading={isAddingPasskey}
-								onClick={addPasskey}
-							>
-								{t('Add passkey')}
-							</Button>
-						</InputGroup>
-					</VBox>
+					<InputGroup className="mt-3">
+						<Input
+							aria-label={t('Passkey name (optional)')}
+							placeholder={t('Passkey name (optional)')}
+							value={passkeyDescription}
+							onChange={(e) => setPasskeyDescription(e.target.value)}
+						/>
+						<Button
+							color="primary"
+							icon={<IcAdd />}
+							loading={isAddingPasskey}
+							onClick={addPasskey}
+						>
+							{t('Add passkey')}
+						</Button>
+					</InputGroup>
 				</Panel>
 			)}
 
-			<Panel
-				title={
-					<>
-						<IcApiKey className="me-2" />
-						{t('Stay logged in')}
-					</>
-				}
-			>
-				<VBox gap={2}>
-					<Toggle
-						color="primary"
+			<Panel title={t('Stay logged in')}>
+				<List variant="divided">
+					<SwitchRow
 						checked={stayLoggedIn}
 						onChange={(e) => toggleStayLoggedIn(e.target.checked)}
 						label={t('Keep me logged in on this device')}
 					/>
-					<Alert color="warning" compact>
-						{t(
-							'Only enable this on personal, trusted devices. The login credentials will be stored locally.'
-						)}
-					</Alert>
-				</VBox>
+				</List>
+				<Alert color="warning" compact>
+					{t(
+						'Only enable this on personal, trusted devices. The login credentials will be stored locally.'
+					)}
+				</Alert>
 			</Panel>
 
 			<Panel
-				title={
-					<>
-						<IcApiKey className="me-2" />
-						{t('API Keys')}
-					</>
-				}
+				title={t('API Keys')}
 				description={t(
 					'API keys allow programmatic access or keeping devices logged in. Revoking a key will revoke its access.'
 				)}

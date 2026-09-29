@@ -5,11 +5,11 @@ import {
 	Button,
 	Field,
 	HBox,
+	List,
 	LoadingSpinner,
 	NativeSelect,
 	Panel,
 	Text,
-	Toggle,
 	useAuth,
 	useDialog,
 	useToast
@@ -20,7 +20,7 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { activeContextAtom, isContextLeader, useContextAwareApi } from '../context/index.js'
-import { useSettings } from './settings.js'
+import { SwitchRow, useSettings } from './settings.js'
 
 const getVariantOptions = (t: TFunction) => [
 	{ value: 'tn', label: t('Thumbnail (tn)') },
@@ -188,13 +188,14 @@ export function FilesSettings() {
 					)}
 				>
 					{storeText !== undefined ? (
-						<Toggle
-							color="primary"
-							checked={storeText}
-							disabled={busy}
-							onChange={handleStoreTextChange}
-							label={t('Store indexed document text')}
-						/>
+						<List variant="divided">
+							<SwitchRow
+								checked={storeText}
+								disabled={busy}
+								onChange={handleStoreTextChange}
+								label={t('Store indexed document text')}
+							/>
+						</List>
 					) : storeTextError ? (
 						<HBox gap={2} align="center" justify="between">
 							<Text color="error">

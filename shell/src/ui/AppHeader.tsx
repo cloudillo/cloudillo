@@ -15,7 +15,7 @@ export interface AppHeaderProps {
 	center?: React.ReactNode
 	/** End group of actions. Children are list items (`AppHeaderItem`, `HandChip`, …). */
 	end?: React.ReactNode
-	/** The start group grows to fill the row (the open omnibox). */
+	/** The start group grows to fill the row (the open omnibox); below sm the end group hides. */
 	expanded?: boolean
 }
 
@@ -36,15 +36,20 @@ export function AppHeader({
 			aria-label={ariaLabel}
 		>
 			{/* Only the expanded start group grows to fill the row; idle it stays
-			    content-sized so the center keeps clear of the end icons. */}
-			<ul className={mergeClasses('c-nav-group g-1', expanded && 'flex-fill')}>
+			    content-sized so the center keeps clear of the end icons. Expanded, it
+			    may shrink below the input's intrinsic width, and below sm the end
+			    group yields the row to it. */}
+			<ul
+				className={mergeClasses('c-nav-group g-1', expanded && 'flex-fill')}
+				style={expanded ? { minWidth: 0 } : undefined}
+			>
 				{logo && (
 					<li className={mergeClasses('c-nav-item', expanded && 'sm-hide')}>{logo}</li>
 				)}
 				{start}
 			</ul>
 			{center}
-			<ul className="c-nav-group g-1">{end}</ul>
+			<ul className={mergeClasses('c-nav-group g-1', expanded && 'sm-hide')}>{end}</ul>
 		</nav>
 	)
 }

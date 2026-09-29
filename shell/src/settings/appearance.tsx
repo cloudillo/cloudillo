@@ -1,9 +1,16 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Field, LoadingSpinner, NativeSelect, Panel, useApi } from '@cloudillo/react'
+import { Field, LoadingSpinner, Panel, RadioGroup, useApi } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
+import {
+	LuLayers as IcGlass,
+	LuMonitor as IcSystem,
+	LuMoon as IcDark,
+	LuSquare as IcOpaque,
+	LuSun as IcLight
+} from 'react-icons/lu'
 
 import { getShellBus } from '../message-bus/index.js'
 import { useSettings } from './settings.js'
@@ -148,39 +155,49 @@ export function AppearanceSettings() {
 
 	const { settings, onSettingChange } = useSettings('ui')
 
-	function onThemeChange(evt: React.ChangeEvent<HTMLSelectElement>) {
+	// RadioGroup reports a value, onSettingChange reads a select-shaped event target
+	function onThemeChange(name: 'ui.theme' | 'ui.colors', value: string) {
 		if (!settings) return
 
-		onSettingChange(evt)
-		//console.log('onThemeChange', evt.target.name, evt.target.value)
-		if (evt.target.name == 'ui.theme') setTheme(evt.target.value, settings['ui.colors'])
-		if (evt.target.name == 'ui.colors') setTheme(settings['ui.theme'], evt.target.value)
+		void onSettingChange({
+			target: { name, value, type: 'select-one', tagName: 'SELECT' }
+		} as unknown as React.ChangeEvent<HTMLSelectElement>)
+		if (name === 'ui.theme') setTheme(value, settings['ui.colors'])
+		else setTheme(settings['ui.theme'], value)
 	}
 
 	if (!settings) return <LoadingSpinner className="auto-bg" />
 
 	return (
 		<Panel>
-			<Field label={t('Theme')} orientation="horizontal">
-				<NativeSelect
-					name="ui.theme"
-					value={settings['ui.theme'] as string}
-					onChange={onThemeChange}
-				>
-					<option value="glass">{t('Glass')}</option>
-					<option value="opaque">{t('Opaque')}</option>
-				</NativeSelect>
+			<Field label={t('Theme')}>
+				<RadioGroup
+					variant="card"
+					orientation="horizontal"
+					value={(settings['ui.theme'] as string) || 'glass'}
+					onChange={(value) => onThemeChange('ui.theme', value)}
+					options={[
+						{ value: 'glass', label: t('Glass'), leading: <IcGlass /> },
+						{ value: 'opaque', label: t('Opaque'), leading: <IcOpaque /> }
+					]}
+				/>
 			</Field>
-			<Field label={t('Colors')} orientation="horizontal">
-				<NativeSelect
-					name="ui.colors"
-					value={settings['ui.colors'] as string}
-					onChange={onThemeChange}
-				>
-					<option value="default">{t('Use browser settings')}</option>
-					<option value="light">{t('Light')}</option>
-					<option value="dark">{t('Dark')}</option>
-				</NativeSelect>
+			<Field label={t('Colors')}>
+				<RadioGroup
+					variant="card"
+					orientation="horizontal"
+					value={(settings['ui.colors'] as string) || 'default'}
+					onChange={(value) => onThemeChange('ui.colors', value)}
+					options={[
+						{
+							value: 'default',
+							label: t('Use browser settings'),
+							leading: <IcSystem />
+						},
+						{ value: 'light', label: t('Light'), leading: <IcLight /> },
+						{ value: 'dark', label: t('Dark'), leading: <IcDark /> }
+					]}
+				/>
 			</Field>
 		</Panel>
 	)

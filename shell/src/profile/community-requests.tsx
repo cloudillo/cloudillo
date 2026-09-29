@@ -3,17 +3,15 @@
 
 import type { ApiClient } from '@cloudillo/core'
 import {
-	ActionBar,
 	Button,
-	Card,
 	EmptyState,
-	HBox,
-	ProfileCard,
-	Text,
+	IdentityTag,
+	List,
+	ListItem,
+	ProfilePicture,
 	TimeFormat,
 	useDialog,
-	useToast,
-	VBox
+	useToast
 } from '@cloudillo/react'
 import type { ActionView } from '@cloudillo/types'
 import * as React from 'react'
@@ -112,34 +110,36 @@ export function PendingRequestsList({
 
 	if (requests === undefined) return null
 	if (requests.length === 0) {
-		return <EmptyState className="auto-bg" size="sm" title={t('No pending requests.')} />
+		return <EmptyState className="auto-bg" size="sm" title={t('No pending requests')} />
 	}
 
 	return (
-		<VBox gap={2}>
+		<List variant="divided" aria-label={t('Pending requests')}>
 			{requests.map((action) => {
 				const message = typeof action.content === 'string' ? action.content : undefined
 				const busy = busyId === action.actionId
 				return (
-					<Card key={action.actionId} padding={3}>
-						<HBox gap={2} align="center">
-							<ProfileCard className="flex-fill" profile={action.issuer} />
-							<TimeFormat time={action.createdAt} />
-						</HBox>
-						{message && <Text as="p">{message}</Text>}
-						{/* Consent decision, both options carry equal weight */}
-						<ActionBar>
-							<Button disabled={busy} onClick={() => handleReject(action)}>
-								{t('Reject')}
-							</Button>
-							<Button disabled={busy} onClick={() => handleApprove(action)}>
-								{t('Approve')}
-							</Button>
-						</ActionBar>
-					</Card>
+					<ListItem
+						key={action.actionId}
+						leading={<ProfilePicture profile={action.issuer} />}
+						title={action.issuer.name || action.issuer.idTag}
+						subtitle={message ?? <IdentityTag idTag={action.issuer.idTag} />}
+						meta={<TimeFormat time={action.createdAt} />}
+						trailing={
+							/* Consent decision, both options carry equal weight */
+							<>
+								<Button disabled={busy} onClick={() => handleReject(action)}>
+									{t('Reject')}
+								</Button>
+								<Button disabled={busy} onClick={() => handleApprove(action)}>
+									{t('Approve')}
+								</Button>
+							</>
+						}
+					/>
 				)
 			})}
-		</VBox>
+		</List>
 	)
 }
 

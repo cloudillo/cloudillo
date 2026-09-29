@@ -3,21 +3,20 @@
 
 import {
 	Alert,
-	Badge,
 	Button,
 	Divider,
 	EmptyState,
 	FAB,
 	Fcd,
-	HBox,
 	Icon,
 	IdentityTag,
 	LoadMoreTrigger,
-	Panel,
+	PageHeader,
+	ProfilePicture,
 	SkeletonList,
-	Text,
 	useApi,
-	useAuth
+	useAuth,
+	VBox
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -36,6 +35,7 @@ import {
 	useReadPositionTracker,
 	useScrollEngaged
 } from '../../read-position.js'
+import { FilterToggle } from '../../ui/FilterToggle.js'
 import { messagesPath } from '../../routes.js'
 import '@cloudillo/react/components.css'
 
@@ -63,7 +63,9 @@ export function MessagesApp() {
 	const [auth] = useAuth()
 	const urlContext = useCtx().base
 
-	const [showFilter, setShowFilter] = React.useState(!convId)
+	// Below md the rail is a drawer; with no conversation the list renders in the
+	// content column instead, so the drawer starts closed.
+	const [showFilter, setShowFilter] = React.useState(false)
 	const [showDetails, setShowDetails] = React.useState(false)
 	const [showCreateGroup, setShowCreateGroup] = React.useState(false)
 	const [showContactPicker, setShowContactPicker] = React.useState(false)
@@ -170,8 +172,20 @@ export function MessagesApp() {
 	}, [msg])
 
 	React.useEffect(() => {
-		setShowFilter(!convId)
+		if (convId) setShowFilter(false)
 	}, [convId])
+
+	const conversationBarProps = {
+		filter,
+		setFilter,
+		conversations,
+		activeId: convId,
+		onCreateGroup: () => setShowCreateGroup(true),
+		onNewMessage: () => setShowContactPicker(true),
+		pendingInvites,
+		onAcceptInvite: handleAcceptInvite,
+		onRejectInvite: rejectInvite
+	}
 
 	const grouped = React.useMemo(() => groupMessages(msg || []), [msg])
 
@@ -275,62 +289,65 @@ export function MessagesApp() {
 			<Fcd.Container className="g-1">
 				{!!auth && (
 					<>
-						<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
-							<ConversationBar
-								className="col col-md-4 col-lg-3 h-100"
-								filter={filter}
-								setFilter={setFilter}
-								conversations={conversations}
-								activeId={convId}
-								onCreateGroup={() => setShowCreateGroup(true)}
-								onNewMessage={() => setShowContactPicker(true)}
-								pendingInvites={pendingInvites}
-								onAcceptInvite={handleAcceptInvite}
-								onRejectInvite={rejectInvite}
-							/>
+						<Fcd.Filter
+							className="messages-rail"
+							isVisible={showFilter}
+							hide={() => setShowFilter(false)}
+						>
+							<ConversationBar {...conversationBarProps} />
 						</Fcd.Filter>
 						<Fcd.Content
 							ref={setConvEl}
 							onScroll={onConvScroll}
+							width="fluid"
 							header={
-								<Panel padding={2} className="w-100">
-									<HBox align="center" gap={2}>
-										<Button
-											variant="ghost"
-											icon={<IcConvList />}
-											aria-label={t('Conversations')}
-											className="md-hide lg-hide"
-											onClick={() => setShowFilter(true)}
-										/>
-										{conversation &&
-											(isGroup ? (
-												<>
-													<Icon as={IcGroup} />
-													<Text weight="medium" truncate>
-														{conversation.name}
-													</Text>
-													<Badge>
-														{t('{{count}} members', {
-															count: conversation.memberCount
-														})}
-													</Badge>
-													<Button
-														variant="ghost"
-														icon={<IcInfo />}
-														aria-label={t('Group details')}
-														className="lg-hide ms-auto"
-														onClick={() => setShowDetails(true)}
-													/>
-												</>
-											) : (
-												conversation.profiles[0] && (
-													<IdentityTag
-														idTag={conversation.profiles[0].idTag}
-													/>
-												)
-											))}
-									</HBox>
-								</Panel>
+								<PageHeader
+									title={
+										!conversation
+											? t('Messages')
+											: isGroup
+												? conversation.name || t('Unnamed Group')
+												: conversation.profiles[0]?.name ||
+													conversation.profiles[0]?.idTag
+									}
+									leading={
+										!conversation ? undefined : isGroup ? (
+											<Icon as={IcGroup} />
+										) : (
+											conversation.profiles[0] && (
+												<ProfilePicture
+													profile={conversation.profiles[0]}
+													size="sm"
+												/>
+											)
+										)
+									}
+									subtitle={
+										!conversation ? undefined : isGroup ? (
+											t('{{count}} members', {
+												count: conversation.memberCount
+											})
+										) : conversation.profiles[0] ? (
+											<IdentityTag idTag={conversation.profiles[0].idTag} />
+										) : undefined
+									}
+									actions={
+										<>
+											{!!convId && (
+												<FilterToggle onClick={() => setShowFilter(true)} />
+											)}
+											{isGroup && (
+												<Button
+													variant="ghost"
+													icon={<IcInfo />}
+													aria-label={t('Group details')}
+													className="lg-hide"
+													onClick={() => setShowDetails(true)}
+												/>
+											)}
+										</>
+									}
+								/>
 							}
 						>
 							{!scrollBottom && (
@@ -343,19 +360,26 @@ export function MessagesApp() {
 								/>
 							)}
 							{!convId ? (
-								<EmptyState
-									className="auto-bg"
-									icon={<IcConvList />}
-									title={t('Select a conversation')}
-									description={t(
-										'Choose a contact from the list to start messaging'
-									)}
-								/>
+								<>
+									<ConversationBar
+										{...conversationBarProps}
+										className="md-hide lg-hide"
+									/>
+									<EmptyState
+										fill
+										className="sm-hide"
+										icon={<IcConvList />}
+										title={t('Select a conversation')}
+										description={t(
+											'Choose a contact from the list to start messaging'
+										)}
+									/>
+								</>
 							) : msg === undefined ? (
 								<SkeletonList count={5} showAvatar />
 							) : msg.length === 0 ? (
 								<EmptyState
-									className="auto-bg"
+									fill
 									icon={isGroup ? <IcGroup /> : <IcConvList />}
 									title={t('No messages yet')}
 									description={t('Start the conversation by sending a message!')}
@@ -388,13 +412,39 @@ export function MessagesApp() {
 													action={g.action}
 													local={local}
 													showSender={g.showSender && !local}
-													showTimestamp={g.showTimestamp}
+													showTimestamp={
+														grouped[i + 1]?.showSender ?? true
+													}
 													onRetry={retry}
 												/>
 											</React.Fragment>
 										)
 									})}
 								</>
+							)}
+							{/* Composer / left-group banner: sticky at the bottom of the message column */}
+							{!!convId && conversation && (
+								<VBox className="pos-sticky bottom-0 mt-auto pt-1">
+									{isLeftGroup ? (
+										<Alert
+											color="neutral"
+											compact
+											actions={
+												conversation.isOpen ? (
+													<Button color="primary" onClick={handleRejoin}>
+														{t('Rejoin')}
+													</Button>
+												) : undefined
+											}
+										>
+											{t('You left this group')}
+											{!conversation.isOpen &&
+												` — ${t('This group is invite-only')}`}
+										</Alert>
+									) : (
+										<NewMsg onSend={send} />
+									)}
+								</VBox>
 							)}
 						</Fcd.Content>
 
@@ -417,30 +467,6 @@ export function MessagesApp() {
 					</>
 				)}
 			</Fcd.Container>
-
-			{/* Left-group banner (read-only history) */}
-			{!!auth && !!convId && conversation && isLeftGroup && (
-				<Alert
-					color="neutral"
-					compact
-					className="mt-1"
-					actions={
-						conversation.isOpen ? (
-							<Button color="primary" onClick={handleRejoin}>
-								{t('Rejoin')}
-							</Button>
-						) : undefined
-					}
-				>
-					{t('You left this group')}
-					{!conversation.isOpen && ` — ${t('This group is invite-only')}`}
-				</Alert>
-			)}
-
-			{/* Message Input */}
-			{!!auth && !!convId && conversation && !isLeftGroup && (
-				<NewMsg className="mt-1" onSend={send} />
-			)}
 
 			{/* Create Group Dialog */}
 			<CreateGroupDialog

@@ -27,6 +27,13 @@ export const AppFrame = React.forwardRef<HTMLIFrameElement, AppFrameProps>(funct
 	ref
 ) {
 	const { t } = useTranslation()
+	// Shell sheets turn top-anchored while an app is shown (components.css `:root[data-app-frame]`)
+	React.useEffect(() => {
+		document.documentElement.dataset.appFrame = ''
+		return () => {
+			delete document.documentElement.dataset.appFrame
+		}
+	}, [])
 	const badge =
 		trust === 'semi-trusted'
 			? t('Verified')

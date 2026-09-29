@@ -10,7 +10,6 @@ import {
 	ListItem,
 	LoadingSpinner,
 	LoadMoreTrigger,
-	Panel,
 	Text
 } from '@cloudillo/react'
 import * as React from 'react'
@@ -114,6 +113,7 @@ export function ContactList({
 	if (contacts.length === 0) {
 		return (
 			<EmptyState
+				fill
 				title={t('No contacts')}
 				description={t('Create a contact or add one from your Cloudillo network.')}
 			/>
@@ -121,8 +121,8 @@ export function ContactList({
 	}
 
 	return (
-		<Panel padding={2}>
-			<List aria-label={t('Contacts')}>
+		<>
+			<List variant="divided" aria-label={t('Contacts')}>
 				{contacts.map((contact) => (
 					<ContactRow
 						key={`${contact.abId}:${contact.uid}`}
@@ -145,7 +145,7 @@ export function ContactList({
 				retryLabel={t('Retry')}
 				errorPrefix={t('Failed to load:')}
 			/>
-		</Panel>
+		</>
 	)
 }
 

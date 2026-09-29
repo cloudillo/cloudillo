@@ -4,11 +4,12 @@
 import {
 	Button,
 	EmptyState,
+	FAB,
 	Fcd,
-	HBox,
 	Menu,
 	MenuDivider,
 	MenuItem,
+	PageHeader,
 	useToast
 } from '@cloudillo/react'
 import { useAtom } from 'jotai'
@@ -25,6 +26,7 @@ import '@cloudillo/react/components.css'
 import type { ContactInput, ContactOutput } from '@cloudillo/core'
 
 import { useContextAwareApi } from '../../context/index.js'
+import { FilterToggle } from '../../ui/FilterToggle.js'
 import { isPermissionError } from '../../utils.js'
 import { searchQueryAtom, selectedAddressBookAtom, selectedContactRefAtom } from './atoms.js'
 import {
@@ -78,6 +80,9 @@ export function ContactsApp() {
 
 	// Import VCF modal
 	const [importOpen, setImportOpen] = React.useState(false)
+
+	// Address book rail (drawer below md)
+	const [showFilter, setShowFilter] = React.useState(false)
 
 	// Toolbar overflow menu (anchor position)
 	const [toolbarMenu, setToolbarMenu] = React.useState<{ x: number; y: number } | null>(null)
@@ -222,17 +227,24 @@ export function ContactsApp() {
 	// book" prompt, whose button then fails again with no explanation.
 	const booksDenied = isPermissionError(booksError)
 	const noBooks = !booksLoading && !booksError && addressBooks.length === 0
+	// No "New contact" at all until there is a book to put it in.
+	const canCreateContact = !booksLoading && !booksError && addressBooks.length > 0
+	const selectedBookName =
+		selection === 'all'
+			? t('All contacts')
+			: addressBooks.find((b) => b.abId === selection)?.name
 
 	return (
 		<>
-			<Fcd.Container className="g-1" filterLabel={t('Address books')}>
-				<Fcd.Filter>
+			<Fcd.Container>
+				<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
 					<AddressBookSidebar
 						addressBooks={addressBooks}
 						selection={selection}
 						onSelect={(s) => {
 							setSelection(s)
 							setSelectedRef(null)
+							setShowFilter(false)
 						}}
 						onRename={openRenameBook}
 						onDelete={handleDeleteBook}
@@ -242,28 +254,39 @@ export function ContactsApp() {
 				</Fcd.Filter>
 
 				<Fcd.Content
+					width="fluid"
 					header={
-						<HBox gap={1} align="center" className="p-2" autoBg>
-							<Button
-								color="primary"
-								size="sm"
-								disabled={noBooks || !!booksError}
-								onClick={openCreateContact}
-								icon={<IcAdd />}
-							>
-								{t('New contact')}
-							</Button>
-							<Button
-								variant="ghost"
-								size="sm"
-								immediate
-								onClick={openToolbarMenu}
-								aria-label={t('More actions')}
-								aria-haspopup="menu"
-								aria-expanded={!!toolbarMenu}
-								icon={<IcMore />}
-							/>
-						</HBox>
+						<PageHeader
+							title={t('Contacts')}
+							subtitle={selectedBookName}
+							actions={
+								<>
+									<FilterToggle
+										label={t('Address books')}
+										onClick={() => setShowFilter(true)}
+									/>
+									{canCreateContact && (
+										<Button
+											className="sm-hide"
+											color="primary"
+											onClick={openCreateContact}
+											icon={<IcAdd />}
+										>
+											{t('New contact')}
+										</Button>
+									)}
+									<Button
+										variant="ghost"
+										immediate
+										onClick={openToolbarMenu}
+										aria-label={t('More actions')}
+										aria-haspopup="menu"
+										aria-expanded={!!toolbarMenu}
+										icon={<IcMore />}
+									/>
+								</>
+							}
+						/>
 					}
 				>
 					{booksError ? (
@@ -321,6 +344,15 @@ export function ContactsApp() {
 					/>
 				</Fcd.Details>
 			</Fcd.Container>
+
+			{canCreateContact && (
+				<FAB
+					className="md-hide lg-hide"
+					icon={<IcAdd />}
+					aria-label={t('New contact')}
+					onClick={openCreateContact}
+				/>
+			)}
 
 			<AddressBookEditor
 				open={bookEditorOpen}

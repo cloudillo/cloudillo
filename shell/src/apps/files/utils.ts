@@ -6,9 +6,9 @@ import dayjs from 'dayjs'
 import type { TFunction } from 'i18next'
 import type { IconType } from 'react-icons'
 import {
-	LuUserCheck as IcConnected,
+	LuHandshake as IcConnected,
 	LuLock as IcDirect,
-	LuUserPlus as IcFollowers,
+	LuUsers as IcFollowers,
 	LuGlobe as IcPublic,
 	LuShieldCheck as IcVerified
 } from 'react-icons/lu'

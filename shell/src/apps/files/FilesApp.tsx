@@ -19,6 +19,8 @@ import {
 	LoadingSpinner,
 	List,
 	LoadMoreTrigger,
+	PageHeader,
+	ProfilePicture,
 	Text,
 	useAuth,
 	useDebouncedValue,
@@ -28,9 +30,15 @@ import {
 	VBox
 } from '@cloudillo/react'
 
-import { useContextAwareApi, useCtx, useCurrentContextIdTag } from '../../context/index.js'
+import {
+	useActiveCommunity,
+	useContextAwareApi,
+	useCtx,
+	useCurrentContextIdTag
+} from '../../context/index.js'
 import { getDirtyDocIds } from '../../message-bus/handlers/crdt.js'
 import { appPath, type QueryInit } from '../../routes.js'
+import { FilterToggle } from '../../ui/FilterToggle.js'
 import { isPermissionError, useAppConfig } from '../../utils.js'
 import {
 	displayModeAtom,
@@ -54,6 +62,7 @@ import {
 	Toolbar,
 	UploadProgress
 } from './components/index.js'
+import { CreateDocumentMenu, viewItems } from './components/Sidebar.js'
 import {
 	buildFileFilterParams,
 	convertFileView,
@@ -75,6 +84,7 @@ export function FilesApp() {
 	const { api } = useContextAwareApi()
 	const [auth] = useAuth()
 	const contextIdTag = useCurrentContextIdTag()
+	const community = useActiveCommunity()
 	const urlContextIdTag = useCtx().base
 	const dialog = useDialog()
 	const toast = useToast()
@@ -479,9 +489,11 @@ export function FilesApp() {
 				} else if (!file.fileTp || file.fileTp === 'BLOB') {
 					// Unknown binary: open the built-in viewer, which shows a Download fallback
 					navigateToFile(file, 'view', access)
+				} else {
+					// CRDT/RTDB docs with no handler: leave as-is (handled elsewhere as
+					// "Unsupported file type")
+					console.warn('[FilesApp] openFile: no app for', file.contentType, file.fileTp)
 				}
-				// CRDT/RTDB docs with no handler: leave as-is (handled elsewhere as
-				// "Unsupported file type")
 			},
 
 			openFileWithApp: function openFileWithApp(
@@ -873,11 +885,9 @@ export function FilesApp() {
 					) : undefined
 				}
 			>
-				<Fcd.Container className="g-1">
+				<Fcd.Container>
 					<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
 						<Sidebar
-							contextIdTag={contextIdTag}
-							currentFolderId={currentFolderId}
 							viewMode={viewMode}
 							onViewModeChange={handleViewModeChange}
 							fileTypeFilter={fileTypeFilter}
@@ -891,14 +901,38 @@ export function FilesApp() {
 						/>
 					</Fcd.Filter>
 					<Fcd.Content
+						width="fluid"
 						header={
-							<VBox gap={2} autoBg>
+							<VBox gap={2}>
+								<PageHeader
+									title={`${t('Files')} · ${viewItems(t).find((v) => v.mode === viewMode)?.label ?? ''}`}
+									leading={
+										community && (
+											<ProfilePicture
+												profile={{ profilePic: community.profilePic }}
+												srcTag={community.idTag}
+												size="sm"
+											/>
+										)
+									}
+									subtitle={community && (community.name || community.idTag)}
+									actions={
+										<>
+											<FilterToggle onClick={() => setShowFilter(true)} />
+											{(!isRemoteBrowsing || canWrite(remoteAccessLevel)) && (
+												<CreateDocumentMenu
+													contextIdTag={contextIdTag}
+													currentFolderId={currentFolderId}
+												/>
+											)}
+										</>
+									}
+								/>
 								<Toolbar
 									canGoBack={canGoBack}
 									onGoBack={goBack}
 									canGoUp={!!(currentFolderId || isRemoteBrowsing)}
 									onGoUp={goUp}
-									onShowFilter={() => setShowFilter(true)}
 									displayMode={displayMode}
 									onDisplayModeChange={setDisplayMode}
 									onFilesSelected={
@@ -1077,7 +1111,7 @@ export function FilesApp() {
 							</>
 						) : (
 							<>
-								<List>
+								<List variant="divided">
 									{files.map((file) => (
 										<ItemCard
 											key={file.fileId}

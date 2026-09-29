@@ -16,6 +16,7 @@ import {
 	HBox,
 	IdentityTag,
 	Input,
+	List,
 	NativeSelect,
 	Panel,
 	ProfilePicture,
@@ -48,6 +49,7 @@ import {
 
 import { useCommunitiesList } from '../context/hooks.js'
 import type { CommunityRef } from '../context/types.js'
+import { SwitchRow } from '../settings/settings.js'
 import { dateInputToExpiryIso, formatRefDate, parseRefDate } from '../utils/parseRefDate.js'
 
 // ============================================================================
@@ -534,11 +536,13 @@ function RegistrationInvites() {
 							/>
 						</Field>
 
-						<Toggle
-							label={t('Auto-connect on signup')}
-							checked={autoConnect}
-							onChange={(e) => setAutoConnect(e.target.checked)}
-						/>
+						<List variant="divided">
+							<SwitchRow
+								label={t('Auto-connect on signup')}
+								checked={autoConnect}
+								onChange={(e) => setAutoConnect(e.target.checked)}
+							/>
+						</List>
 
 						<Fieldset legend={t('Add to communities')}>
 							<VBox gap={2}>
@@ -857,7 +861,7 @@ export function Invitations() {
 	const [tab, setTab] = React.useState<string>('registration')
 
 	return (
-		<VBox gap={3} autoBg>
+		<VBox gap={3}>
 			<Tabs value={tab} onTabChange={setTab}>
 				<Tab value="registration">{t('Registration')}</Tab>
 				<Tab value="community">{t('Community')}</Tab>

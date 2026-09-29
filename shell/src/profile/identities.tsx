@@ -6,17 +6,18 @@ import {
 	Avatar,
 	Badge,
 	Button,
-	Card,
 	FAB,
 	Fcd,
-	HBox,
 	Icon,
+	IdentityTag,
+	List,
+	ListItem,
 	Nav,
 	PageHeader,
-	ProfileCard,
 	ProfilePicture,
 	useApi,
-	useAuth
+	useAuth,
+	VBox
 } from '@cloudillo/react'
 import type { Profile } from '@cloudillo/types'
 import type { TFunction } from 'i18next'
@@ -30,6 +31,7 @@ import {
 	LuScanLine as IcScan,
 	LuUser as IcUser,
 	LuUsers as IcUserAll,
+	LuUsersRound as IcCommunities,
 	LuCircleOff as IcUserBlocked,
 	LuHandshake as IcUserConnected,
 	LuUserPlus as IcUserFollowed,
@@ -43,6 +45,7 @@ import { useQrScanner } from '../components/QrScanner/index.js'
 import { useContextSwitch, useCtx } from '../context/index.js'
 import { ProfileContextMenu, useProfileContextMenu } from '../context/profile-context-menu.js'
 import { communityCreatePath, profilePath } from '../routes.js'
+import { FilterToggle } from '../ui/FilterToggle.js'
 import { describeRelationship } from './relationship.js'
 
 type ProfileStatusCode = 'A' | 'B' | 'M' | 'S'
@@ -200,7 +203,7 @@ function FilterBar() {
 interface ProfileListCardProps {
 	profile: Profile
 	srcTag?: string
-	wrapClick?: (handler: (e: React.MouseEvent) => void) => (e: React.MouseEvent) => void
+	wrapClick?: (handler: (e: React.SyntheticEvent) => void) => (e: React.SyntheticEvent) => void
 	triggerProps?: {
 		onContextMenu: (e: React.MouseEvent) => void
 		onTouchStart: (e: React.TouchEvent) => void
@@ -218,33 +221,35 @@ export function ProfileListCard({
 	const { t } = useTranslation()
 	const ctx = useCtx()
 	const rel = describeRelationship(profile)
+	const guardClick = wrapClick?.(() => {})
 
 	return (
-		<Card
-			padding={1}
-			className="mb-1"
+		<ListItem
+			leading={<ProfilePicture profile={profile} srcTag={srcTag} />}
+			title={profile.name}
+			subtitle={<IdentityTag className="c-list-item-handle" idTag={profile.idTag} />}
 			href={profilePath(ctx.base, profile.idTag)}
-			onClick={wrapClick?.(() => {})}
+			onClick={guardClick}
+			trailing={
+				<>
+					{rel.followsYou && !rel.mutual && (
+						<Badge variant="outline" color="secondary">
+							{t('Follows you')}
+						</Badge>
+					)}
+					<ProfileStatusBadge profile={profile} />
+					<ProfileConnectionIcon profile={profile} />
+				</>
+			}
 			{...triggerProps}
-		>
-			<HBox gap={2} align="center">
-				<ProfileCard className="flex-fill" profile={profile} srcTag={srcTag} />
-				{rel.followsYou && !rel.mutual && (
-					<Badge variant="outline" color="secondary" className="align-self-center">
-						{t('Follows you')}
-					</Badge>
-				)}
-				<ProfileStatusBadge profile={profile} />
-				<ProfileConnectionIcon profile={profile} />
-			</HBox>
-		</Card>
+		/>
 	)
 }
 
 interface CommunityListCardProps {
 	profile: Profile
 	srcTag?: string
-	wrapClick?: (handler: (e: React.MouseEvent) => void) => (e: React.MouseEvent) => void
+	wrapClick?: (handler: (e: React.SyntheticEvent) => void) => (e: React.SyntheticEvent) => void
 	triggerProps?: {
 		onContextMenu: (e: React.MouseEvent) => void
 		onTouchStart: (e: React.TouchEvent) => void
@@ -283,34 +288,30 @@ export function CommunityListCard({
 		navigate(profileHref)
 	}
 
+	const rowClick = wrapClick ? wrapClick(handleRowClick) : handleRowClick
+
 	return (
-		<Card
-			interactive
-			padding={1}
-			className="mb-1"
-			role="button"
-			tabIndex={0}
-			onClick={wrapClick ? wrapClick(handleRowClick) : handleRowClick}
-			onKeyDown={(e) => {
-				if (e.key === 'Enter' || e.key === ' ') {
-					e.preventDefault()
-					handleRowClick()
-				}
-			}}
-			{...triggerProps}
-		>
-			<HBox gap={2} align="center">
-				<ProfileCard className="flex-fill" profile={profile} srcTag={srcTag} />
+		<ListItem
+			leading={<ProfilePicture profile={profile} srcTag={srcTag} />}
+			title={profile.name}
+			subtitle={<IdentityTag className="c-list-item-handle" idTag={profile.idTag} />}
+			onClick={rowClick}
+			actions={
 				<Button
 					variant="ghost"
 					icon={<IcExternalLink />}
 					aria-label={t('View profile')}
 					onClick={handleViewProfile}
 				/>
-				<ProfileStatusBadge profile={profile} />
-				<ProfileConnectionIcon profile={profile} />
-			</HBox>
-		</Card>
+			}
+			trailing={
+				<>
+					<ProfileStatusBadge profile={profile} />
+					<ProfileConnectionIcon profile={profile} />
+				</>
+			}
+			{...triggerProps}
+		/>
 	)
 }
 
@@ -320,18 +321,26 @@ interface PeopleHeaderProps {
 	subtitle: string
 	profilePic?: string
 	srcTag?: string
+	actions?: React.ReactNode
 }
 
-export function PeopleHeader({ variant, title, subtitle, profilePic, srcTag }: PeopleHeaderProps) {
+/** Goes in `Fcd.Content header`; in a community `leading` is the community avatar. */
+export function PeopleHeader({
+	variant,
+	title,
+	subtitle,
+	profilePic,
+	srcTag,
+	actions
+}: PeopleHeaderProps) {
 	return (
 		<PageHeader
-			className="auto-bg"
-			level={2}
 			title={title}
 			subtitle={subtitle}
+			actions={actions}
 			leading={
 				variant === 'community' ? (
-					<ProfilePicture profile={{ profilePic }} srcTag={srcTag} small />
+					<ProfilePicture profile={{ profilePic }} srcTag={srcTag} size="sm" />
 				) : (
 					<Avatar size="sm" fallback={<IcUserAll />} />
 				)
@@ -348,6 +357,7 @@ export function PersonListPage({ idTag }: { idTag?: string }) {
 	const [profiles, setProfiles] = React.useState<Profile[]>([])
 	const [refreshTick, setRefreshTick] = React.useState(0)
 	const [, setQrScannerOpen] = useQrScanner()
+	const [showFilter, setShowFilter] = React.useState(false)
 	const { menuState, closeMenu, getTriggerProps, wrapClick } = useProfileContextMenu()
 	// The tenant the route names when there is one (this page is also rendered without a
 	// route, from `PeoplePage`).
@@ -377,18 +387,39 @@ export function PersonListPage({ idTag }: { idTag?: string }) {
 
 	return (
 		<>
-			<Fcd.Container className="g-1" filterLabel={t('Filter')}>
-				<Fcd.Filter>
-					<FilterBar />
+			<Fcd.Container className="g-1">
+				<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
+					<VBox gap={2} padding={2}>
+						<FilterBar />
+					</VBox>
 				</Fcd.Filter>
-				<Fcd.Content>
-					<PeopleHeader
-						variant="person"
-						title={t('People')}
-						subtitle={`${t('Your connections')} · ${profiles.length}`}
-					/>
-					{!!profiles &&
-						profiles.map((profile) => (
+				<Fcd.Content
+					width="reading"
+					header={
+						<PeopleHeader
+							variant="person"
+							title={t('People')}
+							subtitle={`${t('Your connections')} · ${profiles.length}`}
+							actions={
+								<>
+									<FilterToggle onClick={() => setShowFilter(true)} />
+									{auth && (
+										<Button
+											className="sm-hide"
+											color="primary"
+											icon={<IcScan />}
+											onClick={() => setQrScannerOpen(true)}
+										>
+											{t('Scan QR code')}
+										</Button>
+									)}
+								</>
+							}
+						/>
+					}
+				>
+					<List variant="divided" aria-label={t('People')}>
+						{profiles.map((profile) => (
 							<ProfileListCard
 								key={profile.idTag}
 								profile={profile}
@@ -401,11 +432,13 @@ export function PersonListPage({ idTag }: { idTag?: string }) {
 								})}
 							/>
 						))}
+					</List>
 				</Fcd.Content>
 			</Fcd.Container>
 
 			{auth && (
 				<FAB
+					className="md-hide lg-hide"
 					icon={<IcScan />}
 					aria-label={t('Scan QR code')}
 					onClick={() => setQrScannerOpen(true)}
@@ -435,6 +468,7 @@ export function CommunityListPage() {
 	const [auth] = useAuth()
 	const [profiles, setProfiles] = React.useState<Profile[]>([])
 	const [refreshTick, setRefreshTick] = React.useState(0)
+	const [showFilter, setShowFilter] = React.useState(false)
 	const { menuState, closeMenu, getTriggerProps, wrapClick } = useProfileContextMenu()
 	// The tenant the route names; the effect below re-runs when it changes.
 	const ctx = useCtx()
@@ -461,13 +495,37 @@ export function CommunityListPage() {
 
 	return (
 		<>
-			<Fcd.Container className="g-1" filterLabel={t('Filter')}>
-				<Fcd.Filter>
-					<FilterBar />
+			<Fcd.Container className="g-1">
+				<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
+					<VBox gap={2} padding={2}>
+						<FilterBar />
+					</VBox>
 				</Fcd.Filter>
-				<Fcd.Content>
-					{!!profiles &&
-						profiles.map((profile) => (
+				<Fcd.Content
+					width="reading"
+					header={
+						<PageHeader
+							leading={<Avatar size="sm" fallback={<IcCommunities />} />}
+							title={t('Communities')}
+							subtitle={`${t('Your communities')} · ${profiles.length}`}
+							actions={
+								<>
+									<FilterToggle onClick={() => setShowFilter(true)} />
+									<Button
+										className="sm-hide"
+										color="primary"
+										icon={<IcPlus />}
+										onClick={() => navigate(communityCreatePath(ctx.base))}
+									>
+										{t('Create new community')}
+									</Button>
+								</>
+							}
+						/>
+					}
+				>
+					<List variant="divided" aria-label={t('Communities')}>
+						{profiles.map((profile) => (
 							<CommunityListCard
 								key={profile.idTag}
 								profile={profile}
@@ -480,10 +538,12 @@ export function CommunityListPage() {
 								})}
 							/>
 						))}
+					</List>
 				</Fcd.Content>
 			</Fcd.Container>
 
 			<FAB
+				className="md-hide lg-hide"
 				icon={<IcPlus />}
 				aria-label={t('Create new community')}
 				onClick={() => navigate(communityCreatePath(ctx.base))}

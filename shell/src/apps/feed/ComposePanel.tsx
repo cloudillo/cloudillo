@@ -630,7 +630,7 @@ export function ComposePanel({
 			// REPOST must carry an explicit audience; the backend rejects one without.
 			// For the own wall fall back to the user's own idTag (same value as the
 			// duplicate-guard key). Since audience idTag === issuer idTag there, the
-			// feed card suppresses the audience header (feed.tsx ProfileAudienceCard).
+			// feed card suppresses the audience header (feed.tsx Post → communityAudience).
 			const repostAudienceTag = repostKey
 			if (ownRepostIds?.[repostKey]) {
 				await dialog.tell(

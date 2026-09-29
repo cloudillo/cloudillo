@@ -348,7 +348,13 @@ export function LoginForm() {
 		return (
 			<AuthLayout
 				logo={<Logo animated={forgotStatus === 'loading'} />}
-				title={forgot ? t('Reset Password') : t('Login')}
+				title={
+					forgot
+						? t('Reset Password')
+						: api?.idTag
+							? t('Sign in to {{idTag}}', { idTag: api.idTag })
+							: t('Sign in')
+				}
 				width="md"
 			>
 				<Switcher gap={3}>

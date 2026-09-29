@@ -30,9 +30,9 @@ import { useAtomValue } from 'jotai'
 import React, { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-	LuUserCheck as IcConnected,
+	LuHandshake as IcConnected,
 	LuFile as IcFile,
-	LuUserPlus as IcFollowers,
+	LuUsers as IcFollowers,
 	LuHouse as IcHome,
 	LuLock as IcLock
 } from 'react-icons/lu'

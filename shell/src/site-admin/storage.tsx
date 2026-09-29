@@ -1,16 +1,19 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Field, Input, NativeSelect, Panel, Toggle, VBox } from '@cloudillo/react'
+import { Field, Input, List, NativeSelect, Panel, VBox } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { useSettings } from '../settings/settings.js'
+import { SettingsDenied, SwitchRow, useSettings } from '../settings/settings.js'
 
 export function StorageSettings() {
 	const { t } = useTranslation()
-	const { settings, onSettingChange } = useSettings(['file', 'limits'], { level: 'global' })
+	const { settings, onSettingChange, denied } = useSettings(['file', 'limits'], {
+		level: 'global'
+	})
 
+	if (denied) return <SettingsDenied />
 	if (!settings) return null
 
 	const variantOptions = [
@@ -82,7 +85,6 @@ export function StorageSettings() {
 						hint={t('Largest image size variant to automatically generate and store')}
 					>
 						<NativeSelect
-							className="w-sm"
 							name="file.max_generate_variant"
 							value={(settings['file.max_generate_variant'] as string) || 'hd'}
 							onChange={onSettingChange}
@@ -99,7 +101,6 @@ export function StorageSettings() {
 						)}
 					>
 						<NativeSelect
-							className="w-sm"
 							name="file.max_cache_variant"
 							value={(settings['file.max_cache_variant'] as string) || 'md'}
 							onChange={onSettingChange}
@@ -114,7 +115,6 @@ export function StorageSettings() {
 						hint={`${t('Image format for thumbnail (tn) variant')}. ${avifNote}`}
 					>
 						<NativeSelect
-							className="w-sm"
 							name="file.thumbnail_format"
 							value={(settings['file.thumbnail_format'] as string) || 'webp'}
 							onChange={onSettingChange}
@@ -129,7 +129,6 @@ export function StorageSettings() {
 						hint={`${t('Image format for sd, md, hd, and xd variants')}. ${avifNote}`}
 					>
 						<NativeSelect
-							className="w-sm"
 							name="file.image_format"
 							value={(settings['file.image_format'] as string) || 'webp'}
 							onChange={onSettingChange}
@@ -184,15 +183,17 @@ export function StorageSettings() {
 			</Panel>
 
 			<Panel title={t('Federated attachments')}>
-				<Toggle
-					name="file.shared_blob_store_enabled"
-					checked={!!settings['file.shared_blob_store_enabled']}
-					onChange={onSettingChange}
-					label={t('Use shared blob store for public attachments')}
-					description={t(
-						'Use the shared TnId(0) blob store for Public/Verified federated attachments (deduplicates across tenants).'
-					)}
-				/>
+				<List variant="divided">
+					<SwitchRow
+						name="file.shared_blob_store_enabled"
+						checked={!!settings['file.shared_blob_store_enabled']}
+						onChange={onSettingChange}
+						label={t('Use shared blob store for public attachments')}
+						description={t(
+							'Use the shared TnId(0) blob store for Public/Verified federated attachments (deduplicates across tenants).'
+						)}
+					/>
+				</List>
 			</Panel>
 
 			<Panel title={t('Garbage collection')}>
@@ -205,7 +206,6 @@ export function StorageSettings() {
 						)}
 					>
 						<Input
-							className="w-sm"
 							name="file.gc_cron"
 							type="text"
 							value={String(settings['file.gc_cron'] ?? '0 4 * * *')}

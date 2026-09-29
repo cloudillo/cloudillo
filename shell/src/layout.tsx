@@ -109,20 +109,18 @@ import { HandChip } from './ui/HandChip.js'
 import { useAppConfig } from './utils.js'
 import { useWsBus, WsBusRoot } from './ws-bus.js'
 
-import '@symbion/opalui'
-import '@symbion/opalui/themes/opaque.css'
-import '@symbion/opalui/themes/glass.css'
-import '@cloudillo/fonts/fonts.css'
-// The shell's own markup uses component-library classes (`.c-input-icon`,
-// `.c-input-clear`, TreeView, …), so the stylesheet is a dependency of the entry point,
-// not just of whichever feature module happens to pull it in.
-import '@cloudillo/react/components.css'
+// Library CSS is imported first thing in `index.tsx` so shell CSS overrides it.
 import './style.css'
 
 declare global {
 	interface Window {
 		__cloudilloBootStart?: number
 	}
+}
+
+/** `AuthLayout` screens stand alone: no rail, no dock. The header stays. */
+function isAuthScreen(pathname: string): boolean {
+	return /^\/(login$|register\/|reset-password\/|idp\/activate\/|onboarding(\/|$))/.test(pathname)
 }
 
 function Header({ inert }: { inert?: boolean }) {
@@ -284,10 +282,23 @@ function Header({ inert }: { inert?: boolean }) {
 
 	const langItems = (
 		<>
-			<MenuItem label="English" onClick={() => i18n.changeLanguage('en')} />
-			<MenuItem label="Magyar" onClick={() => i18n.changeLanguage('hu')} />
-			<MenuHeader>Cloudillo V{process.env.CLOUDILLO_VERSION}</MenuHeader>
+			<MenuHeader>{t('Language')}</MenuHeader>
+			<MenuItem
+				label="English"
+				selected={i18n.language === 'en'}
+				onClick={() => i18n.changeLanguage('en')}
+			/>
+			<MenuItem
+				label="Magyar"
+				selected={i18n.language === 'hu'}
+				onClick={() => i18n.changeLanguage('hu')}
+			/>
 		</>
+	)
+	const versionFooter = (
+		<Text as="div" size="xs" emphasis="muted" role="presentation" className="px-3 py-1">
+			Cloudillo V{process.env.CLOUDILLO_VERSION}
+		</Text>
 	)
 
 	return (
@@ -323,18 +334,6 @@ function Header({ inert }: { inert?: boolean }) {
 								onClick={() => openOmnibox()}
 							/>
 						</AppHeaderItem>
-						{auth && (
-							<AppHeaderItem className="sm-hide md-hide">
-								{/* Always the user's own settings, never the URL's context —
-									a community's own settings live on the rail. */}
-								<Button
-									variant="ghost"
-									href={settingsPath(ctxBase(auth.idTag, auth.idTag))}
-									icon={<IcSettings />}
-									aria-label={t('My settings')}
-								/>
-							</AppHeaderItem>
-						)}
 						{auth && (
 							<AppHeaderItem>
 								<Button
@@ -394,13 +393,15 @@ function Header({ inert }: { inert?: boolean }) {
 										href={settingsPath(ctxBase(auth.idTag, auth.idTag))}
 									/>
 									<MenuDivider />
+									{langItems}
+									<MenuDivider />
 									<MenuItem
 										icon={<IcLogout />}
 										label={t('Logout')}
+										color="error"
 										onClick={requestLogout}
 									/>
-									<MenuDivider />
-									{langItems}
+									{versionFooter}
 								</Menu>
 							</AppHeaderItem>
 						) : (
@@ -417,6 +418,7 @@ function Header({ inert }: { inert?: boolean }) {
 										}
 									>
 										{langItems}
+										{versionFooter}
 									</Menu>
 								</AppHeaderItem>
 								<AppHeaderItem>
@@ -437,7 +439,7 @@ function Header({ inert }: { inert?: boolean }) {
 					</>
 				}
 			/>
-			{!location.pathname.match('^/register/') && (
+			{!isAuthScreen(location.pathname) && (
 				<>
 					{auth && <CommunitySheet />}
 					<AppDock inert={inert} aria-label={t('Mobile navigation')}>
@@ -577,6 +579,7 @@ export function Layout() {
 	const { api } = useApi()
 	const dialog = useDialog()
 	const sidebar = useSidebar()
+	const authScreen = isAuthScreen(useLocation().pathname)
 	const { loadCommunities } = useCommunitiesList()
 	const keyLoss = useAtomValue(keyLossAtom)
 	useTokenRenewal() // Automatic auth token renewal
@@ -691,8 +694,8 @@ export function Layout() {
 			{/* Everything below reads the URL's context through `useCtx()`. */}
 			<CtxProvider>
 				<AppShell
-					sidebar={<Sidebar />}
-					sidebarPinned={sidebar.isPinned}
+					sidebar={!authScreen && <Sidebar />}
+					sidebarPinned={!authScreen && sidebar.isPinned}
 					header={<Header inert={dialog.isOpen} />}
 					inert={dialog.isOpen}
 				>

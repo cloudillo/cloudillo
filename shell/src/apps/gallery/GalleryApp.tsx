@@ -2,12 +2,22 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import { getFileUrl } from '@cloudillo/core'
-import { EmptyState, Fcd, LoadingSpinner, LoadMoreTrigger, useAuth, VBox } from '@cloudillo/react'
+import {
+	EmptyState,
+	Fcd,
+	LoadingSpinner,
+	LoadMoreTrigger,
+	PageHeader,
+	useAuth,
+	useDebouncedValue,
+	VBox
+} from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { LuImage as IcImage } from 'react-icons/lu'
 
 import { useCurrentContextIdTag } from '../../context/index.js'
+import { FilterToggle } from '../../ui/FilterToggle.js'
 import { BLANK_IMAGE_SRC } from '../../utils.js'
 import { ActiveFilters } from './components/ActiveFilters.js'
 import { GalleryGrid } from './components/GalleryGrid.js'
@@ -37,6 +47,9 @@ export function GalleryApp() {
 
 	// UI state
 	const [showFilter, setShowFilter] = React.useState(false)
+	const [searchQuery, setSearchQuery] = React.useState('')
+	const fileName = useDebouncedValue(searchQuery, 300).trim()
+	const isFiltered = hasActiveFilters || !!fileName
 
 	// Use infinite scroll hook for images
 	const {
@@ -48,7 +61,7 @@ export function GalleryApp() {
 		loadMore,
 		sentinelRef
 	} = useGalleryImages({
-		apiQueryParams
+		apiQueryParams: fileName ? { ...apiQueryParams, fileName } : apiQueryParams
 	})
 
 	// Convert files to photo format for the grid
@@ -84,7 +97,7 @@ export function GalleryApp() {
 		}
 
 		// Empty state (no photos at all)
-		if (files.length === 0 && !hasActiveFilters) {
+		if (files.length === 0 && !isFiltered) {
 			return (
 				<EmptyState
 					icon={<IcImage />}
@@ -95,7 +108,7 @@ export function GalleryApp() {
 		}
 
 		// Empty state (filters applied but no results)
-		if (files.length === 0 && hasActiveFilters) {
+		if (files.length === 0 && isFiltered) {
 			return (
 				<EmptyState
 					icon={<IcImage />}
@@ -127,6 +140,8 @@ export function GalleryApp() {
 		<Fcd.Container className="fluid overflow-hidden">
 			<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
 				<GallerySidebar
+					searchQuery={searchQuery}
+					onSearchQueryChange={setSearchQuery}
 					viewMode={filters.viewMode}
 					onViewModeChange={setViewMode}
 					timeFilter={filters.timeFilter}
@@ -138,16 +153,21 @@ export function GalleryApp() {
 			</Fcd.Filter>
 
 			<Fcd.Content
-				fluid
+				width="fluid"
 				header={
-					<GalleryToolbar
-						layout={filters.layout}
-						onLayoutChange={setLayout}
-						sort={filters.sort}
-						sortDir={filters.sortDir}
-						onSortChange={setSort}
-						onFilterToggle={() => setShowFilter((v) => !v)}
-					/>
+					<VBox gap={2} autoBg>
+						<PageHeader
+							title={t('Gallery')}
+							actions={<FilterToggle onClick={() => setShowFilter(true)} />}
+						/>
+						<GalleryToolbar
+							layout={filters.layout}
+							onLayoutChange={setLayout}
+							sort={filters.sort}
+							sortDir={filters.sortDir}
+							onSortChange={setSort}
+						/>
+					</VBox>
 				}
 			>
 				{files.length > 0 && (
@@ -159,7 +179,10 @@ export function GalleryApp() {
 						onRemoveTag={toggleTag}
 						onClearTimeFilter={() => setTimeFilter('all')}
 						onClearViewMode={() => setViewMode('all')}
-						onClearAll={clearAll}
+						onClearAll={() => {
+							clearAll()
+							setSearchQuery('')
+						}}
 						totalCount={undefined}
 						filteredCount={files.length}
 					/>

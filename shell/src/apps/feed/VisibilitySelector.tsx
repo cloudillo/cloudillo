@@ -1,11 +1,15 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { VisibilitySelect, type VisibilityCode } from '@cloudillo/react'
+import { type VisibilityCode, VisibilitySelect } from '@cloudillo/react'
 import type { TFunction } from 'i18next'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuGlobe as IcGlobe, LuUserCheck as IcUserCheck, LuUsers as IcUsers } from 'react-icons/lu'
+import {
+	LuHandshake as IcConnected,
+	LuUsers as IcFollowers,
+	LuGlobe as IcGlobe
+} from 'react-icons/lu'
 
 export type Visibility = 'P' | 'C' | 'F'
 
@@ -19,8 +23,8 @@ interface VisibilityOption {
 }
 
 export const getVisibilityOptions = (t: TFunction): VisibilityOption[] => [
-	{ value: 'F', label: t('Followers'), icon: IcUserCheck, color: 'var(--col-primary)' },
-	{ value: 'C', label: t('Connected'), icon: IcUsers, color: 'var(--col-warning)' },
+	{ value: 'F', label: t('Followers'), icon: IcFollowers, color: 'var(--col-primary)' },
+	{ value: 'C', label: t('Connected'), icon: IcConnected, color: 'var(--col-warning)' },
 	{ value: 'P', label: t('Public'), icon: IcGlobe, color: 'var(--col-success)' }
 ]
 

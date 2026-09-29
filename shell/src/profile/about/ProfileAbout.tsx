@@ -3,6 +3,7 @@
 
 import {
 	Button,
+	EmptyState,
 	Grid,
 	HBox,
 	Panel,
@@ -122,38 +123,44 @@ function AboutViewMode({
 	) : null
 
 	if (!rows.length) {
-		return (
-			<Panel actions={editButton ?? undefined}>
-				<Text emphasis="muted" align="center">
-					{t('No information available')}
-				</Text>
-			</Panel>
-		)
+		return <EmptyState title={t('No information available')} actions={editButton} />
 	}
+
+	// The Edit button sits in the first card's header, not detached below the cards
+	const first = rows[0]
+	const firstId =
+		first.kind === 'section' ? first.section.id : (first.left[0] ?? first.right[0])?.id
+	const view = (s: SectionWithContent) => (
+		<SectionView
+			key={s.id}
+			section={s}
+			isOwner={isOwner}
+			actions={s.id === firstId ? editButton : undefined}
+		/>
+	)
 
 	return (
 		<VBox gap={1}>
 			{rows.map((row) => {
 				if (row.kind === 'cols') {
 					const key = row.left[0]?.id ?? row.right[0]?.id ?? 'cols'
+					// One-sided row: full width instead of an empty half
+					if (!row.left.length || !row.right.length) {
+						return (
+							<VBox key={key} gap={1}>
+								{[...row.left, ...row.right].map(view)}
+							</VBox>
+						)
+					}
 					return (
 						<Grid key={key} min="16rem" gap={1}>
-							<VBox gap={1}>
-								{row.left.map((s) => (
-									<SectionView key={s.id} section={s} isOwner={isOwner} />
-								))}
-							</VBox>
-							<VBox gap={1}>
-								{row.right.map((s) => (
-									<SectionView key={s.id} section={s} isOwner={isOwner} />
-								))}
-							</VBox>
+							<VBox gap={1}>{row.left.map(view)}</VBox>
+							<VBox gap={1}>{row.right.map(view)}</VBox>
 						</Grid>
 					)
 				}
-				return <SectionView key={row.section.id} section={row.section} isOwner={isOwner} />
+				return view(row.section)
 			})}
-			{editButton && <HBox justify="end">{editButton}</HBox>}
 		</VBox>
 	)
 }
@@ -295,7 +302,8 @@ function AboutEditMode({
 		// Convert rich-text sections from HTML back to markdown for storage
 		const sections = [...sectionMap.values()].map((s) =>
 			s.type === 'about' || s.type === 'custom' || s.type === 'rules'
-				? { ...s, content: htmlToMd(s.content) }
+				? // Quill 2's getSemanticHTML emits every space as &nbsp;, which Turndown keeps
+					{ ...s, content: htmlToMd(s.content.replace(/&nbsp;| /g, ' ')) }
 				: s
 		)
 		onSave(cleanEmptyCols(layout), sections, deletedIds)

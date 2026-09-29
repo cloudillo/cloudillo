@@ -1,11 +1,45 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { useApi, useToast } from '@cloudillo/react'
+import { EmptyState, ListItem, Toggle, useApi, useToast } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
+import { LuLock as IcDenied } from 'react-icons/lu'
 
-import { coerceSettingValue } from '../utils.js'
+import { coerceSettingValue, isPermissionError } from '../utils.js'
+
+/** Shown instead of a settings page whose `useSettings` load was refused (403) */
+export function SettingsDenied() {
+	const { t } = useTranslation()
+	return (
+		<EmptyState
+			icon={<IcDenied />}
+			title={t('No access to these settings')}
+			description={t('Your account is not allowed to view or change these settings.')}
+		/>
+	)
+}
+
+type SwitchRowProps = Omit<React.ComponentProps<typeof Toggle>, 'label' | 'description'> & {
+	label: string
+	description?: React.ReactNode
+}
+
+/** Settings switch row: goes inside `<List variant="divided">`, a direct child of the Panel */
+export function SwitchRow({ label, description, ...props }: SwitchRowProps) {
+	const autoId = React.useId()
+	const id = props.id ?? autoId
+	return (
+		<ListItem
+			title={
+				// biome-ignore lint/plugin/no-raw-intrinsic: ds-allow: ListItem title must be a label tied to the Toggle
+				<label htmlFor={id}>{label}</label>
+			}
+			subtitle={description}
+			trailing={<Toggle color="primary" {...props} id={id} />}
+		/>
+	)
+}
 
 // Debounce delays for different input types
 const DEBOUNCE_DELAYS = {
@@ -27,6 +61,7 @@ export function useSettings(prefix: string | string[], opts?: { level?: 'global'
 	const [settings, setSettings] = React.useState<
 		Record<string, string | number | boolean> | undefined
 	>()
+	const [denied, setDenied] = React.useState(false)
 	const prefixStr = React.useMemo(
 		() => (Array.isArray(prefix) ? prefix.join(',') : prefix),
 		[prefix]
@@ -48,8 +83,10 @@ export function useSettings(prefix: string | string[], opts?: { level?: 'global'
 				}
 			}
 			setSettings(settingsMap)
+			setDenied(false)
 		} catch (err) {
 			console.error('Failed to load settings:', err)
+			if (isPermissionError(err)) setDenied(true)
 		}
 	}, [api, authenticated, prefixStr, level])
 
@@ -87,9 +124,9 @@ export function useSettings(prefix: string | string[], opts?: { level?: 'global'
 		setSettings((settings) => ({ ...settings, [name]: value }))
 
 		// Determine debounce delay based on input type
-		const inputType = type || (tagName.toLowerCase() === 'select' ? 'select' : 'default')
+		const inputType = tagName.toLowerCase() === 'select' ? 'select' : type
 		const delay =
-			DEBOUNCE_DELAYS[inputType as keyof typeof DEBOUNCE_DELAYS] || DEBOUNCE_DELAYS.default
+			DEBOUNCE_DELAYS[inputType as keyof typeof DEBOUNCE_DELAYS] ?? DEBOUNCE_DELAYS.default
 
 		// Clear existing timer for this setting
 		if (debounceTimers.current[name]) {
@@ -121,7 +158,7 @@ export function useSettings(prefix: string | string[], opts?: { level?: 'global'
 		}
 	}
 
-	return { settings, setSettings, onSettingChange, refresh }
+	return { settings, setSettings, onSettingChange, refresh, denied }
 }
 
 // vim: ts=4

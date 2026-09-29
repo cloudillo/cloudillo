@@ -1,18 +1,19 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Field, Input, Panel, Toggle, VBox } from '@cloudillo/react'
+import { Field, Input, List, Panel, VBox } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { useSettings } from '../settings/settings.js'
+import { SettingsDenied, SwitchRow, useSettings } from '../settings/settings.js'
 
 export function TenantSettings() {
 	const { t } = useTranslation()
-	const { settings, onSettingChange } = useSettings(['auth', 'federation'], {
+	const { settings, onSettingChange, denied } = useSettings(['auth', 'federation'], {
 		level: 'global'
 	})
 
+	if (denied) return <SettingsDenied />
 	if (!settings) return null
 
 	const sessionTimeoutSeconds = (settings['auth.session_timeout'] as number) || 86400
@@ -39,15 +40,16 @@ export function TenantSettings() {
 			</Panel>
 
 			<Panel title={t('Federation')}>
-				<VBox gap={3}>
-					<Toggle
+				<List variant="divided">
+					<SwitchRow
 						name="federation.auto_accept_followers"
 						checked={!!settings['federation.auto_accept_followers']}
 						onChange={onSettingChange}
 						label={t('Auto-accept follow requests')}
 						description={t('Automatically accept follow requests from other instances')}
 					/>
-
+				</List>
+				<VBox gap={3}>
 					<Field
 						label={t('History sync window (days)')}
 						orientation="horizontal"

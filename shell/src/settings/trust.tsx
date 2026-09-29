@@ -125,7 +125,7 @@ export function TrustSettings(): React.ReactElement {
 
 	return (
 		<Panel title={t('Trusted profiles')}>
-			<List>
+			<List variant="divided">
 				{rows.map((profile) => {
 					const trust = profile.trust ?? null
 					const Icon =

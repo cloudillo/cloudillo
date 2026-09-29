@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Fcd, Nav } from '@cloudillo/react'
+import { Fcd, Nav, PageHeader, ProfilePicture } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -17,7 +17,7 @@ import {
 } from 'react-icons/lu'
 import { Outlet, Route, useLocation, useMatch } from 'react-router-dom'
 
-import { useCtx } from '../context/index.js'
+import { useActiveCommunity, useCtx } from '../context/index.js'
 import type { UsePWA } from '../pwa.js'
 import { sectionMatch, settingsPath } from '../routes.js'
 import { AppearanceSettings } from './appearance.js'
@@ -43,6 +43,7 @@ export function Settings({ title, children }: SettingsProps) {
 	const { t } = useTranslation()
 	const location = useLocation()
 	const basePath = settingsPath(useCtx().base)
+	const community = useActiveCommunity()
 
 	return (
 		// Keyed on the path so the mobile rail drawer closes once a page is picked: the
@@ -89,7 +90,27 @@ export function Settings({ title, children }: SettingsProps) {
 					<Nav.Item href={`${basePath}/site`} icon={<IcSite />} label={t('Site')} />
 				</Nav>
 			</Fcd.Filter>
-			<Fcd.Content>{children}</Fcd.Content>
+			<Fcd.Content
+				width="form"
+				header={
+					<PageHeader
+						title={
+							community ? `${community.name || community.idTag} · ${title}` : title
+						}
+						leading={
+							community && (
+								<ProfilePicture
+									profile={{ profilePic: community.profilePic }}
+									srcTag={community.idTag}
+									size="sm"
+								/>
+							)
+						}
+					/>
+				}
+			>
+				{children}
+			</Fcd.Content>
 		</Fcd.Container>
 	)
 }

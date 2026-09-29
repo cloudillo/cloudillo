@@ -3,7 +3,8 @@
 
 /**
  * The community finder body, shared by the desktop `[▦]` popup and the mobile community
- * sheet: search over the user's own communities, a list of cards (switch / pin / profile),
+ * sheet: search over the user's own communities, a list of cards (tap switches; ⋮ pins or
+ * opens the profile),
  * and — sheet only — the pinned row with the personal tile first.
  *
  * The DOM order is always pinned → search → list → footer, so Tab order reads the same on
@@ -17,6 +18,8 @@ import {
 	HBox,
 	Heading,
 	IdentityTag,
+	Menu,
+	MenuItem,
 	mergeClasses,
 	SearchInput,
 	SortableList,
@@ -27,7 +30,12 @@ import {
 import { useAtomValue } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuPin as IcPin, LuPinOff as IcPinOff, LuUserRound as IcProfile } from 'react-icons/lu'
+import {
+	LuEllipsisVertical as IcMore,
+	LuPin as IcPin,
+	LuPinOff as IcPinOff,
+	LuUserRound as IcProfile
+} from 'react-icons/lu'
 import { useNavigate } from 'react-router-dom'
 
 import {
@@ -66,8 +74,6 @@ function CommunityCard({
 	const { t } = useTranslation()
 	const unreadCounts = useAtomValue(unreadCountAtom)
 	const { idTag, name, isPending, unreadCount } = community
-	const pinLabel = isPinned ? t('Unpin {{name}}', { name }) : t('Pin {{name}}', { name })
-	const profileLabel = t('View profile of {{name}}', { name })
 
 	return (
 		<HBox
@@ -92,23 +98,25 @@ function CommunityCard({
 				</VBox>
 				{!isPending && unreadCount > 0 && <Badge color="error">{unreadCount}</Badge>}
 			</Button>
-			<Button
-				kind="nav-link"
-				className="c-community-card-action"
-				onClick={onTogglePin}
-				aria-label={pinLabel}
-				aria-pressed={isPinned}
+			<Menu
+				placement="bottom-end"
+				trigger={
+					<Button
+						kind="nav-link"
+						className="c-community-card-action"
+						aria-label={t('Actions for {{name}}', { name })}
+					>
+						<IcMore />
+					</Button>
+				}
 			>
-				{isPinned ? <IcPinOff /> : <IcPin />}
-			</Button>
-			<Button
-				kind="nav-link"
-				className="c-community-card-action"
-				onClick={onProfile}
-				aria-label={profileLabel}
-			>
-				<IcProfile />
-			</Button>
+				<MenuItem
+					icon={isPinned ? <IcPinOff /> : <IcPin />}
+					label={isPinned ? t('Unpin from strip') : t('Pin to strip')}
+					onClick={onTogglePin}
+				/>
+				<MenuItem icon={<IcProfile />} label={t('View profile')} onClick={onProfile} />
+			</Menu>
 		</HBox>
 	)
 }

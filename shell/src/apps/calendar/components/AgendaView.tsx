@@ -4,13 +4,13 @@
 import type { CalendarOutput } from '@cloudillo/core'
 import {
 	ColorDot,
+	EmptyState,
 	Heading,
 	IconText,
 	List,
 	ListItem,
 	LoadingSpinner,
 	Panel,
-	Text,
 	VBox
 } from '@cloudillo/react'
 import dayjs from 'dayjs'
@@ -49,11 +49,7 @@ export function AgendaView({ occurrences, isLoading }: AgendaViewProps) {
 	}
 
 	if (groups.length === 0) {
-		return (
-			<Text as="p" emphasis="muted" align="center" className="auto-bg p-4">
-				{t('No events in this range')}
-			</Text>
-		)
+		return <EmptyState fill title={t('No events in this range')} />
 	}
 
 	const fmtTime = new Intl.DateTimeFormat(i18n.language, { hour: 'numeric', minute: '2-digit' })
@@ -71,7 +67,7 @@ export function AgendaView({ occurrences, isLoading }: AgendaViewProps) {
 						<Heading level={2} size="xs" overline className="px-2">
 							{fmtDay.format(dayjs(day).toDate())}
 						</Heading>
-						<List>
+						<List variant="divided">
 							{items.map((occ) => (
 								<ListItem
 									key={occ.id}

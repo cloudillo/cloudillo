@@ -10,9 +10,10 @@ import {
 	Image,
 	Link,
 	LoadingSpinner,
-	ProfileCard,
+	ProfilePicture,
 	RichText,
 	Text,
+	Tooltip,
 	useAuth,
 	VBox
 } from '@cloudillo/react'
@@ -70,12 +71,19 @@ function MsgComponent({
 			ref={register}
 			side={local ? 'end' : 'start'}
 			data-read-ts={createdAtToSeconds(action.createdAt)}
-			className={className ? `mb-1 ${className}` : 'mb-1'}
+			className={[showSender ? 'mt-2 mb-1' : 'mb-1', className].filter(Boolean).join(' ')}
 		>
 			{showSender && (
-				<Link href={profilePath(urlContext, action.issuer.idTag)} className="mb-1">
-					<ProfileCard profile={action.issuer} className="small" />
-				</Link>
+				<Tooltip content={`@${action.issuer.idTag}`}>
+					<Link href={profilePath(urlContext, action.issuer.idTag)} className="mb-1">
+						<HBox align="center" gap={1}>
+							<ProfilePicture profile={action.issuer} size="xs" />
+							<Text size="sm" weight="semibold" truncate>
+								{senderName}
+							</Text>
+						</HBox>
+					</Link>
+				</Tooltip>
 			)}
 			<VBox>
 				{imgSrc && (

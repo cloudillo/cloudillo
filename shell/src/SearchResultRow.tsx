@@ -95,6 +95,7 @@ export const SearchResultRow = React.forwardRef<HTMLLIElement, SearchResultRowPr
 				ref={ref}
 				{...props}
 				className={compact ? 'c-search-row compact' : 'c-search-row'}
+				size="sm"
 				leading={icon}
 				title={title}
 				subtitle={meta || undefined}

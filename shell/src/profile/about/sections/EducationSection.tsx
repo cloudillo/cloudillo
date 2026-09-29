@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button, Input, Panel, VBox } from '@cloudillo/react'
+import { Button, Grid, Input, Panel, VBox } from '@cloudillo/react'
 import type { EducationEntry } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -85,18 +85,20 @@ export function EducationSectionEdit({ section, onChange }: EducationSectionEdit
 					}
 				>
 					<VBox gap={1}>
-						<Input
-							aria-label={t('School / University')}
-							placeholder={t('School / University')}
-							value={entry.school}
-							onChange={(e) => updateEntry(i, { school: e.target.value })}
-						/>
-						<Input
-							aria-label={t('Degree / Field of study')}
-							placeholder={t('Degree / Field of study')}
-							value={entry.degree || ''}
-							onChange={(e) => updateEntry(i, { degree: e.target.value })}
-						/>
+						<Grid min="12rem" gap={1}>
+							<Input
+								aria-label={t('School / University')}
+								placeholder={t('School / University')}
+								value={entry.school}
+								onChange={(e) => updateEntry(i, { school: e.target.value })}
+							/>
+							<Input
+								aria-label={t('Degree / Field of study')}
+								placeholder={t('Degree / Field of study')}
+								value={entry.degree || ''}
+								onChange={(e) => updateEntry(i, { degree: e.target.value })}
+							/>
+						</Grid>
 						<EntryDates
 							from={entry.from}
 							to={entry.to}

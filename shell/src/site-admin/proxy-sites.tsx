@@ -25,6 +25,7 @@ import {
 	Field,
 	HBox,
 	Input,
+	List,
 	LoadingSpinner,
 	NativeSelect,
 	Panel,
@@ -33,7 +34,6 @@ import {
 	SegmentedItem,
 	Text,
 	TextArea,
-	Toggle,
 	useApi,
 	useAuth,
 	useDialog,
@@ -48,6 +48,8 @@ import {
 	LuRefreshCw as IcRenew,
 	LuSearch as IcSearch
 } from 'react-icons/lu'
+
+import { SwitchRow } from '../settings/settings.js'
 
 type ProxyType = 'basic' | 'advanced'
 
@@ -212,26 +214,28 @@ function ProxyFields({
 								onChange={(e) => set('readTimeoutSecs', e.target.value)}
 							/>
 						</Field>
-						<Toggle
-							label={t('Preserve Host Header')}
-							checked={draft.preserveHost}
-							onChange={(e) => set('preserveHost', e.target.checked)}
-						/>
-						<Toggle
-							label={t('Forward Headers')}
-							checked={draft.forwardHeaders}
-							onChange={(e) => set('forwardHeaders', e.target.checked)}
-						/>
-						<Toggle
-							label={t('WebSocket Support')}
-							checked={draft.websocket}
-							onChange={(e) => set('websocket', e.target.checked)}
-						/>
-						<Toggle
-							label={t('Proxy Protocol')}
-							checked={draft.proxyProtocol}
-							onChange={(e) => set('proxyProtocol', e.target.checked)}
-						/>
+						<List variant="divided">
+							<SwitchRow
+								label={t('Preserve Host Header')}
+								checked={draft.preserveHost}
+								onChange={(e) => set('preserveHost', e.target.checked)}
+							/>
+							<SwitchRow
+								label={t('Forward Headers')}
+								checked={draft.forwardHeaders}
+								onChange={(e) => set('forwardHeaders', e.target.checked)}
+							/>
+							<SwitchRow
+								label={t('WebSocket Support')}
+								checked={draft.websocket}
+								onChange={(e) => set('websocket', e.target.checked)}
+							/>
+							<SwitchRow
+								label={t('Proxy Protocol')}
+								checked={draft.proxyProtocol}
+								onChange={(e) => set('proxyProtocol', e.target.checked)}
+							/>
+						</List>
 						<Field
 							label={t('Custom Headers')}
 							hint={t('One header per line: Name: Value')}
@@ -508,11 +512,13 @@ function EditProxySiteModal({
 			<VBox gap={3}>
 				{error && <Alert color="error">{error}</Alert>}
 
-				<Toggle
-					label={t('Enabled')}
-					checked={status === 'A'}
-					onChange={(e) => setStatus(e.target.checked ? 'A' : 'D')}
-				/>
+				<List variant="divided">
+					<SwitchRow
+						label={t('Enabled')}
+						checked={status === 'A'}
+						onChange={(e) => setStatus(e.target.checked ? 'A' : 'D')}
+					/>
+				</List>
 
 				<ProxyFields
 					backendUrl={backendUrl}

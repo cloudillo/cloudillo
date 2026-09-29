@@ -5,6 +5,7 @@ import {
 	Button,
 	Checkbox,
 	DateTimePicker,
+	Grid,
 	HBox,
 	Icon,
 	Input,
@@ -73,6 +74,7 @@ export function EntryDates({
 		<HBox gap={2} wrap align="center">
 			<DateTimePicker
 				mode="month"
+				className="w-auto"
 				dateLabel={t('From')}
 				value={from || ''}
 				max={to || undefined}
@@ -81,6 +83,7 @@ export function EntryDates({
 			{!present && (
 				<DateTimePicker
 					mode="month"
+					className="w-auto"
 					dateLabel={t('To')}
 					value={to || ''}
 					min={from || undefined}
@@ -176,18 +179,20 @@ export function WorkSectionEdit({ section, onChange }: WorkSectionEditProps) {
 					}
 				>
 					<VBox gap={1}>
-						<Input
-							aria-label={t('Organization')}
-							placeholder={t('Organization')}
-							value={entry.org}
-							onChange={(e) => updateEntry(i, { org: e.target.value })}
-						/>
-						<Input
-							aria-label={t('Role / Position')}
-							placeholder={t('Role / Position')}
-							value={entry.role || ''}
-							onChange={(e) => updateEntry(i, { role: e.target.value })}
-						/>
+						<Grid min="12rem" gap={1}>
+							<Input
+								aria-label={t('Organization')}
+								placeholder={t('Organization')}
+								value={entry.org}
+								onChange={(e) => updateEntry(i, { org: e.target.value })}
+							/>
+							<Input
+								aria-label={t('Role / Position')}
+								placeholder={t('Role / Position')}
+								value={entry.role || ''}
+								onChange={(e) => updateEntry(i, { role: e.target.value })}
+							/>
+						</Grid>
 						<EntryDates
 							from={entry.from}
 							to={entry.to}

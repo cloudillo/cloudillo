@@ -1,17 +1,18 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Field, Input, Panel, TextArea, Toggle, useAuth, VBox } from '@cloudillo/react'
+import { Field, Input, List, Panel, TextArea, useAuth, VBox } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { useSettings } from '../settings/settings.js'
+import { SettingsDenied, SwitchRow, useSettings } from '../settings/settings.js'
 
 export function ProviderSettings() {
 	const { t } = useTranslation()
 	const [_auth] = useAuth()
-	const { settings, onSettingChange } = useSettings('idp')
+	const { settings, onSettingChange, denied } = useSettings('idp')
 
+	if (denied) return <SettingsDenied />
 	if (!settings) return null
 
 	const renewalIntervalDays = (settings['idp.renewal_interval'] as number) || 365
@@ -20,9 +21,8 @@ export function ProviderSettings() {
 	return (
 		<VBox gap={3}>
 			<Panel title={t('Identity Provider Configuration')}>
-				<VBox gap={3}>
-					<Toggle
-						color="primary"
+				<List variant="divided">
+					<SwitchRow
 						name="idp.enabled"
 						checked={!!settings['idp.enabled']}
 						onChange={onSettingChange}
@@ -31,23 +31,22 @@ export function ProviderSettings() {
 							'Allow this tenant to act as an identity provider for other users'
 						)}
 					/>
-
-					<Field
-						label={t('Renewal interval (days)')}
-						orientation="horizontal"
-						hint={`${t('How long identity credentials are valid')} (${renewalIntervalYears} ${t('years')})`}
-					>
-						<Input
-							className="w-sm"
-							name="idp.renewal_interval"
-							type="number"
-							min="1"
-							max="18250"
-							value={String(renewalIntervalDays)}
-							onChange={onSettingChange}
-						/>
-					</Field>
-				</VBox>
+				</List>
+				<Field
+					label={t('Renewal interval (days)')}
+					orientation="horizontal"
+					hint={`${t('How long identity credentials are valid')} (${renewalIntervalYears} ${t('years')})`}
+				>
+					<Input
+						className="w-xs"
+						name="idp.renewal_interval"
+						type="number"
+						min="1"
+						max="18250"
+						value={String(renewalIntervalDays)}
+						onChange={onSettingChange}
+					/>
+				</Field>
 			</Panel>
 
 			<Panel
@@ -62,7 +61,6 @@ export function ProviderSettings() {
 						hint={t('Display name shown to users (defaults to domain if empty)')}
 					>
 						<Input
-							className="w-lg"
 							name="idp.name"
 							type="text"
 							placeholder={t('e.g., Cloudillo')}

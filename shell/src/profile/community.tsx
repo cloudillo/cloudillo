@@ -324,7 +324,7 @@ function ProgressStep({
 			{progress === 'creating' && (
 				<EmptyState
 					size="lg"
-					icon={<Logo animated />}
+					icon={<Logo size="6rem" animated />}
 					title={t('Creating your community...')}
 					description={t('This usually takes only a few seconds, please be patient...')}
 				/>
@@ -333,7 +333,7 @@ function ProgressStep({
 			{progress === 'checking' && (
 				<EmptyState
 					size="lg"
-					icon={<Logo animated />}
+					icon={<Logo size="6rem" animated />}
 					title={t('Community created!')}
 					description={t('Checking if your community is accessible...')}
 				/>
@@ -342,7 +342,7 @@ function ProgressStep({
 			{progress === 'done' && (
 				<EmptyState
 					size="lg"
-					icon={<Logo />}
+					icon={<Logo size="6rem" />}
 					title={t('Your community is ready!')}
 					description={created}
 					actions={
@@ -357,7 +357,7 @@ function ProgressStep({
 				<>
 					<EmptyState
 						size="lg"
-						icon={<Logo />}
+						icon={<Logo size="6rem" />}
 						title={t('Community created!')}
 						description={created}
 					/>
@@ -379,7 +379,7 @@ function ProgressStep({
 					<EmptyState
 						size="lg"
 						color="error"
-						icon={<Logo />}
+						icon={<Logo size="6rem" />}
 						title={t('Something went wrong')}
 						description={t('Please try again or contact support.')}
 						actions={

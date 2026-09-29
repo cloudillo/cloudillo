@@ -109,11 +109,7 @@ export function EmbeddedPostCard({
 								token={auth?.token}
 							/>
 						) : (
-							<Images
-								width={width * 0.85}
-								attachments={subjectAction.attachments}
-								idTag={fileIdTag}
-							/>
+							<Images attachments={subjectAction.attachments} idTag={fileIdTag} />
 						))}
 				</VBox>
 				{overflowing && !expanded && (

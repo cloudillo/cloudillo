@@ -6,6 +6,8 @@ import * as React from 'react'
 
 export interface ProfileHeroProps {
 	cover?: React.ReactNode
+	/** Identity hue for the gradient shown without a cover */
+	hue?: number
 	avatar: React.ReactNode
 	coverAction?: React.ReactNode
 	avatarAction?: React.ReactNode
@@ -17,9 +19,10 @@ export interface ProfileHeroProps {
 	children?: React.ReactNode
 }
 
-/** Profile header panel: cover + overlapping avatar, header, chips and tabs. */
+/** Profile header panel: cover + overlapping avatar with the header beside it, chips and tabs. */
 export function ProfileHero({
 	cover,
+	hue,
 	avatar,
 	coverAction,
 	avatarAction,
@@ -31,14 +34,16 @@ export function ProfileHero({
 		<Panel padding={0}>
 			<Hero
 				cover={cover}
+				hue={hue}
 				avatar={avatar}
 				coverAction={coverAction}
 				avatarAction={avatarAction}
-			/>
-			<VBox gap={1} padding={3}>
-				{header}
-				{children}
-			</VBox>
+			>
+				<VBox gap={1}>
+					{header}
+					{children}
+				</VBox>
+			</Hero>
 			{tabs}
 		</Panel>
 	)

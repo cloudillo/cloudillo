@@ -16,7 +16,6 @@ import {
 	LuArrowLeft as IcArrowLeft,
 	LuArrowUp as IcArrowUp,
 	LuTrash2 as IcEmptyTrash,
-	LuMenu as IcMenu,
 	LuLayoutGrid as IcGrid,
 	LuList as IcList,
 	LuFolderPlus as IcNewFolder,
@@ -30,7 +29,6 @@ export interface ToolbarProps {
 	onGoBack?: () => void
 	canGoUp?: boolean
 	onGoUp?: () => void
-	onShowFilter?: () => void
 	displayMode: DisplayMode
 	onDisplayModeChange: (mode: DisplayMode) => void
 	onFilesSelected?: (files: globalThis.File[]) => void
@@ -45,7 +43,6 @@ export function Toolbar({
 	onGoBack,
 	canGoUp,
 	onGoUp,
-	onShowFilter,
 	displayMode,
 	onDisplayModeChange,
 	onFilesSelected,
@@ -58,14 +55,6 @@ export function Toolbar({
 
 	return (
 		<ToolbarContainer className={className}>
-			{onShowFilter && (
-				<Button
-					className="md-hide lg-hide"
-					icon={<IcMenu />}
-					aria-label={t('Filter')}
-					onClick={onShowFilter}
-				/>
-			)}
 			{onGoBack && (
 				<Button
 					icon={<IcArrowLeft />}

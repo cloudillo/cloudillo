@@ -3,18 +3,15 @@
 
 import type { ApiClient } from '@cloudillo/core'
 import {
-	ActionBar,
 	Badge,
 	Button,
-	Card,
 	EmptyState,
-	HBox,
-	ProfileCard,
-	Text,
+	List,
+	ListItem,
+	ProfilePicture,
 	TimeFormat,
 	useDialog,
-	useToast,
-	VBox
+	useToast
 } from '@cloudillo/react'
 import type { ActionView } from '@cloudillo/types'
 import * as React from 'react'
@@ -102,43 +99,43 @@ export function InvitationsList({
 
 	if (invitations === undefined) return null
 	if (invitations.length === 0) {
-		return <EmptyState className="auto-bg" size="sm" title={t('No invitations sent.')} />
+		return <EmptyState className="auto-bg" size="sm" title={t('No invitations sent')} />
 	}
 
 	return (
-		<VBox gap={2}>
+		<List variant="divided" aria-label={t('Invitations')}>
 			{invitations.map((action) => {
 				const busy = busyId === action.actionId
 				const invitee = action.audience
 				return (
-					<Card key={action.actionId} padding={3}>
-						<HBox gap={2} align="center">
-							{invitee ? (
-								<ProfileCard className="flex-fill" profile={invitee} />
-							) : (
-								<Text emphasis="muted" className="flex-fill">
-									{t('(unknown)')}
-								</Text>
-							)}
-							<Badge variant="soft">{t('Pending')}</Badge>
-							<TimeFormat time={action.createdAt} />
-						</HBox>
-						{action.issuer && (
-							<Text as="p" size="sm" emphasis="muted">
-								{t('invited by {{name}}', {
-									name: action.issuer.name || action.issuer.idTag
-								})}
-							</Text>
-						)}
-						<ActionBar>
-							<Button disabled={busy} onClick={() => handleRevoke(action)}>
-								{t('Revoke invitation')}
-							</Button>
-						</ActionBar>
-					</Card>
+					<ListItem
+						key={action.actionId}
+						leading={invitee && <ProfilePicture profile={invitee} />}
+						title={invitee ? invitee.name || invitee.idTag : t('(unknown)')}
+						subtitle={
+							action.issuer &&
+							t('invited by {{name}}', {
+								name: action.issuer.name || action.issuer.idTag
+							})
+						}
+						meta={<TimeFormat time={action.createdAt} />}
+						trailing={
+							<>
+								<Badge variant="soft">{t('Pending')}</Badge>
+								<Button
+									variant="ghost"
+									color="error"
+									disabled={busy}
+									onClick={() => handleRevoke(action)}
+								>
+									{t('Revoke')}
+								</Button>
+							</>
+						}
+					/>
 				)
 			})}
-		</VBox>
+		</List>
 	)
 }
 

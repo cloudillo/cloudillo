@@ -25,19 +25,16 @@ import { BLANK_IMAGE_SRC } from '../../utils.js'
 
 type Attachment = NonNullable<ActionView['attachments']>[number]
 
-const GAP = 8
-
 function aspectOf(att: Attachment): number {
 	return (att.dim?.[0] ?? 100) / (att.dim?.[1] ?? 100)
 }
 
 export interface ImageMosaicProps {
-	width: number
 	attachments: ActionView['attachments']
 	idTag: string | undefined
 }
 
-export function ImageMosaic({ width, attachments, idTag }: ImageMosaicProps) {
+export function ImageMosaic({ attachments, idTag }: ImageMosaicProps) {
 	const { t } = useTranslation()
 	const [lbIndex, setLbIndex] = React.useState<number | undefined>()
 
@@ -83,39 +80,44 @@ export function ImageMosaic({ width, attachments, idTag }: ImageMosaicProps) {
 		)
 	}
 
+	// Intrinsic layout, no measured width: flex-grow proportional to the aspect
+	// ratio gives every tile in a row the same height, and `min-width: 0` keeps the
+	// row inside its card.
+	function grow(aspect: number): React.CSSProperties {
+		return { flex: `${aspect} 1 0`, minWidth: 0 }
+	}
+
 	let imgNode: React.ReactNode
 	if (attachments.length === 1) {
 		imgNode = tile(0, { maxWidth: '100%', maxHeight: '30rem' })
 	} else if (attachments.length === 2) {
-		const height = (width - GAP) / (aspectOf(img1) + aspectOf(img2))
 		imgNode = (
 			<HBox gap={2}>
-				{tile(0, { height })}
-				{tile(1, { height })}
+				{tile(0, grow(aspectOf(img1)))}
+				{tile(1, grow(aspectOf(img2)))}
 			</HBox>
 		)
 	} else {
-		// Adding the reciprocals of the aspect ratios of img2 and img3
+		// The right column (img2 over img3) behaves like one tile of this aspect ratio
 		const aspect23 = 1 / (1 / aspectOf(img2) + 1 / aspectOf(img3))
-		// Adding the aspect ratios of img1 and the right column (img2 and img3)
-		const height = (width - GAP) / (aspectOf(img1) + aspect23)
-		const width23 = (height - GAP) * aspect23
 		const more = attachments.length - 3
 
+		// The column is one gap taller than the pure ratio, so the left tile
+		// stretches to the row and crops that gap away.
 		imgNode = (
 			<HBox gap={2}>
-				{tile(0, { height })}
-				<VBox gap={2}>
-					{tile(1, { width: width23 })}
+				{tile(0, { ...grow(aspectOf(img1)), alignSelf: 'stretch', objectFit: 'cover' })}
+				<VBox gap={2} style={grow(aspect23)}>
+					{tile(1, { width: '100%' })}
 					{more > 0 ? (
 						<BadgeAnchor
 							position="bottom-end"
 							badge={<Badge size="lg">{`+${more}`}</Badge>}
 						>
-							{tile(2, { width: width23 })}
+							{tile(2, { width: '100%' })}
 						</BadgeAnchor>
 					) : (
-						tile(2, { width: width23 })
+						tile(2, { width: '100%' })
 					)}
 				</VBox>
 			</HBox>

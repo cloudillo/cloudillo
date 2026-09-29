@@ -41,7 +41,7 @@ export function ContextTools({ onNavigate }: { onNavigate?: () => void }) {
 		if (!contextToolAllowed(item.id, activeContext, auth?.idTag, contextIdpEnabled))
 			return false
 		switch (item.id) {
-			// Only a community's own settings belong here — the top-right ⚙ owns the
+			// Only a community's own settings belong here — the user menu owns the
 			// personal ones. The omnibox does list home settings, on purpose.
 			case 'settings':
 				return activeContext?.type === 'community'

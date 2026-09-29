@@ -9,7 +9,6 @@ import {
 	ListItem,
 	Menu,
 	MenuItem,
-	Panel,
 	SearchInput,
 	Text,
 	useDialog,
@@ -77,47 +76,45 @@ export function AddressBookSidebar({
 	}
 
 	return (
-		<Panel padding={2} className="flex-fill h-min-0 overflow-y-auto">
-			<VBox gap={2}>
-				{/* Uncontrolled + debounced so typing never re-renders ContactsApp */}
-				<SearchInput
-					placeholder={t('Search contacts')}
-					aria-label={t('Search contacts')}
-					defaultValue={initialQuery}
-					onSearch={onSearchChange}
-					debounce={250}
-				/>
+		<VBox gap={2} padding={2} className="flex-fill h-min-0 overflow-y-auto">
+			{/* Uncontrolled + debounced so typing never re-renders ContactsApp */}
+			<SearchInput
+				placeholder={t('Search contacts')}
+				aria-label={t('Search contacts')}
+				defaultValue={initialQuery}
+				onSearch={onSearchChange}
+				debounce={250}
+			/>
 
-				<List>
+			<List aria-label={t('Address books')}>
+				<ListItem
+					leading={<Icon as={IcAll} />}
+					title={t('All contacts')}
+					selected={selection === 'all'}
+					onClick={() => onSelect('all')}
+				/>
+				{addressBooks.map((book) => (
 					<ListItem
-						leading={<Icon as={IcAll} />}
-						title={t('All contacts')}
-						selected={selection === 'all'}
-						onClick={() => onSelect('all')}
+						key={book.abId}
+						leading={<Icon as={IcBook} />}
+						title={<Text truncate>{book.name}</Text>}
+						selected={selection === book.abId}
+						onClick={() => onSelect(book.abId)}
+						actions={
+							<Button
+								variant="ghost"
+								size="sm"
+								immediate
+								aria-label={t('More actions for {{name}}', { name: book.name })}
+								aria-haspopup="menu"
+								aria-expanded={bookMenu?.book.abId === book.abId}
+								onClick={(e) => openBookMenu(e, book)}
+								icon={<IcMore />}
+							/>
+						}
 					/>
-					{addressBooks.map((book) => (
-						<ListItem
-							key={book.abId}
-							leading={<Icon as={IcBook} />}
-							title={<Text truncate>{book.name}</Text>}
-							selected={selection === book.abId}
-							onClick={() => onSelect(book.abId)}
-							actions={
-								<Button
-									variant="ghost"
-									size="sm"
-									immediate
-									aria-label={t('More actions for {{name}}', { name: book.name })}
-									aria-haspopup="menu"
-									aria-expanded={bookMenu?.book.abId === book.abId}
-									onClick={(e) => openBookMenu(e, book)}
-									icon={<IcMore />}
-								/>
-							}
-						/>
-					))}
-				</List>
-			</VBox>
+				))}
+			</List>
 
 			{bookMenu && (
 				<Menu position={{ x: bookMenu.x, y: bookMenu.y }} onClose={() => setBookMenu(null)}>
@@ -142,7 +139,7 @@ export function AddressBookSidebar({
 					/>
 				</Menu>
 			)}
-		</Panel>
+		</VBox>
 	)
 }
 

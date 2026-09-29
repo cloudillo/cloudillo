@@ -226,6 +226,13 @@ describe('resolveDocInfo', () => {
 		expect(resolve({ localRow: row({ owner: { idTag: OTHER } }) }).isCrossOwner).toBe(true)
 	})
 
+	// The chip on the viewer's own doc: with no owner/upstream on the row the
+	// resId's node is the answer, and a doc on our own node is ours — in any context.
+	it('hides the chip on an own-node row that carries no owner', () => {
+		expect(resolve({ contextIdTag: ME, localRow: row() }).isCrossOwner).toBe(false)
+		expect(resolve({ contextIdTag: COMMUNITY, localRow: row() }).isCrossOwner).toBe(false)
+	})
+
 	// Symptom 1: an accepted share leaves `files.owner_tag` NULL, which the API resolves to the
 	// serving tenant — us. Reading `owner` straight would put OUR face on THEIR document.
 	it('attributes a mirrored row to its origin, not to the local record holder', () => {

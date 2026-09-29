@@ -24,9 +24,13 @@
 	gap: 0.375rem;
 	flex-shrink: 0;
 	height: auto;
-	padding: 0.25rem 0.5rem 0.25rem 0.25rem;
+	padding: 0.3125rem;
+	/* Avatar squircle radius (30% of 2.25rem) + padding: concentric corners. */
+	border-radius: calc(0.675rem + 0.3125rem);
+	/* Undo the generic `.c-tag` clipping: it would cut off the unread badges. */
+	overflow: visible;
+	max-width: none;
 	border: none;
-	border-radius: 999px;
 	background: none;
 	color: var(--col-on);
 	font: inherit;
@@ -36,6 +40,10 @@
 	-webkit-touch-callout: none;
 	user-select: none;
 	transition: background-color 0.2s;
+
+	&:has(.c-ctx-chip-name) {
+		padding-inline-end: 0.75rem;
+	}
 
 	&:hover {
 		background: var(--col-container-low);
@@ -90,13 +98,14 @@
 }
 
 /* Icon-only personal tile: the pill tint alone does not read as active. `outline`
-   rather than `box-shadow`: it must not fight the chip's own `:focus-visible` shadow. */
-.c-ctx-chip.active .c-ctx-chip-avatar > :first-child {
+   rather than `box-shadow`: it must not fight the chip's own `:focus-visible` shadow.
+   On the `.c-avatar` itself so both follow its squircle radius. */
+.c-ctx-chip.active .c-ctx-chip-avatar .c-avatar {
 	outline: 2px solid var(--col-primary);
 	outline-offset: 1px;
 }
 
-.c-ctx-chip.preview .c-ctx-chip-avatar > :first-child {
+.c-ctx-chip.preview .c-ctx-chip-avatar .c-avatar {
 	border: 2px dashed var(--col-on-container);
 }
 
@@ -106,6 +115,13 @@
 	height: 2.25rem;
 
 	> :first-child {
+		width: 100%;
+		height: 100%;
+	}
+
+	/* ProfilePicture defaults to `md` (2.5rem), which spills out of the box.
+	   Sized directly: `--avatar-size` here would tie with `.c-avatar.md`. */
+	.c-avatar {
 		width: 100%;
 		height: 100%;
 	}
@@ -170,15 +186,27 @@
 }
 
 /* Bottom-anchored: the first section and the first row sit right above the search
-   field, and a column-reverse scroller starts at its bottom. */
+   field, and a column-reverse scroller starts at its bottom. Sections keep their
+   heading on top — only the section order and the row order flip. */
 .c-community-finder.sheet {
 	flex-direction: column-reverse;
+	width: 100%;
+	max-width: 28rem;
+	margin-inline: auto;
+	padding: 0 0.75rem 0.75rem;
 
 	.c-community-finder-list,
-	.c-community-finder-section,
 	.c-community-finder-rows {
 		flex-direction: column-reverse;
 	}
+}
+
+/* The sheet's content box fills the sheet, so the finder packs next to the thumb
+   instead of at the top of an empty full-height sheet. */
+.c-bottom-sheet-content:has(> .c-community-finder.sheet) {
+	display: flex;
+	flex-direction: column;
+	justify-content: flex-end;
 }
 
 .c-community-finder-footer {
@@ -198,6 +226,8 @@
 /* ContextTools as a compact row inside the sheet. */
 .c-community-finder .c-sidebar-context-tools {
 	display: flex;
+	/* ContextTools is a VBox (column on the rail). */
+	flex-direction: row;
 	margin: 0;
 	padding: 0;
 	border: none;
@@ -245,6 +275,13 @@
 	padding: 0.375rem 0.5rem;
 	border-radius: inherit;
 	text-align: start;
+	/* A flat hover plate, never elevation — no row reads as raised. */
+	box-shadow: none;
+
+	&:hover:not([disabled]) {
+		box-shadow: none;
+		background: lch(from var(--col-on-container) l c h / 0.08);
+	}
 
 	&:focus-visible {
 		outline-offset: -2px;

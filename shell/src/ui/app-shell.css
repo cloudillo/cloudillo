@@ -7,8 +7,10 @@
    has to clear it, so the two can never silently desync. */
 :root {
 	--shell-sidebar-width: 5rem;
-	--shell-header-height: 3.5rem;
-	--shell-bottom-nav-height: 4.5rem;
+	/* Both include their safe-area inset (`viewport-fit=cover`, index.html), so
+	   everything that clears them clears the notch / home indicator too. */
+	--shell-header-height: calc(3.5rem + env(safe-area-inset-top, 0px));
+	--shell-bottom-nav-height: calc(4.5rem + env(safe-area-inset-bottom, 0px));
 	/* The published site's second chrome row (`.c-site-bar`). Read by the Rust
 	   wrapper as well as by React — see `ui/site-bar.css`.
 	   Shorter than the header: it carries one line of text and no controls. */
@@ -64,10 +66,34 @@
 	left: 0;
 	right: 0;
 	z-index: var(--z-fixed);
+	padding-top: env(safe-area-inset-top, 0px);
+	padding-left: env(safe-area-inset-left, 0px);
+	padding-right: env(safe-area-inset-right, 0px);
 
 	& > .c-nav-link > .c-nav-label,
 	& > .c-nav-group > .c-nav-link > .c-nav-label {
 		font-size: 0.83rem;
+	}
+}
+
+/* Mobile doc mode (AppShell `data-doc-mode` on an app-document route, AppFrame
+   `data-app-frame` while the iframe is mounted): below md the dock goes and the header
+   shrinks to a slim strip of logo + avatar. The header is never hidden — shell dialogs
+   and sheets (top-anchored at 0.5rem) must visibly overlap shell-owned space. */
+@media (width < 48rem) {
+	:root[data-doc-mode][data-app-frame] {
+		--shell-header-height: calc(2.5rem + env(safe-area-inset-top, 0px));
+		--shell-bottom-nav-height: env(safe-area-inset-bottom, 0px);
+
+		.c-nav.nav-bottom,
+		.c-nav.nav-top > .c-nav-group:last-child > :not(:last-child) {
+			display: none;
+		}
+
+		/* Beats Logo's inline `size` width. */
+		.c-nav.nav-top .c-logo {
+			width: 2.25rem !important;
+		}
 	}
 }
 
@@ -94,13 +120,21 @@
 	.c-nav-link.active:hover {
 		color: var(--col-primary);
 	}
+	/* The 32px AppIcon tiles plus a label must fit the island's ~50px content box. */
+	.c-app-icon {
+		width: 1.75rem;
+		height: 1.75rem;
+	}
+	.c-nav-label {
+		line-height: 1;
+	}
 
 	/* Two floating islands — context | apps — each its own surface. */
 	.c-nav-island {
 		display: flex;
 		align-self: stretch;
 		padding: 0.25rem 0.5rem;
-		background: var(--col-container);
+		background: var(--col-frame);
 		border: 1px solid var(--col-outline);
 		border-radius: var(--radius-xl);
 		box-shadow: var(--shadow-md);
@@ -153,6 +187,9 @@
 		flex: none;
 		width: 2.75rem;
 	}
+	.c-nav-split:not(.single) .c-nav-split-more {
+		justify-content: center;
+	}
 	.c-nav-split.single .c-nav-split-more {
 		flex: 1 1 0;
 		width: auto;
@@ -180,12 +217,48 @@
 		-webkit-backdrop-filter: none;
 		z-index: var(--z-fixed);
 		gap: 0.5rem;
-		/* Account for safe area on devices with home indicator */
-		padding: 0.375rem 0.5rem calc(0.375rem + env(safe-area-inset-bottom, 0));
+		/* Safe-area insets: the bottom one is already inside the height token. */
+		padding: 0.375rem max(0.5rem, env(safe-area-inset-right, 0px))
+			calc(0.375rem + env(safe-area-inset-bottom, 0px))
+			max(0.5rem, env(safe-area-inset-left, 0px));
 		/* The islands fill exactly the band everything else reserves. */
-		height: calc(var(--shell-bottom-nav-height) + env(safe-area-inset-bottom, 0));
+		height: var(--shell-bottom-nav-height);
 		box-sizing: border-box;
 	}
+
+	/* Toasts clear the dock instead of covering it. */
+	.c-toast-container[class*='bottom'] {
+		bottom: var(--shell-bottom-nav-height);
+	}
+}
+
+/* Active destination (rail + dock): a 3px primary pill and a semibold label, so the
+   state is not carried by colour alone. Left edge on the rail, under the icon on the dock. */
+:is(.c-sidebar-apps, .c-nav.nav-bottom) .c-nav-link.active {
+	position: relative;
+
+	.c-nav-label {
+		font-weight: 600;
+	}
+	&::before {
+		content: '';
+		position: absolute;
+		border-radius: var(--radius-full);
+		background: var(--col-primary);
+	}
+}
+.c-sidebar-apps .c-nav-link.active::before {
+	left: 0;
+	top: 25%;
+	bottom: 25%;
+	width: 3px;
+}
+.c-nav.nav-bottom .c-nav-link.active::before {
+	left: 50%;
+	bottom: 0;
+	width: 1rem;
+	height: 3px;
+	transform: translateX(-50%);
 }
 
 /* ── Other menu (Menu.tsx via AppDockSplit / AppDockOther) ───────────────── */
@@ -199,6 +272,10 @@
 /* The Other grid, in the rail's Popover flyout or the dock's BottomSheet. */
 .c-extra-menu {
 	flex-flow: row wrap;
+	justify-content: flex-start;
+	/* The flyout / sheet is the surface; no card-in-card. */
+	background: none;
+	border-radius: 0;
 
 	.c-nav-link {
 		height: 4rem;
@@ -221,10 +298,9 @@
 
 /* Navigation label replacing h6 for proper heading hierarchy (rail, dock). */
 .c-nav-label {
-	font-size: 0.83rem;
+	font-size: 0.75rem;
 	font-weight: 500;
 	margin: 0;
-	font-family: 'Oswald', sans-serif;
 }
 
 /* ── Omnibox (header search) ──────────────────────────────────────────── */
@@ -240,6 +316,11 @@
    `app · @owner · part` meta line stretch the popper instead of ellipsising
    inside it. */
 .c-omnibox-menu {
+	/* Opaque, like `.c-menu`: a glass card lets the page text show through. */
+	background: var(--col-bg);
+	border: 1px solid var(--col-outline);
+	border-radius: var(--radius-md);
+	box-shadow: var(--shadow-lg);
 	max-height: min(60vh, 26rem);
 	overflow-y: auto;
 	max-width: min(90vw, 34rem);
@@ -296,14 +377,15 @@
 
 /* /search results page. */
 .c-search-page {
-	max-width: 48rem;
+	max-width: 42rem;
 	width: 100%;
 	margin: 0 auto;
 }
 /* Pinned band: title, count, query field and type tabs stay put while the list
    under it scrolls. */
 .c-search-page-header {
-	padding: 0.75rem;
+	/* Same inline inset as .c-search-page-results, so the input lines up with the rows */
+	padding: 0.75rem 0.5rem;
 	border-block-end: 1px solid var(--col-outline);
 }
 /* Plain CSS rather than the `overflow-y-auto` utility, which is `!important` and
@@ -514,6 +596,12 @@
 	}
 }
 
+/* A community context tints the frame — rail and header as one piece
+   (AppShell `data-community`). */
+:root[data-community] :is(.c-sidebar.left, .c-nav.nav-top) {
+	--col-bg: var(--col-container-secondary);
+}
+
 /* Below lg: no rail at all. */
 @media (width < 72rem) {
 	.c-sidebar.left {
@@ -542,12 +630,17 @@
 	flex-direction: column;
 	justify-content: center;
 	gap: 0.25rem;
-	/* The icons are react-icons at their default `1em`, so this is what sizes
-	   them (16px → 24px). `.c-badge` sets its own font-size and is unaffected. */
+	/* Sizes the react-icons (context tools) from 16px to 24px; app icons are
+	   `AppIcon` SVGs sized below. `.c-badge` sets its own font-size. */
 	font-size: 1.5rem;
 	min-height: 3.75rem;
 	padding: 0.375rem 0.25rem;
 	width: 100%;
+}
+
+.c-sidebar-apps .c-app-icon {
+	width: 2.5rem;
+	height: 2.5rem;
 }
 
 .c-sidebar-apps .c-nav-label,
@@ -569,18 +662,23 @@
 	background: var(--col-outline);
 }
 
-/* Split Other button, stacked: recent app on top, a compact "▦ Other" row below. */
+/* Split Other button, stacked: recent app on top, "Other" below it. */
 .c-sidebar-apps .c-nav-split {
 	flex-direction: column;
 	flex: none;
 	margin: 0.25rem;
 }
 
-.c-sidebar-apps .c-nav-split:not(.single) .c-nav-split-more {
-	flex-direction: row;
-	gap: 0.25rem;
-	min-height: 2.25rem;
-	font-size: 1rem;
+/* The "Other" glyph on a tile matching `.c-app-icon.tile`, sized like the rail AppIcons. */
+.c-sidebar-apps .c-nav-split-more .c-badge-anchor > svg {
+	box-sizing: content-box;
+	width: 1.5rem;
+	height: 1.5rem;
+	padding: 0.5rem;
+	border-radius: 30%;
+	background: #eceff2;
+	/* The tile is fixed-light in both themes, so the glyph is too. */
+	color: #3b4148;
 }
 
 /* Context-scoped tools (People / Communities / <community> settings / IdP / Server) sit at
@@ -611,7 +709,7 @@
 
 .c-notification.actionable {
 	border-left: 3px solid var(--col-primary);
-	background: var(--col-container);
+	background: var(--col-selected);
 }
 
 .c-notification-group-heading {
@@ -624,4 +722,32 @@
 
 .c-notification-item-actionable {
 	border-left: 3px solid var(--col-primary);
+}
+
+/* Messages rail: three tabs + search need ~18rem; the md col-md-4 share is narrower at 768 */
+@media (width >= 48rem) {
+	.c-fcd > .row > .c-fcd-filter.messages-rail {
+		min-width: 18rem;
+	}
+}
+
+/* Calendar toolbar: range title and view switcher never shrink; the search
+   input yields width and the row wraps when the three can't share it */
+.calendar-toolbar {
+	flex-wrap: wrap;
+}
+
+.calendar-toolbar > .calendar-range {
+	flex-shrink: 0;
+	white-space: nowrap;
+}
+
+.calendar-toolbar > .calendar-views {
+	flex-shrink: 0;
+}
+
+.calendar-toolbar > .calendar-search {
+	flex: 1 1 10rem;
+	max-width: 16rem;
+	min-width: 8rem;
 }

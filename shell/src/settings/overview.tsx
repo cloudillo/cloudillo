@@ -29,7 +29,6 @@ import {
 	LuFingerprint as IcPasskey,
 	LuRefreshCw as IcRefresh,
 	LuDatabaseZap as IcReindex,
-	LuShield as IcSecurity,
 	LuServerCog as IcServer
 } from 'react-icons/lu'
 
@@ -49,6 +48,9 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 	const { api } = useApi()
 	const [auth] = useAuth()
 	const activeContext = useAtomValue(activeContextAtom)
+	// In a community the overview is the community's: the passkey/device/install/SADM blocks
+	// are the signed-in user's own and would read as the community's.
+	const isCommunity = activeContext?.type === 'community'
 	// The reindex sweeps the tenant the request authenticates as, so it must go through
 	// the active context's proxy token — `useApi()` above is bound to the user's own
 	// idTag and would rebuild the wrong tenant in a community.
@@ -75,7 +77,7 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 	// Load security data
 	React.useEffect(
 		function loadSecurityData() {
-			if (!api || !auth) return
+			if (!api || !auth || isCommunity) return
 
 			// Catch each independently: a single Promise.all rejection would
 			// blank both lists, and `hasPasskeys` would then read as false and
@@ -94,7 +96,7 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 			}
 			load()
 		},
-		[api, auth]
+		[api, auth, isCommunity]
 	)
 
 	// Check notification subscription status
@@ -198,14 +200,16 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 
 	// Check if we have any recommendations to show
 	const hasRecommendations =
-		canInstall ||
-		(!notificationsEnabled && canEnableNotifications) ||
-		(!hasPasskeys && webAuthnSupported)
+		!isCommunity &&
+		(canInstall ||
+			(!notificationsEnabled && canEnableNotifications) ||
+			(!hasPasskeys && webAuthnSupported))
+	const isSiteAdmin = !isCommunity && !!auth?.roles?.includes('SADM')
 
 	return (
 		<>
 			{hasRecommendations && (
-				<Panel title={t('Enhance Your Experience')}>
+				<Panel title={t('Get more out of Cloudillo')}>
 					<List variant="divided">
 						{canInstall && (
 							<ListItem
@@ -213,7 +217,7 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 								title={t('Install App')}
 								subtitle={t('Get faster access with the app on your device')}
 								trailing={
-									<Button color="primary" onClick={handleInstall}>
+									<Button variant="soft" onClick={handleInstall}>
 										{t('Install')}
 									</Button>
 								}
@@ -225,7 +229,7 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 								title={t('Enable Notifications')}
 								subtitle={t('Stay updated when someone messages you')}
 								trailing={
-									<Button color="primary" onClick={handleEnableNotifications}>
+									<Button variant="soft" onClick={handleEnableNotifications}>
 										{t('Enable')}
 									</Button>
 								}
@@ -237,7 +241,7 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 								title={t('Add a Passkey')}
 								subtitle={t('Login faster with fingerprint or face ID')}
 								trailing={
-									<Button color="primary" href={`${basePath}/security`}>
+									<Button variant="soft" href={`${basePath}/security`}>
 										{t('Add')}
 									</Button>
 								}
@@ -247,22 +251,24 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 				</Panel>
 			)}
 
-			<Panel title={<IconText icon={<IcSecurity />}>{t('Security')}</IconText>}>
-				<HBox gap={4} className="py-2">
-					<IconText icon={<IcPasskey className="text-muted" />}>
-						{passkeys.length} {passkeys.length === 1 ? t('Passkey') : t('Passkeys')}
-					</IconText>
-					<IconText icon={<IcDevice className="text-muted" />}>
-						{apiKeys.length} {apiKeys.length === 1 ? t('Device') : t('Devices')}
-					</IconText>
-				</HBox>
-				<Link href={`${basePath}/security`} className="mt-2">
-					{t('Security Settings')}
-					<IcArrow />
-				</Link>
-			</Panel>
+			{!isCommunity && (
+				<Panel title={t('Security')}>
+					<HBox gap={4} className="py-2">
+						<IconText icon={<IcPasskey className="text-muted" />}>
+							{passkeys.length} {passkeys.length === 1 ? t('Passkey') : t('Passkeys')}
+						</IconText>
+						<IconText icon={<IcDevice className="text-muted" />}>
+							{apiKeys.length} {apiKeys.length === 1 ? t('Device') : t('Devices')}
+						</IconText>
+					</HBox>
+					<Link href={`${basePath}/security`} className="mt-2">
+						{t('Security Settings')}
+						<IcArrow />
+					</Link>
+				</Panel>
+			)}
 
-			{auth?.roles?.includes('SADM') && (
+			{isSiteAdmin && (
 				<Panel>
 					<List>
 						<ListItem
@@ -307,7 +313,7 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 							}
 						/>
 					)}
-					{auth?.roles?.includes('SADM') && (
+					{isSiteAdmin && (
 						<ListItem
 							leading={<IcDatabase size={24} />}
 							title={t('Optimize Database')}

@@ -5,20 +5,20 @@ import { localeFirstDay } from '@cloudillo/calendar-ui'
 import {
 	Field,
 	HBox,
+	List,
 	LoadingSpinner,
 	NativeSelect,
 	Panel,
 	Segmented,
 	SegmentedItem,
 	Text,
-	Toggle,
 	useApi,
 	useToast
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { useSettings } from './settings.js'
+import { SwitchRow, useSettings } from './settings.js'
 
 /** Coerce a setting value into a boolean. Settings can come back from the API as
  *  native booleans, `0/1`, or the strings `'true'/'false'/'0'/'1'` depending on
@@ -182,13 +182,14 @@ export function CalendarSettings() {
 				</Segmented>
 			</Field>
 
-			<Toggle
-				color="primary"
-				name="ui.calendar.show_override_ghosts"
-				checked={parseBoolean(settings['ui.calendar.show_override_ghosts'])}
-				onChange={onSettingChange}
-				label={t('Show original positions for moved occurrences')}
-			/>
+			<List variant="divided">
+				<SwitchRow
+					name="ui.calendar.show_override_ghosts"
+					checked={parseBoolean(settings['ui.calendar.show_override_ghosts'])}
+					onChange={onSettingChange}
+					label={t('Show original positions for moved occurrences')}
+				/>
+			</List>
 		</Panel>
 	)
 }

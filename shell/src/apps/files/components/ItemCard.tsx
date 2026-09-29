@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import {
+	Badge,
+	BadgeAnchor,
 	Button,
 	FileTypeIcon,
 	HBox,
@@ -23,15 +25,15 @@ import {
 	LuPencil as IcEdit,
 	LuFolder as IcFolder,
 	LuInfo as IcInfo,
-	LuRadio as IcLive,
 	LuLock as IcLock,
 	LuChevronRight as IcOpenFolder,
-	LuPin as IcPin,
 	LuLoaderCircle as IcProcessing,
+	LuPencilOff as IcReadOnly,
 	LuStar as IcStar,
 	LuCloudOff as IcUnsyncedEdit,
 	LuEye as IcView
 } from 'react-icons/lu'
+import { TbPinnedFilled as IcPin } from 'react-icons/tb'
 
 import { useCurrentContextIdTag } from '../../../context/index.js'
 import { useAppConfig } from '../../../utils.js'
@@ -203,6 +205,7 @@ export const ItemCard = React.memo(function ItemCard({
 	return (
 		<ListItem
 			className={className}
+			size="sm"
 			selected={selected}
 			data-file-id={file.fileId}
 			data-source-context={contextIdTag ?? undefined}
@@ -214,10 +217,27 @@ export const ItemCard = React.memo(function ItemCard({
 			onDoubleClick={handleDoubleClick}
 			onContextMenu={handleContextMenu}
 			leading={
-				<FileTypeIcon
-					contentType={iconContentType(file.contentType, file.fileTp)}
-					size="md"
-				/>
+				<BadgeAnchor
+					position="top-start"
+					badge={
+						isPinned ? (
+							<Icon as={IcPin} size="xs" color="primary" label={t('Pinned')} />
+						) : undefined
+					}
+				>
+					<BadgeAnchor
+						badge={
+							isLive ? (
+								<Badge dot color="success" aria-label={t('Live document')} />
+							) : undefined
+						}
+					>
+						<FileTypeIcon
+							contentType={iconContentType(file.contentType, file.fileTp)}
+							size="md"
+						/>
+					</BadgeAnchor>
+				</BadgeAnchor>
 			}
 			title={
 				isRenaming ? (
@@ -234,7 +254,7 @@ export const ItemCard = React.memo(function ItemCard({
 			subtitle={
 				<VBox gap={1}>
 					{/* Meta line: smart timestamp, parent chip, owner, visibility */}
-					<HBox gap={2} align="center" wrap>
+					<HBox gap={2} align="center">
 						<Text>
 							{smartTimestamp.label && (
 								<Text emphasis="muted">{t(smartTimestamp.label)} </Text>
@@ -242,13 +262,13 @@ export const ItemCard = React.memo(function ItemCard({
 							{smartTimestamp.time}
 						</Text>
 						{showParentChip && file.parentName && (
-							<HBox gap={1} align="center">
+							<HBox gap={1} align="center" fill>
 								<Icon as={IcFolder} />
 								<Text truncate>{file.parentName}</Text>
 							</HBox>
 						)}
 						{showAttribution && attribution && (
-							<HBox gap={1} align="center">
+							<HBox gap={1} align="center" fill>
 								{/* The listing came from the active context, which holds the blob. */}
 								<ProfilePicture
 									profile={attribution}
@@ -258,11 +278,13 @@ export const ItemCard = React.memo(function ItemCard({
 								<Text truncate>{attribution.name || `@${attribution.idTag}`}</Text>
 							</HBox>
 						)}
-						<Icon
-							as={getVisibilityIcon(file.visibility ?? null)}
-							className={isDirect ? 'text-muted' : undefined}
-							label={getVisibilityLabel(t, file.visibility ?? null)}
-						/>
+						{/* Direct is the default, so only a wider visibility earns an icon */}
+						{!isDirect && (
+							<Icon
+								as={getVisibilityIcon(file.visibility ?? null)}
+								label={getVisibilityLabel(t, file.visibility ?? null)}
+							/>
+						)}
 					</HBox>
 					{/* Tombstone subtitle */}
 					{brokenSubtitle && (
@@ -295,17 +317,13 @@ export const ItemCard = React.memo(function ItemCard({
 					{!isBroken && isProcessing && (
 						<Icon as={IcProcessing} label={t('Still processing — available shortly')} />
 					)}
-					{isPinned && <Icon as={IcPin} label={t('Pinned')} />}
-					{!isFolder && file.accessLevel && !canWrite(file.accessLevel) && (
-						<Icon
-							as={
-								file.accessLevel === 'read' || file.accessLevel === 'comment'
-									? IcView
-									: IcLock
-							}
-						/>
-					)}
-					{isLive && <Icon as={IcLive} color="success" label={t('Live document')} />}
+					{/* 'none' is shown once, by the lock on the open button */}
+					{!isFolder &&
+						file.accessLevel &&
+						file.accessLevel !== 'none' &&
+						!canWrite(file.accessLevel) && (
+							<Icon as={IcReadOnly} label={t('Read only')} />
+						)}
 					{isDirty && (
 						<Icon
 							as={IcUnsyncedEdit}
@@ -321,13 +339,14 @@ export const ItemCard = React.memo(function ItemCard({
 						<Button
 							variant="ghost"
 							size="sm"
+							className={isStarred ? undefined : 'sm-hide'}
 							icon={<IcStar />}
 							pressed={isStarred}
 							onClick={handleStarClick}
 							aria-label={isStarred ? t('Unstar') : t('Star')}
 						/>
 					)}
-					{/* Info button (visible on mobile only) */}
+					{/* Info button (lg has the details column; the only way to details below lg) */}
 					{!isInTrash && onInfoClick && (
 						<Button
 							variant="ghost"

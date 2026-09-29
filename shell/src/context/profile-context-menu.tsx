@@ -315,7 +315,7 @@ export function useProfileContextMenu() {
 	// a long-press (which already opened the context menu) is swallowed instead
 	// of also triggering navigation/switch logic.
 	const wrapClick = React.useCallback(
-		(handler: (e: React.MouseEvent) => void) => (e: React.MouseEvent) => {
+		(handler: (e: React.SyntheticEvent) => void) => (e: React.SyntheticEvent) => {
 			if (longPressFiredRef.current) {
 				e.preventDefault()
 				e.stopPropagation()

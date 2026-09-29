@@ -52,7 +52,7 @@ body.cl-site-preboot {
 	flex-shrink: 0;
 	padding-inline: 0.75rem;
 	font-size: 0.875rem;
-	background: var(--col-container);
+	background: var(--col-frame);
 	color: var(--col-on-container);
 	border-block-end: 1px solid var(--col-outline);
 }

@@ -105,14 +105,15 @@ export function NotificationPopover() {
 				}
 			>
 				<VBox>
-					<HBox justify="between" align="center" padding={2}>
+					{/* Same inline inset as the list rows and the empty state below. */}
+					<HBox justify="between" align="center" className="px-3 py-2">
 						<Heading level={4}>{t('Notifications')}</Heading>
 						<Button variant="link" href={allPath} onClick={() => setOpen(false)}>
 							{t('See all')}
 						</Button>
 					</HBox>
 					{!sortedNotifications.length ? (
-						<VBox align="center" gap={1} padding={3}>
+						<VBox align="center" gap={1} padding={3} className="text-center">
 							<Text emphasis="muted">{t('No new notifications')}</Text>
 							<Text size="sm" emphasis="muted">
 								{t('Follow people or join communities to see activity here.')}

@@ -8,10 +8,12 @@ import {
 	HBox,
 	Heading,
 	Link,
+	List,
+	ListItem,
 	mergeClasses,
 	Nav,
 	NavItem,
-	Panel,
+	PageHeader,
 	ProfileAudienceCard,
 	ProfileCard,
 	RichText,
@@ -29,7 +31,6 @@ import {
 	LuCheck as IcAccept,
 	LuUsers as IcConnections,
 	LuFile as IcFiles,
-	LuMenu as IcMenu,
 	LuMessageSquare as IcMessages,
 	LuBell as IcNotifications,
 	LuX as IcReject,
@@ -39,6 +40,7 @@ import {
 import { useLocation, useNavigate } from 'react-router-dom'
 
 import { useContextSwitch, useCtx } from '../context/index.js'
+import { FilterToggle } from '../ui/FilterToggle.js'
 import { communityCreatePath, messagesPath, profilePath } from '../routes.js'
 import { useNotifications } from './state'
 
@@ -138,29 +140,31 @@ function NotificationCard({
 }) {
 	const urlContext = useCtx().base
 	return (
-		<Panel className={mergeClasses('c-notification', actionable && 'actionable', className)}>
-			<HBox align="center" gap={3}>
-				{header ?? (
-					<Link href={profilePath(urlContext, action.issuer.idTag)}>
-						<ProfileCard profile={action.issuer} />
-					</Link>
-				)}
-				<Text size="sm" emphasis="muted" className="ms-auto text-nowrap">
-					<TimeFormat time={action.createdAt} />
-				</Text>
-			</HBox>
-			<VBox gap={1}>
-				<Heading level={3} size="base">
-					{title}
-				</Heading>
-				{children}
-			</VBox>
-			{actions && (
-				<HBox gap={2} justify="end" wrap className="pt-1">
-					{actions}
+		<ListItem>
+			<VBox className={mergeClasses('c-notification', actionable && 'actionable', className)}>
+				<HBox align="center" gap={3}>
+					{header ?? (
+						<Link href={profilePath(urlContext, action.issuer.idTag)}>
+							<ProfileCard profile={action.issuer} />
+						</Link>
+					)}
+					<Text size="sm" emphasis="muted" className="ms-auto text-nowrap">
+						<TimeFormat time={action.createdAt} />
+					</Text>
 				</HBox>
-			)}
-		</Panel>
+				<VBox gap={1}>
+					<Heading level={3} size="base">
+						{title}
+					</Heading>
+					{children}
+				</VBox>
+				{actions && (
+					<HBox gap={2} justify="end" wrap className="pt-1">
+						{actions}
+					</HBox>
+				)}
+			</VBox>
+		</ListItem>
 	)
 }
 
@@ -622,44 +626,43 @@ export function Notifications() {
 			{!!auth && (
 				<>
 					<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
-						<FilterBar filter={filter} setFilter={setFilter} />
+						<VBox gap={2} padding={2}>
+							<FilterBar filter={filter} setFilter={setFilter} />
+						</VBox>
 					</Fcd.Filter>
-					<Fcd.Content>
-						<HBox
-							justify="between"
-							align="center"
-							className={mergeClasses(
-								'c-nav',
-								!notifications.notifications.length && 'md-hide lg-hide'
-							)}
-						>
-							<HBox align="center" gap={2} className="md-hide lg-hide">
-								<Button
-									variant="ghost"
-									icon={<IcMenu />}
-									aria-label={t('Filter')}
-									onClick={() => setShowFilter(true)}
-								/>
-								<Heading level={3}>{t('Notifications')}</Heading>
-							</HBox>
-							{notifications.notifications.some((a) => a.status === 'N') && (
-								<Button
-									variant="link"
-									className="ms-auto"
-									onClick={dismissAllNotifications}
-								>
-									{t('Mark all as read')}
-								</Button>
-							)}
-						</HBox>
+					<Fcd.Content
+						width="reading"
+						header={
+							<PageHeader
+								title={t('Notifications')}
+								subtitle={filter === 'all' ? undefined : filterLabel}
+								actions={
+									<>
+										<FilterToggle onClick={() => setShowFilter(true)} />
+										{notifications.notifications.some(
+											(a) => a.status === 'N'
+										) && (
+											<Button
+												variant="ghost"
+												onClick={dismissAllNotifications}
+											>
+												{t('Mark all as read')}
+											</Button>
+										)}
+									</>
+								}
+							/>
+						}
+					>
 						{!filteredNotifications.length && (
 							<EmptyState
+								fill
 								icon={<IcNotifications size={48} />}
 								title={
 									filter === 'all'
 										? t('All caught up!')
 										: t('No {{category}} notifications', {
-												category: filterLabel
+												category: filterLabel.toLowerCase()
 											})
 								}
 								description={
@@ -667,9 +670,9 @@ export function Notifications() {
 										? t('You have no new notifications.')
 										: undefined
 								}
-								action={
+								actions={
 									filter !== 'all' && (
-										<Button variant="link" onClick={() => setFilter('all')}>
+										<Button onClick={() => setFilter('all')}>
 											{t('Show all')}
 										</Button>
 									)
@@ -685,18 +688,19 @@ export function Notifications() {
 								>
 									{bucket.group}
 								</Heading>
-								{bucket.items.map((action) => (
-									<Notification
-										key={action.actionId}
-										action={action}
-										onActionHandled={onActionHandled}
-										onDismiss={dismissNotification}
-									/>
-								))}
+								<List variant="divided" aria-label={bucket.group}>
+									{bucket.items.map((action) => (
+										<Notification
+											key={action.actionId}
+											action={action}
+											onActionHandled={onActionHandled}
+											onDismiss={dismissNotification}
+										/>
+									))}
+								</List>
 							</React.Fragment>
 						))}
 					</Fcd.Content>
-					<Fcd.Details></Fcd.Details>
 				</>
 			)}
 		</Fcd.Container>

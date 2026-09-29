@@ -12,9 +12,9 @@ import {
 	LuLock as IcLock,
 	LuPin as IcPin,
 	LuLoaderCircle as IcProcessing,
+	LuPencilOff as IcReadOnly,
 	LuStar as IcStar,
-	LuCloudOff as IcUnsyncedEdit,
-	LuEye as IcView
+	LuCloudOff as IcUnsyncedEdit
 } from 'react-icons/lu'
 
 import { useCurrentContextIdTag } from '../../../context/index.js'
@@ -150,20 +150,21 @@ export const ItemGrid = React.memo(function ItemGrid({
 						label={t('Has unsynced local edits')}
 					/>
 				)}
-				{!isFolder && file.accessLevel && !canWrite(file.accessLevel) && (
+				{!isFolder &&
+					file.accessLevel &&
+					!canWrite(file.accessLevel) &&
+					(file.accessLevel === 'none' ? (
+						<Icon as={IcLock} label={t('No access')} />
+					) : (
+						<Icon as={IcReadOnly} label={t('Read only')} />
+					))}
+				{/* Direct is the default, so only a wider visibility earns an icon */}
+				{!isDirect && (
 					<Icon
-						as={
-							file.accessLevel === 'read' || file.accessLevel === 'comment'
-								? IcView
-								: IcLock
-						}
+						as={getVisibilityIcon(file.visibility ?? null)}
+						label={getVisibilityLabel(t, file.visibility ?? null)}
 					/>
 				)}
-				<Icon
-					as={getVisibilityIcon(file.visibility ?? null)}
-					className={isDirect ? 'text-muted' : undefined}
-					label={getVisibilityLabel(t, file.visibility ?? null)}
-				/>
 			</HBox>
 		</VBox>
 	)

@@ -6,12 +6,12 @@ import {
 	Button,
 	Field,
 	Heading,
+	List,
 	LoadingSpinner,
 	NativeSelect,
 	Panel,
 	Slider,
 	Text,
-	Toggle,
 	useApi,
 	useToast
 } from '@cloudillo/react'
@@ -29,7 +29,7 @@ import {
 	useLocalNotifySettings
 } from '../notifications/useLocalNotifySettings.js'
 import type { UsePWA } from '../pwa.js'
-import { useSettings } from './settings.js'
+import { SwitchRow, useSettings } from './settings.js'
 
 export async function subscribeNotifications(api: ApiClient | null, pwa: UsePWA) {
 	if (!api) throw new Error('Not authenticated')
@@ -71,7 +71,7 @@ function SoundSelect({
 	}
 
 	return (
-		<Field label={label} orientation="horizontal" className="ms-2">
+		<Field label={label} orientation="horizontal">
 			<NativeSelect
 				value={(localSettings[settingKey] as string) || ''}
 				onChange={handleChange}
@@ -100,7 +100,7 @@ function VolumeSlider({
 }) {
 	const value = (localSettings[settingKey] as number) ?? 50
 	return (
-		<Field label={label} orientation="horizontal" className="ms-2">
+		<Field label={label} orientation="horizontal">
 			<Slider
 				min={0}
 				max={100}
@@ -171,151 +171,144 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 	return (
 		<>
 			<Panel title={t('Push notifications')}>
-				<Toggle
-					color="primary"
-					name="notify.push"
-					checked={!!notificationSubscription}
-					onChange={onPushChange}
-					label={t('Enable push notifications on this device')}
-				/>
-				<Toggle
-					color="primary"
-					name="notify.push"
-					checked={!!settings['notify.push']}
-					onChange={onSettingChange}
-					label={t('Enable push notifications')}
-				/>
+				<List variant="divided">
+					<SwitchRow
+						name="notify.push"
+						checked={!!notificationSubscription}
+						onChange={onPushChange}
+						label={t('Enable push notifications on this device')}
+					/>
+					<SwitchRow
+						name="notify.push"
+						checked={!!settings['notify.push']}
+						onChange={onSettingChange}
+						label={t('Enable push notifications')}
+					/>
+				</List>
 				{!!settings['notify.push'] && (
-					<>
-						<Toggle
-							className="ms-2"
+					<List variant="divided">
+						<SwitchRow
 							name="notify.push.message"
 							checked={!!settings['notify.push.message']}
 							onChange={onSettingChange}
 							label={t('Notify on direct messages')}
 						/>
-						<Toggle
-							className="ms-2"
+						<SwitchRow
 							name="notify.push.connection"
 							checked={!!settings['notify.push.connection']}
 							onChange={onSettingChange}
 							label={t('Notify on connection requests')}
 						/>
-						<Toggle
-							className="ms-2"
+						<SwitchRow
 							name="notify.push.file_share"
 							checked={!!settings['notify.push.file_share']}
 							onChange={onSettingChange}
 							label={t('Notify when files are shared with you')}
 						/>
-						<Toggle
-							className="ms-2"
+						<SwitchRow
 							name="notify.push.follow"
 							checked={!!settings['notify.push.follow']}
 							onChange={onSettingChange}
 							label={t('Notify when someone follows you')}
 						/>
-						<Toggle
-							className="ms-2"
+						<SwitchRow
 							name="notify.push.comment"
 							checked={!!settings['notify.push.comment']}
 							onChange={onSettingChange}
 							label={t('Notify on comments to your posts')}
 						/>
-						<Toggle
-							className="ms-2"
+						<SwitchRow
 							name="notify.push.reaction"
 							checked={!!settings['notify.push.reaction']}
 							onChange={onSettingChange}
 							label={t('Notify on reactions to your posts')}
 						/>
-						<Toggle
-							className="ms-2"
+						<SwitchRow
 							name="notify.push.post"
 							checked={!!settings['notify.push.post']}
 							onChange={onSettingChange}
 							label={t('Notify on new posts from people you follow')}
 						/>
-					</>
+					</List>
 				)}
 			</Panel>
 
 			<Panel title={t('Email notifications')}>
-				<Toggle
-					color="primary"
-					name="notify.email"
-					checked={!!settings['notify.email']}
-					onChange={onSettingChange}
-					label={t('Enable email notifications')}
-				/>
+				<List variant="divided">
+					<SwitchRow
+						name="notify.email"
+						checked={!!settings['notify.email']}
+						onChange={onSettingChange}
+						label={t('Enable email notifications')}
+					/>
+				</List>
 				{!!settings['notify.email'] && (
 					<>
-						<Text as="p" emphasis="muted" className="ms-2">
+						<Text as="p" emphasis="muted">
 							{t(
 								'While you’re away, we email you about the first item in each group, then pause for a day so your inbox stays calm.'
 							)}
 						</Text>
 
-						<Heading level={4} size="sm" className="ms-2 mt-2">
+						<Heading level={4} size="sm" className="mt-2">
 							{t('Direct')}
 						</Heading>
-						<Toggle
-							className="ms-2"
-							name="notify.email.message"
-							checked={!!settings['notify.email.message']}
-							onChange={onSettingChange}
-							label={t('Notify on direct messages')}
-						/>
-						<Toggle
-							className="ms-2"
-							name="notify.email.connection"
-							checked={!!settings['notify.email.connection']}
-							onChange={onSettingChange}
-							label={t('Notify on connection requests')}
-						/>
-						<Toggle
-							className="ms-2"
-							name="notify.email.file_share"
-							checked={!!settings['notify.email.file_share']}
-							onChange={onSettingChange}
-							label={t('Notify when files are shared with you')}
-						/>
+						<List variant="divided">
+							<SwitchRow
+								name="notify.email.message"
+								checked={!!settings['notify.email.message']}
+								onChange={onSettingChange}
+								label={t('Notify on direct messages')}
+							/>
+							<SwitchRow
+								name="notify.email.connection"
+								checked={!!settings['notify.email.connection']}
+								onChange={onSettingChange}
+								label={t('Notify on connection requests')}
+							/>
+							<SwitchRow
+								name="notify.email.file_share"
+								checked={!!settings['notify.email.file_share']}
+								onChange={onSettingChange}
+								label={t('Notify when files are shared with you')}
+							/>
+						</List>
 
-						<Heading level={4} size="sm" className="ms-2 mt-2">
+						<Heading level={4} size="sm" className="mt-2">
 							{t('Engagement')}
 						</Heading>
-						<Toggle
-							className="ms-2"
-							name="notify.email.comment"
-							checked={!!settings['notify.email.comment']}
-							onChange={onSettingChange}
-							label={t('Notify on comments to your posts')}
-						/>
-						<Toggle
-							className="ms-2"
-							name="notify.email.reaction"
-							checked={!!settings['notify.email.reaction']}
-							onChange={onSettingChange}
-							label={t('Notify on reactions to your posts')}
-						/>
+						<List variant="divided">
+							<SwitchRow
+								name="notify.email.comment"
+								checked={!!settings['notify.email.comment']}
+								onChange={onSettingChange}
+								label={t('Notify on comments to your posts')}
+							/>
+							<SwitchRow
+								name="notify.email.reaction"
+								checked={!!settings['notify.email.reaction']}
+								onChange={onSettingChange}
+								label={t('Notify on reactions to your posts')}
+							/>
+						</List>
 
-						<Heading level={4} size="sm" className="ms-2 mt-2">
+						<Heading level={4} size="sm" className="mt-2">
 							{t('Social')}
 						</Heading>
-						<Toggle
-							className="ms-2"
-							name="notify.email.follow"
-							checked={!!settings['notify.email.follow']}
-							onChange={onSettingChange}
-							label={t('Notify when someone follows you')}
-						/>
-						<Toggle
-							className="ms-2"
-							name="notify.email.post"
-							checked={!!settings['notify.email.post']}
-							onChange={onSettingChange}
-							label={t('Notify on new posts from people you follow')}
-						/>
+						<List variant="divided">
+							<SwitchRow
+								name="notify.email.follow"
+								checked={!!settings['notify.email.follow']}
+								onChange={onSettingChange}
+								label={t('Notify when someone follows you')}
+							/>
+							<SwitchRow
+								name="notify.email.post"
+								checked={!!settings['notify.email.post']}
+								onChange={onSettingChange}
+								label={t('Notify on new posts from people you follow')}
+							/>
+						</List>
 					</>
 				)}
 			</Panel>
@@ -415,57 +408,51 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 			</Panel>
 
 			<Panel title={t('Toast notifications')}>
-				<Toggle
-					color="primary"
-					checked={!!localSettings.toast}
-					onChange={(e) => updateSetting('toast', e.target.checked)}
-					label={t('Enable toast notifications')}
-				/>
+				<List variant="divided">
+					<SwitchRow
+						checked={!!localSettings.toast}
+						onChange={(e) => updateSetting('toast', e.target.checked)}
+						label={t('Enable toast notifications')}
+					/>
+				</List>
 				{!!localSettings.toast && (
-					<>
-						<Toggle
-							className="ms-2"
+					<List variant="divided">
+						<SwitchRow
 							checked={!!localSettings['toast.message']}
 							onChange={(e) => updateSetting('toast.message', e.target.checked)}
 							label={t('Direct messages')}
 						/>
-						<Toggle
-							className="ms-2"
+						<SwitchRow
 							checked={!!localSettings['toast.connection']}
 							onChange={(e) => updateSetting('toast.connection', e.target.checked)}
 							label={t('Connection requests')}
 						/>
-						<Toggle
-							className="ms-2"
+						<SwitchRow
 							checked={!!localSettings['toast.file_share']}
 							onChange={(e) => updateSetting('toast.file_share', e.target.checked)}
 							label={t('File sharing')}
 						/>
-						<Toggle
-							className="ms-2"
+						<SwitchRow
 							checked={!!localSettings['toast.follow']}
 							onChange={(e) => updateSetting('toast.follow', e.target.checked)}
 							label={t('New followers')}
 						/>
-						<Toggle
-							className="ms-2"
+						<SwitchRow
 							checked={!!localSettings['toast.comment']}
 							onChange={(e) => updateSetting('toast.comment', e.target.checked)}
 							label={t('Comments on your posts')}
 						/>
-						<Toggle
-							className="ms-2"
+						<SwitchRow
 							checked={!!localSettings['toast.reaction']}
 							onChange={(e) => updateSetting('toast.reaction', e.target.checked)}
 							label={t('Reactions to your posts')}
 						/>
-						<Toggle
-							className="ms-2"
+						<SwitchRow
 							checked={!!localSettings['toast.post']}
 							onChange={(e) => updateSetting('toast.post', e.target.checked)}
 							label={t('Posts from followed users')}
 						/>
-					</>
+					</List>
 				)}
 			</Panel>
 		</>

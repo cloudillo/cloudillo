@@ -13,24 +13,34 @@ export interface FcdContentProps {
 	onScroll?: () => void
 	header?: React.ReactNode
 	children?: React.ReactNode
-	/** When true, content expands to fill available space (use when no details panel) */
+	/** @deprecated use `width="fluid"` */
 	fluid?: boolean
 	/**
 	 * `'scroll'` (default): children scroll, with extra bottom padding for mobile browser chrome.
 	 * `'column'`: a plain flex column for children that handle their own scrolling.
 	 */
 	layout?: 'scroll' | 'column'
+	/**
+	 * md+: the column takes all space the filter/details leave, and caps its children:
+	 * `'reading'` 42rem centred (streams), `'form'` 48rem centred (settings), `'fluid'` uncapped.
+	 */
+	width?: 'reading' | 'form' | 'fluid'
 }
 
 export const FcdContent = React.forwardRef<HTMLDivElement, FcdContentProps>(
-	function FcdContentInside({ className, onScroll, header, children, fluid, layout }, ref) {
+	function FcdContentInside(
+		{ className, onScroll, header, children, fluid, layout, width },
+		ref
+	) {
 		const ctx = React.useContext(FcdFilterContext)
+		const w = width ?? (fluid ? 'fluid' : undefined)
 
 		return (
 			<div
 				className={mergeClasses(
-					'c-fcd-content c-vbox col h-100',
-					fluid ? 'col-md-8 col-lg-9' : 'col-md-8 col-lg-6',
+					'c-fcd-content col h-100',
+					w === 'fluid' ? 'col-md-8 col-lg-9' : 'col-md-8 col-lg-6',
+					w && `width-${w}`,
 					className
 				)}
 			>
@@ -51,7 +61,7 @@ export const FcdContent = React.forwardRef<HTMLDivElement, FcdContentProps>(
 				<div
 					ref={ref}
 					className={mergeClasses(
-						'c-fcd-content-scroll c-vbox fill overflow-y-auto',
+						'c-fcd-content-scroll fill overflow-y-auto',
 						layout === 'column' && 'column',
 						className
 					)}

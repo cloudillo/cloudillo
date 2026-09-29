@@ -99,11 +99,7 @@ export const ColorInput = createComponent<HTMLDivElement, ColorInputProps>(
 		)
 
 		return (
-			<div
-				ref={ref}
-				className={mergeClasses('c-color-input c-hbox g-1', className)}
-				{...props}
-			>
+			<div ref={ref} className={mergeClasses('c-color-input g-1', className)} {...props}>
 				<input
 					type="color"
 					className="c-color-input-picker"

@@ -6,6 +6,7 @@ import type { Profile } from '@cloudillo/types'
 import * as React from 'react'
 
 import { useAuth } from '../../hooks.js'
+import { Text } from '../Text/Text.js'
 import { mergeClasses } from '../utils.js'
 import { IdentityTag } from './IdentityTag.js'
 import { UnknownProfilePicture } from './UnknownProfilePicture.js'
@@ -37,7 +38,9 @@ export function ProfileCard({ className, profile, srcTag, alt = '' }: ProfileCar
 				<UnknownProfilePicture />
 			)}
 			<div className="body">
-				<h4 className="name">{profile.name}</h4>
+				<Text className="name" weight="semibold" truncate>
+					{profile.name}
+				</Text>
 				<div className="tag">
 					<IdentityTag idTag={profile.idTag} />
 				</div>

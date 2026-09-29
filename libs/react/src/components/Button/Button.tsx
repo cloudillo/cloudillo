@@ -18,7 +18,7 @@ export type ButtonKind = 'nav-item' | 'nav-link'
 interface ButtonBaseProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 	/** Tone. `neutral` (and unset) renders the default look. */
 	color?: ColorVariant
-	/** Shape. Defaults to `filled`. */
+	/** Shape. Unset: `filled` with a `color`, `soft` when neutral/unset. */
 	variant?: ButtonVariant
 	/** Defaults to `md`. */
 	size?: Size
@@ -105,6 +105,9 @@ export const Button = createComponent<HTMLButtonElement, ButtonProps>(
 		ref
 	) => {
 		const [clicked, setClicked] = React.useState(false)
+		// D5: unset variant is soft when neutral, filled when a colour is given.
+		const look =
+			variant ?? (kind ? undefined : color && color !== 'neutral' ? 'filled' : 'soft')
 		const iconOnly = !!icon && (children === undefined || children === null)
 		const tip = useTooltip({
 			content: disabledReason || (iconOnly ? props['aria-label'] : undefined),
@@ -157,7 +160,7 @@ export const Button = createComponent<HTMLButtonElement, ButtonProps>(
 			className: mergeClasses(
 				baseClass(kind, variant),
 				color !== 'neutral' && color,
-				(variant === 'soft' || variant === 'ghost') && variant,
+				(look === 'soft' || look === 'ghost') && look,
 				size !== 'md' && size,
 				shape,
 				iconOnly && 'icon',

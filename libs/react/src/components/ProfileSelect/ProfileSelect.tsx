@@ -39,15 +39,17 @@ export function ProfileSelect({
 	if (value) {
 		return (
 			<div className={className}>
-				<div className="c-hbox g-2 align-items-center c-input">
-					<ProfileCard className="flex-fill" profile={value} />
-					<Button
-						variant="ghost"
-						size="sm"
-						icon={<IcClear />}
-						aria-label={t('Clear')}
-						onClick={() => onChange?.(undefined)}
-					/>
+				<div className="c-input">
+					<div className="c-hbox g-2 align-items-center">
+						<ProfileCard className="flex-fill" profile={value} />
+						<Button
+							variant="ghost"
+							size="sm"
+							icon={<IcClear />}
+							aria-label={t('Clear')}
+							onClick={() => onChange?.(undefined)}
+						/>
+					</div>
 				</div>
 			</div>
 		)

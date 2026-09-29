@@ -215,7 +215,7 @@ export function TimePicker({
 					setMenuEl(el)
 				}
 			})}
-			className="c-nav flex-column text-start c-time-picker-menu"
+			className="c-time-picker-menu text-start"
 			style={{
 				...popperStyles.popper,
 				...(isOpen && filteredOptions.length ? {} : { display: 'none' })

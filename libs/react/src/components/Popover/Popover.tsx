@@ -47,7 +47,11 @@ export function useAnchoredPosition(
 	const { styles, attributes } = usePopper(anchor, floating, {
 		placement,
 		strategy: 'fixed',
-		modifiers: [{ name: 'offset', options: { offset: [0, offset] } }]
+		modifiers: [
+			{ name: 'offset', options: { offset: [0, offset] } },
+			// Keep a gap to the viewport edge when the surface is shifted back into view.
+			{ name: 'preventOverflow', options: { padding: 8 } }
+		]
 	})
 	return { style: styles.popper, attributes: attributes.popper }
 }
@@ -63,6 +67,22 @@ export function overlayContainer(anchor: Element | null): Element {
 		document.getElementById('popper-container') ??
 		document.body
 	)
+}
+
+/**
+ * DESIGN-6: `:root[data-input-modality]` is `pointer` or `keyboard` after the last input.
+ * Overlays auto-focus their first item on open; components.css hides that ring while the
+ * modality is `pointer`, so only a keyboard-opened (or keyboard-driven) overlay shows it.
+ */
+export function trackInputModality() {
+	if (typeof document === 'undefined' || document.documentElement.dataset.inputModality) return
+	const root = document.documentElement
+	root.dataset.inputModality = 'keyboard'
+	function set(modality: string) {
+		if (root.dataset.inputModality !== modality) root.dataset.inputModality = modality
+	}
+	document.addEventListener('pointerdown', () => set('pointer'), true)
+	document.addEventListener('keydown', () => set('keyboard'), true)
 }
 
 export type PopoverWidth = 'sm' | 'md' | 'lg'
@@ -102,6 +122,10 @@ export function Popover({
 	const id = idProp ?? autoId
 	const [openState, setOpenState] = React.useState(false)
 	const open = openProp ?? openState
+	// Mount, not open: the listener must see the pointerdown that opens us
+	React.useEffect(() => {
+		trackInputModality()
+	}, [])
 	const [triggerEl, setTriggerEl] = React.useState<HTMLElement | null>(null)
 	// Open state as the pointer went down: native light dismiss may close us before the
 	// trigger's click lands, and that click must not reopen.

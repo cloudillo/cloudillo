@@ -6,6 +6,7 @@ import * as React from 'react'
 import { LuClock as IcClock } from 'react-icons/lu'
 
 import { useLibTranslation } from '../../i18n.js'
+import { IconText } from '../Text/IconText.js'
 
 export interface TimeFormatProps {
 	time: number | string | Date
@@ -68,11 +69,7 @@ export function TimeFormat({ time }: TimeFormatProps) {
 		}
 	}
 
-	return (
-		<span className="c-hbox align-items-center">
-			<IcClock /> {timeFormat(time)}
-		</span>
-	)
+	return <IconText icon={<IcClock />}>{timeFormat(time)}</IconText>
 }
 
 // vim: ts=4

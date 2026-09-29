@@ -166,11 +166,7 @@ export const NumberInput = createComponent<HTMLDivElement, NumberInputProps>(
 		return (
 			<div
 				ref={ref}
-				className={mergeClasses(
-					'c-number-input c-hbox',
-					isScrubbing && 'scrubbing',
-					className
-				)}
+				className={mergeClasses('c-number-input', isScrubbing && 'scrubbing', className)}
 			>
 				<input
 					ref={inputRef}

@@ -144,10 +144,7 @@ function TitleSegment({
 	const content = canRename ? (
 		<button
 			type="button"
-			className={mergeClasses(
-				'c-docbar-title c-docbar-title-button text-truncate',
-				className
-			)}
+			className={mergeClasses('c-docbar-title-button text-truncate', className)}
 			onClick={() => {
 				editStartValueRef.current = value
 				setEditing(true)
@@ -203,7 +200,7 @@ export function DocBarTitle({
 		<div className={mergeClasses('c-docbar-main', sub && 'has-sub', className)}>
 			{showOwner && owner && (
 				<div
-					className="c-docbar-owner c-hbox align-items-center g-1"
+					className="c-docbar-owner"
 					title={owner.name ? `${owner.name} (${owner.idTag})` : owner.idTag}
 				>
 					{/* The same Avatar pair the presence faces use, rather than
@@ -241,11 +238,15 @@ export function DocBarTitle({
 					   from flashing this back in. */
 					<h1 className="c-docbar-heading">
 						<span
-							className="c-docbar-title c-skeleton"
-							style={{ width: '8rem', height: '1em' }}
+							className="c-docbar-title"
 							aria-busy="true"
 							aria-label={t('Loading document name')}
-						/>
+						>
+							<span
+								className="c-skeleton"
+								style={{ display: 'block', width: '8rem', height: '1em' }}
+							/>
+						</span>
 					</h1>
 				) : (
 					<TitleSegment

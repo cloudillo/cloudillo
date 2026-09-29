@@ -53,7 +53,8 @@ export function DocBarMenu({
 			// `.c-menu` cannot be added on top of it — that would re-apply
 			// `position: fixed` over Popper's own positioning.
 			menuClassName={mergeClasses('c-docbar-menu-popper', menuClassName)}
-			triggerClassName={mergeClasses('c-button ghost icon', triggerClassName)}
+			// `c-link`: the bar's action chrome (`.c-docbar-actions .c-link`) sizes it like its neighbours
+			triggerClassName={mergeClasses('c-link', triggerClassName)}
 			triggerProps={{ title: menuLabel, 'aria-label': menuLabel, ...triggerProps }}
 			trigger={trigger ?? icon ?? <IcMenu />}
 			{...props}

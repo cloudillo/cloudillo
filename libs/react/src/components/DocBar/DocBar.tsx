@@ -84,24 +84,26 @@ export function DocBar({
 	const isCompact = compact ?? isMobile
 
 	return (
-		<nav className={mergeClasses('c-nav c-docbar', className)} {...props}>
-			{start}
-			<DocBarTitle
-				owner={owner}
-				showOwner={showOwner}
-				title={title}
-				state={state}
-				dirty={dirty}
-				canRename={canRename}
-				onRename={onRename}
-				renaming={renaming}
-				sub={sub}
-				titleActions={titleActions}
-				compact={isCompact}
-			/>
-			{subActions && <div className="c-docbar-actions">{subActions}</div>}
-			<DocBarPresence users={presence} max={maxAvatars ?? (isCompact ? 2 : 4)} />
-			{children && <div className="c-docbar-actions">{children}</div>}
+		<nav className={mergeClasses('c-nav', className)} {...props}>
+			<div className="c-docbar">
+				{start && <div className="c-docbar-actions">{start}</div>}
+				<DocBarTitle
+					owner={owner}
+					showOwner={showOwner}
+					title={title}
+					state={state}
+					dirty={dirty}
+					canRename={canRename}
+					onRename={onRename}
+					renaming={renaming}
+					sub={sub}
+					titleActions={titleActions}
+					compact={isCompact}
+				/>
+				{subActions && <div className="c-docbar-actions">{subActions}</div>}
+				<DocBarPresence users={presence} max={maxAvatars ?? (isCompact ? 2 : 4)} />
+				{children && <div className="c-docbar-actions">{children}</div>}
+			</div>
 		</nav>
 	)
 }

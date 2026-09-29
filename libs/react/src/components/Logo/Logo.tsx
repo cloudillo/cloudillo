@@ -6,7 +6,7 @@ import * as React from 'react'
 import { mergeClasses } from '../utils.js'
 
 export interface LogoProps {
-	/** Maximum rendered width (CSS length or px). Default: fills the container up to 16rem. */
+	/** Rendered width (CSS length or px), capped at the container. Default: fills the container up to 16rem. */
 	size?: number | string
 	/** Pulse the nodes (busy state). Decorative only: pair it with `role="status"` text. Off under reduced motion. */
 	animated?: boolean
@@ -29,7 +29,7 @@ export function Logo({ size, animated, label, className, style }: LogoProps) {
 		<svg
 			viewBox="0 0 770 490"
 			className={mergeClasses('c-logo', animated && 'animated', className)}
-			style={size != null ? { maxWidth: size, ...style } : style}
+			style={size != null ? { width: size, ...style } : style}
 			{...(label ? { role: 'img', 'aria-label': label } : { 'aria-hidden': true })}
 		>
 			<path

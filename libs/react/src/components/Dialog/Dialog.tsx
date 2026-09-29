@@ -25,7 +25,7 @@ export interface DialogProps {
 	title?: React.ReactNode
 	/** Short text under the title; the dialog's accessible description. */
 	description?: React.ReactNode
-	/** Leading icon of the title row. */
+	/** Leading icon of the title row; only a FileTypeIcon for document-scoped dialogs. */
 	icon?: React.ReactNode
 	/** Width. Unset keeps the default panel width. */
 	size?: 'sm' | 'md' | 'lg' | 'full'
@@ -63,14 +63,14 @@ export function Dialog({
 	const closable = dismissable && !!onClose
 
 	const panelProps = {
-		className: mergeClasses('c-dialog c-panel emph p-3', elevation, size, className)
+		className: mergeClasses('c-dialog p-3', elevation, size, className)
 	}
 	const content = (
 		<>
 			{(title || icon || closable) && (
 				<div className="c-dialog-header">
 					{icon}
-					<h2 id={titleId} className="fill">
+					<h2 id={titleId} className="text-xl">
 						{title}
 					</h2>
 					{closable && (
@@ -84,14 +84,12 @@ export function Dialog({
 					)}
 				</div>
 			)}
-			<div className="c-dialog-body">
-				{description && (
-					<p id={descrId} className="c-dialog-description">
-						{description}
-					</p>
-				)}
-				{children}
-			</div>
+			{description && (
+				<p id={descrId} className="c-dialog-description">
+					{description}
+				</p>
+			)}
+			<div className="c-dialog-body">{children}</div>
 			{footer && <div className="c-dialog-footer">{footer}</div>}
 		</>
 	)
@@ -201,6 +199,7 @@ export function DialogContainer() {
 				<ActionBar>
 					{cancelLabel && (
 						<Button
+							variant="ghost"
 							autoFocus={destructive && !requireText}
 							onClick={type === 'YesNo' ? () => onButtonClick(false) : onCancel}
 						>

@@ -1150,7 +1150,6 @@ export function NotilloApp() {
 					start={
 						<Button
 							variant="link"
-							size="sm"
 							className="md-hide lg-hide"
 							onClick={() => setShowFilter(true)}
 							title={t('Open sidebar')}

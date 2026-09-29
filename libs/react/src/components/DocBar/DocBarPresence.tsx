@@ -54,6 +54,7 @@ export function DocBarPresence({ className, users, max = 4, ...props }: DocBarPr
 			// `role="menuitem"`s and the roster's size is never announced.
 			asMenu
 			menuLabel={label}
+			menuClassName="c-docbar-menu-popper"
 			triggerClassName="c-hbox align-items-center"
 			triggerProps={{ title: label, 'aria-label': label }}
 			trigger={

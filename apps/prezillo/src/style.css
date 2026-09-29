@@ -37,13 +37,7 @@ body,
 }
 
 /* Number Input */
-.c-number-input {
-	align-items: center;
-}
-
 .c-number-input .c-input {
-	flex: 1;
-	min-width: 0;
 	padding: var(--space-1);
 	font-size: 11px;
 }

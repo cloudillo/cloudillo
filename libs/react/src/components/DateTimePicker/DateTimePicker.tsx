@@ -80,9 +80,9 @@ export function DateTimePicker({
 	}
 
 	return (
-		<div className={mergeClasses('c-hbox g-2 ai-start c-datetime-picker', className)}>
+		<div className={mergeClasses('c-hbox wrap g-2 ai-start c-datetime-picker', className)}>
 			<input
-				className="c-input flex-fill"
+				className="c-input"
 				type="date"
 				value={date}
 				min={min}
@@ -90,9 +90,9 @@ export function DateTimePicker({
 				disabled={disabled}
 				aria-label={dateLabel}
 				onChange={(e) => emit(e.target.value, time)}
-				style={{ minWidth: 0 }}
+				style={{ minWidth: '9.5rem', flex: '1 1 auto' }}
 			/>
-			<div style={{ minWidth: '9rem', flex: '0 0 auto' }}>
+			<div style={{ flex: '0 0 7.5rem' }}>
 				<TimePicker
 					value={time}
 					onChange={(t) => emit(date, t)}

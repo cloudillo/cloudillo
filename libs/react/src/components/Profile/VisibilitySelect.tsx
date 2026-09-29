@@ -5,15 +5,15 @@ import type { CommunityVisibility, PersonalVisibility } from '@cloudillo/types'
 import * as React from 'react'
 import {
 	LuChevronDown as IcCaret,
+	LuHandshake as IcConnected,
+	LuUsers as IcFollowers,
 	LuGlobe as IcGlobe,
-	LuShield as IcRole,
-	LuUserCheck as IcUserCheck,
-	LuUsers as IcUsers
+	LuShield as IcRole
 } from 'react-icons/lu'
 
+import { useLibTranslation } from '../../i18n.js'
 import { Button } from '../Button/Button.js'
 import { FieldContext, useFieldControl } from '../Form/Field.js'
-import { useLibTranslation } from '../../i18n.js'
 import { Menu, MenuItem } from '../Menu/Menu.js'
 import type { Size } from '../types.js'
 
@@ -32,9 +32,9 @@ export const COMMUNITY_VISIBILITY: VisibilityCode[] = [
 
 const META: Record<VisibilityCode, { label: string; icon: React.ElementType; color: string }> = {
 	P: { label: 'Public', icon: IcGlobe, color: 'text-success' },
-	F: { label: 'Followers', icon: IcUserCheck, color: 'text-primary' },
-	C: { label: 'Connected', icon: IcUsers, color: 'text-warning' },
-	follower: { label: 'Follower+', icon: IcUserCheck, color: 'text-primary' },
+	F: { label: 'Followers', icon: IcFollowers, color: 'text-primary' },
+	C: { label: 'Connected', icon: IcConnected, color: 'text-warning' },
+	follower: { label: 'Follower+', icon: IcFollowers, color: 'text-primary' },
 	supporter: { label: 'Supporter+', icon: IcRole, color: 'text-secondary' },
 	contributor: { label: 'Contributor+', icon: IcRole, color: 'text-secondary' },
 	moderator: { label: 'Moderator+', icon: IcRole, color: 'text-warning' },

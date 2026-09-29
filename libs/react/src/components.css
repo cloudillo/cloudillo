@@ -69,6 +69,8 @@
 	.body {
 		display: flex;
 		flex-direction: column;
+		min-width: 0;
+		overflow-wrap: anywhere;
 		margin: 0.1rem 0 0.1rem 0.5rem;
 	}
 }
@@ -258,11 +260,12 @@
 }
 
 .c-list-item.interactive:hover {
-	background: var(--col-container-high);
+	background: var(--col-frost);
 }
 
 .c-list-item.selected {
-	background: var(--col-container-primary);
+	background: var(--col-selected);
+	color: var(--col-primary);
 }
 
 .c-list-item.disabled {
@@ -322,10 +325,27 @@
 	color: color-mix(in srgb, var(--col-on-container) 70%, transparent);
 }
 
+/* SETTINGS-6: idTags and key names wrap to two lines instead of a hard ellipsis */
 .c-list-item-subtitle {
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+	line-clamp: 2;
 	overflow: hidden;
-	text-overflow: ellipsis;
+	overflow-wrap: anywhere;
+}
+
+/* A handle (@idTag) never breaks mid-string: one line, ellipsis */
+.c-list-item-subtitle > .c-list-item-handle {
+	display: block;
+	overflow: hidden;
 	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+/* The Panel already pads; icons line up with the panel title */
+.c-panel > .c-list > .c-list-item {
+	padding-inline: 0;
 }
 
 .c-list-item-meta {
@@ -358,6 +378,14 @@
 	}
 }
 
+/* S8: dense rows for desktop only; touch keeps the 44px target */
+@media (pointer: fine) {
+	.c-list-item.sm {
+		min-height: 2.25rem;
+		padding-block: var(--space-1);
+	}
+}
+
 .c-list-item-chevron {
 	flex-shrink: 0;
 	opacity: 0.5;
@@ -365,18 +393,21 @@
 
 .c-dl {
 	display: grid;
-	grid-template-columns: max-content 1fr;
+	grid-template-columns: fit-content(40%) minmax(0, 1fr);
+	align-items: baseline;
 	gap: var(--space-2) var(--space-4);
 	margin: 0;
 }
 
 .c-dl > dt {
 	color: color-mix(in srgb, var(--col-on-container) 70%, transparent);
+	overflow-wrap: anywhere;
 }
 
 .c-dl > dd {
 	margin: 0;
 	min-width: 0;
+	overflow-wrap: anywhere;
 }
 
 .c-meta {
@@ -449,6 +480,8 @@
 }
 
 .c-markdown {
+	/* break-word, not anywhere: only a word too long for the line breaks (B11) */
+	overflow-wrap: break-word;
 	h1,
 	h2,
 	h3,
@@ -471,6 +504,11 @@
 
 /* TimePicker dropdown */
 .c-time-picker-menu {
+	display: flex;
+	flex-direction: column;
+	z-index: var(--z-popover, 700);
+	--col-on: var(--col-on-container);
+	--col-em: var(--col-em-container);
 	max-height: 16rem;
 	overflow-y: auto;
 	min-width: 8rem;
@@ -941,60 +979,13 @@
 }
 
 /* ==========================================================================
-   Toolbar Component
-   ========================================================================== */
-
-.c-toolbar {
-	display: flex;
-	align-items: center;
-	gap: var(--space-2);
-	padding: var(--space-2);
-	background: var(--col-container-low);
-	border-radius: var(--radius-control);
-}
-
-.c-toolbar.compact {
-	padding: var(--space-1);
-	gap: var(--space-1);
-}
-
-.c-toolbar-divider {
-	width: 1px;
-	height: 1.5rem;
-	background: var(--col-outline);
-	margin: 0 var(--space-1);
-}
-
-.c-toolbar-group {
-	display: flex;
-	align-items: center;
-	gap: 0;
-}
-
-.c-toolbar-group > .c-button:not(:first-child) {
-	border-top-left-radius: 0;
-	border-bottom-left-radius: 0;
-}
-
-.c-toolbar-group > .c-button:not(:last-child) {
-	border-top-right-radius: 0;
-	border-bottom-right-radius: 0;
-	border-right: 1px solid var(--col-outline);
-}
-
-/* ==========================================================================
    Menu Component (Context Menu, Dropdown Menu)
    ========================================================================== */
 
+/* Base menu rules live in OpalUI `c-menu.css`; only the library's deltas stay here (COMP-16) */
 .c-menu {
-	position: fixed;
-	background: var(--col-surface);
-	border: 1px solid var(--col-outline);
-	border-radius: var(--radius-md);
-	box-shadow: var(--shadow-lg);
+	background: var(--col-overlay);
 	z-index: var(--z-popover, 1000);
-	min-width: 12rem;
-	padding: var(--space-1);
 	overflow: hidden;
 }
 
@@ -1006,70 +997,49 @@
 	color: inherit;
 }
 
-.c-menu-item {
-	display: flex;
-	align-items: center;
-	gap: var(--space-2);
-	width: 100%;
-	padding: var(--space-2) var(--space-3);
-	border: none;
-	background: transparent;
-	color: var(--col-on-surface);
-	font-size: var(--text-sm);
-	text-align: left;
-	cursor: pointer;
-	border-radius: var(--radius-sm);
-	transition: background var(--duration-fast) var(--ease-default);
-}
-
-.c-menu-item:hover {
-	background: var(--col-container-low);
-}
-
-.c-menu-item:disabled {
-	opacity: 0.5;
-	cursor: not-allowed;
-}
-
-.c-menu-item.danger {
-	color: var(--col-error);
-}
-
-.c-menu-item.danger:hover {
-	background: color-mix(in srgb, var(--col-error) 10%, transparent);
-}
-
-.c-menu-item-icon {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	width: 1rem;
-	flex-shrink: 0;
-}
-
-.c-menu-item-label {
-	flex: 1;
+.c-menu-item-shortcut,
+.c-menu-header {
+	color: var(--col-secondary);
 }
 
 .c-menu-item-shortcut {
-	font-size: var(--text-xs);
-	color: var(--col-secondary);
 	margin-left: auto;
 }
 
-.c-menu-divider {
-	height: 1px;
-	background: var(--col-outline);
-	margin: var(--space-1) 0;
+/* NumberInput base (COMP-13); ideallo's property bar refines it */
+.c-number-input {
+	display: flex;
+	gap: var(--gap);
+	align-items: center;
 }
 
-.c-menu-header {
-	padding: var(--space-1) var(--space-3);
-	font-size: var(--text-xs);
-	font-weight: 600;
-	text-transform: uppercase;
-	letter-spacing: 0.05em;
-	color: var(--col-secondary);
+.c-color-input {
+	display: flex;
+}
+
+.c-number-input > .c-input {
+	flex: 1;
+	min-width: 0;
+}
+
+/* Unbreakable strings (idTags, URLs, file names) wrap inside flex-sized parts (COMP-2) */
+.c-empty-state > *,
+.c-disclosure > summary,
+.c-breadcrumbs li,
+.c-alert-content,
+.c-choice-text {
+	overflow-wrap: anywhere;
+}
+
+.c-disclosure > summary > .flex-fill {
+	min-width: 0;
+}
+
+.c-tag {
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 /* ==========================================================================
@@ -1095,7 +1065,7 @@
 
 .c-action-sheet {
 	width: 100%;
-	background-color: lch(from var(--col-container) l c h / var(--op-panel, 0.95));
+	background-color: lch(from var(--col-overlay) l c h / var(--op-panel, 0.95));
 	backdrop-filter: blur(var(--blur-radius));
 	border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
 	box-shadow:
@@ -1158,7 +1128,7 @@
 	cursor: not-allowed;
 }
 
-.c-action-sheet-item.danger {
+.c-action-sheet-item:is(.danger, .error) {
 	color: var(--col-error);
 }
 
@@ -1217,9 +1187,9 @@
    The rail is col-md-4 (33.3%) below lg and col-lg-3 (25%) above it, so
    crossing 72rem used to make it *shrink* as the window got *wider* — 376px
    back to 280px at a 1152px-wide layout box. Inside an app iframe that box is
-   the browser width minus the shell chrome (5rem context sidebar + the 2px
-   .c-app trust border on each side), which is why the jump shows up at a
-   browser width around 1236px rather than at 1152px.
+   the browser width minus the shell chrome (the 5rem context sidebar; the
+   trust frame is an overlay and takes no width), which is why the jump shows
+   up at a browser width around 1232px rather than at 1152px.
 
    Fix: in the md band cap the rail at exactly the width col-lg-3 gives it at
    the start of the lg band, and let content absorb the slack. The rail then
@@ -1278,6 +1248,115 @@
 		max-width: none;
 		min-width: 0;
 	}
+
+	/* S7 width modes: the column fills what filter/details leave */
+	.c-fcd > .row > .c-fcd-content[class*='width-'] {
+		flex: 1 1 0;
+		max-width: none;
+		min-width: 0;
+	}
+
+	/* Cap via inline padding so the scrollbar stays at the column edge */
+	.c-fcd-content.width-reading > .c-fcd-content-scroll {
+		padding-inline: max(0px, (100% - 42rem) / 2);
+	}
+
+	.c-fcd-content.width-form > .c-fcd-content-scroll {
+		padding-inline: max(0px, (100% - 48rem) / 2);
+	}
+
+	/* The header sits outside the scroller; give it the same capped, centred width */
+	.c-fcd-content.width-reading > :not(.c-fcd-content-scroll) {
+		margin-inline: max(0px, (100% - 42rem) / 2);
+	}
+
+	.c-fcd-content.width-form > :not(.c-fcd-content-scroll) {
+		margin-inline: max(0px, (100% - 48rem) / 2);
+	}
+}
+
+/* PAGES-2: inline details at lg+ collapses while nothing is shown; content fills */
+@media (width >= 72rem) {
+	.c-fcd:not(.details-overlay):not(.details-adaptive) > .row > .c-fcd-details:not(.show) {
+		display: none;
+	}
+
+	.c-fcd:not(.details-overlay):not(.details-adaptive)
+		> .row:has(> .c-fcd-details:not(.show))
+		> .c-fcd-content.c-fcd-content {
+		flex: 1 1 0;
+		max-width: none;
+		min-width: 0;
+	}
+}
+
+/* M8: what c-vbox gave these (one c-* per element); must precede S2 */
+.c-fcd-filter,
+.c-fcd-content,
+.c-fcd-content-scroll {
+	display: flex;
+	flex-direction: column;
+	gap: var(--gap);
+	& > .fill {
+		flex: 1;
+		min-width: 0;
+		min-height: 0;
+	}
+}
+
+/* S2: 12px between cards; g-* utilities (!important) still override */
+.c-fcd-content-scroll {
+	gap: var(--space-2h);
+}
+
+/* PAGES-3: every filter rail gets an inline gutter */
+.c-fcd-filter-body {
+	display: flex;
+	flex-direction: column;
+	gap: var(--gap);
+	padding-inline: var(--space-2);
+
+	& > .fill {
+		flex: 1;
+		min-height: 0;
+	}
+}
+
+/* Surface model: the rail is one quiet inset plate — visible on the canvas but a
+   step below raised content; nothing inside it paints. Below md it is the drawer. */
+@media (width >= 48rem) {
+	.c-fcd-filter-body {
+		background-color: lch(from var(--col-inset) l c h / var(--op-panel));
+		backdrop-filter: blur(var(--blur-radius));
+		border-radius: var(--border-radius-lg);
+	}
+}
+
+.c-fcd-filter-header {
+	display: flex;
+	justify-content: flex-end;
+	flex-shrink: 0;
+}
+
+/* CHROME-10 / PAGES-15: below md the drawer is capped, with a tappable
+   backdrop beside it and the ✕ in its own header row. 4 classes outrank
+   opalui's `.c-container > .row .sm-hide-dyn` full-bleed geometry. */
+@media (width < 48rem) {
+	.c-fcd > .row > .c-fcd-filter.sm-hide-dyn {
+		right: auto;
+		width: min(85vw, 22rem);
+		/* Overlay (L2): opaque, see the surface model */
+		background-color: var(--col-overlay);
+		color: var(--col-on-container-low);
+		border-right: 1px solid var(--col-outline);
+	}
+
+	.c-fcd-filter-backdrop {
+		position: absolute;
+		inset: 0;
+		z-index: 10;
+		background-color: #00000080;
+	}
 }
 
 /* PageHeader */
@@ -1285,26 +1364,60 @@
 	display: flex;
 	flex-direction: column;
 	gap: 0.5rem;
-	padding-block: 0.5rem;
+	padding: 0.5rem 0.75rem;
 }
 
-/* Hero: cover band with an avatar overlapping its bottom edge */
+/* Hero: cover band with an avatar overlapping its bottom edge, body to its right */
 .c-hero {
 	position: relative;
-	padding-bottom: 5rem;
 }
 
 .c-hero-cover {
 	position: relative;
+	/* explicit width, else max-height + aspect-ratio shrinks the width */
+	width: 100%;
+	aspect-ratio: 4 / 1;
 	min-height: 10rem;
+	max-height: 14rem;
 	overflow: hidden;
 	border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
 	background: var(--col-container);
 
-	& > img {
-		display: block;
-		width: 100%;
+	&.c-id-color {
+		background: linear-gradient(135deg, var(--id-bg), lch(80 30 calc(var(--id-hue) + 40)));
 	}
+
+	& > img,
+	& > .c-image-fallback {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+}
+
+.c-hero-main {
+	display: flex;
+	gap: var(--space-3);
+	padding: 0 var(--space-3) var(--space-3);
+}
+
+.c-hero-body {
+	flex: 1;
+	min-width: 0;
+	padding-top: var(--space-2);
+}
+
+/* The identity column claims a line of its own before the header actions may share it:
+   when both do not fit, the actions wrap below instead of squeezing the name (B7-B9) */
+.c-hero-body .c-page-header > .c-hbox > .c-vbox.fill {
+	flex-basis: 20rem;
+}
+
+/* Chips wrap to the next line rather than shrinking to empty pills */
+.c-hero-body .c-page-header :is(.c-tag, .c-badge) {
+	flex-shrink: 0;
 }
 
 .c-hero-cover-action {
@@ -1314,9 +1427,11 @@
 }
 
 .c-hero-avatar {
-	position: absolute;
-	left: var(--space-4);
-	bottom: 0;
+	position: relative;
+	flex: none;
+	align-self: flex-start;
+	/* Half of the 6rem (2xl) avatar overlaps the cover */
+	margin-top: -3rem;
 
 	& > .c-avatar {
 		box-shadow: 0 0 0 0.5rem var(--col-surface);
@@ -1330,12 +1445,13 @@
 }
 
 @media screen and (width < 48rem) {
-	.c-hero {
-		padding-bottom: 4rem;
+	.c-hero-main {
+		flex-direction: column;
+		gap: var(--space-2);
 	}
 
-	.c-hero-avatar > .c-avatar {
-		--avatar-size: 8rem;
+	.c-hero-body {
+		padding-top: 0;
 	}
 }
 
@@ -1387,11 +1503,11 @@
 		z-index: -1;
 	}
 
-	/* Give the header its own surface — otherwise dark text sits directly
-	   on the dim overlay and is unreadable. Matches the panel-surface
-	   look used on desktop overlay/adaptive mode. */
-	.c-container > .row > .c-fcd-details > .c-fcd-details-body > .c-fcd-details-header {
-		background-color: lch(from var(--col-container-low) l c h / var(--op-panel));
+	/* APPS-2: the whole body gets the panel surface (not just the header),
+	   otherwise its text sits directly on the dim and is unreadable. Matches
+	   the md+ overlay/adaptive panel look. */
+	.c-container > .row > .c-fcd-details > .c-fcd-details-body {
+		background-color: var(--col-overlay);
 		color: var(--col-on-container-low);
 	}
 }
@@ -1432,9 +1548,8 @@
 		/* Panel slides over content (or sits in the viewport gutter in
 		   adaptive-dock mode) — give it its own surface so the editor
 		   underneath isn't visible through it. */
-		background-color: lch(from var(--col-container-low) l c h / var(--op-panel));
+		background-color: var(--col-overlay);
 		color: var(--col-on-container-low);
-		backdrop-filter: blur(var(--blur-radius));
 		border-left: 1px solid var(--col-outline);
 	}
 
@@ -1474,9 +1589,8 @@
 		z-index: 10;
 		transform: translateX(100%);
 		transition: transform 0.2s ease-in-out;
-		background-color: lch(from var(--col-container-low) l c h / var(--op-panel));
+		background-color: var(--col-overlay);
 		color: var(--col-on-container-low);
-		backdrop-filter: blur(var(--blur-radius));
 		border-left: 1px solid var(--col-outline);
 	}
 
@@ -1588,7 +1702,7 @@
 	bottom: var(--kb-inset, 0px);
 	left: 0;
 	right: 0;
-	background-color: lch(from var(--col-container) l c h / var(--op-panel, 0.95));
+	background-color: lch(from var(--col-overlay) l c h / var(--op-panel, 0.95));
 	backdrop-filter: blur(var(--blur-radius));
 	border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
 	box-shadow:
@@ -1713,7 +1827,7 @@ dialog.c-modal.c-bottom-sheet-modal {
 	grid-template-columns: repeat(3, minmax(10rem, auto));
 	grid-auto-rows: 1fr;
 	gap: 0;
-	background-color: lch(from var(--col-container) l c h / var(--op-panel, 0.95));
+	background-color: lch(from var(--col-overlay) l c h / var(--op-panel, 0.95));
 	backdrop-filter: blur(var(--blur-radius));
 	border: 1px solid var(--col-outline);
 	border-radius: var(--radius-md);
@@ -1930,7 +2044,13 @@ dialog.c-modal.c-bottom-sheet-modal {
    PropertyPanel
    ========================================================================== */
 
+/* Inner box of the `.c-panel` root (COMP-15) */
 .c-property-panel {
+	display: flex;
+	flex-direction: column;
+	gap: var(--gap);
+	height: 100%;
+	min-height: 0;
 	font-size: var(--text-sm);
 }
 
@@ -1966,6 +2086,8 @@ dialog.c-modal.c-bottom-sheet-modal {
 }
 
 .c-property-section-content {
+	display: flex;
+	flex-direction: column;
 	padding-top: var(--space-1);
 }
 
@@ -2150,11 +2272,19 @@ dialog.c-modal.c-bottom-sheet-modal {
    DocBar — the document top bar every doc app wears
    ========================================================================== */
 
+/* `nav.c-nav > .c-docbar` (COMP-15): the nav keeps the surface, the bar its own padding */
+.c-nav:has(> .c-docbar) {
+	padding: 0;
+	/* DocBar is app chrome: part of the frame */
+	--col-bg: var(--col-frame);
+}
+
 .c-docbar {
 	display: flex;
 	align-items: center;
 	gap: var(--space-2);
 	padding: var(--space-1) var(--space-2);
+	flex: 1 1 auto;
 	min-width: 0;
 }
 
@@ -2186,8 +2316,12 @@ dialog.c-modal.c-bottom-sheet-modal {
 	display: flex;
 	align-items: center;
 	margin: 0;
+	/* All of these, or the theme's display face for `h1` (Oswald) leaks into the bar */
+	font-family: inherit;
 	font-size: inherit;
 	font-weight: inherit;
+	line-height: inherit;
+	letter-spacing: inherit;
 	min-width: 0;
 	overflow: hidden;
 }
@@ -2199,8 +2333,9 @@ dialog.c-modal.c-bottom-sheet-modal {
 	flex: 1 1 auto;
 }
 
-.c-docbar-title {
-	font-size: var(--text-sm);
+.c-docbar-title,
+.c-docbar-title-button {
+	font-size: var(--text-base);
 	font-weight: 600;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -2234,19 +2369,27 @@ dialog.c-modal.c-bottom-sheet-modal {
 	opacity: 0.45;
 }
 
+/* The page you are on is the last thing to shrink */
 .c-docbar-sub {
 	display: flex;
 	align-items: center;
 	gap: var(--space-1);
-	min-width: 0;
+	flex: 1 1 auto;
+	min-width: 5rem;
 }
 
 .c-docbar-sub-icon {
 	flex-shrink: 0;
 }
 
+/* A muted prefix: the title, not the owner, is what reads first */
 .c-docbar-owner {
+	display: flex;
+	align-items: center;
+	gap: var(--space-1);
 	flex-shrink: 0;
+	font-size: var(--text-sm);
+	opacity: 0.7;
 }
 
 .c-docbar-presence {
@@ -2327,7 +2470,9 @@ dialog.c-modal.c-bottom-sheet-modal {
 	   segment is swapped for its edit form (which does not carry
 	   `.c-docbar-doc-title`), so a rename in progress is never hidden. */
 	.c-docbar-main.has-sub .c-docbar-heading-slot:has(.c-docbar-doc-title),
-	.c-docbar-main.has-sub .c-docbar-sep {
+	.c-docbar-main.has-sub .c-docbar-sep,
+	/* The title actions (copy reference) belong to the hidden document name */
+	.c-docbar-main.has-sub > .c-docbar-actions {
 		display: none;
 	}
 }
@@ -2404,7 +2549,7 @@ body.dark .c-id-color {
 	border: 1px solid lch(from var(--col-on) l c h / 0.18);
 	border-radius: var(--radius-control, 8px);
 	overflow: hidden;
-	background: lch(from var(--col-container) l c h / 0.6);
+	background: var(--col-inset);
 }
 
 .c-segmented-item {
@@ -2621,6 +2766,9 @@ body.dark .c-id-color {
 	top: var(--space-1);
 	right: var(--space-1);
 }
+.c-code-block:has(> .c-code-block-copy) > pre {
+	padding-inline-end: 3rem;
+}
 
 /* ==========================================================================
    AppIcon — app and file-type glyphs (from claude-docs/icons.html, "Solid")
@@ -2811,8 +2959,11 @@ body.dark .c-app-icon:not(.tile) {
 	}
 }
 
-/* ActionBar: right-aligned, primary last; below 48rem stacked, primary on top */
+/* ActionBar: right-aligned, primary last; below 30rem of its own width stacked, primary on top.
+   The bar is its own query container, so a narrow dialog or sidebar form stacks on desktop too
+   (COMP-8); a container cannot restyle itself, so stacking is done on the children. */
 .c-action-bar {
+	container-type: inline-size;
 	display: flex;
 	align-items: center;
 	flex-wrap: wrap;
@@ -2825,9 +2976,12 @@ body.dark .c-app-icon:not(.tile) {
 	display: flex;
 	align-items: center;
 	gap: 0.5rem;
+	min-width: 0;
 }
 
 .c-action-bar__end {
+	flex-wrap: wrap;
+	justify-content: flex-end;
 	margin-inline-start: auto;
 }
 
@@ -2839,17 +2993,17 @@ body.dark .c-app-icon:not(.tile) {
 	flex: 1 1 0;
 }
 
-@media (width < 48rem) {
-	.c-action-bar,
+@container (width < 30rem) {
 	.c-action-bar__start,
 	.c-action-bar__end {
+		flex: 1 1 100%;
 		flex-direction: column-reverse;
 		align-items: stretch;
+		margin-inline-start: 0;
 	}
 
-	.c-action-bar__start,
 	.c-action-bar__end {
-		margin-inline-start: 0;
+		order: -1;
 	}
 }
 
@@ -2891,7 +3045,10 @@ dialog.c-modal.c-immersive {
    ============================================================================ */
 
 .c-logo {
+	/* A viewBox-only SVG has no intrinsic width and collapses to 0 in a flex row */
+	width: 100%;
 	max-width: 16rem;
+	flex: none;
 }
 .c-logo.animated .circle.main {
 	animation: 3s infinite normal c-logo-1;
@@ -2975,6 +3132,7 @@ dialog.c-modal.c-immersive {
 /* Fills its parent (a dialog body): the image area takes the free row. */
 .c-image-cropper {
 	display: grid;
+	grid-template-columns: minmax(0, 1fr);
 	grid-template-rows: 1fr auto;
 	height: 100%;
 	min-height: 0;
@@ -3004,9 +3162,9 @@ dialog.c-modal.c-immersive {
 }
 .c-image-cropper .ReactCrop img {
 	display: block;
-	/* Fits a Dialog size="lg": min(90vw, 56.25rem) x min(85vh, 43.75rem),
-	   minus ~4rem padding and ~13rem header + tabs + toolbar */
-	max-width: min(calc(90vw - 4rem), 52rem);
+	/* Width follows the area (COMP-5); height fits a Dialog size="lg": min(85vh, 43.75rem)
+	   minus ~13rem header + tabs + toolbar */
+	max-width: 100%;
 	max-height: min(calc(85vh - 13rem), 30rem);
 }
 .c-image-cropper .ReactCrop__child-wrapper {
@@ -3114,6 +3272,9 @@ dialog.c-modal.c-immersive {
 }
 
 .c-file-tile-meta {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 	font-size: var(--text-sm);
 	color: color-mix(in srgb, var(--col-on-container) 70%, transparent);
 }
@@ -3269,10 +3430,19 @@ dialog.c-modal.c-immersive {
 .c-fcd-filter-toggle {
 	background-color: var(
 		--auto-bg,
-		lch(from var(--auto-bg-col, var(--col-container-low)) l c h / var(--op-panel))
+		lch(from var(--auto-bg-col, var(--col-raised)) l c h / var(--op-panel))
 	);
 	backdrop-filter: var(--auto-bg-blur, blur(var(--blur-radius)));
 	color: var(--auto-bg-fg, var(--auto-bg-on, var(--col-on-container-low)));
+}
+
+/* Painters that are content surfaces carry the L1 edge; --auto-bg is only ever
+   transparent, so the edge vanishes with the paint */
+.c-list,
+.c-dl,
+.c-tree-view,
+.c-sortable-list {
+	border: 1px solid var(--auto-bg, var(--col-outline));
 }
 
 .c-list,
@@ -3283,6 +3453,8 @@ dialog.c-modal.c-immersive {
 	border-radius: var(--border-radius-lg);
 }
 
+/* Surface model: filter rails are quiet — nothing inside them paints */
+.c-fcd-filter,
 .c-list > *,
 .c-dl > *,
 .c-tree-view > *,
@@ -3316,6 +3488,150 @@ dialog.c-modal.c-immersive {
 		--auto-bg-blur: none;
 		--auto-bg-fg: currentcolor;
 	}
+}
+
+/* Below md the details body and the filter drawer paint their own surface */
+@media (width < 48rem) {
+	.c-container > .row > .c-fcd-details > .c-fcd-details-body,
+	.c-fcd > .row > .c-fcd-filter.sm-hide-dyn {
+		--auto-bg: transparent;
+		--auto-bg-blur: none;
+		--auto-bg-fg: currentcolor;
+	}
+}
+
+/* ==========================================================================
+   Dialog surface (COMP-15): `.c-dialog` carries the panel look itself,
+   so it is never mixed with `.c-panel`. Values mirror opalui c-panel.css.
+   ========================================================================== */
+
+.c-dialog {
+	display: flex;
+	flex-direction: column;
+	backdrop-filter: blur(var(--blur-radius));
+	border-radius: var(--border-radius-lg);
+	padding: var(--p-panel);
+	background-color: lch(from var(--col-bg) l c h / var(--op-panel));
+	color: var(--col-on);
+	box-shadow: inset 0px 0px 2rem var(--col-frost);
+	--col-bg: var(--col-overlay);
+	--col-on: var(--col-on-container-low);
+	--col-em: var(--col-em-container-low);
+
+	&.mid {
+		box-shadow:
+			inset 0px 0px 2rem var(--col-frost),
+			var(--shadow-sm);
+	}
+
+	&.high {
+		box-shadow:
+			inset 0px 0px 2rem var(--col-frost),
+			var(--shadow-md);
+	}
+}
+
+/* Panels inside a dialog are inset, as inside a panel (surface model) */
+.c-dialog :where(.c-panel) {
+	--col-bg: var(--col-inset);
+	box-shadow: none;
+	border-color: transparent;
+}
+
+/* IdentityTag (DESIGN-14): look-alike characters, marked without colour */
+.c-identity-confusable {
+	text-decoration: underline dotted;
+	text-underline-offset: 0.15em;
+	cursor: help;
+}
+
+/* ==========================================================================
+   Menus (DESIGN-17): one item look for links and buttons, one font size per
+   pointer type, and a rule above the first destructive item after ordinary ones
+   ========================================================================== */
+
+a.c-menu-item:is(:link, :visited) {
+	color: var(--col-on-surface);
+	text-decoration: none;
+}
+
+a.c-action-sheet-item:is(:link, :visited) {
+	color: var(--col-on-container);
+	text-decoration: none;
+}
+
+a:is(.c-menu-item, .c-action-sheet-item):is(.danger, .error):is(:link, :visited) {
+	color: var(--col-error);
+}
+
+@media (pointer: coarse) {
+	.c-menu-item {
+		font-size: var(--text-base);
+	}
+}
+
+.c-menu-item:not(.danger, .error) + .c-menu-item:is(.danger, .error),
+.c-action-sheet-item:not(.danger, .error) + .c-action-sheet-item:is(.danger, .error) {
+	margin-top: var(--space-1);
+	border-top: var(--border-w-sm, 1px) solid var(--col-outline);
+}
+
+/* ==========================================================================
+   Focus modality (DESIGN-6): overlays auto-focus their first item on open;
+   no ring for that while the last input was a pointer (set in Popover.tsx)
+   ========================================================================== */
+
+:root[data-input-modality='pointer']
+	:is(.c-popper, .c-menu, .c-action-sheet, .c-modal, .c-bottom-sheet)
+	:focus-visible,
+:root[data-input-modality='pointer']
+	:is(.c-popper, .c-menu, .c-action-sheet, .c-modal, .c-bottom-sheet):focus-visible {
+	outline: none;
+}
+
+/* ==========================================================================
+   Sheets over an app (`:root[data-app-frame]`, set by the shell's AppFrame):
+   shell sheets become top-anchored dialogs so they visibly overlap the shell
+   header strip and reach beyond the app iframe. Geometry mirrors opalui .c-modal.
+   ========================================================================== */
+
+:root[data-app-frame] {
+	--sheet-top: max(0.5rem, env(safe-area-inset-top));
+	--sheet-width: min(36rem, calc(100vw - 2rem));
+}
+
+:root[data-app-frame] dialog.c-modal.c-bottom-sheet-modal > .c-bottom-sheet {
+	position: relative;
+	inset: auto;
+	width: var(--sheet-width);
+	height: auto !important;
+	max-height: calc(100dvh - 2 * var(--sheet-top));
+	margin-inline: auto;
+	padding-bottom: 0;
+	border-radius: var(--border-radius-lg);
+	transition: none;
+}
+
+:root[data-app-frame] dialog.c-modal.c-bottom-sheet-modal .c-bottom-sheet-handle-area {
+	display: none;
+}
+
+:root[data-app-frame] dialog.c-modal.c-bottom-sheet-modal .c-bottom-sheet-content {
+	min-height: 0;
+}
+
+:root[data-app-frame] .c-action-sheet-backdrop {
+	align-items: flex-start;
+	justify-content: center;
+	padding-top: var(--sheet-top);
+}
+
+:root[data-app-frame] .c-action-sheet {
+	width: var(--sheet-width);
+	max-height: calc(100dvh - 2 * var(--sheet-top));
+	padding-bottom: 0;
+	border-radius: var(--border-radius-lg);
+	transform: none;
 }
 
 /*

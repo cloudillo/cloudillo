@@ -55,7 +55,8 @@ export const PageHeader = createComponent<HTMLElement, PageHeaderProps>(
 							{title}
 						</Heading>
 						{subtitle != null && (
-							<Text as="p" emphasis="muted" className="m-0">
+							// div, not p: subtitles may hold block content (an HBox with a button)
+							<Text as="div" emphasis="muted" className="m-0">
 								{subtitle}
 							</Text>
 						)}

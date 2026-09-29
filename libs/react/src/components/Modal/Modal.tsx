@@ -4,6 +4,7 @@
 import * as React from 'react'
 import { createPortal } from 'react-dom'
 
+import { trackInputModality } from '../Popover/Popover.js'
 import { mergeRefs } from '../Tooltip/Tooltip.js'
 import { useBodyScrollLock } from '../hooks.js'
 import type { Elevation } from '../types.js'
@@ -33,6 +34,9 @@ export const Modal = createComponent<HTMLDialogElement, ModalProps>(
 		onCloseRef.current = onClose
 
 		useBodyScrollLock(!!open)
+		React.useEffect(() => {
+			trackInputModality()
+		}, [])
 
 		React.useLayoutEffect(() => {
 			const dialog = dialogRef.current

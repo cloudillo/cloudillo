@@ -16,7 +16,7 @@ export const PropertyPanel = createComponent<HTMLDivElement, PropertyPanelProps>
 		return (
 			<div
 				ref={ref}
-				className={mergeClasses('c-panel c-vbox c-property-panel', className)}
+				className={mergeClasses('c-panel', className)}
 				style={{
 					width,
 					minWidth: width,
@@ -27,7 +27,7 @@ export const PropertyPanel = createComponent<HTMLDivElement, PropertyPanelProps>
 				}}
 				{...props}
 			>
-				{children}
+				<div className="c-property-panel">{children}</div>
 			</div>
 		)
 	}

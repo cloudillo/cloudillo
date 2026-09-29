@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
+import { createPortal } from 'react-dom'
 
 import { Modal } from '../Modal/Modal.js'
 import { useMergedRefs, usePrefersReducedMotion } from '../hooks.js'
@@ -285,8 +286,11 @@ export const BottomSheet = createComponent<HTMLDivElement, BottomSheetProps>(
 			</div>
 		)
 
-		// Non-modal: stays in-page beside the main view (prezillo's peek panel over the canvas)
-		if (!showBackdrop) return sheet
+		// Non-modal: no backdrop, the page stays live (prezillo's peek panel over the canvas).
+		// Portaled: a `backdrop-filter` ancestor would become its containing block (RC-6).
+		if (!showBackdrop) {
+			return typeof document !== 'undefined' ? createPortal(sheet, document.body) : sheet
+		}
 
 		// Modal: native <dialog>.showModal() — top layer, inert page, Escape + backdrop dismiss
 		return (

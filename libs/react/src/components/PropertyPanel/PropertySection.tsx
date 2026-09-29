@@ -27,9 +27,7 @@ export const PropertySection = createComponent<HTMLDivElement, PropertySectionPr
 					{expanded ? <LuChevronDown size={14} /> : <LuChevronRight size={14} />}
 					<span className="c-property-section-title">{title}</span>
 				</button>
-				{expanded && (
-					<div className="c-property-section-content c-vbox g-1">{children}</div>
-				)}
+				{expanded && <div className="c-property-section-content g-1">{children}</div>}
 			</div>
 		)
 	}

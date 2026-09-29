@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
+import { createPortal } from 'react-dom'
 
 import type { Spacing } from '../Box/HBox.js'
 import { createComponent, mergeClasses } from '../utils.js'
@@ -29,21 +30,27 @@ export interface AffixProps extends React.HTMLAttributes<HTMLDivElement> {
  */
 export const Affix = createComponent<HTMLDivElement, AffixProps>(
 	'Affix',
-	({ className, mode = 'fixed', position, offset, children, ...props }, ref) => (
-		<div
-			ref={ref}
-			className={mergeClasses(
-				'c-affix',
-				mode,
-				position,
-				offset !== undefined && `offset-${offset}`,
-				className
-			)}
-			{...props}
-		>
-			{children}
-		</div>
-	)
+	({ className, mode = 'fixed', position, offset, children, ...props }, ref) => {
+		const strip = (
+			<div
+				ref={ref}
+				className={mergeClasses(
+					'c-affix',
+					mode,
+					position,
+					offset !== undefined && `offset-${offset}`,
+					className
+				)}
+				{...props}
+			>
+				{children}
+			</div>
+		)
+		// A `backdrop-filter` ancestor (glass Panel, autoBg) would become the containing block
+		return mode === 'fixed' && typeof document !== 'undefined'
+			? createPortal(strip, document.body)
+			: strip
+	}
 )
 
 // vim: ts=4

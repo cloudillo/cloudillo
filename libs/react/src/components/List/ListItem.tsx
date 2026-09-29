@@ -27,6 +27,8 @@ export interface ListItemProps
 	onClick?: (evt: React.SyntheticEvent<HTMLElement>) => void
 	selected?: boolean
 	disabled?: boolean
+	/** `'sm'`: 36px row for dense desktop lists; applies to fine pointers only */
+	size?: 'sm'
 }
 
 export const ListItem = createComponent<HTMLLIElement, ListItemProps>(
@@ -44,6 +46,7 @@ export const ListItem = createComponent<HTMLLIElement, ListItemProps>(
 			onClick,
 			selected,
 			disabled,
+			size,
 			children,
 			...props
 		},
@@ -112,6 +115,7 @@ export const ListItem = createComponent<HTMLLIElement, ListItemProps>(
 					(selectable || href || onClick) && !disabled && 'interactive',
 					selected && 'selected',
 					disabled && 'disabled',
+					size,
 					className
 				)}
 				{...optionProps}

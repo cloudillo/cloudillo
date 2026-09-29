@@ -13,6 +13,7 @@ import {
 	overlayContainer,
 	Popover,
 	PopoverSurface,
+	trackInputModality,
 	type VirtualAnchor
 } from '../Popover/Popover.js'
 import { createComponent, isCrossOrigin, isInternal, mergeClasses } from '../utils.js'
@@ -105,6 +106,9 @@ export function Menu({
 }: MenuProps) {
 	const sheet = useSheetMode()
 	const typeahead = useTypeahead()
+	React.useEffect(() => {
+		trackInputModality()
+	}, [])
 	const [openState, setOpenState] = React.useState(false)
 	const open = trigger ? (openProp ?? openState) : true
 

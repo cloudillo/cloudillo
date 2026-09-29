@@ -808,16 +808,6 @@ body,
 
 /* ── Comments Panel ── */
 
-/* Lighter, un-blurred mobile overlay for the details panel — lets the
-   editor content under the comments panel stay readable. Overrides the
-   dim+blur default in @cloudillo/react's components.css. */
-@media (width < 48rem) {
-	.c-fcd-details::before {
-		background-color: rgba(0, 0, 0, 0.3);
-		backdrop-filter: none;
-	}
-}
-
 .comment-panel-header {
 	display: flex;
 	align-items: center;

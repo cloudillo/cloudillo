@@ -11,7 +11,7 @@ export type HeadingLevel = 1 | 2 | 3 | 4 | 5 | 6
 export interface HeadingProps extends React.HTMLAttributes<HTMLHeadingElement> {
 	/** Document outline level (semantics) */
 	level: HeadingLevel
-	/** Visual size; defaults from `level` */
+	/** Visual size; defaults from `level` (`xs` with `overline`) */
 	size?: TextSize
 	/** Small uppercase label style */
 	overline?: boolean
@@ -34,7 +34,7 @@ export const Heading = createComponent<HTMLHeadingElement, HeadingProps>(
 			<Tag
 				ref={polyRef(ref)}
 				className={mergeClasses(
-					`text-${size ?? LEVEL_SIZE[level]}`,
+					`text-${size ?? (overline ? 'xs' : LEVEL_SIZE[level])}`,
 					overline && 'overline',
 					className
 				)}

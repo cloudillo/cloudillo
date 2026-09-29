@@ -92,7 +92,7 @@ export function PanelStory() {
 			</Variant>
 
 			<Variant name="Elevation Levels">
-				<HBox gap={2}>
+				<HBox gap={2} wrap>
 					<Panel elevation="low" padding={3}>
 						Low
 					</Panel>
@@ -106,7 +106,7 @@ export function PanelStory() {
 			</Variant>
 
 			<Variant name="Emphasized">
-				<HBox gap={2}>
+				<HBox gap={2} wrap>
 					<Panel emph padding={3}>
 						Emphasized
 					</Panel>

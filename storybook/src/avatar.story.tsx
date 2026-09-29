@@ -26,7 +26,7 @@ export function AvatarStory() {
 			]}
 		>
 			<Variant name="Sizes">
-				<div className="c-hbox g-2 align-items-end">
+				<div className="c-hbox wrap g-2 align-items-end">
 					<Avatar size="xs" fallback="XS" />
 					<Avatar size="sm" fallback="SM" />
 					<Avatar size="md" fallback="MD" />
@@ -38,7 +38,7 @@ export function AvatarStory() {
 			</Variant>
 
 			<Variant name="Shapes">
-				<div className="c-hbox g-2">
+				<div className="c-hbox wrap g-2">
 					<Avatar fallback="C" />
 					<Avatar shape="squircle" fallback="SQ" />
 					<Avatar shape="square" fallback="S" />
@@ -47,7 +47,7 @@ export function AvatarStory() {
 			</Variant>
 
 			<Variant name="Default Initials Fallback">
-				<div className="c-hbox g-2">
+				<div className="c-hbox wrap g-2">
 					<Avatar alt="Ada Lovelace" />
 					<Avatar alt="Guest" size="lg" />
 					<Avatar alt="Ada Lovelace" src="/broken.png" shape="squircle" />
@@ -55,7 +55,7 @@ export function AvatarStory() {
 			</Variant>
 
 			<Variant name="With Ring">
-				<div className="c-hbox g-2">
+				<div className="c-hbox wrap g-2">
 					<Avatar ring fallback="R" />
 					<Avatar ring="secondary" fallback="S" />
 					<Avatar ring="success" fallback="OK" />
@@ -63,7 +63,7 @@ export function AvatarStory() {
 			</Variant>
 
 			<Variant name="With Status">
-				<div className="c-hbox g-2">
+				<div className="c-hbox wrap g-2">
 					<Avatar fallback="ON">
 						<AvatarStatus status="online" />
 					</Avatar>

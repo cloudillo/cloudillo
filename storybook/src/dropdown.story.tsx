@@ -97,7 +97,7 @@ export function DropdownStory() {
 			</Variant>
 
 			<Variant name="Placements">
-				<div className="c-hbox g-3">
+				<div className="c-hbox wrap g-3">
 					<Dropdown
 						triggerClassName="c-button"
 						placement="bottom-start"
@@ -152,7 +152,7 @@ export function DropdownStory() {
 			</Variant>
 
 			<Variant name="Elevation">
-				<div className="c-hbox g-3">
+				<div className="c-hbox wrap g-3">
 					<Dropdown triggerClassName="c-button" elevation="low" trigger={<>Low</>}>
 						<ul className="c-nav vertical emph">
 							<li>

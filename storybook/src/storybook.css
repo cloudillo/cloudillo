@@ -45,6 +45,7 @@
 /* Main Content Area */
 .sb--m-main {
 	flex: 1 1;
+	min-width: 0;
 	min-height: calc(100vh - 2 * var(--m-container, 0.5rem));
 	position: relative;
 }
@@ -93,6 +94,7 @@
 
 .sb--m-story > table.prop-list td {
 	padding: 0.5rem;
+	overflow-wrap: anywhere;
 	border-bottom: var(--border-w-sm, 1px) solid var(--col-outline);
 }
 

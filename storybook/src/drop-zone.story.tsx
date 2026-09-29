@@ -19,7 +19,8 @@ export function DropZoneStory() {
 
 	return (
 		<Story
-			name="DropZone / FileButton"
+			name="DropZone"
+			title="DropZone / FileButton"
 			description="File input by drop or picker. Both share one hidden-input helper (useFilePicker) and the same onFiles(files: File[]) callback."
 			props={[
 				{

@@ -1,4 +1,4 @@
-import { Button, Fcd, PageHeader } from '@cloudillo/react'
+import { Button, Fcd, List, ListItem, PageHeader } from '@cloudillo/react'
 import * as React from 'react'
 
 import { Story, Variant } from './storybook.js'
@@ -65,8 +65,8 @@ export function FcdStory() {
 						<Fcd.Content
 							header={
 								<div
-									className="c-hbox p-2"
-									style={{ borderBottom: '1px solid #eee' }}
+									className="c-hbox g-2 p-2"
+									style={{ borderBottom: '1px solid var(--col-outline)' }}
 								>
 									<Button onClick={() => setShowFilter(!showFilter)}>
 										{showFilter ? 'Hide' : 'Show'} Filters
@@ -79,16 +79,28 @@ export function FcdStory() {
 							}
 						>
 							<div className="p-3">
-								<div className="mb-3 p-3" style={{ background: '#f5f5f5' }}>
+								<div
+									className="mb-3 p-3"
+									style={{ background: 'var(--col-container-low)' }}
+								>
 									Item 1
 								</div>
-								<div className="mb-3 p-3" style={{ background: '#f5f5f5' }}>
+								<div
+									className="mb-3 p-3"
+									style={{ background: 'var(--col-container-low)' }}
+								>
 									Item 2
 								</div>
-								<div className="mb-3 p-3" style={{ background: '#f5f5f5' }}>
+								<div
+									className="mb-3 p-3"
+									style={{ background: 'var(--col-container-low)' }}
+								>
 									Item 3
 								</div>
-								<div className="mb-3 p-3" style={{ background: '#f5f5f5' }}>
+								<div
+									className="mb-3 p-3"
+									style={{ background: 'var(--col-container-low)' }}
+								>
 									Item 4
 								</div>
 							</div>
@@ -136,8 +148,8 @@ export function FcdStory() {
 							<Fcd.Content
 								header={
 									<div
-										className="c-hbox p-2"
-										style={{ borderBottom: '1px solid #eee' }}
+										className="c-hbox g-2 p-2"
+										style={{ borderBottom: '1px solid var(--col-outline)' }}
 									>
 										<h3 className="fill m-0">Full-bleed content</h3>
 										<Button onClick={() => setShowOverlay((s) => !s)}>
@@ -182,8 +194,8 @@ export function FcdStory() {
 							<Fcd.Content
 								header={
 									<div
-										className="c-hbox p-2"
-										style={{ borderBottom: '1px solid #eee' }}
+										className="c-hbox g-2 p-2"
+										style={{ borderBottom: '1px solid var(--col-outline)' }}
 									>
 										<h3 className="fill m-0">Editor content (~900px at lg+)</h3>
 										<Button onClick={() => setShowAdaptive((s) => !s)}>
@@ -237,8 +249,8 @@ export function FcdStory() {
 							<Fcd.Content
 								header={
 									<div
-										className="c-hbox p-2"
-										style={{ borderBottom: '1px solid #eee' }}
+										className="c-hbox g-2 p-2"
+										style={{ borderBottom: '1px solid var(--col-outline)' }}
 									>
 										<h3 className="fill m-0">Full-bleed content</h3>
 										<Button onClick={() => setShowFluidAdaptive((s) => !s)}>
@@ -285,10 +297,38 @@ export function FcdStory() {
 				</div>
 			</Variant>
 
+			<Variant name="Content width='reading' | 'form' | 'fluid', empty Details collapses, divided List">
+				{(['reading', 'form', 'fluid'] as const).map((width) => (
+					<div key={width} style={{ height: '220px', border: '1px solid #ccc' }}>
+						<Fcd.Container filterLabel="Filters">
+							<Fcd.Filter>
+								<p>
+									Padded rail; below md a capped drawer with backdrop and ✕ row.
+								</p>
+							</Fcd.Filter>
+							<Fcd.Content width={width}>
+								<List variant="divided">
+									<ListItem
+										title={`width="${width}"`}
+										subtitle="One surface, divided rows"
+									/>
+									<ListItem
+										size="sm"
+										title='size="sm"'
+										subtitle="36px on fine pointers"
+									/>
+								</List>
+							</Fcd.Content>
+							<Fcd.Details />
+						</Fcd.Container>
+					</div>
+				))}
+			</Variant>
+
 			<Variant name="Content layout='column'">
 				<div style={{ height: '200px', border: '1px solid #ccc' }}>
 					<Fcd.Container>
-						<Fcd.Content fluid layout="column">
+						<Fcd.Content width="fluid" layout="column">
 							<div className="fill overflow-y-auto p-3">
 								<p>The child owns scrolling; no mobile scroll padding.</p>
 							</div>

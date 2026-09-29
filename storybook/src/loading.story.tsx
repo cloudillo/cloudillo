@@ -34,7 +34,7 @@ export function LoadingSpinnerStory() {
 			]}
 		>
 			<Variant name="Sizes">
-				<div className="c-hbox g-4 align-items-center">
+				<div className="c-hbox wrap g-4 align-items-center">
 					<LoadingSpinner size="sm" />
 					<LoadingSpinner size="md" />
 					<LoadingSpinner size="lg" />
@@ -42,7 +42,7 @@ export function LoadingSpinnerStory() {
 			</Variant>
 
 			<Variant name="Color Variants">
-				<div className="c-hbox g-4 align-items-center">
+				<div className="c-hbox wrap g-4 align-items-center">
 					<LoadingSpinner color="primary" />
 					<LoadingSpinner color="secondary" />
 					<LoadingSpinner color="accent" />
@@ -112,7 +112,7 @@ export function SkeletonStory() {
 			</Variant>
 
 			<Variant name="No Animation">
-				<div className="c-hbox g-3">
+				<div className="c-hbox wrap g-3">
 					<Skeleton variant="rect" width={100} height={100} animate={false} />
 					<Skeleton variant="circle" width={48} height={48} animate={false} />
 				</div>
@@ -210,7 +210,7 @@ export function SkeletonCardStory() {
 			</Variant>
 
 			<Variant name="Varying Lines">
-				<div className="c-hbox g-3" style={{ flexWrap: 'wrap' }}>
+				<div className="c-hbox wrap g-3">
 					<div style={{ width: 300 }}>
 						<SkeletonCard lines={1} />
 					</div>

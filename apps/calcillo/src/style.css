@@ -3,3 +3,19 @@ body,
 #app {
 	height: 100%;
 }
+
+/* The sheet scrolls itself; hidden Fortune tooltips and the add-row control
+   poke past the right edge and would let a swipe pan the whole app */
+html,
+body {
+	overflow: clip;
+}
+
+/* Fortune Sheet paints the grid on a canvas with hard-coded light colours, so
+   CSS surface overrides cannot reach it: invert the whole sheet instead.
+   hue-rotate keeps cell and cursor hues roughly as authored. */
+/* ponytail: filter inversion also flips user cell colours' lightness; switch to
+   per-surface overrides + canvas colour options if Fortune ever exposes them */
+body.dark .calcillo-sheet {
+	filter: invert(1) hue-rotate(180deg);
+}

@@ -75,6 +75,15 @@ const READONLY_WORKBOOK_PROPS = {
 	sheetTabContextMenu: []
 }
 
+// FortuneSheet 1.0.4 seeds a sheet with no saved selection as `{ row: [0], column: [0] }`,
+// which its name box renders as "A1:NaN". Complete the range once it has been seeded.
+function fixSeededSelection(wb: WorkbookInstance | null) {
+	const sel = wb?.getSelection()
+	if (sel?.some((r) => r.row.length < 2 || r.column.length < 2)) {
+		wb?.setSelection([{ row: [0, 0], column: [0, 0] }])
+	}
+}
+
 export function CalcilloApp() {
 	const { t } = useTranslation()
 	const cloudillo = useCloudilloEditor(APP_NAME)
@@ -90,6 +99,16 @@ export function CalcilloApp() {
 
 	// Create local echo guard to prevent feedback loops
 	const localEchoGuard = React.useMemo(() => createLocalEchoGuard(), [])
+
+	// Stable identity: FortuneSheet memoises its settings on prop values (see READONLY_WORKBOOK_PROPS).
+	// afterActivateSheet fires in a setTimeout, after the library has seeded the new sheet.
+	const workbookHooks = React.useMemo(
+		() => ({ afterActivateSheet: () => fixSeededSelection(workbookRef.current) }),
+		[]
+	)
+	React.useEffect(() => {
+		fixSeededSelection(workbookInstance)
+	}, [workbookInstance])
 
 	// Setup awareness on provider ready - use state instead of ref for dependency
 	React.useEffect(() => {
@@ -527,7 +546,7 @@ export function CalcilloApp() {
 						<MenuHeader>v{__APP_VERSION__}</MenuHeader>
 					</DocBarMenu>
 				</AppDocBar>
-				<div className="flex-fill" style={{ minWidth: 0 }}>
+				<div className="flex-fill calcillo-sheet" style={{ minWidth: 0 }}>
 					<Workbook
 						key={workbookKey}
 						ref={combinedRef}
@@ -535,6 +554,7 @@ export function CalcilloApp() {
 						onOp={isReadOnly ? undefined : onOp}
 						generateSheetId={generateSheetId}
 						allowEdit={!isReadOnly}
+						hooks={workbookHooks}
 						{...(isReadOnly ? READONLY_WORKBOOK_PROPS : {})}
 					/>
 				</div>

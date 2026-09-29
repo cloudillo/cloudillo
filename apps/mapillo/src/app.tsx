@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import { type AppMessageBus, getAppBus } from '@cloudillo/core'
-import { LoadingSpinner } from '@cloudillo/react'
+import { EmptyState, LoadingSpinner } from '@cloudillo/react'
 import * as React from 'react'
+import { LuMap as IcMap } from 'react-icons/lu'
 
 import '@symbion/opalui'
 import '@symbion/opalui/themes/glass.css'
@@ -15,6 +16,9 @@ import type { MapilloSettings } from './types.js'
 import { DEFAULT_SETTINGS } from './types.js'
 
 const APP_NAME = 'mapillo'
+
+// maplibre-gl needs WebGL2 and renders a blank canvas without it
+const hasWebGL2 = !!document.createElement('canvas').getContext('webgl2')
 
 /** Server setting keys (without the app.mapillo. prefix) */
 const SETTING_KEYS: Record<keyof MapilloSettings, string> = {
@@ -124,6 +128,18 @@ export function MapilloApp() {
 			<div className="mapillo-loading c-vbox w-100 h-100 align-center justify-center">
 				<LoadingSpinner size="lg" label="Loading Mapillo…" />
 			</div>
+		)
+	}
+
+	// ponytail: English only, like the spinner above — mapillo has no i18n yet
+	if (!hasWebGL2) {
+		return (
+			<EmptyState
+				fill
+				icon={<IcMap />}
+				title="Maps need WebGL2"
+				description="This browser or device has WebGL2 disabled or unsupported, so the map cannot be drawn."
+			/>
 		)
 	}
 

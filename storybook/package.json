@@ -28,7 +28,7 @@
 		"esbuild": "^0.28.2",
 		"http-server": "^14.1.1",
 		"i18next": "^26.4.2",
-		"jotai": "^3.0.0",
+		"jotai": "^3.0.1",
 		"react": "19.3.0",
 		"react-dom": "19.3.0",
 		"react-i18next": "^17.0.15",

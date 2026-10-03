@@ -10,6 +10,7 @@
 import {
 	type ApiClient,
 	createApiClient,
+	contextKey,
 	FetchError,
 	getApiClient,
 	setApiToken
@@ -20,25 +21,35 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useMatch, useNavigate } from 'react-router-dom'
 
+import { installHatToken } from '../pwa.js'
 import { seedCommunityFromHome } from '../read-position.js'
 import { CTX_SECTION_MATCH, ctxBase, feedPath, isContextSegment, rebase } from '../routes.js'
 import {
 	activeContextAtom,
 	communitiesAtom,
 	contextIdpEnabledAtom,
+	contextHatRoleAtom,
 	contextIdpEnabledCacheAtom,
 	contextRolesAtom,
 	contextSwitchingAtom,
 	favoriteCommunitiesAtom,
 	favoritesAtom,
 	lastContextSwitchAtom,
+	partnerCommunitiesAtom,
 	recentCommunitiesAtom,
 	recentContextsAtom,
+	refFromActive,
 	sidebarAtom,
 	sidebarOpenAtom,
 	totalUnreadCountAtom
 } from './atoms'
-import { effectiveTrust, mayUseContextToken } from './trust-gate.js'
+import {
+	activeKeyFor,
+	effectiveTrust,
+	hattedConsent,
+	mayUseContextToken,
+	withoutKey
+} from './trust-gate.js'
 import type { ActiveContext, CommunityRef, ContextSwitchEvent } from './types'
 
 /**
@@ -102,6 +113,37 @@ export function isContextLeader(
 	return (activeContext.roles ?? []).includes('leader')
 }
 
+/**
+ * Community admin pages (`/@ctx/settings/<page>`) a moderator may open; every other page is
+ * leader-only.
+ */
+const MODERATOR_ADMIN_PAGES: readonly string[] = ['rooms']
+
+/**
+ * Whether the user may administer `activeContext` — enter its settings area at all (no `page`),
+ * or open one admin page. Leaders may do everything; moderators only `MODERATOR_ADMIN_PAGES`.
+ */
+export function canAdminContext(
+	activeContext: ActiveContext | null | undefined,
+	authIdTag: string | undefined,
+	page?: string
+): boolean {
+	if (isContextLeader(activeContext, authIdTag)) return true
+	if (!activeContext?.roles.includes('moderator')) return false
+	return page === undefined || MODERATOR_ADMIN_PAGES.includes(page)
+}
+
+/**
+ * Our roles on `idTag`, read under the key its token is registered at: the hatted `B|A` key
+ * while a hat is worn there (the rule of `activeKeyFor`, but subscribed).
+ */
+export function useContextRolesFor(idTag: string | undefined): string[] | undefined {
+	const active = useAtomValue(activeContextAtom)
+	const roles = useAtomValue(contextRolesAtom)
+	if (!idTag) return undefined
+	return roles.get(contextKey(idTag, active?.idTag === idTag ? active.hat?.idTag : undefined))
+}
+
 /** Context-dependent visibility shared by the sidebar tools and the omnibox. */
 export function contextToolAllowed(
 	id: string,
@@ -110,9 +152,9 @@ export function contextToolAllowed(
 	idpEnabled: Record<string, boolean | 'unknown'>
 ): boolean {
 	switch (id) {
-		// A community's settings are for its leaders only.
+		// A community's settings are its administration area.
 		case 'settings':
-			return activeContext?.type !== 'community' || isContextLeader(activeContext, authIdTag)
+			return activeContext?.type !== 'community' || canAdminContext(activeContext, authIdTag)
 		// `=== true` on purpose: the atom is three-state, and neither 'unknown' (a transient
 		// lookup failure) nor a missing entry may offer the IdP page. See contextIdpEnabledAtom.
 		case 'idp':
@@ -123,7 +165,12 @@ export function contextToolAllowed(
 }
 
 /** What `getTokenFor` resolves to: the proxy token and the roles it reports, or a refusal. */
-type ProxyTokenResult = { token: string; roles: string[] } | null
+type ProxyTokenResult = { token: string; roles: string[]; role?: string } | null
+
+/** Bumped per `setActiveContext` call; a switch that lost the race drops its result. */
+let switchSeq = 0
+/** Context key of the latest `setActiveContext` call. */
+let switchKey: string | undefined
 
 /**
  * Hook for managing API context and multi-context operations
@@ -154,10 +201,11 @@ export function useApiContext() {
 	const setContextIdpEnabled = useSetAtom(contextIdpEnabledAtom)
 	const setContextIdpEnabledCache = useSetAtom(contextIdpEnabledCacheAtom)
 	const setContextRoles = useSetAtom(contextRolesAtom)
+	const setContextHatRole = useSetAtom(contextHatRoleAtom)
 	const [isLoading, setIsLoading] = React.useState(false)
 	const [error, setError] = React.useState<Error | undefined>()
 
-	// In-flight proxy-token fetches, keyed by target idTag. The registry only holds a token once
+	// In-flight proxy-token fetches, keyed by `contextKey` (target idTag, or `B|A` hatted). The registry only holds a token once
 	// it has LANDED, so without this, concurrent first-time callers (DetailsPanel and the
 	// ShareDialog it opens both mount useFileOwnerScope for the same file) each issue their own
 	// network request.
@@ -197,6 +245,8 @@ export function useApiContext() {
 				explicit?: boolean
 			}
 		): ApiClient | null => {
+			// `|` would alias a hatted registry key (`idTag|hat`).
+			if (idTag.includes('|')) return null
 			const authMode = opts?.auth ?? 'required'
 			const token = opts?.token
 
@@ -205,7 +255,7 @@ export function useApiContext() {
 
 			const ownIdTag = store.get(authAtom)?.idTag
 			if (mayUseContextToken(store, idTag, { ownIdTag, explicit: opts?.explicit })) {
-				return getApiClient(idTag)
+				return getApiClient(activeKeyFor(store, idTag))
 			}
 
 			if (authMode === 'required') {
@@ -239,15 +289,24 @@ export function useApiContext() {
 	 * etc.). Explicit calls bypass the gate entirely — the action is the user's
 	 * consent — and unconditionally fetch/return the proxy token.
 	 *
+	 * `{ hat: A }` fetches (or returns the cached) token for `idTag` worn under
+	 * community A's hat: cached, deduped and role-mapped under `contextKey(idTag, A)`,
+	 * never the bare entry. The result's `role` is the capped role that hat grants.
+	 *
 	 * @returns Object with token and roles, or `null` if anonymous was chosen.
 	 */
 	const getTokenFor = React.useCallback(
-		async (idTag: string, opts?: { explicit?: boolean }): Promise<ProxyTokenResult> => {
+		async (
+			idTag: string,
+			opts?: { explicit?: boolean; hat?: string }
+		): Promise<ProxyTokenResult> => {
 			const explicit = opts?.explicit === true
+			const hat = opts?.hat || undefined
+			const key = contextKey(idTag, hat)
 			const auth = store.get(authAtom)
 
 			// User's own context uses primary token
-			if (idTag === auth?.idTag) {
+			if (!hat && idTag === auth?.idTag) {
 				const tok = auth?.token
 				return tok ? { token: tok, roles: [] } : null
 			}
@@ -261,55 +320,65 @@ export function useApiContext() {
 			// Trust gate: passive reads require positive consent. Anything else
 			// (including "ask") stays anonymous. Same evaluation `getClientFor`
 			// applies to an already-cached token.
-			if (!explicit && effectiveTrust(store, idTag) === 'none') return null
+			// A hatted token is only used passively while that exact hat is worn.
+			if (
+				!explicit &&
+				(hat ? !hattedConsent(store, idTag, hat) : effectiveTrust(store, idTag) === 'none')
+			)
+				return null
 
 			// Cache hit: the registry holds the token and reaps it at `exp`, so a
 			// non-null read is by definition still live. Roles ride alongside.
-			const cachedToken = getApiClient(idTag).getAuthToken()
+			const cachedToken = getApiClient(key).getAuthToken()
 			if (cachedToken) {
-				return {
-					token: cachedToken,
-					roles: store.get(contextRolesAtom).get(idTag) ?? []
-				}
+				const roles = store.get(contextRolesAtom).get(key) ?? []
+				const role = hat ? store.get(contextHatRoleAtom).get(key) : undefined
+				return { token: cachedToken, roles, role }
 			}
 
 			// Join a fetch already running for this idTag rather than issuing a second one. Both
 			// short-circuits above stay ABOVE this: the own-context branch never touches the
 			// network, and a passive read refused by the trust gate must not ride in on an explicit
 			// caller's request.
-			const inFlight = inFlightTokensRef.current.get(idTag)
+			const inFlight = inFlightTokensRef.current.get(key)
 			if (inFlight) return inFlight
 
 			const pending = (async function fetchProxyToken(): Promise<ProxyTokenResult> {
-				// Fetch new proxy token for the target idTag
-				const result = await api.auth.getProxyToken(idTag)
+				// Fetch new proxy token for the target idTag (wearing `hat` if given)
+				const result = await api.auth.getProxyToken(idTag, hat ? { hat } : undefined)
 				const roles = result.roles || []
 
 				// The registry owns the token (and derives its expiry from `exp`);
 				// the atom carries the roles and the re-render signal.
-				setApiToken(idTag, result.token)
+				setApiToken(key, result.token)
+				// Mirror a replaced worn-hat token into the worker, as `renewOne` does
+				if (hat && hattedConsent(store, idTag, hat))
+					installHatToken(idTag, result.token, hat)
+				if (hat) {
+					setContextHatRole((prev) => new Map(prev).set(key, result.role ?? ''))
+				}
 				setContextRoles((prev) => {
 					const next = new Map(prev)
-					next.set(idTag, roles)
+					next.set(key, roles)
 					return next
 				})
 
-				return { token: result.token, roles }
+				return { token: result.token, roles, role: result.role }
 			})()
 			// Evicted in `finally`, so a rejection rejects for every awaiter and the next call
 			// retries instead of replaying the failure.
-			inFlightTokensRef.current.set(idTag, pending)
+			inFlightTokensRef.current.set(key, pending)
 
 			try {
 				return await pending
 			} catch (err) {
-				console.error(`Failed to get proxy token for ${idTag}:`, err)
+				console.error(`Failed to get proxy token for ${key}:`, err)
 				throw err
 			} finally {
-				inFlightTokensRef.current.delete(idTag)
+				inFlightTokensRef.current.delete(key)
 			}
 		},
-		[store, setContextRoles]
+		[store, setContextRoles, setContextHatRole]
 	)
 
 	/**
@@ -322,45 +391,78 @@ export function useApiContext() {
 	 * short staleness window so re-entering a known context skips the call.
 	 *
 	 * Idempotent: a same-target call (or a same-target call already in flight)
-	 * with the URL-as-source-of-truth model returns early.
+	 * with the URL-as-source-of-truth model returns early. The target is
+	 * `(idTag, hat)`: switching the hat on the same idTag is a real switch.
+	 *
+	 * `hat` enters `idTag` wearing that community's hat (hatted proxy token under
+	 * `contextKey(idTag, hat)`); a refused handshake throws like any other.
 	 */
 	const setActiveContext = React.useCallback(
-		async (idTag: string, opts: { forceRefresh?: boolean } = {}) => {
+		async (
+			idTag: string,
+			opts: { forceRefresh?: boolean; hat?: string } = {}
+		): Promise<boolean> => {
 			const auth = store.get(authAtom)
 			if (!auth?.idTag) {
 				throw new Error('Cannot switch context without auth')
 			}
 			const ownIdTag = auth.idTag
+			const hat = opts.hat || undefined
 
-			if (store.get(activeContextAtom)?.idTag === idTag && !opts.forceRefresh) return
+			const current = store.get(activeContextAtom)
+			if (current?.idTag === idTag && current.hat?.idTag === hat && !opts.forceRefresh) {
+				return true
+			}
 
+			const seq = ++switchSeq
+			switchKey = contextKey(idTag, hat)
 			setIsLoading(true)
 			setError(undefined)
 
 			try {
 				// Explicit user action: bypass the passive-read gate.
-				const tokenResult = await getTokenFor(idTag, { explicit: true })
+				const tokenResult = await getTokenFor(idTag, { explicit: true, hat })
 				if (!tokenResult) {
 					throw new Error(`Failed to get token for context: ${idTag}`)
 				}
+				// A newer switch started while this one awaited its token: it owns the
+				// active context now. Silent — a throw would mark this idTag as failed.
+				if (seq !== switchSeq) {
+					// The hatted token it minted is unusable unless that hat is worn now: drop it
+					const key = contextKey(idTag, hat)
+					if (hat && key !== switchKey && !hattedConsent(store, idTag, hat)) {
+						setApiToken(key, undefined)
+						setContextRoles((prev) => withoutKey(prev, key))
+						setContextHatRole((prev) => withoutKey(prev, key))
+					}
+					return false
+				}
 
-				// `getTokenFor` has just installed the token on this idTag's
+				// `getTokenFor` has just installed the token on this context key's
 				// registry client, so the cached one is already correct.
-				const contextApi = getApiClient(idTag)
+				const contextApi = getApiClient(contextKey(idTag, hat))
 
 				// Create context with roles from proxy token response.
 				// Resolve display data the way the sidebar does so the object
 				// carries a real name/avatar for consumers.
 				const isMe = idTag === ownIdTag
-				const community = isMe
-					? undefined
-					: store.get(communitiesAtom).find((c) => c.idTag === idTag)
+				const communities = store.get(communitiesAtom)
+				const community = isMe ? undefined : communities.find((c) => c.idTag === idTag)
+				const hatCommunity = hat ? communities.find((c) => c.idTag === hat) : undefined
 
 				const newContext: ActiveContext = {
 					idTag,
 					type: isMe ? 'me' : 'community',
 					name: isMe ? (auth.name ?? idTag) : (community?.name ?? idTag),
 					profilePic: isMe ? auth.profilePic : community?.profilePic,
+					hat: hat
+						? {
+								idTag: hat,
+								name: hatCommunity?.name,
+								profilePic: hatCommunity?.profilePic,
+								role: tokenResult.role ?? ''
+							}
+						: undefined,
 					roles: tokenResult.roles,
 					permissions: [],
 					metadata: {}
@@ -390,15 +492,24 @@ export function useApiContext() {
 						})
 					}
 				}
+				return true
 			} catch (err) {
 				setError(err as Error)
 				console.error('Failed to switch context:', err)
 				throw err
 			} finally {
-				setIsLoading(false)
+				if (seq === switchSeq) setIsLoading(false)
 			}
 		},
-		[store, getTokenFor, setActiveContextState, setContextIdpEnabled, setContextIdpEnabledCache]
+		[
+			store,
+			getTokenFor,
+			setActiveContextState,
+			setContextIdpEnabled,
+			setContextIdpEnabledCache,
+			setContextRoles,
+			setContextHatRole
+		]
 	)
 
 	return {
@@ -521,6 +632,41 @@ export function useCommunitiesList() {
 				return updated
 			})
 
+			// Non-member community rows (partners entered under a hat): display refs for pins only
+			// The hat is the front entry (last used), a community I'm in; front `''` = last
+			// entered as myself, so no badge.
+			const hatOf = (hats?: string[]) => {
+				const first = hats?.[0]
+				const h = first ? profiles.find((p) => p.idTag === first) : undefined
+				return h && { idTag: h.idTag, name: h.name, profilePic: h.profilePic }
+			}
+			const fresh = profiles
+				.filter((p) => p.connected !== true)
+				.map((profile) => ({
+					idTag: profile.idTag,
+					name: profile.name || profile.idTag,
+					profilePic: profile.profilePic,
+					hat: hatOf(profile.hats),
+					isFavorite: false,
+					showInHome: true,
+					unreadCount: 0,
+					lastActivityAt: null
+				}))
+			// Hatted rows the server list lacks survive only while that hat is still worn,
+			// so a stale row never counts as consent in `isKnownContext`.
+			store.set(partnerCommunitiesAtom, (prev) => {
+				const listed = new Set(profiles.map((p) => p.idTag))
+				return [
+					...fresh,
+					...prev.filter(
+						(c) =>
+							c.hat &&
+							!listed.has(c.idTag) &&
+							hattedConsent(store, c.idTag, c.hat.idTag)
+					)
+				]
+			})
+
 			// Self-heal abandoned community mirrors: a community whose picture was
 			// uploaded after creation can keep a frozen, empty mirror row that the
 			// periodic refresh batch has given up on (see backend
@@ -593,17 +739,31 @@ export function useCommunitiesList() {
 	// `setFavorites` updater: React may re-invoke an updater (StrictMode does in dev), which would
 	// fire savePinnedCommunities twice. `store.get` also avoids the stale-closure risk of reading
 	// the `favorites` binding.
+	/** A pinned partner with no row yet keeps the active context's ref, so it outlives the switch. */
+	const rememberPartner = React.useCallback(
+		(idTags: string[]) => {
+			const active = store.get(activeContextAtom)
+			if (!active || !idTags.includes(active.idTag)) return
+			if (store.get(communitiesAtom).some((c) => c.idTag === active.idTag)) return
+			store.set(partnerCommunitiesAtom, (prev) => [
+				...prev.filter((c) => c.idTag !== active.idTag),
+				{ ...refFromActive(active), hat: active.hat }
+			])
+		},
+		[store]
+	)
+
 	const toggleFavorite = React.useCallback(
 		(idTag: string) => {
 			const prev = store.get(favoritesAtom)
-			const newFavorites = prev.includes(idTag)
-				? prev.filter((id) => id !== idTag)
-				: [...prev, idTag]
+			const pinning = !prev.includes(idTag)
+			const newFavorites = pinning ? [...prev, idTag] : prev.filter((id) => id !== idTag)
+			if (pinning) rememberPartner([idTag])
 			setFavorites(newFavorites)
 			// Save to backend (async, non-blocking)
 			savePinnedCommunities(newFavorites)
 		},
-		[store, setFavorites, savePinnedCommunities]
+		[store, setFavorites, savePinnedCommunities, rememberPartner]
 	)
 
 	/**
@@ -615,10 +775,11 @@ export function useCommunitiesList() {
 			const added = idTags.filter((id) => id && !prev.includes(id))
 			if (!added.length) return
 			const newFavorites = [...prev, ...new Set(added)]
+			rememberPartner(added)
 			setFavorites(newFavorites)
 			savePinnedCommunities(newFavorites)
 		},
-		[store, setFavorites, savePinnedCommunities]
+		[store, setFavorites, savePinnedCommunities, rememberPartner]
 	)
 
 	/**
@@ -632,10 +793,11 @@ export function useCommunitiesList() {
 			const without = prev.filter((id) => id !== idTag)
 			const at = Math.max(0, Math.min(index, without.length))
 			const next = [...without.slice(0, at), idTag, ...without.slice(at)]
+			rememberPartner([idTag])
 			setFavorites(next)
 			savePinnedCommunities(next)
 		},
-		[store, setFavorites, savePinnedCommunities]
+		[store, setFavorites, savePinnedCommunities, rememberPartner]
 	)
 
 	/**

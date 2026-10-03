@@ -23,7 +23,7 @@ import {
 	useAuth,
 	VBox
 } from '@cloudillo/react'
-import { type ActionView, tConnectAction, tFileShareAction } from '@cloudillo/types'
+import { type ActionView, tFileShareAction } from '@cloudillo/types'
 import * as T from '@symbion/runtype'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -41,6 +41,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 
 import { useContextSwitch, useCtx } from '../context/index.js'
 import { FilterToggle } from '../ui/FilterToggle.js'
+import { inviteMessage } from './NotificationItem.js'
 import { communityCreatePath, messagesPath, profilePath } from '../routes.js'
 import { useNotifications } from './state'
 
@@ -145,7 +146,7 @@ function NotificationCard({
 				<HBox align="center" gap={3}>
 					{header ?? (
 						<Link href={profilePath(urlContext, action.issuer.idTag)}>
-							<ProfileCard profile={action.issuer} />
+							<ProfileCard profile={action.issuer} hat={action.hat} />
 						</Link>
 					)}
 					<Text size="sm" emphasis="muted" className="ms-auto text-nowrap">
@@ -231,8 +232,7 @@ function ConnectNotification({
 }) {
 	const { t } = useTranslation()
 	const { api } = useApi()
-	const contentRes = T.decode(tConnectAction.props.content, action.content)
-	const content = T.isOk(contentRes) ? contentRes.ok : undefined
+	const content = inviteMessage(action)
 
 	const actionable = action.status === 'C' && action.subType !== 'DEL'
 
@@ -388,6 +388,7 @@ function InviteNotification({
 					<ProfileAudienceCard
 						audience={action.subjectProfile}
 						profile={action.issuer}
+						hat={action.hat}
 						profileBasePath={profilePath(urlContext)}
 					/>
 				)

@@ -109,7 +109,8 @@ export function useSmartUpload(options?: UseUploadQueueOptions) {
 				const res = await api.files.create({
 					fileTp,
 					contentType: handler.targetMimeType,
-					parentId: options?.parentId || undefined
+					parentId: options?.parentId || undefined,
+					channel: options?.channel
 				})
 				if (!res?.fileId) {
 					console.error('[SmartUpload] Failed to create document: no fileId returned')
@@ -154,7 +155,7 @@ export function useSmartUpload(options?: UseUploadQueueOptions) {
 				console.error('[SmartUpload] Conversion failed:', err)
 			}
 		},
-		[api, auth?.idTag, contextIdTag, urlCtx, navigate, options?.parentId, t]
+		[api, auth?.idTag, contextIdTag, urlCtx, navigate, options?.parentId, options?.channel, t]
 	)
 
 	/**

@@ -61,7 +61,8 @@ export type ContextIdpEnabledCacheEntry = { value: boolean; fetchedAt: number }
 export const contextIdpEnabledCacheAtom = atom<Map<string, ContextIdpEnabledCacheEntry>>(new Map())
 
 /**
- * Roles reported by the proxy-token response, keyed by foreign idTag.
+ * Roles reported by the proxy-token response, keyed by `contextKey` — a foreign
+ * idTag, or `B|A` for B entered wearing community A's hat.
  *
  * The token itself lives in that idTag's `ApiClient` (see
  * `libs/core/src/api-registry.ts`) — this atom holds only what the registry
@@ -71,6 +72,9 @@ export const contextIdpEnabledCacheAtom = atom<Map<string, ContextIdpEnabledCach
  */
 export const contextRolesAtom = atom<Map<string, string[]>>(new Map())
 
+/** Capped role a hatted proxy token grants, keyed by `contextKey(B, A)`. Hatted keys only. */
+export const contextHatRoleAtom = atom<Map<string, string>>(new Map())
+
 /**
  * Communities list
  * All communities the user is a member of
@@ -78,6 +82,27 @@ export const contextRolesAtom = atom<Map<string, string[]>>(new Map())
  * Persisted to localStorage for quick loading
  */
 export const communitiesAtom = atomWithStorage<CommunityRef[]>('cloudillo:communities', [])
+
+/**
+ * Community profiles I am not a member of; a row with `hat` is a partner entered under that
+ * hat. The display refs for pinned non-members in `favoriteCommunitiesAtom`, and — hatted
+ * rows only — a known context for `isKnownContext`. Never a membership.
+ */
+export const partnerCommunitiesAtom = atomWithStorage<CommunityRef[]>(
+	'cloudillo:partner-communities',
+	[]
+)
+
+/**
+ * The idTag the persisted community lists belong to; read on init so a boot-time
+ * mismatch check sees the stored value, not the default.
+ */
+export const storageOwnerAtom = atomWithStorage<string | null>(
+	'cloudillo:storage-owner',
+	null,
+	undefined,
+	{ getOnInit: true }
+)
 
 /**
  * Pinned communities
@@ -179,12 +204,33 @@ export const fileViewUpdateAtom = atom<FileViewUpdate | null>(null)
  */
 export const favoriteCommunitiesAtom = atom((get) => {
 	const communities = get(communitiesAtom)
+	const partners = get(partnerCommunitiesAtom)
 	const favorites = get(favoritesAtom)
-	// Map favorites array to communities, preserving order from favorites
+	const active = get(activeContextAtom)
+	// Map favorites array to communities, preserving order from favorites. A pinned
+	// non-member (a partner entered via a hat) resolves from its partner row, or the active context.
 	return favorites
-		.map((idTag) => communities.find((c) => c.idTag === idTag))
+		.map(
+			(idTag) =>
+				communities.find((c) => c.idTag === idTag) ??
+				partners.find((c) => c.idTag === idTag) ??
+				(active?.idTag === idTag ? refFromActive(active) : undefined)
+		)
 		.filter((c): c is CommunityRef => c !== undefined)
 })
+
+/** A minimal CommunityRef synthesized from the active context, for a community with no row. */
+export function refFromActive(active: ActiveContext): CommunityRef {
+	return {
+		idTag: active.idTag,
+		name: active.name,
+		profilePic: active.profilePic,
+		isFavorite: false,
+		showInHome: true,
+		unreadCount: 0,
+		lastActivityAt: null
+	}
+}
 
 /**
  * Derived atom: Preview community
@@ -201,18 +247,8 @@ export const previewCommunityAtom = atom((get) => {
 	const communities = get(communitiesAtom)
 	const found = communities.find((c) => c.idTag === active.idTag)
 	if (found) return found
-	// Fallback: synthesize a minimal CommunityRef from ActiveContext so the
-	// slot still renders even before communitiesAtom is populated on a cold
-	// load.
-	return {
-		idTag: active.idTag,
-		name: active.name,
-		profilePic: active.profilePic,
-		isFavorite: false,
-		showInHome: true,
-		unreadCount: 0,
-		lastActivityAt: null
-	} satisfies CommunityRef
+	// Fallback so the slot still renders before communitiesAtom is populated on a cold load.
+	return refFromActive(active)
 })
 
 /**

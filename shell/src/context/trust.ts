@@ -21,10 +21,20 @@
 import { setApiToken } from '@cloudillo/core'
 import { useApi, useAuth } from '@cloudillo/react'
 import type { ProfileTrust } from '@cloudillo/types'
-import { useAtom, useSetAtom } from 'jotai'
+import { useAtom, useSetAtom, useStore } from 'jotai'
 import * as React from 'react'
 
-import { contextRolesAtom, sessionTrustAtom, storedTrustAtom } from './atoms'
+import { mutedRoomsAtom } from '../lib/room-mute.js'
+import {
+	communitiesAtom,
+	contextHatRoleAtom,
+	contextRolesAtom,
+	partnerCommunitiesAtom,
+	sessionTrustAtom,
+	storageOwnerAtom,
+	storedTrustAtom
+} from './atoms'
+import { pendingHatEntryAtom } from './hat-entry.js'
 
 /**
  * Effective trust level for a foreign profile, merged from session + stored state.
@@ -195,6 +205,12 @@ export function useProfileTrustBootstrap() {
 	const setStored = useSetAtom(storedTrustAtom)
 	const setSession = useSetAtom(sessionTrustAtom)
 	const setContextRoles = useSetAtom(contextRolesAtom)
+	const setMutedRooms = useSetAtom(mutedRoomsAtom)
+	const setHatRoles = useSetAtom(contextHatRoleAtom)
+	const setPendingHat = useSetAtom(pendingHatEntryAtom)
+	const setPartnerCommunities = useSetAtom(partnerCommunitiesAtom)
+	const setCommunities = useSetAtom(communitiesAtom)
+	const store = useStore()
 
 	const prevIdTagRef = React.useRef<string | null | undefined>(undefined)
 
@@ -202,10 +218,9 @@ export function useProfileTrustBootstrap() {
 		const idTag = auth?.idTag ?? null
 		const prev = prevIdTagRef.current
 		prevIdTagRef.current = idTag
-		// Only clear on real auth-idTag transitions (login → logout → re-login
-		// as a different user). Without the gate, a non-auth-related effect
-		// re-run could silently discard the user's in-session decisions.
-		if (prev !== undefined && prev !== idTag) {
+		// Only clear when a real user leaves (logout / switch). Boot goes
+		// undefined → null → user, which must not wipe the persisted lists.
+		if (prev && prev !== idTag) {
 			setStored(new Map())
 			setSession(new Map())
 			setContextRoles((roles) => {
@@ -214,6 +229,17 @@ export function useProfileTrustBootstrap() {
 				for (const tag of roles.keys()) setApiToken(tag, undefined)
 				return new Map()
 			})
+			setMutedRooms(undefined)
+			setHatRoles(new Map())
+			setPendingHat(undefined)
+			setPartnerCommunities([])
+		}
+		// The persisted lists are browser-global: a different user booting here
+		// must not inherit the previous one's.
+		if (idTag && store.get(storageOwnerAtom) !== idTag) {
+			setPartnerCommunities([])
+			setCommunities([])
+			store.set(storageOwnerAtom, idTag)
 		}
 
 		if (!api || !auth?.idTag) return
@@ -232,7 +258,15 @@ export function useProfileTrustBootstrap() {
 		return () => {
 			cancelled = true
 		}
-	}, [api, auth?.idTag, rememberStoredTrust, setStored, setSession, setContextRoles])
+	}, [
+		api,
+		auth?.idTag,
+		rememberStoredTrust,
+		setStored,
+		setSession,
+		setContextRoles,
+		setMutedRooms
+	])
 }
 
 // vim: ts=4

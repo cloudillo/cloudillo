@@ -3,12 +3,15 @@
 
 import { createApiClient, FetchError, setApiToken, setAuthErrorHandler } from '@cloudillo/core'
 import { useApi, useAuth, useToast } from '@cloudillo/react'
+import { getDefaultStore } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 
 import { APP_STORAGE_DB, deleteDatabase } from '../../shared/idb.js'
 import { clearCache, resetKeyErrorState } from '../cache/index.js'
+import { recoverHattedAuth } from '../context/hat-recovery.js'
+import { hattedConsent } from '../context/trust-gate.js'
 import { getDirtyDocIds } from '../message-bus/handlers/crdt.js'
 import { closeAppStorage } from '../message-bus/handlers/storage.js'
 import {
@@ -185,9 +188,15 @@ export function useTokenRenewal() {
 
 	// Register the process-wide auth-error handler once. The handler filters to
 	// the home/personal token: foreign contexts refresh independently and guests
-	// have no token, so both are ignored.
+	// have no token, so both are ignored. The one exception is a hatted context
+	// client, which recovers by re-running its hatted handshake (never a refresh).
 	React.useEffect(() => {
 		setAuthErrorHandler((info) => {
+			if (info.hat) {
+				// A hat taken off since the client was built must not be re-minted.
+				if (!hattedConsent(getDefaultStore(), info.idTag, info.hat)) return undefined
+				return recoverHattedAuth(info.idTag, info.hat)
+			}
 			const currentAuth = latest.current.auth
 			if (!currentAuth?.token || info.idTag !== currentAuth.idTag) return undefined
 			return handleHomeTokenExpired().then((token) => ({

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
-import { Button, HBox, Tag } from '@cloudillo/react'
+import { Button, HBox, parseChannel, Tag } from '@cloudillo/react'
 import { useTranslation } from 'react-i18next'
 
 import type { FileTypeFilter, OwnerFilter } from '../types.js'
@@ -16,6 +16,9 @@ export interface FilterChipsProps {
 	onOwnerFilterChange: (filter: OwnerFilter) => void
 	onSearchQueryChange: (query: string) => void
 	onTagFilter: (tags: string[]) => void
+	/** Absolute `@tenant~name` */
+	roomFilter?: string
+	onRoomFilterChange?: (channel: string | undefined) => void
 }
 
 export function FilterChips({
@@ -26,7 +29,9 @@ export function FilterChips({
 	onFileTypeFilterChange,
 	onOwnerFilterChange,
 	onSearchQueryChange,
-	onTagFilter
+	onTagFilter,
+	roomFilter,
+	onRoomFilterChange
 }: FilterChipsProps) {
 	const { t } = useTranslation()
 
@@ -34,7 +39,8 @@ export function FilterChips({
 		fileTypeFilter !== 'all' ||
 		ownerFilter !== 'anyone' ||
 		searchQuery.trim() !== '' ||
-		selectedTags.length > 0
+		selectedTags.length > 0 ||
+		!!roomFilter
 
 	if (!hasFilters) return null
 
@@ -43,6 +49,7 @@ export function FilterChips({
 		onOwnerFilterChange('anyone')
 		onSearchQueryChange('')
 		onTagFilter([])
+		onRoomFilterChange?.(undefined)
 	}
 
 	function removeTag(tag: string) {
@@ -78,6 +85,16 @@ export function FilterChips({
 					removeLabel={t('Remove search filter')}
 				>
 					&ldquo;{searchQuery.trim()}&rdquo;
+				</Tag>
+			)}
+
+			{roomFilter && (
+				<Tag
+					color="accent"
+					onRemove={() => onRoomFilterChange?.(undefined)}
+					removeLabel={t('Remove room filter')}
+				>
+					~{parseChannel(roomFilter).name}
 				</Tag>
 			)}
 

@@ -95,6 +95,13 @@ export const tSwKeyReset = T.struct({
 	id: T.optional(T.number)
 })
 
+/** The worn hat's token for `idTag` (the active context, worn as `hat`), or none: clears it. */
+export const tSwHatTokenSet = T.struct({
+	...envelope,
+	type: T.literal('sw:hattoken.set'),
+	payload: T.struct({ idTag: T.string, hat: T.optional(T.string), token: T.optional(T.string) })
+})
+
 /** Take control of the page (used after a hard reload). */
 export const tSwClaim = T.struct({
 	...envelope,
@@ -110,6 +117,7 @@ export const tSwMessage = T.taggedUnion('type')({
 	'sw:apikey.del': tSwApiKeyDel,
 	'sw:key.set': tSwKeySet,
 	'sw:key.reset': tSwKeyReset,
+	'sw:hattoken.set': tSwHatTokenSet,
 	'sw:claim': tSwClaim
 })
 export type SwMessage = T.TypeOf<typeof tSwMessage>
@@ -161,11 +169,19 @@ export const tSwTokenRequest = T.struct({
 	type: T.literal('sw:token.request')
 })
 
+/** The worn hat's token ran out — asks a window client to renew and re-push it. */
+export const tSwHatTokenRequest = T.struct({
+	...envelope,
+	type: T.literal('sw:hattoken.request'),
+	payload: T.struct({ idTag: T.string })
+})
+
 export const tSwInbound = T.taggedUnion('type')({
 	'sw:apikey.get.res': tSwApiKeyGetRes,
 	'sw:apikey.set.ack': tSwApiKeySetAck,
 	'sw:key.reset.ack': tSwKeyResetAck,
-	'sw:token.request': tSwTokenRequest
+	'sw:token.request': tSwTokenRequest,
+	'sw:hattoken.request': tSwHatTokenRequest
 })
 export type SwInbound = T.TypeOf<typeof tSwInbound>
 

@@ -42,7 +42,8 @@ import {
 import { useLocation, useNavigate } from 'react-router-dom'
 
 import { useQrScanner } from '../components/QrScanner/index.js'
-import { useContextSwitch, useCtx } from '../context/index.js'
+import { useEnterContext } from '../context/hat-entry.js'
+import { useCtx } from '../context/index.js'
 import { ProfileContextMenu, useProfileContextMenu } from '../context/profile-context-menu.js'
 import { communityCreatePath, profilePath } from '../routes.js'
 import { FilterToggle } from '../ui/FilterToggle.js'
@@ -267,14 +268,14 @@ export function CommunityListCard({
 	const { t } = useTranslation()
 	const navigate = useNavigate()
 	const ctx = useCtx()
-	const { switchTo } = useContextSwitch()
+	const enterContext = useEnterContext()
 
 	const isMember = profile.connected === true
 	const profileHref = profilePath(ctx.base, profile.idTag)
 
 	const handleRowClick = () => {
 		if (isMember) {
-			switchTo(profile.idTag).catch((err) => {
+			enterContext(profile.idTag, { hat: '', feed: true }).catch((err) => {
 				console.error('Failed to switch context:', err)
 			})
 		} else {

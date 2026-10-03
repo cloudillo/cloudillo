@@ -39,6 +39,7 @@ const loadSiteFragment = jest.fn(async () => mockFragment)
 const translation = { t: (key: string) => key }
 
 jest.unstable_mockModule('react-i18next', () => ({
+	Trans: () => null,
 	useTranslation: () => translation
 }))
 

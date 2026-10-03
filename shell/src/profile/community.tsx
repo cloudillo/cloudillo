@@ -414,7 +414,19 @@ function InviteChooserStep({ onSelectInvite }: InviteChooserStepProps) {
 			;(async function () {
 				try {
 					const actions = await api.actions.list({ type: 'PRINVT', status: ['C', 'A'] })
-					setInvites(actions)
+					// The PRINVT action shares its ref's expiry; used refs still slip through
+					// (use_ref doesn't update the action) and are caught in onSubmit.
+					const now = Date.now()
+					setInvites(
+						actions.filter(({ expiresAt }) => {
+							if (expiresAt === undefined) return true
+							const ms =
+								typeof expiresAt === 'number'
+									? expiresAt * 1000
+									: Date.parse(expiresAt)
+							return !(ms <= now)
+						})
+					)
 				} catch (err) {
 					console.log('Error loading community invites:', err)
 					setInvites([])
@@ -724,6 +736,9 @@ export function CreateCommunity() {
 			console.log('ERROR creating community:', err)
 			setProgress('error')
 			setError(err instanceof Error ? err.message : 'Community creation failed')
+			// Invite rejected ("Ref has expired" / "Ref has already been used"): drop it so
+			// Retry returns to the chooser instead of resubmitting the dead ref.
+			if (err instanceof Error && /^Ref has /.test(err.message)) setInviteRef(undefined)
 		}
 	}
 

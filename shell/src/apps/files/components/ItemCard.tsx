@@ -11,6 +11,7 @@ import {
 	InlineEditForm,
 	ListItem,
 	ProfilePicture,
+	RoomChip,
 	Tag,
 	Text,
 	useAuth,
@@ -277,6 +278,12 @@ export const ItemCard = React.memo(function ItemCard({
 								/>
 								<Text truncate>{attribution.name || `@${attribution.idTag}`}</Text>
 							</HBox>
+						)}
+						{file.channel && (
+							<RoomChip
+								channel={file.channel}
+								contextTag={file.owner?.idTag ?? contextIdTag}
+							/>
 						)}
 						{/* Direct is the default, so only a wider visibility earns an icon */}
 						{!isDirect && (

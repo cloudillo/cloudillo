@@ -19,6 +19,7 @@ import {
 	Text,
 	useAuth,
 	useDialog,
+	useToast,
 	VBox
 } from '@cloudillo/react'
 import * as React from 'react'
@@ -62,10 +63,16 @@ export const viewItems = (
 interface CreateDocumentMenuProps {
 	contextIdTag?: string
 	currentFolderId?: string | null
+	/** Absolute `@tenant~name` room new documents go into */
+	channel?: string
 }
 
 /** "Create document" menu — the Files page's primary action, rendered in its PageHeader. */
-export function CreateDocumentMenu({ contextIdTag, currentFolderId }: CreateDocumentMenuProps) {
+export function CreateDocumentMenu({
+	contextIdTag,
+	currentFolderId,
+	channel
+}: CreateDocumentMenuProps) {
 	const { t } = useTranslation()
 	const { api } = useContextAwareApi()
 	const [auth] = useAuth()
@@ -73,6 +80,7 @@ export function CreateDocumentMenu({ contextIdTag, currentFolderId }: CreateDocu
 	const urlCtx = useCtx().base
 	const navigate = useNavigate()
 	const dialog = useDialog()
+	const toast = useToast()
 
 	async function create(app: AppId, db: boolean | undefined) {
 		if (!api) return
@@ -87,21 +95,27 @@ export function CreateDocumentMenu({ contextIdTag, currentFolderId }: CreateDocu
 		)
 		if (fileName === undefined) return
 
-		const res = await api.files.create({
-			fileTp: db ? 'RTDB' : 'CRDT',
-			contentType,
-			parentId: currentFolderId || undefined
-		})
-		if (res?.fileId) {
-			await api.files.update(res.fileId, {
-				fileName: (fileName ||
-					(db ? t('Untitled database') : t('Untitled document'))) as string
+		try {
+			const res = await api.files.create({
+				fileTp: db ? 'RTDB' : 'CRDT',
+				contentType,
+				parentId: currentFolderId || undefined,
+				channel
 			})
+			if (res?.fileId) {
+				await api.files.update(res.fileId, {
+					fileName: (fileName ||
+						(db ? t('Untitled database') : t('Untitled document'))) as string
+				})
 
-			// `contextIdTag` is the real idTag: it belongs in the resId's owner half,
-			// never in the context segment.
-			const ownerTag = contextIdTag || auth?.idTag
-			navigate(appPath(urlCtx, app, `${ownerTag}:${res.fileId}`))
+				// `contextIdTag` is the real idTag: it belongs in the resId's owner half,
+				// never in the context segment.
+				const ownerTag = contextIdTag || auth?.idTag
+				navigate(appPath(urlCtx, app, `${ownerTag}:${res.fileId}`))
+			}
+		} catch (err) {
+			console.error('[Files] create failed', err)
+			toast.error(t('Failed to create document'))
 		}
 	}
 

@@ -126,6 +126,14 @@ describe('getFileUrl', () => {
 		expect(getFileUrl('alice.example', '../../secret')).toBeUndefined()
 	})
 
+	// A fresh upload is addressed by its pending id until the backend finalizes it.
+	it('should accept a pending upload id', () => {
+		expect(getFileUrl('home.w9.hu', '@123', 'vis.tn')).toMatch(
+			/\/api\/files\/@123\?variant=vis\.tn$/
+		)
+		expect(getFileUrl('home.w9.hu', '@abc')).toBeUndefined()
+	})
+
 	// A raw `?` would end the path and make the appended `?variant=…` a second query
 	// separator — silently dropping the variant.
 	it('should refuse a fileId that opens the query string', () => {

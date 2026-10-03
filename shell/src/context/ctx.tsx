@@ -21,6 +21,8 @@ import { useLocation, useMatch, useNavigate } from 'react-router-dom'
 import { CTX_MATCH, type CtxBase, feedPath, HOME_BASE, isContextSegment } from '../routes.js'
 import { activeContextAtom, contextSwitchingAtom, pendingContextAtom } from './atoms'
 import { HOME_CONTEXT } from './constants.js'
+import { hatPickerAtom, pendingHatEntryAtom, useHatEntry } from './hat-entry.js'
+import { HatPicker } from './HatPicker.js'
 import { useApiContext } from './hooks'
 import { isKnownContext } from './trust-gate.js'
 
@@ -68,6 +70,7 @@ export function CtxProvider({ children }: { children: React.ReactNode }) {
 
 	const [activeContext] = useAtom(activeContextAtom)
 	const { setActiveContext, isLoading } = useApiContext()
+	const { enter } = useHatEntry()
 	const setIsSwitching = useSetAtom(contextSwitchingAtom)
 	const setPendingContext = useSetAtom(pendingContextAtom)
 	const [auth] = useAuth()
@@ -80,6 +83,10 @@ export function CtxProvider({ children }: { children: React.ReactNode }) {
 	// navigates to the home feed, whose routeIdTag is unchanged — and the effect
 	// retries forever.
 	const failedRef = React.useRef(new Set<string>())
+	// The entry that is running — it may sit in the hat picker for a while, and the
+	// effect must not start a second one meanwhile. An object, so a superseded entry's
+	// `.finally` cannot clear its successor for the same idTag.
+	const enteringRef = React.useRef<{ idTag: string } | undefined>(undefined)
 
 	// The tenant the URL names, `undefined` on a context-free route. `~` resolves to the
 	// node's own idTag, not known synchronously (`auth/boot.ts` fetches it).
@@ -113,14 +120,27 @@ export function CtxProvider({ children }: { children: React.ReactNode }) {
 	React.useEffect(() => {
 		// Skip context switching when not authenticated (loading or guest)
 		if (!auth) return
-		if (routeIdTag && failedRef.current.has(routeIdTag)) return
+		// A hat-bearing entry (`useEnterContext`) parked its hat before navigating. Consume
+		// it only on its own route: a pass for the route being left must not drop it.
+		const pendingHat = store.get(pendingHatEntryAtom)
+		const hat = pendingHat && pendingHat.idTag === routeIdTag ? pendingHat.hat : undefined
+		// A failed context is retried only by an explicit hat-bearing entry.
+		if (routeIdTag && failedRef.current.has(routeIdTag)) {
+			if (hat === undefined) return
+			failedRef.current.delete(routeIdTag)
+		}
+		if (hat !== undefined) store.set(pendingHatEntryAtom, undefined)
 
 		// If we have a contextIdTag in URL but it doesn't match active context
 		if (routeIdTag && activeContext?.idTag !== routeIdTag) {
+			// A parked hat supersedes the running entry rather than waiting behind it.
+			if (enteringRef.current?.idTag === routeIdTag && hat === undefined) return
+
 			// A URL is not a user action, and `setActiveContext` mints an identified
 			// proxy token — so a context nobody has consented to is parked for the
-			// confirm banner rather than entered.
-			if (!isKnownContext(store, routeIdTag, auth.idTag)) {
+			// confirm banner rather than entered. Entering under a real hat is a user
+			// action; "as yourself" (`''`) still needs consent like a plain URL.
+			if (!hat && !isKnownContext(store, routeIdTag, auth.idTag)) {
 				setPendingContext(routeIdTag)
 				setIsSwitching(false)
 				return
@@ -129,8 +149,16 @@ export function CtxProvider({ children }: { children: React.ReactNode }) {
 
 			// Switch to the context from URL. This is the sole writer to
 			// activeContextAtom for user-initiated switches — switchTo only
-			// navigates, so the URL is the single source of truth.
-			setActiveContext(routeIdTag)
+			// navigates, so the URL is the single source of truth. Hats apply to
+			// communities only; `enter` resolves which one (or none) to wear.
+			const isHomeRoute = routeIdTag === auth.idTag || routeIdTag === apiState.idTag
+			// An open picker belongs to an entry this one supersedes: settle it as
+			// superseded, so that entry's `enter` returns without activating.
+			const picker = store.get(hatPickerAtom)
+			picker?.resolve(null, picker.entries)
+			const entry = { idTag: routeIdTag }
+			enteringRef.current = entry
+			;(isHomeRoute ? setActiveContext(routeIdTag) : enter(routeIdTag, hat))
 				.catch((err) => {
 					console.error(`[Route] Failed to switch to context ${routeIdTag}:`, err)
 					failedRef.current.add(routeIdTag)
@@ -144,7 +172,10 @@ export function CtxProvider({ children }: { children: React.ReactNode }) {
 						navigate(feedPath(HOME_BASE), { replace: true })
 					}
 				})
-				.finally(() => setIsSwitching(false))
+				.finally(() => {
+					if (enteringRef.current === entry) enteringRef.current = undefined
+					setIsSwitching(false)
+				})
 		} else if (routeIdTag && activeContext?.idTag === routeIdTag) {
 			// URL already matches active context — switchTo only navigated; clear the spinner.
 			setPendingContext(undefined)
@@ -157,6 +188,7 @@ export function CtxProvider({ children }: { children: React.ReactNode }) {
 		routeIdTag,
 		activeContext?.idTag,
 		setActiveContext,
+		enter,
 		auth,
 		apiState.idTag,
 		navigate,
@@ -180,7 +212,12 @@ export function CtxProvider({ children }: { children: React.ReactNode }) {
 		}
 	}, [auth, activeContext, isLoading, isInitialized, setActiveContext, routeIdTag])
 
-	return <CtxContext.Provider value={value}>{children}</CtxContext.Provider>
+	return (
+		<CtxContext.Provider value={value}>
+			{children}
+			<HatPicker />
+		</CtxContext.Provider>
+	)
 }
 
 // vim: ts=4

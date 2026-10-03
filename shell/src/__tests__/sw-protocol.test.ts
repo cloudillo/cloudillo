@@ -35,6 +35,10 @@ describe('decodeSwMessage', () => {
 			msg('sw:key.reset', { id: 3 })
 		)
 		expect(decodeSwMessage(msg('sw:claim'))).toEqual(msg('sw:claim'))
+		const hatSet = msg('sw:hattoken.set', { payload: { idTag: 'b.org', token: 'tok' } })
+		expect(decodeSwMessage(hatSet)).toEqual(hatSet)
+		const hatClear = msg('sw:hattoken.set', { payload: { idTag: 'b.org' } })
+		expect(decodeSwMessage(hatClear)).toEqual(hatClear)
 	})
 
 	it('accepts sw:key.reset and sw:apikey.set without an id (notify, not request)', () => {
@@ -106,6 +110,13 @@ describe('decodeSwInbound', () => {
 			)
 		).toEqual(msg('sw:apikey.set.ack', { replyTo: 3, ok: false, error: 'no-encryption-key' }))
 		expect(decodeSwInbound(msg('sw:token.request'))).toEqual(msg('sw:token.request'))
+	})
+
+	it('decodes a hat-token request and rejects one without an idTag', () => {
+		const req = msg('sw:hattoken.request', { payload: { idTag: 'b.tld' } })
+		expect(decodeSwInbound(req)).toEqual(req)
+		expect(decodeSwInbound(msg('sw:hattoken.request', { payload: {} }))).toBeNull()
+		expect(decodeSwInbound(msg('sw:hattoken.request'))).toBeNull()
 	})
 
 	it('rejects a wrong version, a foreign envelope and an unknown type', () => {

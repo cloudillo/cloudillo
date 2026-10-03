@@ -12,10 +12,16 @@
  * A leaf module so the rules are unit-testable without mounting a hook.
  */
 
-import { hasApiToken } from '@cloudillo/core'
+import { contextKey, hasApiToken } from '@cloudillo/core'
 import type { createStore } from 'jotai'
 
-import { activeContextAtom, communitiesAtom, sessionTrustAtom, storedTrustAtom } from './atoms'
+import {
+	activeContextAtom,
+	communitiesAtom,
+	partnerCommunitiesAtom,
+	sessionTrustAtom,
+	storedTrustAtom
+} from './atoms'
 
 /** The jotai store instance, as `useStore()` / `createStore()` produce it. */
 export type ContextStore = ReturnType<typeof createStore>
@@ -52,7 +58,19 @@ export function mayUseContextToken(
 	// registry entry lapsing mid-renewal must not turn getClientFor into a null.
 	if (idTag === opts.ownIdTag) return true
 	const consented = opts.explicit === true || effectiveTrust(store, idTag) === 'consent'
-	return consented && hasApiToken(idTag)
+	return consented && hasApiToken(activeKeyFor(store, idTag))
+}
+
+/** Registry key for idTag: the hatted `B|A` key when idTag is the active context, else bare. */
+export function activeKeyFor(store: ContextStore, idTag: string): string {
+	const a = store.get(activeContextAtom)
+	return a?.idTag === idTag ? contextKey(idTag, a.hat?.idTag) : idTag
+}
+
+/** Passive use of a hatted token only while that exact hat is worn. */
+export function hattedConsent(store: ContextStore, idTag: string, hat: string): boolean {
+	const a = store.get(activeContextAtom)
+	return a?.idTag === idTag && a.hat?.idTag === hat
 }
 
 /**
@@ -61,12 +79,22 @@ export function mayUseContextToken(
  * arriving in a pathname must be confirmed rather than trusted.
  *
  * Known means: the user's own node, a community they already have (`communitiesAtom`),
- * or an idTag they have already consented to (`effectiveTrust`).
+ * a partner they have entered under a hat (a `partnerCommunitiesAtom` row with `hat` — as
+ * explicit as a stored consent), or an idTag they have already consented to (`effectiveTrust`).
  */
 export function isKnownContext(store: ContextStore, idTag: string, ownIdTag?: string): boolean {
 	if (idTag === ownIdTag) return true
 	if (store.get(communitiesAtom).some((c) => c.idTag === idTag)) return true
+	if (store.get(partnerCommunitiesAtom).some((c) => c.idTag === idTag && c.hat)) return true
 	return effectiveTrust(store, idTag) === 'consent'
+}
+
+/** `prev` without `key`; the same Map when it had no such key. */
+export function withoutKey<V>(prev: Map<string, V>, key: string): Map<string, V> {
+	if (!prev.has(key)) return prev
+	const next = new Map(prev)
+	next.delete(key)
+	return next
 }
 
 // vim: ts=4

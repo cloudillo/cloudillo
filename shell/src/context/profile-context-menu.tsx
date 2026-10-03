@@ -25,6 +25,7 @@ import {
 	LuArrowLeft as IcMoveLeft,
 	LuArrowRight as IcMoveRight,
 	LuHouse as IcHome,
+	LuUserCog as IcIdentity,
 	LuBellOff as IcMute,
 	LuPin as IcPin,
 	LuPinOff as IcPinOff,
@@ -60,6 +61,8 @@ export interface ProfileContextMenuProps {
 	/** A pinned strip chip: move it one slot (WCAG 2.5.7 alternative to dragging) */
 	onMoveLeft?: () => void
 	onMoveRight?: () => void
+	/** The active hatted context: pick another hat or go back to "as yourself" */
+	onChangeIdentity?: () => void
 }
 
 type StatusChange = 'A' | 'B' | 'M'
@@ -83,7 +86,8 @@ export function ProfileContextMenu({
 	onClose,
 	onRestored,
 	onMoveLeft,
-	onMoveRight
+	onMoveRight,
+	onChangeIdentity
 }: ProfileContextMenuProps) {
 	const { t } = useTranslation()
 	const navigate = useNavigate()
@@ -169,6 +173,13 @@ export function ProfileContextMenu({
 				label={t('Copy identity tag')}
 				onClick={handleAction(handleCopyTag)}
 			/>
+			{onChangeIdentity && (
+				<Item
+					icon={<IcIdentity />}
+					label={t('Change identity')}
+					onClick={handleAction(onChangeIdentity)}
+				/>
+			)}
 			{showPinEntry && (
 				<>
 					<Divider />

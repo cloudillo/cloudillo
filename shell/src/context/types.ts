@@ -30,6 +30,14 @@ export interface ActiveContext {
 	/** Profile picture URL or file ID */
 	profilePic?: string
 
+	/**
+	 * The community hat this context is worn under (a member of `hat.idTag`
+	 * acting in this partner community). Replaces direct standing: `roles` are
+	 * then the hatted token's, and `hat.role` is the capped role it grants here.
+	 * Registry/cache key is `contextKey(idTag, hat.idTag)`.
+	 */
+	hat?: { idTag: string; name?: string; profilePic?: string; role: string }
+
 	/** User's roles in this context */
 	roles: string[]
 
@@ -52,6 +60,9 @@ export interface CommunityRef {
 
 	/** Profile picture URL or file ID */
 	profilePic?: string
+
+	/** Partner rows only: the remembered hat, badged on the chip while it is not active */
+	hat?: { idTag: string; name?: string; profilePic?: string }
 
 	/** Whether this community is favorited/pinned */
 	isFavorite: boolean

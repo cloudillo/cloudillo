@@ -8,7 +8,9 @@ import { LuCloud as IcCloud, LuCloudOff as IcOffline, LuUpload as IcUpload } fro
 import { useLocation, useNavigate } from 'react-router-dom'
 
 import type * as Types from '@cloudillo/core'
+import { ROLE_LEVELS, roleLevel } from '@cloudillo/types'
 import {
+	absChannel,
 	Alert,
 	Button,
 	DropZone,
@@ -33,6 +35,7 @@ import {
 import {
 	useActiveCommunity,
 	useContextAwareApi,
+	useContextRolesFor,
 	useCtx,
 	useCurrentContextIdTag
 } from '../../context/index.js'
@@ -75,6 +78,7 @@ import {
 import type { File, FileOps, ViewMode } from './types.js'
 import { isFileProcessing } from './types.js'
 import { canWrite, fileSrcIdTag } from './utils.js'
+import { RoomPicker } from '../shared/RoomPicker.js'
 
 export function FilesApp() {
 	const navigate = useNavigate()
@@ -107,6 +111,14 @@ export function FilesApp() {
 		enterFolder
 	} = useFileNavigation()
 
+	const ctxRoles = useContextRolesFor(contextIdTag)
+	// Home needs no role (own session); a community needs contributor, as the server's create check.
+	const canCreate = isRemoteBrowsing
+		? canWrite(remoteAccessLevel)
+		: !contextIdTag ||
+			contextIdTag === auth?.idTag ||
+			roleLevel(ctxRoles) >= ROLE_LEVELS.contributor
+
 	// Dirty (unsynced) CRDT documents
 	const [dirtyDocIds, setDirtyDocIds] = React.useState<Set<string>>(new Set())
 	React.useEffect(() => {
@@ -118,6 +130,13 @@ export function FilesApp() {
 	const [fileTypeFilter, setFileTypeFilter] = useAtom(fileTypeFilterAtom)
 	const [ownerFilter, setOwnerFilter] = useAtom(ownerFilterAtom)
 	const [searchQuery, setSearchQuery] = useAtom(searchQueryAtom)
+	// Room (absolute `@tenant~name`): filters the list and is where new uploads/documents go.
+	// ponytail: client-side filter on loaded pages (no `channel` in ListFilesQuery);
+	// add a server-side filter if rooms get big
+	const [roomFilter, setRoomFilter] = React.useState<string | undefined>()
+	React.useEffect(() => {
+		setRoomFilter(undefined)
+	}, [contextIdTag])
 
 	// Debounce search query for API calls (300ms)
 	const debouncedSearchQuery = useDebouncedValue(searchQuery, 300)
@@ -246,14 +265,24 @@ export function FilesApp() {
 	const uploadQueue = useSmartUpload({
 		parentId: currentFolderId,
 		onUploadComplete: fileListData.refresh,
-		apiOverride: isRemoteBrowsing ? remoteApi : undefined
+		apiOverride: isRemoteBrowsing ? remoteApi : undefined,
+		channel: isRemoteBrowsing ? undefined : roomFilter
 	})
 
 	// Sort files: pinned first (except in Recent/Trash), then folders, then regular files
 	const files = React.useMemo(() => {
 		const data = fileListData.getData()
 		const skipPinSort = viewMode === 'recent' || viewMode === 'trash' || viewMode === 'managed'
-		return [...data].sort((a, b) => {
+		// A bare channel is a room of the file's owner — the context tenant
+		const shown = roomFilter
+			? data.filter(
+					(f) =>
+						f.channel &&
+						(contextIdTag ? absChannel(f.channel, contextIdTag) : f.channel) ===
+							roomFilter
+				)
+			: data
+		return [...shown].sort((a, b) => {
 			// Pinned files first (not in Recent or Trash views)
 			if (!skipPinSort) {
 				const aPinned = a.userData?.pinned ? 1 : 0
@@ -269,7 +298,7 @@ export function FilesApp() {
 			// Default: keep original order (from API)
 			return 0
 		})
-	}, [fileListData, viewMode])
+	}, [fileListData, viewMode, roomFilter, contextIdTag])
 
 	// A metadata edit changes a row that is already loaded, so patch it. refresh() resets
 	// useInfiniteScroll: it blanks the list, drops every page past the first and the scroll
@@ -412,16 +441,20 @@ export function FilesApp() {
 			)
 			if (folderName === undefined) return
 
-			await api.files.create({
-				fileTp: 'FLDR',
-				contentType: 'cloudillo/folder',
-				fileName: folderName || t('Untitled folder'),
-				parentId: currentFolderId || undefined
-			})
-
-			fileListData.refresh()
+			try {
+				await api.files.create({
+					fileTp: 'FLDR',
+					contentType: 'cloudillo/folder',
+					fileName: folderName || t('Untitled folder'),
+					parentId: currentFolderId || undefined
+				})
+				fileListData.refresh()
+			} catch (err) {
+				console.error('[Files] create folder failed', err)
+				toast.error(t('Failed to create folder'))
+			}
 		},
-		[api, dialog, t, currentFolderId, fileListData]
+		[api, dialog, t, toast, currentFolderId, fileListData]
 	)
 
 	const handleEmptyTrash = React.useCallback(
@@ -867,7 +900,7 @@ export function FilesApp() {
 	const isInitialLoading = fileListData.isLoading && files.length === 0
 
 	// Disable drag-drop in trash view and read-only remote browsing
-	const canUpload = viewMode === 'browse' && (!isRemoteBrowsing || canWrite(remoteAccessLevel))
+	const canUpload = viewMode === 'browse' && canCreate
 
 	return (
 		<>
@@ -919,10 +952,20 @@ export function FilesApp() {
 									actions={
 										<>
 											<FilterToggle onClick={() => setShowFilter(true)} />
-											{(!isRemoteBrowsing || canWrite(remoteAccessLevel)) && (
+											{!isRemoteBrowsing && contextIdTag && (
+												<RoomPicker
+													tenant={contextIdTag}
+													value={roomFilter}
+													onChange={setRoomFilter}
+												/>
+											)}
+											{canCreate && (
 												<CreateDocumentMenu
 													contextIdTag={contextIdTag}
 													currentFolderId={currentFolderId}
+													channel={
+														isRemoteBrowsing ? undefined : roomFilter
+													}
 												/>
 											)}
 										</>
@@ -939,7 +982,7 @@ export function FilesApp() {
 										canUpload ? uploadQueue.handleFilesForUpload : undefined
 									}
 									onCreateFolder={
-										viewMode === 'browse' && !isRemoteBrowsing
+										viewMode === 'browse' && !isRemoteBrowsing && canCreate
 											? handleCreateFolder
 											: undefined
 									}
@@ -980,6 +1023,8 @@ export function FilesApp() {
 									onOwnerFilterChange={setOwnerFilter}
 									onSearchQueryChange={setSearchQuery}
 									onTagFilter={setSelectedTags}
+									roomFilter={roomFilter}
+									onRoomFilterChange={setRoomFilter}
 								/>
 								{searchActive &&
 									viewMode === 'browse' &&

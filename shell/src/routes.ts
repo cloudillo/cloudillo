@@ -83,7 +83,10 @@ function buildQuery(query?: QueryInit): string {
  * is the only thing keeping them out of the context machinery.
  */
 export function isContextSegment(segment: string | undefined): boolean {
-	return !!segment && (segment === HOME_CONTEXT || segment.startsWith('@'))
+	// `|` would alias a hatted registry key (`idTag|hat`).
+	return (
+		!!segment && !segment.includes('|') && (segment === HOME_CONTEXT || segment.startsWith('@'))
+	)
 }
 
 /**
@@ -227,6 +230,11 @@ export function profilePath(base: CtxBase, idTag?: string, tail?: Tail, query?: 
  */
 export function communityCreatePath(base: CtxBase, steps?: Tail, query?: QueryInit): string {
 	return contextPath(base, 'communities', joinTail('create') + joinTail(steps), query)
+}
+
+/** The community map — memberships and their partners. Home only: pass `HOME_BASE`. */
+export function communityMapPath(base: CtxBase): string {
+	return contextPath(base, 'communities', 'map')
 }
 
 /** Settings, or one settings page (`'security'`, `'privacy'`, …). */

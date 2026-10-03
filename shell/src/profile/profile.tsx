@@ -9,7 +9,6 @@ import {
 	Center,
 	FAB,
 	Fcd,
-	Field,
 	FileButton,
 	HBox,
 	Input,
@@ -19,7 +18,6 @@ import {
 	Menu,
 	MenuDivider,
 	MenuItem,
-	NativeSelect,
 	Nav,
 	PageHeader,
 	Panel,
@@ -29,8 +27,6 @@ import {
 	SkeletonText,
 	Tab,
 	Tabs,
-	Text,
-	Toggle,
 	useDialog,
 	useToast,
 	VBox,
@@ -70,6 +66,7 @@ import type { Profile } from '@cloudillo/types'
 import { ComposePanel } from '../apps/feed/index.js'
 import { pendingQuoteAtom } from '../apps/feed/quote-intent.js'
 import { ActionComp, type ActionEvt, type ActionStat, ComposeTrigger } from '../apps/feed.js'
+import { CommunityMap } from '../communities/CommunityMap.js'
 import {
 	activeContextAtom,
 	communitiesAtom,
@@ -81,13 +78,13 @@ import {
 	useProfileTrust
 } from '../context/index.js'
 import { ImageUpload } from '../image.js'
+import { PartnerCommunities } from './partner-communities.js'
 import { buildRef } from '../refs.js'
 import type { CtxBase } from '../routes.js'
 import { messagesPath, profilePath } from '../routes.js'
-import { coerceSettingValue } from '../utils.js'
 import { useWsBus } from '../ws-bus.js'
 import { ProfileAbout } from './about/ProfileAbout.js'
-import { getEffectiveTabs, parseTabConfig, type TabConfig } from './about/types.js'
+import { getEffectiveTabs, parseTabConfig, type TabEntry } from './about/types.js'
 import { CreateCommunity } from './community.js'
 import { InvitationsList } from './community-invitations.js'
 import { PendingRequestsList } from './community-requests.js'
@@ -101,8 +98,11 @@ import {
 import { FilterToggle } from '../ui/FilterToggle.js'
 import { InviteMembersDialog } from './invite-members-dialog.js'
 import { ProfileHero } from './ProfileHero.js'
+import { roleLabels } from './role-labels.js'
+import { useConnectCommunity } from '../settings/partners.js'
+import { usePorch } from '../lib/porch.js'
+import { RoomsTab, useCanCreateRooms } from './rooms-tab.js'
 import { describeRelationship } from './relationship.js'
-import { TabEditor } from './TabEditor.js'
 import { TrustBanner } from './TrustBanner.js'
 import { TrustChip } from './TrustChip.js'
 
@@ -128,13 +128,11 @@ function getHighestRole(roles: string[] | undefined): CommunityRole | undefined 
 	return highest
 }
 
-const getRoles = (t: TFunction): { value: CommunityRole; label: string }[] => [
-	{ value: 'follower', label: t('Follower') },
-	{ value: 'supporter', label: t('Supporter') },
-	{ value: 'contributor', label: t('Contributor') },
-	{ value: 'moderator', label: t('Moderator') },
-	{ value: 'leader', label: t('Leader') }
-]
+const getRoles = (t: TFunction): { value: CommunityRole; label: string }[] =>
+	Object.entries(roleLabels(t)).map(([value, label]) => ({
+		value: value as CommunityRole,
+		label
+	}))
 
 interface FullProfile {
 	tnId: number
@@ -161,6 +159,8 @@ interface ProfileConnectionCmds {
 	onDisconnect: () => void
 	onBlock: () => void
 	onUnblock: () => void
+	/** Set when a community I lead (the active context) may connect with this community. */
+	connectAs?: { name: string; run: () => void }
 }
 
 // The existing relation as a read-only Badge next to the name.
@@ -288,7 +288,8 @@ const getTabLabels = (t: TFunction): Record<string, string> => ({
 	about: t('About'),
 	connections: t('Connections'),
 	gallery: t('Gallery'),
-	files: t('Files')
+	files: t('Files'),
+	rooms: t('Rooms')
 })
 
 const TAB_ROUTES: Record<string, string> = {
@@ -296,7 +297,8 @@ const TAB_ROUTES: Record<string, string> = {
 	about: 'about',
 	connections: 'connections',
 	gallery: 'gallery',
-	files: 'files'
+	files: 'files',
+	rooms: 'rooms'
 }
 
 function ProfileTabs({
@@ -304,18 +306,22 @@ function ProfileTabs({
 	base,
 	own,
 	isCommunity,
-	canAccessSettings
+	showRooms
 }: {
 	profile: FullProfile
 	base: CtxBase
 	own: boolean
 	isCommunity: boolean
-	canAccessSettings: boolean
+	showRooms?: boolean
 }) {
 	const { t } = useTranslation()
 	const tabLabels = React.useMemo(() => getTabLabels(t), [t])
 	const tabConfig = parseTabConfig(profile.x)
-	const tabs = getEffectiveTabs(tabConfig)
+	// Rooms is not part of the owner's tab config: it shows whenever there is a porch to show
+	const tabs: TabEntry[] = [
+		...getEffectiveTabs(tabConfig),
+		...(showRooms ? [{ id: 'rooms', visible: true, order: Number.POSITIVE_INFINITY }] : [])
+	]
 	const pathname = useLocation().pathname.replace(/\/$/, '')
 	// The own profile is reachable as both `/me` and `/<idTag>`: link within the one in use,
 	// or no tab ever matches the URL
@@ -354,7 +360,6 @@ function ProfileTabs({
 						</Tab>
 					)
 				})}
-			{canAccessSettings && <Tab href={`${basePath}/settings`}>{t('Settings')}</Tab>}
 		</Tabs>
 	)
 }
@@ -380,6 +385,8 @@ interface ProfilePageProps {
 	 * cached proxy-token-gated data can refresh.
 	 */
 	onTrustDecision?: () => void
+	/** Show the Rooms tab */
+	showRooms?: boolean
 }
 
 /**
@@ -426,7 +433,8 @@ export function ProfilePage({
 	children,
 	communityRoles = [],
 	getTokenFor,
-	onTrustDecision
+	onTrustDecision,
+	showRooms
 }: ProfilePageProps) {
 	const { t } = useTranslation()
 	const [auth, setAuth] = useAuth()
@@ -866,6 +874,16 @@ export function ProfilePage({
 												profile.type,
 												profileCmds
 											)}
+										{profileCmds.connectAs && (
+											<MenuItem
+												icon={<IcConnect />}
+												label={t('Connect {{community}} with {{name}}', {
+													community: profileCmds.connectAs.name,
+													name: profile.name || profile.idTag
+												})}
+												onClick={profileCmds.connectAs.run}
+											/>
+										)}
 										{canBlock && (
 											<MenuItem
 												icon={<IcBlock />}
@@ -885,7 +903,7 @@ export function ProfilePage({
 							base={ctx.base}
 							own={own}
 							isCommunity={isCommunity}
-							canAccessSettings={canAccessSettings}
+							showRooms={showRooms}
 						/>
 					}
 				/>
@@ -1066,6 +1084,8 @@ interface MemberCardProps {
 	onRoleChange?: (idTag: string, role: CommunityRole) => void
 	onRemove?: (idTag: string) => void
 	actorRoleLevel: number
+	/** Tooltip / accessible name of the role dropdown */
+	roleHint?: string
 }
 
 function MemberCard({
@@ -1075,7 +1095,8 @@ function MemberCard({
 	canChangeRole,
 	onRoleChange,
 	onRemove,
-	actorRoleLevel
+	actorRoleLevel,
+	roleHint
 }: MemberCardProps) {
 	const { t } = useTranslation()
 	const dialog = useDialog()
@@ -1135,7 +1156,12 @@ function MemberCard({
 					{hasMenu ? (
 						<Menu
 							trigger={
-								<Button size="sm" variant="soft" color="secondary">
+								<Button
+									size="sm"
+									variant="soft"
+									color="secondary"
+									aria-label={roleHint && `${roleHint}: ${roleLabel}`}
+								>
 									{roleLabel}
 									<IcChevronDown />
 								</Button>
@@ -1477,7 +1503,14 @@ export function ProfileConnections({
 			</>
 		)
 
-		if (!showPageHeader) return communityContent
+		if (!showPageHeader) {
+			return (
+				<>
+					{communityContent}
+					<PartnerCommunities community={profile} />
+				</>
+			)
+		}
 
 		return (
 			<>
@@ -1518,7 +1551,14 @@ export function ProfileConnections({
 
 	// For communities (non-moderators), use MemberCard with no role controls
 	if (isCommunity) {
-		if (!showPageHeader) return activeMembersList
+		if (!showPageHeader) {
+			return (
+				<>
+					{activeMembersList}
+					<PartnerCommunities community={profile} />
+				</>
+			)
+		}
 
 		return (
 			<Fcd.Container className="g-1">
@@ -1535,298 +1575,34 @@ export function ProfileConnections({
 		)
 	}
 
-	// For personal profiles, use original ProfileListCard
+	// My own person tenant: my followers/connections, each with the role I give them
+	if (auth?.idTag === profile.idTag) {
+		return (
+			<List variant="divided" aria-label={t('Connections')}>
+				{profiles
+					.filter((p) => p.idTag !== auth.idTag && (p.connected === true || p.follower))
+					.map((p) => (
+						<MemberCard
+							key={p.idTag}
+							member={p}
+							srcTag={profile.idTag}
+							canChangeRole
+							onRoleChange={handleRoleChange}
+							actorRoleLevel={ROLE_LEVELS.leader}
+							roleHint={t('Their role with you')}
+						/>
+					))}
+			</List>
+		)
+	}
+
+	// For other personal profiles, use original ProfileListCard
 	return (
 		<List variant="divided" aria-label={t('Connections')}>
 			{profiles.map((p) => (
 				<ProfileListCard key={p.idTag} profile={p} srcTag={profile.idTag} />
 			))}
 		</List>
-	)
-}
-
-// ProfileSettings component for community settings
-export function ProfileSettings({
-	profile,
-	updateProfile,
-	communityRoles,
-	isCommunity = false,
-	getTokenFor
-}: ProfileTabProps) {
-	const { t } = useTranslation()
-	const [activeContext] = useAtom(activeContextAtom)
-	const [settings, setSettings] = React.useState<Record<string, string | number | boolean>>({})
-	const [loading, setLoading] = React.useState(true)
-	const debounceTimers = React.useRef<Record<string, ReturnType<typeof setTimeout>>>({})
-
-	// Check if user has leader role (can edit settings)
-	// Use communityRoles prop (from proxy token) OR activeContext roles if we're in the viewed community
-	const isInViewedCommunity = activeContext?.idTag === profile.idTag
-	const userRole = isInViewedCommunity
-		? getHighestRole(activeContext?.roles)
-		: getHighestRole(communityRoles)
-	const canEditSettings = userRole === 'leader'
-
-	// Fetch settings from community server
-	React.useEffect(
-		function loadSettings() {
-			if (!isCommunity || !getTokenFor || !canEditSettings) {
-				setLoading(false)
-				return
-			}
-
-			;(async function () {
-				try {
-					// Community settings panel — only shown to leaders who are actively
-					// administering the community. Explicit intent.
-					const proxyResult = await getTokenFor(profile.idTag, { explicit: true })
-					if (!proxyResult?.token) {
-						console.error('Failed to get proxy token for settings')
-						setLoading(false)
-						return
-					}
-
-					const response = await fetch(
-						`${getInstanceUrl(profile.idTag)}/api/settings?prefix=profile`,
-						{
-							headers: {
-								Authorization: `Bearer ${proxyResult.token}`,
-								'Content-Type': 'application/json'
-							}
-						}
-					)
-
-					if (response.ok) {
-						const data = await response.json()
-						// API response wraps array in 'data' field (ApiResponse<Vec<SettingResponse>>)
-						const settingsArray = data.data || []
-						const settingsMap = Object.fromEntries(
-							settingsArray.map((s: { key: string; value?: unknown }) => [
-								s.key,
-								s.value
-							])
-						)
-						setSettings(settingsMap)
-					}
-				} catch (err) {
-					console.error('Failed to load community settings:', err)
-				} finally {
-					setLoading(false)
-				}
-			})()
-		},
-		[isCommunity, getTokenFor, profile.idTag, canEditSettings]
-	)
-
-	// Cleanup debounce timers on unmount
-	React.useEffect(() => {
-		return () => {
-			Object.values(debounceTimers.current).forEach((timer) => {
-				clearTimeout(timer)
-			})
-		}
-	}, [])
-
-	async function onSettingChange(
-		evt: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
-	) {
-		if (!getTokenFor) return
-
-		const { name, type } = evt.target
-		const oldValue = settings[name]
-
-		const value = coerceSettingValue(evt.target, oldValue)
-		if (value === undefined) {
-			// Empty/partial numeric input (e.g. '' or '-'): keep what the user typed
-			// locally so the controlled input isn't reverted, but don't persist a bad
-			// value to the typed-settings backend. (See M1.)
-			setSettings((prev) => ({ ...prev, [name]: evt.target.value }))
-			return
-		}
-
-		// Update local state immediately
-		setSettings((prev) => ({ ...prev, [name]: value }))
-
-		// Clear existing timer
-		if (debounceTimers.current[name]) {
-			clearTimeout(debounceTimers.current[name])
-		}
-
-		// Debounce for text inputs, immediate for toggles/selects
-		const delay = type === 'checkbox' ? 0 : type === 'text' ? 800 : 300
-
-		const saveToServer = async () => {
-			try {
-				// Explicit user action: writing a community setting.
-				const proxyResult = await getTokenFor(profile.idTag, { explicit: true })
-				if (!proxyResult?.token) return
-
-				await fetch(
-					`${getInstanceUrl(profile.idTag)}/api/settings/${encodeURIComponent(name)}`,
-					{
-						method: 'PUT',
-						headers: {
-							Authorization: `Bearer ${proxyResult.token}`,
-							'Content-Type': 'application/json'
-						},
-						body: JSON.stringify({ value })
-					}
-				)
-			} catch (err) {
-				console.error('Failed to save setting:', name, err)
-			}
-		}
-
-		if (delay === 0) {
-			await saveToServer()
-		} else {
-			debounceTimers.current[name] = setTimeout(saveToServer, delay)
-		}
-	}
-
-	// Community: only leaders can access community-specific settings
-	const showCommunitySettings = isCommunity && canEditSettings && !loading
-
-	// Tab config (available for both personal and community profiles)
-	const tabConfig = parseTabConfig(profile.x)
-
-	const tabSaveTimerRef = React.useRef<ReturnType<typeof setTimeout>>(undefined)
-
-	React.useEffect(() => {
-		return () => {
-			if (tabSaveTimerRef.current) clearTimeout(tabSaveTimerRef.current)
-		}
-	}, [])
-
-	function onTabConfigChange(newConfig: TabConfig) {
-		if (!updateProfile) return
-		// Debounced save
-		if (tabSaveTimerRef.current) clearTimeout(tabSaveTimerRef.current)
-		tabSaveTimerRef.current = setTimeout(async () => {
-			await updateProfile({ x: { tabConfig: JSON.stringify(newConfig) } })
-		}, 500)
-	}
-
-	// Community leaders see both tab editor and community settings
-	// Personal profile owners see only tab editor
-	if (isCommunity && !canEditSettings) {
-		return (
-			<Panel padding={3}>
-				<Text as="p" emphasis="muted">
-					{t('You need leader permissions to access community settings.')}
-				</Text>
-			</Panel>
-		)
-	}
-
-	return (
-		<>
-			{/* Tab Configuration (both personal and community) */}
-			{updateProfile && (
-				<TabEditor
-					tabConfig={tabConfig}
-					onChange={onTabConfigChange}
-					isCommunity={isCommunity}
-				/>
-			)}
-
-			{/* Community-only: Connection & Privacy Settings */}
-			{showCommunitySettings && (
-				<>
-					<Panel padding={3} className="mb-2" title={t('Connections')} headingLevel={4}>
-						<VBox gap={3}>
-							<Field
-								orientation="horizontal"
-								label={t('Connection Mode')}
-								hint={
-									<>
-										{t(
-											'Controls how connection requests to this community are handled.'
-										)}{' '}
-										{settings['profile.connection_mode'] === 'A'
-											? t('Anyone can join immediately.')
-											: settings['profile.connection_mode'] === 'I'
-												? t(
-														'Connection requests are auto-rejected. Members can only join via an invitation from a leader or moderator.'
-													)
-												: t(
-														'A leader or moderator must approve each connection request.'
-													)}
-									</>
-								}
-							>
-								<NativeSelect
-									name="profile.connection_mode"
-									value={(settings['profile.connection_mode'] as string) ?? 'M'}
-									onChange={onSettingChange}
-								>
-									<option value="M">{t('Manual approval')}</option>
-									<option value="A">{t('Auto-accept')}</option>
-									<option value="I">{t('Invite only')}</option>
-								</NativeSelect>
-							</Field>
-
-							<Toggle
-								color="primary"
-								name="profile.allow_followers"
-								checked={settings['profile.allow_followers'] !== false}
-								onChange={onSettingChange}
-								label={t('Allow followers')}
-								description={t(
-									'Allow users to follow this community without becoming members.'
-								)}
-							/>
-						</VBox>
-					</Panel>
-
-					<Panel
-						padding={3}
-						className="mb-2"
-						title={t('Post visibility')}
-						headingLevel={4}
-					>
-						<Field
-							orientation="horizontal"
-							label={t('Visibility cap')}
-							hint={t(
-								'Limits the maximum visibility of posts in this community. Members cannot publish posts more public than this setting.'
-							)}
-						>
-							<NativeSelect
-								name="profile.visibility_cap"
-								value={(settings['profile.visibility_cap'] as string) ?? 'P'}
-								onChange={onSettingChange}
-							>
-								<option value="P">{t('Public (no limit)')}</option>
-								<option value="F">{t('Followers')}</option>
-								<option value="C">{t('Connected')}</option>
-							</NativeSelect>
-						</Field>
-					</Panel>
-
-					<Panel padding={3} className="mb-2" title={t('Federation')} headingLevel={4}>
-						<Toggle
-							color="primary"
-							name="profile.auto_approve_actions"
-							checked={settings['profile.auto_approve_actions'] === true}
-							onChange={onSettingChange}
-							label={t('Auto-approve incoming actions')}
-							description={t(
-								'When enabled, posts and messages from trusted sources are automatically approved.'
-							)}
-						/>
-					</Panel>
-				</>
-			)}
-
-			{isCommunity && loading && (
-				<Panel padding={3}>
-					<Text as="p" emphasis="muted">
-						{t('Loading settings...')}
-					</Text>
-				</Panel>
-			)}
-		</>
 	)
 }
 
@@ -1837,9 +1613,10 @@ function ProfileView() {
 	const [auth] = useAuth()
 	const [activeContext] = useAtom(activeContextAtom)
 	const { api } = useApi()
-	const { getTokenFor } = useApiContext()
+	const { getTokenFor, getClientFor } = useApiContext()
 	const { rememberStoredTrust } = useProfileTrust()
 	const dialog = useDialog()
+	const connectCommunity = useConnectCommunity()
 	const params = useParams()
 	const idTag = params.idTag == 'me' ? (auth?.idTag ?? api?.idTag) : params.idTag || auth?.idTag
 	const own = idTag == auth?.idTag
@@ -1850,6 +1627,8 @@ function ProfileView() {
 	const [trustTick, setTrustTick] = React.useState(0)
 	// User's roles in the viewed community (fetched via proxy token)
 	const [communityRoles, setCommunityRoles] = React.useState<string[]>([])
+	const porch = usePorch(idTag, communityRoles)
+	const canCreateRooms = useCanCreateRooms(idTag, communityRoles)
 	//console.log('Profile', idTag, profile, 'contextIdTag', contextIdTag)
 
 	// Fetch user's roles when viewing a community profile
@@ -2046,6 +1825,23 @@ function ProfileView() {
 		setLocalProfile((p) => (p ? { ...p, connected: 'R' } : p))
 	}
 
+	// A leader acting as community A connects A with community B through A's context token;
+	// the request is A's, so the page's own relation (`localProfile.connected`) stays as is.
+	const actingCommunity =
+		activeContext?.type === 'community' &&
+		!activeContext.hat &&
+		activeContext.roles.includes('leader') &&
+		profile?.type === 'community' &&
+		profile.idTag !== activeContext.idTag
+			? activeContext
+			: undefined
+
+	async function onConnectAs() {
+		if (!profile || !actingCommunity) return
+		const client = getClientFor(actingCommunity.idTag, { explicit: true })
+		if (client) await connectCommunity(client, profile)
+	}
+
 	async function onDisconnect() {
 		if (!profile || !localProfile?.connected) return
 		if (
@@ -2089,10 +1885,19 @@ function ProfileView() {
 			setProfile={setProfile}
 			localProfile={localProfile}
 			updateProfile={updateProfile}
-			profileCmds={{ onFollow, onUnfollow, onConnect, onDisconnect, onBlock, onUnblock }}
+			profileCmds={{
+				onFollow,
+				onUnfollow,
+				onConnect,
+				onDisconnect,
+				onBlock,
+				onUnblock,
+				connectAs: actingCommunity && { name: actingCommunity.name, run: onConnectAs }
+			}}
 			communityRoles={communityRoles}
 			getTokenFor={getTokenFor}
 			onTrustDecision={() => setTrustTick((n) => n + 1)}
+			showRooms={!!porch.rooms?.length || canCreateRooms}
 		>
 			<Routes>
 				<Route
@@ -2119,14 +1924,13 @@ function ProfileView() {
 					}
 				/>
 				<Route
-					path="/settings"
+					path="/rooms"
 					element={
-						<ProfileSettings
-							profile={profile}
-							updateProfile={updateProfile}
-							communityRoles={communityRoles}
-							isCommunity={isCommunity}
-							getTokenFor={getTokenFor}
+						<RoomsTab
+							idTag={profile.idTag}
+							rooms={porch.rooms}
+							canCreate={canCreateRooms}
+							reload={porch.reload}
 						/>
 					}
 				/>
@@ -2204,6 +2008,7 @@ export function authedProfileRoutes() {
 		<>
 			<Route path="users" element={<PeoplePage />} />
 			<Route path="communities" element={<CommunityListPage />} />
+			<Route path="communities/map" element={<CommunityMap />} />
 			<Route path="communities/create" element={<CreateCommunity />} />
 			<Route path="communities/create/:providerType" element={<CreateCommunity />} />
 			<Route path="communities/create/:providerType/:idpStep" element={<CreateCommunity />} />

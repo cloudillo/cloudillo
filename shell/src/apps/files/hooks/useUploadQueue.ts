@@ -20,6 +20,8 @@ export interface UseUploadQueueOptions {
 	parentId?: string | null
 	onUploadComplete?: () => void
 	apiOverride?: ApiClient | null
+	/** Absolute `@tenant~name` room the uploads go into */
+	channel?: string
 }
 
 let uploadIdCounter = 0
@@ -30,7 +32,7 @@ export function useUploadQueue(options?: UseUploadQueueOptions) {
 	const [isUploading, setIsUploading] = React.useState(false)
 	const processingRef = React.useRef(false)
 
-	const { parentId, onUploadComplete, apiOverride } = options || {}
+	const { parentId, onUploadComplete, apiOverride, channel } = options || {}
 
 	// Add files to the upload queue
 	const addFiles = React.useCallback(function addFiles(files: globalThis.File[]) {
@@ -91,7 +93,9 @@ export function useUploadQueue(options?: UseUploadQueueOptions) {
 						nextItem.file.name,
 						nextItem.file,
 						nextItem.file.type,
-						parentId ? { parentId } : undefined
+						parentId || channel
+							? { parentId: parentId || undefined, channel }
+							: undefined
 					)
 
 					// Mark as complete
@@ -129,7 +133,7 @@ export function useUploadQueue(options?: UseUploadQueueOptions) {
 				}
 			})()
 		},
-		[api, apiOverride, queue, parentId, onUploadComplete, isUploading]
+		[api, apiOverride, queue, parentId, channel, onUploadComplete, isUploading]
 	)
 
 	const stats = React.useMemo(

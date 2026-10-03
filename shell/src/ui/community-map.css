@@ -1,0 +1,87 @@
+/* ── Community map (MapGraph, /~/communities/map) ─────────────────────────────
+   Theme tokens only, so dark mode follows the tokens. */
+
+.c-community-map {
+	position: relative;
+	width: 100%;
+}
+
+.c-community-map-svg {
+	display: block;
+	width: 100%;
+	height: min(75vh, 44rem);
+	/* Pan and pinch are ours, not the page's. */
+	touch-action: none;
+	cursor: grab;
+	user-select: none;
+	border-radius: var(--radius-md);
+	background: var(--col-container-low);
+}
+
+.c-community-map-svg:active {
+	cursor: grabbing;
+}
+
+.c-community-map-edge {
+	stroke: var(--col-outline);
+	stroke-width: 1.5;
+	vector-effect: non-scaling-stroke;
+	transition: stroke 0.15s;
+}
+
+.c-community-map-edge.active {
+	stroke: var(--col-primary);
+	stroke-width: 3;
+}
+
+.c-community-map-node {
+	cursor: pointer;
+	outline: none;
+}
+
+.c-community-map-halo {
+	fill: var(--col-container-low);
+	stroke: var(--col-outline);
+	stroke-width: 1.5;
+	vector-effect: non-scaling-stroke;
+}
+
+.c-community-map-node[data-active] .c-community-map-halo {
+	stroke: var(--col-primary);
+	stroke-width: 3;
+}
+
+.c-community-map-node:focus-visible .c-community-map-halo {
+	stroke: var(--col-focus);
+	stroke-width: 3;
+}
+
+.c-community-map-me .c-community-map-halo {
+	fill: var(--col-primary);
+	stroke: none;
+}
+
+.c-community-map-label {
+	fill: var(--col-on-container);
+	font-size: 12px;
+	pointer-events: none;
+}
+
+.c-community-map-node[data-ring='2'] .c-community-map-label {
+	font-size: 11px;
+}
+
+.c-community-map svg foreignObject > .c-profile-card {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+}
+
+.c-community-map-zoom {
+	position: absolute;
+	right: 0.5rem;
+	bottom: 0.5rem;
+}

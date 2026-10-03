@@ -10,7 +10,9 @@
 
 import { FetchError, type FileView, hasApiToken } from '@cloudillo/core'
 import type { ActionView } from '@cloudillo/types'
+import { getDefaultStore } from 'jotai'
 
+import { activeKeyFor } from '../context/trust-gate.js'
 import { queryCachedActions } from './action-cache.js'
 import { queryCachedFiles } from './file-cache.js'
 import { cacheActionsAsync, cacheFilesAsync } from './sync.js'
@@ -39,7 +41,7 @@ export function mayUseCache(
 	err: unknown,
 	contextIdTag: string | undefined
 ): contextIdTag is string {
-	if (!contextIdTag || !hasApiToken(contextIdTag)) return false
+	if (!contextIdTag || !hasApiToken(activeKeyFor(getDefaultStore(), contextIdTag))) return false
 	if (err instanceof FetchError && (err.httpStatus === 401 || err.httpStatus === 403))
 		return false
 	return true

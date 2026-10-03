@@ -30,6 +30,7 @@ const META = `<script type="${SITE_PAGE_META_TYPE}">{"title":"Hello","archetype"
 const FRAGMENT = `${META}<p data-testid="published-body">Hello</p>`
 
 jest.unstable_mockModule('react-i18next', () => ({
+	Trans: () => null,
 	useTranslation: () => ({ t: (key: string) => key })
 }))
 

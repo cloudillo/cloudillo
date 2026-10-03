@@ -10,7 +10,7 @@ import { useNavigate } from 'react-router-dom'
 
 import { feedPath, HOME_BASE } from '../routes.js'
 import { pendingContextAtom } from './atoms'
-import { useApiContext } from './hooks'
+import { useHatEntry } from './hat-entry.js'
 
 /**
  * The confirm step for a context the *URL* named and the user never chose.
@@ -24,7 +24,7 @@ import { useApiContext } from './hooks'
 export function UnknownContextBanner() {
 	const { t } = useTranslation()
 	const [pending, setPending] = useAtom(pendingContextAtom)
-	const { setActiveContext } = useApiContext()
+	const { enter } = useHatEntry()
 	const navigate = useNavigate()
 	const [busy, setBusy] = React.useState(false)
 
@@ -34,9 +34,9 @@ export function UnknownContextBanner() {
 		if (!pending) return
 		setBusy(true)
 		try {
-			// The explicit path, the same one the sidebar switcher takes — pressing this
-			// button *is* the user action the trust gate was waiting for.
-			await setActiveContext(pending)
+			// Pressing this button *is* the user action the trust gate was waiting for; the
+			// hat resolves as on any plain entry (remembered hats, or the picker).
+			await enter(pending)
 			setPending(undefined)
 		} catch (err) {
 			console.error(`[Context] Failed to open ${pending}:`, err)

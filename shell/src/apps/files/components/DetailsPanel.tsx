@@ -22,6 +22,7 @@ import {
 	Panel,
 	ProfileCard,
 	QRCodeDialog,
+	RoomChip,
 	Text,
 	Thumbnail,
 	useAuth,
@@ -468,6 +469,15 @@ export function DetailsPanel({
 				/>
 			)
 		},
+		...(file.channel
+			? [
+					{
+						key: 'room',
+						term: t('Room'),
+						description: <RoomChip channel={file.channel} contextTag={ownerIdTag} />
+					}
+				]
+			: []),
 		...(file.contentType
 			? [
 					{

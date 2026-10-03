@@ -26,6 +26,8 @@ export interface ContextAvatarProps {
 	unread?: boolean
 	/** Unread count; shown instead of the dot */
 	count?: number
+	/** Worn hat (the context is entered via this community): ringed mini avatar */
+	hat?: { idTag: string; profilePic?: string }
 	className?: string
 }
 
@@ -36,6 +38,7 @@ export function ContextAvatar({
 	pending,
 	unread,
 	count,
+	hat,
 	className
 }: ContextAvatarProps) {
 	const { t } = useTranslation()
@@ -52,6 +55,15 @@ export function ContextAvatar({
 			{pending && (
 				<span className="c-ctx-chip-pending" title={t('Setting up...')}>
 					<IcPending />
+				</span>
+			)}
+			{hat && (
+				<span className="c-ctx-chip-hat c-hat-ring">
+					<ProfilePicture
+						profile={{ profilePic: hat.profilePic }}
+						srcTag={hat.idTag}
+						size="xs"
+					/>
 				</span>
 			)}
 		</BadgeAnchor>
@@ -78,6 +90,7 @@ export function ContextChip({
 	pending,
 	unread,
 	count,
+	hat,
 	name,
 	active,
 	preview,
@@ -103,6 +116,7 @@ export function ContextChip({
 					pending={pending}
 					unread={unread}
 					count={count}
+					hat={hat}
 				/>
 			}
 			onClick={onClick}

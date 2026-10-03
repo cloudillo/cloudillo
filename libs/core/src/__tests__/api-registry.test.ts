@@ -1,7 +1,14 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { getApiClient, hasApiToken, resetApiRegistry, setApiToken } from '../api-registry'
+import {
+	contextKey,
+	getApiClient,
+	hasApiToken,
+	resetApiRegistry,
+	setApiToken,
+	splitContextKey
+} from '../api-registry'
 
 beforeEach(() => {
 	resetApiRegistry()
@@ -137,3 +144,18 @@ describe('expiry', () => {
 })
 
 // vim: ts=4
+
+describe('contextKey', () => {
+	it('round-trips through splitContextKey', () => {
+		expect(splitContextKey(contextKey('b.tld', 'a.tld'))).toEqual({
+			idTag: 'b.tld',
+			hat: 'a.tld'
+		})
+		expect(splitContextKey(contextKey('b.tld'))).toEqual({ idTag: 'b.tld' })
+	})
+
+	it('rejects "|" in either part', () => {
+		expect(() => contextKey('b|x')).toThrow('reserved')
+		expect(() => contextKey('b.tld', 'a|x')).toThrow('reserved')
+	})
+})

@@ -22,6 +22,9 @@
 
 import { getApiClient, hasApiToken, type SiteMountReq, type SitePublishReq } from '@cloudillo/core'
 
+import { getDefaultStore } from 'jotai'
+
+import { activeKeyFor } from '../../context/trust-gate.js'
 import type { AppConnection } from '../app-tracker.js'
 import type { ShellMessageBus } from '../shell-bus.js'
 
@@ -98,7 +101,8 @@ function isSitePublisher(connection: AppConnection): boolean {
  */
 function siteApiFor(bus: ShellMessageBus, ownerTag: string) {
 	if (!ownerTag) return bus.getApi()
-	return hasApiToken(ownerTag) ? getApiClient(ownerTag) : undefined
+	const key = activeKeyFor(getDefaultStore(), ownerTag)
+	return hasApiToken(key) ? getApiClient(key) : undefined
 }
 
 export function initSiteHandlers(bus: ShellMessageBus): void {

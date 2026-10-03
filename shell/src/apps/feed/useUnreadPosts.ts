@@ -59,7 +59,7 @@ export function useUnreadPosts(options: UseUnreadPostsOptions) {
 				return { items: [] as ActionView[], nextCursor: null, hasMore: false }
 			}
 			const result = await api.actions.listPaginated({
-				type: ['POST', 'REPOST'],
+				type: ['POST', 'REPOST', 'PTNR'],
 				status: ['A'],
 				// The backend's Timestamp query-param deserializer only accepts
 				// ISO 8601 strings (a numeric epoch like "1780875798" fails to
@@ -125,7 +125,7 @@ export function useUnreadPosts(options: UseUnreadPostsOptions) {
 
 	useWsBus({ cmds: ['ACTION'] }, function handleAction(msg) {
 		const action = msg.data as ActionView
-		if (action.type !== 'POST' && action.type !== 'REPOST') return
+		if (action.type !== 'POST' && action.type !== 'REPOST' && action.type !== 'PTNR') return
 		if (action.status && action.status !== 'A') return
 		// Own posts are always read (mirrors the server-side excludeOwnIssuer and
 		// feed.tsx's isRead); never surface them as a live unread arrival.
@@ -141,7 +141,7 @@ export function useUnreadPosts(options: UseUnreadPostsOptions) {
 		if (itemsRef.current.some((p) => p.actionId === action.actionId)) return
 		if (liveRef.current.some((p) => p.actionId === action.actionId)) return
 
-		if (action.type === 'POST' || action.subjectAction) {
+		if (action.type !== 'REPOST' || action.subjectAction) {
 			setLivePosts((prev) => [...prev, action])
 			return
 		}

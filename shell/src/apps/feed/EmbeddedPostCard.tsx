@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import {
+	actionContextTag,
 	Button,
 	Card,
 	HBox,
 	ProfileCard,
 	RichText,
+	RoomChip,
 	TimeFormat,
 	useAuth,
 	VBox
@@ -87,8 +89,18 @@ export function EmbeddedPostCard({
 						to={profilePath(urlContext, subjectAction.issuer.idTag)}
 						className="flex-fill"
 					>
-						<ProfileCard profile={subjectAction.issuer} srcTag={fileIdTag} />
+						<ProfileCard
+							profile={subjectAction.issuer}
+							srcTag={fileIdTag}
+							hat={subjectAction.hat}
+						/>
 					</Link>
+					{subjectAction.channel && (
+						<RoomChip
+							channel={subjectAction.channel}
+							contextTag={actionContextTag(subjectAction)}
+						/>
+					)}
 					<TimeFormat time={subjectAction.createdAt} />
 				</HBox>
 				<VBox

@@ -43,9 +43,9 @@ export function contentDisposition(name: string): string {
  * upstream fetch, a header the browser rejects — would surface as a raw network
  * error with no response at all. Answer with a status instead.
  */
-export async function handleDownload(reqUrl: URL): Promise<Response> {
+export async function handleDownload(reqUrl: URL, clientId?: string): Promise<Response> {
 	try {
-		return await runDownload(reqUrl)
+		return await runDownload(reqUrl, clientId)
 	} catch (err) {
 		// LOGGING RULE: the path and the failure, never a body or a token.
 		console.warn('[SW] download failed:', reqUrl.pathname, err)
@@ -53,14 +53,19 @@ export async function handleDownload(reqUrl: URL): Promise<Response> {
 	}
 }
 
-async function runDownload(reqUrl: URL): Promise<Response> {
+async function runDownload(reqUrl: URL, clientId?: string): Promise<Response> {
 	const fileId = reqUrl.searchParams.get('fileId')
 	const targetTag = reqUrl.searchParams.get('idTag')
 	const name = reqUrl.searchParams.get('name') || 'download'
+	const hat = reqUrl.searchParams.get('hat') || undefined
 	if (!fileId || !targetTag) return new Response('Bad download request', { status: 400 })
 	// Both go straight into the upstream URL, so bound their shape before they can
 	// reshape it. fileId is a path segment; targetTag is a host name.
-	if (!/^[A-Za-z0-9._~-]+$/.test(fileId) || !isValidIdTag(targetTag)) {
+	if (
+		!/^[A-Za-z0-9._~-]+$/.test(fileId) ||
+		!isValidIdTag(targetTag) ||
+		(hat !== undefined && !isValidIdTag(hat))
+	) {
 		return new Response('Bad download request', { status: 400 })
 	}
 
@@ -84,7 +89,7 @@ async function runDownload(reqUrl: URL): Promise<Response> {
 		token = authToken
 	} else if (authToken) {
 		try {
-			token = await ensureProxyToken(targetTag)
+			token = await ensureProxyToken(targetTag, clientId, hat)
 		} catch (err) {
 			console.warn('[SW] download proxy-token failed', err)
 			token = undefined

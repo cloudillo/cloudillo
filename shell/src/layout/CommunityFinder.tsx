@@ -50,7 +50,7 @@ import {
 } from '../context/index.js'
 import { ProfileContextMenu, useProfileContextMenu } from '../context/profile-context-menu.js'
 import { unreadCountAtom } from '../read-position.js'
-import { profilePath, scopePath } from '../routes.js'
+import { communityMapPath, HOME_BASE, profilePath, scopePath } from '../routes.js'
 import { ContextAvatar, ContextChip } from '../ui/ContextChip.js'
 import { buildCommunitySections } from './community-sections.js'
 
@@ -165,6 +165,13 @@ function PinnedRow({ onDone }: { onDone: () => void }) {
 						unread={!!unreadCounts[entry.idTag]}
 						count={entry.unreadCount || undefined}
 						name={entry.name}
+						hat={
+							activeContext?.idTag === entry.idTag
+								? activeContext.hat
+								: entry.type === 'community'
+									? entry.hat
+									: undefined
+						}
 						active={activeContext?.idTag === entry.idTag}
 						aria-label={
 							entry.isPending ? t('{{name}} (setting up)', { name: label }) : label
@@ -288,6 +295,9 @@ export function CommunityFinder({ variant, onDone, draggable }: CommunityFinderP
 				{variant === 'sheet' && <ContextTools onNavigate={onDone} />}
 				<Button variant="link" href={scopePath(ctx.base, 'communities')} onClick={onDone}>
 					{t('Manage all')} →
+				</Button>
+				<Button variant="link" href={communityMapPath(HOME_BASE)} onClick={onDone}>
+					{t('Community map')} →
 				</Button>
 			</VBox>
 		</VBox>

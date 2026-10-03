@@ -65,6 +65,7 @@ const API = {
 }
 
 jest.unstable_mockModule('react-i18next', () => ({
+	Trans: () => null,
 	useTranslation: () => ({
 		// Keys are the English strings; only `count` needs interpolating here.
 		t: (key: string, opts?: { count?: number }) =>

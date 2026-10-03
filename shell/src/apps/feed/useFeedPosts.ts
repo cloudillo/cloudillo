@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { useInfiniteScroll } from '@cloudillo/react'
+import { absChannel, actionContextTag, useInfiniteScroll } from '@cloudillo/react'
 import type { ActionView } from '@cloudillo/types'
 import * as React from 'react'
 
@@ -25,6 +25,8 @@ export interface UseFeedPostsOptions {
 	// ignored here (paginated fetches are already filtered server-side via
 	// `exclude_audiences`). Undefined/empty on community & profile feeds.
 	hiddenAudiences?: Set<string>
+	// Absolute room (`@tenant~name`); live arrivals from other rooms are dropped.
+	channel?: string
 	enabled?: boolean
 }
 
@@ -41,6 +43,7 @@ export function useFeedPosts(options: UseFeedPostsOptions = {}) {
 		subscribed,
 		sort,
 		hiddenAudiences,
+		channel,
 		enabled = true
 	} = options
 	const { api } = useContextAwareApi()
@@ -59,7 +62,7 @@ export function useFeedPosts(options: UseFeedPostsOptions = {}) {
 			}
 
 			const result = await api.actions.listPaginated({
-				type: ['POST', 'REPOST'],
+				type: ['POST', 'REPOST', 'PTNR'],
 				// Active only — exclude soft-deleted/draft
 				status: ['A'],
 				audience,
@@ -70,6 +73,7 @@ export function useFeedPosts(options: UseFeedPostsOptions = {}) {
 				issuer,
 				subscribed,
 				sort,
+				channel,
 				// Embed each REPOST's original in subjectAction so EmbeddedPostCard
 				// renders without a second fetch.
 				includeSubject: true,
@@ -84,7 +88,7 @@ export function useFeedPosts(options: UseFeedPostsOptions = {}) {
 			}
 		},
 		// visibility may be an array; key on the joined string for stable identity
-		[api, audience, audienceType, tag, search, visibilityKey, issuer, subscribed, sort]
+		[api, audience, audienceType, tag, search, visibilityKey, issuer, subscribed, sort, channel]
 	)
 
 	// Cache query params for offline fallback. Including the filter fields
@@ -92,16 +96,17 @@ export function useFeedPosts(options: UseFeedPostsOptions = {}) {
 	// offline doesn't show a cached set from a different filter.
 	const cacheQueryParams = React.useMemo(
 		() => ({
-			type: ['POST', 'REPOST'],
+			type: ['POST', 'REPOST', 'PTNR'],
 			audience,
 			audienceType,
 			visibility: visibilityKey,
 			issuer,
 			// Key the offline cache on the ordering so an arrival-ordered home feed
 			// and an author-ordered feed never share a cached set.
-			sort
+			sort,
+			channel
 		}),
-		[audience, audienceType, visibilityKey, issuer, sort]
+		[audience, audienceType, visibilityKey, issuer, sort, channel]
 	)
 
 	// Fetch page with offline cache fallback
@@ -125,7 +130,17 @@ export function useFeedPosts(options: UseFeedPostsOptions = {}) {
 	} = useInfiniteScroll<ActionView>({
 		fetchPage,
 		pageSize: PAGE_SIZE,
-		deps: [audience, audienceType, tag, search, visibilityKey, issuer, subscribed, sort],
+		deps: [
+			audience,
+			audienceType,
+			tag,
+			search,
+			visibilityKey,
+			issuer,
+			subscribed,
+			sort,
+			channel
+		],
 		enabled: !!api && enabled
 	})
 
@@ -134,6 +149,8 @@ export function useFeedPosts(options: UseFeedPostsOptions = {}) {
 	newPostsRef.current = newPosts
 	const hiddenAudiencesRef = React.useRef<Set<string> | undefined>(hiddenAudiences)
 	hiddenAudiencesRef.current = hiddenAudiences
+	const channelRef = React.useRef(channel)
+	channelRef.current = channel
 
 	// Handle WebSocket updates for real-time posts
 	useWsBus({ cmds: ['ACTION'] }, function handleAction(msg) {
@@ -145,9 +162,17 @@ export function useFeedPosts(options: UseFeedPostsOptions = {}) {
 		if (aud?.type === 'community' && aud.idTag && hiddenAudiencesRef.current?.has(aud.idTag)) {
 			return
 		}
+		// A bare channel is a room of the audience (else the issuer); ours is absolute
+		if (
+			channelRef.current &&
+			(!action.channel ||
+				absChannel(action.channel, actionContextTag(action)) !== channelRef.current)
+		)
+			return
 
 		switch (action.type) {
-			case 'POST': {
+			case 'POST':
+			case 'PTNR': {
 				// Check if post already exists in the feed (read from refs to avoid stale closure)
 				const existsInFeed = postsRef.current.some((p) => p.actionId === action.actionId)
 				const existsInNewPosts = newPostsRef.current.some(

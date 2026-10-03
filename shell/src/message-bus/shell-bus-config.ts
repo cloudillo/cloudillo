@@ -9,12 +9,15 @@
  * and must see the current api/auth on every later callback.
  */
 
-import { type ApiClient, createApiClient } from '@cloudillo/core'
+import { type ApiClient, createApiClient, getApiClient, splitContextKey } from '@cloudillo/core'
 import { jwtRemainingSeconds } from '@cloudillo/core/jwt'
 import type { AuthState } from '@cloudillo/react'
 import type { i18n as I18n } from 'i18next'
+import { getDefaultStore } from 'jotai'
 import type * as React from 'react'
 
+import { recoverHattedAuth } from '../context/hat-recovery.js'
+import { activeKeyFor } from '../context/trust-gate.js'
 import { getAccessSuffix, type ShellMessageBusConfig } from './index.js'
 
 /**
@@ -46,12 +49,20 @@ export async function mintAppToken(
 
 	// A scoped token is only valid where it is minted, so a foreign file's token
 	// must be requested from the owning node — proxy there first (same shape as
-	// message-bus/handlers/embed.ts).
+	// message-bus/handlers/embed.ts). Inside a hatted context the file's node is
+	// entered wearing that hat: the backend mints a hatted scoped token only from
+	// a hatted bearer, so reuse the context's hatted token (or re-handshake).
 	let via = api
 	if (targetTag !== authIdTag) {
-		const proxy = await api.auth.getProxyToken(targetTag)
-		if (!proxy?.token) return undefined
-		via = createApiClient({ idTag: targetTag, authToken: proxy.token })
+		// The recovery stores the re-minted hatted token in the registry; a revoked
+		// hat yields undefined rather than a raw, unregistered handshake.
+		const key = activeKeyFor(getDefaultStore(), targetTag)
+		const { hat } = splitContextKey(key)
+		const token = hat
+			? (getApiClient(key).getAuthToken() ?? (await recoverHattedAuth(targetTag, hat))?.token)
+			: (await api.auth.getProxyToken(targetTag))?.token
+		if (!token) return undefined
+		via = createApiClient({ idTag: targetTag, authToken: token })
 	}
 	const res = await via.auth.getAccessToken({ scope })
 	return res ? { token: res.token, tokenLifetime: jwtRemainingSeconds(res.token) } : undefined

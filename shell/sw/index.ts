@@ -29,7 +29,7 @@ import { debug } from './debug.js'
 import { handleDownload } from './download.js'
 import { ensureIdTag } from './id-tag.js'
 import { clearKeyCookie } from './key-cookie.js'
-import { ensureProxyToken, proxyTokenCache } from './proxy-token.js'
+import { clearHatTokens, ensureProxyToken, proxyTokenCache, setHatToken } from './proxy-token.js'
 import { onNotificationClick, onPush, onPushSubscriptionChange } from './push.js'
 import {
 	deleteItem,
@@ -131,7 +131,7 @@ function onFetch(evt: FetchEvent) {
 	// links to a token-less same-origin path) and never buffers the body in page
 	// memory, so large videos download without a memory spike.
 	if (reqUrl.origin === self.location.origin && reqUrl.pathname === DOWNLOAD_PATH) {
-		evt.respondWith(handleDownload(reqUrl))
+		evt.respondWith(handleDownload(reqUrl, evt.clientId))
 		return
 	}
 
@@ -211,7 +211,10 @@ function onFetch(evt: FetchEvent) {
 						evt.request,
 						reqUrl,
 						async () => {
-							const token = await ensureProxyToken(targetTag)
+							// The page's own bearer wins, as in the OWN branch: a hatted,
+							// scoped or ref token must not be swapped for the bare proxy one.
+							if (evt.request.headers.get('Authorization')) return evt.request
+							const token = await ensureProxyToken(targetTag, evt.clientId)
 							// No token (guest): leave the request alone, as the OWN
 							// branch does. Upgrading a plain <img> to `cors` with
 							// nothing to authenticate would fail outright against a
@@ -381,8 +384,17 @@ async function dispatchSwMessage(msg: SwMessage, source: ExtendableMessageEvent[
 			// copies of it, so it is not dead code.
 			await deleteItem('authToken')
 			proxyTokenCache.clear()
+			clearHatTokens()
 			await clearBlobCache()
 			break
+
+		case 'sw:hattoken.set': {
+			// Hats are per tab: the sender's client id keys the entry.
+			const clientId = source && 'id' in source ? source.id : undefined
+			if (clientId)
+				setHatToken(clientId, msg.payload.idTag, msg.payload.token, msg.payload.hat)
+			break
+		}
 
 		case 'sw:apikey.set': {
 			// Acked because the write can be skipped: with no encryption key
@@ -433,6 +445,7 @@ async function dispatchSwMessage(msg: SwMessage, source: ExtendableMessageEvent[
 			// it silently re-authenticates the next boot.
 			setAuthToken(undefined)
 			proxyTokenCache.clear()
+			clearHatTokens()
 			await clearBlobCache()
 			break
 
@@ -467,6 +480,7 @@ async function dispatchSwMessage(msg: SwMessage, source: ExtendableMessageEvent[
 			setAuthToken(undefined)
 			setIdTag(undefined)
 			proxyTokenCache.clear()
+			clearHatTokens()
 			debug('Encrypted data cleared for key reset')
 			if (source && 'postMessage' in source) {
 				;(source as unknown as Client).postMessage({

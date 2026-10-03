@@ -20,6 +20,7 @@ export {
 	favoriteCommunitiesAtom,
 	favoritesAtom,
 	fileViewUpdateAtom,
+	partnerCommunitiesAtom,
 	previewCommunityAtom,
 	recentCommunitiesAtom,
 	sessionTrustAtom,
@@ -37,6 +38,7 @@ export type { GuestFileType } from './guest-document'
 export { isGuestDocumentPath, useGuestDocument } from './guest-document'
 // Hooks
 export {
+	canAdminContext,
 	contextToolAllowed,
 	isContextLeader,
 	LEADER_ONLY_APPS,
@@ -44,6 +46,7 @@ export {
 	useActiveCommunity,
 	useApiContext,
 	useCommunitiesList,
+	useContextRolesFor,
 	useContextSwitch,
 	useContextSwitchNav,
 	useCurrentContextIdTag,
@@ -54,7 +57,7 @@ export { ContextTools, Sidebar } from './sidebar'
 // Trust
 export { useProfileTrust, useProfileTrustBootstrap } from './trust'
 // Types
-export type { CommunityRef } from './types'
+export type { ActiveContext, CommunityRef } from './types'
 // Proactive proxy-token renewal
 export { useContextTokenRenewal } from './useContextTokenRenewal'
 // Community verify-idp gate

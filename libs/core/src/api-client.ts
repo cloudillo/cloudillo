@@ -53,6 +53,8 @@ export class UploadError extends Error {
 
 export interface AuthErrorInfo {
 	idTag: string
+	/** Set when the failing client holds a hatted token (`contextKey(idTag, hat)`). */
+	hat?: string
 	httpStatus: number
 	apiErrorCode?: string
 }
@@ -98,6 +100,9 @@ export interface ApiClientOpts {
 	authToken?: string
 	/** Identity tag of the tenant */
 	idTag: string
+	/** Community whose hat the client's token was minted under; reported to the
+	 *  auth-error handler so a hatted 401 re-handshakes instead of refreshing. */
+	hat?: string
 }
 
 /**
@@ -212,6 +217,7 @@ export class ApiClient {
 		) {
 			const recovery = await authErrorHandler({
 				idTag: this.opts.idTag,
+				hat: this.opts.hat,
 				httpStatus: err.httpStatus,
 				apiErrorCode: err.apiErrorCode
 			})
@@ -353,10 +359,10 @@ export class ApiClient {
 				query: { via, scope }
 			}),
 
-		/** GET /auth/proxy-token - Get proxy token for federation */
-		getProxyToken: (idTag?: string) =>
+		/** GET /auth/proxy-token - Get proxy token for federation (optionally wearing a hat) */
+		getProxyToken: (idTag?: string, opts?: { hat?: string }) =>
 			this.request('GET', '/auth/proxy-token', Types.tProxyTokenResult, {
-				query: idTag ? { idTag } : undefined
+				query: idTag || opts?.hat ? { idTag, hat: opts?.hat } : undefined
 			}),
 
 		/** GET /auth/vapid - Get VAPID public key for push notifications */
@@ -631,6 +637,7 @@ export class ApiClient {
 				parentId?: string
 				as?: 'managed'
 				visibility?: 'P' | 'V' | 'F' | 'C'
+				channel?: string
 				onProgress?: (pct: number) => void
 				signal?: AbortSignal
 			}
@@ -642,6 +649,7 @@ export class ApiClient {
 				if (options?.parentId) qp.set('parentId', options.parentId)
 				if (options?.as) qp.set('as', options.as)
 				if (options?.visibility) qp.set('visibility', options.visibility)
+				if (options?.channel) qp.set('channel', options.channel)
 				const qs = qp.toString()
 				if (qs) url += '?' + qs
 
@@ -985,6 +993,12 @@ export class ApiClient {
 		setShowInHome: (idTag: string, show: boolean) =>
 			this.request('PATCH', `/profiles/${idTag}`, T.struct({}), {
 				data: { hiddenInHome: !show } satisfies Types.PatchProfileConnection
+			}),
+
+		/** PATCH /profiles/:idTag - Set the hats (communities) this profile may act on behalf of. */
+		setHats: (idTag: string, hats: string[] | null) =>
+			this.request('PATCH', `/profiles/${idTag}`, T.struct({}), {
+				data: { hats } satisfies Types.PatchProfileConnection
 			}),
 
 		/** GET /profiles?trustSet=true - List profiles that have a non-null trust preference set. */
@@ -1515,6 +1529,53 @@ export class ApiClient {
 		/** POST /profiles/verify - Verify community identity availability */
 		verify: (data: Types.VerifyCommunityRequest) =>
 			this.request('POST', '/profiles/verify', Types.tCommunityVerifyResult, { data })
+	}
+
+	// ========================================================================
+	// CHANNEL (ROOM) ENDPOINTS
+	// ========================================================================
+
+	/** Channel (room) endpoints of this tenant */
+	channels = {
+		/** GET /channels - Porch listing: rooms with the caller's entry status */
+		list: () =>
+			this.request('GET', '/channels', T.array(Types.tPorchEntry)) as Promise<
+				Types.PorchEntry[]
+			>,
+
+		/** POST /channels - Create a room */
+		create: (data: Types.CreateChannelRequest) =>
+			this.request('POST', '/channels', Types.tChannel, { data }),
+
+		/** PATCH /channels/{name} - Update a room */
+		update: (name: string, data: Types.PatchChannelRequest) =>
+			this.request('PATCH', `/channels/${encodeURIComponent(name)}`, Types.tChannel, {
+				data
+			}),
+
+		/** DELETE /channels/{name} - Delete a room */
+		delete: (name: string) =>
+			this.request('DELETE', `/channels/${encodeURIComponent(name)}`, T.nullValue),
+
+		/** GET /channels/{name}/members - idTags of the room's members */
+		members: (name: string) =>
+			this.request('GET', `/channels/${encodeURIComponent(name)}/members`, T.array(T.string))
+	}
+
+	// ========================================================================
+	// PARTNER ENDPOINTS
+	// ========================================================================
+
+	/** Partner communities and the connection map */
+	partners = {
+		/** GET /partners - This community's connected partner communities */
+		list: () => this.request('GET', '/partners', T.array(Types.tPartnerProfile)),
+
+		/** GET /partners/map - Own tenant's stored partner graph (owner only) */
+		map: () => this.request('GET', '/partners/map', Types.tPartnerMap),
+
+		/** POST /partners/sync - Schedule a partner graph sync (owner only) */
+		sync: () => this.request('POST', '/partners/sync', T.struct({ scheduled: T.boolean }))
 	}
 
 	// ========================================================================

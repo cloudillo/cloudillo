@@ -9,10 +9,13 @@
  */
 
 import {
+	actionContextTag,
 	Badge,
 	Button,
 	Dialog,
 	EmptyState,
+	hatRingClass,
+	HatVia,
 	HBox,
 	Icon,
 	List,
@@ -124,9 +127,7 @@ export function EngagementDialog({
 			// reposter, wall-repost → community), so verify each repost against its
 			// own audience.
 			const expectedAudienceTag =
-				action.type === 'REPOST'
-					? (action.audience?.idTag ?? action.issuer.idTag)
-					: audienceTag
+				action.type === 'REPOST' ? actionContextTag(action) : audienceTag
 			const result = await verifyActionToken(token, keys, {
 				issuerIdTag,
 				subjectActionId,
@@ -286,8 +287,15 @@ function EngagementRow({
 		<ListItem
 			href={profilePath(urlContext, issuer.idTag)}
 			onClick={onClose}
-			leading={<ProfilePicture profile={issuer} srcTag={picIdTag} size="sm" />}
-			title={issuer.name || issuer.idTag}
+			leading={
+				<ProfilePicture
+					className={hatRingClass(action.hat)}
+					profile={issuer}
+					srcTag={picIdTag}
+					size="sm"
+				/>
+			}
+			title={<HatVia hat={action.hat} srcTag={picIdTag} name={issuer.name || issuer.idTag} />}
 			subtitle={`@${issuer.idTag}`}
 			trailing={
 				<HBox align="center" gap={2}>

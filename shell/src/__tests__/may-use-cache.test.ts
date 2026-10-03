@@ -7,10 +7,12 @@
  * owner's private data — a leak, not a degraded experience.
  */
 
-import { FetchError, resetApiRegistry, setApiToken } from '@cloudillo/core'
+import { contextKey, FetchError, resetApiRegistry, setApiToken } from '@cloudillo/core'
 import { jwtExpiryDate } from '@cloudillo/core/jwt'
+import { getDefaultStore } from 'jotai'
 
 import { mayUseCache } from '../cache/hooks.js'
+import { activeContextAtom } from '../context/atoms.js'
 
 const OWNER = 'alice.cloudillo.net'
 
@@ -84,6 +86,27 @@ describe('mayUseCache', () => {
 		const liveHomeToken = makeToken(Math.floor(Date.now() / 1000) + 600)
 		setApiToken(OWNER, liveHomeToken, jwtExpiryDate(liveHomeToken))
 		expect(mayUseCache(new Error('offline'), OWNER)).toBe(true)
+	})
+
+	it('checks the hatted token while the owner is the active hatted context', () => {
+		// The cache stays keyed by the bare owner; only the credential check is hatted.
+		const store = getDefaultStore()
+		store.set(activeContextAtom, {
+			idTag: OWNER,
+			type: 'community',
+			name: OWNER,
+			hat: { idTag: 'partner.tld', role: 'follower' },
+			roles: [],
+			permissions: [],
+			metadata: {}
+		})
+		try {
+			expect(mayUseCache(new Error('offline'), OWNER)).toBe(false)
+			setApiToken(contextKey(OWNER, 'partner.tld'), 'hatted')
+			expect(mayUseCache(new Error('offline'), OWNER)).toBe(true)
+		} finally {
+			store.set(activeContextAtom, null)
+		}
 	})
 })
 

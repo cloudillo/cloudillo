@@ -353,6 +353,7 @@ export type { PopperProps } from './Popper/index.js'
 // Popper Component
 export { Popper } from './Popper/index.js'
 export type {
+	HatViaProps,
 	IdentityTagProps,
 	Profile,
 	ProfileAudienceCardProps,
@@ -365,6 +366,8 @@ export type {
 // Profile Components
 export {
 	COMMUNITY_VISIBILITY,
+	HatVia,
+	hatRingClass,
 	IdentityTag,
 	PERSONAL_VISIBILITY,
 	ProfileAudienceCard,
@@ -454,9 +457,9 @@ export { Tab, Tabs, TabsContext } from './Tab/index.js'
 export type { TableCellProps, TableProps, TableRowProps } from './Table/index.js'
 // Table Component
 export { Table, TableCell, TableRow } from './Table/index.js'
-export type { TagListProps, TagProps } from './Tag/index.js'
+export type { RoomChipProps, TagListProps, TagProps } from './Tag/index.js'
 // Tag Components
-export { Tag, TagList } from './Tag/index.js'
+export { RoomChip, Tag, TagList } from './Tag/index.js'
 export type {
 	HeadingLevel,
 	HeadingProps,

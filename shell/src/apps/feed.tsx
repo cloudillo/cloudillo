@@ -1,8 +1,10 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import type { ApiClient } from '@cloudillo/core'
+import type { ApiClient, PorchEntry } from '@cloudillo/core'
 import {
+	absChannel,
+	actionContextTag,
 	Alert,
 	Badge,
 	Button,
@@ -10,16 +12,22 @@ import {
 	Divider,
 	EmptyState,
 	Fcd,
+	HatVia,
+	hatRingClass,
 	HBox,
 	IconText,
 	LoadMoreTrigger,
+	Menu,
+	MenuItem,
 	Meta,
 	Nav,
 	PageHeader,
 	Panel,
 	ProfilePicture,
+	parseChannel,
 	RichText,
 	RichTextInput,
+	RoomChip,
 	SearchInput,
 	SkeletonCard,
 	Spacer,
@@ -51,11 +59,12 @@ import {
 	LuRepeat2 as IcRepost,
 	LuSendHorizontal as IcSend,
 	LuTag as IcTag,
+	LuDoorOpen as IcRoom,
 	LuInbox as IcUnread,
 	LuVideo as IcVideo,
 	LuCloudOff as IcOffline
 } from 'react-icons/lu'
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import '@cloudillo/react/components.css'
 
 import type { CommunityRef } from '../context/index.js'
@@ -79,18 +88,22 @@ import {
 	useReadPositionTracker,
 	useScrollEngaged
 } from '../read-position.js'
+import { useMutedRooms } from '../lib/room-mute.js'
 import { FilterToggle } from '../ui/FilterToggle.js'
 import { feedPath, profilePath } from '../routes.js'
 import { useWsBus } from '../ws-bus.js'
 import { type DocPostIntent, pendingDocPostAtom } from './feed/doc-post-intent.js'
+import { useEnterableRooms } from './shared/RoomPicker.js'
 import {
 	type AudienceTarget,
 	CommentBadge,
 	ComposePanel,
+	collapsePartnerships,
 	DraftsPanel,
 	EmbeddedPostCard,
 	EngagementDialog,
 	NewPostsBanner,
+	PartnershipCard,
 	PostMenu,
 	parseReactionCounts,
 	ReactionPicker,
@@ -100,6 +113,7 @@ import {
 	useFeedPosts,
 	useUnreadPosts
 } from './feed/index.js'
+import { HatComposeStrip, useHatFor } from './feed/ComposePanel.js'
 import { LiveDocCard } from './feed/LiveDocCard.js'
 import { parseLiveDocContent } from './feed/live-doc.js'
 import { Document, hasPlayableVariant, Images, Video } from './feed/PostMedia.js'
@@ -139,14 +153,25 @@ function Comment({ className, action, srcTag }: CommentProps) {
 		<HBox gap={2} className={className}>
 			<Tooltip content={`@${action.issuer.idTag}`}>
 				<Link to={to}>
-					<ProfilePicture profile={action.issuer} srcTag={srcTag} size="sm" />
+					<ProfilePicture
+						className={hatRingClass(action.hat)}
+						profile={action.issuer}
+						srcTag={srcTag}
+						size="sm"
+					/>
 				</Link>
 			</Tooltip>
 			<VBox className="flex-fill w-min-0">
 				<Text as="div" size="sm">
-					<Link to={to} className="font-semibold">
-						{action.issuer.name || action.issuer.idTag}
-					</Link>
+					<HatVia
+						hat={action.hat}
+						srcTag={srcTag}
+						name={
+							<Link to={to} className="font-semibold">
+								{action.issuer.name || action.issuer.idTag}
+							</Link>
+						}
+					/>
 					<Text emphasis="muted">
 						{' · '}
 						<TimeFormat time={action.createdAt} />
@@ -175,6 +200,8 @@ function NewComment({
 	const [auth] = useAuth()
 	const [content, setContent] = React.useState('')
 	const editorRef = React.useRef<HTMLDivElement>(null)
+	const hatFor = useHatFor()
+	const audienceTag = actionContextTag(parentAction)
 
 	async function doSubmit() {
 		if (!api || !auth?.idTag) return
@@ -183,8 +210,9 @@ function NewComment({
 		const action: NewAction = {
 			type: 'CMNT',
 			content,
-			audienceTag: parentAction.audience?.idTag || parentAction.issuer.idTag,
-			parentId: parentAction.actionId
+			audienceTag,
+			parentId: parentAction.actionId,
+			hat: hatFor(audienceTag)
 		}
 
 		const actionRes = await api.actions.create(action)
@@ -197,6 +225,7 @@ function NewComment({
 		<HBox gap={1} className={className} style={style}>
 			<ProfilePicture profile={{ profilePic: auth.profilePic }} small />
 			<Panel padding={1} className="flex-fill">
+				<HatComposeStrip audienceTag={audienceTag} />
 				<RichTextInput
 					ref={editorRef}
 					value={content}
@@ -337,7 +366,7 @@ function Comments({ parentAction, onCommentsRead, onCommentAdded, ...props }: Co
 	const { getTokenFor, getClientFor } = useApiContext()
 	const contextIdTag = useCurrentContextIdTag()
 
-	const audienceIdTag = parentAction.audience?.idTag || parentAction.issuer.idTag
+	const audienceIdTag = actionContextTag(parentAction)
 	const isCrossNode = !!audienceIdTag && audienceIdTag !== contextIdTag
 	const isGated = parentAction.visibility !== undefined && parentAction.visibility !== 'P'
 
@@ -540,6 +569,8 @@ interface PostProps {
 	srcTag?: string
 	width: number
 	onQuote?: (original: ActionView, target: AudienceTarget) => void
+	/** Click on the post's room chip. */
+	onRoomClick?: (channel: string) => void
 }
 function Post({
 	className,
@@ -549,7 +580,8 @@ function Post({
 	hideAudience,
 	srcTag,
 	width,
-	onQuote
+	onQuote,
+	onRoomClick
 }: PostProps) {
 	const { t } = useTranslation()
 	const [auth] = useAuth()
@@ -625,7 +657,7 @@ function Post({
 		const ra: NewAction = {
 			type: 'REACT',
 			subType: isRemove ? 'DEL' : reaction,
-			audienceTag: engageAction.audience?.idTag || engageAction.issuer.idTag,
+			audienceTag: actionContextTag(engageAction),
 			subject: engageAction.actionId
 		}
 		try {
@@ -682,6 +714,10 @@ function Post({
 			: t('Comments')
 	const repostCount = engageAction.stat?.reposts ?? 0
 	const issuerTo = profilePath(urlContext, action.issuer.idTag)
+	const ctxTag = actionContextTag(action)
+	const roomChip = action.channel ? (
+		<RoomChip channel={action.channel} contextTag={ctxTag} />
+	) : undefined
 	const issuerName = action.issuer.name || action.issuer.idTag
 	// A post shown outside its community's own feed names the community in the header.
 	const communityAudience =
@@ -709,6 +745,12 @@ function Post({
 						{t('Reposted by {{name}}', {
 							name: action.issuer.name || action.issuer.idTag
 						})}
+						{action.hat && (
+							<>
+								{' '}
+								<HatVia hat={action.hat} srcTag={fileIdTag} />
+							</>
+						)}
 					</IconText>
 				</Text>
 			)}
@@ -719,13 +761,33 @@ function Post({
 			>
 				<VBox gap={2}>
 					<HBox align="start" gap={2}>
-						<Tooltip content={`@${action.issuer.idTag}`}>
-							<Link to={issuerTo}>
+						<Tooltip content={`@${(communityAudience ?? action.issuer).idTag}`}>
+							<Link
+								to={
+									communityAudience
+										? profilePath(urlContext, communityAudience.idTag)
+										: issuerTo
+								}
+								className="c-audience-badge-host"
+							>
 								<ProfilePicture
-									profile={action.issuer}
+									className={
+										communityAudience ? undefined : hatRingClass(action.hat)
+									}
+									profile={communityAudience ?? action.issuer}
 									srcTag={fileIdTag}
 									size="md"
 								/>
+								{communityAudience && (
+									<ProfilePicture
+										className={
+											action.hat ? 'c-audience-badge hat' : 'c-audience-badge'
+										}
+										profile={action.issuer}
+										srcTag={fileIdTag}
+										size="xs"
+									/>
+								)}
 							</Link>
 						</Tooltip>
 						<VBox className="flex-fill w-min-0">
@@ -764,13 +826,27 @@ function Post({
 									<TimeFormat time={action.createdAt} />
 								</Text>
 							</Text>
-							<Meta>
+							{/* Flex: the icon chips would otherwise each sit on their own baseline */}
+							<Meta className="d-flex flex-wrap align-items-center">
 								{!communityAudience && <Text>@{action.issuer.idTag}</Text>}
+								{action.hat && <HatVia hat={action.hat} srcTag={fileIdTag} />}
 								{vis && VisIcon && (
 									<IconText icon={<VisIcon style={{ color: vis.color }} />}>
 										{vis.label}
 									</IconText>
 								)}
+								{action.channel &&
+									roomChip &&
+									(onRoomClick ? (
+										<Menu trigger={roomChip}>
+											<RoomMenuItems
+												channel={absChannel(action.channel, ctxTag)}
+												onShowOnly={onRoomClick}
+											/>
+										</Menu>
+									) : (
+										roomChip
+									))}
 							</Meta>
 						</VBox>
 						{isInFlight && (
@@ -861,7 +937,7 @@ function Post({
 					{engagementTab !== undefined && (
 						<EngagementDialog
 							subjectActionId={engageAction.actionId}
-							audienceTag={engageAction.audience?.idTag ?? engageAction.issuer.idTag}
+							audienceTag={actionContextTag(engageAction)}
 							initialTab={engagementTab}
 							open={engagementTab !== undefined}
 							onClose={() => setEngagementTab(undefined)}
@@ -882,6 +958,7 @@ interface ActionCompProps {
 	srcTag?: string
 	width: number
 	onQuote?: (original: ActionView, target: AudienceTarget) => void
+	onRoomClick?: (channel: string) => void
 }
 export const ActionComp = React.memo(function ActionComp({
 	className,
@@ -891,7 +968,8 @@ export const ActionComp = React.memo(function ActionComp({
 	hideAudience,
 	srcTag,
 	width,
-	onQuote
+	onQuote,
+	onRoomClick
 }: ActionCompProps) {
 	switch (action.type) {
 		case 'POST':
@@ -906,8 +984,11 @@ export const ActionComp = React.memo(function ActionComp({
 					srcTag={srcTag}
 					width={width}
 					onQuote={onQuote}
+					onRoomClick={onRoomClick}
 				/>
 			)
+		case 'PTNR':
+			return <PartnershipCard className={className} action={action} />
 	}
 })
 
@@ -953,6 +1034,37 @@ export function ComposeTrigger({ className, onOpen }: ComposeTriggerProps) {
 				</Button>
 			</HBox>
 		</Panel>
+	)
+}
+
+/** A post's room chip menu. Mounted only while open, so the muted set is already loaded. */
+function RoomMenuItems({
+	channel,
+	onShowOnly
+}: {
+	channel: string
+	onShowOnly: (channel: string) => void
+}) {
+	const { t } = useTranslation()
+	const { muted, mute, unmute } = useMutedRooms()
+	const room = parseChannel(channel).name
+	const isMuted = muted.has(channel)
+
+	return (
+		<>
+			<MenuItem
+				label={t('Show only ~{{room}}', { room })}
+				onClick={() => onShowOnly(channel)}
+			/>
+			<MenuItem
+				label={isMuted ? t('Unmute ~{{room}}', { room }) : t('Mute ~{{room}}', { room })}
+				onClick={() => {
+					;(isMuted ? unmute : mute)(channel).catch((err) =>
+						console.error('Failed to update room mute:', err)
+					)
+				}}
+			/>
+		</>
 	)
 }
 
@@ -1005,6 +1117,11 @@ interface FilterBarProps {
 	tagFilter: string | undefined
 	onTagChange: (tag: string | undefined) => void
 	tags: string[]
+	/** Context feed only: the rooms the reader is in. */
+	rooms: PorchEntry[]
+	/** The `?room=` value (a bare name in a context feed). */
+	room: string | undefined
+	onRoomChange: (room: string | undefined) => void
 }
 
 const FilterBar = React.memo(function FilterBar({
@@ -1021,7 +1138,10 @@ const FilterBar = React.memo(function FilterBar({
 	onSearchChange,
 	tagFilter,
 	onTagChange,
-	tags
+	tags,
+	rooms,
+	room,
+	onRoomChange
 }: FilterBarProps) {
 	const { t } = useTranslation()
 	const sourceOptions = getSourceFilters(t, isOwnContext)
@@ -1087,6 +1207,25 @@ const FilterBar = React.memo(function FilterBar({
 						</React.Fragment>
 					))}
 				</Nav.Section>
+				{rooms.length > 0 && (
+					<Nav.Section label={t('Rooms')}>
+						<Nav.Item
+							icon={<IcAll />}
+							label={t('All')}
+							active={viewMode === 'feed' && !room}
+							onClick={() => onRoomChange(undefined)}
+						/>
+						{rooms.map((r) => (
+							<Nav.Item
+								key={r.name}
+								icon={<IcRoom />}
+								label={r.title || `~${r.name}`}
+								active={viewMode === 'feed' && room === r.name}
+								onClick={() => onRoomChange(r.name)}
+							/>
+						))}
+					</Nav.Section>
+				)}
 				<Nav.Divider />
 				{/* Drafts — separate composing view below the source list. */}
 				<Nav.Item
@@ -1184,6 +1323,11 @@ export function FeedApp() {
 	const [narrowToCommunity, setNarrowToCommunity] = React.useState<string | undefined>()
 	const [searchQuery, setSearchQuery] = React.useState<string | undefined>()
 	const [tagFilter, setTagFilter] = React.useState<string | undefined>()
+	// `?room=name` is relative to the context feed; `?room=@tenant~name` is absolute (a chip's
+	// "Show only" on another tenant's room, e.g. from the home feed). Switching context navigates
+	// to a new path, which drops it.
+	const [searchParams, setSearchParams] = useSearchParams()
+	const room = searchParams.get('room') || undefined
 	const { communities } = useCommunitiesList()
 	const [composeOpen, setComposeOpen] = React.useState(false)
 	const [editingDraft, setEditingDraft] = React.useState<ActionView | undefined>()
@@ -1206,6 +1350,14 @@ export function FeedApp() {
 	const isOwnContext = !contextIdTag || contextIdTag === auth?.idTag
 	const audience = isOwnContext ? undefined : contextIdTag
 	const contextCommunity = audience ? communities.find((c) => c.idTag === audience) : undefined
+	const channel =
+		room && contextIdTag
+			? absChannel(room, contextIdTag)
+			: room?.startsWith('@')
+				? room
+				: undefined
+	const { muted: mutedRooms, unmute: unmuteRoom } = useMutedRooms()
+	const inRooms = useEnterableRooms(audience)
 	// All feeds — home, community, profile — order and track reads by ingestion
 	// time (received_at) so a late-federated post (old author time, recent
 	// arrival) surfaces at the top and is correctly unread everywhere, not just
@@ -1285,11 +1437,13 @@ export function FeedApp() {
 	React.useEffect(() => {
 		if (userTouchedViewRef.current) return
 		if (viewModeSetRef.current === ctxKey) return
+		// ponytail: the Unread list has no room filter, so a room view stays on the feed.
+		if (channel) return
 		if (readPosition > 0 && ctxUnread > 0) {
 			viewModeSetRef.current = ctxKey
 			setViewMode((m) => (m === 'feed' ? 'unread' : m))
 		}
-	}, [ctxKey, readPosition, ctxUnread])
+	}, [ctxKey, readPosition, ctxUnread, channel])
 
 	// Snapshot the watermark when the Unread tab opens. The list is fetched from
 	// this fixed boundary, while reading advances the live `readPosition` (which
@@ -1346,6 +1500,7 @@ export function FeedApp() {
 		subscribed: sourceQuery.subscribed,
 		sort: 'received',
 		hiddenAudiences: hiddenHomeAudiences,
+		channel,
 		enabled: !!api?.idTag
 	})
 
@@ -1473,7 +1628,7 @@ export function FeedApp() {
 	// would double-count.
 	React.useEffect(() => {
 		setDeletedIds(new Set())
-	}, [effectiveAudience, tagFilter, searchQuery, sourceFilter])
+	}, [effectiveAudience, tagFilter, searchQuery, sourceFilter, channel])
 
 	React.useEffect(
 		function onLocationEffect() {
@@ -1536,6 +1691,32 @@ export function FeedApp() {
 				}
 			}))
 		}
+
+		// The audience approving our post means it now holds it (files included), so
+		// it is no longer pending. A just-posted entry still carries its local '@N' id,
+		// which only a read resolves to the signed id the APRV names.
+		if (action.type === 'APRV' && action.subject) {
+			const subject = action.subject
+			const activate = (actionId: string) =>
+				setFeedUpdates((prev) => ({
+					...prev,
+					[actionId]: { ...(prev[actionId] ?? {}), status: 'A' }
+				}))
+			for (const p of feedRef.current) {
+				if (p.status !== 'P' || p.audience?.idTag !== action.issuer.idTag) continue
+				if (p.actionId === subject) activate(p.actionId)
+				else if (p.actionId.startsWith('@')) {
+					api?.actions
+						.get(p.actionId)
+						.then((a) => {
+							if (a.actionId === subject) activate(p.actionId)
+						})
+						.catch(() => {
+							/* stays pending until the next refetch */
+						})
+				}
+			}
+		}
 	})
 
 	React.useLayoutEffect(
@@ -1579,7 +1760,7 @@ export function FeedApp() {
 	// the tree (top-level post AND a repost's subjectAction), merging federated
 	// fields while preserving per-user fields (ownReaction/commentsReadAt/
 	// ownRepostIds) that a pure STAT update doesn't carry. The POST
-	// branch of `feedUpdates` carries only attachment/subType overlays.
+	// branch of `feedUpdates` carries attachment/subType overlays, the APRV branch a status.
 	const mergedFeed = React.useMemo(() => {
 		// Layer the engaged-id stat overlay onto one action.
 		function applyStatOverlay(a: ActionView): ActionView {
@@ -1589,7 +1770,7 @@ export function FeedApp() {
 		}
 
 		return (
-			feed
+			collapsePartnerships(feed)
 				// The focused post is pinned above the list; drop it here so it is not
 				// shown twice.
 				.filter((post) => !deletedIds.has(post.actionId) && post.actionId !== focusedId)
@@ -1812,10 +1993,33 @@ export function FeedApp() {
 		setComposeDoc(undefined)
 	}
 
+	const setRoom = React.useCallback(
+		(next: string | undefined) => {
+			userTouchedViewRef.current = true
+			setViewMode('feed')
+			setSearchParams((p) => {
+				if (next) p.set('room', next)
+				else p.delete('room')
+				return p
+			})
+		},
+		[setSearchParams]
+	)
+
+	// A room chip's "Show only": the bare name when it is this context's room, else absolute.
+	const handleRoomClick = React.useCallback(
+		(ch: string) => {
+			const { tenant, name } = parseChannel(ch)
+			setRoom(!isOwnContext && tenant === contextIdTag ? name : ch)
+		},
+		[setRoom, isOwnContext, contextIdTag]
+	)
+
 	function handleViewSelect(v: 'unread' | 'drafts') {
 		userTouchedViewRef.current = true
 		if (v === 'unread') {
 			// Unread is an all-source, read-state view.
+			if (room) setRoom(undefined)
 			setViewMode('unread')
 			setSourceFilter('all')
 			setNarrowToCommunity(undefined)
@@ -1853,6 +2057,7 @@ export function FeedApp() {
 						sourceFilter={sourceFilter}
 						onSourceChange={(s) => {
 							userTouchedViewRef.current = true
+							if (room) setRoom(undefined)
 							setViewMode('feed')
 							setSourceFilter(s)
 							setNarrowToCommunity(undefined)
@@ -1865,6 +2070,9 @@ export function FeedApp() {
 						tagFilter={tagFilter}
 						onTagChange={setTagFilter}
 						tags={feedTags}
+						rooms={isOwnContext ? [] : inRooms}
+						room={room}
+						onRoomChange={setRoom}
 					/>
 				)}
 			</Fcd.Filter>
@@ -1888,6 +2096,42 @@ export function FeedApp() {
 					/>
 				}
 			>
+				{channel && viewMode === 'feed' && !focusedId && (
+					<VBox gap={1} className="px-2">
+						<HBox gap={1} wrap align="center">
+							<Text size="sm" emphasis="muted">
+								{t('Room')}
+							</Text>
+							<RoomChip
+								channel={channel}
+								contextTag={contextIdTag}
+								onRemove={() => setRoom(undefined)}
+							/>
+						</HBox>
+						{mutedRooms.has(channel) && (
+							<Alert color="info" compact>
+								<HBox gap={1} wrap align="center">
+									<Text className="flex-fill">
+										{t(
+											"You muted this room. Its posts don't show in your unfiltered feed."
+										)}
+									</Text>
+									<Button
+										size="sm"
+										variant="ghost"
+										onClick={() => {
+											unmuteRoom(channel).catch((err) =>
+												console.error('Failed to unmute room:', err)
+											)
+										}}
+									>
+										{t('Unmute')}
+									</Button>
+								</HBox>
+							</Alert>
+						)}
+					</VBox>
+				)}
 				{!!auth && !composeOpen && <ComposeTrigger onOpen={handleComposeOpen} />}
 				{!!auth && (
 					<ComposePanel
@@ -1921,7 +2165,7 @@ export function FeedApp() {
 							/>
 						) : (
 							<>
-								{unreadPosts.map((post) => (
+								{collapsePartnerships(unreadPosts).map((post) => (
 									<VBox
 										key={post.actionId}
 										ref={registerReadTracker}
@@ -1936,6 +2180,7 @@ export function FeedApp() {
 											}
 											width={width}
 											onQuote={handleQuote}
+											onRoomClick={handleRoomClick}
 										/>
 									</VBox>
 								))}
@@ -1995,6 +2240,7 @@ export function FeedApp() {
 									hideAudience={!isOwnContext ? contextIdTag : narrowToCommunity}
 									width={width}
 									onQuote={handleQuote}
+									onRoomClick={handleRoomClick}
 								/>
 							) : (
 								<EmptyState title={t('That post is no longer available')} />
@@ -2077,6 +2323,7 @@ export function FeedApp() {
 												}
 												width={width}
 												onQuote={handleQuote}
+												onRoomClick={handleRoomClick}
 											/>
 										</VBox>
 									</React.Fragment>

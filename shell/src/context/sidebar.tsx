@@ -23,7 +23,7 @@ import { contextToolAllowed, useSidebar } from './hooks'
 
 /**
  * The bottom block: what acts on the **active context** rather than being an app in it.
- * People and Communities always qualify, `settings` only for a community leader, `idp`
+ * People and Communities always qualify, `settings` only for a community leader or moderator, `idp`
  * only where the context's IdP is enabled, `site-admin` only with the `SADM` role.
  *
  * Mounted twice — once in the `lg`+ rail, once in the mobile community sheet — since these

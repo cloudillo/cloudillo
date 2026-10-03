@@ -21,7 +21,11 @@ import { jest } from '@jest/globals'
 const getApiClient = jest.fn()
 const hasApiToken = jest.fn()
 
+// The active context's registry key; identity unless a test puts on a hat.
+const activeKeyFor = jest.fn((_store: unknown, idTag: string) => idTag)
+
 jest.unstable_mockModule('@cloudillo/core', () => ({ getApiClient, hasApiToken }))
+jest.unstable_mockModule('../context/trust-gate.js', () => ({ activeKeyFor }))
 
 const { initSiteHandlers } = await import('../message-bus/handlers/site.js')
 
@@ -276,6 +280,26 @@ describe('site handlers — whose tenant is acted on', () => {
 			ok: true,
 			data: { mountPath: '/news', mounted: true }
 		})
+	})
+
+	it('publishes as the hat worn in the owner community', async () => {
+		const hatted = `${COMMUNITY}|hat.tld`
+		activeKeyFor.mockImplementation((_store, idTag) => (idTag === COMMUNITY ? hatted : idTag))
+		const community = createClient(COMMUNITY)
+		getApiClient.mockReturnValue(community)
+		const bus = createBus({
+			appName: 'notillo',
+			resId: `${COMMUNITY}:f1~abc`,
+			access: 'write',
+			idTag: 'someone-else.example.com'
+		})
+
+		await bus.publish()
+		activeKeyFor.mockImplementation((_store, idTag) => idTag)
+
+		expect(hasApiToken).toHaveBeenCalledWith(hatted)
+		expect(getApiClient).toHaveBeenCalledWith(hatted)
+		expect(community.uploads).toEqual(['site-f1~abc.zip'])
 	})
 
 	it('fails rather than falling back when the owner has no token', async () => {

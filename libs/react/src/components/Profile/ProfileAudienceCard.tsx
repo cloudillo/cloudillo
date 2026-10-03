@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import { getFileUrl } from '@cloudillo/core'
-import type { Profile } from '@cloudillo/types'
+import type { Profile, ProfileInfo } from '@cloudillo/types'
 import * as React from 'react'
 import { LuUsers as IcCommunity, LuUser as IcPerson } from 'react-icons/lu'
 import { Link } from 'react-router-dom'
@@ -10,6 +10,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../../hooks.js'
 import { useLibTranslation } from '../../i18n.js'
 import { mergeClasses } from '../utils.js'
+import { HatVia } from './HatVia.js'
 import { IdentityTag } from './IdentityTag.js'
 import { UnknownProfilePicture } from './UnknownProfilePicture.js'
 
@@ -19,6 +20,8 @@ export interface ProfileAudienceCardProps {
 	profile: Profile
 	srcTag?: string
 	profileBasePath?: string
+	/** The community the actor speaks for: rings the actor badge and adds "via ▣ Name". */
+	hat?: ProfileInfo
 }
 
 interface RowLinkProps {
@@ -44,7 +47,8 @@ export function ProfileAudienceCard({
 	audience,
 	profile,
 	srcTag,
-	profileBasePath
+	profileBasePath,
+	hat
 }: ProfileAudienceCardProps) {
 	const [auth] = useAuth()
 	const { t } = useLibTranslation()
@@ -82,7 +86,10 @@ export function ProfileAudienceCard({
 				<RowLink
 					to={issuerTo}
 					ariaLabel={issuerLabel}
-					className="c-profile-card__avatar-link c-profile-card__avatar-link--tiny"
+					className={mergeClasses(
+						'c-profile-card__avatar-link c-profile-card__avatar-link--tiny',
+						hat && 'c-hat-ring'
+					)}
 				>
 					{idTag && profile.profilePic ? (
 						<img
@@ -126,6 +133,11 @@ export function ProfileAudienceCard({
 						(<IdentityTag idTag={profile.idTag} />)
 					</span>
 				</RowLink>
+				{hat && (
+					<div className="c-profile-card__row c-profile-card__row--hat">
+						<HatVia hat={hat} srcTag={srcTag} />
+					</div>
+				)}
 			</div>
 		</div>
 	)

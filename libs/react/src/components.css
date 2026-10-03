@@ -156,6 +156,106 @@
 	flex-shrink: 0;
 }
 
+/* Hat: the actor speaks for a community — an arc on top of the avatar plus the
+   mandatory "via ▣ Name" text. */
+.c-hat-ring {
+	position: relative;
+	display: inline-block;
+	flex-shrink: 0;
+	align-self: flex-start;
+	line-height: 0;
+	border-radius: 50%;
+
+	&::before {
+		inset: -5.5px;
+		--hat-w: 4px;
+	}
+}
+
+/* A small avatar of the actor (author) pinned to the place's (community) avatar corner. */
+.c-audience-badge-host {
+	position: relative;
+	display: inline-block;
+	flex-shrink: 0;
+	align-self: flex-start;
+	line-height: 0;
+}
+
+.c-audience-badge {
+	position: absolute;
+	inset-inline-end: -4px;
+	inset-block-end: -4px;
+	pointer-events: none;
+
+	.c-avatar {
+		width: 1.125rem;
+		height: 1.125rem;
+		box-shadow: 0 0 0 2px var(--col-surface);
+	}
+
+	&.hat::before {
+		/* Clear of the 2px surface halo above */
+		inset: -5.5px;
+		--hat-w: 3px;
+	}
+}
+
+/* A hat: the top quarter (-45°..45°) of a ring, dashed black/white so one of
+   the two always contrasts with whatever is behind it (another avatar, either
+   theme). 5 × 18° dashes, starting and ending on white; the mask cuts the
+   quarter and the ring width. */
+.c-hat-ring::before,
+.c-audience-badge.hat::before {
+	content: '';
+	position: absolute;
+	border-radius: 50%;
+	pointer-events: none;
+	background: repeating-conic-gradient(from -45deg, #fff 0 18deg, #333 18deg 36deg);
+	mask:
+		conic-gradient(from -45deg, #000 90deg, #0000 0),
+		radial-gradient(
+			farthest-side,
+			#0000 calc(100% - var(--hat-w)),
+			#000 calc(100% - var(--hat-w))
+		);
+	mask-composite: intersect;
+}
+
+.c-hat-via {
+	display: inline;
+	font-size: 0.875rem;
+	color: color-mix(in srgb, var(--col-on-container) 70%, transparent);
+	overflow-wrap: anywhere;
+}
+
+.c-hat-via__hat {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.25em;
+	vertical-align: middle;
+}
+
+.c-hat-via__icon {
+	width: 0.875em;
+	height: 0.875em;
+	flex-shrink: 0;
+	opacity: 0.7;
+}
+
+.c-hat-via__avatar {
+	display: inline-flex;
+
+	.c-avatar {
+		width: 1.75em;
+		height: 1.75em;
+	}
+}
+
+.c-hat-via__actor {
+	font-weight: 600;
+	color: var(--col-on-container);
+}
+
 /* ==========================================================================
    Dropdown host — summary reset for portaled Dropdown menu
    The legacy `c-dropdown` class can't be reused because its CSS toggles
@@ -413,6 +513,11 @@
 .c-meta {
 	font-size: var(--text-sm);
 	color: color-mix(in srgb, var(--col-on-container) 70%, transparent);
+}
+
+/* Keeps the spaces around the dot when the meta line is a flex row */
+.c-meta-sep {
+	white-space: pre;
 }
 
 .c-icon-text {
@@ -1040,6 +1145,12 @@
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+}
+
+/* The room name is the chip's whole meaning — wrap rather than truncate it. */
+.c-tag.c-room-chip {
+	white-space: normal;
+	overflow-wrap: anywhere;
 }
 
 /* ==========================================================================

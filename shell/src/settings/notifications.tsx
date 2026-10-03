@@ -7,6 +7,7 @@ import {
 	Field,
 	Heading,
 	List,
+	ListItem,
 	LoadingSpinner,
 	NativeSelect,
 	Panel,
@@ -17,6 +18,9 @@ import {
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
+import { LuDoorOpen as IcRoom } from 'react-icons/lu'
+
+import { useMutedRooms } from '../lib/room-mute.js'
 
 import {
 	clearPushSubscriptionId,
@@ -119,6 +123,7 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 	const { error: toastError } = useToast()
 	const { settings, onSettingChange } = useSettings('notify')
 	const { settings: localSettings, updateSetting } = useLocalNotifySettings()
+	const { muted: mutedRooms, unmute: unmuteRoom } = useMutedRooms()
 	const [notificationSubscription, setNotificationSubscription] = React.useState<
 		PushSubscription | undefined
 	>()
@@ -455,6 +460,33 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 					</List>
 				)}
 			</Panel>
+			{mutedRooms.size > 0 && (
+				<Panel title={t('Muted rooms')}>
+					<List variant="divided">
+						{[...mutedRooms].sort().map((channel) => (
+							<ListItem
+								key={channel}
+								leading={<IcRoom />}
+								title={channel}
+								trailing={
+									<Button
+										size="sm"
+										variant="ghost"
+										onClick={() => {
+											unmuteRoom(channel).catch((err) => {
+												console.error('Failed to unmute room:', err)
+												toastError(t('Failed to unmute room'))
+											})
+										}}
+									>
+										{t('Unmute')}
+									</Button>
+								}
+							/>
+						))}
+					</List>
+				</Panel>
+			)}
 		</>
 	)
 }

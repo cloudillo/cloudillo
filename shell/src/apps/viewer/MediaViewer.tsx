@@ -20,9 +20,11 @@ import {
 	LuDownload as IcDownload,
 	LuMaximize as IcFullscreen
 } from 'react-icons/lu'
+import { getDefaultStore } from 'jotai'
 import Fullscreen from 'yet-another-react-lightbox/plugins/fullscreen'
 import Zoom from 'yet-another-react-lightbox/plugins/zoom'
 
+import { activeContextAtom } from '../../context/index.js'
 import { PdfViewer } from './PdfViewer.js'
 
 /** Trigger a browser download for a URL. */
@@ -51,6 +53,9 @@ export function triggerDownload(url: string, fileName: string) {
  * `Content-Disposition: attachment` header — so the browser saves it (filename
  * from the header) without buffering in page memory and without a token ever
  * appearing in a URL. Same technique as StreamSaver.js.
+ *
+ * A navigation has no client id, so the worker cannot find this tab's hat: the
+ * worn hat for `idTag` rides along as `hat=` instead.
  */
 export function triggerFileDownload(
 	idTag: string,
@@ -59,6 +64,8 @@ export function triggerFileDownload(
 	onError?: () => void
 ) {
 	const params = new URLSearchParams({ idTag, fileId, name: fileName })
+	const active = getDefaultStore().get(activeContextAtom)
+	if (active?.idTag === idTag && active.hat) params.set('hat', active.hat.idTag)
 	const iframe = document.createElement('iframe')
 	iframe.hidden = true
 	iframe.addEventListener('load', () => {

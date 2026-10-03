@@ -7,13 +7,13 @@ import {
 	BadgeAnchor,
 	Button,
 	DialogContainer,
+	Heading,
 	Logo,
 	Menu,
 	MenuDivider,
 	MenuHeader,
 	MenuItem,
 	ProfilePicture,
-	Heading,
 	Text,
 	useApi,
 	useAuth,
@@ -25,6 +25,7 @@ import { useAtomValue, useSetAtom } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
+	LuX as IcClose,
 	// Menu icons
 	LuLogIn as IcLogin,
 	LuLogOut as IcLogout,
@@ -94,7 +95,14 @@ import usePWA, {
 } from './pwa.js'
 import { unreadCountAtom, useGlobalUnreadProbe } from './read-position.js'
 import { ContextGuard, RequireAuth } from './route-guards.js'
-import { ctxBase, messagesPath, profilePath, settingsPath } from './routes.js'
+import {
+	ctxBase,
+	filesPath,
+	matchAppRoute,
+	messagesPath,
+	profilePath,
+	settingsPath
+} from './routes.js'
 import { SearchPage } from './SearchPage.js'
 import { openOmniboxAtom, toggleOmniboxAtom, useSearch } from './search.js'
 import { settingsRoutes } from './settings/index.js'
@@ -147,6 +155,8 @@ function Header({ inert }: { inert?: boolean }) {
 	const setKeyLoss = useSetAtom(keyLossAtom)
 	const [businessCardOpen, setBusinessCardOpen] = React.useState(false)
 	const urlContext = useCtx().base
+	// An app document fills the screen on mobile (app-shell.css doc mode) — this is the way out.
+	const docMode = !!matchAppRoute(location.pathname)?.resId
 	const unreadCounts = useAtomValue(unreadCountAtom)
 	// Conversations with anything unread — consistent across DMs (per-message counts)
 	// and groups (0/1 dots). See read-position.ts.
@@ -312,6 +322,16 @@ function Header({ inert }: { inert?: boolean }) {
 					<>
 						{/* Renders null — it only keeps `document.title` in step with the route. */}
 						<DocumentTitleSync />
+						{search.query == undefined && auth && docMode && (
+							<AppHeaderItem>
+								<Button
+									variant="ghost"
+									icon={<IcClose />}
+									aria-label={t('Close')}
+									href={filesPath(urlContext)}
+								/>
+							</AppHeaderItem>
+						)}
 						{/* Guests too: they may search the owner's public content, minus
 							profiles — see `Omnibox`. */}
 						{search.query != undefined && (

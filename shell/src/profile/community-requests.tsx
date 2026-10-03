@@ -17,6 +17,8 @@ import type { ActionView } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { inviteMessage } from '../notifications/NotificationItem.js'
+
 interface PendingRequestsListProps {
 	communityIdTag: string
 	getClientFor: (
@@ -24,12 +26,15 @@ interface PendingRequestsListProps {
 		opts?: { auth?: 'required' | 'preferred' | 'none'; explicit?: boolean }
 	) => ApiClient | null
 	onChange: () => void
+	/** Narrows the listed requests, e.g. to community issuers on the partners page. */
+	filter?: (action: ActionView) => boolean
 }
 
 export function PendingRequestsList({
 	communityIdTag,
 	getClientFor,
-	onChange
+	onChange,
+	filter
 }: PendingRequestsListProps) {
 	const { t } = useTranslation()
 	const dialog = useDialog()
@@ -50,13 +55,13 @@ export function PendingRequestsList({
 				audience: communityIdTag,
 				status: ['C', 'P']
 			})) as ActionView[]
-			setRequests(rs)
+			setRequests(filter ? rs.filter(filter) : rs)
 		} catch (err) {
 			console.error('Failed to load pending requests', err)
 			toast.error(t('Failed to load requests'))
 			setRequests([])
 		}
-	}, [communityIdTag, getClientFor, toast, t])
+	}, [communityIdTag, getClientFor, filter, toast, t])
 
 	React.useEffect(() => {
 		reload()
@@ -116,7 +121,7 @@ export function PendingRequestsList({
 	return (
 		<List variant="divided" aria-label={t('Pending requests')}>
 			{requests.map((action) => {
-				const message = typeof action.content === 'string' ? action.content : undefined
+				const message = inviteMessage(action)
 				const busy = busyId === action.actionId
 				return (
 					<ListItem

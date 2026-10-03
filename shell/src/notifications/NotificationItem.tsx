@@ -1,8 +1,19 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button, HBox, ListItem, ProfilePicture, Text, TimeFormat } from '@cloudillo/react'
-import type { ActionView } from '@cloudillo/types'
+import {
+	Button,
+	HatVia,
+	HBox,
+	ListItem,
+	ProfilePicture,
+	parseChannel,
+	Text,
+	TimeFormat
+} from '@cloudillo/react'
+import { type ActionView, tConnectAction } from '@cloudillo/types'
+import * as T from '@symbion/runtype'
+import type { TFunction } from 'i18next'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { LuCheck as IcAccept, LuX as IcDismiss } from 'react-icons/lu'
@@ -42,10 +53,32 @@ function getActionText(
 	}
 }
 
-function inviteMessage(action: ActionView): string | undefined {
-	if (action.type !== 'INVT' && action.type !== 'PRINVT') return undefined
+/** "wants to join ~x" / "invited you to ~x at T" for knocks and invitations into a room */
+function roomText(action: ActionView, t: TFunction): string | undefined {
+	const { tenant, name: room } = parseChannel(action.subject ?? '')
+	if (!tenant || !room) return undefined
+	if (action.type === 'SUBS' && action.subType !== 'DEL')
+		return t('wants to join ~{{room}}', { room })
+	if (action.type === 'INVT' && action.subType !== 'DEL') {
+		return t('invited you to ~{{room}} at {{tenant}}', {
+			room,
+			tenant: action.subjectProfile?.name || tenant
+		})
+	}
+	return undefined
+}
+
+/** The note sent along with a connection request or an invitation. */
+export function inviteMessage(action: ActionView): string | undefined {
 	const c = action.content
-	return typeof c === 'string' ? c : (c as { message?: string } | undefined)?.message
+	if (typeof c === 'string') return c
+	if (action.type === 'CONN') {
+		// A bare message or `{ msg?, roles? }`
+		const res = T.decode(tConnectAction.props.content, c, { unknownFields: 'drop' })
+		return T.isOk(res) && typeof res.ok === 'object' ? res.ok.msg : undefined
+	}
+	if (action.type !== 'INVT' && action.type !== 'PRINVT') return undefined
+	return (c as { message?: string } | undefined)?.message
 }
 
 export interface NotificationItemProps {
@@ -66,8 +99,9 @@ export function NotificationItem({
 }: NotificationItemProps) {
 	const { t } = useTranslation()
 	const name = action.issuer?.name || action.issuer?.idTag || ''
+	const room = roomText(action, t)
 	const subject =
-		action.type === 'INVT' && action.subjectProfile
+		!room && action.type === 'INVT' && action.subjectProfile
 			? action.subjectProfile.name || action.subjectProfile.idTag
 			: undefined
 	const message = inviteMessage(action)
@@ -81,8 +115,14 @@ export function NotificationItem({
 			}
 			title={
 				<Text size="sm">
-					<Text weight="semibold">{name}</Text>{' '}
-					{subject ? (
+					<HatVia
+						hat={action.hat}
+						srcTag={action.issuer?.idTag}
+						name={<Text weight="semibold">{name}</Text>}
+					/>{' '}
+					{room ? (
+						<Text emphasis="muted">{room}</Text>
+					) : subject ? (
 						<>
 							<Text emphasis="muted">{t('invited you to')}</Text>{' '}
 							<Text weight="semibold">{subject}</Text>

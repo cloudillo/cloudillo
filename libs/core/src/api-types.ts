@@ -124,7 +124,9 @@ export type AccessTokenResult = T.TypeOf<typeof tAccessTokenResult>
 
 export const tProxyTokenResult = T.struct({
 	token: T.string,
-	roles: T.optional(T.array(T.string))
+	roles: T.optional(T.array(T.string)),
+	hat: T.optional(T.string), // Hat community the session was entered with (`?hat=` only)
+	role: T.optional(T.string) // Local role the target mapped the hat to (`?hat=` only)
 })
 export type ProxyTokenResult = T.TypeOf<typeof tProxyTokenResult>
 
@@ -471,6 +473,7 @@ export interface PatchActionRequest {
 	flags?: string
 	x?: unknown
 	publishAt?: number // Unix timestamp; updates scheduled publish time
+	channel?: string | null // absolute `@tenant~name`; null = open floor (root drafts only)
 }
 
 export interface ReactionRequest {
@@ -511,6 +514,7 @@ export interface ListActionsQuery {
 	// `ActionView.subjectAction` (with full `stat`), saving a round trip — used by
 	// reposts (embedded original card) and the group list (each SUBS's CONV).
 	includeSubject?: boolean
+	channel?: string // Only actions posted in this room
 }
 
 // Response types
@@ -553,6 +557,7 @@ export interface CreateFileRequest {
 	// that include any access-level field.
 	sourceFileId?: string // fileId from the source context to reference
 	sourceIdTag?: string // owner idTag of the source content
+	channel?: string // Room the file belongs to
 }
 
 export interface PatchFileRequest {
@@ -656,7 +661,8 @@ export const tFileView = T.struct({
 	parentName: T.optional(T.string), // Immediate parent folder name (when withParent=true)
 	path: T.optional(T.array(T.struct({ id: T.string, name: T.string }))), // root→parent chain (when withPath=true)
 	brokenAt: T.optional(T.union(T.string, T.date)),
-	brokenReason: T.optional(T.literal('revoked', 'deleted', 'unreachable'))
+	brokenReason: T.optional(T.literal('revoked', 'deleted', 'unreachable')),
+	channel: T.optional(T.string) // Room the file belongs to
 })
 export type FileView = T.TypeOf<typeof tFileView>
 
@@ -879,6 +885,7 @@ export interface AdminProfilePatch {
 	name?: string
 	roles?: string[]
 	status?: 'A' | 'B' | 'S' | null // Active, Blocked, Suspended
+	hatRoles?: string | null // Role map `peer_role:local_role,…` for this peer's hat wearers; null clears
 }
 
 // PATCH /profiles/:idTag body. Only block/trust-style fields belong here:
@@ -890,7 +897,84 @@ export interface PatchProfileConnection {
 	// Composition: hide/show a community in the merged home feed. `true` hides it,
 	// `false` shows it (the backend normalizes `false` back to the NULL = shown default).
 	hiddenInHome?: boolean
+	// Hat communities this connection may wear toward us; null clears.
+	hats?: string[] | null
 }
+
+// CHANNELS (rooms)
+//***************************************************
+
+// Porch status: `in`, `invitation-only` or `needs:<role>`.
+export type PorchStatus = 'in' | 'invitation-only' | `needs:${string}`
+
+export const tPorchEntry = T.struct({
+	name: T.string,
+	title: T.optional(T.nullable(T.string)),
+	descr: T.optional(T.nullable(T.string)),
+	status: T.string,
+	// Admin fields, sent only to the tenant and moderator+ readers
+	visibility: T.optional(T.union(T.string, T.nullValue)),
+	minRole: T.optional(T.union(T.string, T.nullValue)),
+	closed: T.optional(T.boolean)
+})
+export type PorchEntry = Omit<T.TypeOf<typeof tPorchEntry>, 'status'> & { status: PorchStatus }
+
+export const tChannel = T.struct({
+	name: T.string,
+	title: T.optional(T.nullable(T.string)),
+	descr: T.optional(T.nullable(T.string)),
+	visibility: T.optional(T.union(T.string, T.nullValue)), // VisibilityLevel char; absent/null = Direct
+	minRole: T.optional(T.union(T.string, T.nullValue)), // absent/null = public
+	closed: T.boolean,
+	createdAt: T.string,
+	updatedAt: T.string
+})
+export type Channel = T.TypeOf<typeof tChannel>
+
+export interface CreateChannelRequest {
+	name: string
+	title?: string
+	descr?: string
+	visibility?: string | null
+	minRole?: string | null
+	closed?: boolean
+}
+
+// Name is immutable; null clears a field.
+export interface PatchChannelRequest {
+	title?: string | null
+	descr?: string | null
+	visibility?: string | null
+	minRole?: string | null
+	closed?: boolean
+}
+
+// PARTNERS
+//***************************************************
+
+export const tPartnerProfile = T.struct({
+	idTag: T.string,
+	name: T.string,
+	type: T.literal('person', 'community'),
+	profilePic: T.optional(T.string)
+})
+export type PartnerProfile = T.TypeOf<typeof tPartnerProfile>
+
+export const tPartnerEdge = T.struct({
+	community: T.string,
+	partner: T.string
+})
+export type PartnerEdge = T.TypeOf<typeof tPartnerEdge>
+
+// Home node's stored graph: ring 1 = my memberships, ring 2 = their partners.
+export const tPartnerMap = T.struct({
+	communities: T.array(tPartnerProfile),
+	partners: T.array(tPartnerProfile),
+	edges: T.array(tPartnerEdge),
+	syncedAt: T.optional(T.union(T.number, T.nullValue)), // unix seconds; null = never synced
+	syncing: T.boolean
+})
+export type PartnerMap = T.TypeOf<typeof tPartnerMap>
 
 export interface ListProfilesQuery {
 	idTag?: string

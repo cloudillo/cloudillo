@@ -29,18 +29,35 @@
  *
  * No eviction: an `ApiClient` holds only `{ idTag, authToken }`, and a session
  * visits tens of distinct idTags at most.
+ *
+ * Keys are context keys (`contextKey`): a bare idTag, or `B|A` for a session in B
+ * wearing community A's hat. A hatted token is a different identity from the bare
+ * one on the same node, so it gets its own client; the client itself still talks
+ * to `B`.
  */
 
 import { type ApiClient, createApiClient } from './api-client.js'
 
 const registry = new Map<string, ApiClient>()
 
-/** The client for this idTag, created on first use. */
-export function getApiClient(idTag: string): ApiClient {
-	let client = registry.get(idTag)
+/** Registry/cache key for a context: `idTag`, or `idTag|hat` when wearing a hat. */
+export function contextKey(idTag: string, hat?: string): string {
+	if (idTag.includes('|') || hat?.includes('|')) throw new Error('contextKey: "|" is reserved')
+	return hat ? `${idTag}|${hat}` : idTag
+}
+
+/** Inverse of `contextKey`. */
+export function splitContextKey(key: string): { idTag: string; hat?: string } {
+	const bar = key.indexOf('|')
+	return bar < 0 ? { idTag: key } : { idTag: key.slice(0, bar), hat: key.slice(bar + 1) }
+}
+
+/** The client for this context key, created on first use. */
+export function getApiClient(key: string): ApiClient {
+	let client = registry.get(key)
 	if (!client) {
-		client = createApiClient({ idTag })
-		registry.set(idTag, client)
+		client = createApiClient(splitContextKey(key))
+		registry.set(key, client)
 	}
 	return client
 }

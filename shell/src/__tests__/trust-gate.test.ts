@@ -10,20 +10,41 @@
  * the user to that node on every thumbnail and title prefetch that follows.
  */
 
-import { resetApiRegistry, setApiToken } from '@cloudillo/core'
+import { contextKey, resetApiRegistry, setApiToken } from '@cloudillo/core'
 import { createStore } from 'jotai'
 
 import {
 	activeContextAtom,
 	communitiesAtom,
+	partnerCommunitiesAtom,
 	sessionTrustAtom,
 	storedTrustAtom
 } from '../context/atoms.js'
-import { effectiveTrust, isKnownContext, mayUseContextToken } from '../context/trust-gate.js'
+import {
+	activeKeyFor,
+	effectiveTrust,
+	hattedConsent,
+	isKnownContext,
+	mayUseContextToken
+} from '../context/trust-gate.js'
 import type { CommunityRef } from '../context/types.js'
 
 const HOME = 'alice.cloudillo.net'
 const FOREIGN = 'bob.cloudillo.net'
+const HAT = 'partner.tld'
+
+/** The active context `idTag`, optionally worn under `hat`. */
+function wearing(idTag: string, hat?: string) {
+	return {
+		idTag,
+		type: 'community' as const,
+		name: idTag,
+		hat: hat ? { idTag: hat, role: 'follower' } : undefined,
+		roles: [],
+		permissions: [],
+		metadata: {}
+	}
+}
 
 function store() {
 	return createStore()
@@ -108,6 +129,37 @@ describe('mayUseContextToken', () => {
 		s.set(sessionTrustAtom, new Map([[FOREIGN, 'S' as const]]))
 		expect(mayUseContextToken(s, FOREIGN, { ownIdTag: HOME })).toBe(true)
 	})
+
+	it('looks up the hatted token while the active context wears a hat', () => {
+		// Only the hatted `B|A` key holds a token inside a hatted context.
+		const s = store()
+		s.set(activeContextAtom, wearing(FOREIGN, HAT))
+		setApiToken(contextKey(FOREIGN, HAT), 'hatted')
+		expect(mayUseContextToken(s, FOREIGN, { ownIdTag: HOME })).toBe(true)
+		setApiToken(contextKey(FOREIGN, HAT), undefined)
+		setApiToken(FOREIGN, 'bare')
+		expect(mayUseContextToken(s, FOREIGN, { ownIdTag: HOME })).toBe(false)
+	})
+})
+
+describe('activeKeyFor / hattedConsent', () => {
+	it('keys the active context by its hat, everything else bare', () => {
+		const s = store()
+		expect(activeKeyFor(s, FOREIGN)).toBe(FOREIGN)
+		s.set(activeContextAtom, wearing(FOREIGN, HAT))
+		expect(activeKeyFor(s, FOREIGN)).toBe(contextKey(FOREIGN, HAT))
+		expect(activeKeyFor(s, HOME)).toBe(HOME)
+	})
+
+	it('consents to a hatted token only while that exact hat is worn', () => {
+		const s = store()
+		expect(hattedConsent(s, FOREIGN, HAT)).toBe(false)
+		s.set(activeContextAtom, wearing(FOREIGN, HAT))
+		expect(hattedConsent(s, FOREIGN, HAT)).toBe(true)
+		expect(hattedConsent(s, FOREIGN, 'other.tld')).toBe(false)
+		s.set(activeContextAtom, wearing(FOREIGN))
+		expect(hattedConsent(s, FOREIGN, HAT)).toBe(false)
+	})
 })
 
 // Whether a context the *URL* named may be entered without asking. A pathname is not
@@ -139,6 +191,18 @@ describe('isKnownContext', () => {
 		const s = store()
 		s.set(sessionTrustAtom, new Map([[FOREIGN, 'S' as const]]))
 		expect(isKnownContext(s, FOREIGN, HOME)).toBe(true)
+	})
+
+	it('knows a partner community entered under a hat', () => {
+		const s = store()
+		s.set(partnerCommunitiesAtom, [{ ...community(FOREIGN), hat: { idTag: HOME } }])
+		expect(isKnownContext(s, FOREIGN, HOME)).toBe(true)
+	})
+
+	it('does not know a partner row without a hat', () => {
+		const s = store()
+		s.set(partnerCommunitiesAtom, [community(FOREIGN)])
+		expect(isKnownContext(s, FOREIGN, HOME)).toBe(false)
 	})
 
 	it('does not know a stranger a link named', () => {

@@ -30,6 +30,8 @@ export interface File {
 		profilePic?: string
 	}
 	fileTp?: string
+	/** Room the file was posted in (`name` or `@tenant~name`); absent = open floor. */
+	channel?: string
 	contentType: string
 	createdAt: string
 	accessedAt?: string // Global access timestamp

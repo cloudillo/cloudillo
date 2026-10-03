@@ -3,12 +3,17 @@
 
 import type { FileView } from '@cloudillo/core'
 import {
+	absChannel,
+	actionContextTag,
 	Badge,
 	Button,
 	Divider,
+	HatVia,
 	HBox,
 	IconText,
+	makeChannel,
 	Panel,
+	parseChannel,
 	Popover,
 	Progress,
 	RichTextInput,
@@ -23,12 +28,13 @@ import {
 	useToast,
 	VBox
 } from '@cloudillo/react'
-import type { ActionView, NewAction } from '@cloudillo/types'
+import type { ActionView, CommunityRole, NewAction } from '@cloudillo/types'
 import data from '@emoji-mart/data'
 import Picker from '@emoji-mart/react'
 import { useAtomValue } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
+import { useSearchParams } from 'react-router-dom'
 import {
 	LuCamera as IcCamera,
 	LuX as IcClose,
@@ -47,12 +53,15 @@ import {
 
 import { AttachmentPreview } from '../../components/AttachmentPreview.js'
 import { useDocumentPicker } from '../../components/DocumentPicker/index.js'
-import { contextRolesAtom, useApiContext } from '../../context/index.js'
+import { activeContextAtom, contextRolesAtom, useApiContext } from '../../context/index.js'
+import { useHatEntry } from '../../context/hat-entry.js'
 import { type AttachmentType, useImageUpload } from '../../hooks/useImageUpload.js'
 import { ImageUpload } from '../../image.js'
+import { roleLabels } from '../../profile/role-labels.js'
 import { handAtom } from '../../state/hand.js'
 import { fetchRow } from '../doc-info.js'
 import { canManageFile, visibilityRank } from '../files/utils.js'
+import { RoomPicker, useEnterableRooms } from '../shared/RoomPicker.js'
 import { AudienceSelector, type AudienceTarget } from './AudienceSelector.js'
 import type { DocPostIntent } from './doc-post-intent.js'
 import { EmbeddedPostCard } from './EmbeddedPostCard.js'
@@ -133,6 +142,63 @@ function inferAttachmentType(subType?: string): AttachmentType {
 	}
 }
 
+/** The hat to post under when `audienceTag` is the active hatted context. */
+export function useHatFor(): (audienceTag: string | undefined) => string | undefined {
+	const activeContext = useAtomValue(activeContextAtom)
+	return (audienceTag) =>
+		activeContext?.hat && audienceTag === activeContext.idTag
+			? activeContext.hat.idTag
+			: undefined
+}
+
+/**
+ * "Posting as <me> via ▣ <A> — <role> here · Change": shown atop a compose or comment
+ * box whose audience is the active hatted context. The only place the capped role shows.
+ */
+export function HatComposeStrip({ audienceTag }: { audienceTag: string | undefined }) {
+	const { t } = useTranslation()
+	const [auth] = useAuth()
+	const activeContext = useAtomValue(activeContextAtom)
+	const { changeHat } = useHatEntry()
+	const hat = activeContext?.hat
+	if (!activeContext || !hat || audienceTag !== activeContext.idTag) return null
+
+	const role = roleLabels(t)[hat.role as CommunityRole] ?? hat.role
+	return (
+		<HBox
+			gap={1}
+			align="center"
+			wrap
+			className="p-1"
+			style={{ borderInlineStart: '3px solid var(--col-accent)' }}
+		>
+			<Text size="sm">
+				{t('Posting as')}{' '}
+				<HatVia
+					name={auth?.name ?? auth?.idTag}
+					hat={{
+						idTag: hat.idTag,
+						name: hat.name ?? hat.idTag,
+						profilePic: hat.profilePic
+					}}
+				/>{' '}
+				— {t('{{role}} here', { role })}
+			</Text>
+			<Button
+				variant="link"
+				size="sm"
+				onClick={() => {
+					changeHat(activeContext.idTag).catch((err) =>
+						console.error('[HatComposeStrip] Change identity failed:', err)
+					)
+				}}
+			>
+				{t('Change')}
+			</Button>
+		</HBox>
+	)
+}
+
 export function ComposePanel({
 	open,
 	onClose,
@@ -156,6 +222,7 @@ export function ComposePanel({
 	const { pickDocument } = useDocumentPicker()
 	const hand = useAtomValue(handAtom)
 	const isQuote = !!quotedAction
+	const hatFor = useHatFor()
 	const [content, setContent] = React.useState('')
 	const [visibility, setVisibility] = React.useState<Visibility>('F')
 	const [attachedDoc, setAttachedDoc] = React.useState<LiveDocRef | undefined>()
@@ -207,6 +274,35 @@ export function ComposePanel({
 	React.useEffect(() => {
 		setAudienceTarget(initialAudience)
 	}, [initialAudience])
+
+	// Room of a root post: absolute `@tenant~name`. Defaults to the feed's `?room=` filter
+	// (relative to the target tenant, or absolute when it names that tenant).
+	const roomTenant = audienceTarget.idTag || auth?.idTag
+	const rooms = useEnterableRooms(isQuote ? undefined : roomTenant)
+	const roomParam = useSearchParams()[0].get('room')
+	const [channel, setChannel] = React.useState<string | undefined>()
+	// Only a room on the current target tenant is ever sent or shown
+	const roomChannel =
+		channel && roomTenant && parseChannel(channel).tenant === roomTenant ? channel : undefined
+	// The `?room=` default; `resetForm` returns to it after a post.
+	const defaultChannel = React.useMemo(() => {
+		if (!roomParam || !roomTenant) return undefined
+		if (roomParam.startsWith('@')) {
+			return parseChannel(roomParam).tenant === roomTenant ? roomParam : undefined
+		}
+		return makeChannel(roomTenant, roomParam)
+	}, [roomParam, roomTenant])
+	React.useEffect(() => {
+		setChannel(
+			draft
+				? draft.channel && absChannel(draft.channel, actionContextTag(draft))
+				: defaultChannel
+		)
+	}, [draft, defaultChannel])
+	// `~` typed at the very start of the post offers matching rooms
+	const roomToken = isQuote ? undefined : /^~([a-z0-9-]*)$/.exec(content.trim())?.[1]
+	const roomSuggestions =
+		roomToken === undefined ? [] : rooms.filter((r) => r.name.startsWith(roomToken))
 	const [scheduleDate, setScheduleDate] = React.useState<Date | undefined>()
 	const [showSchedule, setShowSchedule] = React.useState(false)
 	const editorRef = React.useRef<HTMLDivElement>(null)
@@ -370,7 +466,8 @@ export function ComposePanel({
 						subType,
 						attachments: buildPostAttachments(),
 						visibility,
-						publishAt: publishAtUnix
+						publishAt: publishAtUnix,
+						channel: roomChannel ?? null
 					})
 				} else {
 					const action: NewAction = {
@@ -384,7 +481,9 @@ export function ComposePanel({
 								: undefined,
 						visibility,
 						draft: true,
-						publishAt: publishAtUnix
+						publishAt: publishAtUnix,
+						channel: roomChannel,
+						hat: hatFor(audienceTarget.idTag)
 					}
 					const res = await api.actions.create(action)
 					if (!submittingRef.current) {
@@ -415,6 +514,7 @@ export function ComposePanel({
 		content,
 		attachedDoc,
 		visibility,
+		roomChannel,
 		scheduleDate,
 		attachmentIdsKey,
 		imageUpload.attachmentType,
@@ -650,7 +750,8 @@ export function ComposePanel({
 					// the audience-header card is suppressed when it equals the issuer.
 					audienceTag: repostAudienceTag,
 					content: content.trim() || undefined,
-					visibility
+					visibility,
+					hat: hatFor(repostAudienceTag)
 				}
 				const res = await api.actions.create(repost)
 				// The create response is a single-action shape with no
@@ -671,6 +772,7 @@ export function ComposePanel({
 				onClose()
 			} catch (e) {
 				console.error('Failed to post quote', e)
+				toast.error(t('Failed to post'))
 			} finally {
 				submittingRef.current = false
 			}
@@ -701,7 +803,8 @@ export function ComposePanel({
 					subType,
 					attachments: buildPostAttachments(),
 					visibility,
-					publishAt: publishAtUnix
+					publishAt: publishAtUnix,
+					channel: roomChannel ?? null
 				})
 				if (publishAtUnix) {
 					await api.actions.publish(draftIdRef.current, { publishAt: publishAtUnix })
@@ -719,7 +822,9 @@ export function ComposePanel({
 					attachments: buildPostAttachments(),
 					audienceTag,
 					visibility,
-					publishAt: publishAtUnix
+					publishAt: publishAtUnix,
+					channel: roomChannel,
+					hat: hatFor(audienceTag)
 				}
 				const res = await api.actions.create(action)
 				if (publishAtUnix) {
@@ -735,6 +840,7 @@ export function ComposePanel({
 			onClose()
 		} catch (e) {
 			console.error('Failed to publish post', e)
+			toast.error(t('Failed to publish post'))
 		} finally {
 			submittingRef.current = false
 		}
@@ -745,6 +851,7 @@ export function ComposePanel({
 		setScheduleDate(undefined)
 		setShowSchedule(false)
 		setAttachedDoc(undefined)
+		setChannel(defaultChannel)
 		saveStatusRef.current?.setStatus(undefined)
 		draftIdRef.current = undefined
 		imageUpload.reset()
@@ -804,11 +911,20 @@ export function ComposePanel({
 							/>
 						)}
 						<VisibilitySelector value={visibility} onChange={setVisibility} />
+						{!isQuote && roomTenant && (
+							<RoomPicker
+								tenant={roomTenant}
+								rooms={rooms}
+								value={roomChannel}
+								onChange={setChannel}
+							/>
+						)}
 						<Spacer />
 						<Button variant="link" onClick={handleCancel} aria-label={t('Cancel')}>
 							<IcClose />
 						</Button>
 					</HBox>
+					<HatComposeStrip audienceTag={audienceTarget.idTag} />
 					{draft && (
 						<Text size="sm" color={isEditingScheduled ? 'primary' : 'warning'}>
 							<IconText icon={isEditingScheduled ? <IcSchedule /> : <IcSave />}>
@@ -877,6 +993,22 @@ export function ComposePanel({
 							</>
 						}
 					/>
+					{roomSuggestions.length > 0 && (
+						<HBox gap={1} wrap>
+							{roomSuggestions.map((r) => (
+								<Button
+									key={r.name}
+									size="sm"
+									onClick={() => {
+										if (roomTenant) setChannel(makeChannel(roomTenant, r.name))
+										setContent('')
+									}}
+								>
+									~{r.title || r.name}
+								</Button>
+							))}
+						</HBox>
+					)}
 					{isQuote && quotedAction && (
 						<EmbeddedPostCard
 							subjectAction={quotedAction}

@@ -17,8 +17,10 @@ export * from './format-version.js'
  *
  *  `tFileId` is only useful where it is *validated*: `T.decode()` does not run
  *  `matches()` validators, so using it as a struct field would be cosmetic. Reach for
- *  `T.validateSync(tFileId, x)` (or plain `isFileId`) instead. */
-export const FILE_ID_RE = /^[A-Za-z0-9_~][A-Za-z0-9._~:-]*$/
+ *  `T.validateSync(tFileId, x)` (or plain `isFileId`) instead.
+ *
+ *  `@<n>` is a pending upload id (owner-only, served by the backend). */
+export const FILE_ID_RE = /^(?:@\d+|[A-Za-z0-9_~][A-Za-z0-9._~:-]*)$/
 
 export const tFileId = T.string.matches(FILE_ID_RE)
 export type FileId = T.TypeOf<typeof tFileId>
@@ -74,6 +76,11 @@ export const ROLE_LEVELS: Record<CommunityRole, number> = {
 	contributor: 3,
 	moderator: 4,
 	leader: 5
+}
+
+/** Highest level among `roles` (unknown ones count 0), never below `floor`. */
+export function roleLevel(roles: readonly string[] | undefined, floor = 0): number {
+	return Math.max(floor, ...(roles ?? []).map((r) => ROLE_LEVELS[r as CommunityRole] ?? 0))
 }
 
 // ============================================================================
@@ -216,6 +223,11 @@ export const tProfile = T.struct({
 	// Composition control for the home feed (community profiles): true = hidden
 	// from the merged home feed; absent/false = shown (the default).
 	hiddenInHome: T.optional(T.boolean),
+	// Hats: my role map for this peer community's members (`peer_role:local_role,…`, admin-set),
+	// the peer's role map for my members (advisory), and the hats this connection may wear toward us.
+	hatRoles: T.optional(T.string),
+	peerHatRoles: T.optional(T.string),
+	hats: T.optional(T.array(T.string)),
 	x: T.optional(T.record(T.string))
 })
 export type Profile = T.TypeOf<typeof tProfile>
@@ -278,7 +290,9 @@ export const tNewAction = T.struct({
 	visibility: T.optional(T.string), // 'P' = Public, 'C' = Connected, 'F' = Followers
 	flags: T.optional(T.string), // Action flags (e.g. 'O' = open group on CONV)
 	draft: T.optional(T.boolean), // true = save as draft (status 'R')
-	publishAt: T.optional(T.number) // Unix timestamp for scheduled publishing
+	publishAt: T.optional(T.number), // Unix timestamp for scheduled publishing
+	hat: T.optional(T.string), // Community idTag the issuer acts on behalf of
+	channel: T.optional(T.string) // Room name (bare, or `@tenant~name`)
 })
 export type NewAction = T.TypeOf<typeof tNewAction>
 
@@ -302,6 +316,8 @@ export interface ActionView {
 	rootId?: string
 	issuer: ProfileInfo
 	audience?: ProfileInfo
+	hat?: ProfileInfo
+	channel?: string
 	content?: unknown
 	attachments?: Array<{
 		fileId: string
@@ -360,6 +376,8 @@ export const tActionView: T.Type<ActionView> = T.struct({
 	rootId: T.optional(T.string),
 	issuer: tProfileInfo,
 	audience: T.optional(tProfileInfo),
+	hat: T.optional(tProfileInfo),
+	channel: T.optional(T.string),
 	content: T.optional(T.unknown),
 	attachments: T.optional(
 		T.array(
@@ -402,7 +420,13 @@ export const tActionView: T.Type<ActionView> = T.struct({
 export const tConnectAction = T.struct({
 	type: T.literal('CONN'),
 	subType: T.undefinedValue,
-	content: T.optional(T.string),
+	// A plain message, or `{ msg, roles }` from a community join request
+	content: T.optional(
+		T.union(
+			T.string,
+			T.struct({ msg: T.optional(T.string), roles: T.optional(T.array(T.string)) })
+		)
+	),
 	attachments: T.undefinedValue,
 	parentId: T.undefinedValue,
 	audience: T.undefinedValue,

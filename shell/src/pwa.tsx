@@ -94,6 +94,16 @@ export async function installToken(token: string): Promise<void> {
 	await queueSwTokenWrite(() => postTokenToSw(token))
 }
 
+// The active context's hatted token as last pushed, replayed to a restarted SW.
+let swHatToken: { idTag: string; hat?: string; token: string } | undefined
+
+/** Mirror the active context's hatted token into the worker (undefined clears `idTag`'s). */
+export function installHatToken(idTag: string, token: string | undefined, hat?: string): void {
+	if (token) swHatToken = { idTag, hat, token }
+	else if (swHatToken?.idTag === idTag) swHatToken = undefined
+	void swNotify('sw:hattoken.set', { idTag, hat, token })
+}
+
 // Mirror of the in-memory auth token, kept in sync by the shell layout effect and replayed
 // to a restarted SW that asks via `sw:token.request`. Module-level rather than React state,
 // because the SW message listener runs outside React. Seeded from `sessionStorage` at module
@@ -131,6 +141,9 @@ onSwMessage('sw:token.request', () => {
 		const key = readSwKeyCookie()
 		if (key) void swNotify('sw:key.set', { key })
 	}
+	// A restarted worker lost its hat map too. Before the token: `sw:token.set` releases the
+	// requests waiting on it, and they must find the hat already in place.
+	if (swHatToken) void swNotify('sw:hattoken.set', swHatToken)
 	void swNotify('sw:token.set', { token }).then(() => {
 		console.log('[PWA] Replayed auth token to SW on request')
 	})
@@ -262,6 +275,7 @@ export function cleanupEncryptionCookie(): void {
  */
 export async function clearAuthToken(): Promise<void> {
 	lastInstalledSwToken = undefined
+	swHatToken = undefined
 	await queueSwTokenWrite(() => swNotify('sw:token.clear'))
 	console.log('[PWA] Auth token cleared')
 }

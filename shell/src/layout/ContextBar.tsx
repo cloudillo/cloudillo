@@ -32,6 +32,7 @@ import {
 	useContextSwitchNav,
 	useGuestDocument
 } from '../context/index.js'
+import { useHatEntry } from '../context/hat-entry.js'
 import { ProfileContextMenu, useProfileContextMenu } from '../context/profile-context-menu.js'
 import { unreadCountAtom } from '../read-position.js'
 import { appPath, ctxBase } from '../routes.js'
@@ -60,6 +61,7 @@ export function ContextBar() {
 	const { favorites, pinnedIdTags, pinCommunityAt } = useCommunitiesList()
 	const handleSwitch = useContextSwitchNav()
 	const { menuState, closeMenu, getTriggerProps, wrapClick } = useProfileContextMenu()
+	const { changeHat } = useHatEntry()
 	const isWide = useIsDesktop('xl')
 
 	const cap = isWide ? 6 : 4
@@ -135,7 +137,22 @@ export function ContextBar() {
 
 	const meActive = activeContext?.idTag === auth.idTag
 
+	/** The worn hat (active) or remembered one (inactive partner): badge + "B · via A" label. */
+	function hatLabel({ idTag, name, hat: remembered }: CommunityRef) {
+		const hat = activeContext?.idTag === idTag ? activeContext.hat : remembered
+		return hat
+			? {
+					hat,
+					label: t('{{community}} · via {{hat}}', {
+						community: name,
+						hat: hat.name ?? hat.idTag
+					})
+				}
+			: undefined
+	}
+
 	function renderChip({ community }: StripEntry) {
+		const worn = hatLabel(community)
 		return (
 			<ContextChip
 				idTag={community.idTag}
@@ -143,13 +160,18 @@ export function ContextBar() {
 				pending={community.isPending}
 				unread={!!unreadCounts[community.idTag]}
 				name={community.name}
+				hat={worn?.hat}
 				active={activeContext?.idTag === community.idTag}
 				aria-label={
 					community.isPending
 						? t('{{name}} (setting up)', { name: community.name })
-						: community.name
+						: (worn?.label ?? community.name)
 				}
-				title={community.isPending ? t('DNS propagation in progress...') : community.name}
+				title={
+					community.isPending
+						? t('DNS propagation in progress...')
+						: (worn?.label ?? community.name)
+				}
 				onClick={wrapClick(() => handleSwitch(community.idTag))}
 				{...getTriggerProps({
 					idTag: community.idTag,
@@ -163,6 +185,9 @@ export function ContextBar() {
 	// WCAG 2.5.7: chips have no drag handle, so the menu of a pinned chip moves it too.
 	const menuFav = menuState ? favorites.findIndex((c) => c.idTag === menuState.target.idTag) : -1
 	const moveTo = (favIndex: number) => () => pinBefore(favorites[menuFav].idTag, favIndex)
+	const menuOnActive =
+		menuState?.target.type === 'community' && menuState.target.idTag === activeContext?.idTag
+	const previewWorn = previewCommunity && hatLabel(previewCommunity)
 
 	return (
 		<>
@@ -199,12 +224,13 @@ export function ContextBar() {
 									idTag={previewCommunity.idTag}
 									profilePic={previewCommunity.profilePic}
 									name={previewCommunity.name}
+									hat={previewWorn?.hat}
 									preview
-									aria-current="true"
+									active
 									aria-label={t('Currently viewing {{name}} (not pinned)', {
-										name: previewCommunity.name
+										name: previewWorn?.label ?? previewCommunity.name
 									})}
-									title={previewCommunity.name}
+									title={previewWorn?.label ?? previewCommunity.name}
 									onClick={wrapClick(() => handleSwitch(previewCommunity.idTag))}
 									{...getTriggerProps({
 										idTag: previewCommunity.idTag,
@@ -233,6 +259,15 @@ export function ContextBar() {
 					onMoveRight={
 						menuFav !== -1 && menuFav < favorites.length - 1
 							? moveTo(menuFav + 2)
+							: undefined
+					}
+					onChangeIdentity={
+						menuOnActive
+							? () => {
+									changeHat(menuState.target.idTag).catch((err) =>
+										console.error('[ContextBar] Change identity failed:', err)
+									)
+								}
 							: undefined
 					}
 				/>

@@ -3,6 +3,7 @@
 
 export type { Profile } from '@cloudillo/types'
 
+export * from './HatVia.js'
 export * from './IdentityTag.js'
 export * from './ProfileAudienceCard.js'
 export * from './ProfileCard.js'

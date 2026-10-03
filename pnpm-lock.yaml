@@ -46,8 +46,8 @@ importers:
         specifier: ^1.0.4
         version: 1.0.4(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@symbion/opalui':
-        specifier: ^0.15.0
-        version: 0.15.0
+        specifier: ^0.16.0
+        version: 0.16.0
       '@symbion/runtype':
         specifier: ^1.3.1
         version: 1.3.1
@@ -127,8 +127,8 @@ importers:
         specifier: workspace:^
         version: link:../../libs/react
       '@symbion/opalui':
-        specifier: ^0.15.0
-        version: 0.15.0
+        specifier: ^0.16.0
+        version: 0.16.0
       '@symbion/runtype':
         specifier: ^1.3.1
         version: 1.3.1
@@ -202,8 +202,8 @@ importers:
         specifier: workspace:^
         version: link:../../libs/react
       '@symbion/opalui':
-        specifier: ^0.15.0
-        version: 0.15.0
+        specifier: ^0.16.0
+        version: 0.16.0
       '@symbion/runtype':
         specifier: ^1.3.1
         version: 1.3.1
@@ -307,8 +307,8 @@ importers:
         specifier: workspace:^
         version: link:../../libs/react
       '@symbion/opalui':
-        specifier: ^0.15.0
-        version: 0.15.0
+        specifier: ^0.16.0
+        version: 0.16.0
       '@types/react':
         specifier: ^19.3.0
         version: 19.3.0
@@ -401,8 +401,8 @@ importers:
         specifier: ^4.9.0
         version: 4.9.0(react@19.3.0)
       '@symbion/opalui':
-        specifier: ^0.15.0
-        version: 0.15.0
+        specifier: ^0.16.0
+        version: 0.16.0
       '@symbion/runtype':
         specifier: ^1.3.1
         version: 1.3.1
@@ -482,8 +482,8 @@ importers:
         specifier: workspace:^
         version: link:../../libs/react
       '@symbion/opalui':
-        specifier: ^0.15.0
-        version: 0.15.0
+        specifier: ^0.16.0
+        version: 0.16.0
       '@symbion/runtype':
         specifier: ^1.3.1
         version: 1.3.1
@@ -603,8 +603,8 @@ importers:
         specifier: ^3.2.0
         version: 3.2.0
       '@symbion/opalui':
-        specifier: ^0.15.0
-        version: 0.15.0
+        specifier: ^0.16.0
+        version: 0.16.0
       '@types/jest':
         specifier: ^30.0.0
         version: 30.0.0
@@ -702,8 +702,8 @@ importers:
         specifier: ^30.5.2
         version: 30.5.2
       '@symbion/opalui':
-        specifier: ^0.15.0
-        version: 0.15.0
+        specifier: ^0.16.0
+        version: 0.16.0
       '@testing-library/dom':
         specifier: ^10.4.2
         version: 10.4.2
@@ -780,8 +780,8 @@ importers:
         specifier: workspace:^
         version: link:../../libs/rtdb
       '@symbion/opalui':
-        specifier: ^0.15.0
-        version: 0.15.0
+        specifier: ^0.16.0
+        version: 0.16.0
       '@types/react':
         specifier: ^19.3.0
         version: 19.3.0
@@ -1208,8 +1208,8 @@ importers:
         specifier: ^14.0.0
         version: 14.0.0
       '@symbion/opalui':
-        specifier: ^0.15.0
-        version: 0.15.0
+        specifier: ^0.16.0
+        version: 0.16.0
       '@symbion/runtype':
         specifier: ^1.3.1
         version: 1.3.1
@@ -1352,8 +1352,8 @@ importers:
         specifier: workspace:*
         version: link:../libs/types
       '@symbion/opalui':
-        specifier: ^0.15.0
-        version: 0.15.0
+        specifier: ^0.16.0
+        version: 0.16.0
       '@types/react':
         specifier: ^19.3.0
         version: 19.3.0
@@ -2485,8 +2485,8 @@ packages:
   '@swc/helpers@0.5.23':
     resolution: {integrity: sha512-5lSsMOTXURePglDfvuAQUqkGek9Hg2kksOYay2m0+XR++b2NWYL/4sWyuvVBIs8oKnJaxkdi9whaL/sqN13afw==}
 
-  '@symbion/opalui@0.15.0':
-    resolution: {integrity: sha512-xh0wb0rXeorsVUVAojISWAVGFPXAwKGpPQu7lW7fwfx1eYuWZQiBbaeas0B0AatQFuL8fwWt/LQa7Oi+d9Mtfg==}
+  '@symbion/opalui@0.16.0':
+    resolution: {integrity: sha512-NN79HgoCO6S5zk5vCsLcfv4/F6khRZRGGMV0hMT72UxdP6oBWdt+xB2kbCLYH7W4IxRml2JcrJPO8UF3+a8dqw==}
 
   '@symbion/runtype@1.3.1':
     resolution: {integrity: sha512-zOxRmTryAe3dxUn9fHI+tGoxvOxueDuhcF47X3fpFP2VQ8eqrGUPhYOWvX7+D1YAgVhYcGCZJrOQDdbXbUe3GQ==}
@@ -7226,7 +7226,7 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
-  '@symbion/opalui@0.15.0': {}
+  '@symbion/opalui@0.16.0': {}
 
   '@symbion/runtype@1.3.1': {}
 

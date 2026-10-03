@@ -14,3 +14,5 @@ allowBuilds:
   core-js: false
   esbuild: false
   unrs-resolver: false
+minimumReleaseAgeExclude:
+  - '@symbion/opalui@0.16.0'

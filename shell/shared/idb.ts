@@ -50,6 +50,9 @@ export function openDb(
 	const entry: { promise: Promise<IDBDatabase>; db?: IDBDatabase } = {
 		promise: new Promise<IDBDatabase>((resolve, reject) => {
 			const request = indexedDB.open(name, version)
+			// Set once rejected: a success that still lands after `onblocked` must not leak an
+			// open connection, which would block the next `deleteDatabase()`.
+			let settled = false
 			// Only ever forget the entry we own: a later reopen must not be
 			// evicted by this one's late teardown.
 			const forget = () => {
@@ -63,16 +66,22 @@ export function openDb(
 				onUpgrade(request.result, (event as IDBVersionChangeEvent).oldVersion, tx)
 			}
 			request.onblocked = () => {
+				settled = true
 				forget()
 				reject(
 					new Error(`IndexedDB "${name}" blocked: another context holds an older version`)
 				)
 			}
 			request.onerror = () => {
+				settled = true
 				forget()
 				reject(request.error)
 			}
 			request.onsuccess = () => {
+				if (settled) {
+					request.result.close()
+					return
+				}
 				const db = request.result
 				entry.db = db
 				// Step aside for another context's upgrade or `deleteDatabase()` —

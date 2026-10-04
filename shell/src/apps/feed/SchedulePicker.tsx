@@ -42,9 +42,15 @@ function formatRelativeTime(
 	return t('in {{count}} days', { count: diffDays })
 }
 
+// Short zone name at the given date (e.g. "CET", "GMT+2"), so DST is reflected
+function shortTimeZone(d: Date): string | undefined {
+	return new Intl.DateTimeFormat(undefined, { timeZoneName: 'short' })
+		.formatToParts(d)
+		.find((p) => p.type === 'timeZoneName')?.value
+}
+
 export function SchedulePicker({ value, onChange }: SchedulePickerProps) {
 	const { t } = useTranslation()
-	const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
 
 	// Minimum date: today
 	const minDate = toLocalDateString(new Date())
@@ -62,7 +68,11 @@ export function SchedulePicker({ value, onChange }: SchedulePickerProps) {
 
 	return (
 		<HBox gap={2} align="center" wrap>
+			<Text size="sm" emphasis="muted">
+				{t('Publish on')}
+			</Text>
 			<DateTimePicker
+				className="f-none"
 				value={value ? `${toLocalDateString(value)}T${toLocalTimeString(value)}` : ''}
 				onChange={handleChange}
 				min={minDate}
@@ -72,11 +82,17 @@ export function SchedulePicker({ value, onChange }: SchedulePickerProps) {
 			/>
 			{value && (
 				<>
-					<Text size="sm" emphasis="muted">
-						{formatRelativeTime(value, t)} ({timezone})
+					<Text
+						size="sm"
+						{...(value.getTime() <= Date.now()
+							? { color: 'warning' }
+							: { emphasis: 'muted' })}
+					>
+						{formatRelativeTime(value, t)} · {shortTimeZone(value)}
 					</Text>
 					<Button
-						variant="link"
+						variant="ghost"
+						size="sm"
 						onClick={() => onChange(undefined)}
 						aria-label={t('Clear schedule')}
 					>

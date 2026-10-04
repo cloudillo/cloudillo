@@ -32,6 +32,11 @@ export interface UseFeedPostsOptions {
 
 const PAGE_SIZE = 15
 
+// Updater-side dedup: refs lag a render, so same-tick double deliveries pass the ref checks
+function pushNew(prev: ActionView[], action: ActionView): ActionView[] {
+	return prev.some((p) => p.actionId === action.actionId) ? prev : [action, ...prev]
+}
+
 export function useFeedPosts(options: UseFeedPostsOptions = {}) {
 	const {
 		audience,
@@ -185,7 +190,7 @@ export function useFeedPosts(options: UseFeedPostsOptions = {}) {
 					(!action.status || action.status === 'A')
 				) {
 					// Buffer new posts for "X new posts" banner
-					setNewPosts((prev) => [action, ...prev])
+					setNewPosts((prev) => pushNew(prev, action))
 				}
 				break
 			}
@@ -200,7 +205,7 @@ export function useFeedPosts(options: UseFeedPostsOptions = {}) {
 				// only in the list path), so fetch it before buffering — otherwise the
 				// banner reveal would render a hollow repost wrapper.
 				if (action.subjectAction) {
-					setNewPosts((prev) => [action, ...prev])
+					setNewPosts((prev) => pushNew(prev, action))
 					break
 				}
 				const subjectId = action.subject
@@ -217,7 +222,7 @@ export function useFeedPosts(options: UseFeedPostsOptions = {}) {
 						if (newPostsRef.current.some((p) => p.actionId === action.actionId)) {
 							return
 						}
-						setNewPosts((prev) => [{ ...action, subjectAction: subject }, ...prev])
+						setNewPosts((prev) => pushNew(prev, { ...action, subjectAction: subject }))
 					})
 					.catch(() => {
 						/* leave for the next refetch */
@@ -233,7 +238,10 @@ export function useFeedPosts(options: UseFeedPostsOptions = {}) {
 	// Function to show new posts (user clicks "X new posts" banner)
 	const showNewPosts = React.useCallback(() => {
 		if (newPosts.length > 0) {
-			prepend(newPosts)
+			// A buffered post may have meanwhile landed in the list via refetch
+			const ids = new Set(postsRef.current.map((p) => p.actionId))
+			const fresh = newPosts.filter((p) => !ids.has(p.actionId))
+			if (fresh.length) prepend(fresh)
 			setNewPosts([])
 		}
 	}, [newPosts, prepend])

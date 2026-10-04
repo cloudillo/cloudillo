@@ -40,7 +40,9 @@ export function isEditableTarget(target: EventTarget | null): boolean {
 	const tag = el.tagName
 	if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true
 	return Boolean(
-		el.closest(`[data-rich-text-editor], [role="dialog"], ${POPOVER_TARGET_SELECTOR}`)
+		el.closest(
+			`[data-rich-text-editor], dialog[open], [role="dialog"], ${POPOVER_TARGET_SELECTOR}`
+		)
 	)
 }
 

@@ -212,6 +212,11 @@ export function PdfViewer({ url, fileName, onBack, onDownload }: PdfViewerProps)
 	React.useEffect(
 		function keyboardNav() {
 			function handleKeyDown(evt: KeyboardEvent) {
+				// The viewer is itself an overlay; only a dialog stacked above it blocks the keys
+				const dialog = (evt.target as Element | null)?.closest?.(
+					'dialog[open], [role="dialog"]'
+				)
+				if (dialog && !dialog.contains(containerRef.current)) return
 				switch (evt.key) {
 					case 'ArrowLeft':
 						setCurrentPage((p) => Math.max(1, p - 1))

@@ -24,6 +24,10 @@ export interface ModalProps extends React.HTMLAttributes<HTMLDialogElement> {
  * The dialog element itself is the full-screen backdrop; `children` is the panel.
  * Base for `Dialog` (and the sheet/overlay components).
  *
+ * The dialog opens in its first child's ref callback, before the children's `autoFocus` runs. Without one, focus goes to
+ * the first form field (fine pointer only, so phones don't pop the keyboard), else the first
+ * focusable outside the header close button, else the dialog itself.
+ *
  * @deprecated Use `Dialog`. `Modal` stays as the internal base.
  */
 export const Modal = createComponent<HTMLDialogElement, ModalProps>(
@@ -41,10 +45,6 @@ export const Modal = createComponent<HTMLDialogElement, ModalProps>(
 		React.useLayoutEffect(() => {
 			const dialog = dialogRef.current
 			if (!open || !dialog) return
-			// jsdom has no showModal()
-			if (typeof dialog.showModal === 'function') dialog.showModal()
-			else dialog.setAttribute('open', '')
-
 			function onCancel(evt: Event) {
 				// The parent owns `open`; an open popover inside takes Escape first (close watcher)
 				evt.preventDefault()
@@ -65,6 +65,15 @@ export const Modal = createComponent<HTMLDialogElement, ModalProps>(
 			}
 		}, [open])
 
+		// Runs after the children's commit-time autoFocus
+		React.useLayoutEffect(() => {
+			const dialog = dialogRef.current
+			if (!open || !dialog) return
+			const active = document.activeElement
+			if (active && active !== dialog && dialog.contains(active)) return
+			focusFallback(dialog)
+		}, [open])
+
 		if (!open) return null
 
 		function handleBackdropClick(evt: React.MouseEvent<HTMLDialogElement>) {
@@ -80,6 +89,7 @@ export const Modal = createComponent<HTMLDialogElement, ModalProps>(
 				onClick={handleBackdropClick}
 				{...props}
 			>
+				<span hidden ref={openParent} />
 				{children}
 			</dialog>
 		)
@@ -92,5 +102,35 @@ export const Modal = createComponent<HTMLDialogElement, ModalProps>(
 		return modalContent
 	}
 )
+
+// Opens the dialog in the ref phase, before later siblings' autoFocus runs (same commit).
+// Relies on React's depth-first layout-phase ordering (stable through React 19.3).
+function openParent(el: HTMLSpanElement | null) {
+	const dialog = el?.parentElement as HTMLDialogElement | null
+	if (!dialog || dialog.open) return
+	if (typeof dialog.showModal === 'function') dialog.showModal()
+	else dialog.setAttribute('open', '') // jsdom
+}
+
+const FIELD_SELECTOR =
+	'input:not([type=hidden]):not([disabled]), textarea:not([disabled]), select:not([disabled]), [contenteditable="true"]'
+const FOCUSABLE_SELECTOR = 'button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
+
+function focusFallback(dialog: HTMLDialogElement) {
+	const finePointer =
+		typeof window.matchMedia === 'function' && window.matchMedia('(pointer: fine)').matches
+	const field = finePointer ? dialog.querySelector<HTMLElement>(FIELD_SELECTOR) : null
+	const target =
+		field ??
+		Array.from(dialog.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).find(
+			(el) => !el.closest('.c-dialog-header')
+		)
+	if (target) {
+		target.focus()
+	} else {
+		dialog.tabIndex = -1
+		dialog.focus()
+	}
+}
 
 // vim: ts=4

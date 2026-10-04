@@ -85,6 +85,11 @@ export function useEscapeKey(onEscape: () => void, enabled = true): void {
 	}, [onEscape, enabled])
 }
 
+/** True when a keydown target sits inside an open dialog or popup; global shortcuts must skip it. */
+export function isInDialog(target: EventTarget | null): boolean {
+	return target instanceof Element && !!target.closest('dialog[open], [role="dialog"]')
+}
+
 /**
  * What a roving-focus menu moves between by default.
  *

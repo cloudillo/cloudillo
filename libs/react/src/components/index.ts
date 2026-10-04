@@ -213,6 +213,7 @@ export type { Breakpoint, MenuKeyboardOptions } from './hooks.js'
 // Shared Hooks
 export {
 	BREAKPOINTS,
+	isInDialog,
 	MENU_ITEM_SELECTOR,
 	useBodyScrollLock,
 	useDebouncedValue,

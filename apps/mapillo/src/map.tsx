@@ -56,7 +56,10 @@ export function MapView({ darkMode, settings, onSettingsChange, bus }: MapViewPr
 			style: getMapStyle(activeTileId),
 			maxZoom: getTileLayer(activeTileId).maxZoom,
 			center: [0, 20],
-			zoom: 2
+			zoom: 2,
+			// Load tiles via <img> instead of fetch(): from our opaque-origin sandbox, Firefox's
+			// fetch() sends no Referer, and tile.openstreetmap.org blocks Referer-less requests.
+			refreshExpiredTiles: false
 		})
 
 		map.dragRotate.disable()

@@ -12,16 +12,19 @@ export const Meta = createComponent<HTMLSpanElement, MetaProps>(
 	'Meta',
 	({ className, children, ...props }, ref) => (
 		<span ref={ref} className={mergeClasses('c-meta', className)} {...props}>
-			{React.Children.toArray(children).map((child, i) => (
-				<React.Fragment key={React.isValidElement(child) ? child.key : i}>
-					{i > 0 && (
+			{React.Children.toArray(children).map((child, i) => {
+				const key = React.isValidElement(child) ? child.key : i
+				if (i === 0) return <React.Fragment key={key}>{child}</React.Fragment>
+				// Separator wraps together with its item, never dangling at a line end
+				return (
+					<span key={key} className="c-meta-item">
 						<span className="c-meta-sep" aria-hidden="true">
 							{' · '}
 						</span>
-					)}
-					{child}
-				</React.Fragment>
-			))}
+						{child}
+					</span>
+				)
+			})}
 		</span>
 	)
 )

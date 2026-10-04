@@ -41,7 +41,8 @@ interface ButtonBaseProps extends React.ButtonHTMLAttributes<HTMLButtonElement> 
 	loading?: boolean
 	/**
 	 * Disabled but still focusable (`aria-disabled`, clicks blocked); the reason
-	 * shows as a tooltip and is announced as the description.
+	 * shows as a tooltip and is announced as the description. Ignored when
+	 * `disabled` is explicitly `false`.
 	 */
 	disabledReason?: React.ReactNode
 	/**
@@ -109,11 +110,13 @@ export const Button = createComponent<HTMLButtonElement, ButtonProps>(
 		const look =
 			variant ?? (kind ? undefined : color && color !== 'neutral' ? 'filled' : 'soft')
 		const iconOnly = !!icon && (children === undefined || children === null)
+		// An explicit `disabled={false}` wins: the reason only applies while disabled
+		const reason = disabled === false ? undefined : disabledReason
 		const tip = useTooltip({
-			content: disabledReason || (iconOnly ? props['aria-label'] : undefined),
-			describe: !!disabledReason
+			content: reason || (iconOnly ? props['aria-label'] : undefined),
+			describe: !!reason
 		})
-		const blocked = !!disabledReason || !!loading || (!!href && !!disabled)
+		const blocked = !!reason || !!loading || (!!href && !!disabled)
 
 		async function handleClick(evt: React.MouseEvent<HTMLButtonElement, MouseEvent>) {
 			evt.preventDefault()
@@ -172,7 +175,7 @@ export const Button = createComponent<HTMLButtonElement, ButtonProps>(
 			),
 			'aria-pressed': pressed,
 			'aria-busy': loading || undefined,
-			'aria-disabled': disabledReason || (href && disabled) ? true : props['aria-disabled']
+			'aria-disabled': reason || (href && disabled) ? true : props['aria-disabled']
 		}
 
 		const content = loading ? (
@@ -217,7 +220,7 @@ export const Button = createComponent<HTMLButtonElement, ButtonProps>(
 				<button
 					{...common}
 					type={type}
-					disabled={disabledReason ? undefined : disabled}
+					disabled={reason ? undefined : disabled}
 					onClick={handleClick}
 				>
 					{content}

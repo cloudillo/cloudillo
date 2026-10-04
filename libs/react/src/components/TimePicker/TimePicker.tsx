@@ -85,7 +85,7 @@ export function TimePicker({
 	value,
 	onChange,
 	step = 15,
-	placeholder,
+	placeholder = '--:--',
 	label,
 	className,
 	inputClassName,

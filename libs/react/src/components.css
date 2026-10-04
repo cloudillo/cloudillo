@@ -520,6 +520,12 @@
 	white-space: pre;
 }
 
+/* Separator + item wrap as one unit, so a wrapped line never ends on a dangling dot */
+.c-meta-item {
+	display: inline-flex;
+	align-items: center;
+}
+
 .c-icon-text {
 	display: inline-flex;
 	align-items: center;
@@ -529,6 +535,24 @@
 .c-icon-text-icon {
 	display: inline-flex;
 	flex-shrink: 0;
+}
+
+/* Beats the global IconContext size (1.5rem) so the icon matches the text */
+.c-icon-text-icon svg {
+	width: 1em;
+	height: 1em;
+}
+
+/* Owner avatar in a list subtitle stays within the text line */
+.c-list-item-subtitle .c-avatar {
+	width: 1.25em;
+	height: 1.25em;
+	flex-shrink: 0;
+}
+
+/* Surface halo for icon badges (pin), mirroring opalui's .c-badge halo */
+.c-badge-anchor-badge > .c-icon {
+	filter: drop-shadow(0 0 1px var(--col-surface)) drop-shadow(0 0 1px var(--col-surface));
 }
 
 /* ==========================================================================

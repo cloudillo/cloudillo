@@ -2936,6 +2936,7 @@ body.dark .c-id-color {
 	--h-gallery: oklch(0.58 0.17 348);
 	--h-calendar: oklch(0.58 0.18 22);
 	--h-contacts: oklch(0.55 0.07 55);
+	--h-qrscan: oklch(0.56 0.1 240);
 	/* file types: one neutral navy, the folder borrows the Files hue */
 	--h-image: var(--p-navy);
 	--h-video: var(--p-navy);

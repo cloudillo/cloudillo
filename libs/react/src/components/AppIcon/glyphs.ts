@@ -20,6 +20,7 @@ export type AppId =
 	| 'gallery'
 	| 'calendar'
 	| 'contacts'
+	| 'qrscan'
 
 export type FileTypeId = 'image' | 'video' | 'pdf' | 'folder' | 'generic'
 
@@ -40,7 +41,8 @@ export const APP_IDS: readonly AppId[] = [
 	'messages',
 	'gallery',
 	'calendar',
-	'contacts'
+	'contacts',
+	'qrscan'
 ]
 
 /** Palette key (`--p-<key>`) of each glyph's second colour */
@@ -60,6 +62,7 @@ export const GLYPH_COLOR2: Record<GlyphId, string> = {
 	gallery: 'violet',
 	calendar: 'navy',
 	contacts: 'teal',
+	qrscan: 'navy',
 	image: 'navy',
 	video: 'navy',
 	pdf: 'navy',
@@ -95,6 +98,7 @@ export const GLYPHS: Record<GlyphId, string> = {
 		'<rect class="gf" x="8" y="11" width="32" height="29" rx="4"/><path class="gd" d="M8 15a4 4 0 0 1 4-4h24a4 4 0 0 1 4 4v5H8z"/><path class="gs" d="M16 6v7M32 6v7"/><rect class="gd" x="13" y="26" width="8" height="8" rx="2"/><rect class="go" x="27" y="26" width="8" height="8" rx="2"/>',
 	contacts:
 		'<rect class="gf" x="6" y="10" width="36" height="28" rx="4"/><circle class="go" cx="17" cy="20" r="4.5"/><path class="gt" d="M10 33c1-4 4-6 7-6s6 2 7 6z"/><rect class="gt" x="27" y="18" width="10" height="3.5" rx="1.75"/><rect class="gd" x="27" y="25" width="10" height="3.5" rx="1.75"/>',
+	qrscan: '<path class="gs" d="M8 16v-4a4 4 0 0 1 4-4h4M32 8h4a4 4 0 0 1 4 4v4M40 32v4a4 4 0 0 1-4 4h-4M16 40h-4a4 4 0 0 1-4-4v-4"/><rect class="gf" x="14" y="14" width="9" height="9" rx="2"/><rect class="gf" x="25" y="14" width="9" height="9" rx="2"/><rect class="gf" x="14" y="25" width="9" height="9" rx="2"/><rect class="gt" x="17" y="17" width="3" height="3" rx="0.5"/><rect class="gt" x="28" y="17" width="3" height="3" rx="0.5"/><rect class="gt" x="17" y="28" width="3" height="3" rx="0.5"/><rect class="go" x="26" y="26" width="7" height="7" rx="1.5"/>',
 	image: '<path class="gf" style="stroke:var(--fg);stroke-width:3;stroke-linejoin:round" d="M12 7h16l10 10v24H12z"/><path class="gd" d="M28 7v10h10z"/><path class="gt" style="stroke:var(--tile);stroke-width:2;stroke-linejoin:round" d="M16 37l6-8 5 5 3-3 5 6z"/><circle class="go" cx="20" cy="21" r="3.5"/>',
 	video: '<path class="gf" style="stroke:var(--fg);stroke-width:3;stroke-linejoin:round" d="M12 7h16l10 10v24H12z"/><path class="gd" d="M28 7v10h10z"/><path class="go" style="stroke:var(--node);stroke-width:2.5;stroke-linejoin:round" d="M20 22v14l11-7z"/>',
 	pdf: '<path class="gf" style="stroke:var(--fg);stroke-width:3;stroke-linejoin:round" d="M12 7h16l10 10v24H12z"/><path class="gd" d="M28 7v10h10z"/><path class="gtl" d="M18 17h6"/><rect class="go" x="7" y="24" width="24" height="11" rx="2.5"/><rect class="gt" x="11" y="28" width="11" height="3" rx="1.5"/>',

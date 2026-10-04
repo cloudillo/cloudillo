@@ -19,7 +19,7 @@ import {
 import { useAtomValue, useSetAtom } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuGrip as IcApps, LuScanLine as IcScan } from 'react-icons/lu'
+import { LuGrip as IcApps } from 'react-icons/lu'
 import { useLocation } from 'react-router-dom'
 
 import { getFileIcon } from '../apps/files/icons.js'
@@ -198,7 +198,7 @@ export function Menu({
 			)}
 			{auth && (
 				<AppDockLink
-					icon={<IcScan />}
+					icon={<AppIcon app="qrscan" />}
 					label={t('Scan QR')}
 					vertical
 					className="h-small"

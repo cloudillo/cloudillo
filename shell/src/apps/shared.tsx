@@ -71,7 +71,7 @@ export function SharedResourceView() {
 						authToken: tokenResult.token
 					})
 
-					// Load file metadata using scoped token
+					// Load file metadata using scoped token (a share's resourceId is an entry id)
 					const files = await scopedApi.files.list({ fileId: tokenResult.resourceId })
 					if (files.length === 0) {
 						setState({
@@ -126,7 +126,10 @@ export function SharedResourceView() {
 
 			const { tokenResult, file } = state
 			const fileTp = file.fileTp || 'BLOB'
-			const resId = `${api.idTag}:${file.fileId}`
+			// A folder has no content id; a FLDR share never opens in an app (appId stays ''),
+			// so its entry id only stands in as the menu item's key.
+			const contentId = file.fileId ?? file.entryId
+			const resId = `${api.idTag}:${contentId}`
 
 			// Only CRDT/RTDB files open in a microfrontend app, so only they
 			// resolve an appId. BLOB/FLDR shares render inside this view and must
@@ -144,7 +147,7 @@ export function SharedResourceView() {
 			setGuestDocument({
 				fileName: file.fileName,
 				contentType: file.contentType,
-				fileId: file.fileId,
+				fileId: contentId,
 				appId,
 				resId,
 				token: tokenResult.token,

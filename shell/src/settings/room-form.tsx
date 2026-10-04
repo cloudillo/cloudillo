@@ -26,7 +26,7 @@ import { roleFloorLabels } from '../profile/role-labels.js'
 /** The room settings `describeRoom` reads — a porch entry as moderators receive it. */
 export type RoomSettings = Pick<PorchEntry, 'minRole' | 'visibility' | 'closed'>
 
-const ROOM_NAME_RE = /^[a-z0-9][a-z0-9-]{0,63}$/
+export const ROOM_NAME_RE = /^[a-z0-9][a-z0-9-]{0,63}$/
 
 /** A room name from its title: lowercase ASCII, dashes, at most 64 characters. */
 function slugify(title: string): string {

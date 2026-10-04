@@ -268,7 +268,7 @@ export function useDocInfo(resId: string | undefined, appToken?: string): DocInf
 						return { ok: false, error: 'Rename not permitted' }
 					}
 					try {
-						await api.files.update(current.fileId, { fileName })
+						await api.files.update(row.entryId, { fileName })
 					} catch (err) {
 						console.error('[DocInfo] Rename failed', err)
 						return {

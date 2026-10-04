@@ -32,6 +32,8 @@ export interface DocPickerOptions {
 export interface DocPickerResult {
 	/** Selected file ID */
 	fileId: string
+	/** The selected entry — what writes (share creation) go by; `fileId` is the content id */
+	entryId?: string
 	/** File name */
 	fileName: string
 	/** MIME content type */

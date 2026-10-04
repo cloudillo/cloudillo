@@ -188,12 +188,12 @@ export function usePickerBrowse({
 
 				const results = await Promise.all(tasks)
 
-				// Merge + de-dupe by fileId (a file can be both shared and in-tree)
+				// Merge + de-dupe by entryId (a file can be both shared and in-tree)
 				const seen = new Set<string>()
 				const merged: FileView[] = []
 				for (const f of results.flat()) {
-					if (!seen.has(f.fileId)) {
-						seen.add(f.fileId)
+					if (!seen.has(f.entryId)) {
+						seen.add(f.entryId)
 						merged.push(f)
 					}
 				}

@@ -10,14 +10,14 @@ import { useContextAwareApi } from '../../../context/index.js'
 import { EditTags, Tags } from '../../../tags.js'
 
 interface TagsCellProps {
-	fileId: string
+	entryId: string
 	tags: string[] | undefined
 	setTags?: (tags: string[] | undefined) => void
 	editable?: boolean
 }
 
 export const TagsCell = React.memo(function TagsCell({
-	fileId,
+	entryId,
 	tags,
 	setTags,
 	editable
@@ -34,13 +34,13 @@ export const TagsCell = React.memo(function TagsCell({
 
 	async function addTag(tag: string) {
 		if (!api) return
-		const res = await api.files.addTag(fileId, tag)
+		const res = await api.files.addTag(entryId, tag)
 		if (res.tags) setTags?.(res.tags)
 	}
 
 	async function removeTag(tag: string) {
 		if (!api) return
-		const res = await api.files.removeTag(fileId, tag)
+		const res = await api.files.removeTag(entryId, tag)
 		if (res.tags) setTags?.(res.tags)
 	}
 

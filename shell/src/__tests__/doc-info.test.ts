@@ -22,12 +22,13 @@ import {
 } from '../message-bus/handlers/docinfo.js'
 import { fileIdFromResId, idTagFromResId } from '../message-bus/handlers/resId.js'
 
-const ME = '@me.example.com'
-const COMMUNITY = '@team.example.com'
-const OTHER = '@other.example.com'
+const ME = 'me.example.com'
+const COMMUNITY = 'team.example.com'
+const OTHER = 'other.example.com'
 
 function row(over: Partial<FileView> = {}): FileView {
 	return {
+		entryId: 'e1',
 		fileId: 'f1~abc',
 		status: 'A',
 		contentType: 'cloudillo/quillo',

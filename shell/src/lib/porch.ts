@@ -17,6 +17,7 @@ const inflight = new Map<string, Promise<PorchEntry[]>>()
 export function usePorch(idTag: string | undefined, communityRoles?: string[]) {
 	const { getClientFor } = useApiContext()
 	const [rooms, setRooms] = React.useState<PorchEntry[]>()
+	const [error, setError] = React.useState(false)
 	const [version, setVersion] = React.useState(0)
 	// Another tenant: drop the previous one's rooms during render, not in the effect,
 	// so they never flash. A reload of the same tenant keeps showing the old list.
@@ -24,6 +25,7 @@ export function usePorch(idTag: string | undefined, communityRoles?: string[]) {
 	if (prevIdTag !== idTag) {
 		setPrevIdTag(idTag)
 		setRooms(undefined)
+		setError(false)
 	}
 	const rolesKey = communityRoles?.join(',')
 
@@ -40,10 +42,13 @@ export function usePorch(idTag: string | undefined, communityRoles?: string[]) {
 			}
 			let cancelled = false
 			req.then((list) => {
-				if (!cancelled) setRooms(list)
+				if (cancelled) return
+				setRooms(list)
+				setError(false)
 			}).catch((err) => {
 				console.error('Failed to load rooms:', err)
-				if (!cancelled) setRooms([])
+				// Keep the last good list (or none): `[]` would read as "every room is gone"
+				if (!cancelled) setError(true)
 			})
 			return () => {
 				cancelled = true
@@ -52,7 +57,7 @@ export function usePorch(idTag: string | undefined, communityRoles?: string[]) {
 		[idTag, getClientFor, rolesKey, version]
 	)
 
-	return { rooms, reload: React.useCallback(() => setVersion((v) => v + 1), []) }
+	return { rooms, error, reload: React.useCallback(() => setVersion((v) => v + 1), []) }
 }
 
 // vim: ts=4

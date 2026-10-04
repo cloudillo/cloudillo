@@ -164,7 +164,8 @@ describe('buildLiveDocContent', () => {
 describe('isPostableHandDoc', () => {
 	const item = (over: Partial<FileHandItem> = {}): FileHandItem => ({
 		type: 'file',
-		id: 'f1',
+		id: 'e1',
+		fileId: 'f1',
 		idTag: 'alice.org',
 		sourceContext: 'alice.org',
 		label: 'Notes',

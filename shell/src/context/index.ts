@@ -48,6 +48,7 @@ export {
 	useCommunitiesList,
 	useContextRolesFor,
 	useContextSwitch,
+	useContextName,
 	useContextSwitchNav,
 	useCurrentContextIdTag,
 	useSidebar

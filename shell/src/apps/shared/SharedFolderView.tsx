@@ -149,7 +149,7 @@ export function SharedFolderView({
 	// so browser back/forward and deep links work. The refId only identifies the
 	// share; ?parentId= is the current folder, ?file= an opened child.
 	const [searchParams, setSearchParams] = useSearchParams()
-	const currentFolderId = searchParams.get('parentId') || rootFile.fileId
+	const currentFolderId = searchParams.get('parentId') || rootFile.entryId
 	const openFileId = searchParams.get('file')
 
 	const [children, setChildren] = React.useState<FileView[]>([])
@@ -280,10 +280,10 @@ export function SharedFolderView({
 					}
 					const chain: BreadcrumbItem[] = [
 						...(current.path ?? []).map((p) => ({ id: p.id, name: p.name })),
-						{ id: current.fileId, name: current.fileName }
+						{ id: current.entryId, name: current.fileName }
 					]
 					// Trim to the share root so ancestors above it are never shown.
-					const rootIdx = chain.findIndex((c) => c.id === rootFile.fileId)
+					const rootIdx = chain.findIndex((c) => c.id === rootFile.entryId)
 					const trimmed = rootIdx >= 0 ? chain.slice(rootIdx) : chain
 					if (cancelled) return
 					setBreadcrumbs(trimmed)
@@ -303,7 +303,7 @@ export function SharedFolderView({
 				cancelled = true
 			}
 		},
-		[currentFolderId, rootFile.fileId]
+		[currentFolderId, rootFile.entryId]
 	)
 
 	// Deep-link fallback: when ?file= points at a file not in the current
@@ -312,7 +312,7 @@ export function SharedFolderView({
 	// Depend on a boolean membership rather than the `children` array (whose
 	// identity changes on every revalidation) so an out-of-folder ?file= isn't
 	// re-fetched on every background refresh.
-	const openInChildren = !!openFileId && children.some((f) => f.fileId === openFileId)
+	const openInChildren = !!openFileId && children.some((f) => f.entryId === openFileId)
 
 	React.useEffect(
 		function fetchDeepLinkedFile() {
@@ -345,19 +345,19 @@ export function SharedFolderView({
 			setSearchParams((prev) => {
 				const p = new URLSearchParams(prev)
 				p.delete('file')
-				if (folderId && folderId !== rootFile.fileId) p.set('parentId', folderId)
+				if (folderId && folderId !== rootFile.entryId) p.set('parentId', folderId)
 				else p.delete('parentId')
 				return p
 			})
 		},
-		[setSearchParams, rootFile.fileId]
+		[setSearchParams, rootFile.entryId]
 	)
 
 	const openFileInUrl = React.useCallback(
-		(fileId: string) => {
+		(entryId: string) => {
 			setSearchParams((prev) => {
 				const p = new URLSearchParams(prev)
-				p.set('file', fileId)
+				p.set('file', entryId)
 				return p
 			})
 		},
@@ -425,7 +425,7 @@ export function SharedFolderView({
 		)
 		if (!ok) return
 		try {
-			await scopedApi.files.delete(file.fileId)
+			await scopedApi.files.delete(file.entryId)
 			setRefreshKey((k) => k + 1)
 		} catch (err) {
 			console.error('[SharedFolderView] Delete failed:', err)
@@ -436,7 +436,7 @@ export function SharedFolderView({
 	function handleOpen(file: FileView) {
 		const fileTp = file.fileTp || 'BLOB'
 		if (fileTp === 'FLDR') {
-			navigateToFolder(file.fileId)
+			navigateToFolder(file.entryId)
 			return
 		}
 		// Collaborative docs need a guest name for awareness; prompt lazily if
@@ -445,7 +445,7 @@ export function SharedFolderView({
 			setPendingAppFile(file)
 			return
 		}
-		openFileInUrl(file.fileId)
+		openFileInUrl(file.entryId)
 	}
 
 	// A collaborative doc was opened before we had a guest name — prompt, then
@@ -456,7 +456,7 @@ export function SharedFolderView({
 				open
 				onConfirm={(name) => {
 					setFolderGuestName(name)
-					openFileInUrl(pendingAppFile.fileId)
+					openFileInUrl(pendingAppFile.entryId)
 					setPendingAppFile(null)
 				}}
 				onCancel={() => setPendingAppFile(null)}
@@ -466,7 +466,7 @@ export function SharedFolderView({
 
 	// The opened child file is derived from the URL once children are loaded.
 	const openFile = openFileId
-		? (children.find((f) => f.fileId === openFileId) ?? fetchedOpenFile)
+		? (children.find((f) => f.entryId === openFileId) ?? fetchedOpenFile)
 		: null
 
 	// Opened a child file: render the viewer / app with a back action to the listing.
@@ -605,7 +605,7 @@ export function SharedFolderView({
 				<Grid min="8rem" gap={2}>
 					{children.map((file) => (
 						<FolderItem
-							key={file.fileId}
+							key={file.entryId}
 							file={file}
 							idTag={idTag}
 							canWrite={canWrite}

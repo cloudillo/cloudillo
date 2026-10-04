@@ -16,11 +16,11 @@ export interface UseMultiSelectOptions {
 export interface UseMultiSelectResult {
 	selectedIds: Set<string>
 	anchorId: string | undefined
-	isSelected: (fileId: string) => boolean
+	isSelected: (entryId: string) => boolean
 	handleClick: (file: File, event: React.MouseEvent) => void
 	selectAll: () => void
 	clearSelection: () => void
-	toggleSelection: (fileId: string) => void
+	toggleSelection: (entryId: string) => void
 	getFirstSelected: () => File | undefined
 	getSelectedFiles: () => File[]
 }
@@ -31,7 +31,7 @@ export function useMultiSelect({ files, resetKey }: UseMultiSelectOptions): UseM
 
 	// Create a stable key based on file IDs to detect actual file list changes
 	// This avoids infinite loops when the files array reference changes but content is the same
-	const filesKey = React.useMemo(() => files.map((f) => f.fileId).join(','), [files])
+	const filesKey = React.useMemo(() => files.map((f) => f.entryId).join(','), [files])
 
 	// Drop only the ids that left the list - a mutation refetch must not lose the selection.
 	// While the list is empty (the blank tick refresh() causes) keep everything: nothing with
@@ -39,7 +39,7 @@ export function useMultiSelect({ files, resetKey }: UseMultiSelectOptions): UseM
 	React.useEffect(
 		function pruneOnFilesChange() {
 			if (files.length === 0) return
-			const ids = new Set(files.map((f) => f.fileId))
+			const ids = new Set(files.map((f) => f.entryId))
 			setSelectedIds((prev) => {
 				const next = new Set([...prev].filter((id) => ids.has(id)))
 				return next.size === prev.size ? prev : next
@@ -60,20 +60,20 @@ export function useMultiSelect({ files, resetKey }: UseMultiSelectOptions): UseM
 	)
 
 	const isSelected = React.useCallback(
-		function isSelected(fileId: string) {
-			return selectedIds.has(fileId)
+		function isSelected(entryId: string) {
+			return selectedIds.has(entryId)
 		},
 		[selectedIds]
 	)
 
 	const handleClick = React.useCallback(
 		function handleClick(file: File, event: React.MouseEvent) {
-			const fileId = file.fileId
+			const entryId = file.entryId
 
 			if (event.shiftKey && anchorId) {
 				// Range selection: select all items between anchor and clicked item
-				const anchorIndex = files.findIndex((f) => f.fileId === anchorId)
-				const clickIndex = files.findIndex((f) => f.fileId === fileId)
+				const anchorIndex = files.findIndex((f) => f.entryId === anchorId)
+				const clickIndex = files.findIndex((f) => f.entryId === entryId)
 
 				if (anchorIndex !== -1 && clickIndex !== -1) {
 					const start = Math.min(anchorIndex, clickIndex)
@@ -82,7 +82,7 @@ export function useMultiSelect({ files, resetKey }: UseMultiSelectOptions): UseM
 					setSelectedIds((prev) => {
 						const next = new Set(prev)
 						for (let i = start; i <= end; i++) {
-							next.add(files[i].fileId)
+							next.add(files[i].entryId)
 						}
 						return next
 					})
@@ -91,18 +91,18 @@ export function useMultiSelect({ files, resetKey }: UseMultiSelectOptions): UseM
 				// Toggle selection: add or remove from current selection
 				setSelectedIds((prev) => {
 					const next = new Set(prev)
-					if (next.has(fileId)) {
-						next.delete(fileId)
+					if (next.has(entryId)) {
+						next.delete(entryId)
 					} else {
-						next.add(fileId)
+						next.add(entryId)
 					}
 					return next
 				})
-				setAnchorId(fileId)
+				setAnchorId(entryId)
 			} else {
 				// Single selection: replace current selection
-				setSelectedIds(new Set([fileId]))
-				setAnchorId(fileId)
+				setSelectedIds(new Set([entryId]))
+				setAnchorId(entryId)
 			}
 		},
 		[files, anchorId]
@@ -110,7 +110,7 @@ export function useMultiSelect({ files, resetKey }: UseMultiSelectOptions): UseM
 
 	const selectAll = React.useCallback(
 		function selectAll() {
-			setSelectedIds(new Set(files.map((f) => f.fileId)))
+			setSelectedIds(new Set(files.map((f) => f.entryId)))
 		},
 		[files]
 	)
@@ -120,13 +120,13 @@ export function useMultiSelect({ files, resetKey }: UseMultiSelectOptions): UseM
 		setAnchorId(undefined)
 	}, [])
 
-	const toggleSelection = React.useCallback(function toggleSelection(fileId: string) {
+	const toggleSelection = React.useCallback(function toggleSelection(entryId: string) {
 		setSelectedIds((prev) => {
 			const next = new Set(prev)
-			if (next.has(fileId)) {
-				next.delete(fileId)
+			if (next.has(entryId)) {
+				next.delete(entryId)
 			} else {
-				next.add(fileId)
+				next.add(entryId)
 			}
 			return next
 		})
@@ -136,14 +136,14 @@ export function useMultiSelect({ files, resetKey }: UseMultiSelectOptions): UseM
 		function getFirstSelected() {
 			if (selectedIds.size === 0) return undefined
 			// Return the first file in the list that is selected
-			return files.find((f) => selectedIds.has(f.fileId))
+			return files.find((f) => selectedIds.has(f.entryId))
 		},
 		[files, selectedIds]
 	)
 
 	const getSelectedFiles = React.useCallback(
 		function getSelectedFiles() {
-			return files.filter((f) => selectedIds.has(f.fileId))
+			return files.filter((f) => selectedIds.has(f.entryId))
 		},
 		[files, selectedIds]
 	)

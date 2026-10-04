@@ -20,8 +20,9 @@ const DB_NAME = DATA_CACHE_DB
 // metadata regenerated on the first list call). v3: unused `profiles`/`meta` stores dropped.
 // v4: `files` re-keyed again, from the owner profile to the tenant that SERVED the listing,
 // so every `ownerIdTag` index entry written before this is filed under a tenant no reader
-// queries.
-const DB_VERSION = 4
+// queries. v5: `files` cache key moved from fileId to entryId (placement), so old rows would
+// duplicate their re-keyed replacements. v6: `files` gains the `by-owner-file` index.
+const DB_VERSION = 6
 
 // Fraction of the origin's *quota* above which eviction switches to its aggressive target.
 // Relative, not an absolute byte ceiling: most of the origin's bytes are the SW blob cache and
@@ -45,6 +46,7 @@ const STORE_CONFIGS: StoreConfig[] = [
 		indexes: [
 			{ name: 'by-owner', keyPath: 'ownerIdTag' },
 			{ name: 'by-owner-parent', keyPath: ['ownerIdTag', 'parentId'] },
+			{ name: 'by-owner-file', keyPath: ['ownerIdTag', 'fileId'] },
 			{ name: 'by-owner-type', keyPath: ['ownerIdTag', 'fileTp'] },
 			{ name: 'by-owner-content-type', keyPath: ['ownerIdTag', 'contentType'] },
 			{ name: 'by-owner-starred', keyPath: ['ownerIdTag', 'starred'] },
@@ -98,7 +100,9 @@ function openDB(): Promise<IDBDatabase> {
 		// v3 → v4: `files` index keys moved from the owner profile to the tenant that served
 		// the listing (`cacheFiles` in file-cache.ts), so every existing row is filed under a
 		// tenant no reader queries. Drop and recreate; it repopulates on the next list call.
-		if (oldVersion < 4 && db.objectStoreNames.contains('files')) {
+		// v4 → v5: cache key `${tenant}:${fileId}` → `${tenant}:${entryId}`; same drop-and-refill.
+		// v5 → v6: new `by-owner-file` index; the store is only (re)built when absent, so drop it.
+		if (oldVersion < 6 && db.objectStoreNames.contains('files')) {
 			db.deleteObjectStore('files')
 		}
 
@@ -181,35 +185,6 @@ async function purgeUndecryptable(storeName: string, cacheKeys: string[]): Promi
 	} catch (err) {
 		console.warn('[Cache] Failed to purge undecryptable records:', err)
 	}
-}
-
-/**
- * Get a single record by cache key and decrypt its payload.
- */
-export async function getRecord<T>(storeName: string, cacheKey: string): Promise<T | null> {
-	let db: IDBDatabase
-	try {
-		db = await openDB()
-	} catch {
-		return null
-	}
-	return new Promise((resolve, reject) => {
-		const tx = db.transaction(storeName, 'readonly')
-		const request = tx.objectStore(storeName).get(cacheKey)
-		request.onsuccess = async () => {
-			const record = request.result as CachedRecordBase | undefined
-			if (!record?._encPayload) {
-				resolve(null)
-				return
-			}
-			const payload = await decryptJSON<T>(record._encPayload)
-			if (payload === null) {
-				void purgeUndecryptable(storeName, [cacheKey])
-			}
-			resolve(payload)
-		}
-		request.onerror = () => reject(request.error)
-	})
 }
 
 /**

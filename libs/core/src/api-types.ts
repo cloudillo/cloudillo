@@ -564,6 +564,10 @@ export interface PatchFileRequest {
 	fileName?: string
 	parentId?: string | null // Move file to folder (null = root)
 	visibility?: ActionVisibility | null // File visibility level
+	/** Cross-drive move; only with `parentId: null` (else 400). Absent = stay in the entry's current
+	 *  drive, `null` = main drive, `'@tenant~name'` = that room's root. A move into a folder sends
+	 *  no `channel`: the folder's drive is inherited. */
+	channel?: string | null
 }
 
 export interface GetFileVariantSelector {
@@ -574,8 +578,10 @@ export interface GetFileVariantSelector {
 }
 
 export interface ListFilesQuery {
-	fileId?: string
-	parentId?: string // Filter by folder: null=root, "__trash__"=trash, or folder fileId
+	fileId?: string // Entry id, or a content id with a single entry
+	parentId?: string // Filter by folder: null=root, "__trash__"=trash, or folder entryId
+	/** Drive filter, root listing only: absent = all drives, `''` = main drive, `'@tenant~name'` = that room */
+	channel?: string
 	notParentId?: string // Exclude files inside this folder. Use with fileName/global search to find matches outside the current folder.
 	rootId?: string // Filter by document tree root
 	preset?: string
@@ -615,8 +621,9 @@ export type FileUserData = T.TypeOf<typeof tFileUserData>
 
 // Response types
 export const tFileView = T.struct({
-	fileId: T.string,
-	parentId: T.optional(T.string), // Parent folder ID (null = root, "__trash__" = in trash)
+	entryId: T.string, // Placement id: navigation, rename/move/trash, star/pin, tags, shares
+	fileId: T.nullable(T.string), // Content id: open, variants, resId; null for local folders, upstream id for a remote folder
+	parentId: T.optional(T.string), // Parent folder entryId (null = root, "__trash__" = in trash)
 	rootId: T.optional(T.string), // Document tree root file ID
 	status: T.literal('P', 'A'),
 	preset: T.optional(T.string),
@@ -684,23 +691,25 @@ export const tListFilesResult = T.array(tFileView)
 export type ListFilesResult = T.TypeOf<typeof tListFilesResult>
 
 export const tCreateFileResult = T.struct({
-	fileId: T.string
+	entryId: T.string,
+	fileId: T.nullable(T.string) // null for local folders; the upstream folder id for a remote folder
 })
 export type CreateFileResult = T.TypeOf<typeof tCreateFileResult>
 
 /**
  * Result of a file upload.
  *
- * - `fileId`: identifier of the stored file (may reference an existing blob if `existed` is true).
+ * - `entryId`: the new entry (final at once, also while processing).
+ * - `fileId`: content id; `@<f_id>` while processing, swapped by `FILE_ID_GENERATED`.
  * - `thumbnailVariantId`: variant id for the generated thumbnail, when one was produced.
  * - `dim`: intrinsic [width, height] of image/video uploads, when known.
- * - `existed`: true when the upload was deduplicated against an existing blob
- *   (content-addressed dedup hit). In that case the returned `fileId` references the prior copy
- *   and no new bytes were stored.
+ * - `existed`: true on a content-addressed dedup hit. The answer is then a full `FileView` of a
+ *   **new** entry in the upload's own location over the prior content; no new bytes were stored.
  * - `fileName`: canonical filename assigned by the server after normalization.
  * - `contentType`: canonical MIME type the server resolved for the stored content.
  */
 export const tUploadFileResult = T.struct({
+	entryId: T.string,
 	fileId: T.string,
 	thumbnailVariantId: T.optional(T.string),
 	dim: T.optional(T.tuple(T.number, T.number)),
@@ -728,21 +737,25 @@ export const tFileDescriptor = T.string
 export type FileDescriptor = T.TypeOf<typeof tFileDescriptor>
 
 export const tPatchFileResult = T.struct({
-	fileId: T.string,
+	entryId: T.string,
+	fileId: T.nullable(T.string),
 	fileName: T.optional(T.string)
 })
 export type PatchFileResult = T.TypeOf<typeof tPatchFileResult>
 
 export const tDeleteFileResult = T.struct({
-	fileId: T.string,
+	entryId: T.string,
+	fileId: T.nullable(T.string),
 	permanent: T.optional(T.boolean) // True if permanently deleted, false if moved to trash
 })
 export type DeleteFileResult = T.TypeOf<typeof tDeleteFileResult>
 
-// Restore file from trash
+// Restore file from trash. Without a `parentId` the entry lands at the root of its drive (trash
+// keeps no original folder), or the main drive when its room is gone.
 export const tRestoreFileResult = T.struct({
-	fileId: T.string,
-	parentId: T.optional(T.string) // Target folder after restore (null = root)
+	entryId: T.string,
+	fileId: T.nullable(T.string),
+	parentId: T.optional(T.nullable(T.string)) // Target folder after restore (null = root)
 })
 export type RestoreFileResult = T.TypeOf<typeof tRestoreFileResult>
 
@@ -766,7 +779,8 @@ export interface UpdateFileUserDataRequest {
 
 // Update user-specific file data result
 export const tUpdateFileUserDataResult = T.struct({
-	fileId: T.string,
+	entryId: T.string,
+	fileId: T.nullable(T.string),
 	accessedAt: T.optional(T.union(T.string, T.date)),
 	modifiedAt: T.optional(T.union(T.string, T.date)),
 	pinned: T.optional(T.boolean),
@@ -775,6 +789,7 @@ export const tUpdateFileUserDataResult = T.struct({
 export type UpdateFileUserDataResult = T.TypeOf<typeof tUpdateFileUserDataResult>
 
 export const tTagResult = T.struct({
+	entryId: T.string,
 	tags: T.array(T.string)
 })
 export type TagResult = T.TypeOf<typeof tTagResult>
@@ -912,10 +927,11 @@ export const tPorchEntry = T.struct({
 	title: T.optional(T.nullable(T.string)),
 	descr: T.optional(T.nullable(T.string)),
 	status: T.string,
-	// Admin fields, sent only to the tenant and moderator+ readers
-	visibility: T.optional(T.union(T.string, T.nullValue)),
+	visibility: T.optional(T.union(T.string, T.nullValue)), // admin only
+	// Admins and readers with status `in`: minRole (null = public room), closed
 	minRole: T.optional(T.union(T.string, T.nullValue)),
-	closed: T.optional(T.boolean)
+	closed: T.optional(T.boolean),
+	memberCount: T.optional(T.number) // closed rooms only
 })
 export type PorchEntry = Omit<T.TypeOf<typeof tPorchEntry>, 'status'> & { status: PorchStatus }
 

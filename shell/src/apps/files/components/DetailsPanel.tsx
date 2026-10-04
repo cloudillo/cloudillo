@@ -22,7 +22,6 @@ import {
 	Panel,
 	ProfileCard,
 	QRCodeDialog,
-	RoomChip,
 	Text,
 	Thumbnail,
 	useAuth,
@@ -68,6 +67,7 @@ import {
 	toAppAccess,
 	toSharePermChar
 } from '../utils.js'
+import { LocationChip } from './LocationChip.js'
 import { TagsCell } from './TagsCell.js'
 
 type PermLevel = SharePermLevel
@@ -177,7 +177,7 @@ export function DetailsPanel({
 	// Which node holds this file and whose roles decide what we may do with it. Shared with the
 	// ShareDialog this panel opens - see useFileOwnerScope for why they must not derive it twice.
 	const scope = useFileOwnerScope(file, ownerScope)
-	const { api, isCrossOwner, upstreamIdTag } = scope
+	const { api, isCrossOwner, upstreamIdTag, scopedId } = scope
 	// `resolving` is not enough: the owner branch of canManageFile/canManageShares needs no roles,
 	// so an own file reads as manageable while `api` is still null. Requiring the client too is what
 	// stops the affordance rendering before the node it targets exists.
@@ -188,7 +188,7 @@ export function DetailsPanel({
 	const canShare = scopeReady && scope.canManageShares
 	// Wider than either: the backend lets any writer enumerate a file's shares, so the panel lists
 	// who it is shared with even when nothing in it may be changed.
-	const canSeeShares = scopeReady && scope.canReadShares
+	const canSeeShares = scopeReady && scope.canReadShares && !!scopedId
 	const toast = useToast()
 	// `scopeIdTag` is the tenant that holds the ref AND the one `api` targets, which useShareOrigin
 	// requires - see the cache invariant in appOrigin.ts.
@@ -238,7 +238,7 @@ export function DetailsPanel({
 			setFileShareEntries(undefined)
 			setPeopleProfiles({})
 		},
-		[file.fileId]
+		[scopedId]
 	)
 
 	React.useEffect(
@@ -246,7 +246,7 @@ export function DetailsPanel({
 			// Both calls need share-READER standing server-side; without this a read-only viewer
 			// 403s twice on every selection for a section that then renders nothing. `canSeeShares`
 			// folds in `scopeReady`, so this also keeps the fetch off a half-resolved scope.
-			if (!api || !canSeeShares) return
+			if (!api || !canSeeShares || !scopedId) return
 
 			let cancelled = false
 
@@ -257,7 +257,7 @@ export function DetailsPanel({
 					// and it asks for 'all' so expired and used links stay reachable there.
 					const refs = await api.refs.list({
 						type: 'share.file',
-						resourceId: file.fileId
+						resourceId: scopedId
 					})
 					if (!cancelled) {
 						setShareRefs(refs)
@@ -275,7 +275,7 @@ export function DetailsPanel({
 
 				let userEntries: Types.ShareEntry[] = []
 				try {
-					const allEntries = await api.files.listShares(file.fileId)
+					const allEntries = await api.files.listShares(scopedId)
 					if (cancelled) return
 					userEntries = allEntries.filter((e) => e.subjectType === 'U')
 					setUserShareEntries(userEntries)
@@ -297,7 +297,7 @@ export function DetailsPanel({
 				cancelled = true
 			}
 		},
-		[api, canSeeShares, file.fileId]
+		[api, canSeeShares, scopedId]
 	)
 
 	// The owner profile to render. The backend back-fills `owner` to the serving tenant, so the
@@ -333,13 +333,18 @@ export function DetailsPanel({
 			if (!api) return
 
 			// Key by api source so switching between local/remote with the
-			// same fileId doesn't return a path from the wrong context.
-			const cacheKey = `${ownerScope ? 'remote' : isCrossOwner ? `upstream:${upstreamIdTag}` : 'local'}:${file.fileId}`
+			// same id doesn't return a path from the wrong context.
+			const cacheKey = `${ownerScope ? 'remote' : isCrossOwner ? `upstream:${upstreamIdTag}` : 'local'}:${scopedId}`
 
 			// Use path already on the file if present (from a withPath listing).
 			if (file.path) {
 				pathCacheRef.current.set(cacheKey, file.path)
 				setFilePath(file.path)
+				return
+			}
+
+			if (!scopedId) {
+				setFilePath([])
 				return
 			}
 
@@ -355,7 +360,7 @@ export function DetailsPanel({
 
 			;(async function () {
 				try {
-					const results = await api.files.list({ fileId: file.fileId, withPath: true })
+					const results = await api.files.list({ fileId: scopedId, withPath: true })
 					if (cancelled) return
 					const fetched = results[0]?.path ?? []
 					pathCacheRef.current.set(cacheKey, fetched)
@@ -370,7 +375,7 @@ export function DetailsPanel({
 				cancelled = true
 			}
 		},
-		[api, ownerScope, isCrossOwner, upstreamIdTag, file.fileId, file.path]
+		[api, ownerScope, isCrossOwner, upstreamIdTag, scopedId, file.path]
 	)
 
 	function copyShareLink(refId: string) {
@@ -440,7 +445,7 @@ export function DetailsPanel({
 									// unresolved. Until it is, they stay read-only.
 									onClick={() =>
 										fileOps.setVisibility!(
-											file.fileId,
+											file.entryId,
 											opt.value,
 											api ?? undefined
 										)
@@ -474,7 +479,7 @@ export function DetailsPanel({
 					{
 						key: 'room',
 						term: t('Room'),
-						description: <RoomChip channel={file.channel} contextTag={ownerIdTag} />
+						description: <LocationChip file={file} driveOnly />
 					}
 				]
 			: []),
@@ -513,7 +518,7 @@ export function DetailsPanel({
 			// read-only here rather than routed to the owner's node.
 			description: (
 				<TagsCell
-					fileId={file.fileId}
+					entryId={file.entryId}
 					tags={file.tags}
 					editable={canManage && !isCrossOwner}
 					setTags={(tags) => fileOps.setFile?.({ ...file, tags })}
@@ -560,7 +565,7 @@ export function DetailsPanel({
 							icon={canWrite(file.accessLevel) ? <IcEdit /> : <IcView />}
 							aria-label={t('Open')}
 							onClick={() =>
-								fileOps.openFile(file.fileId, toAppAccess(file.accessLevel))
+								fileOps.openFile(file.entryId, toAppAccess(file.accessLevel))
 							}
 						/>
 					)}
@@ -569,14 +574,14 @@ export function DetailsPanel({
 						icon={<IcStar />}
 						pressed={!!file.userData?.starred}
 						aria-label={file.userData?.starred ? t('Starred') : t('Star')}
-						onClick={() => fileOps.toggleStarred?.(file.fileId)}
+						onClick={() => fileOps.toggleStarred?.(file.entryId)}
 					/>
 					<Button
 						variant="ghost"
 						icon={<IcPin />}
 						pressed={!!file.userData?.pinned}
 						aria-label={file.userData?.pinned ? t('Pinned') : t('Pin')}
-						onClick={() => fileOps.togglePinned?.(file.fileId)}
+						onClick={() => fileOps.togglePinned?.(file.entryId)}
 					/>
 					{/* Same cross-owner exclusion as Visibility below: a placed row's file_id names
 					    a row on two nodes, so we do not offer a write we cannot route. */}
@@ -593,7 +598,7 @@ export function DetailsPanel({
 						>
 							<MenuItem
 								label={t('Rename...')}
-								onClick={() => fileOps.renameFile(file.fileId)}
+								onClick={() => fileOps.renameFile(file.entryId)}
 							/>
 						</Menu>
 					)}

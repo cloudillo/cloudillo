@@ -110,7 +110,7 @@ export function useSmartUpload(options?: UseUploadQueueOptions) {
 					fileTp,
 					contentType: handler.targetMimeType,
 					parentId: options?.parentId || undefined,
-					channel: options?.channel
+					channel: options?.parentId ? undefined : options?.channel
 				})
 				if (!res?.fileId) {
 					console.error('[SmartUpload] Failed to create document: no fileId returned')
@@ -119,7 +119,7 @@ export function useSmartUpload(options?: UseUploadQueueOptions) {
 
 				// Set filename (strip extension, add nothing — calcillo shows as-is)
 				const baseName = file.name.replace(/\.[^.]+$/, '')
-				await api.files.update(res.fileId, {
+				await api.files.update(res.entryId, {
 					fileName: baseName || t('Untitled document')
 				})
 

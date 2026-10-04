@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import { APP_STORAGE_DB, CRDT_DB, DATA_CACHE_DB, deleteDatabase } from '../../shared/idb.js'
-import { clearCache, getCachedFile, resetKeyErrorState } from '../cache/index.js'
+import { clearCache, getCachedFileByFileId, resetKeyErrorState } from '../cache/index.js'
 import { getDirtyDocIds } from '../message-bus/handlers/crdt.js'
 import { closeAppStorage } from '../message-bus/handlers/storage.js'
 import { cleanupEncryptionCookie, resetEncryptionState } from '../pwa.js'
@@ -93,14 +93,13 @@ export async function listDirtyDocs(): Promise<DirtyDocSummary[]> {
 		// libs/react/src/hooks.tsx). The file cache is keyed by the tenant that
 		// served the listing, so this prefix only finds rows that ORIGINATE on
 		// that node — a mirrored doc misses and degrades to showing its fileId.
-		// A `by-file-id` index on the `files` store is the fix if that matters.
 		const colon = docId.indexOf(':')
 		const ownerIdTag = colon > 0 ? docId.slice(0, colon) : ''
 		const fileId = colon > 0 ? docId.slice(colon + 1) : docId
 		let name = fileId
 		if (ownerIdTag) {
 			try {
-				const file = await getCachedFile(ownerIdTag, fileId)
+				const file = await getCachedFileByFileId(ownerIdTag, fileId)
 				if (file?.fileName) name = file.fileName
 			} catch {
 				// Best-effort; fall back to fileId.

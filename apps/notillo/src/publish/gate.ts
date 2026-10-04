@@ -50,6 +50,8 @@ export interface PublishRefSite {
 /** One referenced file, with every published block that points at it. */
 export interface PublishRef {
 	fileId: string
+	/** The entry `fileId` resolves to, when it could be read: writes go by it, not the content id. */
+	entryId?: string
 	kind: PublishRefKind
 	/**
 	 * The file's visibility, or `undefined` when it could not be read — a deleted
@@ -173,6 +175,7 @@ export interface PublishFileInfo {
 	 */
 	visibility?: ActionVisibility
 	fileName?: string
+	entryId?: string
 }
 
 export interface PublishGateOptions {
@@ -291,6 +294,7 @@ async function readVisibilities(
 		const info = infos.get(ref.fileId)
 		ref.visibility = info?.visibility
 		ref.fileName = info?.fileName
+		ref.entryId = info?.entryId
 	}
 }
 

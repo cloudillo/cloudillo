@@ -157,6 +157,7 @@ function usePages(client: RtdbClient | undefined) {
 			contentType: string,
 			dim?: [number, number],
 			extra?: {
+				entryId?: string
 				originalFileId?: string
 				filter?: PageFilter
 				filterStrength?: number
@@ -177,6 +178,7 @@ function usePages(client: RtdbClient | undefined) {
 				filterStrength: extra?.filterStrength,
 				rotation: extra?.rotation ?? 0,
 				...(dim && { width: dim[0], height: dim[1] }),
+				...(extra?.entryId && { entryId: extra.entryId }),
 				...(extra?.originalFileId && { originalFileId: extra.originalFileId }),
 				...(extra?.cropPoints && { cropPoints: extra.cropPoints }),
 				createdAt: new Date().toISOString()
@@ -193,6 +195,7 @@ function usePages(client: RtdbClient | undefined) {
 				Pick<
 					ScanPage,
 					| 'fileId'
+					| 'entryId'
 					| 'originalFileId'
 					| 'filter'
 					| 'filterStrength'
@@ -1215,11 +1218,17 @@ export function ScanilloApp() {
 		let pageId: string | undefined
 
 		if (opts.sourcePageId) {
-			// Look up old edited fileId before updating
-			const oldFileId = pages.find((p) => p.id === opts.sourcePageId)?.fileId
+			// Look up the old edited variant before updating. Deleted by entry id: a deduplicated
+			// scan has several entries over one content id, and the server refuses that with 409.
+			const oldPage = pages.find((p) => p.id === opts.sourcePageId)
+			// Legacy pages (no entryId) only know the content id: same content ⇒ nothing to delete
+			const oldEntryId =
+				oldPage?.entryId ??
+				(oldPage?.fileId !== uploaded.fileId ? oldPage?.fileId : undefined)
 
 			await updatePage(opts.sourcePageId, {
 				fileId: uploaded.fileId,
+				entryId: uploaded.entryId,
 				originalFileId,
 				filter,
 				filterStrength,
@@ -1230,12 +1239,12 @@ export function ScanilloApp() {
 			pageId = opts.sourcePageId
 
 			// Delete old edited variant (not the original)
-			if (oldFileId && oldFileId !== uploaded.fileId && scanillo.ownerTag) {
+			if (oldEntryId && oldEntryId !== uploaded.entryId && scanillo.ownerTag) {
 				const delApi = createApiClient({
 					idTag: scanillo.ownerTag,
 					authToken: scanillo.token
 				})
-				delApi.files.delete(oldFileId).catch(() => {})
+				delApi.files.delete(oldEntryId).catch(() => {})
 			}
 		} else {
 			pageId = await addPage(
@@ -1244,6 +1253,7 @@ export function ScanilloApp() {
 				'image/jpeg',
 				uploaded.dim,
 				{
+					entryId: uploaded.entryId,
 					originalFileId,
 					filter,
 					filterStrength,

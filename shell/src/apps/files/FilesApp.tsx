@@ -1,25 +1,18 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { useAtom } from 'jotai'
-import * as React from 'react'
-import { useTranslation } from 'react-i18next'
-import { LuCloud as IcCloud, LuCloudOff as IcOffline, LuUpload as IcUpload } from 'react-icons/lu'
-import { useLocation, useNavigate } from 'react-router-dom'
-
 import type * as Types from '@cloudillo/core'
-import { ROLE_LEVELS, roleLevel } from '@cloudillo/types'
 import {
-	absChannel,
 	Alert,
 	Button,
 	DropZone,
 	EmptyState,
 	Fcd,
+	FileButton,
 	Grid,
 	Icon,
-	LoadingSpinner,
 	List,
+	LoadingSpinner,
 	LoadMoreTrigger,
 	PageHeader,
 	ProfilePicture,
@@ -31,6 +24,17 @@ import {
 	useToast,
 	VBox
 } from '@cloudillo/react'
+import { ROLE_LEVELS, roleLevel } from '@cloudillo/types'
+import { useAtom, useSetAtom } from 'jotai'
+import * as React from 'react'
+import { useTranslation } from 'react-i18next'
+import {
+	LuCloud as IcCloud,
+	LuLock as IcLock,
+	LuCloudOff as IcOffline,
+	LuUpload as IcUpload
+} from 'react-icons/lu'
+import { useLocation, useNavigate } from 'react-router-dom'
 
 import {
 	useActiveCommunity,
@@ -39,17 +43,21 @@ import {
 	useCtx,
 	useCurrentContextIdTag
 } from '../../context/index.js'
+import { usePorch } from '../../lib/porch.js'
 import { getDirtyDocIds } from '../../message-bus/handlers/crdt.js'
-import { appPath, type QueryInit } from '../../routes.js'
+import { useCanCreateRooms } from '../../profile/rooms-tab.js'
+import { appPath, feedPath, profilePath, type QueryInit, settingsPath } from '../../routes.js'
 import { FilterToggle } from '../../ui/FilterToggle.js'
 import { isPermissionError, useAppConfig } from '../../utils.js'
 import {
 	displayModeAtom,
 	fileTypeFilterAtom,
+	lastFilesUrlAtom,
 	ownerFilterAtom,
 	searchQueryAtom,
 	selectedTagsAtom
 } from './atoms.js'
+import { audienceText, confirmAudienceDialog, widensAudience } from './audience.js'
 import type { ContextMenuPosition } from './components/index.js'
 import {
 	Breadcrumbs,
@@ -78,18 +86,24 @@ import {
 import type { File, FileOps, ViewMode } from './types.js'
 import { isFileProcessing } from './types.js'
 import { canWrite, fileSrcIdTag } from './utils.js'
-import { RoomPicker } from '../shared/RoomPicker.js'
 
 export function FilesApp() {
 	const navigate = useNavigate()
 	const location = useLocation()
+	const setLastFilesUrl = useSetAtom(lastFilesUrlAtom)
+	React.useEffect(
+		function rememberLocation() {
+			setLastFilesUrl({ pathname: location.pathname, search: location.search })
+		},
+		[location.pathname, location.search, setLastFilesUrl]
+	)
 	const { t } = useTranslation()
 	const [appConfig] = useAppConfig()
 	const { api } = useContextAwareApi()
 	const [auth] = useAuth()
 	const contextIdTag = useCurrentContextIdTag()
 	const community = useActiveCommunity()
-	const urlContextIdTag = useCtx().base
+	const { base: urlContextIdTag, isHome } = useCtx()
 	const dialog = useDialog()
 	const toast = useToast()
 
@@ -98,6 +112,9 @@ export function FilesApp() {
 		currentFolderId,
 		remoteOwner,
 		isRemoteBrowsing,
+		drive,
+		driveChannel,
+		contextName,
 		remoteAccessLevel,
 		remoteApi,
 		remoteRoles,
@@ -106,12 +123,29 @@ export function FilesApp() {
 		canGoBack,
 		navigateToFolder,
 		navigateToView,
+		navigateToDrive,
 		goBack,
 		goUp,
 		enterFolder
 	} = useFileNavigation()
-
 	const ctxRoles = useContextRolesFor(contextIdTag)
+	// The whole porch: restore tells a deleted room (absent) from one merely left
+	const { rooms: porch } = usePorch(isRemoteBrowsing ? undefined : contextIdTag, ctxRoles)
+	const rooms = React.useMemo(() => (porch ?? []).filter((r) => r.status === 'in'), [porch])
+	// Porch entry of the current room drive; undefined for a room the reader is not `in`
+	const currentRoom = drive ? rooms.find((r) => r.name === drive) : undefined
+	// A `?drive=` naming no room we are in (stale link, left room): fall back to the main drive
+	const unknownDrive = !!porch && !!drive && !currentRoom
+	React.useEffect(() => {
+		if (unknownDrive) navigate({ search: '' }, { replace: true })
+	}, [unknownDrive, navigate])
+
+	const canAdminRooms = useCanCreateRooms(contextIdTag ?? auth?.idTag, ctxRoles)
+	const audience = isRemoteBrowsing
+		? undefined
+		: audienceText(t, contextName, drive ? currentRoom : null, isHome)
+	// Drive header (title + audience) while browsing a local drive
+	const isDriveView = viewMode === 'browse' && !isRemoteBrowsing
 	// Home needs no role (own session); a community needs contributor, as the server's create check.
 	const canCreate = isRemoteBrowsing
 		? canWrite(remoteAccessLevel)
@@ -130,13 +164,6 @@ export function FilesApp() {
 	const [fileTypeFilter, setFileTypeFilter] = useAtom(fileTypeFilterAtom)
 	const [ownerFilter, setOwnerFilter] = useAtom(ownerFilterAtom)
 	const [searchQuery, setSearchQuery] = useAtom(searchQueryAtom)
-	// Room (absolute `@tenant~name`): filters the list and is where new uploads/documents go.
-	// ponytail: client-side filter on loaded pages (no `channel` in ListFilesQuery);
-	// add a server-side filter if rooms get big
-	const [roomFilter, setRoomFilter] = React.useState<string | undefined>()
-	React.useEffect(() => {
-		setRoomFilter(undefined)
-	}, [contextIdTag])
 
 	// Debounce search query for API calls (300ms)
 	const debouncedSearchQuery = useDebouncedValue(searchQuery, 300)
@@ -175,7 +202,8 @@ export function FilesApp() {
 		owner: ownerFilter,
 		ownerIdTag: contextIdTag,
 		searchQuery: debouncedSearchQuery,
-		remoteApi
+		remoteApi,
+		channel: isRemoteBrowsing ? undefined : (driveChannel ?? '')
 	})
 
 	// Probe whether matches exist outside the current folder so we can prompt
@@ -266,23 +294,15 @@ export function FilesApp() {
 		parentId: currentFolderId,
 		onUploadComplete: fileListData.refresh,
 		apiOverride: isRemoteBrowsing ? remoteApi : undefined,
-		channel: isRemoteBrowsing ? undefined : roomFilter
+		// Room of the current drive; the hooks send it only at the root (folders inherit)
+		channel: isRemoteBrowsing ? undefined : driveChannel
 	})
 
 	// Sort files: pinned first (except in Recent/Trash), then folders, then regular files
 	const files = React.useMemo(() => {
 		const data = fileListData.getData()
 		const skipPinSort = viewMode === 'recent' || viewMode === 'trash' || viewMode === 'managed'
-		// A bare channel is a room of the file's owner — the context tenant
-		const shown = roomFilter
-			? data.filter(
-					(f) =>
-						f.channel &&
-						(contextIdTag ? absChannel(f.channel, contextIdTag) : f.channel) ===
-							roomFilter
-				)
-			: data
-		return [...shown].sort((a, b) => {
+		return [...data].sort((a, b) => {
 			// Pinned files first (not in Recent or Trash views)
 			if (!skipPinSort) {
 				const aPinned = a.userData?.pinned ? 1 : 0
@@ -298,14 +318,17 @@ export function FilesApp() {
 			// Default: keep original order (from API)
 			return 0
 		})
-	}, [fileListData, viewMode, roomFilter, contextIdTag])
+	}, [fileListData, viewMode])
 
 	// A metadata edit changes a row that is already loaded, so patch it. refresh() resets
 	// useInfiniteScroll: it blanks the list, drops every page past the first and the scroll
 	// position with them. Only a row appearing or disappearing is worth that.
 	const patchFile = React.useCallback(
-		function patchFile(fileId: string, patch: Partial<File> | ((file: File) => Partial<File>)) {
-			if (!fileListData.getData().some((f) => f.fileId === fileId)) {
+		function patchFile(
+			entryId: string,
+			patch: Partial<File> | ((file: File) => Partial<File>)
+		) {
+			if (!fileListData.getData().some((f) => f.entryId === entryId)) {
 				// Not in this list — only a refetch can show what changed.
 				fileListData.refresh()
 				return
@@ -313,7 +336,7 @@ export function FilesApp() {
 			// Merged against the CURRENT row inside the updater, not against the render-time
 			// snapshot: a FILE_ID_GENERATED or fileViewUpdateAtom patch landing while the API
 			// call was in flight would otherwise be rolled back.
-			fileListData.setFileData(fileId, (current) => ({
+			fileListData.setFileData(entryId, (current) => ({
 				...current,
 				...(typeof patch === 'function' ? patch(current) : patch)
 			}))
@@ -388,7 +411,7 @@ export function FilesApp() {
 		function onContextMenuFile(file: File, position: ContextMenuPosition) {
 			// If clicked file is not already selected, make it the only selection
 			// This ensures context menu operations target the right file(s)
-			if (!multiSelect.isSelected(file.fileId)) {
+			if (!multiSelect.isSelected(file.entryId)) {
 				multiSelect.handleClick(file, {
 					ctrlKey: false,
 					metaKey: false,
@@ -446,7 +469,8 @@ export function FilesApp() {
 					fileTp: 'FLDR',
 					contentType: 'cloudillo/folder',
 					fileName: folderName || t('Untitled folder'),
-					parentId: currentFolderId || undefined
+					parentId: currentFolderId || undefined,
+					channel: currentFolderId ? undefined : driveChannel
 				})
 				fileListData.refresh()
 			} catch (err) {
@@ -454,7 +478,7 @@ export function FilesApp() {
 				toast.error(t('Failed to create folder'))
 			}
 		},
-		[api, dialog, t, toast, currentFolderId, fileListData]
+		[api, dialog, t, toast, currentFolderId, driveChannel, fileListData]
 	)
 
 	const handleEmptyTrash = React.useCallback(
@@ -477,6 +501,23 @@ export function FilesApp() {
 	)
 
 	const fileOps: FileOps = React.useMemo(() => {
+		// A restore lands at the root of the entry's drive; when that room is gone (absent
+		// from the porch, not merely left) it falls back to the main drive — a wider audience.
+		async function confirmRestore(entryIds: string[]): Promise<boolean> {
+			const data = fileListData.getData()
+			const orphaned = entryIds.some((id) => {
+				const ch = data.find((f) => f.entryId === id)?.channel
+				return widensAudience(porch, contextIdTag ?? '', ch, ch ?? null)
+			})
+			if (!orphaned) return true
+			return confirmAudienceDialog(
+				dialog,
+				t,
+				t('Restore to {{place}}?', { place: contextName }),
+				audienceText(t, contextName, null, isHome) ?? contextName
+			)
+		}
+
 		// Shared navigation helper for opening files in apps
 		function navigateToFile(
 			file: File,
@@ -484,6 +525,7 @@ export function FilesApp() {
 			access?: 'read' | 'comment' | 'write',
 			params?: string
 		) {
+			if (!file.fileId) return // local folders have no content id, so no resId
 			// `contextIdTag` is still OUR context while remote-browsing — that is a query
 			// param, not a context switch — so the browsed node has to be passed explicitly.
 			const srcIdTag = fileSrcIdTag(file, {
@@ -503,11 +545,11 @@ export function FilesApp() {
 
 		return {
 			setFile: function setFile(file: File) {
-				fileListData.setFileData(file.fileId, file)
+				fileListData.setFileData(file.entryId, file)
 			},
 
-			openFile: function openFile(fileId?: string, access?: 'read' | 'comment' | 'write') {
-				const file = fileListData.getData()?.find((f) => f.fileId === fileId)
+			openFile: function openFile(entryId?: string, access?: 'read' | 'comment' | 'write') {
+				const file = fileListData.getData()?.find((f) => f.entryId === entryId)
 				if (!file) return
 				if (isFileProcessing(file)) {
 					toast.warning(
@@ -530,37 +572,37 @@ export function FilesApp() {
 			},
 
 			openFileWithApp: function openFileWithApp(
-				fileId: string,
+				entryId: string,
 				appId: string,
 				access?: 'read' | 'comment' | 'write',
 				params?: string
 			) {
-				const file = fileListData.getData()?.find((f) => f.fileId === fileId)
+				const file = fileListData.getData()?.find((f) => f.entryId === entryId)
 				if (file) {
 					navigateToFile(file, appId, access, params)
 				} else {
-					console.warn('[FilesApp] File not found in data:', fileId)
+					console.warn('[FilesApp] File not found in data:', entryId)
 				}
 			},
 
-			renameFile: function renameFile(fileId?: string) {
-				const file = fileListData.getData()?.find((f) => f.fileId === fileId)
-				setRenameFileId(fileId)
+			renameFile: function renameFile(entryId?: string) {
+				const file = fileListData.getData()?.find((f) => f.entryId === entryId)
+				setRenameFileId(entryId)
 				setRenameFileName(file?.fileName || '')
 			},
 
 			setRenameFileName,
 
-			doRenameFile: async function doRenameFile(fileId: string, fileName: string) {
+			doRenameFile: async function doRenameFile(entryId: string, fileName: string) {
 				if (!api) return
 				// Unhandled, a 403 here rejects into nothing: the dialog sits open with no
 				// explanation and the name silently does not change. Kept open on failure on
 				// purpose, so the user can retry or cancel.
 				try {
-					await api.files.update(fileId, { fileName })
+					await api.files.update(entryId, { fileName })
 					setRenameFileId(undefined)
 					setRenameFileName(undefined)
-					patchFile(fileId, { fileName })
+					patchFile(entryId, { fileName })
 				} catch (err) {
 					console.error('Failed to rename file', err)
 					toast.error(
@@ -571,9 +613,9 @@ export function FilesApp() {
 				}
 			},
 
-			doDeleteFile: async function doDeleteFile(fileId: string) {
+			doDeleteFile: async function doDeleteFile(entryId: string) {
 				if (!api) return
-				const file = fileListData.getData()?.find((f) => f.fileId === fileId)
+				const file = fileListData.getData()?.find((f) => f.entryId === entryId)
 				const isFolder = file?.fileTp === 'FLDR'
 
 				// Owner-only: probe share entries to warn about active embeds / share links.
@@ -581,7 +623,7 @@ export function FilesApp() {
 				let warning: string | null = null
 				if (file && file.owner?.idTag === auth?.idTag) {
 					try {
-						const shares = await api.files.listShares(fileId)
+						const shares = await api.files.listShares(entryId)
 						const list = Array.isArray(shares) ? shares : []
 						const embeds = list.filter((e) => e.subjectType === 'F').length
 						const links = list.filter(
@@ -615,20 +657,21 @@ export function FilesApp() {
 				)
 				if (!res) return
 
-				await api.files.delete(fileId)
-				if (multiSelect.isSelected(fileId)) {
+				await api.files.delete(entryId)
+				if (multiSelect.isSelected(entryId)) {
 					multiSelect.clearSelection()
 				}
 				fileListData.refresh()
 			},
 
-			doRestoreFile: async function doRestoreFile(fileId: string, parentId?: string) {
+			doRestoreFile: async function doRestoreFile(entryId: string, parentId?: string) {
 				if (!api) return
-				await api.files.restore(fileId, parentId)
+				if (!parentId && !(await confirmRestore([entryId]))) return
+				await api.files.restore(entryId, parentId)
 				fileListData.refresh()
 			},
 
-			doPermanentDeleteFile: async function doPermanentDeleteFile(fileId: string) {
+			doPermanentDeleteFile: async function doPermanentDeleteFile(entryId: string) {
 				if (!api) return
 				const res = await dialog.confirm(
 					t('Permanently delete'),
@@ -639,19 +682,19 @@ export function FilesApp() {
 				)
 				if (!res) return
 
-				await api.files.permanentDelete(fileId)
-				if (multiSelect.isSelected(fileId)) {
+				await api.files.permanentDelete(entryId)
+				if (multiSelect.isSelected(entryId)) {
 					multiSelect.clearSelection()
 				}
 				fileListData.refresh()
 			},
 
-			toggleStarred: async function toggleStarred(fileId: string) {
+			toggleStarred: async function toggleStarred(entryId: string) {
 				if (!api) return
-				const file = fileListData.getData()?.find((f) => f.fileId === fileId)
+				const file = fileListData.getData()?.find((f) => f.entryId === entryId)
 				const starred = !(file?.userData?.starred ?? false)
 				try {
-					await api.files.setStarred(fileId, starred)
+					await api.files.setStarred(entryId, starred)
 				} catch (err) {
 					console.error('Failed to change starred state', err)
 					toast.error(t('Failed to change starred state'))
@@ -659,77 +702,78 @@ export function FilesApp() {
 				}
 				// Un-starring in the starred view removes the row: only a refetch can do that.
 				if (viewMode === 'starred' && !starred) fileListData.refresh()
-				else patchFile(fileId, (f) => ({ userData: { ...f.userData, starred } }))
+				else patchFile(entryId, (f) => ({ userData: { ...f.userData, starred } }))
 			},
 
-			togglePinned: async function togglePinned(fileId: string) {
+			togglePinned: async function togglePinned(entryId: string) {
 				if (!api) return
-				const file = fileListData.getData()?.find((f) => f.fileId === fileId)
+				const file = fileListData.getData()?.find((f) => f.entryId === entryId)
 				const pinned = !(file?.userData?.pinned ?? false)
 				try {
-					await api.files.setPinned(fileId, pinned)
+					await api.files.setPinned(entryId, pinned)
 				} catch (err) {
 					console.error('Failed to change pinned state', err)
 					toast.error(t('Failed to change pinned state'))
 					return
 				}
-				patchFile(fileId, (f) => ({ userData: { ...f.userData, pinned } }))
+				patchFile(entryId, (f) => ({ userData: { ...f.userData, pinned } }))
 			},
 
 			// Batch operations for multi-select
-			doDeleteFiles: async function doDeleteFiles(fileIds: string[]) {
-				if (!api || fileIds.length === 0) return
+			doDeleteFiles: async function doDeleteFiles(entryIds: string[]) {
+				if (!api || entryIds.length === 0) return
 
 				const res = await dialog.confirm(
 					t('Move to trash'),
 					t('Are you sure you want to move {{count}} items to trash?', {
-						count: fileIds.length
+						count: entryIds.length
 					}),
 					{ color: 'error', confirmLabel: t('Move to trash') }
 				)
 				if (!res) return
 
-				await Promise.all(fileIds.map((id) => api.files.delete(id)))
+				await Promise.all(entryIds.map((id) => api.files.delete(id)))
 				multiSelect.clearSelection()
 				fileListData.refresh()
 			},
 
-			doRestoreFiles: async function doRestoreFiles(fileIds: string[], parentId?: string) {
-				if (!api || fileIds.length === 0) return
-				await Promise.all(fileIds.map((id) => api.files.restore(id, parentId)))
+			doRestoreFiles: async function doRestoreFiles(entryIds: string[], parentId?: string) {
+				if (!api || entryIds.length === 0) return
+				if (!parentId && !(await confirmRestore(entryIds))) return
+				await Promise.all(entryIds.map((id) => api.files.restore(id, parentId)))
 				multiSelect.clearSelection()
 				fileListData.refresh()
 			},
 
-			doPermanentDeleteFiles: async function doPermanentDeleteFiles(fileIds: string[]) {
-				if (!api || fileIds.length === 0) return
+			doPermanentDeleteFiles: async function doPermanentDeleteFiles(entryIds: string[]) {
+				if (!api || entryIds.length === 0) return
 
 				const res = await dialog.confirm(
 					t('Permanently delete'),
 					t(
 						'Are you sure you want to permanently delete {{count}} items? This action cannot be undone.',
-						{ count: fileIds.length }
+						{ count: entryIds.length }
 					),
 					{ color: 'error', confirmLabel: t('Delete') }
 				)
 				if (!res) return
 
-				await Promise.all(fileIds.map((id) => api.files.permanentDelete(id)))
+				await Promise.all(entryIds.map((id) => api.files.permanentDelete(id)))
 				multiSelect.clearSelection()
 				fileListData.refresh()
 			},
 
 			toggleStarredBatch: async function toggleStarredBatch(
-				fileIds: string[],
+				entryIds: string[],
 				starred: boolean
 			) {
-				if (!api || fileIds.length === 0) return
+				if (!api || entryIds.length === 0) return
 				// Per-id outcomes: `Promise.all` would abandon the rows that DID succeed on the
 				// server, leaving the list disagreeing with the backend until a refresh.
 				const results = await Promise.allSettled(
-					fileIds.map((id) => api.files.setStarred(id, starred))
+					entryIds.map((id) => api.files.setStarred(id, starred))
 				)
-				const done = fileIds.filter((_, i) => results[i].status === 'fulfilled')
+				const done = entryIds.filter((_, i) => results[i].status === 'fulfilled')
 				// Nothing succeeded on the server, so nothing here has to change.
 				if (done.length > 0) {
 					if (viewMode === 'starred' && !starred) {
@@ -742,7 +786,7 @@ export function FilesApp() {
 						}
 					}
 				}
-				if (done.length < fileIds.length) {
+				if (done.length < entryIds.length) {
 					console.error(
 						'Failed to change starred state for some files',
 						results.filter((r) => r.status === 'rejected')
@@ -752,18 +796,18 @@ export function FilesApp() {
 			},
 
 			togglePinnedBatch: async function togglePinnedBatch(
-				fileIds: string[],
+				entryIds: string[],
 				pinned: boolean
 			) {
-				if (!api || fileIds.length === 0) return
+				if (!api || entryIds.length === 0) return
 				const results = await Promise.allSettled(
-					fileIds.map((id) => api.files.setPinned(id, pinned))
+					entryIds.map((id) => api.files.setPinned(id, pinned))
 				)
-				const done = fileIds.filter((_, i) => results[i].status === 'fulfilled')
+				const done = entryIds.filter((_, i) => results[i].status === 'fulfilled')
 				for (const id of done) {
 					patchFile(id, (f) => ({ userData: { ...f.userData, pinned } }))
 				}
-				if (done.length < fileIds.length) {
+				if (done.length < entryIds.length) {
 					console.error(
 						'Failed to change pinned state for some files',
 						results.filter((r) => r.status === 'rejected')
@@ -774,18 +818,18 @@ export function FilesApp() {
 
 			// `scopedApi` is the file's own node when the caller knows it differs from ours - see
 			// FileOps.setVisibility. Without it a remote row's update goes to the wrong server.
-			setVisibility: async function setVisibility(fileId: string, visibility, scopedApi) {
+			setVisibility: async function setVisibility(entryId: string, visibility, scopedApi) {
 				const target = scopedApi ?? api
 				if (!target) return
 				// Called without an await from the details panel and the context menu, and the
 				// whole point of `scopedApi` is a foreign node - which is exactly where a 403
 				// happens. Unhandled, the dropdown just closes and nothing changes.
 				try {
-					await target.files.update(fileId, { visibility })
+					await target.files.update(entryId, { visibility })
 					// Only our own node's row is the one this list renders. A `scopedApi` write
 					// changed the canonical copy upstream and left the local mirror alone, so
 					// patching it here would show a value the next listing contradicts.
-					if (target === api) patchFile(fileId, { visibility })
+					if (target === api) patchFile(entryId, { visibility })
 					else fileListData.refresh()
 				} catch (err) {
 					console.error('Failed to change visibility', err)
@@ -797,10 +841,10 @@ export function FilesApp() {
 				}
 			},
 
-			doDuplicateFile: async function doDuplicateFile(fileId: string) {
+			doDuplicateFile: async function doDuplicateFile(entryId: string) {
 				if (!api) return
 
-				const file = fileListData.getData()?.find((f) => f.fileId === fileId)
+				const file = fileListData.getData()?.find((f) => f.entryId === entryId)
 				const defaultName = t('Copy of {{name}}', { name: file?.fileName || '' })
 
 				const fileName = await dialog.askText(
@@ -811,7 +855,7 @@ export function FilesApp() {
 				if (fileName === undefined) return
 
 				try {
-					await api.files.duplicate(fileId, { fileName: fileName || defaultName })
+					await api.files.duplicate(entryId, { fileName: fileName || defaultName })
 					toast.success(t('File duplicated'))
 					fileListData.refresh()
 				} catch (err) {
@@ -820,10 +864,10 @@ export function FilesApp() {
 				}
 			},
 
-			doRefreshFile: async function doRefreshFile(fileId: string) {
+			doRefreshFile: async function doRefreshFile(entryId: string) {
 				if (!api) return
 				try {
-					const res = await api.files.refresh(fileId)
+					const res = await api.files.refresh(entryId)
 					// `unreachable` means the source never answered: the row came back
 					// untouched, so there is nothing to patch and nothing to celebrate.
 					if (res.refreshStatus === 'unreachable') {
@@ -839,7 +883,7 @@ export function FilesApp() {
 					// Only what POST /files/:id/refresh reconciles. A blanket spread would
 					// overwrite every field `convertFileView` materialises unconditionally —
 					// userData above all, which this response does not carry.
-					patchFile(fileId, {
+					patchFile(entryId, {
 						fileName: r.fileName,
 						contentType: r.contentType,
 						fileTp: r.fileTp,
@@ -874,7 +918,10 @@ export function FilesApp() {
 		viewMode,
 		dialog,
 		toast,
-		multiSelect
+		multiSelect,
+		porch,
+		contextName,
+		isHome
 	])
 
 	// Keyboard shortcuts
@@ -931,6 +978,10 @@ export function FilesApp() {
 							onSearchQueryChange={setSearchQuery}
 							selectedTags={selectedTags}
 							onTagFilter={setSelectedTags}
+							contextName={contextName}
+							drive={drive}
+							rooms={rooms}
+							onDriveChange={navigateToDrive}
 						/>
 					</Fcd.Filter>
 					<Fcd.Content
@@ -938,7 +989,13 @@ export function FilesApp() {
 						header={
 							<VBox gap={2}>
 								<PageHeader
-									title={`${t('Files')} · ${viewItems(t).find((v) => v.mode === viewMode)?.label ?? ''}`}
+									title={
+										isDriveView
+											? drive
+												? `~${drive}${currentRoom?.title ? ` · ${currentRoom.title}` : ''}`
+												: contextName
+											: `${t('Files')} · ${viewItems(t).find((v) => v.mode === viewMode)?.label ?? ''}`
+									}
 									leading={
 										community && (
 											<ProfilePicture
@@ -948,23 +1005,56 @@ export function FilesApp() {
 											/>
 										)
 									}
-									subtitle={community && (community.name || community.idTag)}
+									subtitle={
+										!isDriveView
+											? community && (community.name || community.idTag)
+											: drive
+												? audience && (
+														<Button
+															variant="link"
+															onClick={() =>
+																navigate(
+																	canAdminRooms
+																		? settingsPath(
+																				urlContextIdTag,
+																				['rooms', drive]
+																			)
+																		: profilePath(
+																				urlContextIdTag,
+																				contextIdTag,
+																				'rooms'
+																			)
+																)
+															}
+														>
+															{currentRoom?.closed && <IcLock />}
+															{audience}
+														</Button>
+													)
+												: audience
+									}
 									actions={
 										<>
 											<FilterToggle onClick={() => setShowFilter(true)} />
-											{!isRemoteBrowsing && contextIdTag && (
-												<RoomPicker
-													tenant={contextIdTag}
-													value={roomFilter}
-													onChange={setRoomFilter}
-												/>
+											{isDriveView && drive && (
+												<Button
+													onClick={() =>
+														navigate(
+															feedPath(urlContextIdTag, undefined, {
+																room: drive
+															})
+														)
+													}
+												>
+													{t('Posts')}
+												</Button>
 											)}
 											{canCreate && (
 												<CreateDocumentMenu
 													contextIdTag={contextIdTag}
 													currentFolderId={currentFolderId}
 													channel={
-														isRemoteBrowsing ? undefined : roomFilter
+														isRemoteBrowsing ? undefined : driveChannel
 													}
 												/>
 											)}
@@ -999,6 +1089,9 @@ export function FilesApp() {
 									}
 									viewMode={viewMode}
 									onRefresh={fileListData.refresh}
+									driveChannel={driveChannel}
+									contextName={contextName}
+									rooms={porch}
 								/>
 								{viewMode === 'browse' &&
 									(breadcrumbs.length > 1 || isRemoteBrowsing) && (
@@ -1023,8 +1116,6 @@ export function FilesApp() {
 									onOwnerFilterChange={setOwnerFilter}
 									onSearchQueryChange={setSearchQuery}
 									onTagFilter={setSelectedTags}
-									roomFilter={roomFilter}
-									onRoomFilterChange={setRoomFilter}
 								/>
 								{searchActive &&
 									viewMode === 'browse' &&
@@ -1094,6 +1185,33 @@ export function FilesApp() {
 					>
 						{isInitialLoading ? (
 							<LoadingSpinner fill size="lg" label={t('Loading files...')} />
+						) : files.length === 0 &&
+							isDriveView &&
+							drive &&
+							!currentFolderId &&
+							!searchActive ? (
+							<EmptyState
+								icon={<Icon as={IcCloud} size="xl" />}
+								title={t('No files in ~{{room}} yet.', { room: drive })}
+								description={
+									audience &&
+									t('Files you add here are visible to {{audience}}.', {
+										audience
+									})
+								}
+								actions={
+									canUpload && (
+										<FileButton
+											multiple
+											color="primary"
+											icon={<IcUpload />}
+											onFiles={uploadQueue.handleFilesForUpload}
+										>
+											{t('Upload')}
+										</FileButton>
+									)
+								}
+							/>
 						) : files.length === 0 ? (
 							<EmptyState
 								icon={<Icon as={IcCloud} size="xl" />}
@@ -1125,8 +1243,8 @@ export function FilesApp() {
 								<Grid min="8rem" gap={3} className="p-2" data-file-grid>
 									{files.map((file) => (
 										<ItemGrid
-											key={file.fileId}
-											selected={multiSelect.isSelected(file.fileId)}
+											key={file.entryId}
+											selected={multiSelect.isSelected(file.entryId)}
 											file={file}
 											isDirty={dirtyDocIds.has(
 												`${contextIdTag}:${file.fileId}`
@@ -1159,8 +1277,8 @@ export function FilesApp() {
 								<List variant="divided">
 									{files.map((file) => (
 										<ItemCard
-											key={file.fileId}
-											selected={multiSelect.isSelected(file.fileId)}
+											key={file.entryId}
+											selected={multiSelect.isSelected(file.entryId)}
 											file={file}
 											isDirty={dirtyDocIds.has(
 												`${contextIdTag}:${file.fileId}`

@@ -268,15 +268,17 @@ export function MediaPickerBrowseTab({
 		(file: FileView) =>
 			requirePublic
 				? !isPublicFile(file)
-				: !!isExternalContext && !isPublicFile(file) && !accessibleFileIds.has(file.fileId),
+				: !!isExternalContext &&
+					!isPublicFile(file) &&
+					!accessibleFileIds.has(file.entryId),
 		[requirePublic, isExternalContext, accessibleFileIds]
 	)
 
 	// Handle folder navigation
 	const handleFolderClick = useCallback(
 		(file: FileView) => {
-			setCurrentFolderId(file.fileId)
-			setBreadcrumbs((prev) => [...prev, { id: file.fileId, name: file.fileName }])
+			setCurrentFolderId(file.entryId)
+			setBreadcrumbs((prev) => [...prev, { id: file.entryId, name: file.fileName }])
 		},
 		[setCurrentFolderId, setBreadcrumbs]
 	)
@@ -363,19 +365,19 @@ export function MediaPickerBrowseTab({
 
 	// Handle "Grant document access" action for a file (creates share entry)
 	const handleGrantDocumentAccess = useCallback(
-		async (fileId: string, fileName: string, contentType: string) => {
+		async (fileId: string, entryId: string, fileName: string, contentType: string) => {
 			if (!api || !documentFileId) return
 
 			setUpdatingFileId(fileId)
 			try {
-				await api.files.createShare(fileId, {
+				await api.files.createShare(entryId, {
 					subjectType: 'F',
 					subjectId: documentFileId,
 					permission: 'R'
 				})
 
 				// Track that this file is now accessible
-				setAccessibleFileIds((prev) => new Set(prev).add(fileId))
+				setAccessibleFileIds((prev) => new Set(prev).add(entryId))
 
 				// Auto-select the file that was just granted access
 				const fileVisibility: Visibility =
@@ -415,12 +417,12 @@ export function MediaPickerBrowseTab({
 
 	// Handle "Make Public" action for a file
 	const handleMakePublic = useCallback(
-		async (fileId: string, fileName: string, contentType: string) => {
+		async (fileId: string, entryId: string, fileName: string, contentType: string) => {
 			if (!api) return
 
 			setUpdatingFileId(fileId)
 			try {
-				await api.files.update(fileId, { visibility: 'P' })
+				await api.files.update(entryId, { visibility: 'P' })
 
 				// Refetch files to update the list
 				refetchFiles()
@@ -466,13 +468,15 @@ export function MediaPickerBrowseTab({
 	// Unified handler for file access action (grant document access or make public)
 	const handleFileAccessAction = useCallback(
 		(fileId: string, fileName: string, contentType: string) => {
+			// Shares and updates live on entries; the handlers stay keyed by content id for onSelect
+			const entryId = files.find((f) => f.fileId === fileId)?.entryId ?? fileId
 			if (documentFileId && !requirePublic) {
-				handleGrantDocumentAccess(fileId, fileName, contentType)
+				handleGrantDocumentAccess(fileId, entryId, fileName, contentType)
 			} else {
-				handleMakePublic(fileId, fileName, contentType)
+				handleMakePublic(fileId, entryId, fileName, contentType)
 			}
 		},
-		[documentFileId, requirePublic, handleGrantDocumentAccess, handleMakePublic]
+		[files, documentFileId, requirePublic, handleGrantDocumentAccess, handleMakePublic]
 	)
 
 	const fileAccessActionLabel =
@@ -579,7 +583,7 @@ export function MediaPickerBrowseTab({
 
 							return (
 								<VBox
-									key={file.fileId}
+									key={file.entryId}
 									onDoubleClick={() => handleFileDoubleClick(file)}
 								>
 									<FileTile

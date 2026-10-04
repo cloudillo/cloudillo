@@ -90,7 +90,7 @@ import {
 } from '../read-position.js'
 import { useMutedRooms } from '../lib/room-mute.js'
 import { FilterToggle } from '../ui/FilterToggle.js'
-import { feedPath, profilePath } from '../routes.js'
+import { ctxBase, feedPath, filesPath, profilePath } from '../routes.js'
 import { useWsBus } from '../ws-bus.js'
 import { type DocPostIntent, pendingDocPostAtom } from './feed/doc-post-intent.js'
 import { useEnterableRooms } from './shared/RoomPicker.js'
@@ -821,7 +821,7 @@ function Post({
 										{issuerName}
 									</Link>
 								)}
-								<Text size="sm" emphasis="muted">
+								<Text size="sm" emphasis="muted" className="text-nowrap">
 									{' · '}
 									<TimeFormat time={action.createdAt} />
 								</Text>
@@ -1046,15 +1046,24 @@ function RoomMenuItems({
 	onShowOnly: (channel: string) => void
 }) {
 	const { t } = useTranslation()
+	const navigate = useNavigate()
+	const [auth] = useAuth()
+	const contextIdTag = useCurrentContextIdTag()
 	const { muted, mute, unmute } = useMutedRooms()
-	const room = parseChannel(channel).name
+	const { tenant, name: room } = parseChannel(channel)
 	const isMuted = muted.has(channel)
+	// A bare channel is a room of the context being viewed
+	const base = ctxBase(tenant ?? contextIdTag, auth?.idTag)
 
 	return (
 		<>
 			<MenuItem
 				label={t('Show only ~{{room}}', { room })}
 				onClick={() => onShowOnly(channel)}
+			/>
+			<MenuItem
+				label={t('Files')}
+				onClick={() => navigate(filesPath(base, { drive: room }))}
 			/>
 			<MenuItem
 				label={isMuted ? t('Unmute ~{{room}}', { room }) : t('Mute ~{{room}}', { room })}

@@ -175,7 +175,7 @@ export function MediaPickerUploadTab({
 
 				if (result?.fileId) {
 					// Apply visibility setting to the uploaded file
-					await api.files.update(result.fileId, { visibility })
+					await api.files.update(result.entryId, { visibility })
 
 					setUploadState('complete')
 					onUploadComplete({

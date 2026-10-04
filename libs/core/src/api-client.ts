@@ -771,9 +771,9 @@ export class ApiClient {
 		getDescriptor: (fileId: string) =>
 			this.request('GET', `/files/${fileId}/descriptor`, Types.tFileDescriptor),
 
-		/** GET /files/:fileId/metadata — the serving node's own answer about a file, including the */
-		getMetadata: (fileId: string) =>
-			this.request('GET', `/files/${fileId}/metadata`, Types.tFileView),
+		/** GET /files/:id/metadata — the serving node's own answer about a file. Takes either id;
+		 *  a content id answers with the granting entry, so pass the row's `entryId` when held. */
+		getMetadata: (id: string) => this.request('GET', `/files/${id}/metadata`, Types.tFileView),
 
 		/** GET /files/:fileId - Get file (best variant selected) */
 		get: (fileId: string, selector?: Types.GetFileVariantSelector) => {
@@ -799,95 +799,104 @@ export class ApiClient {
 			})
 		},
 
-		/** PATCH /files/:fileId - Update file metadata */
-		update: (fileId: string, data: Types.PatchFileRequest) =>
-			this.request('PATCH', `/files/${fileId}`, Types.tPatchFileResult, {
+		/** PATCH /files/:entryId - Rename, move (incl. cross-drive `channel`), visibility */
+		update: (entryId: string, data: Types.PatchFileRequest) =>
+			this.request('PATCH', `/files/${entryId}`, Types.tPatchFileResult, {
 				data
 			}),
 
-		/** DELETE /files/:fileId - Move file to trash (soft delete) */
-		delete: (fileId: string) =>
-			this.request('DELETE', `/files/${fileId}`, Types.tDeleteFileResult),
+		/** DELETE /files/:entryId - Move file to trash (soft delete) */
+		delete: (entryId: string) =>
+			this.request('DELETE', `/files/${entryId}`, Types.tDeleteFileResult),
 
-		/** DELETE /files/:fileId?permanent=true - Permanently delete file (must be in trash) */
-		permanentDelete: (fileId: string) =>
-			this.request('DELETE', `/files/${fileId}`, Types.tDeleteFileResult, {
+		/** DELETE /files/:entryId?permanent=true - Permanently delete file (must be in trash) */
+		permanentDelete: (entryId: string) =>
+			this.request('DELETE', `/files/${entryId}`, Types.tDeleteFileResult, {
 				query: { permanent: true }
 			}),
 
-		/** POST /files/:fileId/restore - Restore file from trash */
-		restore: (fileId: string, parentId?: string) =>
-			this.request('POST', `/files/${fileId}/restore`, Types.tRestoreFileResult, {
+		/** POST /files/:entryId/restore - Restore from trash (no `parentId` = root of its drive) */
+		restore: (entryId: string, parentId?: string) =>
+			this.request('POST', `/files/${entryId}/restore`, Types.tRestoreFileResult, {
 				data: { parentId }
 			}),
 
-		/** POST /files/:fileId/duplicate - Duplicate a CRDT/RTDB file */
-		duplicate: (fileId: string, data?: Types.DuplicateFileRequest) =>
-			this.request('POST', `/files/${fileId}/duplicate`, Types.tCreateFileResult, {
+		/** POST /files/:entryId/duplicate - Duplicate a file */
+		duplicate: (entryId: string, data?: Types.DuplicateFileRequest) =>
+			this.request('POST', `/files/${entryId}/duplicate`, Types.tCreateFileResult, {
 				data: data ?? {}
 			}),
 
-		/** PATCH /files/:fileId/user - Update user-specific file data */
-		updateUserData: (fileId: string, data: Types.UpdateFileUserDataRequest) =>
-			this.request('PATCH', `/files/${fileId}/user`, Types.tUpdateFileUserDataResult, {
+		/** PATCH /files/:entryId/user - Update user-specific file data */
+		updateUserData: (entryId: string, data: Types.UpdateFileUserDataRequest) =>
+			this.request('PATCH', `/files/${entryId}/user`, Types.tUpdateFileUserDataResult, {
 				data
 			}),
 
 		/**
 		 * Set starred status for a file
-		 * @param fileId - File ID
+		 * @param entryId - Entry ID
 		 * @param starred - New starred state
 		 * @returns Updated user data
 		 */
-		setStarred: (fileId: string, starred: boolean) =>
-			this.request('PATCH', `/files/${fileId}/user`, Types.tUpdateFileUserDataResult, {
+		setStarred: (entryId: string, starred: boolean) =>
+			this.request('PATCH', `/files/${entryId}/user`, Types.tUpdateFileUserDataResult, {
 				data: { starred }
 			}),
 
 		/**
 		 * Set pinned status for a file
-		 * @param fileId - File ID
+		 * @param entryId - Entry ID
 		 * @param pinned - New pinned state
 		 * @returns Updated user data
 		 */
-		setPinned: (fileId: string, pinned: boolean) =>
-			this.request('PATCH', `/files/${fileId}/user`, Types.tUpdateFileUserDataResult, {
+		setPinned: (entryId: string, pinned: boolean) =>
+			this.request('PATCH', `/files/${entryId}/user`, Types.tUpdateFileUserDataResult, {
 				data: { pinned }
 			}),
 
-		/** PUT /files/:fileId/tag/:tag - Add tag to file */
-		addTag: (fileId: string, tag: string) =>
-			this.request('PUT', `/files/${fileId}/tag/${tag}`, Types.tTagResult),
+		/** PUT /files/:entryId/tag/:tag - Add tag to file */
+		addTag: (entryId: string, tag: string) =>
+			this.request(
+				'PUT',
+				`/files/${encodeURIComponent(entryId)}/tag/${encodeURIComponent(tag)}`,
+				Types.tTagResult
+			),
 
-		/** DELETE /files/:fileId/tag/:tag - Remove tag from file */
-		removeTag: (fileId: string, tag: string) =>
-			this.request('DELETE', `/files/${fileId}/tag/${tag}`, Types.tTagResult),
+		/** DELETE /files/:entryId/tag/:tag - Remove tag from file */
+		removeTag: (entryId: string, tag: string) =>
+			this.request(
+				'DELETE',
+				`/files/${encodeURIComponent(entryId)}/tag/${encodeURIComponent(tag)}`,
+				Types.tTagResult
+			),
 
-		/** POST /files/:fileId/refresh - Reconcile a cross-context file row with its source. */
-		refresh: (fileId: string) =>
+		/** POST /files/:entryId/refresh - Reconcile a reference (Pin / Place / FSHR) with its
+		 *  source. Takes the entry id only: a content id may name several placements. */
+		refresh: (entryId: string) =>
 			this.request(
 				'POST',
-				`/files/${encodeURIComponent(fileId)}/refresh`,
+				`/files/${encodeURIComponent(entryId)}/refresh`,
 				Types.tFileRefreshResult
 			),
 
-		/** GET /files/:fileId/shares - List share entries for a file */
-		listShares: (fileId: string) =>
-			this.request('GET', `/files/${fileId}/shares`, Types.tListShareEntriesResult),
+		/** GET /files/:entryId/shares - List share entries for a file */
+		listShares: (entryId: string) =>
+			this.request('GET', `/files/${entryId}/shares`, Types.tListShareEntriesResult),
 
-		/** POST /files/:fileId/shares - Create share entry */
-		createShare: (fileId: string, data: Types.CreateShareEntryRequest) =>
-			this.request('POST', `/files/${fileId}/shares`, Types.tShareEntry, { data }),
+		/** POST /files/:entryId/shares - Create share entry */
+		createShare: (entryId: string, data: Types.CreateShareEntryRequest) =>
+			this.request('POST', `/files/${entryId}/shares`, Types.tShareEntry, { data }),
 
-		/** PATCH /files/:fileId/shares/:shareId - Update share entry */
-		updateShare: (fileId: string, shareId: number, data: Types.UpdateShareEntryRequest) =>
-			this.request('PATCH', `/files/${fileId}/shares/${shareId}`, Types.tShareEntry, {
+		/** PATCH /files/:entryId/shares/:shareId - Update share entry */
+		updateShare: (entryId: string, shareId: number, data: Types.UpdateShareEntryRequest) =>
+			this.request('PATCH', `/files/${entryId}/shares/${shareId}`, Types.tShareEntry, {
 				data
 			}),
 
-		/** DELETE /files/:fileId/shares/:shareId - Delete share entry */
-		deleteShare: (fileId: string, shareId: number) =>
-			this.request('DELETE', `/files/${fileId}/shares/${shareId}`, T.nullValue)
+		/** DELETE /files/:entryId/shares/:shareId - Delete share entry */
+		deleteShare: (entryId: string, shareId: number) =>
+			this.request('DELETE', `/files/${entryId}/shares/${shareId}`, T.nullValue)
 	}
 
 	// ========================================================================
@@ -1553,7 +1562,8 @@ export class ApiClient {
 				data
 			}),
 
-		/** DELETE /channels/{name} - Delete a room */
+		/** DELETE /channels/{name} - Delete a room. A room with live files rejects with a
+		 *  `FetchError` 409, `apiErrorCode` `E-CORE-CONFLICT`, `details.fileCount`. */
 		delete: (name: string) =>
 			this.request('DELETE', `/channels/${encodeURIComponent(name)}`, T.nullValue),
 

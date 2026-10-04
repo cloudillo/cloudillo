@@ -623,11 +623,12 @@ export function ComposePanel({
 			: undefined
 
 	function attachHandDoc() {
-		if (!handDoc?.contentType) return
+		// The hand item's `id` is its entry; the resId is built from the content id
+		if (!handDoc?.contentType || !handDoc.fileId) return
 		setAttachedDoc({
-			doc: `${handDoc.idTag}:${handDoc.id}`,
+			doc: `${handDoc.idTag}:${handDoc.fileId}`,
 			srcIdTag: handDoc.idTag,
-			fileId: handDoc.id,
+			fileId: handDoc.fileId,
 			contentType: handDoc.contentType,
 			title: handDoc.label
 		})
@@ -648,9 +649,9 @@ export function ComposePanel({
 		docRank < visibilityRank(visibility)
 
 	async function widenDocument() {
-		if (!docApi || !attachedDoc) return
+		if (!docApi || !attachedDoc || !docRow) return
 		try {
-			await docApi.files.update(attachedDoc.fileId, { visibility })
+			await docApi.files.update(docRow.entryId, { visibility })
 			setDocRow((row) => (row ? { ...row, visibility } : row))
 		} catch (e) {
 			console.error('Failed to widen document visibility', e)
@@ -1094,23 +1095,26 @@ export function ComposePanel({
 							</Button>
 						</HBox>
 					)}
-					<HBox gap={3} wrap>
+					<HBox gap={1} wrap>
 						<Button
-							variant="link"
+							variant="ghost"
+							size="sm"
 							disabled={process.env.NODE_ENV === 'production' || isQuote}
 						>
 							<IcPoll />
 							{t('Poll')}
 						</Button>
 						<Button
-							variant="link"
+							variant="ghost"
+							size="sm"
 							disabled={process.env.NODE_ENV === 'production' || isQuote}
 						>
 							<IcEvent />
 							{t('Event')}
 						</Button>
 						<Button
-							variant="link"
+							variant="ghost"
+							size="sm"
 							disabled={isQuote}
 							pressed={showSchedule}
 							onClick={() => setShowSchedule(!showSchedule)}
@@ -1122,14 +1126,15 @@ export function ComposePanel({
 							)}
 						</Button>
 						<Spacer />
-						<HBox gap={2}>
+						<HBox gap={1}>
 							<Popover
 								placement="top-end"
 								open={emojiPickerOpen}
 								onOpenChange={setEmojiPickerOpen}
 								trigger={
 									<Button
-										variant="link"
+										variant="ghost"
+										size="sm"
 										aria-label={t('Emoji')}
 										onPointerDown={captureEditorSelection}
 									>
@@ -1144,7 +1149,8 @@ export function ComposePanel({
 								/>
 							</Popover>
 							<Button
-								variant="link"
+								variant="ghost"
+								size="sm"
 								disabled={isDisabled || isQuote}
 								aria-label={t('Add image')}
 								onClick={filePicker.open}
@@ -1152,7 +1158,8 @@ export function ComposePanel({
 								<IcImage />
 							</Button>
 							<Button
-								variant="link"
+								variant="ghost"
+								size="sm"
 								disabled={isDisabled || isQuote}
 								aria-label={t('Take photo')}
 								onClick={cameraPicker.open}
@@ -1160,7 +1167,8 @@ export function ComposePanel({
 								<IcCamera />
 							</Button>
 							<Button
-								variant="link"
+								variant="ghost"
+								size="sm"
 								disabled={
 									imageUpload.attachmentType !== undefined ||
 									imageUpload.isUploading ||
@@ -1173,7 +1181,8 @@ export function ComposePanel({
 								<IcVideo />
 							</Button>
 							<Button
-								variant="link"
+								variant="ghost"
+								size="sm"
 								disabled={
 									imageUpload.attachmentType !== undefined ||
 									imageUpload.isUploading ||

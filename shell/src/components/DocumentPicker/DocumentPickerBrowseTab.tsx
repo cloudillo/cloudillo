@@ -162,9 +162,9 @@ export function DocumentPickerBrowseTab({
 		async (file: FileView) => {
 			if (!api) return
 
-			setUpdatingFileId(file.fileId)
+			setUpdatingFileId(file.entryId)
 			try {
-				await api.files.update(file.fileId, { visibility: 'P' })
+				await api.files.update(file.entryId, { visibility: 'P' })
 				refetchFiles()
 			} catch (err) {
 				console.error('Failed to update document visibility:', err)
@@ -185,8 +185,8 @@ export function DocumentPickerBrowseTab({
 	// Handle folder navigation
 	const handleFolderClick = useCallback(
 		(file: FileView) => {
-			setCurrentFolderId(file.fileId)
-			setBreadcrumbs((prev) => [...prev, { id: file.fileId, name: file.fileName }])
+			setCurrentFolderId(file.entryId)
+			setBreadcrumbs((prev) => [...prev, { id: file.entryId, name: file.fileName }])
 		},
 		[setCurrentFolderId, setBreadcrumbs]
 	)
@@ -217,6 +217,7 @@ export function DocumentPickerBrowseTab({
 
 			onSelect({
 				fileId: file.fileId,
+				entryId: file.entryId,
 				fileName: file.fileName,
 				contentType: file.contentType,
 				fileTp: file.fileTp,
@@ -246,6 +247,7 @@ export function DocumentPickerBrowseTab({
 
 			onDoubleClick({
 				fileId: file.fileId,
+				entryId: file.entryId,
 				fileName: file.fileName,
 				contentType: file.contentType,
 				fileTp: file.fileTp,
@@ -298,7 +300,7 @@ export function DocumentPickerBrowseTab({
 
 							return (
 								<VBox
-									key={file.fileId}
+									key={file.entryId}
 									onDoubleClick={() => handleFileDoubleClick(file)}
 								>
 									<FileTile
@@ -323,7 +325,7 @@ export function DocumentPickerBrowseTab({
 											blocked && (
 												<Button
 													size="sm"
-													loading={updatingFileId === file.fileId}
+													loading={updatingFileId === file.entryId}
 													disabled={!unlockable}
 													disabledReason={t(
 														'You do not have permission to change this file’s visibility.'

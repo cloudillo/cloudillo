@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import type { ApiClient, PorchEntry } from '@cloudillo/core'
+import { type ApiClient, FetchError, type PorchEntry } from '@cloudillo/core'
 import {
 	ActionBar,
 	Badge,
@@ -34,7 +34,7 @@ import { LuDoorOpen as IcRoom, LuUserPlus as IcInvite } from 'react-icons/lu'
 import { useNavigate, useParams } from 'react-router-dom'
 
 import { useCtx } from '../context/index.js'
-import { settingsPath } from '../routes.js'
+import { filesPath, settingsPath } from '../routes.js'
 import { RoomForm } from './room-form.js'
 import { useRooms, useRoomsClient, useRoomsTenant } from './rooms.js'
 
@@ -406,7 +406,8 @@ export function RoomDetailSettings() {
 	const dialog = useDialog()
 	const toast = useToast()
 	const { name } = useParams()
-	const listPath = settingsPath(useCtx().base, 'rooms')
+	const base = useCtx().base
+	const listPath = settingsPath(base, 'rooms')
 	const client = useRoomsClient()
 	const tenant = useRoomsTenant()
 	const { rooms } = useRooms(client, tenant)
@@ -431,8 +432,32 @@ export function RoomDetailSettings() {
 			await client.channels.delete(room.name)
 			navigate(listPath)
 		} catch (err) {
-			console.error('Failed to delete room:', err)
-			toast.error(t('Failed to delete room'))
+			const fileCount =
+				err instanceof FetchError && err.apiErrorCode === 'E-CORE-CONFLICT'
+					? (err.details as { fileCount?: number } | undefined)?.fileCount
+					: undefined
+			if (fileCount === undefined) {
+				console.error('Failed to delete room:', err)
+				toast.error(t('Failed to delete room'))
+				return
+			}
+			const name = room.name
+			toast.error(
+				t('~{{room}} still has {{count}} files. Move or delete them first.', {
+					room: name,
+					count: fileCount
+				}),
+				{
+					actions: (
+						<Button
+							size="sm"
+							onClick={() => navigate(filesPath(base, { drive: name }))}
+						>
+							{t('Open files')}
+						</Button>
+					)
+				}
+			)
 		}
 	}
 

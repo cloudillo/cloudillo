@@ -69,6 +69,8 @@ export interface ScanPage {
 	id: string
 	order: number
 	fileId: string
+	/** Entry id of `fileId`; deletes go by it. Absent on pages saved before it existed. */
+	entryId?: string
 	fileName: string
 	contentType: string
 	filter: PageFilter

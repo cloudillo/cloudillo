@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import type { ApiClient } from '@cloudillo/core'
+import type { ApiClient, PorchEntry } from '@cloudillo/core'
 import { FetchError } from '@cloudillo/core'
 import {
 	Badge,
@@ -9,12 +9,14 @@ import {
 	Dialog,
 	HBox,
 	Icon,
+	parseChannel,
 	RadioGroup,
 	type RadioOption,
 	Tag,
 	Text,
 	Toolbar,
 	useAuth,
+	useDialog,
 	useToast,
 	VBox
 } from '@cloudillo/react'
@@ -36,6 +38,14 @@ import {
 import { activeContextAtom, useApiContext } from '../../../context/index.js'
 import { aggregateVerbStates, type FileHandItem, handAtom, setDown } from '../../../state/hand.js'
 import { fly, handTargetElAtom, prefersReducedMotion, waveHand } from '../../../state/hand-fly.js'
+import {
+	audienceText,
+	confirmAudienceDialog,
+	findRoom,
+	leavesRoom,
+	reparentPatch,
+	widensAudience
+} from '../audience.js'
 import type { ViewMode } from '../types.js'
 
 export interface HandActionBarProps {
@@ -44,6 +54,12 @@ export interface HandActionBarProps {
 	currentFolderName?: string
 	viewMode: ViewMode
 	onRefresh: () => void
+	/** The drive being browsed (`@ctx~name`); undefined = main drive. */
+	driveChannel?: string
+	contextName: string
+	/** The whole porch (undefined while loading): tells a deleted room from one merely left,
+	 *  and gives the audience text for the cross-drive confirm. */
+	rooms: PorchEntry[] | undefined
 }
 
 type AccessLevel = 'read' | 'comment' | 'write'
@@ -75,7 +91,10 @@ export function HandActionBar({
 	currentFolderId,
 	currentFolderName,
 	viewMode,
-	onRefresh
+	onRefresh,
+	driveChannel,
+	contextName,
+	rooms
 }: HandActionBarProps) {
 	const { t } = useTranslation()
 	const [auth] = useAuth()
@@ -84,6 +103,7 @@ export function HandActionBar({
 	const store = useStore()
 	const { getClientFor } = useApiContext()
 	const toast = useToast()
+	const dialog = useDialog()
 	const [placeOpen, setPlaceOpen] = React.useState(false)
 	const initialAccess = React.useMemo<AccessLevel>(() => readLastUsed(), [])
 	const [lastUsed, setLastUsed] = React.useState<AccessLevel>(initialAccess)
@@ -96,15 +116,24 @@ export function HandActionBar({
 	const isOwnContext = ctxIdTag === auth.idTag
 	const isBrowse = viewMode === 'browse'
 
+	const targetChannel = driveChannel ?? null
+	const atRoot = !currentFolderId || currentFolderId === '__root__'
+
 	const canWriteHere =
 		ctxIdTag === auth.idTag ||
 		activeContext.roles.some((r) => r === 'leader' || r === 'moderator' || r === 'contributor')
 
 	const applies = {
 		place: (it: FileHandItem) =>
-			isBrowse && it.idTag === auth.idTag && !isOwnContext && canWriteHere && !it.brokenAt,
+			isBrowse &&
+			it.fileId !== null &&
+			it.idTag === auth.idTag &&
+			!isOwnContext &&
+			canWriteHere &&
+			!it.brokenAt,
 		pin: (it: FileHandItem) =>
 			isBrowse &&
+			it.fileId !== null &&
 			it.idTag !== auth.idTag &&
 			isOwnContext &&
 			it.sourceContext !== ctxIdTag &&
@@ -113,11 +142,13 @@ export function HandActionBar({
 			if (!isBrowse || it.sourceContext !== ctxIdTag || !canWriteHere || it.brokenAt)
 				return false
 			if (it.sourceParentId === undefined) return true
+			if (it.sourceChannel !== undefined && it.sourceChannel !== targetChannel) return true
 			const src = it.sourceParentId === '__root__' ? null : it.sourceParentId
-			const cur = !currentFolderId || currentFolderId === '__root__' ? null : currentFolderId
+			const cur = atRoot ? null : currentFolderId
 			return src !== cur
 		},
-		restore: (it: FileHandItem) => isBrowse && it.inTrash === true && canWriteHere
+		restore: (it: FileHandItem) =>
+			isBrowse && it.inTrash === true && it.sourceContext === ctxIdTag && canWriteHere
 	}
 
 	const states = {
@@ -130,7 +161,9 @@ export function HandActionBar({
 	async function run(
 		applicable: (it: FileHandItem) => boolean,
 		fn: (it: FileHandItem) => Promise<void>,
-		success: (count: number) => string
+		success: (count: number) => string,
+		// Move/Restore cross drives on the server, which gates other members' files to moderators
+		driveGate = false
 	): Promise<{ ok: number; failed: number }> {
 		const targets = items.filter(applicable)
 		if (targets.length === 0) return { ok: 0, failed: 0 }
@@ -179,8 +212,23 @@ export function HandActionBar({
 				firstReason && firstReason.reason instanceof FetchError
 					? firstReason.reason
 					: undefined
+			const failedItem = targets[results.findIndex((r) => r.status === 'rejected')]
 			let reason: string
-			if (err?.is('E-FILE-ACCESS_LEVEL_FORBIDDEN')) {
+			if (
+				driveGate &&
+				err?.httpStatus === 403 &&
+				failedItem?.sourceContext === ctxIdTag &&
+				failedItem.sourceChannel &&
+				leavesRoom(failedItem.sourceChannel, targetChannel) &&
+				// Best-effort: the server sends a generic 403, but only a folder or someone
+				// else's file can trip the moderator gate
+				(failedItem.fileTp === 'FLDR' || failedItem.ownerIdTag !== auth?.idTag)
+			) {
+				// Cross-drive move gate: the subtree holds other members' files
+				reason = t("Only moderators can move other members' files out of ~{{room}}", {
+					room: parseChannel(failedItem.sourceChannel).name
+				})
+			} else if (err?.is('E-FILE-ACCESS_LEVEL_FORBIDDEN')) {
 				reason = t('This access level is not allowed for this file type')
 			} else if (err?.is('E-FILE-SOURCE_FORBIDDEN')) {
 				reason = t("You don't have permission to share this file")
@@ -198,6 +246,8 @@ export function HandActionBar({
 							folder: existingParentId
 						})
 					: t('Already placed in this context')
+			} else if (err?.is('E-CORE-CONFLICT')) {
+				reason = t('This file is in several folders — pick it up from your own Files')
 			} else {
 				reason = err?.message ?? t('access denied')
 			}
@@ -213,21 +263,47 @@ export function HandActionBar({
 		return { ok, failed }
 	}
 
+	/** Asks before items widen their audience, naming who will see them here. */
+	async function confirmAudience(
+		applicable: (it: FileHandItem) => boolean,
+		title: (place: string) => string
+	): Promise<boolean> {
+		if (
+			!items.some(
+				(it) =>
+					applicable(it) &&
+					widensAudience(rooms, ctxIdTag, it.sourceChannel, targetChannel)
+			)
+		)
+			return true
+		const place = driveChannel ? `~${parseChannel(driveChannel).name}` : contextName
+		const found = driveChannel ? findRoom(rooms, ctxIdTag, driveChannel) : null
+		const room = found === 'unknown' ? undefined : found
+		const audience = audienceText(t, contextName, room, isOwnContext) ?? place
+		return confirmAudienceDialog(dialog, t, title(place), audience)
+	}
+
+	// Root targets name the room; inside a folder the server inherits its drive.
+	const rootChannel = atRoot && driveChannel ? { channel: driveChannel } : {}
+
 	const doPin = () =>
 		run(
 			applies.pin,
 			async (it) => {
 				await api.files.create({
 					fileTp: it.fileTp ?? 'BLOB',
-					sourceFileId: it.id,
+					sourceFileId: it.fileId!,
 					sourceIdTag: it.idTag,
-					parentId: currentFolderId ?? undefined
+					parentId: currentFolderId ?? undefined,
+					...rootChannel
 				})
 			},
 			(count) => t('Pinned {{count}} files', { count })
 		)
 
-	const doPlace = (level: AccessLevel) => {
+	const doPlace = async (level: AccessLevel) => {
+		if (!(await confirmAudience(applies.place, (place) => t('Place in {{place}}?', { place }))))
+			return { ok: 0, failed: 0 }
 		const perm: 'R' | 'C' | 'W' = level === 'read' ? 'R' : level === 'comment' ? 'C' : 'W'
 		return run(
 			applies.place,
@@ -240,39 +316,58 @@ export function HandActionBar({
 				if (!sourceApi) throw new Error('No source API client')
 
 				// Step 1: grant the destination tenant access on the source.
-				await sourceApi.files.createShare(it.id, {
-					subjectType: 'U',
-					subjectId: ctxIdTag,
-					permission: perm
-				})
+				// Entry ids are per-DB, so only our own rows can name the entry; mirrored
+				// rows fall back to the content id.
+				await sourceApi.files.createShare(
+					it.sourceContext === auth.idTag ? it.id : it.fileId!,
+					{
+						subjectType: 'U',
+						subjectId: ctxIdTag,
+						permission: perm
+					}
+				)
 
 				// Step 2: create the placement on the destination (no accessLevel).
 				await api.files.create({
 					fileTp: it.fileTp ?? 'BLOB',
-					sourceFileId: it.id,
+					sourceFileId: it.fileId!,
 					sourceIdTag: auth.idTag,
-					parentId: currentFolderId ?? undefined
+					parentId: currentFolderId ?? undefined,
+					...rootChannel
 				})
 			},
 			(count) => t('Placed {{count}} files', { count })
 		)
 	}
 
-	const reparent = (
+	const reparent = async (
 		applicable: (it: FileHandItem) => boolean,
+		title: (place: string) => string,
 		success: (count: number) => string
-	) =>
-		run(
+	) => {
+		if (!(await confirmAudience(applicable, title))) return { ok: 0, failed: 0 }
+		return run(
 			applicable,
 			async (it) => {
-				await api.files.update(it.id, { parentId: currentFolderId ?? null })
+				await api.files.update(it.id, reparentPatch(atRoot, currentFolderId, targetChannel))
 			},
-			success
+			success,
+			true
 		)
+	}
 
-	const doMove = () => reparent(applies.move, (count) => t('Moved {{count}} files', { count }))
+	const doMove = () =>
+		reparent(
+			applies.move,
+			(place) => t('Move to {{place}}?', { place }),
+			(count) => t('Moved {{count}} files', { count })
+		)
 	const doRestore = () =>
-		reparent(applies.restore, (count) => t('Restored {{count}} files', { count }))
+		reparent(
+			applies.restore,
+			(place) => t('Restore to {{place}}?', { place }),
+			(count) => t('Restored {{count}} files', { count })
+		)
 
 	const counts = {
 		place: items.filter(applies.place).length,

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import {
+	absChannel,
 	ActionSheet,
 	ActionSheetDivider,
 	ActionSheetItem,
@@ -81,15 +82,18 @@ function doPickUp(opts: PickUpOpts) {
 	const ctxIdTag = opts.activeContextIdTag
 	const items: FileHandItem[] = opts.selectedFiles.map((f) => ({
 		type: 'file' as const,
-		id: f.fileId,
+		id: f.entryId,
+		fileId: f.fileId,
 		// The node holding the blob: the upstream node for a mirrored row, else the serving context
 		idTag: f.upstream?.idTag ?? ctxIdTag,
 		sourceContext: ctxIdTag,
+		ownerIdTag: f.owner?.idTag,
 		sourceParentId: opts.isManagedView
 			? MANAGED_FOLDER_ID
 			: !f.parentId || f.parentId === '__root__'
 				? null
 				: f.parentId,
+		sourceChannel: f.channel ? absChannel(f.channel, ctxIdTag) : null,
 		label: f.fileName,
 		fileTp: f.fileTp,
 		contentType: f.contentType,
@@ -201,7 +205,7 @@ export function ContextMenu({
 		onClose()
 	}
 
-	const selectedFileIds = selectedFiles.map((f) => f.fileId)
+	const selectedFileIds = selectedFiles.map((f) => f.entryId)
 
 	// Get handlers for "Open with" submenu
 	const handlers = isSingleSelect && !isFolder ? getHandlersForContentType(file.contentType) : []
@@ -269,7 +273,7 @@ export function ContextMenu({
 				label={isSingleSelect ? t('Restore') : t('Restore {{count}} items', { count })}
 				onClick={handleAction(() =>
 					isSingleSelect
-						? fileOps.doRestoreFile?.(file.fileId)
+						? fileOps.doRestoreFile?.(file.entryId)
 						: fileOps.doRestoreFiles?.(selectedFileIds)
 				)}
 			/>
@@ -284,7 +288,7 @@ export function ContextMenu({
 				}
 				onClick={handleAction(() =>
 					isSingleSelect
-						? fileOps.doPermanentDeleteFile?.(file.fileId)
+						? fileOps.doPermanentDeleteFile?.(file.entryId)
 						: fileOps.doPermanentDeleteFiles?.(selectedFileIds)
 				)}
 				danger
@@ -299,7 +303,7 @@ export function ContextMenu({
 					icon={<IcOpen />}
 					label={isFolder ? t('Open folder') : t('Open')}
 					onClick={handleAction(() =>
-						fileOps.openFile(file.fileId, toAppAccess(file.accessLevel))
+						fileOps.openFile(file.entryId, toAppAccess(file.accessLevel))
 					)}
 				/>
 			)}
@@ -309,7 +313,7 @@ export function ContextMenu({
 				<Item
 					icon={<IcView />}
 					label={t('View')}
-					onClick={handleAction(() => fileOps.openFile(file.fileId, 'read'))}
+					onClick={handleAction(() => fileOps.openFile(file.entryId, 'read'))}
 				/>
 			)}
 
@@ -325,7 +329,7 @@ export function ContextMenu({
 								label={h.manifest.name}
 								onClick={handleAction(() =>
 									fileOps.openFileWithApp?.(
-										file.fileId,
+										file.entryId,
 										h.manifest.id,
 										toAppAccess(file.accessLevel)
 									)
@@ -343,7 +347,7 @@ export function ContextMenu({
 								label={`${entry.manifest.name}: ${entry.mode.label}`}
 								onClick={handleAction(() => {
 									fileOps.openFileWithApp?.(
-										file.fileId,
+										file.entryId,
 										entry.manifest.id,
 										toAppAccess(file.accessLevel),
 										'mode=' + entry.mode.id
@@ -370,7 +374,7 @@ export function ContextMenu({
 							return
 						}
 						const idTag = contextIdTag ?? auth?.idTag
-						if (idTag)
+						if (idTag && file.fileId)
 							triggerFileDownload(idTag, file.fileId, file.fileName, () =>
 								toast.error(t('Download failed. Please try again.'))
 							)
@@ -419,7 +423,7 @@ export function ContextMenu({
 									icon={<VisibilityIcon />}
 									label={opt.label}
 									onClick={handleAction(() =>
-										fileOps.setVisibility!(file.fileId, opt.value)
+										fileOps.setVisibility!(file.entryId, opt.value)
 									)}
 									disabled={isCurrentVisibility}
 								/>
@@ -443,7 +447,7 @@ export function ContextMenu({
 					}
 					onClick={handleAction(() =>
 						isSingleSelect
-							? fileOps.toggleStarred?.(file.fileId)
+							? fileOps.toggleStarred?.(file.entryId)
 							: fileOps.toggleStarredBatch?.(selectedFileIds, !isStarred)
 					)}
 				/>
@@ -464,7 +468,7 @@ export function ContextMenu({
 					}
 					onClick={handleAction(() =>
 						isSingleSelect
-							? fileOps.togglePinned?.(file.fileId)
+							? fileOps.togglePinned?.(file.entryId)
 							: fileOps.togglePinnedBatch?.(selectedFileIds, !isPinned)
 					)}
 				/>
@@ -475,7 +479,7 @@ export function ContextMenu({
 				<Item
 					icon={<IcRefresh />}
 					label={t('Refresh metadata')}
-					onClick={handleAction(() => fileOps.doRefreshFile?.(file.fileId))}
+					onClick={handleAction(() => fileOps.doRefreshFile?.(file.entryId))}
 				/>
 			)}
 
@@ -486,7 +490,7 @@ export function ContextMenu({
 				<Item
 					icon={<IcRename />}
 					label={t('Rename')}
-					onClick={handleAction(() => fileOps.renameFile(file.fileId))}
+					onClick={handleAction(() => fileOps.renameFile(file.entryId))}
 				/>
 			)}
 
@@ -501,7 +505,7 @@ export function ContextMenu({
 					<Item
 						icon={<IcDuplicate />}
 						label={t('Duplicate')}
-						onClick={handleAction(() => fileOps.doDuplicateFile?.(file.fileId))}
+						onClick={handleAction(() => fileOps.doDuplicateFile?.(file.entryId))}
 					/>
 				)}
 
@@ -518,7 +522,7 @@ export function ContextMenu({
 					}
 					onClick={handleAction(() =>
 						isSingleSelect
-							? fileOps.doDeleteFile(file.fileId)
+							? fileOps.doDeleteFile(file.entryId)
 							: fileOps.doDeleteFiles?.(selectedFileIds)
 					)}
 					danger

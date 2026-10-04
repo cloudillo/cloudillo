@@ -22,7 +22,7 @@ import { atom } from 'jotai'
 
 import type { DocInfoResolver } from '../message-bus/handlers/docinfo.js'
 
-const ME = '@me.example.com'
+const ME = 'me.example.com'
 const DOC_A = `${ME}:f1~aaa`
 const DOC_B = `${ME}:f2~bbb`
 
@@ -112,6 +112,7 @@ const { useDocInfo } = await import('../apps/useDocInfo.js')
 
 function row(fileId: string, fileName: string) {
 	return {
+		entryId: `e:${fileId}`,
 		fileId,
 		status: 'A',
 		contentType: 'cloudillo/quillo',
@@ -145,7 +146,8 @@ describe('useDocInfo rename', () => {
 		const res = await resolvers[resolvers.length - 1].rename(DOC_A, 'Renamed A')
 
 		expect(res).toMatchObject({ ok: true, fileName: 'Renamed A' })
-		expect(updates).toEqual([['f1~aaa', { fileName: 'Renamed A' }]])
+		// Rename is a placement call, so it goes to the row's entry, not the content id
+		expect(updates).toEqual([['e:f1~aaa', { fileName: 'Renamed A' }]])
 	})
 
 	it('refuses a rename aimed at a resId it is not serving', async () => {

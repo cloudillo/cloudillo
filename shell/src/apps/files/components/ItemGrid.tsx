@@ -6,7 +6,6 @@ import { Button, FileTile, HBox, Icon, InlineEditForm, Text, VBox } from '@cloud
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-	LuFolder as IcFolder,
 	LuInfo as IcInfo,
 	LuRadio as IcLive,
 	LuLock as IcLock,
@@ -33,6 +32,7 @@ import {
 	getVisibilityLabel,
 	toAppAccess
 } from '../utils.js'
+import { LocationChip } from './LocationChip.js'
 
 function iconContentType(contentType: string | undefined, fileTp: string | undefined) {
 	return fileTp === 'FLDR' ? 'cloudillo/folder' : contentType
@@ -73,7 +73,7 @@ export const ItemGrid = React.memo(function ItemGrid({
 	const { t } = useTranslation()
 
 	const isFolder = file.fileTp === 'FLDR'
-	const isRenaming = renameFileName !== undefined && file.fileId === renameFileId
+	const isRenaming = renameFileName !== undefined && file.entryId === renameFileId
 
 	// Check if file has a thumbnail/variant
 	const hasThumbnail = file.variantId && contextIdTag
@@ -82,7 +82,7 @@ export const ItemGrid = React.memo(function ItemGrid({
 	// instead of a broken thumbnail until FileIdGeneratorTask finalizes its id.
 	const isProcessing = isFileProcessing(file)
 	const thumbSrc =
-		!isProcessing && (hasThumbnail || isImage) && contextIdTag
+		!isProcessing && (hasThumbnail || isImage) && contextIdTag && file.fileId
 			? getFileUrl(contextIdTag, file.variantId || file.fileId, 'vis.tn')
 			: undefined
 
@@ -94,7 +94,7 @@ export const ItemGrid = React.memo(function ItemGrid({
 		if (isFolder) {
 			onDoubleClick?.(file)
 		} else {
-			fileOps.openFile(file.fileId, toAppAccess(file.accessLevel))
+			fileOps.openFile(file.entryId, toAppAccess(file.accessLevel))
 		}
 	}
 
@@ -118,21 +118,14 @@ export const ItemGrid = React.memo(function ItemGrid({
 
 	function handleStarClick(evt: React.MouseEvent) {
 		evt.stopPropagation()
-		fileOps.toggleStarred?.(file.fileId)
+		fileOps.toggleStarred?.(file.entryId)
 	}
 
 	const meta = (
 		<VBox gap={1}>
 			{/* Parent folder context — shown only in hierarchy-agnostic views
 			    or during cross-folder search. */}
-			{showParentChip && file.parentName && (
-				<HBox gap={1} align="center">
-					<Icon as={IcFolder} />
-					<Text size="sm" emphasis="muted" truncate>
-						{file.parentName}
-					</Text>
-				</HBox>
-			)}
+			{showParentChip && <LocationChip file={file} driveOnly={isInTrash || isManagedView} />}
 			<Text size="sm">
 				{smartTimestamp.label && <Text emphasis="muted">{t(smartTimestamp.label)} </Text>}
 				{smartTimestamp.time}
@@ -199,7 +192,7 @@ export const ItemGrid = React.memo(function ItemGrid({
 	// (hand-fly, ContextMenu, keyboard shortcuts), double-click and context menu.
 	return (
 		<VBox
-			data-file-id={file.fileId}
+			data-file-id={file.entryId}
 			data-source-context={contextIdTag ?? undefined}
 			onDoubleClick={handleDoubleClick}
 			onContextMenu={handleContextMenu}
@@ -211,7 +204,7 @@ export const ItemGrid = React.memo(function ItemGrid({
 					isRenaming ? (
 						<InlineEditForm
 							value={renameFileName}
-							onSave={(newName) => fileOps.doRenameFile(file.fileId, newName)}
+							onSave={(newName) => fileOps.doRenameFile(file.entryId, newName)}
 							onCancel={() => fileOps.setRenameFileName(undefined)}
 							size="small"
 						/>

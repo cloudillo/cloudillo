@@ -26,6 +26,8 @@ export interface UseFileListOptions {
 	ownerIdTag?: string // Current user's idTag (needed for 'me'/'others' filter)
 	searchQuery?: string
 	remoteApi?: ApiClient | null
+	/** Drive of a root listing: `''` = main drive, `'@tenant~name'` = that room, absent = all */
+	channel?: string
 }
 
 const PAGE_SIZE = 30
@@ -35,6 +37,10 @@ export interface FileFilterParamsInput {
 	fileType?: FileTypeFilter
 	owner?: OwnerFilter
 	ownerIdTag?: string
+	/** The drive's channel; applies at the root only (`parentId === null`), inside a folder the
+	 *  server inherits it */
+	channel?: string
+	parentId?: string | null
 }
 
 // Map the independent UI filters (tags, file-type, owner) to API params.
@@ -58,12 +64,15 @@ export function buildFileFilterParams(input: FileFilterParamsInput): Types.ListF
 		params.notOwnerIdTag = input.ownerIdTag
 	}
 
+	if (input.parentId === null && input.channel !== undefined) params.channel = input.channel
+
 	return params
 }
 
 export function convertFileView(f: Types.FileView): File {
 	return {
 		...f,
+		fileId: f.fileId ?? null,
 		preset: f.preset || '',
 		createdAt: typeof f.createdAt === 'string' ? f.createdAt : f.createdAt.toISOString(),
 		accessedAt: f.accessedAt
@@ -119,7 +128,8 @@ export function useFileList(options?: UseFileListOptions) {
 		owner = 'anyone',
 		ownerIdTag,
 		searchQuery,
-		remoteApi
+		remoteApi,
+		channel
 	} = options || {}
 
 	const trimmedSearch = searchQuery?.trim() || undefined
@@ -138,7 +148,8 @@ export function useFileList(options?: UseFileListOptions) {
 					tags,
 					fileType,
 					owner,
-					ownerIdTag
+					ownerIdTag,
+					...(viewMode === 'browse' && { channel, parentId })
 				})
 			}
 
@@ -173,7 +184,7 @@ export function useFileList(options?: UseFileListOptions) {
 					}
 			}
 		},
-		[viewMode, parentId, tagsKey, fileType, trimmedSearch, owner, ownerIdTag]
+		[viewMode, parentId, channel, tagsKey, fileType, trimmedSearch, owner, ownerIdTag]
 	)
 
 	// Build cache query params for offline fallback.
@@ -202,6 +213,8 @@ export function useFileList(options?: UseFileListOptions) {
 				return { ...params, parentId: MANAGED_FOLDER_ID }
 			default:
 				// Only apply parentId filter for subfolder navigation, not root
+				// Offline root shows every drive's cached files; filter by channel in the
+				// cache layer if that confuses
 				return parentId ? { ...params, parentId } : params
 		}
 	}, [viewMode, parentId, fileType])
@@ -269,6 +282,7 @@ export function useFileList(options?: UseFileListOptions) {
 		deps: [
 			viewMode,
 			parentId,
+			channel,
 			tagsKey,
 			fileType,
 			owner,
@@ -292,7 +306,7 @@ export function useFileList(options?: UseFileListOptions) {
 		if (fileViewUpdate.version <= lastSeenVersionRef.current) return
 		lastSeenVersionRef.current = fileViewUpdate.version
 		updateItem(
-			(f) => f.fileId === fileViewUpdate.file.fileId,
+			(f) => f.entryId === fileViewUpdate.file.entryId,
 			convertFileView(fileViewUpdate.file)
 		)
 	}, [fileViewUpdate, updateItem])
@@ -334,8 +348,8 @@ export function useFileList(options?: UseFileListOptions) {
 				// page is no longer used - infinite scroll handles loading
 			}
 
-			function setFileData(fileId: string, file: File | ((prev: File) => File)) {
-				updateItem((f) => f.fileId === fileId, file)
+			function setFileData(entryId: string, file: File | ((prev: File) => File)) {
+				updateItem((f) => f.entryId === entryId, file)
 			}
 
 			function refresh() {

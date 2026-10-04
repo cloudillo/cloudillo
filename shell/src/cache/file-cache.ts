@@ -19,7 +19,7 @@
 
 import type { FileView } from '@cloudillo/core'
 
-import { getRecord, putRecords, queryRecords } from './encrypted-store.js'
+import { putRecords, queryRecords } from './encrypted-store.js'
 import type { OfflineQuerySpec } from './types.js'
 
 const STORE = 'files'
@@ -29,6 +29,7 @@ const STORE = 'files'
  */
 export function extractFileIndexFields(f: FileView): Record<string, unknown> {
 	return {
+		entryId: f.entryId,
 		fileId: f.fileId,
 		parentId: f.parentId ?? '__root__',
 		fileTp: f.fileTp ?? 'BLOB',
@@ -49,7 +50,7 @@ export async function cacheFiles(scopeIdTag: string, files: FileView[]): Promise
 		files.map((f) => ({
 			indexFields: { ...extractFileIndexFields(f), ownerIdTag: scopeIdTag },
 			payload: f,
-			cacheKey: `${scopeIdTag}:${f.fileId}`
+			cacheKey: `${scopeIdTag}:${f.entryId}`
 		}))
 	)
 }
@@ -144,12 +145,15 @@ export async function queryCachedFiles(
 	return results
 }
 
-/**
- * Look up a single cached file by its fileId. `srcIdTag` is the tenant that
- * served the listing the row was cached from (see module doc).
- */
-export async function getCachedFile(srcIdTag: string, fileId: string): Promise<FileView | null> {
-	return getRecord<FileView>(STORE, `${srcIdTag}:${fileId}`)
+/** Look up a cached file by its content id — what a CRDT docId names, not the entryId key. */
+export async function getCachedFileByFileId(
+	srcIdTag: string,
+	fileId: string
+): Promise<FileView | null> {
+	const range = IDBKeyRange.only([srcIdTag, fileId])
+	return (
+		(await queryRecords<FileView>(STORE, { indexName: 'by-owner-file', range }, 1))[0] ?? null
+	)
 }
 
 // vim: ts=4

@@ -12,6 +12,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { version } from '../../package.json'
 import { fileViewUpdateAtom, useCtx, useGuestDocument } from '../context/index.js'
 import { releaseClientIdsForWindow } from '../message-bus/handlers/crdt.js'
+import { fileIdFromResId, idTagFromResId } from '../message-bus/handlers/resId.js'
 import { offAppTitle, onAppError, onAppReady, onAppTitle } from '../message-bus/index.js'
 import { getShellBus, type InitAppData } from '../message-bus/shell-bus.js'
 import { filesPath } from '../routes.js'
@@ -64,7 +65,8 @@ export function MicrofrontendContainer({
 	const [errorMessage, setErrorMessage] = React.useState<string | undefined>(undefined)
 	const [errorCode, setErrorCode] = React.useState<number | undefined>(undefined)
 	const [retryCount, setRetryCount] = React.useState(0)
-	const [, , host, fileId] = (resId || '').match(/^(([a-zA-Z0-9-.]+):)?(.*)$/) || []
+	const host = idTagFromResId(resId)
+	const fileId = host ? fileIdFromResId(resId) : resId
 	// Extract context from resId (format: "contextIdTag:resource-path")
 	const contextIdTag = host || auth?.idTag || api?.idTag
 	const trustLevel = normalizeTrust(trust)

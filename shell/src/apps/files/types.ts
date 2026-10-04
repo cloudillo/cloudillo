@@ -14,7 +14,11 @@ export interface FileUserData {
 export type FileVisibility = 'D' | 'P' | 'V' | '2' | 'F' | 'C' | null
 
 export interface File {
-	fileId: string
+	/** Placement id: selection, row keys, rename/move/trash/star/tags/visibility/shares. */
+	entryId: string
+	/** Content id: resId, file URLs, variants, app open. `null` for local folders; the upstream
+	 *  folder id for a remote folder. */
+	fileId: string | null
 	fileName: string
 	/** The profile with owner authority. Falls back to the serving tenant, so effectively always
 	 *  present — NOT a cross-context signal, use `upstream` for that. */
@@ -59,44 +63,45 @@ export interface File {
  *  processing, so they must not be treated as such. */
 export function isFileProcessing(file: Pick<File, 'fileId' | 'status' | 'fileTp'>): boolean {
 	if (file.fileTp && file.fileTp !== 'BLOB') return false
-	return file.fileId.startsWith('@') || file.status === 'P'
+	return !!file.fileId?.startsWith('@') || file.status === 'P'
 }
 
 export interface FileView extends File {
 	actions: undefined
 }
 
+/** Every id here is an `entryId` — ops look up the row; content ids are read off it. */
 export interface FileOps {
 	setFile?: (file: File) => void
-	openFile: (fileId: string, access?: 'read' | 'comment' | 'write') => void
+	openFile: (entryId: string, access?: 'read' | 'comment' | 'write') => void
 	openFileWithApp?: (
-		fileId: string,
+		entryId: string,
 		appId: string,
 		access?: 'read' | 'comment' | 'write',
 		params?: string
 	) => void
-	renameFile: (fileId?: string) => void
+	renameFile: (entryId?: string) => void
 	setRenameFileName: (name?: string) => void
-	doRenameFile: (fileId: string, fileName: string) => void
-	doDeleteFile: (fileId: string) => void
-	doRestoreFile?: (fileId: string, parentId?: string) => void
-	doPermanentDeleteFile?: (fileId: string) => void
-	toggleStarred?: (fileId: string) => void
-	togglePinned?: (fileId: string) => void
+	doRenameFile: (entryId: string, fileName: string) => void
+	doDeleteFile: (entryId: string) => void
+	doRestoreFile?: (entryId: string, parentId?: string) => void
+	doPermanentDeleteFile?: (entryId: string) => void
+	toggleStarred?: (entryId: string) => void
+	togglePinned?: (entryId: string) => void
 	// Batch operations for multi-select
-	doDeleteFiles?: (fileIds: string[]) => void
-	doRestoreFiles?: (fileIds: string[], parentId?: string) => void
-	doPermanentDeleteFiles?: (fileIds: string[]) => void
-	toggleStarredBatch?: (fileIds: string[], starred: boolean) => void
-	togglePinnedBatch?: (fileIds: string[], pinned: boolean) => void
+	doDeleteFiles?: (entryIds: string[]) => void
+	doRestoreFiles?: (entryIds: string[], parentId?: string) => void
+	doPermanentDeleteFiles?: (entryIds: string[]) => void
+	toggleStarredBatch?: (entryIds: string[], starred: boolean) => void
+	togglePinnedBatch?: (entryIds: string[], pinned: boolean) => void
 	/**
 	 * `api` overrides the node the update is sent to, and callers that have an owner-scoped client
 	 * must pass it: while remote-browsing, the local context's client does not hold the row, so the
 	 * update 403/404s with nothing on screen to explain it. Omitted means the local client.
 	 */
-	setVisibility?: (fileId: string, visibility: FileVisibility, api?: ApiClient) => void
-	doDuplicateFile?: (fileId: string) => void
-	doRefreshFile?: (fileId: string) => void
+	setVisibility?: (entryId: string, visibility: FileVisibility, api?: ApiClient) => void
+	doDuplicateFile?: (entryId: string) => void
+	doRefreshFile?: (entryId: string) => void
 }
 
 export interface FileFiltState {

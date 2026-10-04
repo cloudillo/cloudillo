@@ -26,6 +26,7 @@ import { seedCommunityFromHome } from '../read-position.js'
 import { CTX_SECTION_MATCH, ctxBase, feedPath, isContextSegment, rebase } from '../routes.js'
 import {
 	activeContextAtom,
+	activeContextDisplayAtom,
 	communitiesAtom,
 	contextIdpEnabledAtom,
 	contextHatRoleAtom,
@@ -1071,6 +1072,13 @@ export function useCurrentContextIdTag(): string | undefined {
 	const [apiState] = useAtom(apiAtom)
 
 	return activeContext?.idTag || auth?.idTag || apiState.idTag
+}
+
+/** The active context's display name, else its idTag. */
+export function useContextName(): string {
+	const name = useAtomValue(activeContextDisplayAtom)?.name
+	const idTag = useCurrentContextIdTag()
+	return name || idTag || ''
 }
 
 /** The active context when it is a community, else `undefined` (home). */

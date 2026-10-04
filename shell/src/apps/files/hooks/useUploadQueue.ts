@@ -93,9 +93,8 @@ export function useUploadQueue(options?: UseUploadQueueOptions) {
 						nextItem.file.name,
 						nextItem.file,
 						nextItem.file.type,
-						parentId || channel
-							? { parentId: parentId || undefined, channel }
-							: undefined
+						// Inside a folder the server inherits its room; channel only at a root
+						parentId ? { parentId } : channel ? { channel } : undefined
 					)
 
 					// Mark as complete

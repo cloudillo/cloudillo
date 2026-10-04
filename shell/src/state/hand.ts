@@ -5,10 +5,13 @@ import { atom } from 'jotai'
 
 export interface FileHandItem {
 	type: 'file'
-	id: string // fileId in sourceContext's database
+	id: string // entryId in sourceContext's database — Move/Restore act on it
+	fileId: string | null // content id — Place/Pin (`sourceFileId`, `createShare`); null for local folders
 	idTag: string // the node holding the blob: upstream for a mirrored row, else the serving context
 	sourceContext: string // listing-context idTag the row was picked up from
+	ownerIdTag?: string // the row's owner profile at pick-up time
 	sourceParentId?: string | null // parent folder at pick-up time. null = root, undefined = unknown (legacy)
+	sourceChannel?: string | null // drive at pick-up time: `@tenant~name`, null = main, undefined = unknown
 	label: string // last-known fileName
 	icon?: string
 	fileTp?: string // needed for create call

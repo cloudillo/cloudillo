@@ -1929,6 +1929,7 @@ function ProfileView() {
 						<RoomsTab
 							idTag={profile.idTag}
 							rooms={porch.rooms}
+							error={porch.error}
 							canCreate={canCreateRooms}
 							reload={porch.reload}
 						/>

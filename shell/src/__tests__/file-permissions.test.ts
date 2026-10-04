@@ -30,6 +30,7 @@ const OTHER = 'bob.example'
  */
 function file(owner?: string, upstream?: string): File {
 	return {
+		entryId: 'e1',
 		fileId: 'f1',
 		fileName: 'doc',
 		contentType: 'text/plain',

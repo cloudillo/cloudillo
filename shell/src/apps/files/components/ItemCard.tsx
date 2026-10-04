@@ -11,7 +11,6 @@ import {
 	InlineEditForm,
 	ListItem,
 	ProfilePicture,
-	RoomChip,
 	Tag,
 	Text,
 	useAuth,
@@ -24,7 +23,6 @@ import {
 	LuTriangleAlert as IcBroken,
 	LuDownload as IcDownload,
 	LuPencil as IcEdit,
-	LuFolder as IcFolder,
 	LuInfo as IcInfo,
 	LuLock as IcLock,
 	LuChevronRight as IcOpenFolder,
@@ -48,6 +46,7 @@ import {
 	getVisibilityLabel,
 	toAppAccess
 } from '../utils.js'
+import { LocationChip } from './LocationChip.js'
 
 function iconContentType(contentType: string | undefined, fileTp: string | undefined) {
 	return fileTp === 'FLDR' ? 'cloudillo/folder' : contentType
@@ -93,13 +92,13 @@ export const ItemCard = React.memo(function ItemCard({
 	const isFolder = file.fileTp === 'FLDR'
 	const isInTrash = viewMode === 'trash' || file.parentId === TRASH_FOLDER_ID
 	const isManagedView = viewMode === 'managed' || file.parentId === MANAGED_FOLDER_ID
-	const isRenaming = renameFileName !== undefined && file.fileId === renameFileId
+	const isRenaming = renameFileName !== undefined && file.entryId === renameFileId
 
 	function handleDoubleClick(_evt: React.MouseEvent) {
 		if (isFolder) {
 			onDoubleClick?.(file)
 		} else {
-			fileOps.openFile(file.fileId, toAppAccess(file.accessLevel))
+			fileOps.openFile(file.entryId, toAppAccess(file.accessLevel))
 		}
 	}
 
@@ -125,7 +124,7 @@ export const ItemCard = React.memo(function ItemCard({
 		longPressTriggered.current = false
 		longPressTimer.current = window.setTimeout(() => {
 			longPressTriggered.current = true
-			fileOps.openFile(file.fileId, 'read')
+			fileOps.openFile(file.entryId, 'read')
 		}, 500)
 	}
 
@@ -142,7 +141,7 @@ export const ItemCard = React.memo(function ItemCard({
 			return
 		}
 		const idTag = contextIdTag ?? auth?.idTag
-		if (idTag)
+		if (idTag && file.fileId)
 			triggerFileDownload(idTag, file.fileId, file.fileName, () =>
 				toast.error(t('Download failed. Please try again.'))
 			)
@@ -160,7 +159,7 @@ export const ItemCard = React.memo(function ItemCard({
 		} else if (downloadOnly) {
 			downloadFile()
 		} else {
-			fileOps.openFile(file.fileId, toAppAccess(file.accessLevel))
+			fileOps.openFile(file.entryId, toAppAccess(file.accessLevel))
 		}
 	}
 
@@ -192,7 +191,7 @@ export const ItemCard = React.memo(function ItemCard({
 
 	function handleStarClick(evt: React.MouseEvent) {
 		evt.stopPropagation()
-		fileOps.toggleStarred?.(file.fileId)
+		fileOps.toggleStarred?.(file.entryId)
 	}
 
 	const isDirect = !file.visibility || file.visibility === 'D'
@@ -208,7 +207,7 @@ export const ItemCard = React.memo(function ItemCard({
 			className={className}
 			size="sm"
 			selected={selected}
-			data-file-id={file.fileId}
+			data-file-id={file.entryId}
 			data-source-context={contextIdTag ?? undefined}
 			onClick={
 				isRenaming
@@ -244,7 +243,7 @@ export const ItemCard = React.memo(function ItemCard({
 				isRenaming ? (
 					<InlineEditForm
 						value={renameFileName}
-						onSave={(newName) => fileOps.doRenameFile(file.fileId, newName)}
+						onSave={(newName) => fileOps.doRenameFile(file.entryId, newName)}
 						onCancel={() => fileOps.setRenameFileName(undefined)}
 						size="small"
 					/>
@@ -262,11 +261,8 @@ export const ItemCard = React.memo(function ItemCard({
 							)}
 							{smartTimestamp.time}
 						</Text>
-						{showParentChip && file.parentName && (
-							<HBox gap={1} align="center" fill>
-								<Icon as={IcFolder} />
-								<Text truncate>{file.parentName}</Text>
-							</HBox>
+						{showParentChip && (
+							<LocationChip file={file} driveOnly={isInTrash || isManagedView} />
 						)}
 						{showAttribution && attribution && (
 							<HBox gap={1} align="center" fill>
@@ -278,12 +274,6 @@ export const ItemCard = React.memo(function ItemCard({
 								/>
 								<Text truncate>{attribution.name || `@${attribution.idTag}`}</Text>
 							</HBox>
-						)}
-						{file.channel && (
-							<RoomChip
-								channel={file.channel}
-								contextTag={file.owner?.idTag ?? contextIdTag}
-							/>
 						)}
 						{/* Direct is the default, so only a wider visibility earns an icon */}
 						{!isDirect && (

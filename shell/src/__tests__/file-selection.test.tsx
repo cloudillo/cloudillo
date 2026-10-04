@@ -18,6 +18,7 @@ import type { File } from '../apps/files/types.js'
 
 function file(fileId: string): File {
 	return {
+		entryId: fileId,
 		fileId,
 		fileName: `${fileId}.txt`,
 		contentType: 'text/plain',

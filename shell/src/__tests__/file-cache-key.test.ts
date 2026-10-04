@@ -22,19 +22,30 @@ interface PutRecord {
 }
 
 const putRecords = jest.fn<(store: string, records: PutRecord[]) => Promise<void>>()
+const queryRecords =
+	jest.fn<
+		(
+			store: string,
+			query: { indexName: string; range: unknown },
+			limit?: number
+		) => Promise<FileView[]>
+	>()
 
 jest.unstable_mockModule('../cache/encrypted-store.js', () => ({
 	putRecords,
-	getRecord: jest.fn(),
-	queryRecords: jest.fn()
+	queryRecords
 }))
 
-const { cacheFiles } = await import('../cache/file-cache.js')
+// node env has no IndexedDB; the key range is just the key here
+;(globalThis as { IDBKeyRange?: unknown }).IDBKeyRange ??= { only: (k: unknown) => k }
+
+const { cacheFiles, getCachedFileByFileId } = await import('../cache/file-cache.js')
 
 const SCOPE = 'bob.org'
 
 function file(over: Partial<FileView> = {}): FileView {
 	return {
+		entryId: 'e1',
 		fileId: 'f1~abc',
 		status: 'A',
 		contentType: 'cloudillo/quillo',
@@ -53,7 +64,7 @@ describe('cacheFiles keying', () => {
 		])
 
 		const [, records] = putRecords.mock.calls[0]
-		expect(records[0].cacheKey).toBe(`${SCOPE}:f1~abc`)
+		expect(records[0].cacheKey).toBe(`${SCOPE}:e1`)
 		expect(records[0].indexFields.ownerIdTag).toBe(SCOPE)
 	})
 
@@ -63,8 +74,26 @@ describe('cacheFiles keying', () => {
 		await cacheFiles(SCOPE, [file({ owner: { idTag: 'member.org' } })])
 
 		const [, records] = putRecords.mock.calls[0]
-		expect(records[0].cacheKey).toBe(`${SCOPE}:f1~abc`)
+		expect(records[0].cacheKey).toBe(`${SCOPE}:e1`)
 		expect(records[0].indexFields.ownerIdTag).toBe(SCOPE)
+	})
+})
+
+describe('getCachedFileByFileId', () => {
+	beforeEach(() => queryRecords.mockReset())
+
+	it('looks the content id up through the by-owner-file index', async () => {
+		const row = file()
+		queryRecords.mockResolvedValueOnce([row])
+		expect(await getCachedFileByFileId(SCOPE, 'f1~abc')).toBe(row)
+		expect(queryRecords).toHaveBeenCalledWith(
+			'files',
+			{ indexName: 'by-owner-file', range: [SCOPE, 'f1~abc'] },
+			1
+		)
+
+		queryRecords.mockResolvedValueOnce([])
+		expect(await getCachedFileByFileId(SCOPE, 'missing')).toBeNull()
 	})
 })
 

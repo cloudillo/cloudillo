@@ -24,6 +24,7 @@ import * as React from 'react'
 
 import { createRenewer, type Renewer } from '../auth/renewal-timer.js'
 import { awaitTokenRenewal } from '../auth/token-session.js'
+import { idTagFromResId } from '../message-bus/handlers/resId.js'
 import { getAccessSuffix } from '../message-bus/index.js'
 import { getShellBus } from '../message-bus/shell-bus.js'
 import { mintAppToken } from '../message-bus/shell-bus-config.js'
@@ -70,7 +71,20 @@ export function useAppToken({
 		conflictDispatchedRef.current = true
 		const accessSuffix = getAccessSuffix(accessRef.current)
 		try {
-			const updated = await refreshFileDeduped(currentApi, fileId)
+			// Refresh takes the entry id: the content id may name several placements here.
+			// Reconcile the reference to the context the app runs in, if the user holds one.
+			const host = idTagFromResId(resId)
+			if (!host) {
+				onAccessConflictRef.current?.({ kind: 'unsupported' })
+				return
+			}
+			const rows = await currentApi.files.list({ fileId })
+			const ref = rows.find((f) => f.upstream?.idTag === host)
+			if (!ref) {
+				onAccessConflictRef.current?.({ kind: 'unsupported' })
+				return
+			}
+			const updated = await refreshFileDeduped(currentApi, ref.entryId)
 			const outcome = classifyOutcome(updated, accessSuffix)
 			if (onAccessConflictRef.current) {
 				await onAccessConflictRef.current(outcome)
@@ -91,7 +105,7 @@ export function useAppToken({
 				conflictDispatchedRef.current = false
 			}
 		}
-	}, [fileId])
+	}, [fileId, resId])
 
 	const requestToken = React.useCallback(async () => {
 		// Refs, so a renewal that already landed is picked up.

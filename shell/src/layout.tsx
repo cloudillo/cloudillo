@@ -8,6 +8,7 @@ import {
 	Button,
 	DialogContainer,
 	Heading,
+	isInDialog,
 	Logo,
 	Menu,
 	MenuDivider,
@@ -38,6 +39,7 @@ import {
 } from 'react-icons/lu'
 import { Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 
+import { lastFilesUrlAtom } from './apps/files/atoms.js'
 import { useGlobalMessageUnreadProbe } from './apps/messages/index.js'
 import { appRoutes, ContextRoot } from './apps/routes.js'
 import { SharedResourceView } from './apps/shared.js'
@@ -157,6 +159,10 @@ function Header({ inert }: { inert?: boolean }) {
 	const urlContext = useCtx().base
 	// An app document fills the screen on mobile (app-shell.css doc mode) — this is the way out.
 	const docMode = !!matchAppRoute(location.pathname)?.resId
+	const lastFiles = useAtomValue(lastFilesUrlAtom)
+	const filesBase = filesPath(urlContext)
+	// Return to the folder/drive the doc was opened from — only when it was this context's Files.
+	const closeHref = lastFiles.pathname === filesBase ? filesBase + lastFiles.search : filesBase
 	const unreadCounts = useAtomValue(unreadCountAtom)
 	// Conversations with anything unread — consistent across DMs (per-message counts)
 	// and groups (0/1 dots). See read-position.ts.
@@ -178,6 +184,7 @@ function Header({ inert }: { inert?: boolean }) {
 			)
 		}
 		function handleKeyDown(e: KeyboardEvent) {
+			if (isInDialog(e.target)) return
 			if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
 				e.preventDefault()
 				// Reopens prefilled with the last query, fully selected — the
@@ -328,7 +335,7 @@ function Header({ inert }: { inert?: boolean }) {
 									variant="ghost"
 									icon={<IcClose />}
 									aria-label={t('Close')}
-									href={filesPath(urlContext)}
+									href={closeHref}
 								/>
 							</AppHeaderItem>
 						)}

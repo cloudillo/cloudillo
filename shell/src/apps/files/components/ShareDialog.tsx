@@ -21,6 +21,7 @@ import {
 	MenuItem,
 	NativeSelect,
 	Panel,
+	parseChannel,
 	ProfileCard,
 	ProfileMultiSelect,
 	QRCodeDialog,
@@ -107,6 +108,7 @@ export function ShareDialog({
 		profileSrcTag,
 		resolving,
 		scopedFile,
+		scopedId,
 		scopeIdTag,
 		scopeRoles
 	} = useFileOwnerScope(file, ownerScope)
@@ -249,7 +251,7 @@ export function ShareDialog({
 			// Deliberately ungated by any predicate: `listShares` is the authority on whether this
 			// user may see the listing, and asking it is the only way to discover an explicit 'A'
 			// grant. Gating on the client-side predicate hides it from users the backend would serve.
-			if (!api || !open) return
+			if (!api || !open || !scopedId) return
 
 			let cancelled = false
 
@@ -259,7 +261,7 @@ export function ShareDialog({
 				try {
 					const refs = await api.refs.list({
 						type: 'share.file',
-						resourceId: file.fileId,
+						resourceId: scopedId,
 						// The server default is 'active', which hides expired and fully-used rows.
 						// This is the MANAGEMENT surface: a dead link the owner cannot see is one
 						// they cannot delete or extend.
@@ -283,7 +285,7 @@ export function ShareDialog({
 				// `GET /api/files`, and `deriveFileOwnerScope` keeps it there.
 				if (isCrossOwner) {
 					try {
-						const meta = await api.files.getMetadata(file.fileId)
+						const meta = await api.files.getMetadata(scopedId)
 						if (!cancelled) setAuthoritativeLevel(meta.accessLevel)
 					} catch (err) {
 						// A refinement, not a gate: without it we simply fall back to the
@@ -295,7 +297,7 @@ export function ShareDialog({
 				let userEntries: Types.ShareEntry[] = []
 				try {
 					if (!cancelled) setLoadingEntries(true)
-					const allEntries = await api.files.listShares(file.fileId)
+					const allEntries = await api.files.listShares(scopedId)
 					if (!cancelled) {
 						userEntries = allEntries.filter((e) => e.subjectType === 'U')
 						setUserShareEntries(userEntries)
@@ -330,7 +332,7 @@ export function ShareDialog({
 				cancelled = true
 			}
 		},
-		[api, open, file.fileId, isCrossOwner]
+		[api, open, scopedId, isCrossOwner]
 	)
 
 	React.useEffect(
@@ -339,15 +341,16 @@ export function ShareDialog({
 			// still in flight — and neither may its ENTRIES: `canShare` folds in
 			// hasAdminGrant(userShareEntries, auth?.idTag), so an 'A' grant on the previous file
 			// would render the full mutating share UI for one this user cannot manage.
-			setShareAccess('loading')
-			setRefsAccess('loading')
+			// No id to ask with: nothing will load, so settle as a refusal
+			setShareAccess(scopedId ? 'loading' : 'denied')
+			setRefsAccess(scopedId ? 'loading' : 'denied')
 			setAuthoritativeLevel(undefined)
 			setUserShareEntries([])
 			setFileShareEntries([])
 			setShareRefs([])
 			setPeopleProfiles({})
 		},
-		[file.fileId]
+		[scopedId]
 	)
 
 	async function listProfiles(q: string) {
@@ -356,13 +359,13 @@ export function ShareDialog({
 	}
 
 	async function addPerm(profile: Profile, perm: PermLevel) {
-		if (!file || !api) return
+		if (!file || !api || !scopedId) return
 
 		try {
 			// createShare creates the share_entry AND emits an FSHR notification
 			// for federation (handled server-side). One round-trip, one source of
 			// truth.
-			const entry = await api.files.createShare(file.fileId, {
+			const entry = await api.files.createShare(scopedId, {
 				subjectType: 'U',
 				subjectId: profile.idTag,
 				permission: levelToPermChar(perm)
@@ -381,7 +384,7 @@ export function ShareDialog({
 	}
 
 	async function changePerm(idTag: string, newLevel: PermLevel) {
-		if (!api) return
+		if (!api || !scopedId) return
 		const entry = userShareEntries.find(
 			(e) => e.subjectType === 'U' && e.subjectId.toString() === idTag
 		)
@@ -393,7 +396,7 @@ export function ShareDialog({
 		if (entry.permission === newPerm) return
 
 		try {
-			const updated = await api.files.updateShare(file.fileId, entry.id, {
+			const updated = await api.files.updateShare(scopedId, entry.id, {
 				permission: newPerm
 			})
 			setUserShareEntries((prev) => prev.map((e) => (e.id === entry.id ? updated : e)))
@@ -426,7 +429,7 @@ export function ShareDialog({
 	}
 
 	async function removePerm(idTag: string) {
-		if (!file || !api) return
+		if (!file || !api || !scopedId) return
 
 		const entry = userShareEntries.find(
 			(e) => e.subjectType === 'U' && e.subjectId.toString() === idTag
@@ -435,7 +438,7 @@ export function ShareDialog({
 
 		try {
 			// deleteShare removes the share_entry AND emits the FSHR DEL notification.
-			await api.files.deleteShare(file.fileId, entry.id)
+			await api.files.deleteShare(scopedId, entry.id)
 			setUserShareEntries((prev) => prev.filter((e) => e.id !== entry.id))
 			toast.success(t('Permission revoked'))
 			onPermissionsChanged?.()
@@ -446,14 +449,14 @@ export function ShareDialog({
 	}
 
 	async function createShareLink() {
-		if (!file || !api) return
+		if (!file || !api || !scopedId) return
 
 		setCreatingLink(true)
 		setCreateError(null)
 		try {
 			const ref = await api.refs.create({
 				type: 'share.file',
-				resourceId: file.fileId,
+				resourceId: scopedId,
 				accessLevel: newLinkAccess,
 				description: newLinkLabel || file.fileName,
 				expiresAt: neverExpires ? undefined : dateInputToExpiryIso(newLinkExpires),
@@ -576,20 +579,20 @@ export function ShareDialog({
 		}
 	}
 
-	async function requestDeleteEntry(entryId: number) {
+	async function requestDeleteEntry(shareId: number) {
 		const ok = await dialog.confirm(t('Remove link'), t('Remove this link?'), {
 			color: 'error',
 			confirmLabel: t('Remove')
 		})
-		if (ok) await deleteEntry(entryId)
+		if (ok) await deleteEntry(shareId)
 	}
 
-	async function deleteEntry(entryId: number) {
-		if (!api) return
+	async function deleteEntry(shareId: number) {
+		if (!api || !scopedId) return
 
 		try {
-			await api.files.deleteShare(file.fileId, entryId)
-			setFileShareEntries((entries) => entries.filter((e) => e.id !== entryId))
+			await api.files.deleteShare(scopedId, shareId)
+			setFileShareEntries((entries) => entries.filter((e) => e.id !== shareId))
 			toast.success(t('Link removed'))
 			onPermissionsChanged?.()
 		} catch (err) {
@@ -673,6 +676,13 @@ export function ShareDialog({
 				title={t('Share')}
 				description={file.fileName}
 			>
+				{file.channel && (
+					<Text size="sm" emphasis="muted">
+						{t('Sharing gives access even to people outside ~{{room}}.', {
+							room: parseChannel(file.channel).name
+						})}
+					</Text>
+				)}
 				{/*
 					Four states, and they must not be conflated. `resolving`: a token is still
 					in flight, so a refusal here would be a lie. `!api` once settled: the

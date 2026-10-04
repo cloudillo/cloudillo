@@ -10,7 +10,11 @@ export { resetKeyErrorState } from './crypto.js'
 // Store management
 export { clearAll as clearCache } from './encrypted-store.js'
 // Direct cache access
-export { cacheFiles, getCachedFile, queryCachedFiles } from './file-cache.js'
+export {
+	cacheFiles,
+	getCachedFileByFileId,
+	queryCachedFiles
+} from './file-cache.js'
 // Hook integration
 export { createCachedActionFetchPage, createCachedFileFetchPage } from './hooks.js'
 // Sync utilities

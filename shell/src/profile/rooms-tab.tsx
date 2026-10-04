@@ -30,7 +30,7 @@ import {
 
 import { activeContextAtom, canAdminContext } from '../context/index.js'
 import { useMutedRooms } from '../lib/room-mute.js'
-import { ctxBase, feedPath, settingsPath } from '../routes.js'
+import { ctxBase, feedPath, filesPath, settingsPath } from '../routes.js'
 import { floorText } from './role-labels.js'
 
 /** Whether the viewer may create rooms on `idTag`: their own tenant, or a community they moderate. */
@@ -46,12 +46,14 @@ export function useCanCreateRooms(idTag: string | undefined, communityRoles?: st
 interface RoomsTabProps {
 	idTag: string
 	rooms?: PorchEntry[]
+	/** The porch failed to load (with no earlier list to show) */
+	error?: boolean
 	canCreate: boolean
 	reload: () => void
 }
 
 /** Profile → Rooms: the tenant's porch, with open / mute / leave / ask-to-join per row. */
-export function RoomsTab({ idTag, rooms, canCreate, reload }: RoomsTabProps) {
+export function RoomsTab({ idTag, rooms, error, canCreate, reload }: RoomsTabProps) {
 	const { t } = useTranslation()
 	const { api } = useApi()
 	const [auth] = useAuth()
@@ -167,6 +169,9 @@ export function RoomsTab({ idTag, rooms, canCreate, reload }: RoomsTabProps) {
 					<Button size="sm" href={feedPath(base, undefined, { room: room.name })}>
 						{t('Open')}
 					</Button>
+					<Button size="sm" variant="ghost" href={filesPath(base, { drive: room.name })}>
+						{t('Files')}
+					</Button>
 					{me && (
 						<Button
 							size="sm"
@@ -212,6 +217,16 @@ export function RoomsTab({ idTag, rooms, canCreate, reload }: RoomsTabProps) {
 		)
 	}
 
+	if (!rooms && error)
+		return (
+			<Panel padding={3}>
+				<EmptyState
+					icon={<IcRoom />}
+					title={t('Could not load rooms')}
+					actions={<Button onClick={reload}>{t('Retry')}</Button>}
+				/>
+			</Panel>
+		)
 	if (!rooms) return <LoadingSpinner />
 
 	return (

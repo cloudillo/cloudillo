@@ -126,7 +126,7 @@ function BlockedRefRow({
 							})
 						: refItem.fileName || refItem.fileId}
 				</span>
-				{canMakePublic && (
+				{canMakePublic && refItem.entryId && (
 					<Button size="sm" disabled={busy} onClick={onMakePublic}>
 						{busy ? t('Working…') : t('Make public')}
 					</Button>

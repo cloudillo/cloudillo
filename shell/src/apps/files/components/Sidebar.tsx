@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import type { TagInfo } from '@cloudillo/core'
+import type { PorchEntry, TagInfo } from '@cloudillo/core'
 import {
 	AppIcon,
 	type AppId,
@@ -28,6 +28,7 @@ import { useTranslation } from 'react-i18next'
 import {
 	LuFolderOpen as IcBrowse,
 	LuStar as IcFavorites,
+	LuDoorOpen as IcRoom,
 	LuShieldCheck as IcManaged,
 	LuFilePlus2 as IcNewFile,
 	LuClock as IcRecent,
@@ -36,8 +37,8 @@ import {
 } from 'react-icons/lu'
 import { useNavigate } from 'react-router-dom'
 
-import { useContextAwareApi, useCtx } from '../../../context/index.js'
-import { appPath } from '../../../routes.js'
+import { useContextAwareApi, useCtx, useCurrentContextIdTag } from '../../../context/index.js'
+import { appPath, profilePath } from '../../../routes.js'
 import type { FileTypeFilter, OwnerFilter, ViewMode } from '../types.js'
 
 const createItems = (t: TFunction): { app: AppId; db?: boolean; label: string }[] => [
@@ -63,7 +64,7 @@ export const viewItems = (
 interface CreateDocumentMenuProps {
 	contextIdTag?: string
 	currentFolderId?: string | null
-	/** Absolute `@tenant~name` room new documents go into */
+	/** Absolute `@tenant~name` room of the current drive; sent only at its root (folders inherit) */
 	channel?: string
 }
 
@@ -100,10 +101,10 @@ export function CreateDocumentMenu({
 				fileTp: db ? 'RTDB' : 'CRDT',
 				contentType,
 				parentId: currentFolderId || undefined,
-				channel
+				channel: currentFolderId ? undefined : channel
 			})
 			if (res?.fileId) {
-				await api.files.update(res.fileId, {
+				await api.files.update(res.entryId, {
 					fileName: (fileName ||
 						(db ? t('Untitled database') : t('Untitled document'))) as string
 				})
@@ -154,6 +155,13 @@ interface SidebarProps {
 	onSearchQueryChange: (query: string) => void
 	selectedTags?: string[]
 	onTagFilter?: (tags: string[]) => void
+	/** Main drive label (the context's name) */
+	contextName: string
+	/** Current room (bare name); null = main drive */
+	drive: string | null
+	/** Rooms the viewer is `in`; empty hides the Rooms group */
+	rooms: PorchEntry[]
+	onDriveChange: (name: string | null) => void
 }
 
 // Rail recipe: padded VBox → SearchInput → Nav → `Panel variant="plain"` facets.
@@ -168,9 +176,20 @@ export const Sidebar = React.memo(function Sidebar({
 	searchQuery,
 	onSearchQueryChange,
 	selectedTags = [],
-	onTagFilter
+	onTagFilter,
+	contextName,
+	drive,
+	rooms,
+	onDriveChange
 }: SidebarProps) {
 	const { t } = useTranslation()
+	const base = useCtx().base
+	const contextIdTag = useCurrentContextIdTag()
+	const sortedRooms = React.useMemo(
+		() => [...rooms].sort((a, b) => a.name.localeCompare(b.name)),
+		[rooms]
+	)
+	const hasRooms = sortedRooms.length > 0
 	// `authenticated` is a dep of the tag-load effect below: the api client's
 	// identity is stable per idTag, so this flag (not `api`, and not `auth`,
 	// which tracks the home session) is what changes when a context token lands.
@@ -226,15 +245,47 @@ export const Sidebar = React.memo(function Sidebar({
 			/>
 
 			<Nav aria-label={t('Files')}>
-				{viewItems(t).map(({ mode, icon: ViewIcon, label }) => (
-					<Nav.Item
-						key={mode}
-						icon={<ViewIcon />}
-						label={label}
-						active={viewMode === mode}
-						onClick={() => onViewModeChange(mode)}
-					/>
-				))}
+				{/* Main drive; with no rooms it stays the plain "Browse" entry */}
+				<Nav.Item
+					icon={<IcBrowse />}
+					label={hasRooms ? contextName : t('Browse')}
+					active={viewMode === 'browse' && !drive}
+					onClick={() => onDriveChange(null)}
+				/>
+				{hasRooms && (
+					<Nav.Section label={t('Rooms')}>
+						{sortedRooms.map((room) => (
+							<Nav.Item
+								key={room.name}
+								icon={<IcRoom />}
+								label={
+									<>
+										~{room.name}
+										{room.title && <Text color="secondary"> {room.title}</Text>}
+									</>
+								}
+								active={viewMode === 'browse' && drive === room.name}
+								onClick={() => onDriveChange(room.name)}
+							/>
+						))}
+						<Nav.Item
+							label={<Text color="secondary">{t('Browse rooms…')}</Text>}
+							href={profilePath(base, contextIdTag, 'rooms')}
+						/>
+					</Nav.Section>
+				)}
+				{hasRooms && <Nav.Divider />}
+				{viewItems(t)
+					.filter(({ mode }) => mode !== 'browse')
+					.map(({ mode, icon: ViewIcon, label }) => (
+						<Nav.Item
+							key={mode}
+							icon={<ViewIcon />}
+							label={label}
+							active={viewMode === mode}
+							onClick={() => onViewModeChange(mode)}
+						/>
+					))}
 			</Nav>
 
 			<Panel variant="plain" title={t('Type')}>

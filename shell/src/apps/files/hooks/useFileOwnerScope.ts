@@ -12,6 +12,7 @@ import {
 	useContextAwareApi,
 	useCurrentContextIdTag
 } from '../../../context/index.js'
+import type { File } from '../types.js'
 import type { FileAccessLevel, OwnerLookupStatus, ScopedFile } from '../utils.js'
 import { deriveFileOwnerScope, isCrossOwnerFile } from '../utils.js'
 
@@ -22,6 +23,9 @@ export interface FileOwnerScope {
 	isCrossOwner: boolean
 	/** Where the canonical copy lives, when it is not this node */
 	upstreamIdTag: string | undefined
+	/** The row's id on the node `api` targets; cross-owner rows use `fileId` (our entry id is unknown
+	 *  upstream): the upstream folder id, or a content id that resolves while it has one entry. */
+	scopedId: string | undefined
 	/** The tenant whose standing decides what we may do: the upstream node, else the active context */
 	scopeIdTag: string | undefined
 	/** Which node holds the profile picture blobs for these rows. Addresses an <img>, grants nothing */
@@ -97,7 +101,7 @@ export interface FileOwnerScopeOverride {
  * just the client: the api and the standing that gates it are decided together or not at all.
  */
 export function useFileOwnerScope(
-	file: ScopedFile,
+	file: ScopedFile & Pick<File, 'entryId' | 'fileId'>,
 	override?: FileOwnerScopeOverride
 ): FileOwnerScope {
 	const { getTokenFor, getClientFor } = useApiContext()
@@ -199,6 +203,7 @@ export function useFileOwnerScope(
 			api,
 			isCrossOwner: derived.isCrossOwner,
 			upstreamIdTag: derived.upstreamIdTag,
+			scopedId: derived.isCrossOwner ? (file.fileId ?? undefined) : file.entryId,
 			scopeIdTag: derived.scopeIdTag,
 			profileSrcTag: derived.profileSrcTag,
 			scopeRoles: derived.scopeRoles,
@@ -209,7 +214,7 @@ export function useFileOwnerScope(
 			canManageFile: derived.canManageFile,
 			resolving: derived.resolving
 		}
-	}, [derived, override, ownerState.api, contextApi])
+	}, [derived, override, ownerState.api, contextApi, file.fileId, file.entryId])
 }
 
 // vim: ts=4

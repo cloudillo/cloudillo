@@ -33,6 +33,7 @@ export interface DocPickerOpenOptions {
  */
 export interface DocPickerResultData {
 	fileId: string
+	entryId?: string
 	fileName: string
 	contentType: string
 	fileTp?: string
@@ -182,7 +183,7 @@ export function initDocumentHandlers(bus: ShellMessageBus): void {
 								}
 							}
 							if (api) {
-								await api.files.createShare(result.fileId, {
+								await api.files.createShare(result.entryId ?? result.fileId, {
 									subjectType: 'F',
 									subjectId: msg.payload.sourceFileId,
 									permission: 'R'

@@ -16,6 +16,7 @@ import {
 	DocBarMenu,
 	EmptyState,
 	Fcd,
+	isInDialog,
 	LoadingSpinner,
 	MenuDivider,
 	MenuHeader,
@@ -531,6 +532,7 @@ export function NotilloApp() {
 	// never reaches it and is free to take.
 	React.useEffect(() => {
 		function handleKeyDown(e: KeyboardEvent) {
+			if (isInDialog(e.target)) return
 			if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'k') {
 				e.preventDefault()
 				requestSearchFocus()
@@ -808,7 +810,11 @@ export function NotilloApp() {
 					fetchFileInfo: async (fileId) => {
 						const file = await api.files.getMetadata(fileId)
 						// `null` and absent both mean "not public" to the gate.
-						return { visibility: file.visibility ?? undefined, fileName: file.fileName }
+						return {
+							visibility: file.visibility ?? undefined,
+							fileName: file.fileName,
+							entryId: file.entryId
+						}
 					}
 				})
 			)
@@ -841,8 +847,10 @@ export function NotilloApp() {
 	// click per file, and the gate re-runs so the answer comes from the server.
 	const handleMakeRefPublic = React.useCallback(
 		async (ref: PublishRef) => {
+			// The placement readers resolve; a content id may name several
+			if (!ref.entryId) return
 			try {
-				await siteApi().files.update(ref.fileId, { visibility: 'P' })
+				await siteApi().files.update(ref.entryId, { visibility: 'P' })
 			} catch (err) {
 				console.error('[Notillo] Could not make the file public:', err)
 				toastError(t('Could not make that file public.'))

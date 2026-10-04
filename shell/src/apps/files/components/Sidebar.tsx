@@ -3,13 +3,9 @@
 
 import type { PorchEntry, TagInfo } from '@cloudillo/core'
 import {
-	AppIcon,
-	type AppId,
 	Button,
 	HBox,
 	IconText,
-	Menu,
-	MenuItem,
 	Nav,
 	Panel,
 	SearchInput,
@@ -18,8 +14,6 @@ import {
 	Tag,
 	Text,
 	useAuth,
-	useDialog,
-	useToast,
 	VBox
 } from '@cloudillo/react'
 import * as React from 'react'
@@ -30,26 +24,14 @@ import {
 	LuStar as IcFavorites,
 	LuDoorOpen as IcRoom,
 	LuShieldCheck as IcManaged,
-	LuFilePlus2 as IcNewFile,
 	LuClock as IcRecent,
 	LuTag as IcTag,
 	LuTrash2 as IcTrash
 } from 'react-icons/lu'
-import { useNavigate } from 'react-router-dom'
 
 import { useContextAwareApi, useCtx, useCurrentContextIdTag } from '../../../context/index.js'
-import { appPath, profilePath } from '../../../routes.js'
+import { profilePath } from '../../../routes.js'
 import type { FileTypeFilter, OwnerFilter, ViewMode } from '../types.js'
-
-const createItems = (t: TFunction): { app: AppId; db?: boolean; label: string }[] => [
-	{ app: 'quillo', label: t('Quillo text document') },
-	{ app: 'calcillo', label: t('Calcillo spreadsheet document') },
-	{ app: 'ideallo', label: t('Ideallo whiteboard document') },
-	{ app: 'prezillo', label: t('Prezillo presentation document') },
-	{ app: 'taskillo', db: true, label: t('Taskillo task list') },
-	{ app: 'notillo', db: true, label: t('Notillo wiki') },
-	{ app: 'scanillo', db: true, label: t('Scanillo document scanner') }
-]
 
 export const viewItems = (
 	t: TFunction
@@ -60,88 +42,6 @@ export const viewItems = (
 	{ mode: 'trash', icon: IcTrash, label: t('Trash') },
 	{ mode: 'managed', icon: IcManaged, label: t('Managed') }
 ]
-
-interface CreateDocumentMenuProps {
-	contextIdTag?: string
-	currentFolderId?: string | null
-	/** Absolute `@tenant~name` room of the current drive; sent only at its root (folders inherit) */
-	channel?: string
-}
-
-/** "Create document" menu — the Files page's primary action, rendered in its PageHeader. */
-export function CreateDocumentMenu({
-	contextIdTag,
-	currentFolderId,
-	channel
-}: CreateDocumentMenuProps) {
-	const { t } = useTranslation()
-	const { api } = useContextAwareApi()
-	const [auth] = useAuth()
-	// URL form of the context (`~` at home); the resId below carries the real owner.
-	const urlCtx = useCtx().base
-	const navigate = useNavigate()
-	const dialog = useDialog()
-	const toast = useToast()
-
-	async function create(app: AppId, db: boolean | undefined) {
-		if (!api) return
-		const contentType = `cloudillo/${app}`
-
-		const fileName = await dialog.askText(
-			db ? t('Create database') : t('Create document'),
-			db
-				? t('Provide a name for the new database')
-				: t('Provide a name for the new document'),
-			{ placeholder: db ? t('Untitled database') : t('Untitled document') }
-		)
-		if (fileName === undefined) return
-
-		try {
-			const res = await api.files.create({
-				fileTp: db ? 'RTDB' : 'CRDT',
-				contentType,
-				parentId: currentFolderId || undefined,
-				channel: currentFolderId ? undefined : channel
-			})
-			if (res?.fileId) {
-				await api.files.update(res.entryId, {
-					fileName: (fileName ||
-						(db ? t('Untitled database') : t('Untitled document'))) as string
-				})
-
-				// `contextIdTag` is the real idTag: it belongs in the resId's owner half,
-				// never in the context segment.
-				const ownerTag = contextIdTag || auth?.idTag
-				navigate(appPath(urlCtx, app, `${ownerTag}:${res.fileId}`))
-			}
-		} catch (err) {
-			console.error('[Files] create failed', err)
-			toast.error(t('Failed to create document'))
-		}
-	}
-
-	if (!auth) return null
-
-	return (
-		<Menu
-			trigger={
-				<Button color="primary" icon={<IcNewFile />} aria-label={t('Create document')}>
-					{/* Icon-only on phones, so the page title keeps its line */}
-					<Text className="sm-hide">{t('Create document')}</Text>
-				</Button>
-			}
-		>
-			{createItems(t).map(({ app, db, label }) => (
-				<MenuItem
-					key={app}
-					icon={<AppIcon app={app} size="sm" tile={false} />}
-					label={label}
-					onClick={() => create(app, db)}
-				/>
-			))}
-		</Menu>
-	)
-}
 
 interface SidebarProps {
 	className?: string

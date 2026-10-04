@@ -95,7 +95,7 @@ import {
 	ProfileListCard,
 	ProfileStatusBadge
 } from './identities.js'
-import { FilterToggle } from '../ui/FilterToggle.js'
+import { DrawerToggle } from '../ui/DrawerToggle.js'
 import { InviteMembersDialog } from './invite-members-dialog.js'
 import { ProfileHero } from './ProfileHero.js'
 import { roleLabels } from './role-labels.js'
@@ -1523,7 +1523,7 @@ export function ProfileConnections({
 						header={pageHeader(
 							<>
 								{subTab === 'active' && (
-									<FilterToggle onClick={() => setShowFilter(true)} />
+									<DrawerToggle onClick={() => setShowFilter(true)} />
 								)}
 								<Button
 									className="sm-hide"
@@ -1567,7 +1567,7 @@ export function ProfileConnections({
 				</Fcd.Filter>
 				<Fcd.Content
 					width="reading"
-					header={pageHeader(<FilterToggle onClick={() => setShowFilter(true)} />)}
+					header={pageHeader(<DrawerToggle onClick={() => setShowFilter(true)} />)}
 				>
 					{activeMembersList}
 				</Fcd.Content>

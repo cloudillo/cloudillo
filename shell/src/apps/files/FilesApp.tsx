@@ -47,7 +47,7 @@ import { usePorch } from '../../lib/porch.js'
 import { getDirtyDocIds } from '../../message-bus/handlers/crdt.js'
 import { useCanCreateRooms } from '../../profile/rooms-tab.js'
 import { appPath, feedPath, profilePath, type QueryInit, settingsPath } from '../../routes.js'
-import { FilterToggle } from '../../ui/FilterToggle.js'
+import { DrawerToggle } from '../../ui/DrawerToggle.js'
 import { isPermissionError, useAppConfig } from '../../utils.js'
 import {
 	displayModeAtom,
@@ -62,6 +62,7 @@ import type { ContextMenuPosition } from './components/index.js'
 import {
 	Breadcrumbs,
 	ContextMenu,
+	CreateMenu,
 	DetailsPanel,
 	FilterChips,
 	HandActionBar,
@@ -73,7 +74,7 @@ import {
 	Toolbar,
 	UploadProgress
 } from './components/index.js'
-import { CreateDocumentMenu, viewItems } from './components/Sidebar.js'
+import { viewItems } from './components/Sidebar.js'
 import {
 	buildFileFilterParams,
 	convertFileView,
@@ -297,6 +298,13 @@ export function FilesApp() {
 		// Room of the current drive; the hooks send it only at the root (folders inherit)
 		channel: isRemoteBrowsing ? undefined : driveChannel
 	})
+
+	// Clear finished uploads so the mobile FAB returns; errors stay so failures remain visible.
+	React.useEffect(() => {
+		if (uploadQueue.stats.pending > 0 || uploadQueue.stats.completed === 0) return
+		const timer = setTimeout(uploadQueue.clearCompleted, 3000)
+		return () => clearTimeout(timer)
+	}, [uploadQueue.stats.pending, uploadQueue.stats.completed, uploadQueue.clearCompleted])
 
 	// Sort files: pinned first (except in Recent/Trash), then folders, then regular files
 	const files = React.useMemo(() => {
@@ -948,6 +956,16 @@ export function FilesApp() {
 
 	// Disable drag-drop in trash view and read-only remote browsing
 	const canUpload = viewMode === 'browse' && canCreate
+	const createMenuProps = {
+		contextIdTag,
+		currentFolderId,
+		channel: isRemoteBrowsing ? undefined : driveChannel,
+		onCreateFolder:
+			viewMode === 'browse' && !isRemoteBrowsing && canCreate
+				? handleCreateFolder
+				: undefined,
+		onUpload: canUpload ? uploadQueue.handleFilesForUpload : undefined
+	}
 
 	return (
 		<>
@@ -1035,7 +1053,7 @@ export function FilesApp() {
 									}
 									actions={
 										<>
-											<FilterToggle onClick={() => setShowFilter(true)} />
+											<DrawerToggle nav onClick={() => setShowFilter(true)} />
 											{isDriveView && drive && (
 												<Button
 													onClick={() =>
@@ -1049,14 +1067,8 @@ export function FilesApp() {
 													{t('Posts')}
 												</Button>
 											)}
-											{canCreate && (
-												<CreateDocumentMenu
-													contextIdTag={contextIdTag}
-													currentFolderId={currentFolderId}
-													channel={
-														isRemoteBrowsing ? undefined : driveChannel
-													}
-												/>
+											{canCreate && !isMobile && (
+												<CreateMenu {...createMenuProps} />
 											)}
 										</>
 									}
@@ -1068,16 +1080,7 @@ export function FilesApp() {
 									onGoUp={goUp}
 									displayMode={displayMode}
 									onDisplayModeChange={setDisplayMode}
-									onFilesSelected={
-										canUpload ? uploadQueue.handleFilesForUpload : undefined
-									}
-									onCreateFolder={
-										viewMode === 'browse' && !isRemoteBrowsing && canCreate
-											? handleCreateFolder
-											: undefined
-									}
 									onEmptyTrash={isTrashView ? handleEmptyTrash : undefined}
-									isTrashView={isTrashView}
 								/>
 								<HandActionBar
 									api={api}
@@ -1307,6 +1310,10 @@ export function FilesApp() {
 								/>
 							</>
 						)}
+						{/* Keeps the last row clear of the mobile FAB */}
+						{canCreate && isMobile && (
+							<VBox aria-hidden style={{ flex: 'none', height: '5rem' }} />
+						)}
 					</Fcd.Content>
 					<Fcd.Details
 						isVisible={!!auth && !!selectedFile && (!isMobile || showMobileDetails)}
@@ -1327,6 +1334,11 @@ export function FilesApp() {
 					</Fcd.Details>
 				</Fcd.Container>
 			</DropZone>
+
+			{/* Hidden while UploadProgress (same corner) is showing */}
+			{canCreate && isMobile && uploadQueue.queue.length === 0 && (
+				<CreateMenu fab {...createMenuProps} />
+			)}
 
 			<UploadProgress
 				queue={uploadQueue.queue}

@@ -4,6 +4,7 @@
 export { Breadcrumbs } from './Breadcrumbs.js'
 export type { ContextMenuPosition, ContextMenuProps } from './ContextMenu.js'
 export { ContextMenu } from './ContextMenu.js'
+export { CreateMenu } from './CreateMenu.js'
 export { DetailsPanel } from './DetailsPanel.js'
 export { FilterChips } from './FilterChips.js'
 export type { HandActionBarProps } from './HandActionBar.js'

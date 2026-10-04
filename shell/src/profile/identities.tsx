@@ -46,7 +46,7 @@ import { useEnterContext } from '../context/hat-entry.js'
 import { useCtx } from '../context/index.js'
 import { ProfileContextMenu, useProfileContextMenu } from '../context/profile-context-menu.js'
 import { communityCreatePath, profilePath } from '../routes.js'
-import { FilterToggle } from '../ui/FilterToggle.js'
+import { DrawerToggle } from '../ui/DrawerToggle.js'
 import { describeRelationship } from './relationship.js'
 
 type ProfileStatusCode = 'A' | 'B' | 'M' | 'S'
@@ -403,7 +403,7 @@ export function PersonListPage({ idTag }: { idTag?: string }) {
 							subtitle={`${t('Your connections')} · ${profiles.length}`}
 							actions={
 								<>
-									<FilterToggle onClick={() => setShowFilter(true)} />
+									<DrawerToggle onClick={() => setShowFilter(true)} />
 									{auth && (
 										<Button
 											className="sm-hide"
@@ -511,7 +511,7 @@ export function CommunityListPage() {
 							subtitle={`${t('Your communities')} · ${profiles.length}`}
 							actions={
 								<>
-									<FilterToggle onClick={() => setShowFilter(true)} />
+									<DrawerToggle onClick={() => setShowFilter(true)} />
 									<Button
 										className="sm-hide"
 										color="primary"

@@ -40,7 +40,7 @@ import {
 import { useLocation, useNavigate } from 'react-router-dom'
 
 import { useContextSwitch, useCtx } from '../context/index.js'
-import { FilterToggle } from '../ui/FilterToggle.js'
+import { DrawerToggle } from '../ui/DrawerToggle.js'
 import { inviteMessage } from './NotificationItem.js'
 import { communityCreatePath, messagesPath, profilePath } from '../routes.js'
 import { useNotifications } from './state'
@@ -639,7 +639,7 @@ export function Notifications() {
 								subtitle={filter === 'all' ? undefined : filterLabel}
 								actions={
 									<>
-										<FilterToggle onClick={() => setShowFilter(true)} />
+										<DrawerToggle onClick={() => setShowFilter(true)} />
 										{notifications.notifications.some(
 											(a) => a.status === 'N'
 										) && (

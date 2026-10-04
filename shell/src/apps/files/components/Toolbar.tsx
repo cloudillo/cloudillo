@@ -4,7 +4,6 @@
 import * as React from 'react'
 import {
 	Button,
-	FileButton,
 	Segmented,
 	SegmentedItem,
 	Toolbar as ToolbarContainer,
@@ -17,9 +16,7 @@ import {
 	LuArrowUp as IcArrowUp,
 	LuTrash2 as IcEmptyTrash,
 	LuLayoutGrid as IcGrid,
-	LuList as IcList,
-	LuFolderPlus as IcNewFolder,
-	LuUpload as IcUpload
+	LuList as IcList
 } from 'react-icons/lu'
 
 export type DisplayMode = 'grid' | 'list'
@@ -31,10 +28,7 @@ export interface ToolbarProps {
 	onGoUp?: () => void
 	displayMode: DisplayMode
 	onDisplayModeChange: (mode: DisplayMode) => void
-	onFilesSelected?: (files: globalThis.File[]) => void
-	onCreateFolder?: () => void
 	onEmptyTrash?: () => void
-	isTrashView?: boolean
 	className?: string
 }
 
@@ -45,10 +39,7 @@ export function Toolbar({
 	onGoUp,
 	displayMode,
 	onDisplayModeChange,
-	onFilesSelected,
-	onCreateFolder,
 	onEmptyTrash,
-	isTrashView,
 	className
 }: ToolbarProps) {
 	const { t } = useTranslation()
@@ -71,25 +62,8 @@ export function Toolbar({
 					onClick={onGoUp}
 				/>
 			)}
-			{(onGoBack || onGoUp) && <ToolbarDivider />}
-			{!isTrashView && onFilesSelected && (
-				<FileButton
-					multiple
-					color="primary"
-					icon={<IcUpload />}
-					aria-label={t('Upload files')}
-					onFiles={onFilesSelected}
-				/>
-			)}
-			{!isTrashView && onCreateFolder && (
-				<Button
-					icon={<IcNewFolder />}
-					aria-label={t('New folder')}
-					onClick={onCreateFolder}
-				/>
-			)}
-
-			{isTrashView && onEmptyTrash && (
+			{(onGoBack || onGoUp) && onEmptyTrash && <ToolbarDivider />}
+			{onEmptyTrash && (
 				<Button
 					color="error"
 					icon={<IcEmptyTrash />}

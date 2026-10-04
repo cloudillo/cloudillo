@@ -35,7 +35,7 @@ import {
 	useReadPositionTracker,
 	useScrollEngaged
 } from '../../read-position.js'
-import { FilterToggle } from '../../ui/FilterToggle.js'
+import { DrawerToggle } from '../../ui/DrawerToggle.js'
 import { messagesPath } from '../../routes.js'
 import '@cloudillo/react/components.css'
 
@@ -334,7 +334,10 @@ export function MessagesApp() {
 									actions={
 										<>
 											{!!convId && (
-												<FilterToggle onClick={() => setShowFilter(true)} />
+												<DrawerToggle
+													nav
+													onClick={() => setShowFilter(true)}
+												/>
 											)}
 											{isGroup && (
 												<Button

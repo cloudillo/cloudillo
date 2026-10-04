@@ -26,7 +26,7 @@ import '@cloudillo/react/components.css'
 import type { ContactInput, ContactOutput } from '@cloudillo/core'
 
 import { useContextAwareApi } from '../../context/index.js'
-import { FilterToggle } from '../../ui/FilterToggle.js'
+import { DrawerToggle } from '../../ui/DrawerToggle.js'
 import { isPermissionError } from '../../utils.js'
 import { searchQueryAtom, selectedAddressBookAtom, selectedContactRefAtom } from './atoms.js'
 import {
@@ -261,7 +261,8 @@ export function ContactsApp() {
 							subtitle={selectedBookName}
 							actions={
 								<>
-									<FilterToggle
+									<DrawerToggle
+										nav
 										label={t('Address books')}
 										onClick={() => setShowFilter(true)}
 									/>

@@ -17,7 +17,7 @@ import { useTranslation } from 'react-i18next'
 import { LuImage as IcImage } from 'react-icons/lu'
 
 import { useCurrentContextIdTag } from '../../context/index.js'
-import { FilterToggle } from '../../ui/FilterToggle.js'
+import { DrawerToggle } from '../../ui/DrawerToggle.js'
 import { BLANK_IMAGE_SRC } from '../../utils.js'
 import { ActiveFilters } from './components/ActiveFilters.js'
 import { GalleryGrid } from './components/GalleryGrid.js'
@@ -158,7 +158,7 @@ export function GalleryApp() {
 					<VBox gap={2} autoBg>
 						<PageHeader
 							title={t('Gallery')}
-							actions={<FilterToggle onClick={() => setShowFilter(true)} />}
+							actions={<DrawerToggle nav onClick={() => setShowFilter(true)} />}
 						/>
 						<GalleryToolbar
 							layout={filters.layout}

@@ -89,7 +89,7 @@ import {
 	useScrollEngaged
 } from '../read-position.js'
 import { useMutedRooms } from '../lib/room-mute.js'
-import { FilterToggle } from '../ui/FilterToggle.js'
+import { DrawerToggle } from '../ui/DrawerToggle.js'
 import { ctxBase, feedPath, filesPath, profilePath } from '../routes.js'
 import { useWsBus } from '../ws-bus.js'
 import { type DocPostIntent, pendingDocPostAtom } from './feed/doc-post-intent.js'
@@ -2101,7 +2101,7 @@ export function FeedApp() {
 								/>
 							)
 						}
-						actions={<FilterToggle onClick={() => setShowFilter(true)} />}
+						actions={<DrawerToggle nav onClick={() => setShowFilter(true)} />}
 					/>
 				}
 			>

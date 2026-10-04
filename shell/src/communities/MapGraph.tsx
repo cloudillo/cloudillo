@@ -81,22 +81,24 @@ export function MapGraph({ layout, actions, onShowList }: MapGraphProps) {
 	const pointers = React.useRef(new Map<number, { x: number; y: number }>())
 
 	const ring1ByTag = React.useMemo(() => new Map(layout.ring1.map((n) => [n.idTag, n])), [layout])
-	/** Ring-1 nodes on the path from me to `active`: itself on ring 1, its parents on ring 2. */
+	/** Every node by its key; ring-1 keys are idTags, so chords resolve here too. */
+	const nodeByKey = React.useMemo(
+		() => new Map([...layout.ring1, ...layout.ring2].map((n) => [n.key, n])),
+		[layout]
+	)
+	/** The community under the pointer/focus: all its copies light up together. */
+	const activeTag = active ? nodeByKey.get(active)?.idTag : undefined
+	/** Ring-1 nodes on a path from me to `activeTag`: itself on ring 1, the parents of its copies on ring 2. */
 	const pathVia = React.useMemo(() => {
-		if (!active) return new Set<string>()
-		if (ring1ByTag.has(active)) return new Set([active])
-		return new Set(layout.ring2.find((n) => n.idTag === active)?.parents ?? [])
-	}, [active, ring1ByTag, layout])
-	const pos = React.useMemo(() => {
-		const m = new Map<string, { x: number; y: number }>()
-		for (const n of [...layout.ring1, ...layout.ring2]) m.set(n.idTag, n)
-		return m
-	}, [layout])
+		if (!activeTag) return new Set<string>()
+		if (ring1ByTag.has(activeTag)) return new Set([activeTag])
+		return new Set(layout.ring2.filter((n) => n.idTag === activeTag).flatMap((n) => n.parents))
+	}, [activeTag, ring1ByTag, layout])
 	/** Focus / arrow-key order: ring 1 then ring 2, each in angle order, then "+N more". */
 	const order = React.useMemo(
 		() => [
-			...layout.ring1.map((n) => n.idTag),
-			...layout.ring2.map((n) => n.idTag),
+			...layout.ring1.map((n) => n.key),
+			...layout.ring2.map((n) => n.key),
 			...(layout.more ? [MORE_KEY] : [])
 		],
 		[layout]
@@ -167,7 +169,7 @@ export function MapGraph({ layout, actions, onShowList }: MapGraphProps) {
 	}
 
 	function openMenu(node: MapNode) {
-		const el = nodeRefs.current.get(node.idTag)
+		const el = nodeRefs.current.get(node.key)
 		if (!el) return
 		setMenu({ node, anchor: { getBoundingClientRect: () => el.getBoundingClientRect() } })
 	}
@@ -177,7 +179,7 @@ export function MapGraph({ layout, actions, onShowList }: MapGraphProps) {
 			onShowList()
 			return
 		}
-		const node = ring1ByTag.get(key) ?? layout.ring2.find((n) => n.idTag === key)
+		const node = nodeByKey.get(key)
 		if (node) openMenu(node)
 	}
 
@@ -260,11 +262,11 @@ export function MapGraph({ layout, actions, onShowList }: MapGraphProps) {
 		const name = displayName(n.profile)
 		return (
 			<g
-				key={n.idTag}
+				key={n.key}
 				transform={`translate(${n.x} ${n.y})`}
-				{...nodeProps(n.idTag, nodeLabel(n))}
+				{...nodeProps(n.key, nodeLabel(n))}
 				data-ring={n.ring}
-				data-active={active === n.idTag || undefined}
+				data-active={n.idTag === activeTag || undefined}
 			>
 				<circle r={AVATAR / 2 + 4} className="c-community-map-halo" />
 				<foreignObject x={-AVATAR / 2} y={-AVATAR / 2} width={AVATAR} height={AVATAR}>
@@ -302,16 +304,20 @@ export function MapGraph({ layout, actions, onShowList }: MapGraphProps) {
 					))}
 					{layout.chords.map((c) => (
 						<React.Fragment key={`h:${c.from}:${c.to}`}>
-							{pos.get(c.from) &&
-								pos.get(c.to) &&
-								line(pos.get(c.from)!, pos.get(c.to)!, false)}
+							{nodeByKey.get(c.from) &&
+								nodeByKey.get(c.to) &&
+								line(nodeByKey.get(c.from)!, nodeByKey.get(c.to)!, false)}
 						</React.Fragment>
 					))}
 					{layout.edges.map((e) => (
 						<React.Fragment key={`e:${e.from}:${e.to}`}>
-							{pos.get(e.from) &&
-								pos.get(e.to) &&
-								line(pos.get(e.from)!, pos.get(e.to)!, active === e.to)}
+							{nodeByKey.get(e.from) &&
+								nodeByKey.get(e.to) &&
+								line(
+									nodeByKey.get(e.from)!,
+									nodeByKey.get(e.to)!,
+									nodeByKey.get(e.to)!.idTag === activeTag
+								)}
 						</React.Fragment>
 					))}
 				</g>
@@ -402,25 +408,24 @@ export function MapGraph({ layout, actions, onShowList }: MapGraphProps) {
 							actions.profile(menuNode.idTag)
 						}}
 					/>
-					{menuNode.ring === 2 &&
-						menuNode.parents.map((hat) => {
-							const parent = ring1ByTag.get(hat)
-							return (
-								<MenuItem
-									key={hat}
-									icon={<IcEnter />}
-									label={enterViaLabel(
-										t,
-										displayName(menuNode.profile),
-										parent ? displayName(parent.profile) : hat
-									)}
-									onClick={() => {
-										setMenu(undefined)
-										actions.enterVia(menuNode.idTag, hat)
-									}}
-								/>
-							)
-						})}
+					{menuNode.parents.map((hat) => {
+						const parent = ring1ByTag.get(hat)
+						return (
+							<MenuItem
+								key={hat}
+								icon={<IcEnter />}
+								label={enterViaLabel(
+									t,
+									displayName(menuNode.profile),
+									parent ? displayName(parent.profile) : hat
+								)}
+								onClick={() => {
+									setMenu(undefined)
+									actions.enterVia(menuNode.idTag, hat)
+								}}
+							/>
+						)
+					})}
 				</PopoverSurface>
 			)}
 		</VBox>

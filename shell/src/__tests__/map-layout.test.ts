@@ -42,9 +42,11 @@ describe('layoutPartnerMap', () => {
 		expect(l.chords).toEqual([{ from: 'a', to: 'b' }])
 		expect(l.ring2).toEqual([])
 		expect(l.edges).toEqual([])
+		expect(l.ring1.find((n) => n.idTag === 'b')!.parents).toEqual(['a'])
+		expect(l.ring1.find((n) => n.idTag === 'a')!.parents).toEqual(['b'])
 	})
 
-	it('places a shared partner once, at the circular mean of its parents', () => {
+	it('places a copy of a shared partner next to each parent', () => {
 		const l = layoutPartnerMap(
 			map(
 				['a', 'b', 'c', 'd'],
@@ -54,26 +56,15 @@ describe('layoutPartnerMap', () => {
 				]
 			)
 		)
-		expect(l.ring2).toHaveLength(1)
-		const x = l.ring2[0]
-		expect(x.parents.sort()).toEqual(['a', 'b'])
-		// a at -π/2, b at 0 → mean -π/4
-		expect(x.angle).toBeCloseTo(-Math.PI / 4)
-		expect(l.edges).toHaveLength(2)
-	})
-
-	it('uses the circular mean across the ±π seam', () => {
-		// a at -π/2, e at 1.1π (≡ -0.9π): the arithmetic mean (0.3π) would point the wrong way
-		const l = layoutPartnerMap(
-			map(
-				['a', 'b', 'c', 'd', 'e'],
-				[
-					['a', 'x'],
-					['e', 'x']
-				]
-			)
-		)
-		expect(l.ring2[0].angle).toBeCloseTo(-0.7 * Math.PI)
+		expect(l.ring2).toHaveLength(2)
+		expect(new Set(l.ring2.map((n) => n.key)).size).toBe(2)
+		const angleOf = { a: -Math.PI / 2, b: 0 } as Record<string, number>
+		for (const n of l.ring2) {
+			expect(n.idTag).toBe('x')
+			expect(n.parents).toHaveLength(1)
+			expect(n.angle).toBeCloseTo(angleOf[n.parents[0]])
+		}
+		expect(l.edges.map((e) => e.to).sort()).toEqual(l.ring2.map((n) => n.key).sort())
 	})
 
 	it('keeps siblings apart', () => {
@@ -94,7 +85,7 @@ describe('layoutPartnerMap', () => {
 		expect(angles[1]).toBeCloseTo(-Math.PI / 2)
 	})
 
-	it('caps ring 2 by parent count and reports the rest', () => {
+	it('caps ring 2 by path count, keeping copies together, and reports the rest', () => {
 		const edges: [string, string][] = [
 			['a', 'shared'],
 			['b', 'shared'],
@@ -103,9 +94,32 @@ describe('layoutPartnerMap', () => {
 		]
 		const l = layoutPartnerMap(map(['a', 'b'], edges), { maxRing2: 2 })
 		expect(l.ring2).toHaveLength(2)
-		expect(l.ring2.map((n) => n.idTag)).toContain('shared')
+		expect(l.ring2.map((n) => n.idTag)).toEqual(['shared', 'shared'])
+		expect(l.more).toBe(2)
+		expect(l.edges.every((e) => l.ring2.some((n) => n.key === e.to))).toBe(true)
+	})
+
+	it('cuts the cap on a community boundary, never partway through its copies', () => {
+		const edges: [string, string][] = [
+			['a', 'x'],
+			['b', 'x'],
+			['a', 'y'],
+			['c', 'y']
+		]
+		const l = layoutPartnerMap(map(['a', 'b', 'c'], edges), { maxRing2: 3 })
+		expect(l.ring2.map((n) => n.idTag)).toEqual(['x', 'x'])
 		expect(l.more).toBe(1)
-		expect(l.edges.every((e) => l.ring2.some((n) => n.idTag === e.to))).toBe(true)
+	})
+
+	it('still shows a single group larger than the cap', () => {
+		const edges: [string, string][] = [
+			['a', 'x'],
+			['b', 'x'],
+			['c', 'x']
+		]
+		const l = layoutPartnerMap(map(['a', 'b', 'c'], edges), { maxRing2: 2 })
+		expect(l.ring2.map((n) => n.idTag)).toEqual(['x', 'x'])
+		expect(l.more).toBe(0)
 	})
 
 	it('ignores edges from non-memberships', () => {

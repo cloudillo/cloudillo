@@ -129,23 +129,22 @@ function MapList({ map, actions }: { map: PartnerMap; actions: MapActions }) {
 									})}
 									trailing={
 										<>
-											{mine.has(p.idTag) ? (
+											{mine.has(p.idTag) && (
 												<Button
 													size="sm"
 													onClick={() => actions.open(p.idTag)}
 												>
 													{t('Open')}
 												</Button>
-											) : (
-												<Button
-													size="sm"
-													icon={<IcEnter />}
-													aria-label={label}
-													onClick={() =>
-														actions.enterVia(p.idTag, community.idTag)
-													}
-												/>
 											)}
+											<Button
+												size="sm"
+												icon={<IcEnter />}
+												aria-label={label}
+												onClick={() =>
+													actions.enterVia(p.idTag, community.idTag)
+												}
+											/>
 											{profileButton(p)}
 										</>
 									}

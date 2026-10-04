@@ -250,7 +250,7 @@ export function PartnersSettings() {
 			<Dialog
 				open={!!editing}
 				onClose={() => setEditing(undefined)}
-				size="sm"
+				size="md"
 				title={editing && (editing.name || editing.idTag)}
 			>
 				{editing && (

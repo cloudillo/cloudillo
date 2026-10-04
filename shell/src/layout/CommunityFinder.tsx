@@ -293,12 +293,18 @@ export function CommunityFinder({ variant, onDone, draggable }: CommunityFinderP
 			</VBox>
 			<VBox className="c-community-finder-footer">
 				{variant === 'sheet' && <ContextTools onNavigate={onDone} />}
-				<Button variant="link" href={scopePath(ctx.base, 'communities')} onClick={onDone}>
-					{t('Manage all')} →
-				</Button>
-				<Button variant="link" href={communityMapPath(HOME_BASE)} onClick={onDone}>
-					{t('Community map')} →
-				</Button>
+				<HBox justify="between" align="center" className="c-community-finder-links">
+					<Button
+						variant="link"
+						href={scopePath(ctx.base, 'communities')}
+						onClick={onDone}
+					>
+						{t('Manage all')} →
+					</Button>
+					<Button variant="link" href={communityMapPath(HOME_BASE)} onClick={onDone}>
+						{t('Community map')} →
+					</Button>
+				</HBox>
 			</VBox>
 		</VBox>
 	)

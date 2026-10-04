@@ -227,7 +227,10 @@
 	gap: 0.5rem;
 	padding-top: 0.5rem;
 	border-top: 1px solid var(--col-outline);
-	font-size: 0.83rem;
+}
+
+.c-community-finder-links {
+	min-height: 2.75rem;
 }
 
 .c-community-finder.sheet .c-community-finder-footer {

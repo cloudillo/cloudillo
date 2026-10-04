@@ -1,6 +1,6 @@
 {
 	"name": "@cloudillo/formillo-app",
-	"version": "0.8.19",
+	"version": "0.8.20",
 	"private": true,
 	"description": "Formillo survey app",
 	"type": "module",

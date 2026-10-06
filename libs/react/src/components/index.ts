@@ -449,6 +449,9 @@ export type {
 } from './SortableList/index.js'
 // SortableList Component
 export { SortableGroup, SortableList } from './SortableList/index.js'
+export type { SpotlightOverlayProps } from './SpotlightOverlay/index.js'
+// SpotlightOverlay Component
+export { SpotlightOverlay } from './SpotlightOverlay/index.js'
 export type { StepperProps } from './Stepper/index.js'
 // Stepper Component
 export { Stepper } from './Stepper/index.js'

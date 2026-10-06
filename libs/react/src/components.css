@@ -3176,6 +3176,36 @@ dialog.c-modal.c-immersive {
 	background: var(--c-inverse-bg);
 }
 
+/* ==========================================================================
+   SpotlightOverlay — modal layer dimmed around one hole (Modal base)
+   ========================================================================== */
+
+/* The native dialog only blocks and traps focus; the spot's shadow is the only dim. */
+dialog.c-modal.c-spotlight {
+	background: transparent;
+	backdrop-filter: none;
+	padding-top: 0;
+}
+
+/* The dim is the spot's own giant shadow; the hole is the element itself. */
+.c-spotlight-spot {
+	position: fixed;
+	border-radius: var(--border-radius-lg);
+	box-shadow: 0 0 0 100vmax rgb(0 0 0 / 0.5);
+	pointer-events: none;
+	transition:
+		top 0.25s ease,
+		left 0.25s ease,
+		width 0.25s ease,
+		height 0.25s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.c-spotlight-spot {
+		transition: none;
+	}
+}
+
 /* ============================================================================
    Logo — the Cloudillo mark; `animated` pulses the nodes (busy states)
    ============================================================================ */

@@ -20,18 +20,20 @@ import {
 } from '@cloudillo/react'
 import type { ProfileInfo } from '@cloudillo/types'
 import { browserSupportsWebAuthn } from '@simplewebauthn/browser'
+import { useSetAtom } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate, Outlet, Route, useLocation, useNavigate, useParams } from 'react-router-dom'
 
+import { AuthLayout } from '../auth/AuthLayout.js'
 import { DEFAULT_COMMUNITY_ID_TAG } from '../context/constants.js'
 import { useCommunitiesList } from '../context/index.js'
-import { AuthLayout } from '../auth/AuthLayout.js'
 import { useNotifications } from '../notifications/state.js'
 import type { UsePWA } from '../pwa.js'
 import { feedPath, HOME_BASE } from '../routes.js'
 import { subscribeNotifications } from '../settings/notifications.js'
 import { registerPasskey } from '../settings/passkey.js'
+import { tourAtom } from '../tour/atoms.js'
 import { useOnboardingDraft } from './draft.js'
 import { VerifyIdp } from './verify-idp.js'
 import { Welcome } from './welcome.js'
@@ -331,6 +333,7 @@ function Extras({ pwa }: { pwa: UsePWA }) {
 	const { error: toastError } = useToast()
 	const { loadNotifications } = useNotifications()
 	const { loadCommunities, pinCommunities } = useCommunitiesList()
+	const setTour = useSetAtom(tourAtom)
 	const { refId } = useParams<{ refId?: string }>()
 	const [draft, setDraft] = useOnboardingDraft()
 	const [finishing, setFinishing] = React.useState(false)
@@ -429,6 +432,7 @@ function Extras({ pwa }: { pwa: UsePWA }) {
 		}
 
 		// 4. Commit: consume the welcome ref and clear the resume gate.
+		let gateCleared = false
 		if (api) {
 			if (refId) {
 				try {
@@ -439,6 +443,7 @@ function Extras({ pwa }: { pwa: UsePWA }) {
 			}
 			try {
 				await api.settings.update('ui.onboarding', { value: null })
+				gateCleared = true
 			} catch (err) {
 				console.warn('Failed to clear onboarding gate:', err)
 			}
@@ -455,7 +460,9 @@ function Extras({ pwa }: { pwa: UsePWA }) {
 			console.warn('Failed to refresh notifications after onboarding:', err)
 		}
 
-		// 6. Done.
+		// 6. Done — offer the guided tour once the feed is up. A failed gate clear
+		// reruns onboarding next visit, which would offer it again.
+		if (gateCleared) setTour('offer')
 		navigate(feedPath(HOME_BASE))
 	}
 

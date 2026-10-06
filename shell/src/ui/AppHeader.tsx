@@ -58,13 +58,16 @@ export interface AppHeaderItemProps {
 	/** Grow to fill the group (the omnibox input). */
 	fill?: boolean
 	className?: string
+	/** `data-tour` target id for the guided tour. */
+	tour?: string
 	children: React.ReactNode
 }
 
 /** One entry in an `AppHeader` group. */
-export function AppHeaderItem({ fill, className, children }: AppHeaderItemProps) {
+export function AppHeaderItem({ fill, className, tour, children }: AppHeaderItemProps) {
 	return (
 		<li
+			data-tour={tour}
 			className={mergeClasses(fill && 'flex-fill', className)}
 			style={fill ? { minWidth: 0 } : undefined}
 		>

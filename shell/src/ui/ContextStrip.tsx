@@ -84,6 +84,7 @@ export function ContextStrip<T>({
 			ref={ref}
 			className={mergeClasses('c-ctx-bar g-1', className)}
 			role="toolbar"
+			data-tour="context"
 			aria-label={ariaLabel}
 			onKeyDown={onKeyDown}
 			onFocus={onFocus}

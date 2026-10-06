@@ -35,6 +35,7 @@ import {
 	LuQrCode as IcQrCode,
 	LuSearch as IcSearch,
 	LuSettings as IcSettings,
+	LuCircleHelp as IcTour,
 	LuUser as IcUser
 } from 'react-icons/lu'
 import { Route, Routes, useLocation, useNavigate } from 'react-router-dom'
@@ -111,6 +112,8 @@ import { settingsRoutes } from './settings/index.js'
 import { isSiteDocument } from './site/detect.js'
 import { SitePage } from './site/SitePage.js'
 import { siteAdminRoutes } from './site-admin/index.js'
+import { useStartTour } from './tour/atoms.js'
+import { TourHost } from './tour/TourHost.js'
 import { AppDock } from './ui/AppDock.js'
 import { AppHeader, AppHeaderItem } from './ui/AppHeader.js'
 import { AppShell } from './ui/AppShell.js'
@@ -155,6 +158,7 @@ function Header({ inert }: { inert?: boolean }) {
 	const { setNotifications, loadNotifications } = useNotifications()
 	const { warning: toastWarning } = useToast()
 	const setKeyLoss = useSetAtom(keyLossAtom)
+	const startTour = useStartTour()
 	const [businessCardOpen, setBusinessCardOpen] = React.useState(false)
 	const urlContext = useCtx().base
 	// An app document fills the screen on mobile (app-shell.css doc mode) — this is the way out.
@@ -353,7 +357,7 @@ function Header({ inert }: { inert?: boolean }) {
 				end={
 					<>
 						{auth && <HandChip />}
-						<AppHeaderItem>
+						<AppHeaderItem tour="search">
 							<Button
 								variant="ghost"
 								icon={<IcSearch />}
@@ -362,7 +366,7 @@ function Header({ inert }: { inert?: boolean }) {
 							/>
 						</AppHeaderItem>
 						{auth && (
-							<AppHeaderItem>
+							<AppHeaderItem tour="messages">
 								<Button
 									variant="ghost"
 									href={messagesPath(urlContext)}
@@ -391,7 +395,7 @@ function Header({ inert }: { inert?: boolean }) {
 							<NotificationPopover />
 						)}
 						{auth ? (
-							<AppHeaderItem>
+							<AppHeaderItem tour="user-menu">
 								<Menu
 									placement="bottom-end"
 									trigger={
@@ -418,6 +422,11 @@ function Header({ inert }: { inert?: boolean }) {
 										icon={<IcSettings />}
 										label={t('Settings')}
 										href={settingsPath(ctxBase(auth.idTag, auth.idTag))}
+									/>
+									<MenuItem
+										icon={<IcTour />}
+										label={t('Take the tour')}
+										onClick={startTour}
 									/>
 									<MenuDivider />
 									{langItems}
@@ -732,6 +741,7 @@ export function Layout() {
 					<ShellRoutes pwa={pwa} />
 				</AppShell>
 				<DialogContainer />
+				<TourHost />
 				<Toasts />
 				<MediaPicker />
 				<ShareCreate />

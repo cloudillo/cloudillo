@@ -80,7 +80,7 @@ export function NotificationPopover() {
 	const allPath = contextPath(urlContext, 'notifications')
 
 	return (
-		<AppHeaderItem>
+		<AppHeaderItem tour="notifications">
 			<Popover
 				width="md"
 				placement="bottom-end"

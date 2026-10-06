@@ -108,9 +108,13 @@ export function CreateMenu({
 			<Menu
 				trigger={
 					fab ? (
-						<FAB icon={<IcAdd />} aria-label={t('Create or upload')} />
+						<FAB
+							icon={<IcAdd />}
+							aria-label={t('Create or upload')}
+							data-tour="files-create"
+						/>
 					) : (
-						<Button color="primary" icon={<IcAdd />}>
+						<Button color="primary" icon={<IcAdd />} data-tour="files-create">
 							{t('New')}
 						</Button>
 					)

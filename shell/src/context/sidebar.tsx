@@ -102,7 +102,13 @@ export const Sidebar = React.memo(function Sidebar({ className }: SidebarProps) 
 				className
 			)}
 		>
-			<Nav as="nav" vertical className="c-sidebar-apps" aria-label={t('Main navigation')}>
+			<Nav
+				as="nav"
+				vertical
+				className="c-sidebar-apps"
+				aria-label={t('Main navigation')}
+				data-tour="nav"
+			>
 				<Menu vertical />
 				{/* Guests get the public apps only — no People/Communities tools. */}
 				{auth && <ContextTools />}

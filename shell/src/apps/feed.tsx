@@ -1007,7 +1007,7 @@ export function ComposeTrigger({ className, onOpen }: ComposeTriggerProps) {
 	if (!auth?.idTag) return null
 
 	return (
-		<Panel className={className}>
+		<Panel className={className} data-tour="feed-compose">
 			<HBox gap={2} align="center">
 				<ProfilePicture profile={{ profilePic: auth.profilePic }} small />
 				<Button variant="soft" className="flex-fill w-min-0" onClick={() => onOpen()}>

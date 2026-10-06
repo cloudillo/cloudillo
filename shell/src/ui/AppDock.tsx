@@ -27,7 +27,14 @@ export function AppDock({ 'aria-label': ariaLabel, inert, children }: AppDockPro
 
 /** A floating island in the dock; `apps` is the one that grows and spreads its links. */
 export function AppDockIsland({ apps, children }: { apps?: boolean; children: React.ReactNode }) {
-	return <div className={mergeClasses('c-nav-island', apps && 'c-nav-apps')}>{children}</div>
+	return (
+		<div
+			className={mergeClasses('c-nav-island', apps && 'c-nav-apps')}
+			data-tour={apps ? 'nav' : undefined}
+		>
+			{children}
+		</div>
+	)
 }
 
 /**
@@ -148,6 +155,7 @@ export function AppDockContextToggle({
 			aria-label={ariaLabel}
 			aria-haspopup="dialog"
 			aria-expanded={open}
+			data-tour="context"
 		>
 			<ProfilePicture profile={{ profilePic }} srcTag={idTag} tiny />
 			<span className="c-nav-label">{name}</span>

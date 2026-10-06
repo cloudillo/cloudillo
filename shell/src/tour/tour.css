@@ -1,0 +1,34 @@
+/* ── Guided tour: step bubble (the spotlight is SpotlightOverlay) ───────────────── */
+
+/* Surface mirrors opalui .c-popper.md */
+.c-tour-bubble {
+	position: fixed;
+	width: min(22rem, calc(100vw - 1rem));
+	background-color: var(--col-overlay);
+	color: var(--col-on-container-high);
+	border-radius: var(--border-radius-lg);
+	box-shadow: var(--shadow-lg);
+}
+
+.c-tour-bubble.centered {
+	inset: 0;
+	margin: auto;
+	height: fit-content;
+}
+
+.c-tour-bubble.bar {
+	left: 0.5rem;
+	right: 0.5rem;
+	width: auto;
+}
+
+.c-tour-bubble.bar.top {
+	top: calc(0.5rem + env(safe-area-inset-top));
+}
+
+.c-tour-bubble.bar.bottom {
+	bottom: calc(0.5rem + env(safe-area-inset-bottom));
+}
+
+/* vim: ts=4
+*/

@@ -2052,15 +2052,208 @@ dialog.c-modal.c-bottom-sheet-modal {
 }
 
 /* ==========================================================================
-   Document Embed
+   View Embed
    ========================================================================== */
 
-.cl-document-embed-iframe {
+.cl-view-embed-line {
+	display: flex;
+	width: 100%;
+}
+
+/* Idle → hover cue; selected → primary ring; interact → accent ring. Outlines never shift layout. */
+.cl-view-embed {
+	position: relative;
+	max-width: 100%;
+	border-radius: 4px;
+	outline: 1px solid transparent;
+	outline-offset: 2px;
+}
+
+.cl-view-embed:hover {
+	outline-color: var(--col-outline);
+}
+
+.cl-view-embed:focus-visible,
+.cl-view-embed.selected {
+	outline: 2px solid var(--col-primary);
+}
+
+.cl-view-embed.active {
+	outline: 2px solid var(--col-accent);
+}
+
+.cl-view-embed-frame {
+	max-width: 100%;
+	overflow: hidden;
+}
+
+.cl-view-embed-iframe {
+	display: block;
 	width: 100%;
 	height: 100%;
 	border: 1px solid var(--col-outline, #ccc);
 	border-radius: 4px;
 	background: var(--col-surface, #fff);
+}
+
+.cl-view-embed-fo {
+	overflow: visible;
+}
+
+.cl-view-embed-overlay {
+	position: absolute;
+	inset: 0;
+}
+
+.cl-view-embed-overlay > .cl-embed-placeholder {
+	height: 100%;
+}
+
+/* Chrome bar: floats above the frame (below when there is no room), only while selected */
+.cl-embed-chrome {
+	position: absolute;
+	bottom: calc(100% + 4px);
+	left: 0;
+	z-index: 2;
+	width: max-content;
+	max-width: 100%;
+	display: none;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.25rem;
+	padding: 0.125rem 0.25rem;
+	border-radius: 4px;
+	background: var(--col-container);
+	color: var(--col-on-container);
+	box-shadow: 0 1px 3px rgb(0 0 0 / 0.15);
+}
+
+.cl-view-embed.bar > .cl-embed-chrome,
+.cl-embed-chrome.pinned {
+	display: flex;
+}
+
+.cl-view-embed[data-bar='below'] > .cl-embed-chrome {
+	top: calc(100% + 4px);
+	bottom: auto;
+}
+
+.cl-embed-chrome-align {
+	display: inline-flex;
+}
+
+/* Resize handle: 10px visible square, 24px hit area */
+.cl-view-embed-handle {
+	position: absolute;
+	z-index: 1;
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	border: none;
+	background: none;
+	touch-action: none;
+}
+
+.cl-view-embed-handle::after {
+	content: '';
+	position: absolute;
+	inset: 7px;
+	border: 1px solid var(--col-surface, #fff);
+	border-radius: 2px;
+	background: var(--col-primary);
+}
+
+.cl-view-embed-handle.fixed {
+	right: -12px;
+	bottom: -12px;
+	cursor: nwse-resize;
+}
+
+.cl-view-embed-handle.fixed.left {
+	left: -12px;
+	right: auto;
+	cursor: nesw-resize;
+}
+
+.cl-view-embed-handle.reflow {
+	right: -12px;
+	top: calc(50% - 12px);
+	cursor: ew-resize;
+}
+
+.cl-view-embed-handle.reflow.left {
+	left: -12px;
+	right: auto;
+}
+
+.cl-view-embed-badge {
+	position: absolute;
+	right: 0.25rem;
+	bottom: 0.25rem;
+	padding: 0.125rem 0.375rem;
+	border-radius: 4px;
+	background: var(--col-container);
+	color: var(--col-on-container);
+	font-size: 0.85em;
+	pointer-events: none;
+}
+
+.cl-embed-chrome-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.25rem;
+	min-height: 24px;
+	min-width: 0;
+	font-size: 0.85em;
+}
+
+.cl-embed-chrome-title {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-weight: 500;
+}
+
+.cl-embed-chrome-owner {
+	opacity: 0.7;
+}
+
+.cl-embed-chrome-spacer {
+	flex: 1;
+}
+
+/* Placeholder: never shows content */
+.cl-embed-placeholder {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	max-width: 100%;
+	min-height: 6rem;
+	border: 1px dashed var(--col-outline, #ccc);
+	border-radius: 4px;
+	background: var(--col-surface, #fff);
+}
+
+.cl-embed-placeholder-title {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.375rem;
+}
+
+/* Sizing controls */
+.cl-embed-sizing {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+	padding: 0.5rem;
+}
+
+.cl-embed-sizing-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.5rem;
 }
 
 /* ==========================================================================

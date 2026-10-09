@@ -103,6 +103,18 @@ export interface PendingRegistration {
 	embed?: boolean
 }
 
+/**
+ * A scoped token minted by embed:open.req for one embed instance
+ */
+export interface EmbedTokenEntry {
+	/** The embedded document */
+	fileId: string
+	token: string
+	access: 'read' | 'write'
+	/** The embed chain above `fileId`, ending with the document that embeds it */
+	ancestors: string[]
+}
+
 // ============================================
 // APP TRACKER
 // ============================================
@@ -118,7 +130,9 @@ export class AppTracker {
 	// Track count separately since WeakMap doesn't have size
 	private connectionCount = 0
 	private pendingRegistrations = new Map<string, PendingRegistration>()
-	private embedTokens = new Map<string, string>()
+	// Per host window, then by embed key ('_embed:<nonce>'): a token is usable only by the
+	// window it was minted for, and only for the one embed instance that relays its key
+	private embedTokens = new WeakMap<Window, Map<string, EmbedTokenEntry>>()
 	private debug: boolean
 
 	constructor(debug = false) {
@@ -160,6 +174,8 @@ export class AppTracker {
 		}
 		this.connections.set(options.window, connection)
 		this.activeWindows.add(options.window)
+		// A re-registration (reload) of this window reopens its embeds, so drop its old tokens
+		this.embedTokens.delete(options.window)
 		this.log('Registered app:', options.appName, options.resId)
 		return connection
 	}
@@ -313,18 +329,49 @@ export class AppTracker {
 	}
 
 	/**
-	 * Store a scoped token for an embedded document's file ID.
-	 * Used so nested embeds can look up the correct via-token.
+	 * Store the scoped token minted for one embed instance (`key` = '_embed:<nonce>') of the
+	 * `window` connection, so the nested embeds it relays can look up their via-token.
 	 */
-	storeEmbedToken(fileId: string, token: string): void {
-		this.embedTokens.set(fileId, token)
+	storeEmbedToken(window: Window, key: string, entry: EmbedTokenEntry): void {
+		let tokens = this.embedTokens.get(window)
+		if (!tokens) {
+			tokens = new Map()
+			this.embedTokens.set(window, tokens)
+		}
+		tokens.set(key, entry)
 	}
 
 	/**
-	 * Get a previously stored embed token by file ID.
+	 * Drop the token of the embed instance `key` of the `window` connection (`embed:close.notify`).
 	 */
-	getEmbedToken(fileId: string): string | undefined {
-		return this.embedTokens.get(fileId)
+	// An iframe destroyed outright (e.g. its whole host removed) runs no cleanup, so its
+	// descendants' tokens stay until the host window re-registers; evict by `ancestors` prefix if
+	// that matters
+	removeEmbedToken(window: Window, key: string): void {
+		this.embedTokens.get(window)?.delete(key)
+	}
+
+	/**
+	 * Get the token stored for the embed instance `key` of the `window` connection.
+	 */
+	getEmbedToken(window: Window, key: string): EmbedTokenEntry | undefined {
+		return this.embedTokens.get(window)?.get(key)
+	}
+
+	/**
+	 * Whether the `window` connection has embedded `fileId` this session — directly into
+	 * `parentFileId` when given.
+	 */
+	hasEmbed(window: Window, fileId: string, parentFileId?: string): boolean {
+		for (const entry of this.embedTokens.get(window)?.values() ?? []) {
+			if (
+				entry.fileId === fileId &&
+				(parentFileId === undefined || entry.ancestors.at(-1) === parentFileId)
+			) {
+				return true
+			}
+		}
+		return false
 	}
 
 	/**
@@ -336,7 +383,7 @@ export class AppTracker {
 		this.activeWindows.clear()
 		this.connectionCount = 0
 		this.pendingRegistrations.clear()
-		this.embedTokens.clear()
+		this.embedTokens = new WeakMap()
 		this.log('Cleared all connections and pending registrations')
 	}
 }

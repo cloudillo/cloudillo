@@ -18,6 +18,8 @@ export interface DocPickerOptions {
 	sourceFileId?: string
 	/** Site source: only Public documents may be embedded, and the fix is "Make public" */
 	requirePublic?: boolean
+	/** Offer only documents some app can show as a view embed (plus folders) */
+	embeddableOnly?: boolean
 	/** Custom dialog title */
 	title?: string
 	/** True when opened from external app via bus protocol */
@@ -48,6 +50,8 @@ export interface DocPickerResult {
 	/** The viewer may write this row — what a live-document feed post requires
 	 *  (`canPost` in shell/src/apps/doc-info.ts). Absent when the surface cannot decide. */
 	canWrite?: boolean
+	/** The file's visibility (`'P'` = public); drives the embed permission disclosure */
+	visibility?: string | null
 }
 
 /**

@@ -85,7 +85,23 @@ export const SITE_BUILTIN_ISLANDS: readonly SiteIslandSpec[] = [
 		shape: 'box',
 		labelFrom: 'pr.name',
 		heightFrom: 'pr.height',
-		props: ['fileId', 'contentType', 'appId', 'navState', 'width', 'height']
+		props: [
+			'fileId',
+			'name',
+			'contentType',
+			'appId',
+			'navState',
+			'width',
+			'align',
+			'height',
+			'sizing',
+			'scale',
+			'maxH',
+			'textScale',
+			'lastW',
+			'lastH',
+			'kind'
+		]
 	}
 ]
 

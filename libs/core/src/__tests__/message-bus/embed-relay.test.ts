@@ -75,6 +75,8 @@ function installTopWindowSpy() {
 
 function harness(forwarded: Msg[] = []) {
 	const iframe = document.createElement('iframe')
+	// The src the host set: the relay stamps the child's `_embed:<nonce>` key from it
+	iframe.src = 'https://x/#h:f2:_embed:n1'
 	document.body.appendChild(iframe)
 	const child = iframe.contentWindow
 	if (!child) throw new Error('jsdom gave the iframe no contentWindow')
@@ -177,9 +179,73 @@ describe('setupEmbedRelay upward allowlist', () => {
 	 * embedded document's aspect ratio arrives this way.
 	 */
 	it('still hands every child notification to the host', () => {
-		h.fromChild(childMessage('doc:rename.req', { payload: { fileName: 'x' } }))
+		h.fromChild(childMessage('import:complete.notify', { payload: { success: true } }))
 
-		expect(h.notifications).toEqual([['doc:rename.req', { fileName: 'x' }]])
+		expect(h.forwarded).toEqual([])
+		expect(h.notifications).toHaveLength(1)
+	})
+
+	it('hands the host only well-formed notifications', () => {
+		h.fromChild(childMessage('app:error.notify', { payload: { code: '500', message: 'x' } }))
+		expect(h.notifications).toEqual([])
+
+		h.fromChild(childMessage('app:error.notify', { payload: { code: 500, message: 'x' } }))
+		expect(h.notifications).toEqual([['app:error.notify', { code: 500, message: 'x' }]])
+	})
+
+	it('tells the shell on cleanup which embed went away', () => {
+		h.cleanup()
+
+		expect(h.forwarded).toEqual([
+			childMessage('embed:close.notify', { payload: { key: '_embed:n1' } })
+		])
+		expect(validateMessage(h.forwarded[0], 'app>shell')).toBeDefined()
+	})
+
+	it('keeps a view report local: a grandchild report never sizes the outer frame', () => {
+		const report = { kind: 'fixed', natural: { w: 1, h: 1 } }
+		h.fromChild(childMessage('embed:view.report', { payload: report }))
+
+		expect(h.forwarded).toEqual([])
+		expect(h.notifications).toEqual([['embed:view.report', report]])
+	})
+
+	it('does not deliver a relayed view report locally', () => {
+		h.fromChild(
+			childMessage('embed:view.report', {
+				relayed: true,
+				payload: { kind: 'fixed', natural: { w: 1, h: 1 } }
+			})
+		)
+
+		expect(h.notifications).toEqual([])
+	})
+
+	// A grandchild's exit describes the middle frame, so only our own child's exit counts
+	it('delivers only a non-relayed embed:view.exit locally', () => {
+		h.fromChild(childMessage('embed:view.exit', { relayed: true, payload: {} }))
+		expect(h.notifications).toEqual([])
+
+		h.fromChild(childMessage('embed:view.exit', { payload: {} }))
+		expect(h.notifications).toEqual([['embed:view.exit', {}]])
+	})
+
+	it('drops a malformed view report', () => {
+		h.fromChild(childMessage('embed:view.report', { payload: { kind: 'fixed' } }))
+
+		expect(h.notifications).toEqual([])
+	})
+
+	it('drops a view report with an out-of-bounds natural size', () => {
+		for (const w of [Number.NaN, 1e9]) {
+			h.fromChild(
+				childMessage('embed:view.report', {
+					payload: { kind: 'fixed', natural: { w, h: 100 } }
+				})
+			)
+		}
+
+		expect(h.notifications).toEqual([])
 	})
 
 	it('stamps forwarded messages, and a child cannot clear or forge the stamp', () => {
@@ -196,6 +262,36 @@ describe('setupEmbedRelay upward allowlist', () => {
 		expect(h.forwarded.map((m) => m.relayed)).toEqual([true, true])
 	})
 
+	it('stamps the embed key from the iframe src, overwriting a forged one', () => {
+		h.fromChild(
+			childMessage('crdt:clientid.req', {
+				id: 1,
+				relayedFrom: 'evil',
+				payload: { docId: 'd' }
+			})
+		)
+
+		expect(h.forwarded.map((m) => m.relayedFrom)).toEqual(['_embed:n1'])
+	})
+
+	it('drops the embed key of an already-relayed message (grandchild cannot pose as child)', () => {
+		h.fromChild(
+			childMessage('embed:open.req', {
+				id: 1,
+				relayed: true,
+				relayedFrom: '_embed:x',
+				payload: {
+					targetFileId: 'f',
+					targetContentType: 'cloudillo/quillo',
+					sourceFileId: 's'
+				}
+			})
+		)
+
+		expect(h.forwarded[0].relayed).toBe(true)
+		expect(h.forwarded[0].relayedFrom).toBeUndefined()
+	})
+
 	/**
 	 * `T.struct` rejects unknown fields, so an unstamped-in-the-schema type would
 	 * have its stamped message dropped whole by the shell — every embed would stop
@@ -207,7 +303,6 @@ describe('setupEmbedRelay upward allowlist', () => {
 			childMessage('auth:token.refresh.req', { id: 2 }),
 			childMessage('app:ready.notify', { payload: { stage: 'auth' } }),
 			childMessage('app:error.notify', { payload: { code: 1, message: 'x' } }),
-			childMessage('embed:viewstate.push', { payload: { viewState: 's' } }),
 			childMessage('crdt:clientid.req', { id: 3, payload: { docId: 'd' } }),
 			childMessage('crdt:cache.read.req', { id: 4, payload: { docId: 'd' } }),
 			childMessage('embed:open.req', {
@@ -219,7 +314,8 @@ describe('setupEmbedRelay upward allowlist', () => {
 				}
 			}),
 			childMessage('doc:pick.req', { id: 6, payload: { sessionId: 's' } }),
-			childMessage('media:pick.req', { id: 7, payload: { sessionId: 's' } })
+			childMessage('media:pick.req', { id: 7, payload: { sessionId: 's' } }),
+			childMessage('embed:close.notify', { payload: { key: '_embed:n9' } })
 		]
 		for (const msg of cases) h.fromChild(msg)
 
@@ -267,10 +363,11 @@ describe('setupEmbedRelay — a top-level window', () => {
 
 	it('still hands the notification to the host', () => {
 		// The guard suppresses the repost, not local delivery — a shell-side embed
-		// keeps its viewstate channel.
-		h.fromChild(childMessage('embed:viewstate.push', { payload: { viewState: 's' } }))
+		// keeps its view report channel.
+		const report = { kind: 'fixed', natural: { w: 1, h: 1 } }
+		h.fromChild(childMessage('embed:view.report', { payload: report }))
 
-		expect(h.notifications).toEqual([['embed:viewstate.push', { viewState: 's' }]])
+		expect(h.notifications).toEqual([['embed:view.report', report]])
 		expect(top.sent).toEqual([])
 	})
 })

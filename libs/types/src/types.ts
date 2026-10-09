@@ -860,6 +860,14 @@ export const tPartAddressing = T.struct({
 })
 export type PartAddressing = T.TypeOf<typeof tPartAddressing>
 
+// What an embedding host may expect from a document of this content type when it
+// is shown as a view embed.
+export const tEmbedCaps = T.struct({
+	view: T.optional(T.literal('fixed', 'reflow')),
+	namedViews: T.optional(T.boolean)
+})
+export type EmbedCaps = T.TypeOf<typeof tEmbedCaps>
+
 // Content type handler
 export const tContentTypeHandler = T.struct({
 	mimeType: T.string,
@@ -888,7 +896,8 @@ export const tContentTypeHandler = T.struct({
 	// Block types of this content type that a published page mounts live. A
 	// declaration for a block type `@cloudillo/core` already knows is ignored:
 	// built-ins win, so an app cannot flip `image` from `enhance` to `replace`.
-	islands: T.optional(tSiteIslandRules)
+	islands: T.optional(tSiteIslandRules),
+	embed: T.optional(tEmbedCaps)
 })
 export type ContentTypeHandler = T.TypeOf<typeof tContentTypeHandler>
 

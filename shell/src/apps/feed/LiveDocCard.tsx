@@ -9,18 +9,18 @@
  * real app **inside the card**, so the reader keeps their feed scroll position.
  */
 
+import type { EmbedViewReportPayload } from '@cloudillo/core'
 import {
 	Alert,
 	Button,
 	Card,
-	DocumentEmbedIframe,
 	FileTypeIcon,
 	HBox,
 	Meta,
-	Panel,
 	Text,
 	useApi,
-	VBox
+	VBox,
+	ViewEmbed
 } from '@cloudillo/react'
 import { useAtomValue } from 'jotai'
 import * as React from 'react'
@@ -36,7 +36,6 @@ import {
 	useProfileTrust
 } from '../../context/index.js'
 import { getHandlersForContentType } from '../../manifest-registry.js'
-import { TrustBanner } from '../../profile/TrustBanner.js'
 import { appPath } from '../../routes.js'
 import { registerShellEmbed, releaseShellEmbed, useShellEmbed } from '../../shell-embed.js'
 import { AppLoadingIndicator } from '../AppLoadingIndicator.js'
@@ -52,10 +51,8 @@ export interface LiveDocCardProps {
 	className?: string
 }
 
-/** Starting height of the expanded box. A text document has no aspect ratio. */
-const DEFAULT_EMBED_HEIGHT = 24 * 16
-const HEIGHT_STEP = 8 * 16
-const MAX_EMBED_HEIGHT = 80 * 16
+/** Reflowing documents are clipped here until the reader asks for "Show more". */
+const MAX_EMBED_HEIGHT = 640
 
 export function LiveDocCard({ docRef, width, collapsedOnly, className }: LiveDocCardProps) {
 	const { t } = useTranslation()
@@ -67,7 +64,8 @@ export function LiveDocCard({ docRef, width, collapsedOnly, className }: LiveDoc
 	const ctx = useCtx()
 	const navigate = useNavigate()
 	const [expanded, setExpanded] = React.useState(false)
-	const [height, setHeight] = React.useState(DEFAULT_EMBED_HEIGHT)
+	const [showAll, setShowAll] = React.useState(false)
+	const [report, setReport] = React.useState<EmbedViewReportPayload>()
 	const [attempt, setAttempt] = React.useState(0)
 	const [rowTitle, setRowTitle] = React.useState<string | undefined>(undefined)
 
@@ -80,7 +78,7 @@ export function LiveDocCard({ docRef, width, collapsedOnly, className }: LiveDoc
 	 * by an explicit switch or join — and `effectiveTrust` says so, but only the hook's
 	 * atoms re-render this card when a decision lands.
 	 */
-	const { isAuthenticatedFor, getEffectiveTrust } = useProfileTrust()
+	const { isAuthenticatedFor, getEffectiveTrust, setSessionTrust } = useProfileTrust()
 	const activeContext = useAtomValue(activeContextAtom)
 	const trusted = docRef.srcIdTag === activeContext?.idTag || isAuthenticatedFor(docRef.srcIdTag)
 	const trustDecided = getEffectiveTrust(docRef.srcIdTag) !== null
@@ -115,6 +113,7 @@ export function LiveDocCard({ docRef, width, collapsedOnly, className }: LiveDoc
 					resId: docRef.doc,
 					idTag: homeApi.idTag,
 					contentType: docRef.contentType,
+					navState: docRef.nav,
 					// Editing happens on the full page. Always.
 					access: 'read',
 					retryKey: attempt,
@@ -175,7 +174,7 @@ export function LiveDocCard({ docRef, width, collapsedOnly, className }: LiveDoc
 							{expandLabel}
 						</Button>
 					)}
-					{/* A collapsed-only card has no expand button, so an untrusted node's TrustBanner is
+					{/* A collapsed-only card has no expand button, so an untrusted node's trust prompt is
 					    unreachable from here: render nothing rather than a control that can never enable. */}
 					{(trusted || !collapsedOnly) && (
 						<Button
@@ -203,25 +202,32 @@ export function LiveDocCard({ docRef, width, collapsedOnly, className }: LiveDoc
 						/>
 					)}
 				</HBox>
-				{/* Not rendered at all while collapsed: `active` only toggles
-				    pointerEvents — the iframe would still load. */}
-				{expanded && !collapsedOnly && !trusted && (
-					<VBox gap={2}>
-						<TrustBanner idTag={docRef.srcIdTag} />
-						{trustDecided && (
-							<Alert compact>
-								{t('This document cannot be opened anonymously.')}
-							</Alert>
-						)}
-					</VBox>
+				{/* Not rendered at all while collapsed — the iframe would still load.
+				    "Load anyway" is the TrustBanner's "This session": the narrowest consent
+				    that identifies the reader. */}
+				{expanded && !collapsedOnly && !trusted && !trustDecided && (
+					<ViewEmbed
+						status="untrusted"
+						title={title}
+						appId={appId}
+						settings={{ sizing: 'fit-width' }}
+						canInteract={false}
+						onLoadAnyway={() => setSessionTrust(docRef.srcIdTag, 'S')}
+					/>
+				)}
+				{expanded && !collapsedOnly && !trusted && trustDecided && (
+					<Alert compact>{t('This document cannot be opened anonymously.')}</Alert>
 				)}
 				{expanded && !collapsedOnly && trusted && (
-					// `pos-relative`: the indicator is an opaque full-box overlay.
-					<Panel
-						variant="outline"
-						padding={0}
+					// `pos-relative`: the indicator is an opaque full-box overlay, and the only
+					// status UI; with no embed under it, the box needs a height of its own.
+					<VBox
 						className="pos-relative"
-						style={{ height }}
+						style={
+							embed.iframeSrc && embed.stage !== 'error'
+								? undefined
+								: { minHeight: '6rem' }
+						}
 					>
 						<AppLoadingIndicator
 							stage={embed.stage}
@@ -230,49 +236,44 @@ export function LiveDocCard({ docRef, width, collapsedOnly, className }: LiveDoc
 							subtle={embed.stage === 'syncing'}
 							onRetry={() => setAttempt((n) => n + 1)}
 						/>
-						{/* Dropped on error: the overlay is opaque, so a mounted bundle behind it
-						    is invisible work — and its own retry loops keep running. */}
 						{embed.iframeSrc && embed.stage !== 'error' && (
-							<DocumentEmbedIframe
+							<ViewEmbed
 								// A fresh element per boot: the memoised iframe otherwise merely
 								// navigates, leaving the pre-retry document's relay live to report
 								// readiness against the new mount (see `useShellEmbed`).
 								key={embed.iframeSrc}
 								src={embed.iframeSrc}
-								className="w-100 h-100 border-0"
+								// 'live' as soon as there is a src: the bundle has to mount to
+								// report ready. Unmounted on error — a bundle behind the opaque
+								// overlay is invisible work, and its own retry loops keep running.
+								status="live"
+								title={title}
+								appId={appId}
+								nav={docRef.nav}
+								settings={{
+									sizing: 'fit-width',
+									maxH: showAll ? undefined : MAX_EMBED_HEIGHT
+								}}
+								// Editing happens on the full page. Always. Live (scrollable,
+								// clickable) from the first paint all the same.
+								canInteract={false}
 								active
+								onReport={setReport}
 								onAppReady={embed.onAppReady}
 								onAppError={embed.onAppError}
 							/>
 						)}
-					</Panel>
+					</VBox>
 				)}
-				{expanded && !collapsedOnly && trusted && (
-					<HBox gap={2}>
-						{height < MAX_EMBED_HEIGHT && (
-							<Button
-								variant="link"
-								size="sm"
-								onClick={() =>
-									setHeight(Math.min(height + HEIGHT_STEP, MAX_EMBED_HEIGHT))
-								}
-							>
-								{t('Taller')}
-							</Button>
-						)}
-						{height > DEFAULT_EMBED_HEIGHT && (
-							<Button
-								variant="link"
-								size="sm"
-								onClick={() =>
-									setHeight(Math.max(height - HEIGHT_STEP, DEFAULT_EMBED_HEIGHT))
-								}
-							>
-								{t('Shorter')}
-							</Button>
-						)}
-					</HBox>
-				)}
+				{expanded &&
+					!collapsedOnly &&
+					trusted &&
+					report?.kind === 'reflow' &&
+					report.natural.h > MAX_EMBED_HEIGHT && (
+						<Button variant="link" size="sm" onClick={() => setShowAll(!showAll)}>
+							{showAll ? t('Show less') : t('Show more')}
+						</Button>
+					)}
 			</VBox>
 		</Card>
 	)

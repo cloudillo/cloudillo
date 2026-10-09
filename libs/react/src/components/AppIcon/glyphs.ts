@@ -45,6 +45,10 @@ export const APP_IDS: readonly AppId[] = [
 	'qrscan'
 ]
 
+export function isAppId(id: string | undefined): id is AppId {
+	return !!id && (APP_IDS as readonly string[]).includes(id)
+}
+
 /** Palette key (`--p-<key>`) of each glyph's second colour */
 export const GLYPH_COLOR2: Record<GlyphId, string> = {
 	quillo: 'teal',

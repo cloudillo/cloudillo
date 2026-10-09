@@ -8,7 +8,7 @@
  * then constructs the full iframe src with the appropriate hash.
  */
 
-import { getAppBus } from '@cloudillo/core'
+import { EMBED_ERR_CYCLE, EMBED_ERR_DEPTH, getAppBus } from '@cloudillo/core'
 import * as React from 'react'
 
 export interface UseDocumentEmbedOptions {
@@ -17,12 +17,21 @@ export interface UseDocumentEmbedOptions {
 	sourceFileId: string
 	access?: 'read' | 'comment' | 'write'
 	navState?: string
+	/** Launch params for the embedded app (sent as a query string) */
+	params?: Record<string, string>
 }
 
 export interface DocumentEmbedState {
 	status: 'loading' | 'ready' | 'error'
 	iframeSrc?: string
 	error?: string
+	/** The shell refused the embed for nesting too deep or containing itself */
+	reason?: 'nested'
+}
+
+/** The `reason` an `embed:open.req` error message stands for, if any */
+export function embedErrorReason(message: string | undefined): 'nested' | undefined {
+	return message === EMBED_ERR_DEPTH || message === EMBED_ERR_CYCLE ? 'nested' : undefined
 }
 
 export function useDocumentEmbed(options: UseDocumentEmbedOptions | null): DocumentEmbedState {
@@ -30,9 +39,10 @@ export function useDocumentEmbed(options: UseDocumentEmbedOptions | null): Docum
 
 	// Serialize options to a stable key so we re-request only when they change
 	// navState changes should NOT trigger a re-request of the embed URL
-	// (navState is delivered via viewstate.set message, not via re-loading the iframe)
+	// (navState is delivered via the embed:view.set message, not via re-loading the iframe)
+	const params = options?.params ? new URLSearchParams(options.params).toString() : undefined
 	const optionsKey = options
-		? `${options.targetFileId}:${options.targetContentType}:${options.sourceFileId}:${options.access ?? 'read'}`
+		? `${options.targetFileId}:${options.targetContentType}:${options.sourceFileId}:${options.access ?? 'read'}:${params ?? ''}`
 		: null
 
 	React.useEffect(() => {
@@ -52,7 +62,8 @@ export function useDocumentEmbed(options: UseDocumentEmbedOptions | null): Docum
 					targetContentType: options.targetContentType,
 					sourceFileId: options.sourceFileId,
 					access: options.access,
-					navState: options.navState
+					navState: options.navState,
+					params
 				})
 
 				if (cancelled) return
@@ -66,10 +77,8 @@ export function useDocumentEmbed(options: UseDocumentEmbedOptions | null): Docum
 			} catch (err) {
 				if (cancelled) return
 				console.error('[useDocumentEmbed] Failed to request embed:', err)
-				setState({
-					status: 'error',
-					error: err instanceof Error ? err.message : 'Failed to load embed'
-				})
+				const error = err instanceof Error ? err.message : 'Failed to load embed'
+				setState({ status: 'error', error, reason: embedErrorReason(error) })
 			}
 		})()
 

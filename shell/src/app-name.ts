@@ -34,4 +34,15 @@ export function shellEmbedAppName(contentType: string): string {
 	return APP_NAME_RE.test(name) ? name : GENERIC_VIEWER
 }
 
+/**
+ * Resolve an app ID from a content type using the manifest MIME mapping
+ * (`/app/quillo` → `quillo`).
+ */
+export function resolveAppId(
+	contentType: string,
+	mime: Record<string, string>
+): string | undefined {
+	return mime[contentType]?.match(/^\/app\/(.+)$/)?.[1]
+}
+
 // vim: ts=4

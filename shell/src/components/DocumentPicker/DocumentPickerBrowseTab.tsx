@@ -29,9 +29,11 @@ import React, { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { LuFileText as IcDocument, LuHouse as IcHome, LuLock as IcLock } from 'react-icons/lu'
 
+import { resolveAppId } from '../../app-name.js'
 import { canManageFile, canWrite, resolveAccessLevel } from '../../apps/files/utils.js'
 import type { DocPickerResult } from '../../context/doc-picker-atom.js'
 import { activeContextAtom, contextRolesAtom, useApiContext } from '../../context/index.js'
+import { isEmbeddable } from '../../manifest-registry.js'
 import { isPermissionError, useAppConfig } from '../../utils.js'
 import { PickerFilterBar, usePickerBrowse } from '../pickers/index.js'
 
@@ -45,21 +47,12 @@ interface DocumentPickerBrowseTabProps {
 	 * share — a share grants the *source* document, which that reader never holds.
 	 */
 	requirePublic?: boolean
+	/** Hide documents no app can show as a view embed */
+	embeddableOnly?: boolean
 	idTag?: string
 	selectedFile: DocPickerResult | null
 	onSelect: (file: DocPickerResult) => void
 	onDoubleClick: (file: DocPickerResult) => void
-}
-
-/**
- * Resolve app ID from content type using MIME mapping
- */
-function resolveAppId(contentType: string, mime: Record<string, string>): string | undefined {
-	const path = mime[contentType]
-	if (!path) return undefined
-	// Extract app ID from path like '/app/quillo'
-	const match = path.match(/^\/app\/(.+)$/)
-	return match?.[1]
 }
 
 export function DocumentPickerBrowseTab({
@@ -67,6 +60,7 @@ export function DocumentPickerBrowseTab({
 	contentType,
 	sourceFileId,
 	requirePublic,
+	embeddableOnly,
 	idTag: idTagProp,
 	selectedFile,
 	onSelect,
@@ -120,7 +114,7 @@ export function DocumentPickerBrowseTab({
 		setCurrentFolderId,
 		breadcrumbs,
 		setBreadcrumbs,
-		files,
+		files: browsedFiles,
 		loading,
 		error,
 		isLoadingMore,
@@ -136,6 +130,10 @@ export function DocumentPickerBrowseTab({
 		contentType,
 		localOnly: true // tenant-owned files only (remote can't be embedded)
 	})
+
+	const files = embeddableOnly
+		? browsedFiles.filter((f) => f.fileTp === 'FLDR' || isEmbeddable(f.contentType))
+		: browsedFiles
 
 	// A document this picker must not hand back.
 	const isBlocked = useCallback(
@@ -225,7 +223,8 @@ export function DocumentPickerBrowseTab({
 				// The node that serves the row. `localOnly: true` above means there are no
 				// mirrored rows in this listing, so the browsed node is always the answer.
 				srcIdTag: idTag,
-				canWrite: isWritable(file)
+				canWrite: isWritable(file),
+				visibility: file.visibility
 			})
 		},
 		[handleFolderClick, onSelect, appConfig?.mime, isBlocked, isWritable, idTag]
@@ -255,7 +254,8 @@ export function DocumentPickerBrowseTab({
 				// The node that serves the row. `localOnly: true` above means there are no
 				// mirrored rows in this listing, so the browsed node is always the answer.
 				srcIdTag: idTag,
-				canWrite: isWritable(file)
+				canWrite: isWritable(file),
+				visibility: file.visibility
 			})
 		},
 		[handleFolderClick, onDoubleClick, appConfig?.mime, isBlocked, isWritable, idTag]

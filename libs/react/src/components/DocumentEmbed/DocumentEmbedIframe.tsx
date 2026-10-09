@@ -5,64 +5,68 @@
  * Renders a sandboxed iframe for an embedded document and manages the embed relay.
  */
 
-import { APP_SANDBOX, type EmbedRelayHandle, setupEmbedRelay } from '@cloudillo/core'
+import {
+	APP_SANDBOX,
+	type EmbedRelayHandle,
+	type EmbedViewLayoutPayload,
+	type EmbedViewReportPayload,
+	setupEmbedRelay
+} from '@cloudillo/core'
 import * as React from 'react'
 
 export interface DocumentEmbedIframeProps {
 	src: string
 	className?: string
 	active?: boolean
-	onActivate?: () => void
-	onDeactivate?: () => void
-	/** Called when the embedded app reports view state changes */
-	onViewStateChange?: (
-		viewState: string,
-		aspectRatio?: [number, number],
-		aspectFixed?: boolean
-	) => void
+	/** The iframe document loaded; the app inside may still be booting */
+	onLoad?: () => void
+	/** The embedded app asked to leave interact mode (`embed:view.exit`, i.e. Esc) */
+	onExit?: () => void
 	/** The embedded app reported a loading stage (`app:ready.notify`). */
 	onAppReady?: (stage?: string) => void
 	/** The embedded app reported a fatal error (`app:error.notify`), e.g. 4403 = access denied. */
 	onAppError?: (code: number, message?: string) => void
+	/** The embedded app reported its view (`embed:view.report`). */
+	onViewReport?: (report: EmbedViewReportPayload) => void
 }
 
 export interface DocumentEmbedIframeRef {
-	/** Send a view state to the embedded app */
-	sendViewState: (viewState?: string) => void
+	/** Send the host layout to the embedded app (`embed:view.layout`) */
+	sendLayout: (layout: EmbedViewLayoutPayload) => void
+	/** Ask the embedded app to show a view (`embed:view.set`) */
+	sendViewSet: (nav?: string) => void
+	/** Move keyboard focus into the embedded app */
+	focus: () => void
 }
 
 export const DocumentEmbedIframe = React.memo(
 	React.forwardRef<DocumentEmbedIframeRef, DocumentEmbedIframeProps>(function DocumentEmbedIframe(
-		{
-			src,
-			className,
-			active,
-			onActivate,
-			onDeactivate,
-			onViewStateChange,
-			onAppReady,
-			onAppError
-		},
+		{ src, className, active, onLoad, onExit, onAppReady, onAppError, onViewReport },
 		ref
 	) {
 		const iframeRef = React.useRef<HTMLIFrameElement | null>(null)
 		const relayRef = React.useRef<EmbedRelayHandle | null>(null)
 		const cleanupRef = React.useRef<(() => void) | null>(null)
-		// Kept in refs, like `onViewStateChange`: `setIframeRef` is a `useCallback([])`.
-		const onViewStateChangeRef = React.useRef(onViewStateChange)
-		onViewStateChangeRef.current = onViewStateChange
+		// Kept in refs: `setIframeRef` is a `useCallback([])`.
 		const onAppReadyRef = React.useRef(onAppReady)
 		onAppReadyRef.current = onAppReady
 		const onAppErrorRef = React.useRef(onAppError)
 		onAppErrorRef.current = onAppError
+		const onViewReportRef = React.useRef(onViewReport)
+		onViewReportRef.current = onViewReport
+		const onExitRef = React.useRef(onExit)
+		onExitRef.current = onExit
 
-		// Expose sendViewState via ref
 		React.useImperativeHandle(
 			ref,
 			() => ({
-				sendViewState: (viewState?: string) => {
-					relayRef.current?.sendToChild('embed:viewstate.set', { viewState })
-				}
+				sendLayout: (layout: EmbedViewLayoutPayload) => {
+					relayRef.current?.sendToChild('embed:view.layout', layout)
+				},
+				sendViewSet: (nav?: string) => {
+					relayRef.current?.sendToChild('embed:view.set', { nav })
+				},
+				focus: () => iframeRef.current?.focus()
 			}),
 			[]
 		)
@@ -97,17 +101,12 @@ export const DocumentEmbedIframe = React.memo(
 							}
 							return
 						}
-						if (type === 'embed:viewstate.push' && payload) {
-							const p = payload as {
-								viewState: string
-								aspectRatio?: [number, number]
-								aspectFixed?: boolean
-							}
-							onViewStateChangeRef.current?.(
-								p.viewState,
-								p.aspectRatio,
-								p.aspectFixed
-							)
+						if (type === 'embed:view.exit') {
+							onExitRef.current?.()
+							return
+						}
+						if (type === 'embed:view.report' && payload) {
+							onViewReportRef.current?.(payload as EmbedViewReportPayload)
 						}
 					}
 				})
@@ -127,19 +126,6 @@ export const DocumentEmbedIframe = React.memo(
 			}
 		}, [])
 
-		// Handle click-outside deactivation
-		React.useEffect(() => {
-			if (!active || !onDeactivate) return
-
-			const handler = (e: MouseEvent) => {
-				if (iframeRef.current && !iframeRef.current.contains(e.target as Node)) {
-					onDeactivate()
-				}
-			}
-			document.addEventListener('click', handler)
-			return () => document.removeEventListener('click', handler)
-		}, [active, onDeactivate])
-
 		return (
 			<iframe
 				ref={setIframeRef}
@@ -147,11 +133,10 @@ export const DocumentEmbedIframe = React.memo(
 				className={className}
 				sandbox={APP_SANDBOX}
 				loading="lazy"
+				// Inactive: the embed's container is its single tab stop
+				tabIndex={active ? undefined : -1}
 				style={{ pointerEvents: active ? 'auto' : 'none' }}
-				onDoubleClick={(e) => {
-					e.stopPropagation()
-					onActivate?.()
-				}}
+				onLoad={onLoad}
 			/>
 		)
 	})

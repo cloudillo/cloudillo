@@ -28,9 +28,22 @@ export type {
 } from './components/Menu/index.js'
 export { MenuDivider, MenuHeader, MenuItem } from './components/Menu/index.js'
 export type { ToastsProps } from './components/Toast/index.js'
-export { Toasts } from './components/Toast/index.js'
+export { Toasts, useToast } from './components/Toast/index.js'
+export type { EmbedViewSettings } from './components/ViewEmbed/sizing.js'
+export {
+	clampNatural,
+	LAYOUT_ORIGIN,
+	naturalSizeChanged,
+	normalizeEmbedSettings,
+	resizeSettings,
+	storableNatural
+} from './components/ViewEmbed/sizing.js'
+// For quillo's embed blot
+export type { DocViewEmbedProps } from './components/ViewEmbed/ViewEmbed.js'
+export { DocViewEmbed } from './components/ViewEmbed/ViewEmbed.js'
 export type { AppDocBarProps, UseDocBarReturn } from './docbar.js'
 export { AppDocBar } from './docbar.js'
+export { embedReportToStore, grantEmbedEditable, useCopyEmbedLink } from './embed-source.js'
 export { useLibTranslation } from './i18n.js'
 export type { DocPresence } from './presence.js'
 export { useDocPresence } from './presence.js'

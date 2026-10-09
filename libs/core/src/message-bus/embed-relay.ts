@@ -9,6 +9,10 @@
  * by routing through the parent (this window).
  */
 
+import * as T from '@symbion/runtype'
+
+import { parseAppHash } from './app-bus.js'
+import { validateMessage } from './registry.js'
 import { PROTOCOL_VERSION } from './types.js'
 
 let embedCounter = 0
@@ -57,8 +61,8 @@ const RELAY_UP_TYPES = new Set([
 	'auth:token.refresh.req',
 	'app:ready.notify',
 	'app:error.notify',
-	'embed:viewstate.push',
 	'embed:open.req',
+	'embed:close.notify',
 	'crdt:clientid.req',
 	'crdt:cache.read.req',
 	'crdt:cache.append.req',
@@ -73,7 +77,7 @@ const RELAY_UP_TYPES = new Set([
 export interface EmbedRelayOptions {
 	/**
 	 * Called when the child sends a notification (message with payload but no replyTo/id).
-	 * Use this to intercept messages like embed:viewstate.push from embedded apps.
+	 * Use this to intercept messages like embed:view.report from embedded apps.
 	 */
 	onChildNotification?: (type: string, payload: unknown) => void
 }
@@ -102,7 +106,7 @@ export interface EmbedRelayHandle {
  * registered'` (the pending registration having been consumed by the real one)
  * handed back to the child under the original request id, beating the real
  * answer whenever that one waits on a token mint. Interception and
- * `sendToChild` still work, so a shell-side embed keeps its viewstate channel.
+ * `sendToChild` still work, so a shell-side embed keeps its `embed:view.*` channel.
  *
  * @param iframe - The nested iframe element
  * @param options - Optional configuration for notification interception
@@ -128,11 +132,17 @@ export function setupEmbedRelay(
 		// Intercept notifications from child (no id, no replyTo, has payload)
 		if (
 			options?.onChildNotification &&
+			// A relayed notification is a grandchild's and describes the middle frame, not this one
+			!msg.relayed &&
 			typeof msg.id !== 'number' &&
 			typeof msg.replyTo !== 'number' &&
 			msg.payload
 		) {
-			options.onChildNotification(msg.type, msg.payload)
+			// Hosts act on these (sizing, errors, ready): only well-formed ones reach them.
+			// `validateSync` on top of the registry decode for the refinements (report bounds).
+			const rule = validateMessage(msg, 'app>shell')?.rule
+			const valid = rule && T.validateSync(rule[2] as T.Type<{ payload: unknown }>, msg)
+			if (valid && T.isOk(valid)) options.onChildNotification(msg.type, valid.ok.payload)
 		}
 
 		// See the doc comment: from a top-level window the repost below would
@@ -154,7 +164,14 @@ export function setupEmbedRelay(
 		// see `doc:rename.req` in the shell. Not a substitute for the allowlist
 		// above: a hostile HOST app can simply not use this relay at all, and
 		// gains nothing by stripping the flag from its own messages.
+		const nested = msg.relayed === true
 		msg.relayed = true
+		// Which of this host's embeds asked: the nonce key from the `src` we set. Read per
+		// message, since the src changes when the embed is re-requested. A message that was
+		// already relayed comes from a grandchild: our stamp would make it read as our child's,
+		// so drop it and let the shell refuse the unattributable request.
+		if (nested) delete msg.relayedFrom
+		else msg.relayedFrom = parseAppHash(new URL(iframe.src, location.href).hash).embedAuthKey
 		window.parent.postMessage(msg, '*')
 	}
 
@@ -193,6 +210,21 @@ export function setupEmbedRelay(
 		window.removeEventListener('message', upHandler)
 		window.removeEventListener('message', downHandler)
 		relayedIds.clear()
+		// Lets the shell drop the token it stored for this embed
+		const key = isTopWindow
+			? undefined
+			: parseAppHash(new URL(iframe.src, location.href).hash).embedAuthKey
+		if (key) {
+			window.parent.postMessage(
+				{
+					cloudillo: true,
+					v: PROTOCOL_VERSION,
+					type: 'embed:close.notify',
+					payload: { key }
+				},
+				'*'
+			)
+		}
 	}
 
 	const sendToChild = (type: string, payload: unknown) => {

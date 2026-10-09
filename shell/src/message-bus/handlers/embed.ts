@@ -14,12 +14,19 @@
  * registering branch, `embed: true` belongs on the entry.
  */
 
-import { appBundleUrl, createApiClient, type EmbedOpenReq } from '@cloudillo/core'
+import {
+	appBundleUrl,
+	createApiClient,
+	EMBED_ERR_CYCLE,
+	EMBED_ERR_DEPTH,
+	type EmbedCloseNotify,
+	type EmbedOpenReq
+} from '@cloudillo/core'
 
 import { shellEmbedAppName } from '../../app-name.js'
 import { getAccessSuffix } from '../app-tracker.js'
 import type { ShellMessageBus } from '../shell-bus.js'
-import { idTagFromResId } from './resId.js'
+import { fileIdFromResId, idTagFromResId } from './resId.js'
 
 const MAX_EMBED_DEPTH = 3
 
@@ -62,44 +69,45 @@ export function initEmbedHandlers(bus: ShellMessageBus): void {
 			return
 		}
 
-		const {
-			targetFileId,
-			targetContentType,
-			sourceFileId,
-			access,
-			navState,
-			params,
-			ancestors
-		} = msg.payload
-		const ancestorChain = ancestors || []
-		const nextAncestorChain = [...ancestorChain, sourceFileId]
-		const requestedAccess = access || 'read'
+		// `ancestors` stays in the schema for compatibility but is not read: the chain comes
+		// from the stored via-entry, which the requester cannot forge.
+		const { targetFileId, targetContentType, sourceFileId, access, navState, params } =
+			msg.payload
+		// quillo sends `owner:fileId`, the other apps the bare fileId
+		const srcFileId = fileIdFromResId(sourceFileId) || sourceFileId
+		const tgtFileId = fileIdFromResId(targetFileId) || targetFileId
+		// Bound to the requesting window: a top-level app embeds from its own document, a relayed
+		// nested embed (embed-relay.ts) only from the document of the embed instance the relay
+		// stamped (`relayedFrom`). A child can neither clear `relayed` nor forge `relayedFrom`,
+		// so it never borrows the host's token or a sibling embed's.
+		// A multi-hop request arrives with `relayed` but no `relayedFrom` (the relay drops
+		// it on already-relayed messages) and is refused; MAX_EMBED_DEPTH = 3 forbids it anyway. A
+		// deeper limit would need a stamped nonce path.
+		const isOwnDoc = !msg.relayed && srcFileId === fileIdFromResId(connection.resId)
+		const via =
+			!isOwnDoc && msg.relayed && msg.relayedFrom
+				? bus.getAppTracker().getEmbedToken(appWindow, msg.relayedFrom)
+				: undefined
+		if (!isOwnDoc && via?.fileId !== srcFileId) {
+			console.warn('[Embed] Open request for a foreign source:', sourceFileId)
+			bus.sendResponse(appWindow, 'embed:open.res', msg.id, false, undefined, 'Not allowed')
+			return
+		}
+		const nextAncestorChain = [...(via ? via.ancestors : []), srcFileId]
+		const sourceAccess = via ? via.access : connection.access
+		const requestedAccess = sourceAccess === 'write' ? access || 'read' : 'read'
 
 		// Depth check
 		if (nextAncestorChain.length >= MAX_EMBED_DEPTH) {
-			console.warn('[Embed] Depth limit exceeded:', ancestorChain.length)
-			bus.sendResponse(
-				appWindow,
-				'embed:open.res',
-				msg.id,
-				false,
-				undefined,
-				'Embed depth limit exceeded'
-			)
+			console.warn('[Embed] Depth limit exceeded:', nextAncestorChain.length)
+			bus.sendResponse(appWindow, 'embed:open.res', msg.id, false, undefined, EMBED_ERR_DEPTH)
 			return
 		}
 
 		// Cycle check
-		if (ancestorChain.includes(targetFileId)) {
-			console.warn('[Embed] Circular embed detected:', targetFileId, 'in', ancestorChain)
-			bus.sendResponse(
-				appWindow,
-				'embed:open.res',
-				msg.id,
-				false,
-				undefined,
-				'Circular embed detected'
-			)
+		if (nextAncestorChain.includes(tgtFileId)) {
+			console.warn('[Embed] Circular embed detected:', tgtFileId, 'in', nextAncestorChain)
+			bus.sendResponse(appWindow, 'embed:open.res', msg.id, false, undefined, EMBED_ERR_CYCLE)
 			return
 		}
 
@@ -119,28 +127,32 @@ export function initEmbedHandlers(bus: ShellMessageBus): void {
 			// if available (handles nested embeds), otherwise fall back to the
 			// connection's token (handles first-level embeds).
 			let viaApi = api
-			const embedToken = bus.getAppTracker().getEmbedToken(sourceFileId)
-			if (embedToken) {
-				viaApi = createApiClient({ idTag: contextIdTag, authToken: embedToken })
+			if (via) {
+				viaApi = createApiClient({ idTag: contextIdTag, authToken: via.token })
 			} else if (connection.token) {
 				viaApi = createApiClient({ idTag: contextIdTag, authToken: connection.token })
 			}
 
 			// Get scoped token via cross-document token exchange
 			const tokenResult = await viaApi.auth.getAccessTokenVia(
-				sourceFileId,
-				`file:${targetFileId}:${getAccessSuffix(requestedAccess)}`
+				srcFileId,
+				`file:${tgtFileId}:${getAccessSuffix(requestedAccess)}`
 			)
 
 			if (!tokenResult?.token) {
 				throw new Error('Failed to obtain scoped token')
 			}
 
-			// Store the token so nested embeds within targetFileId can use it
-			bus.getAppTracker().storeEmbedToken(targetFileId, tokenResult.token)
-
 			// Generate nonce for pending registration
 			const nonce = `embed-${Date.now()}-${Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => b.toString(16).padStart(2, '0')).join('')}`
+
+			// Store the token per instance so nested embeds within this one can use it
+			bus.getAppTracker().storeEmbedToken(appWindow, `_embed:${nonce}`, {
+				fileId: tgtFileId,
+				token: tokenResult.token,
+				access: tokenResult.accessLevel === 'write' ? 'write' : 'read',
+				ancestors: nextAncestorChain
+			})
 
 			const appName = shellEmbedAppName(targetContentType)
 
@@ -156,8 +168,9 @@ export function initEmbedHandlers(bus: ShellMessageBus): void {
 			// Include navState so it can be delivered to the embedded app
 			bus.setPendingRegistration(`_embed:${nonce}`, {
 				token: tokenResult.token,
-				access: requestedAccess,
-				resId: `${idTag}:${targetFileId}`,
+				// What the backend granted, not what was asked: it downgrades silently.
+				access: tokenResult.accessLevel === 'write' ? 'write' : 'read',
+				resId: `${idTag}:${tgtFileId}`,
 				idTag,
 				// Validated against the bundle-name pattern above — never taken from the
 				// embedding app unchecked, with unrecognised content types falling back to
@@ -173,7 +186,7 @@ export function initEmbedHandlers(bus: ShellMessageBus): void {
 			bus.sendResponse(appWindow, 'embed:open.res', msg.id, true, {
 				embedUrl,
 				nonce,
-				resId: `${idTag}:${targetFileId}`
+				resId: `${idTag}:${tgtFileId}`
 			})
 		} catch (err) {
 			console.error('[Embed] Failed to process embed request:', err)
@@ -186,6 +199,12 @@ export function initEmbedHandlers(bus: ShellMessageBus): void {
 				(err as Error).message
 			)
 		}
+	})
+
+	// A host tore down an embed (or relayed a nested host's teardown): its token goes too.
+	// A grandchild's token was stored under the same host window, so one lookup covers both.
+	bus.on('embed:close.notify', (msg: EmbedCloseNotify, source) => {
+		if (source) bus.getAppTracker().removeEmbedToken(source as Window, msg.payload.key)
 	})
 }
 

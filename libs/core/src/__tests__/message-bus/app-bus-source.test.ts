@@ -181,6 +181,56 @@ describe('AppBus message source validation', () => {
 
 		expect(seen).toEqual([])
 	})
+
+	it('ignores an embed:view.layout with an out-of-range scale', async () => {
+		const bus = await initBus()
+		const seen: unknown[] = []
+		bus.onViewLayout((l) => {
+			seen.push(l)
+		})
+		const layout = (scale: number) =>
+			new MessageEvent('message', {
+				source: window.parent,
+				data: {
+					cloudillo: true,
+					v: PROTOCOL_VERSION,
+					type: 'embed:view.layout',
+					payload: { sizing: 'fit-width', availW: 400, scale, interactive: false }
+				}
+			})
+
+		window.dispatchEvent(layout(Number.NaN))
+		window.dispatchEvent(layout(1e9))
+		expect(seen).toEqual([])
+
+		window.dispatchEvent(layout(1))
+		expect(seen).toHaveLength(1)
+	})
+})
+
+// The shell relay drops a report outside the wire bounds whole, so the source clamps it.
+describe('AppBus.reportView', () => {
+	it('clamps an out-of-range natural size', async () => {
+		const bus = await initBus()
+		// biome-ignore lint/suspicious/noExplicitAny: forcing the private embed flag
+		;(bus as any).isEmbed = true
+		const sent: Array<Record<string, unknown>> = []
+		const realPost = window.parent.postMessage
+		window.parent.postMessage = ((msg: unknown) => {
+			sent.push(msg as Record<string, unknown>)
+		}) as typeof window.postMessage
+
+		bus.reportView({ kind: 'reflow', natural: { w: 800, h: 50000 } })
+		await new Promise((r) => setTimeout(r, 150))
+		window.parent.postMessage = realPost
+
+		expect(sent).toEqual([
+			expect.objectContaining({
+				type: 'embed:view.report',
+				payload: expect.objectContaining({ natural: { w: 800, h: 20000 } })
+			})
+		])
+	})
 })
 
 // vim: ts=4

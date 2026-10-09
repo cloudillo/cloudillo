@@ -66,8 +66,11 @@ function msg<T extends string, P extends Record<string, T.Type<any>>>(
  * Spread into every `app>shell` struct the relay may forward: `T.struct` rejects
  * unknown fields, so an unlisted type would have its stamped message dropped
  * whole rather than merely unstamped.
+ *
+ * `relayedFrom` is stamped alongside: the child's `_embed:<nonce>` key, read from the
+ * iframe `src` the host set, so the shell can tell which of the host's embeds asked.
  */
-export const tRelayed = { relayed: T.optional(T.boolean) }
+export const tRelayed = { relayed: T.optional(T.boolean), relayedFrom: T.optional(T.string) }
 
 // ============================================
 // MESSAGE DIRECTIONS
@@ -488,6 +491,82 @@ export const tDocPickResultPush = msg('doc:pick.result', {
 })
 export type DocPickResultPush = T.TypeOf<typeof tDocPickResultPush>
 
+/**
+ * App asks the shell to turn a pasted `cl:` ref into an embed target. The shell
+ * resolves it, shows the permission disclosure and grants the file-link share
+ * (same path as doc:pick). Waits on the user, so the app uses a long timeout.
+ * Direction: app -> shell
+ */
+export const tDocLinkReq = msg('doc:link.req', {
+	...tRelayed,
+	id: T.number,
+	payload: T.struct({
+		ref: T.string,
+		sourceFileId: T.string
+	})
+})
+export type DocLinkReq = T.TypeOf<typeof tDocLinkReq>
+
+/**
+ * Shell responds to a link request; `ok` with no data means the user cancelled
+ * Direction: shell -> app
+ */
+export const tDocLinkRes = msg('doc:link.res', {
+	replyTo: T.number,
+	ok: T.boolean,
+	data: T.optional(
+		T.struct({
+			fileId: T.string,
+			contentType: T.string,
+			appId: T.optional(T.string),
+			fileName: T.string,
+			nav: T.optional(T.string)
+		})
+	),
+	error: T.optional(T.string)
+})
+export type DocLinkRes = T.TypeOf<typeof tDocLinkRes>
+
+/**
+ * App asks the shell to set the file-link share that lets its own document
+ * (`sourceFileId`) open the embedded `targetFileId` with `access`. Used by an
+ * embed's "Allow editing" toggle.
+ * Direction: app -> shell
+ */
+export const tDocGrantReq = msg('doc:grant.req', {
+	...tRelayed,
+	id: T.number,
+	payload: T.struct({
+		targetFileId: T.string,
+		sourceFileId: T.string,
+		access: T.literal('read', 'write')
+	})
+})
+export type DocGrantReq = T.TypeOf<typeof tDocGrantReq>
+
+/**
+ * Shell responds to a grant request
+ * Direction: shell -> app
+ */
+export const tDocGrantRes = msg('doc:grant.res', {
+	replyTo: T.number,
+	ok: T.boolean,
+	error: T.optional(T.string)
+})
+export type DocGrantRes = T.TypeOf<typeof tDocGrantRes>
+
+/**
+ * App asks the shell to open a document (an embed's "Open source"). `ref` is a
+ * `cl:<appId>/<owner>:<fileId>[?nav=…]` doc ref; anything else is ignored.
+ * Direction: app -> shell
+ */
+export const tDocOpenPush = msg('doc:open.push', {
+	payload: T.struct({
+		ref: T.string
+	})
+})
+export type DocOpenPush = T.TypeOf<typeof tDocOpenPush>
+
 // ============================================
 // DOCUMENT INFO MESSAGES
 // ============================================
@@ -644,36 +723,94 @@ export const tEmbedOpenReq = msg('embed:open.req', {
 })
 export type EmbedOpenReq = T.TypeOf<typeof tEmbedOpenReq>
 
-/**
- * Embedded app reports its current view state to the parent
- * Direction: app -> shell (notification, no response expected)
- *
- * Carries both navigation state and aspect ratio info.
- * Sent on navigation changes (debounced for continuous changes)
- * and once after init with aspect ratio info.
- */
-export const tEmbedViewStatePush = msg('embed:viewstate.push', {
-	...tRelayed,
-	payload: T.struct({
-		viewState: T.string,
-		aspectRatio: T.optional(T.tuple(T.number, T.number)),
-		aspectFixed: T.optional(T.boolean)
-	})
-})
-export type EmbedViewStatePush = T.TypeOf<typeof tEmbedViewStatePush>
+export const tEmbedViewKind = T.literal('fixed', 'reflow')
+export type EmbedViewKind = T.TypeOf<typeof tEmbedViewKind>
+
+export const tEmbedSizing = T.literal('fit-width', 'actual', 'box')
+export type EmbedSizing = T.TypeOf<typeof tEmbedSizing>
 
 /**
- * Parent tells embedded app to navigate to a specific state
- * Direction: shell -> app (notification, no response expected)
+ * Embedded app reports the view it shows and that view's natural size
+ * Direction: app -> shell (notification, relayed up to the host)
  *
- * Sent on initial load and when parent wants to change the view.
+ * `natural.w` of a reflow view is the width it was measured at.
  */
-export const tEmbedViewStateSet = msg('embed:viewstate.set', {
+export const tEmbedViewReport = msg('embed:view.report', {
+	...tRelayed,
 	payload: T.struct({
-		viewState: T.optional(T.string)
+		nav: T.optional(T.string.maxLength(1024)),
+		viewId: T.optional(T.string.maxLength(1024)),
+		named: T.optional(T.boolean),
+		kind: tEmbedViewKind,
+		// Bounds (`MAX_NATURAL` in `embed-view.ts`) are checked only by `T.validateSync`
+		natural: T.struct({
+			w: T.number.between(0, 20000),
+			h: T.number.between(0, 20000)
+		}),
+		title: T.optional(T.string.maxLength(256)),
+		a11yLabel: T.optional(T.string.maxLength(256)),
+		drifted: T.optional(T.boolean),
+		missing: T.optional(T.boolean)
 	})
 })
-export type EmbedViewStateSet = T.TypeOf<typeof tEmbedViewStateSet>
+export type EmbedViewReport = T.TypeOf<typeof tEmbedViewReport>
+export type EmbedViewReportPayload = EmbedViewReport['payload']
+
+/**
+ * Host tells the embedded app how its frame is sized and the scale to render at
+ * Direction: shell -> app (notification). Sent only when the host's inputs change,
+ * never in response to a report.
+ */
+export const tEmbedViewLayout = msg('embed:view.layout', {
+	// Bounds are checked only by `T.validateSync` (the app-bus `embed:view.layout` handler)
+	payload: T.struct({
+		sizing: tEmbedSizing,
+		availW: T.number.between(0, 20000),
+		availH: T.optional(T.number.between(0, 20000)),
+		scale: T.number.between(0.05, 20),
+		textScale: T.optional(T.number.between(0.05, 20)),
+		interactive: T.boolean
+	})
+})
+export type EmbedViewLayout = T.TypeOf<typeof tEmbedViewLayout>
+export type EmbedViewLayoutPayload = EmbedViewLayout['payload']
+
+/**
+ * Host tells the embedded app to show a view (opaque `nav`; absent = default view)
+ * Direction: shell -> app (notification)
+ */
+export const tEmbedViewSet = msg('embed:view.set', {
+	payload: T.struct({
+		nav: T.optional(T.string)
+	})
+})
+export type EmbedViewSet = T.TypeOf<typeof tEmbedViewSet>
+
+/**
+ * Embedded app asks its host to leave interact mode (Esc nobody else handled)
+ * Direction: app -> host app (notification, consumed by the host's relay, never forwarded)
+ */
+export const tEmbedViewExit = msg('embed:view.exit', {
+	payload: T.struct({})
+})
+export type EmbedViewExit = T.TypeOf<typeof tEmbedViewExit>
+
+/**
+ * A host app tore down an embed's relay: the shell may drop that embed's stored token
+ * Direction: app -> shell (notification; relayed upward from nested hosts)
+ */
+export const tEmbedCloseNotify = msg('embed:close.notify', {
+	...tRelayed,
+	payload: T.struct({
+		/** The embed's `_embed:<nonce>` key */
+		key: T.string
+	})
+})
+export type EmbedCloseNotify = T.TypeOf<typeof tEmbedCloseNotify>
+
+/** `embed:open.res` errors for an embed that would nest too deep or contain itself */
+export const EMBED_ERR_DEPTH = 'Embed depth limit exceeded'
+export const EMBED_ERR_CYCLE = 'Circular embed detected'
 
 /**
  * Shell responds with embed URL and nonce for token isolation
@@ -1321,6 +1458,11 @@ export const tCloudilloMessage = T.taggedUnion('type')({
 	'doc:pick.req': tDocPickReq,
 	'doc:pick.ack': tDocPickAck,
 	'doc:pick.result': tDocPickResultPush,
+	'doc:link.req': tDocLinkReq,
+	'doc:link.res': tDocLinkRes,
+	'doc:grant.req': tDocGrantReq,
+	'doc:grant.res': tDocGrantRes,
+	'doc:open.push': tDocOpenPush,
 
 	// Document info messages
 	'doc:info.req': tDocInfoReq,
@@ -1335,8 +1477,11 @@ export const tCloudilloMessage = T.taggedUnion('type')({
 	// Embed messages
 	'embed:open.req': tEmbedOpenReq,
 	'embed:open.res': tEmbedOpenRes,
-	'embed:viewstate.push': tEmbedViewStatePush,
-	'embed:viewstate.set': tEmbedViewStateSet,
+	'embed:view.report': tEmbedViewReport,
+	'embed:view.layout': tEmbedViewLayout,
+	'embed:view.set': tEmbedViewSet,
+	'embed:view.exit': tEmbedViewExit,
+	'embed:close.notify': tEmbedCloseNotify,
 
 	// Settings messages
 	'settings:get.req': tSettingsGetReq,
@@ -1431,6 +1576,8 @@ interface ResponseForMap {
 	'storage:op.req': 'storage:op.res'
 	'media:pick.req': 'media:pick.ack'
 	'doc:pick.req': 'doc:pick.ack'
+	'doc:link.req': 'doc:link.res'
+	'doc:grant.req': 'doc:grant.res'
 	'doc:info.req': 'doc:info.res'
 	'doc:rename.req': 'doc:rename.res'
 	'embed:open.req': 'embed:open.res'

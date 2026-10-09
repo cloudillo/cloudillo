@@ -76,6 +76,8 @@ export function useEscapeKey(onEscape: () => void, enabled = true): void {
 
 		function handleKeyDown(evt: KeyboardEvent) {
 			if (evt.key === 'Escape') {
+				// Claimed: an embedded app must not also leave interact mode (`embed:view.exit`)
+				evt.preventDefault()
 				onEscape()
 			}
 		}

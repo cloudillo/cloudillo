@@ -4,15 +4,11 @@
 import * as React from 'react'
 
 import { type AppIconProps, GlyphIcon } from './AppIcon.js'
-import { APP_IDS, type AppId, type GlyphId } from './glyphs.js'
+import { type GlyphId, isAppId } from './glyphs.js'
 
 export interface FileTypeIconProps extends Omit<AppIconProps, 'app'> {
 	/** MIME type; `cloudillo/<app>` draws that app's icon, unknown types the generic glyph */
 	contentType?: string
-}
-
-function isAppId(id: string): id is AppId {
-	return (APP_IDS as readonly string[]).includes(id)
 }
 
 // contentType comes from federated metadata, so only known ids may pick a glyph

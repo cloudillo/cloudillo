@@ -12,7 +12,11 @@
  * - Event handling for pushed messages
  */
 
+import * as T from '@symbion/runtype'
+
 import { setApiToken } from '../api-registry.js'
+import { clampNatural } from '../embed-view.js'
+import { parseDocRef } from '../urls.js'
 import { randomId } from '../utils.js'
 import { MessageBusBase, type MessageBusConfig } from './core.js'
 import { validateMessage } from './registry.js'
@@ -30,11 +34,15 @@ import {
 	type DocInfo,
 	type DocInfoPush,
 	type DocInfoRes,
+	type DocLinkRes,
 	type DocPickAck,
 	type DocPickResultPush,
 	type DocRenameRes,
 	type EmbedOpenRes,
-	type EmbedViewStateSet,
+	type EmbedViewLayout,
+	type EmbedViewLayoutPayload,
+	type EmbedViewReportPayload,
+	type EmbedViewSet,
 	type ImportDataPush,
 	type MediaPickAck,
 	type MediaPickResultPush,
@@ -48,6 +56,7 @@ import {
 	type StorageOp,
 	type StorageOpRes,
 	type ThemeUpdate,
+	tEmbedViewLayout,
 	type Visibility
 } from './types.js'
 
@@ -96,9 +105,8 @@ export interface AppState {
 	 */
 	resId?: string
 	/**
-	 * Interactive view state for embeds. Bidirectionally updatable during the
-	 * session via embed:viewstate.push / embed:viewstate.set. Persisted in
-	 * block props by the parent app. Only meaningful in embed context.
+	 * Initial view (nav) for embeds, persisted by the host. Later changes
+	 * arrive via embed:view.set. Only meaningful in embed context.
 	 */
 	navState?: string
 	/** Ancestor file IDs in the embed chain (for cycle/depth detection) */
@@ -211,6 +219,18 @@ export interface DocPickResult {
 	fileTp?: string
 	/** App ID resolved from content type */
 	appId?: string
+}
+
+/**
+ * Result of {@link AppMessageBus.linkDocument}: a pasted `cl:` ref resolved to an embed target
+ */
+export interface DocLinkResult {
+	fileId: string
+	contentType: string
+	appId?: string
+	fileName: string
+	/** The view the ref pointed at, if any */
+	nav?: string
 }
 
 // ============================================
@@ -637,6 +657,23 @@ export class AppMessageBus extends MessageBusBase {
 		const parsed = parseAppHash(window.location.hash)
 		this.isEmbed = parsed.isEmbed
 		this.embedAuthKey = parsed.embedAuthKey
+		if (this.isEmbed && !this.exitKeyListener) {
+			// Bubble phase, so an app's own Esc handler (closing a popover, leaving a cell
+			// editor) runs first and claims the key with `preventDefault`
+			this.exitKeyListener = (evt: KeyboardEvent) => {
+				if (evt.key !== 'Escape' || evt.defaultPrevented) return
+				if (!this.lastViewLayout?.interactive) return
+				// A native <dialog> closes on this Esc (its `cancel`), so the key is taken
+				if (document.querySelector('dialog[open]')) return
+				this.sendToShell({
+					cloudillo: true,
+					v: PROTOCOL_VERSION,
+					type: 'embed:view.exit',
+					payload: {}
+				})
+			}
+			window.addEventListener('keydown', this.exitKeyListener)
+		}
 		const resId = parsed.resId
 		this.state.resId = resId
 		this.log('Initializing', this.isEmbed ? '(embed mode)' : '')
@@ -689,11 +726,6 @@ export class AppMessageBus extends MessageBusBase {
 
 		// Notify shell that auth initialization is complete
 		this.notifyReady('auth')
-
-		// Fire viewStateSet handler if navState was provided during init
-		if (this.state.navState && this.viewStateHandler) {
-			this.viewStateHandler(this.state.navState)
-		}
 
 		return this.getState()
 	}
@@ -748,11 +780,6 @@ export class AppMessageBus extends MessageBusBase {
 			// The push rebuilds state wholesale, so it can carry a theme flip too.
 			if (before.darkMode !== this.state.darkMode) this.emitThemeChange()
 
-			// Fire viewStateSet handler if navState was provided
-			if (this.state.navState && this.viewStateHandler) {
-				this.viewStateHandler(this.state.navState)
-			}
-
 			// Notify shell that auth initialization is complete
 			this.notifyReady('auth')
 		})
@@ -792,10 +819,15 @@ export class AppMessageBus extends MessageBusBase {
 			this.previewFrameCallback?.(msg.payload)
 		})
 
-		// Handle view state set from parent/shell
-		this.on('embed:viewstate.set', (msg: EmbedViewStateSet) => {
-			this.log('Received viewstate.set:', msg.payload.viewState)
-			this.viewStateHandler?.(msg.payload.viewState)
+		// View embedding: host layout + nav requests, fanned out to subscribers
+		this.on('embed:view.layout', (msg: EmbedViewLayout) => {
+			// The registry decode skips refinements: a NaN or huge scale would wreck the layout
+			if (!T.isOk(T.validateSync(tEmbedViewLayout, msg))) return
+			this.lastViewLayout = msg.payload
+			for (const h of this.viewLayoutHandlers) h(msg.payload)
+		})
+		this.on('embed:view.set', (msg: EmbedViewSet) => {
+			for (const h of this.viewSetHandlers) h(msg.payload.nav)
 		})
 
 		// Handle live theme changes broadcast by the shell
@@ -1450,6 +1482,96 @@ export class AppMessageBus extends MessageBusBase {
 		}
 	}
 
+	// The user may sit on the link disclosure / grant confirmation, so doc:link and doc:grant
+	// do not use the 10 s default.
+	private static readonly DOC_LINK_TIMEOUT = 300000
+
+	/**
+	 * Turn a pasted `cl:` ref into an embed target for `sourceFileId`. The shell shows
+	 * the permission disclosure and grants the file-link share, as for {@link pickDocument}.
+	 *
+	 * @returns undefined when the user cancels or the ref cannot be linked
+	 */
+	async linkDocument(ref: string, sourceFileId: string): Promise<DocLinkResult | undefined> {
+		if (!this.initialized) {
+			throw new Error('AppBus not initialized. Call init() first.')
+		}
+
+		try {
+			const data = await this.sendRequest<DocLinkRes['data']>((id) => {
+				this.sendToShell(
+					this.createRequestWithPayload('doc:link.req', id, { ref, sourceFileId })
+				)
+			}, AppMessageBus.DOC_LINK_TIMEOUT)
+			return data ?? undefined
+		} catch (err) {
+			this.logWarn('Link document failed:', (err as Error).message)
+			return undefined
+		}
+	}
+
+	/**
+	 * Paste handler half of {@link linkDocument}: when the pasted text is a `cl:` ref, take
+	 * over the paste and link it.
+	 *
+	 * @returns undefined when the paste is not a ref (the event is left alone)
+	 */
+	linkFromPaste(
+		e: ClipboardEvent,
+		sourceFileId: string
+	): Promise<DocLinkResult | undefined> | undefined {
+		const text = e.clipboardData?.getData('text/plain') ?? ''
+		if (!parseDocRef(text)) return undefined
+		e.preventDefault()
+		return this.linkDocument(text.trim(), sourceFileId)
+	}
+
+	/**
+	 * Set the file-link share that lets `sourceFileId` (this app's document) open the
+	 * embedded `targetFileId` with `access`. The shell reports a denial to the user.
+	 *
+	 * @returns true when the share is in place
+	 */
+	async grantDocument(
+		targetFileId: string,
+		sourceFileId: string,
+		access: 'read' | 'write'
+	): Promise<boolean> {
+		if (!this.initialized) {
+			throw new Error('AppBus not initialized. Call init() first.')
+		}
+
+		try {
+			await this.sendRequest((id) => {
+				this.sendToShell(
+					this.createRequestWithPayload('doc:grant.req', id, {
+						targetFileId,
+						sourceFileId,
+						access
+					})
+				)
+			}, AppMessageBus.DOC_LINK_TIMEOUT)
+			return true
+		} catch (err) {
+			this.logWarn('Grant document failed:', (err as Error).message)
+			return false
+		}
+	}
+
+	/**
+	 * Ask the shell to open a document, e.g. an embed's source.
+	 *
+	 * @param ref - `cl:<appId>/<owner>:<fileId>[?nav=…]`, as built by `docRef`
+	 */
+	openDocument(ref: string): void {
+		this.sendToShell({
+			cloudillo: true,
+			v: PROTOCOL_VERSION,
+			type: 'doc:open.push',
+			payload: { ref }
+		})
+	}
+
 	// ============================================
 	// EMBED API
 	// ============================================
@@ -1477,8 +1599,6 @@ export class AppMessageBus extends MessageBusBase {
 
 		this.log('Requesting embed:', options)
 
-		const ancestors = [...(this.state.ancestors || []), options.sourceFileId]
-
 		const data = await this.sendRequest<EmbedOpenRes['data']>((id) => {
 			this.sendToShell(
 				this.createRequestWithPayload('embed:open.req', id, {
@@ -1488,7 +1608,8 @@ export class AppMessageBus extends MessageBusBase {
 					access: options.access,
 					navState: options.navState,
 					params: options.params,
-					ancestors
+					// The shell appends the source document itself
+					ancestors: this.state.ancestors || []
 				})
 			)
 		})
@@ -1505,43 +1626,64 @@ export class AppMessageBus extends MessageBusBase {
 	}
 
 	// ============================================
-	// VIEW STATE API
+	// VIEW EMBED API
 	// ============================================
 
-	private viewStateHandler: ((viewState?: string) => void) | null = null
+	private viewLayoutHandlers = new Set<(layout: EmbedViewLayoutPayload) => void>()
+	private exitKeyListener: ((evt: KeyboardEvent) => void) | undefined
+	private viewSetHandlers = new Set<(nav: string | undefined) => void>()
+	private lastViewLayout: EmbedViewLayoutPayload | undefined
+	private viewReportTimer: ReturnType<typeof setTimeout> | undefined
+	private pendingViewReport: EmbedViewReportPayload | undefined
+	private lastViewReportJson: string | undefined
 
 	/**
-	 * Push the current view state to the parent (or shell)
+	 * Report this embed's view (nav, kind, natural size) to the host.
 	 *
-	 * Call this when the app's view changes (slide navigation, pan/zoom, page change).
-	 * For continuous changes (pan/zoom), debounce before calling.
-	 *
-	 * @param payload - View state data including opaque state string and optional aspect ratio
+	 * Debounced 100 ms; a payload JSON-equal to the last one sent is dropped, so sources may
+	 * call it on every change. No-op when not embedded.
 	 */
-	pushViewState(payload: {
-		viewState: string
-		aspectRatio?: [number, number]
-		aspectFixed?: boolean
-	}): void {
-		this.log('Pushing view state:', payload.viewState)
-		this.sendToShell({
-			cloudillo: true,
-			v: PROTOCOL_VERSION,
-			type: 'embed:viewstate.push',
-			payload
-		})
+	reportView(report: EmbedViewReportPayload): void {
+		if (!this.embedded) return
+		// Out of the wire bounds the shell relay would drop the whole report
+		this.pendingViewReport = { ...report, natural: clampNatural(report.natural) }
+		if (this.viewReportTimer) return
+		this.viewReportTimer = setTimeout(() => {
+			this.viewReportTimer = undefined
+			const payload = this.pendingViewReport
+			this.pendingViewReport = undefined
+			if (!payload) return
+			const json = JSON.stringify(payload)
+			if (json === this.lastViewReportJson) return
+			this.lastViewReportJson = json
+			this.sendToShell({
+				cloudillo: true,
+				v: PROTOCOL_VERSION,
+				type: 'embed:view.report',
+				payload
+			})
+		}, 100)
 	}
 
-	/**
-	 * Register a handler for incoming view state set requests
-	 *
-	 * Called when the parent (or shell) wants the app to navigate to a specific state.
-	 * The handler receives the opaque view state string to parse and apply.
-	 *
-	 * @param handler - Function called with the view state string
-	 */
-	onViewStateSet(handler: (viewState?: string) => void): void {
-		this.viewStateHandler = handler
+	/** Subscribe to layout updates from the host. Returns an unsubscribe function. */
+	onViewLayout(handler: (layout: EmbedViewLayoutPayload) => void): () => void {
+		this.viewLayoutHandlers.add(handler)
+		return () => {
+			this.viewLayoutHandlers.delete(handler)
+		}
+	}
+
+	/** Last layout received from the host, if any. */
+	get viewLayout(): EmbedViewLayoutPayload | undefined {
+		return this.lastViewLayout
+	}
+
+	/** Subscribe to nav requests from the host (`embed:view.set`). Returns an unsubscribe function. */
+	onViewSet(handler: (nav: string | undefined) => void): () => void {
+		this.viewSetHandlers.add(handler)
+		return () => {
+			this.viewSetHandlers.delete(handler)
+		}
 	}
 
 	// ============================================
@@ -2168,6 +2310,10 @@ export class AppMessageBus extends MessageBusBase {
 		if (this.messageListener) {
 			window.removeEventListener('message', this.messageListener)
 			this.messageListener = null
+		}
+		if (this.exitKeyListener) {
+			window.removeEventListener('keydown', this.exitKeyListener)
+			this.exitKeyListener = undefined
 		}
 
 		// Reject all pending media picker sessions

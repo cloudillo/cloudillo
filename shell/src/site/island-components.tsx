@@ -14,7 +14,7 @@
  */
 
 import { safeHref, sitePositiveInt, tAnyValue } from '@cloudillo/core'
-import { DocumentEmbedIframe, useApi, VBox } from '@cloudillo/react'
+import { normalizeEmbedSettings, useApi, VBox, ViewEmbed } from '@cloudillo/react'
 import * as T from '@symbion/runtype'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -134,16 +134,20 @@ export function SiteImageIsland({ props }: SiteIslandProps) {
 // documentEmbed — replace
 // ============================================
 
-/** What the Notillo block starts at (`editor/DocumentEmbed.tsx` propSchema). */
-const DEFAULT_EMBED_HEIGHT = 400
-
 const tEmbedProps = T.struct({
 	fileId: T.optional(T.string),
+	name: T.optional(T.string),
 	contentType: T.optional(T.string),
 	navState: T.optional(T.string),
-	// `unknown`, because `sitePositiveInt` coerces: a stored `"400"` still has to
-	// give the iframe a box, and the same value published at 400px.
-	height: T.optional(tAnyValue)
+	sizing: T.optional(T.string),
+	align: T.optional(T.string),
+	// `unknown`, because `sitePositiveInt` coerces: a stored `"400"` still counts.
+	height: T.optional(tAnyValue),
+	maxH: T.optional(tAnyValue),
+	lastW: T.optional(tAnyValue),
+	lastH: T.optional(tAnyValue),
+	scale: T.optional(tAnyValue),
+	textScale: T.optional(tAnyValue)
 })
 
 /**
@@ -159,7 +163,21 @@ function SiteDocumentEmbedIsland({ props }: SiteIslandProps) {
 	const fileId = embedProps?.fileId ?? ''
 	const contentType = embedProps?.contentType ?? ''
 	const navState = embedProps?.navState
-	const height = sitePositiveInt(embedProps?.height) ?? DEFAULT_EMBED_HEIGHT
+	// Same mapping as the Notillo block (`editor/DocumentEmbed.tsx`): the authored
+	// legacy `height` stands in for `maxH`.
+	// `width` is already applied to the placeholder box the island mounts into
+	const settings = normalizeEmbedSettings(
+		{
+			sizing: embedProps?.sizing,
+			align: embedProps?.align,
+			scale: embedProps?.scale,
+			maxH: sitePositiveInt(embedProps?.maxH) ?? sitePositiveInt(embedProps?.height),
+			textScale: embedProps?.textScale,
+			lastW: sitePositiveInt(embedProps?.lastW),
+			lastH: sitePositiveInt(embedProps?.lastH)
+		},
+		'center'
+	)
 	// A published page has no expand/collapse to reset the mount with, so without this
 	// a transient slow load needs a full reload to recover.
 	const [attempt, setAttempt] = React.useState(0)
@@ -182,31 +200,37 @@ function SiteDocumentEmbedIsland({ props }: SiteIslandProps) {
 
 	if (!embed.iframeSrc && embed.stage !== 'error') return null
 
-	// The marked element carries the authored height as an inline style, but
-	// only when the block had one — this wrapper is what guarantees the iframe
-	// a box in either case. `pos-relative`: the indicator overlays that box.
+	const retry = () => setAttempt((n) => n + 1)
+	const live = !!embed.iframeSrc && embed.stage !== 'error'
+	// `pos-relative`: the indicator overlays the embed box, and is the only status UI; with no
+	// embed under it, the box needs a height of its own.
 	return (
-		<VBox className="w-100 pos-relative" style={{ height: `${height}px` }}>
+		<VBox className="w-100 pos-relative" style={live ? undefined : { minHeight: '6rem' }}>
 			<AppLoadingIndicator
 				stage={embed.stage}
 				errorCode={embed.errorCode}
 				errorMessage={embed.error}
 				subtle={embed.stage === 'syncing'}
-				onRetry={() => setAttempt((n) => n + 1)}
+				onRetry={retry}
 			/>
-			{/* Dropped on error: the overlay is opaque, so a mounted bundle behind it
-			    is invisible work — and its own retry loops keep running. */}
-			{embed.iframeSrc && embed.stage !== 'error' && (
-				<DocumentEmbedIframe
+			{live && (
+				<ViewEmbed
 					// A fresh element per boot: the memoised iframe otherwise merely
 					// navigates, leaving the pre-retry document's relay live to report
 					// readiness against the new mount (see `useShellEmbed`).
 					key={embed.iframeSrc}
 					src={embed.iframeSrc}
-					className="w-100 h-100 border-0"
-					// A published page is read-only, so there is no editor click to
-					// protect: the embed is live from the first paint, exactly as
-					// the Notillo editor renders one when `isEditable` is false.
+					// 'live' as soon as there is a src: the bundle has to mount to report
+					// ready. Unmounted on error — a bundle behind the opaque overlay is
+					// invisible work, and its own retry loops keep running.
+					status="live"
+					// Unnamed (older) blocks fall back to ViewEmbed's "Embedded document"
+					title={embedProps?.name}
+					nav={navState}
+					settings={settings}
+					// A published page is read-only: nothing to edit in place, so the
+					// embed is live from the first paint.
+					canInteract={false}
 					active
 					onAppReady={embed.onAppReady}
 					onAppError={embed.onAppError}

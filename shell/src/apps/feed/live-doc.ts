@@ -33,6 +33,8 @@ export interface LiveDocRef {
 	contentType: string
 	title?: string
 	text?: string
+	/** Stored view (`docRef`'s `nav`); absent = the whole document. */
+	nav?: string
 }
 
 /**
@@ -46,7 +48,7 @@ export interface LiveDocRef {
  */
 export function parseLiveDocContent(content: unknown): LiveDocRef | undefined {
 	if (typeof content !== 'object' || content === null) return undefined
-	const { doc, contentType, title, text } = content as Record<string, unknown>
+	const { doc, contentType, title, text, nav } = content as Record<string, unknown>
 	if (typeof doc !== 'string' || typeof contentType !== 'string') return undefined
 
 	const srcIdTag = idTagFromResId(doc)
@@ -63,7 +65,8 @@ export function parseLiveDocContent(content: unknown): LiveDocRef | undefined {
 		fileId,
 		contentType,
 		title: typeof title === 'string' ? title : undefined,
-		text: typeof text === 'string' ? text : undefined
+		text: typeof text === 'string' ? text : undefined,
+		nav: typeof nav === 'string' && nav ? nav : undefined
 	}
 }
 

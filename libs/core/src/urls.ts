@@ -396,4 +396,13 @@ export function docRef(appId: string, resId: string, nav?: string | null): strin
 	return `cl:${appId}/${resId}${nav ? `?nav=${encodeURIComponent(nav)}` : ''}`
 }
 
+/** The inverse of {@link docRef}; `null` for anything that is not a `cl:<appId>/<owner>:<fileId>` ref. */
+export function parseDocRef(ref: string): { appId: string; resId: string; nav?: string } | null {
+	const m = /^cl:([^/?\s]+)\/([^/?\s:]+:[^/?\s]+)(?:\?([^\s]*))?$/.exec(ref.trim())
+	if (!m) return null
+	const [, appId, resId, query] = m
+	const nav = new URLSearchParams(query ?? '').get('nav')
+	return nav ? { appId, resId, nav } : { appId, resId }
+}
+
 // vim: ts=4

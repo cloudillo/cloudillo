@@ -287,6 +287,13 @@ export function getPartAddressing(contentType: string | undefined): PartAddressi
 	return undefined
 }
 
+/** Some manifest can show documents of `contentType` as a view embed (declares `embed`). */
+export function isEmbeddable(contentType: string): boolean {
+	return allManifests.some((m) =>
+		(m.contentTypes ?? []).some((ct) => ct.mimeType === contentType && !!ct.embed)
+	)
+}
+
 // ============================================
 // SITE ISLAND LOOKUP
 // ============================================

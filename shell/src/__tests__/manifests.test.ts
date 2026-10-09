@@ -21,6 +21,7 @@ import { encodeFormatVersion, tAppManifest } from '@cloudillo/types'
 import * as T from '@symbion/runtype'
 
 import { bundledManifests } from '../bundled-manifests.js'
+import { isEmbeddable } from '../manifest-registry.js'
 import { shellManifests } from '../shell-manifests.js'
 
 const manifests: AppManifest[] = [...shellManifests, ...bundledManifests]
@@ -67,6 +68,11 @@ test('no MIME type has two primary claimants', () => {
 		.filter(([, ct]) => ct.priority === 'primary')
 		.map(([, ct]) => ct.mimeType)
 	expect(primary).toEqual(Array.from(new Set(primary)))
+})
+
+test("isEmbeddable follows the content type's embed declaration", () => {
+	expect(isEmbeddable('cloudillo/calcillo')).toBe(true)
+	expect(isEmbeddable('cloudillo/taskillo')).toBe(false)
 })
 
 describe.each(contentTypes)('%s', (_label, ct, manifest) => {

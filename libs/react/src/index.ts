@@ -7,6 +7,7 @@ export * from './comments/index.js'
 // OpalUI Component exports (organized)
 export * from './components/index.js'
 export * from './docbar.js'
+export * from './embed-source.js'
 export * from './hooks.js'
 export { LibTrans, type LibTransProps, useLibTranslation } from './i18n.js'
 export * from './presence.js'

@@ -94,6 +94,9 @@ export { ColorDot } from './ColorDot/index.js'
 export type { ColorInputProps } from './ColorInput/index.js'
 // ColorInput Component
 export { ColorInput } from './ColorInput/index.js'
+export type { ComboboxProps } from './Combobox/index.js'
+// Combobox Component
+export { Combobox } from './Combobox/index.js'
 export type { ContainerProps } from './Container/index.js'
 // Container Component
 export { Container } from './Container/index.js'
@@ -129,11 +132,14 @@ export type {
 	DocumentEmbedIframeProps,
 	DocumentEmbedIframeRef,
 	DocumentEmbedState,
-	SvgDocumentEmbedProps,
 	UseDocumentEmbedOptions
 } from './DocumentEmbed/index.js'
 // DocumentEmbed Components
-export { DocumentEmbedIframe, SvgDocumentEmbed, useDocumentEmbed } from './DocumentEmbed/index.js'
+export {
+	DocumentEmbedIframe,
+	embedErrorReason,
+	useDocumentEmbed
+} from './DocumentEmbed/index.js'
 export type { DropdownProps } from './Dropdown/index.js'
 // Dropdown Component
 export { Dropdown } from './Dropdown/index.js'
@@ -151,9 +157,6 @@ export { EmptyState } from './EmptyState/index.js'
 export type { FABProps } from './FAB/index.js'
 // FAB Component
 export { FAB } from './FAB/index.js'
-export type { FileTileProps } from './FileTile/index.js'
-// FileTile Component
-export { FileTile } from './FileTile/index.js'
 export type {
 	FcdContainerProps,
 	FcdContentProps,
@@ -164,6 +167,9 @@ export type {
 } from './Fcd/index.js'
 // Fcd Components (Filter/Content/Details layout)
 export { Fcd, FcdContainer, FcdContent, FcdDetails, FcdFilter } from './Fcd/index.js'
+export type { FileTileProps } from './FileTile/index.js'
+// FileTile Component
+export { FileTile } from './FileTile/index.js'
 export type { FontPickerProps } from './FontPicker/index.js'
 // FontPicker Component
 export { FontPicker } from './FontPicker/index.js'
@@ -206,6 +212,9 @@ export {
 	Toggle,
 	useFieldControl
 } from './Form/index.js'
+export type { HeroProps } from './Hero/index.js'
+// Hero Component
+export { Hero } from './Hero/index.js'
 export type { HighlightProps } from './Highlight/index.js'
 // Highlight Component
 export { Highlight } from './Highlight/index.js'
@@ -326,9 +335,6 @@ export {
 export type { NumberInputProps } from './NumberInput/index.js'
 // NumberInput Component
 export { NumberInput } from './NumberInput/index.js'
-export type { HeroProps } from './Hero/index.js'
-// Hero Component
-export { Hero } from './Hero/index.js'
 export type { PageHeaderProps } from './PageHeader/index.js'
 // PageHeader Component
 export { PageHeader } from './PageHeader/index.js'
@@ -406,12 +412,6 @@ export type {
 } from './Segmented/index.js'
 // Segmented Components
 export { Segmented, SegmentedContext, SegmentedItem } from './Segmented/index.js'
-export type { ComboboxProps } from './Combobox/index.js'
-// Combobox Component
-export { Combobox } from './Combobox/index.js'
-export type { SkipLinkProps } from './SkipLink/index.js'
-// SkipLink Component
-export { SkipLink } from './SkipLink/index.js'
 export type {
 	SidebarBackdropProps,
 	SidebarContentProps,
@@ -442,6 +442,9 @@ export {
 	useSidebar,
 	useSidebarContext
 } from './Sidebar/index.js'
+export type { SkipLinkProps } from './SkipLink/index.js'
+// SkipLink Component
+export { SkipLink } from './SkipLink/index.js'
 export type {
 	SortableGroupProps,
 	SortableItemState,
@@ -538,9 +541,6 @@ export type {
 } from './TreeView/index.js'
 // TreeView Components
 export { TreeItem, TreeView } from './TreeView/index.js'
-export type { VideoPlayerProps } from './VideoPlayer/index.js'
-// VideoPlayer Component
-export { VideoPlayer } from './VideoPlayer/index.js'
 // Types
 export type * from './types.js'
 // Utilities
@@ -550,6 +550,42 @@ export {
 	polyRef,
 	resolveDefaultExport
 } from './utils.js'
+export type { VideoPlayerProps } from './VideoPlayer/index.js'
+// VideoPlayer Component
+export { VideoPlayer } from './VideoPlayer/index.js'
+export type {
+	DocViewEmbedProps,
+	EmbedActions,
+	EmbedChromeProps,
+	EmbedFrame,
+	EmbedFrameInput,
+	EmbedPlaceholderProps,
+	EmbedSizingControlsProps,
+	EmbedStatus,
+	EmbedViewSettings,
+	SvgViewEmbedProps,
+	ViewEmbedFrameHandle,
+	ViewEmbedFrameProps,
+	ViewEmbedProps
+} from './ViewEmbed/index.js'
+// ViewEmbed Components
+export {
+	clampNatural,
+	computeEmbedFrame,
+	DocViewEmbed,
+	EmbedChrome,
+	EmbedPlaceholder,
+	EmbedSizingControls,
+	LAYOUT_ORIGIN,
+	naturalSizeChanged,
+	normalizeEmbedSettings,
+	positiveNumber,
+	resizeSettings,
+	storableNatural,
+	SvgViewEmbed,
+	ViewEmbed,
+	ViewEmbedFrame
+} from './ViewEmbed/index.js'
 export type { ZoomableImageProps } from './ZoomableImage/index.js'
 // ZoomableImage Component
 export { ZoomableImage } from './ZoomableImage/index.js'

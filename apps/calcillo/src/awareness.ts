@@ -110,7 +110,7 @@ export function handleAwarenessChange(
 
 function createDebouncedCursorUpdate(
 	awareness: Awareness,
-	workbook: WorkbookInstance
+	getWorkbook: () => WorkbookInstance | null
 ): {
 	update: () => void
 	cancel: () => void
@@ -131,14 +131,16 @@ function createDebouncedCursorUpdate(
 
 		// If enough time has passed, update immediately (throttle)
 		if (timeSinceLastUpdate >= CURSOR_THROTTLE_DELAY_MS) {
-			updateCursorPosition(awareness, workbook)
+			const wb = getWorkbook()
+			if (wb) updateCursorPosition(awareness, wb)
 			lastUpdateTime = now
 			return
 		}
 
 		// Otherwise, debounce the update
 		debounceTimeoutId = window.setTimeout(() => {
-			updateCursorPosition(awareness, workbook)
+			const wb = getWorkbook()
+			if (wb) updateCursorPosition(awareness, wb)
 			lastUpdateTime = Date.now()
 			debounceTimeoutId = null
 		}, CURSOR_DEBOUNCE_DELAY_MS)
@@ -161,10 +163,13 @@ function createDebouncedCursorUpdate(
 /**
  * Setup awareness with optimized cursor tracking
  * Uses debouncing to prevent network flooding during rapid cursor movement
+ *
+ * Takes a getter: FortuneSheet hands out a new handle (bound to a context snapshot)
+ * on every change, so the workbook is resolved at use time, never captured.
  */
 export function setupAwareness(
 	awareness: Awareness,
-	workbook: WorkbookInstance,
+	getWorkbook: () => WorkbookInstance | null,
 	user: PresenceSource,
 	dark: boolean
 ): () => void {
@@ -173,7 +178,8 @@ export function setupAwareness(
 
 	// Listen to awareness changes
 	const awarenessHandler = (evt: { added: number[]; updated: number[]; removed: number[] }) => {
-		handleAwarenessChange(awareness, workbook, evt, dark)
+		const wb = getWorkbook()
+		if (wb) handleAwarenessChange(awareness, wb, evt, dark)
 	}
 	awareness.on('change', awarenessHandler)
 
@@ -181,15 +187,18 @@ export function setupAwareness(
 	// `addPresences`, and a peer that was already here fires no `change` event.
 	// This is also what re-colours everyone when the effect re-runs on a theme flip.
 	const present = [...awareness.getStates().keys()].filter((id) => id !== awareness.clientID)
-	handleAwarenessChange(awareness, workbook, { added: present, updated: [], removed: [] }, dark)
+	const wb = getWorkbook()
+	if (wb) handleAwarenessChange(awareness, wb, { added: present, updated: [], removed: [] }, dark)
 
 	// Create debounced cursor updater
-	const debouncedUpdate = createDebouncedCursorUpdate(awareness, workbook)
+	const debouncedUpdate = createDebouncedCursorUpdate(awareness, getWorkbook)
 
 	// Poll for cursor updates, but trigger debounced update
 	// TODO: Replace with FortuneSheet event hooks when available
 	let prevState: { sheetId: string; row: number; column: number } | null = null
 	const pollInterval = setInterval(() => {
+		const workbook = getWorkbook()
+		if (!workbook) return
 		const selection = workbook.getSelection()
 		const sheet = workbook.getSheet()
 

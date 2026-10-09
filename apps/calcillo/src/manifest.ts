@@ -71,7 +71,9 @@ export const manifest: AppManifest = {
 			// The document format is unchanged; the patch bump records the index
 			// rules switching to an allowlist, which the server reindexes on.
 			formatVersion: '1.0.1',
-			search: SEARCH_INDEX_RULES
+			search: SEARCH_INDEX_RULES,
+			// Ranges (`range:…`) and named ranges (`name:<id>`) embed at their natural pixel size
+			embed: { view: 'fixed', namedViews: true }
 		}
 	],
 	capabilities: ['crdt'],

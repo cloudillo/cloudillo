@@ -129,11 +129,32 @@ export interface YSheetStructure {
 	frozen: Y.Map<string | number> // Wrap FrozenInfo in Y.Map for proper CRDT sync
 }
 
+/**
+ * Cell range anchored to row/column IDs (inclusive), so inserts inside it grow it
+ */
+export interface RangeAnchor {
+	sheetId: SheetId
+	r0: RowId
+	c0: ColId
+	r1: RowId
+	c1: ColId
+}
+
+/**
+ * Named range - stored in the root `names` map keyed by a stable id
+ * (renaming keeps the id, so embeds by `name:<id>` survive)
+ */
+export interface NamedRange extends RangeAnchor {
+	name: string
+	desc?: string
+}
+
 // Root YDoc structure
 export interface YWorkbookStructure {
 	sheetOrder: Y.Array<SheetId>
 	sheets: Y.Map<YSheetStructure>
 	meta: Y.Map<unknown> // Keep for compatibility with cloudillo.init()
+	names: Y.Map<NamedRange>
 }
 
 // Type guards

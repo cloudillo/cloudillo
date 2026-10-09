@@ -12,6 +12,7 @@ import {
 	getRowCells,
 	insertColumns,
 	insertRows,
+	readSheet,
 	setCell,
 	transformSheetToCelldata
 } from '../ydoc-helpers'
@@ -631,6 +632,25 @@ describe('YDoc Helpers', () => {
 			// Transform to celldata
 			const { celldata } = transformSheetToCelldata(sheet)
 			expect(celldata.filter((c) => c.r === 2)).toHaveLength(4)
+		})
+	})
+
+	describe('readSheet', () => {
+		it('reads a sheet that predates the feature maps, without writing', () => {
+			const sheet = getOrCreateSheet(doc, sheetId)
+			ensureSheetDimensions(sheet, 2, 2)
+			setCell(sheet, 1, 1, { v: 'B2' })
+			const raw = doc.getMap('sheets').get(sheetId) as Y.Map<unknown>
+			for (const k of [...raw.keys()]) {
+				if (!['name', 'rowOrder', 'colOrder', 'rows'].includes(k)) raw.delete(k)
+			}
+			const before = Y.encodeStateVector(doc)
+
+			const read = readSheet(doc, sheetId)
+			expect(read).not.toBeNull()
+			const { celldata } = transformSheetToCelldata(read!)
+			expect(celldata.find((c) => c.r === 1 && c.c === 1)?.v.v).toBe('B2')
+			expect(Y.encodeStateVector(doc)).toEqual(before)
 		})
 	})
 })

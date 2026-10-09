@@ -7,6 +7,7 @@ import * as Y from 'yjs'
 
 import { stripCellDefaults } from './cell-defaults'
 import { generateUniqueColIds, generateUniqueRowIds } from './id-generator'
+import { fixupNamedRangesOnDelete } from './named-ranges'
 import { DEV } from './utils'
 import type {
 	BorderInfo,
@@ -20,6 +21,25 @@ import type {
 	ValidationRule,
 	YSheetStructure
 } from './yjs-types'
+
+/**
+ * Fix up named ranges for IDs about to be deleted from `sheet` (call before the
+ * order array mutation). The sheet id is looked up by identity of its order array.
+ */
+function fixupNamesBeforeDelete(
+	sheet: YSheetStructure,
+	axis: 'row' | 'col',
+	deletedIds: string[]
+): void {
+	const yDoc = sheet.rowOrder.doc
+	if (!yDoc || deletedIds.length === 0 || yDoc.getMap('names').size === 0) return
+	for (const [sheetId, s] of yDoc.getMap('sheets').entries()) {
+		if (s instanceof Y.Map && s.get('rowOrder') === sheet.rowOrder) {
+			fixupNamedRangesOnDelete(yDoc, sheetId as SheetId, axis, deletedIds)
+			return
+		}
+	}
+}
 
 /**
  * Convert Excel serial number to a Date object (UTC).
@@ -129,6 +149,40 @@ function applyDisplayMask(cell: Cell): void {
 	}
 }
 
+/** Structures added after a sheet's core; old documents may lack them */
+const SHEET_DEFAULTS = {
+	name: () => new Y.Text(),
+	merges: () => new Y.Map(),
+	borders: () => new Y.Map(),
+	hyperlinks: () => new Y.Map(),
+	validations: () => new Y.Map(),
+	conditionalFormats: () => new Y.Array(),
+	hiddenRows: () => new Y.Map(),
+	hiddenCols: () => new Y.Map(),
+	rowHeights: () => new Y.Map(),
+	colWidths: () => new Y.Map(),
+	frozen: () => new Y.Map()
+} as const satisfies Partial<Record<keyof YSheetStructure, () => unknown>>
+
+/**
+ * Read-only counterpart of `getOrCreateSheet`: never writes, so a view-only embed leaves the
+ * document untouched. Null when the sheet or its core structures are missing; any other missing
+ * structure reads as a fresh, unattached (empty) one.
+ */
+export function readSheet(yDoc: Y.Doc, sheetId: SheetId): YSheetStructure | null {
+	const sheet = yDoc.getMap('sheets').get(sheetId)
+	if (!(sheet instanceof Y.Map)) return null
+	const core = ['rowOrder', 'colOrder', 'rows'] as const
+	if (!core.every((k) => sheet.get(k) instanceof Y.AbstractType)) return null
+	return Object.fromEntries([
+		...core.map((k) => [k, sheet.get(k)]),
+		...Object.entries(SHEET_DEFAULTS).map(([k, make]) => {
+			const v = sheet.get(k)
+			return [k, v instanceof Y.AbstractType ? v : make()]
+		})
+	]) as unknown as YSheetStructure
+}
+
 /**
  * Get or create sheet structure
  */
@@ -144,22 +198,9 @@ export function getOrCreateSheet(yDoc: Y.Doc, sheetId: SheetId): YSheetStructure
 	// Only create new sheet if it doesn't exist
 	if (!sheet || !(sheet instanceof Y.Map)) {
 		sheet = new Y.Map()
-		sheet.set('name', new Y.Text()) // Sheet name as Y.Text
 		sheet.set('rowOrder', new Y.Array<RowId>())
 		sheet.set('colOrder', new Y.Array<ColId>())
 		sheet.set('rows', new Y.Map<Y.Map<Cell>>())
-
-		// Initialize ID-based feature maps
-		sheet.set('merges', new Y.Map())
-		sheet.set('borders', new Y.Map())
-		sheet.set('hyperlinks', new Y.Map())
-		sheet.set('validations', new Y.Map())
-		sheet.set('conditionalFormats', new Y.Array())
-		sheet.set('hiddenRows', new Y.Map())
-		sheet.set('hiddenCols', new Y.Map())
-		sheet.set('rowHeights', new Y.Map())
-		sheet.set('colWidths', new Y.Map())
-		sheet.set('frozen', new Y.Map()) // Initialize frozen as Y.Map
 
 		sheets.set(sheetId, sheet)
 	} else {
@@ -167,18 +208,10 @@ export function getOrCreateSheet(yDoc: Y.Doc, sheetId: SheetId): YSheetStructure
 		// (this is normal during loading)
 	}
 
-	// Get existing maps or initialize if missing (for backward compatibility)
-	if (!sheet.has('name')) sheet.set('name', new Y.Text())
-	if (!sheet.has('merges')) sheet.set('merges', new Y.Map())
-	if (!sheet.has('borders')) sheet.set('borders', new Y.Map())
-	if (!sheet.has('hyperlinks')) sheet.set('hyperlinks', new Y.Map())
-	if (!sheet.has('validations')) sheet.set('validations', new Y.Map())
-	if (!sheet.has('conditionalFormats')) sheet.set('conditionalFormats', new Y.Array())
-	if (!sheet.has('hiddenRows')) sheet.set('hiddenRows', new Y.Map())
-	if (!sheet.has('hiddenCols')) sheet.set('hiddenCols', new Y.Map())
-	if (!sheet.has('rowHeights')) sheet.set('rowHeights', new Y.Map())
-	if (!sheet.has('colWidths')) sheet.set('colWidths', new Y.Map())
-	if (!sheet.has('frozen')) sheet.set('frozen', new Y.Map()) // Backward compatibility
+	// Name and feature maps: fill in on a new sheet, and on old documents that lack them
+	for (const [k, make] of Object.entries(SHEET_DEFAULTS)) {
+		if (!sheet.has(k)) sheet.set(k, make())
+	}
 
 	return {
 		name: sheet.get('name') as Y.Text,
@@ -356,6 +389,8 @@ export function deleteRows(sheet: YSheetStructure, startIndex: number, endIndex:
 		if (rowId) rowIdsToDelete.push(rowId)
 	}
 
+	fixupNamesBeforeDelete(sheet, 'row', rowIdsToDelete)
+
 	// Delete from order array
 	sheet.rowOrder.delete(startIndex, count)
 
@@ -395,6 +430,8 @@ export function deleteColumns(sheet: YSheetStructure, startIndex: number, endInd
 		const colId = sheet.colOrder.get(startIndex + i)
 		if (colId) colIdsToDelete.push(colId)
 	}
+
+	fixupNamesBeforeDelete(sheet, 'col', colIdsToDelete)
 
 	// Delete from order array
 	sheet.colOrder.delete(startIndex, count)

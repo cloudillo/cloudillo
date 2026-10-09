@@ -9,7 +9,12 @@ import type { Sheet as FortuneSheet, Op } from '@fortune-sheet/core'
 import { Workbook, type WorkbookInstance } from '@fortune-sheet/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { PiExportBold } from 'react-icons/pi'
+import {
+	PiLinkBold as IcLink,
+	PiTagBold as IcName,
+	PiListBulletsBold as IcNames,
+	PiExportBold
+} from 'react-icons/pi'
 import type * as Y from 'yjs'
 
 import '@symbion/opalui'
@@ -19,15 +24,22 @@ import '@cloudillo/react/components.css'
 import '@fortune-sheet/react/dist/index.css'
 import './style.css'
 
-import { getAppBus } from '@cloudillo/core'
+import { docRef, getAppBus } from '@cloudillo/core'
 import {
 	AppDocBar,
+	DialogContainer,
 	DocBarMenu,
 	MenuDivider,
 	MenuHeader,
 	MenuItem,
 	Toasts,
-	useCloudilloEditor
+	useCloudilloEditor,
+	useCopyEmbedLink,
+	useDebouncedValue,
+	useDialog,
+	useEmbedLayout,
+	useToast,
+	useViewReport
 } from '@cloudillo/react'
 
 import { setupAwareness } from './awareness'
@@ -38,12 +50,28 @@ import {
 	FORMULA_RECALC_MAX_DELAY_MS,
 	FROZEN_PANE_APPLY_DELAY_MS
 } from './constants'
+import {
+	buildEmbedReport,
+	clampSelection,
+	type EmbedTarget,
+	isEmbedEditOp,
+	resolveEmbedNav
+} from './embed-view'
 import { downloadExport } from './export.js'
 import { downloadXlsxExport } from './export-xlsx.js'
 import type { FreezeType } from './fortune-sheet-types'
 import { freezeSheet } from './fortune-sheet-types'
 import { generateSheetId } from './id-generator'
 import { importXlsx } from './import-xlsx.js'
+import { NamedRangesPanel, nameErrorText } from './NamedRangesPanel'
+import {
+	anchorFromIndices,
+	createNamedRange,
+	formatRangeNav,
+	getNamesMap,
+	type RangeAnchor,
+	type ResolvedRange
+} from './named-ranges'
 import { deleteSheet, transformOp } from './transform-ops'
 import {
 	createDebouncedThrottle,
@@ -56,6 +84,7 @@ import {
 	ensureSheetDimensions,
 	getOrCreateSheet,
 	pruneInvalidMerges,
+	readSheet,
 	transformSheetToCelldata
 } from './ydoc-helpers'
 import { applySheetYEvent } from './yjs-events'
@@ -75,6 +104,28 @@ const READONLY_WORKBOOK_PROPS = {
 	sheetTabContextMenu: []
 }
 
+// Embed mode shows the bare grid. Module constants for the same reason as above.
+const EMBED_WORKBOOK_PROPS = {
+	showToolbar: false,
+	showFormulaBar: false,
+	showSheetTabs: false,
+	rowHeaderWidth: 0,
+	columnHeaderHeight: 0
+}
+const EMBED_READONLY_WORKBOOK_PROPS = { ...READONLY_WORKBOOK_PROPS, ...EMBED_WORKBOOK_PROPS }
+
+// A zero header size moves the grid to the origin, but Fortune still renders the header
+// elements (their `size - 1.5` style goes negative and is dropped), so hide them. The
+// scrollbars stay laid out: `scroll()` drives their scroll offsets. The stat bar renders
+// even without sheet tabs; its 22px would come off the canvas and blank the last row.
+// Fortune sets `display: block` inline on the focus box, hence `!important`.
+const EMBED_CSS = `.calcillo-embed .fortune-row-header,
+.calcillo-embed .fortune-col-header-wrap,
+.calcillo-embed .fortune-stat-area { display: none }
+.calcillo-embed .luckysheet-scrollbars { opacity: 0; pointer-events: none }
+.calcillo-embed-static #luckysheet-cell-selected-boxs,
+.calcillo-embed-static .luckysheet-cell-selected-focus { display: none !important }`
+
 // FortuneSheet 1.0.4 seeds a sheet with no saved selection as `{ row: [0], column: [0] }`,
 // which its name box renders as "A1:NaN". Complete the range once it has been seeded.
 function fixSeededSelection(wb: WorkbookInstance | null) {
@@ -84,42 +135,234 @@ function fixSeededSelection(wb: WorkbookInstance | null) {
 	}
 }
 
+// Snapshot all sheets in sheetOrder for FortuneSheet's `data` prop.
+// `readOnly` (an embed) never writes: a sheet with missing structures renders empty.
+function readSheets(yDoc: Y.Doc, readOnly: boolean): FortuneSheet[] {
+	const data: FortuneSheet[] = []
+	const seenIds = new Set<string>()
+	// Wrap in transaction to prevent triggering ops
+	yDoc.transact(() => {
+		for (const sheetId of yDoc.getArray<SheetId>('sheetOrder').toArray()) {
+			// Dedupe by sheet ID (safety check for development StrictMode)
+			if (seenIds.has(sheetId)) {
+				if (DEV) console.warn('[Load] Duplicate sheet detected:', sheetId)
+				continue
+			}
+			seenIds.add(sheetId)
+			const sheet = readOnly ? readSheet(yDoc, sheetId) : getOrCreateSheet(yDoc, sheetId)
+			if (!sheet) {
+				data.push({ id: sheetId, name: '', celldata: [] })
+				continue
+			}
+			const { celldata, config } = transformSheetToCelldata(sheet)
+			data.push({ id: sheetId, name: sheet.name.toString(), celldata, config })
+		}
+	}, 'load') // Use origin='load' to identify this as a load operation
+	return data
+}
+
 export function CalcilloApp() {
 	const { t } = useTranslation()
 	const cloudillo = useCloudilloEditor(APP_NAME)
 	const isReadOnly = cloudillo.access !== 'write'
 	const meta = cloudillo.yDoc.getMap('meta')
+	const embedded = getAppBus().embedded
 	const [loaded, setLoaded] = React.useState(false)
 	const [initialized, setInitialized] = React.useState(false)
 	const [origCellData, setOrigCellData] = React.useState<FortuneSheet[] | undefined>()
 	const [workbookKey, setWorkbookKey] = React.useState(0)
 	const workbookRef = React.useRef<WorkbookInstance>(null)
-	// Track workbook instance via state so effect can react to it
-	const [workbookInstance, setWorkbookInstance] = React.useState<WorkbookInstance | null>(null)
+	// Fortune hands out a new handle on every context change, so state tracks mount only
+	// (storing the handle looped: effect → addPresences → new handle → effect). Read workbookRef.
+	const [workbookReady, setWorkbookReady] = React.useState(false)
 
 	// Create local echo guard to prevent feedback loops
 	const localEchoGuard = React.useMemo(() => createLocalEchoGuard(), [])
 
+	// Embed mode: the host's nav picks a range; layout carries scale and interactivity
+	const layout = useEmbedLayout()
+	const [embedNav, setEmbedNav] = React.useState<string | undefined>()
+	React.useEffect(() => {
+		if (!embedded) return
+		setEmbedNav(getAppBus().getState().navState)
+		return getAppBus().onViewSet(setEmbedNav)
+	}, [cloudillo.synced])
+
+	// Bumped on any document change while embedded, to re-resolve and re-measure the range
+	const [docVersion, setDocVersion] = React.useState(0)
+	React.useEffect(() => {
+		if (!embedded || !loaded) return
+		const bump = () => setDocVersion((v) => v + 1)
+		const sheets = cloudillo.yDoc.getMap('sheets')
+		const names = getNamesMap(cloudillo.yDoc)
+		const sheetOrder = cloudillo.yDoc.getArray('sheetOrder')
+		sheets.observeDeep(bump)
+		names.observe(bump)
+		sheetOrder.observe(bump)
+		return () => {
+			sheets.unobserveDeep(bump)
+			names.unobserve(bump)
+			sheetOrder.unobserve(bump)
+		}
+	}, [loaded])
+
+	// A nav that no longer resolves keeps showing the last good range, reported missing
+	const lastEmbedTarget = React.useRef<EmbedTarget | null>(null)
+	const embedView = React.useMemo(() => {
+		if (!embedded || !initialized) return null
+		const target = resolveEmbedNav(cloudillo.yDoc, embedNav)
+		if (target) lastEmbedTarget.current = target
+		const shown =
+			target ?? lastEmbedTarget.current ?? resolveEmbedNav(cloudillo.yDoc, undefined)
+		return (
+			shown && {
+				range: shown.range,
+				report: buildEmbedReport(t, cloudillo.yDoc, embedNav, shown, !target)
+			}
+		)
+	}, [initialized, embedNav, docVersion, t])
+	useViewReport(embedView?.report ?? null)
+
+	const embedRange = embedView?.range
+	const embedRangeRef = React.useRef(embedRange)
+	embedRangeRef.current = embedRange
+	const embedEditable = embedded && !!layout?.interactive && !isReadOnly
+	// Debounced: a zoom change remounts the Workbook, so only once a resize drag settles
+	const embedZoom = useDebouncedValue(Math.round((layout?.scale ?? 1) * 100) / 100, 200)
+	const embedSheetId = embedRange?.sheetId
+
+	// Fortune reads the active sheet (`status`) and `zoomRatio` from `data` only on mount, and
+	// has no zoom API. The embed Workbook is re-keyed on both, so take a fresh snapshot too.
+	const workbookData = React.useMemo(() => {
+		if (!embedded || !origCellData) return origCellData
+		return readSheets(cloudillo.yDoc, true).map((s) =>
+			s.id === embedSheetId ? { ...s, status: 1, zoomRatio: embedZoom } : s
+		)
+	}, [origCellData, embedSheetId, embedZoom])
+	const fortuneKey = embedded ? `${workbookKey}:${embedSheetId}:${embedZoom}` : workbookKey
+
 	// Stable identity: FortuneSheet memoises its settings on prop values (see READONLY_WORKBOOK_PROPS).
 	// afterActivateSheet fires in a setTimeout, after the library has seeded the new sheet.
+	// afterSelectionChange keeps an embed's selection inside its range (no-op otherwise).
 	const workbookHooks = React.useMemo(
-		() => ({ afterActivateSheet: () => fixSeededSelection(workbookRef.current) }),
+		() => ({
+			afterActivateSheet: () => fixSeededSelection(workbookRef.current),
+			afterSelectionChange: (
+				_sheetId: string,
+				sel: { row: number[]; column: number[] } | undefined
+			) => {
+				const r = embedRangeRef.current
+				const clamped = r && sel && clampSelection(sel, r)
+				if (clamped) workbookRef.current?.setSelection([clamped])
+			}
+		}),
 		[]
 	)
 	React.useEffect(() => {
-		fixSeededSelection(workbookInstance)
-	}, [workbookInstance])
+		fixSeededSelection(workbookRef.current)
+	}, [workbookReady, fortuneKey])
+
+	// Embed: bring the range's top-left to the origin (Fortune lays out rows after mount)
+	React.useEffect(() => {
+		if (!workbookReady || !embedRange) return
+		const timerId = setTimeout(() => {
+			const wb = workbookRef.current
+			if (!wb) return
+			localEchoGuard.withGuard(() => {
+				wb.calculateFormula()
+				wb.scroll({
+					targetRow: embedRange.top,
+					targetColumn: embedRange.left
+				})
+			})
+		}, FROZEN_PANE_APPLY_DELAY_MS)
+		return () => clearTimeout(timerId)
+	}, [workbookReady, fortuneKey, embedRange?.top, embedRange?.left])
+
+	const dialog = useDialog()
+	const toast = useToast()
+	const copyLink = useCopyEmbedLink()
+	const [showNames, setShowNames] = React.useState(false)
+
+	// Guarded: selecting a range must never write to the doc
+	function selectRange(r: ResolvedRange) {
+		const wb = workbookRef.current
+		if (!wb) return
+		const switching = wb.getSheet()?.id !== r.sheetId
+		// Fortune's setSelection mutates the range it is given, so it must not share a tick with
+		// activateSheet (React re-runs the queued updater on an immer-frozen copy), and it needs
+		// the new sheet's row/column layout, which Fortune computes asynchronously.
+		const select = () =>
+			localEchoGuard.withGuard(() => {
+				const w = workbookRef.current
+				w?.setSelection([{ row: [r.top, r.bottom], column: [r.left, r.right] }], {
+					id: r.sheetId
+				})
+				w?.scroll({ targetRow: r.top, targetColumn: r.left })
+			})
+		if (switching) {
+			localEchoGuard.withGuard(() => wb.activateSheet({ id: r.sheetId }))
+			setTimeout(select, FROZEN_PANE_APPLY_DELAY_MS)
+		} else select()
+	}
+
+	function getSelectionAnchor(): RangeAnchor | null {
+		const wb = workbookRef.current
+		const sel = wb?.getSelection()?.[0]
+		const sheetId = wb?.getSheet()?.id
+		if (!sel || !sheetId || sel.row.length < 2 || sel.column.length < 2) return null
+		try {
+			return anchorFromIndices(
+				cloudillo.yDoc,
+				sheetId as SheetId,
+				sel.row[0],
+				sel.column[0],
+				sel.row[1],
+				sel.column[1]
+			)
+		} catch {
+			return null
+		}
+	}
+
+	// Synchronous inside the click: the clipboard write needs the user-activation window
+	function copyEmbedLink(nav: string) {
+		const resId = getAppBus().resId
+		if (resId) copyLink(docRef('calcillo', resId, nav))
+	}
+
+	function copySelectionLink() {
+		const anchor = getSelectionAnchor()
+		if (anchor) copyEmbedLink(formatRangeNav(anchor))
+		else toast.error(t('Select a range first'))
+	}
+
+	async function nameSelection() {
+		const anchor = getSelectionAnchor()
+		if (!anchor) {
+			toast.error(t('Select a range first'))
+			return
+		}
+		const name = (await dialog.askText(t('Name selection'), t('Range name')))?.trim()
+		if (!name) return
+		try {
+			createNamedRange(cloudillo.yDoc, name, anchor)
+			setShowNames(true)
+		} catch (err) {
+			toast.error(nameErrorText(t, err, t('Failed to name range')))
+		}
+	}
 
 	// Setup awareness on provider ready - use state instead of ref for dependency
 	React.useEffect(() => {
-		if (!cloudillo.provider || !workbookInstance) return
+		if (!cloudillo.provider || !workbookReady) return
 
 		// The idTag goes on the wire as-is; two tabs of the same user share a
 		// colour by design, and FortuneSheet already keys its presences by
 		// awareness clientId, so they stay separate cursors.
 		const cleanup = setupAwareness(
 			cloudillo.provider.awareness,
-			workbookInstance,
+			() => workbookRef.current,
 			{
 				idTag: cloudillo.idTag,
 				displayName: cloudillo.displayName,
@@ -132,10 +375,12 @@ export function CalcilloApp() {
 
 		return cleanup
 		// `darkMode` is a dep on purpose: tearing down and re-seeding is what
-		// re-colours the cursors already on screen after a theme flip.
+		// re-colours the cursors already on screen after a theme flip. `fortuneKey`
+		// re-seeds a remounted Workbook (the ready flag doesn't flip across a re-key).
 	}, [
 		cloudillo.provider,
-		workbookInstance,
+		workbookReady,
+		fortuneKey,
 		cloudillo.idTag,
 		cloudillo.displayName,
 		cloudillo.authenticated,
@@ -355,29 +600,14 @@ export function CalcilloApp() {
 		// Wait for BOTH: document is initialized AND sync has completed
 		if (!loaded || !cloudillo.synced || origCellData) return
 
-		const data: FortuneSheet[] = []
-		const _ySheets = cloudillo.yDoc.getMap('sheets')
 		const sheetOrder = cloudillo.yDoc.getArray<SheetId>('sheetOrder')
 
-		// Use sheetOrder array for consistent ordering across clients
-		const existingSheetIds = sheetOrder.toArray()
-
-		if (existingSheetIds.length > 0) {
-			// Load existing sheets - wrap in transaction to prevent triggering ops
-			cloudillo.yDoc.transact(() => {
-				for (const sheetId of existingSheetIds) {
-					const sheet = getOrCreateSheet(cloudillo.yDoc, sheetId)
-					const { celldata, config } = transformSheetToCelldata(sheet)
-
-					data.push({
-						id: sheetId,
-						name: sheet.name.toString(),
-						celldata,
-						config
-					})
-				}
-			}, 'load') // Use origin='load' to identify this as a load operation
+		// Use sheetOrder array for consistent ordering across clients.
+		// An embed never creates the first sheet: it does not write to the document.
+		if (sheetOrder.length > 0 || embedded) {
+			setOrigCellData(readSheets(cloudillo.yDoc, embedded))
 		} else {
+			const data: FortuneSheet[] = []
 			// No sheets - create first sheet - MUST be in transaction!
 			cloudillo.yDoc.transact(() => {
 				const sheetId = generateSheetId()
@@ -395,27 +625,15 @@ export function CalcilloApp() {
 					name: t('Sheet') + ' 1'
 				})
 			})
+			setOrigCellData(data)
 		}
-
-		// Dedupe by sheet ID (safety check for development StrictMode)
-		const seenIds = new Set<string>()
-		const dedupedData = data.filter((sheet) => {
-			if (!sheet.id) return false
-			if (seenIds.has(sheet.id)) {
-				if (DEV) console.warn('[Load] Duplicate sheet detected:', sheet.id)
-				return false
-			}
-			seenIds.add(sheet.id)
-			return true
-		})
-
-		setOrigCellData(dedupedData)
 		setInitialized(true)
 	}, [loaded, cloudillo.synced, origCellData])
 
 	// Calculate formulas and apply frozen panes after initialization
+	// (embeds recalculate in their scroll effect and ignore frozen panes)
 	React.useEffect(() => {
-		if (!initialized || !workbookRef.current) return
+		if (!initialized || !workbookRef.current || embedded) return
 
 		workbookRef.current.calculateFormula()
 
@@ -471,6 +689,12 @@ export function CalcilloApp() {
 					const sheetOrder = cloudillo.yDoc.getArray<SheetId>('sheetOrder')
 
 					for (const op of ops) {
+						// Embed: zoom, scroll and selection are local; only in-range cell edits write
+						if (embedded) {
+							const r = embedRangeRef.current
+							if (!r || !isEmbedEditOp(op, r)) continue
+						}
+
 						// Handle sheet deletion
 						if (op.op === 'deleteSheet') {
 							// FIX: Proper validation instead of string comparison
@@ -515,14 +739,42 @@ export function CalcilloApp() {
 		[initialized, localEchoGuard]
 	)
 
-	// Combined ref that updates both the ref and state
-	const combinedRef = React.useCallback(
-		(instance: WorkbookInstance | null) => {
-			workbookRef.current = instance
-			setWorkbookInstance(instance)
-		},
-		[setWorkbookInstance]
+	const combinedRef = React.useCallback((instance: WorkbookInstance | null) => {
+		workbookRef.current = instance
+		setWorkbookReady(!!instance)
+	}, [])
+
+	const canEdit = embedded ? embedEditable : !isReadOnly
+	const workbookProps = embedded
+		? embedEditable
+			? EMBED_WORKBOOK_PROPS
+			: EMBED_READONLY_WORKBOOK_PROPS
+		: isReadOnly
+			? READONLY_WORKBOOK_PROPS
+			: {}
+	const workbook = workbookData && workbookData.length > 0 && (
+		<Workbook
+			key={fortuneKey}
+			ref={combinedRef}
+			data={workbookData}
+			onOp={canEdit ? onOp : undefined}
+			generateSheetId={generateSheetId}
+			allowEdit={canEdit}
+			hooks={workbookHooks}
+			{...workbookProps}
+		/>
 	)
+
+	if (embedded) {
+		return (
+			<div
+				className={`h-100 calcillo-sheet calcillo-embed${layout?.interactive ? '' : ' calcillo-embed-static'}`}
+			>
+				<style>{EMBED_CSS}</style>
+				{workbook}
+			</div>
+		)
+	}
 
 	return (
 		origCellData && (
@@ -543,21 +795,44 @@ export function CalcilloApp() {
 							onClick={() => downloadXlsxExport(cloudillo.yDoc)}
 						/>
 						<MenuDivider />
+						{!isReadOnly && (
+							<MenuItem
+								icon={<IcName />}
+								label={t('Name selection…')}
+								onClick={nameSelection}
+							/>
+						)}
+						<MenuItem
+							icon={<IcLink />}
+							label={t('Copy embed link to selection')}
+							onClick={copySelectionLink}
+						/>
+						<MenuItem
+							icon={<IcNames />}
+							label={t('Named ranges')}
+							checked={showNames}
+							onClick={() => setShowNames((v) => !v)}
+						/>
+						<MenuDivider />
 						<MenuHeader>v{__APP_VERSION__}</MenuHeader>
 					</DocBarMenu>
 				</AppDocBar>
-				<div className="flex-fill calcillo-sheet" style={{ minWidth: 0 }}>
-					<Workbook
-						key={workbookKey}
-						ref={combinedRef}
-						data={origCellData}
-						onOp={isReadOnly ? undefined : onOp}
-						generateSheetId={generateSheetId}
-						allowEdit={!isReadOnly}
-						hooks={workbookHooks}
-						{...(isReadOnly ? READONLY_WORKBOOK_PROPS : {})}
-					/>
+				<div className="c-hbox flex-fill" style={{ minHeight: 0 }}>
+					<div className="flex-fill calcillo-sheet" style={{ minWidth: 0 }}>
+						{workbook}
+					</div>
+					{showNames && (
+						<NamedRangesPanel
+							yDoc={cloudillo.yDoc}
+							readOnly={isReadOnly}
+							getSelectionAnchor={getSelectionAnchor}
+							onSelect={selectRange}
+							onCopyLink={copyEmbedLink}
+							onClose={() => setShowNames(false)}
+						/>
+					)}
 				</div>
+				<DialogContainer />
 				<Toasts />
 			</div>
 		)

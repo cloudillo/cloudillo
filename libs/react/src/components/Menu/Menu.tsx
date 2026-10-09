@@ -261,13 +261,15 @@ export const MenuItem = createComponent<HTMLButtonElement, MenuItemProps>(
 			),
 			onClick: handleClick
 		}
+		// With an icon the check trails, so the icon and label line up with plain items
+		const check = on !== undefined && (
+			<span className="c-menu-item-check" aria-hidden="true">
+				{on ? '✓' : ''}
+			</span>
+		)
 		const content = (
 			<>
-				{on !== undefined && (
-					<span className="c-menu-item-check" aria-hidden="true">
-						{on ? '✓' : ''}
-					</span>
-				)}
+				{!icon && check}
 				{icon && (
 					<span className={sheet ? 'c-action-sheet-item-icon' : 'c-menu-item-icon'}>
 						{icon}
@@ -279,6 +281,7 @@ export const MenuItem = createComponent<HTMLButtonElement, MenuItemProps>(
 				</span>
 				{shortcut && !sheet && <span className="c-menu-item-shortcut">{shortcut}</span>}
 				{trailing && <span className="c-menu-item-trailing">{trailing}</span>}
+				{icon && check}
 			</>
 		)
 

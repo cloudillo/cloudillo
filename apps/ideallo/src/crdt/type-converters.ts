@@ -23,6 +23,7 @@ import type {
 	ConnectorObject,
 	DocumentObject,
 	EllipseObject,
+	FrameObject,
 	FreehandObject,
 	IdealloObject,
 	ImageObject,
@@ -58,6 +59,7 @@ import type {
 	StoredCornerRadius,
 	StoredDocument,
 	StoredEllipse,
+	StoredFrame,
 	StoredFreehand,
 	StoredImage,
 	StoredLine,
@@ -84,7 +86,8 @@ const TYPE_TO_TYPE_CODE: Record<ObjectType, ObjectTypeCode> = {
 	polygon: 'P',
 	sticky: 'S',
 	image: 'I',
-	document: 'D'
+	document: 'D',
+	frame: 'M'
 }
 
 // NOTE: StoredBezierFreehand removed - we just use StoredFreehand with type 'B' removed
@@ -710,8 +713,19 @@ export function expandObject(
 				navState: docEmbed.ns,
 				aspectRatio: docEmbed.ar,
 				aspectFixed: docEmbed.af,
+				editable: docEmbed.ed,
 				cornerRadius: docEmbed.cr
 			} as DocumentObject
+		}
+		case 'M': {
+			const frame = stored as StoredFrame
+			return {
+				...base,
+				type: 'frame',
+				width: frame.wh[0],
+				height: frame.wh[1],
+				...(frame.n !== undefined ? { name: frame.n } : {})
+			} as FrameObject
 		}
 		default:
 			throw new Error(`Unknown object type: ${(stored as Record<string, unknown>).t}`)
@@ -929,7 +943,22 @@ export function compactObject(obj: IdealloObject): StoredObject {
 			if (docObj.aspectFixed) {
 				stored.af = true
 			}
+			if (docObj.editable) {
+				stored.ed = true
+			}
 			compactCornerRadius(stored, docObj.cornerRadius)
+			return stored
+		}
+		case 'frame': {
+			const frame = obj as FrameObject
+			const stored = {
+				...baseStored,
+				t: 'M' as const,
+				wh: [frame.width, frame.height] as [number, number]
+			} as StoredFrame
+			if (frame.name !== undefined) {
+				stored.n = frame.name
+			}
 			return stored
 		}
 		default:

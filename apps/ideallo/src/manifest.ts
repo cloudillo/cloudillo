@@ -52,7 +52,8 @@ export const manifest: AppManifest = {
 			// Major.minor is the document-format contract itself; patch counts
 			// compatible tweaks to the rules above.
 			formatVersion: '1.0.0',
-			search: SEARCH_INDEX_RULES
+			search: SEARCH_INDEX_RULES,
+			embed: { view: 'fixed', namedViews: true }
 		}
 	],
 	capabilities: ['crdt'],

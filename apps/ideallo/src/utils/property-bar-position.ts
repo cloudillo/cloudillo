@@ -16,6 +16,10 @@ import type { Bounds } from '../crdt/runtime-types.js'
 export const VIEWPORT_PADDING = 16
 /** Gap between selection and property bar */
 export const SELECTION_GAP = 12
+/** A selection shorter than this on screen gets the wider gap, so the bar doesn't crowd it */
+export const SMALL_SELECTION_HEIGHT = 48
+/** Gap used for small selections (e.g. a text box created with a single click) */
+export const SMALL_SELECTION_GAP = 28
 /**
  * Bottom strip the floating toolbar owns, so the bar is never placed on top of it.
  * Desktop: 16 offset + 8 padding * 2 + 44 button = 76, plus a gap.
@@ -66,16 +70,18 @@ export function computeBarPosition({
 	const bottomReserved =
 		viewportWidth <= MOBILE_MAX_WIDTH ? MOBILE_BOTTOM_RESERVED : DESKTOP_BOTTOM_RESERVED
 
+	const gap = screenBounds.height < SMALL_SELECTION_HEIGHT ? SMALL_SELECTION_GAP : SELECTION_GAP
+
 	let top: number
 	if (preferBelow) {
-		top = screenBounds.y + screenBounds.height + SELECTION_GAP
+		top = screenBounds.y + screenBounds.height + gap
 		if (top + barHeight > viewportHeight - bottomReserved) {
-			top = screenBounds.y - SELECTION_GAP - barHeight
+			top = screenBounds.y - gap - barHeight
 		}
 	} else {
-		top = screenBounds.y - SELECTION_GAP - barHeight
+		top = screenBounds.y - gap - barHeight
 		if (top < VIEWPORT_PADDING) {
-			top = screenBounds.y + screenBounds.height + SELECTION_GAP
+			top = screenBounds.y + screenBounds.height + gap
 		}
 	}
 

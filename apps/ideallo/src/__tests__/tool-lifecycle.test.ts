@@ -40,6 +40,7 @@ const ONE_SHOT_TOOLS: ToolType[] = [
 	'ellipse',
 	'diamond',
 	'triangle',
+	'frame',
 	'connector',
 	'text',
 	'sticky'
@@ -80,10 +81,12 @@ describe('tool catalog', () => {
 		expect(keys.has('q')).toBe(false)
 	})
 
-	it('treats the drag-out shape and connector categories as drag tools, nothing else', () => {
+	it('treats the drag-out shape, frame and connector categories as drag tools, nothing else', () => {
 		ALL_TOOLS.forEach((tool) => {
 			const category = TOOL_CATALOG[tool].category
-			expect(isDragShapeTool(tool)).toBe(category === 'shape' || category === 'connector')
+			expect(isDragShapeTool(tool)).toBe(
+				category === 'shape' || category === 'connector' || category === 'frame'
+			)
 		})
 	})
 })

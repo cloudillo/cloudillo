@@ -39,8 +39,9 @@ export type ObjectTypeCode =
 	| 'S' // Sticky note
 	| 'I' // Image
 	| 'D' // Document (embedded document)
+	| 'M' // Frame (named region, drawn behind its contents)
 //
-// 'C' collides with nothing here: the object codes are F R E L A C T P S I D. It also appears in
+// 'C' collides with nothing here: the object codes are F R E L A C T P S I D M. It also appears in
 // ArrowTypeCode (circle) and RoutingCode (curved), but those are separate code spaces - not a bug.
 //
 // expandObject() still throws on an unknown `t`, but every READ path goes through
@@ -259,6 +260,14 @@ export interface StoredDocument extends StoredObjectBase, StoredCornerRadius {
 	ns?: string // navigation state (opaque, app-specific)
 	ar?: [number, number] // aspect ratio from embedded doc (e.g. [16, 9])
 	af?: boolean // aspect ratio is FIXED: resize must preserve `ar`
+	ed?: boolean // board editors may edit the embedded document in place
+}
+
+// Frame: a named region. Containment is geometric - there is no children list.
+export interface StoredFrame extends StoredObjectBase {
+	t: 'M'
+	wh: [number, number] // [width, height]
+	n?: string // name
 }
 
 // Union of all stored object types
@@ -273,6 +282,7 @@ export type StoredObject =
 	| StoredSticky
 	| StoredImage
 	| StoredDocument
+	| StoredFrame
 
 // Document metadata
 export interface StoredMeta {

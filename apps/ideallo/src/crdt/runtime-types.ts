@@ -18,6 +18,7 @@ export type ObjectType =
 	| 'sticky'
 	| 'image'
 	| 'document'
+	| 'frame'
 
 export type StrokeStyle = 'solid' | 'dashed' | 'dotted'
 
@@ -226,7 +227,15 @@ export interface DocumentObject extends IdealloObjectBase {
 	navState?: string // navigation state (opaque, app-specific)
 	aspectRatio?: [number, number] // aspect ratio from embedded doc
 	aspectFixed?: boolean // embedded doc requires its aspect ratio be preserved on resize
+	editable?: boolean // board editors may edit the embedded document in place
 	cornerRadius?: number
+}
+
+export interface FrameObject extends IdealloObjectBase {
+	type: 'frame'
+	width: number
+	height: number
+	name?: string
 }
 
 export type IdealloObject =
@@ -239,6 +248,7 @@ export type IdealloObject =
 	| StickyObject
 	| ImageObject
 	| DocumentObject
+	| FrameObject
 
 /**
  * The types that can carry a text label.

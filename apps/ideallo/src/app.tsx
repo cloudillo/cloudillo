@@ -19,9 +19,20 @@ import '@cloudillo/react/components.css'
 import './style.css'
 
 import { calculateArcRadius } from '@cloudillo/canvas-tools'
-import { getAppBus } from '@cloudillo/core'
+import { docRef, type EmbedViewReportPayload, getAppBus } from '@cloudillo/core'
 import { downloadYDocExport } from '@cloudillo/crdt'
-import { AppDocBar, DocBarMenu, MenuItem, Toasts, useIsMobile } from '@cloudillo/react'
+import {
+	AppDocBar,
+	DocBarMenu,
+	MenuItem,
+	Toasts,
+	useCopyEmbedLink,
+	useDocumentEmbedHandlers,
+	useEmbedLayout,
+	useIsMobile,
+	useToast,
+	useViewReport
+} from '@cloudillo/react'
 import type Quill from 'quill'
 import { useTranslation } from 'react-i18next'
 import { PiExportBold as IcExport } from 'react-icons/pi'
@@ -32,7 +43,9 @@ import {
 	useResizable,
 	useRotatable
 } from 'react-svg-canvas'
+import type * as Y from 'yjs'
 
+import { ReaderFrameList } from './components/FramesPopover.js'
 import {
 	Canvas,
 	type CanvasHandle,
@@ -47,7 +60,7 @@ declare const __APP_VERSION__: string
 
 import { isBoundConnector } from './connectors/index.js'
 import { bindEndpoint } from './connectors/lifecycle.js'
-import type { Bounds, IdealloObject, ObjectId } from './crdt/index.js'
+import type { Bounds, IdealloObject, ObjectId, StoredObject } from './crdt/index.js'
 import {
 	bringForward,
 	bringToFront,
@@ -69,6 +82,8 @@ import {
 	updateDocumentNavState,
 	updateObjectFields
 } from './crdt/index.js'
+import { renameFrame } from './crdt/object-ops.js'
+import type { FrameObject } from './crdt/runtime-types.js'
 import {
 	useConnectorEndpointDrag,
 	useDocumentHandler,
@@ -94,19 +109,88 @@ import {
 } from './tools/index.js'
 import { getObjectBounds, getRotatedObjectBounds } from './utils/bounds.js'
 import { isEditableTarget, isPopoverOpen } from './utils/editable-target.js'
+import { formatRectNav, type IdealloNav, parseIdealloNav } from './utils/embed-nav.js'
 import {
+	expandBounds,
+	getBoundsFromPoints,
 	normalizeAngle,
 	resizeAspectRatio,
 	scaleBoxIntoBounds,
 	scaleConnectorTerminals,
 	scalePointsIntoBounds
 } from './utils/geometry.js'
+import { frameTitle } from './utils/hit-testing.js'
 import { scalePathData } from './utils/path-scaling.js'
+
+type EmbedRect = { x: number; y: number; w: number; h: number }
+
+/** The whole board: union of all objects' bounds plus 5% padding (empty ⇒ 800×600 at origin) */
+function boardRect(objects: IdealloObject[]): EmbedRect {
+	if (!objects.length) return { x: 0, y: 0, w: 800, h: 600 }
+	const b = getBoundsFromPoints(
+		objects.flatMap((o) => {
+			const r = getRotatedObjectBounds(o)
+			return [
+				[r.x, r.y],
+				[r.x + r.width, r.y + r.height]
+			] as [number, number][]
+		})
+	)
+	const p = expandBounds(b, 0.05 * Math.max(b.width, b.height, 1))
+	return { x: p.x, y: p.y, w: p.width, h: p.height }
+}
+
+/**
+ * Resolve an embed nav to the canvas rect it shows; `undefined` ⇒ unresolvable (reported missing).
+ * `avail` is the host's first layout size, which legacy centre/zoom navs are sized from.
+ */
+function resolveEmbedRect(
+	nav: IdealloNav,
+	objects: IdealloObject[],
+	avail: { w: number; h: number }
+): EmbedRect | undefined {
+	switch (nav.kind) {
+		case 'rect':
+			return { x: nav.x, y: nav.y, w: nav.w, h: nav.h }
+		case 'legacy': {
+			const w = avail.w / nav.zoom
+			const h = avail.h / nav.zoom
+			return { x: nav.cx - w / 2, y: nav.cy - h / 2, w, h }
+		}
+		case 'frame': {
+			// Live: re-resolved from the current objects, so the embed follows a moved/resized frame
+			const frame = objects.find((o) => o.type === 'frame' && o.id === nav.id)
+			if (!frame) return undefined
+			const b = getRotatedObjectBounds(frame)
+			return { x: b.x, y: b.y, w: b.width, h: b.height }
+		}
+		case 'board':
+			return boardRect(objects)
+	}
+}
 
 export function IdealloApp() {
 	const { t } = useTranslation()
 	const ideallo = useIdealloDocument()
 	const canvasRef = React.useRef<CanvasHandle>(null)
+	const copyLink = useCopyEmbedLink()
+
+	const zoomToFrame = React.useCallback((frame: FrameObject) => {
+		const svg = document.querySelector('.ideallo-app svg')
+		if (!svg) return
+		const b = getRotatedObjectBounds(frame)
+		const { width, height } = svg.getBoundingClientRect()
+		const zoom = 0.9 * Math.min(width / Math.max(b.width, 1), height / Math.max(b.height, 1))
+		canvasRef.current?.setViewport(b.x + b.width / 2, b.y + b.height / 2, zoom)
+	}, [])
+	// Synchronous inside the click: the clipboard write needs the user-activation window
+	const copyFrameLink = React.useCallback(
+		(frame: FrameObject) => {
+			const resId = getAppBus().resId
+			if (resId) copyLink(docRef('ideallo', resId, `frame:${frame.id}`))
+		},
+		[copyLink]
+	)
 
 	const isMobile = useIsMobile()
 
@@ -143,7 +227,7 @@ export function IdealloApp() {
 	>(new Map())
 
 	// Active document embed (interactive iframe)
-	const [activeDocumentId, setActiveDocumentIdRaw] = React.useState<ObjectId | null>(null)
+	const [activeDocumentId, setActiveDocumentId] = React.useState<ObjectId | null>(null)
 	const isReadOnly = ideallo.cloudillo.access !== 'write'
 
 	// Force select tool in read-only mode
@@ -151,67 +235,41 @@ export function IdealloApp() {
 		if (isReadOnly) ideallo.setActiveTool('select')
 	}, [isReadOnly])
 
-	// Cache pending navState changes per document embed objectId
-	const pendingNavStateRef = React.useRef<
-		Map<string, { viewState: string; aspectRatio?: [number, number] }>
-	>(new Map())
-
-	// Flush cached navState to CRDT for a given objectId
-	const flushNavState = React.useCallback(
-		(objectId: ObjectId) => {
-			if (isReadOnly) return
-			const pending = pendingNavStateRef.current.get(objectId)
-			if (!pending) return
-			pendingNavStateRef.current.delete(objectId)
-			updateDocumentNavState(
-				ideallo.yDoc,
-				ideallo.doc,
-				objectId,
-				pending.viewState,
-				pending.aspectRatio
-			)
-		},
-		[isReadOnly, ideallo.yDoc, ideallo.doc]
-	)
-
-	// Wrap setActiveDocumentId to flush on deactivate
-	const setActiveDocumentId = React.useCallback(
-		(id: ObjectId | null) => {
-			setActiveDocumentIdRaw((prev) => {
-				if (prev && prev !== id) {
-					flushNavState(prev)
-				}
-				return id
-			})
-		},
-		[flushNavState]
-	)
-
 	/*
-	 * Callback for embedded document view state changes.
+	 * Embedded document reports: only the natural size and fixed-aspect flag are persisted (the
+	 * resize gizmo locks on them). Panning inside an embed is never written - only "Use current
+	 * view" persists the nav. Both callbacks are passed only when the board is editable.
 	 *
-	 * The viewState is only CACHED, flushed on deactivate, so scrolling inside an embed does not
-	 * spam the CRDT. The aspect metadata is written straight through instead: it arrives once at
-	 * load and the resize gizmo needs it before any deactivate. updateDocumentAspect is itself
-	 * a no-op when nothing changed, and writes under LAYOUT_ORIGIN so it costs no undo step.
-	 *
-	 * idealloRef keeps this identity stable (it is passed down into every ObjectRenderer).
+	 * The returned identities are stable (they are passed down into every ObjectRenderer).
 	 */
-	const handleDocumentViewStateChange = React.useCallback(
-		(
-			objectId: string,
-			viewState: string,
-			aspectRatio?: [number, number],
-			aspectFixed?: boolean
-		) => {
-			pendingNavStateRef.current.set(objectId, { viewState, aspectRatio })
-			if (isReadOnly) return
+	const {
+		onReport: handleDocumentReport,
+		onUseView: handleDocumentUseView,
+		onEditable: handleDocumentEditable
+	} = useDocumentEmbedHandlers({
+		getFileId: () => idealloRef.current.cloudillo.fileId,
+		setAspect: (objectId, natural, fixed) => {
 			const { yDoc, doc } = idealloRef.current
 			if (!yDoc || !doc) return
-			updateDocumentAspect(yDoc, doc, objectId as ObjectId, aspectRatio, aspectFixed)
+			updateDocumentAspect(yDoc, doc, objectId as ObjectId, natural, fixed)
 		},
-		[isReadOnly]
-	)
+		setNav: (objectId, nav) => {
+			const { yDoc, doc } = idealloRef.current
+			if (!yDoc || !doc) return
+			updateDocumentNavState(yDoc, doc, objectId as ObjectId, nav)
+		},
+		setEditable: (objectId, editable) => {
+			const { yDoc, doc } = idealloRef.current
+			if (!yDoc || !doc) return
+			updateObjectFields(yDoc, doc, objectId as ObjectId, { editable })
+		},
+		isOtherEditable: (objectId, targetFileId) => {
+			for (const [id, o] of idealloRef.current.doc?.o.entries() ?? []) {
+				if (id !== objectId && o.t === 'D' && o.ed && o.fid === targetFileId) return true
+			}
+			return false
+		}
+	})
 
 	// Selection state
 	const [selectedIds, setSelectedIds] = React.useState<Set<ObjectId>>(new Set())
@@ -251,18 +309,10 @@ export function IdealloApp() {
 		if (selectedIds.size) setCanvasMatrix(canvasMatrixRef.current)
 	}, [selectedIds])
 
-	/*
-	 * setActiveDocumentId is in the deps and must stay there. It closes over flushNavState, which
-	 * closes over `isReadOnly` - and on the first render `cloudillo.access` is still undefined
-	 * (the app bus has not finished its handshake), so isReadOnly is true. Pinning this callback
-	 * with [] froze that render-0 closure forever: Escape or a click on empty canvas after panning
-	 * inside an embedded document hit `if (isReadOnly) return` and threw the cached viewport away.
-	 * Switching straight from one embed to another still worked, which is what hid it.
-	 */
 	const clearSelection = React.useCallback(() => {
 		setSelectedIds(new Set())
 		setActiveDocumentId(null)
-	}, [setActiveDocumentId])
+	}, [])
 
 	/** An object that stopped existing must not stay selected - the handles would point at air. */
 	const deselectObject = React.useCallback((id: ObjectId) => {
@@ -498,6 +548,33 @@ export function IdealloApp() {
 		() => (ideallo.doc ? getAllResolvedObjects(ideallo.doc) : []),
 		[ideallo.doc, ideallo.objects, ideallo.order, ideallo.textContent]
 	)
+	const frames = React.useMemo(
+		() => resolvedObjects.filter((o): o is FrameObject => o.type === 'frame'),
+		[resolvedObjects]
+	)
+
+	// Every delete path (key, property bar, eraser) ends in a local transaction on `o`; undo/redo
+	// carry the UndoManager as origin and remote edits are not local, so neither toasts.
+	const toast = useToast()
+	React.useEffect(() => {
+		const { yDoc, doc } = ideallo
+		if (!yDoc || !doc) return
+		const onChange = (evt: Y.YMapEvent<StoredObject>, tr: Y.Transaction) => {
+			if (tr.origin !== yDoc.clientID) return
+			for (const change of evt.changes.keys.values()) {
+				if (change.action === 'delete' && change.oldValue?.t === 'M') {
+					toast.info(
+						t(
+							'Frame deleted. Embeds of it now show "View missing". Press Ctrl+Z to undo.'
+						)
+					)
+					return
+				}
+			}
+		}
+		doc.o.observe(onChange)
+		return () => doc.o.unobserve(onChange)
+	}, [ideallo.yDoc, ideallo.doc, toast, t])
 	/**
 	 * The same pass, keyed by id, for the by-id lookups that measure the selection.
 	 *
@@ -706,13 +783,39 @@ export function IdealloApp() {
 	const documentHandlerRef = React.useRef(documentHandler)
 	documentHandlerRef.current = documentHandler
 
+	/** The canvas point at the centre of the visible viewport - where inserts land */
+	const viewportCentre = React.useCallback((): [number, number] => {
+		const m = canvasMatrixRef.current
+		const svg = document.querySelector('.ideallo-app svg')
+		const { width, height } = svg?.getBoundingClientRect() ?? { width: 0, height: 0 }
+		return [(width / 2 - m[4]) / m[0], (height / 2 - m[5]) / m[0]]
+	}, [])
+
 	React.useEffect(() => {
 		if (ideallo.activeTool === 'image') {
-			imageHandlerRef.current.insertImage()
+			imageHandlerRef.current.insertImage(...viewportCentre())
 		} else if (ideallo.activeTool === 'document') {
-			documentHandlerRef.current.insertDocument()
+			documentHandlerRef.current.insertDocument(...viewportCentre())
 		}
 	}, [ideallo.activeTool])
+
+	// Pasting a `cl:` embed link embeds it at the viewport centre (as quillo/notillo do)
+	React.useEffect(() => {
+		const bus = getAppBus()
+		const fileId = ideallo.cloudillo.fileId
+		if (isReadOnly || bus.embedded || !fileId) return
+		const onPaste = (e: ClipboardEvent) => {
+			if (isEditableTarget(e.target)) return
+			const p = bus.linkFromPaste(e, fileId)
+			if (!p) return
+			const [cx, cy] = viewportCentre()
+			p.then((res) => {
+				if (res) documentHandlerRef.current.insertDocument(cx, cy, res)
+			})
+		}
+		document.addEventListener('paste', onPaste)
+		return () => document.removeEventListener('paste', onPaste)
+	}, [isReadOnly, ideallo.cloudillo.fileId])
 
 	// We need selectionBounds before we can initialize resize handler
 	// Compute basic selection bounds first (without offsets)
@@ -1045,12 +1148,15 @@ export function IdealloApp() {
 						// Known, preview-consistent limitation: in a non-uniformly resized
 						// multi-selection an aspect-fixed embed distorts, because scaleX and
 						// scaleY are applied independently - exactly what the preview shows.
+						// 'frame' is a plain box too and is previewed by the same default: case,
+						// so it commits here for the same parity (otherwise it snaps back).
 						if (
 							origObj.type === 'rect' ||
 							origObj.type === 'ellipse' ||
 							origObj.type === 'text' ||
 							origObj.type === 'sticky' ||
-							origObj.type === 'document'
+							origObj.type === 'document' ||
+							origObj.type === 'frame'
 						) {
 							// Shared with the PREVIEW so the two cannot map out of different
 							// source boxes - see scaleBoxIntoBounds in utils/geometry.ts.
@@ -1472,73 +1578,134 @@ export function IdealloApp() {
 		canvasRef.current?.zoomReset()
 	}, [])
 
-	// --- Embed navState: restore viewport on load, push on pan/zoom ---
+	// --- Embed source: show the addressed canvas rect at layout.scale, report it as a fixed view ---
+	const embedded = getAppBus().embedded
+	const embedLayout = useEmbedLayout()
+	const embedInteractive = !!embedLayout?.interactive
+	const embedInteractiveRef = useLatestRef(embedInteractive)
+	const [embedNav, setEmbedNav] = React.useState<string>()
+	// Bumped by embed:view.set, so even an unchanged nav re-applies (reset after drift)
+	const [embedResetTick, setEmbedResetTick] = React.useState(0)
+	// While the user explores an interactive embed, drift reports go straight to the bus (see
+	// handleMatrixChange) and the steady report below is held back
+	const [embedDrifting, setEmbedDrifting] = React.useState(false)
+	const embedDriftingRef = useLatestRef(embedDrifting)
 	const initialNavAppliedRef = React.useRef(false)
-	const navPushTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
 
-	// Register viewstate.set handler once when embedded
 	React.useEffect(() => {
 		const bus = getAppBus()
 		if (!bus.embedded) return
-
-		bus.onViewStateSet((viewState?: string) => {
-			if (!viewState) return
-			const params = Object.fromEntries(
-				viewState.split(';').map((p) => p.split('=') as [string, string])
-			)
-			const center = params.c?.split(',').map(Number)
-			const zoom = params.z ? Number(params.z) : undefined
-			if (
-				center &&
-				center.length === 2 &&
-				!Number.isNaN(center[0]) &&
-				!Number.isNaN(center[1])
-			) {
-				canvasRef.current?.setViewport(center[0], center[1], zoom ?? 1)
-			}
+		return bus.onViewSet((nav) => {
+			initialNavAppliedRef.current = true
+			setEmbedNav(nav)
+			setEmbedDrifting(false)
+			setEmbedResetTick((t) => t + 1)
 		})
-
-		// AppBus has no off/unregister for this - `onViewStateSet` is a bare field assignment on a
-		// SINGLETON - so overwriting it with a no-op is the only way from inside the app to stop the
-		// bus retaining this closure, and `canvasRef` with it, past unmount. A real
-		// `offViewStateSet` in libs/core is the proper follow-up.
-		return () => {
-			bus.onViewStateSet(() => {})
-		}
 	}, [])
 
-	// Restore initial navState once when embedded and synced
 	React.useEffect(() => {
 		const bus = getAppBus()
-		if (!bus.embedded) return
-
-		if (!initialNavAppliedRef.current && ideallo.cloudillo.synced) {
-			const initialNav = bus.getState().navState
-			if (initialNav) {
-				const params = Object.fromEntries(
-					initialNav.split(';').map((p) => p.split('=') as [string, string])
-				)
-				const center = params.c?.split(',').map(Number)
-				const zoom = params.z ? Number(params.z) : undefined
-				if (
-					center &&
-					center.length === 2 &&
-					!Number.isNaN(center[0]) &&
-					!Number.isNaN(center[1])
-				) {
-					requestAnimationFrame(() => {
-						canvasRef.current?.setViewport(center[0], center[1], zoom ?? 1)
-					})
-				}
-			}
-			initialNavAppliedRef.current = true
-		}
+		if (!bus.embedded || initialNavAppliedRef.current || !ideallo.cloudillo.synced) return
+		initialNavAppliedRef.current = true
+		const initialNav = bus.getState().navState
+		if (initialNav) setEmbedNav(initialNav)
 	}, [ideallo.cloudillo.synced])
 
-	// Push viewport changes to parent (debounced)
+	// Legacy centre/zoom navs are sized from the first layout, so later resizes keep the same rect
+	const firstEmbedAvailRef = React.useRef<{ w: number; h: number } | undefined>(undefined)
+	if (embedLayout && !firstEmbedAvailRef.current) {
+		firstEmbedAvailRef.current = {
+			w: embedLayout.availW,
+			h: embedLayout.availH ?? embedLayout.availW * 0.75
+		}
+	}
+
+	const embedParsedNav = parseIdealloNav(embedNav)
+	const embedRect = embedded
+		? resolveEmbedRect(
+				embedParsedNav,
+				resolvedObjects,
+				firstEmbedAvailRef.current ?? { w: window.innerWidth, h: window.innerHeight }
+			)
+		: undefined
+	const embedMissing = embedded && !embedRect
+	const embedShown = embedded ? (embedRect ?? boardRect(resolvedObjects)) : undefined
+
+	const embedFrame =
+		embedParsedNav.kind === 'frame' && !embedMissing
+			? frames.find((f) => f.id === embedParsedNav.id)
+			: undefined
+
+	let embedReport: EmbedViewReportPayload | null = null
+	if (embedShown) {
+		const frameName = embedFrame && frameTitle(embedFrame, t('Frame'))
+		const docTitle = getAppBus().docInfo?.fileName ?? t('a board')
+		embedReport = {
+			kind: 'fixed',
+			nav:
+				embedMissing || embedFrame
+					? embedNav
+					: embedParsedNav.kind === 'board'
+						? undefined
+						: formatRectNav(embedShown),
+			natural: { w: embedShown.w, h: embedShown.h },
+			...(embedFrame
+				? {
+						named: true,
+						viewId: embedFrame.id,
+						title: frameName,
+						a11yLabel: t('Frame "{{name}}" from {{doc}}', {
+							name: frameName,
+							doc: docTitle
+						})
+					}
+				: {}),
+			...(embedMissing ? { missing: true } : {})
+		}
+	}
+	const embedReportRef = useLatestRef(embedReport)
+	// A report change while drifting (e.g. the board grows) is only sent on reset
+	useViewReport(embedDrifting ? null : embedReport)
+
+	// Centre the shown rect at zoom = layout.scale. Not on activation (what follows is the user's
+	// exploration); again on deactivation, resize, rect change and embed:view.set.
+	const embedCx = embedShown ? embedShown.x + embedShown.w / 2 : undefined
+	const embedCy = embedShown ? embedShown.y + embedShown.h / 2 : undefined
+	const embedScale = embedLayout?.scale ?? 1
+	const embedAvailW = embedLayout?.availW
+	const embedAvailH = embedLayout?.availH
+	const applyingEmbedViewportRef = React.useRef(false)
+	const prevEmbedInteractiveRef = React.useRef(false)
+	React.useEffect(() => {
+		const justActivated = embedInteractive && !prevEmbedInteractiveRef.current
+		prevEmbedInteractiveRef.current = embedInteractive
+		if (embedCx === undefined || embedCy === undefined || !ideallo.cloudillo.synced) return
+		if (justActivated) return
+		if (!embedInteractive) setEmbedDrifting(false)
+		// Our own setViewport fires onMatrixChange too; that is not drift
+		applyingEmbedViewportRef.current = true
+		// The svg may not have its final size yet (setViewport measures it): wait a frame
+		const raf = requestAnimationFrame(() => {
+			canvasRef.current?.setViewport(embedCx, embedCy, embedScale)
+			requestAnimationFrame(() => {
+				applyingEmbedViewportRef.current = false
+			})
+		})
+		return () => cancelAnimationFrame(raf)
+	}, [
+		embedCx,
+		embedCy,
+		embedScale,
+		embedAvailW,
+		embedAvailH,
+		embedInteractive,
+		embedResetTick,
+		ideallo.cloudillo.synced
+	])
+
 	const handleMatrixChange = React.useCallback(
 		(matrix: [number, number, number, number, number, number]) => {
-			// Above the embed check: that only gates the navState push, never the matrix mirror.
+			// Above the embed check: that only gates the drift report, never the matrix mirror.
 			// Canvas value-guards this callback, so it fires on real pan/zoom only.
 			canvasMatrixRef.current = matrix
 			// Only liveScreenSelectionBounds reads the state, and only when something is selected.
@@ -1546,21 +1713,25 @@ export function IdealloApp() {
 			if (hasSelectionRef.current) setCanvasMatrix(matrix)
 
 			const bus = getAppBus()
-			if (!bus.embedded) return
+			const base = embedReportRef.current
+			if (!bus.embedded || !base || !embedInteractiveRef.current) return
+			if (applyingEmbedViewportRef.current) return
 
-			if (navPushTimerRef.current) clearTimeout(navPushTimerRef.current)
-			navPushTimerRef.current = setTimeout(() => {
-				const svg = document.querySelector('.ideallo-app svg')
-				if (!svg) return
-				const rect = svg.getBoundingClientRect()
-				const zoom = matrix[0]
-				const centerX = (rect.width / 2 - matrix[4]) / zoom
-				const centerY = (rect.height / 2 - matrix[5]) / zoom
-				const navState = `c=${centerX.toFixed(0)},${centerY.toFixed(0)};z=${zoom.toFixed(2)}`
-				bus.pushViewState({ viewState: navState })
-			}, 500)
+			// The user is exploring: report the visible rect as drift (the bus debounces)
+			const svg = document.querySelector('.ideallo-app svg')
+			if (!svg) return
+			const { width, height } = svg.getBoundingClientRect()
+			const s = matrix[0]
+			const nav = formatRectNav({
+				x: -matrix[4] / s,
+				y: -matrix[5] / s,
+				w: width / s,
+				h: height / s
+			})
+			bus.reportView({ ...base, nav, drifted: true })
+			if (!embedDriftingRef.current) setEmbedDrifting(true)
 		},
-		[hasSelectionRef]
+		[hasSelectionRef, embedReportRef, embedInteractiveRef, embedDriftingRef]
 	)
 
 	// Handle pivot drag start
@@ -1811,6 +1982,20 @@ export function IdealloApp() {
 				evt.preventDefault()
 			}
 
+			// Enter on a single selected embed activates it - readers too, so before the edit gate
+			if (evt.key === 'Enter' && !popoverOpen && selectedIds.size === 1 && ideallo.doc) {
+				const target = evt.target as HTMLElement | null
+				const id = Array.from(selectedIds)[0]
+				if (
+					!target?.closest?.('button, [role="button"], a[href]') &&
+					getObject(ideallo.doc, id)?.type === 'document'
+				) {
+					setActiveDocumentId(id)
+					evt.preventDefault()
+					return
+				}
+			}
+
 			/*
 			 * Enter (or F2) steps INTO the selected text object or sticky, with the caret at the
 			 * end - the mirror of the Escape that steps back out of it.
@@ -1986,16 +2171,6 @@ export function IdealloApp() {
 		}
 	}, [])
 
-	// Same for the pan debounce: a pan followed by leaving the document inside 500ms would
-	// otherwise push a view state for a document the user is no longer in.
-	React.useEffect(() => {
-		return () => {
-			if (navPushTimerRef.current !== null) {
-				clearTimeout(navPushTimerRef.current)
-			}
-		}
-	}, [])
-
 	// Show loading state until synced
 	if (!ideallo.cloudillo.synced) {
 		return (
@@ -2099,12 +2274,20 @@ export function IdealloApp() {
 				token={ideallo.cloudillo.token}
 				sourceFileId={ideallo.cloudillo.fileId}
 				activeDocumentId={activeDocumentId}
-				onDocumentActivate={
-					ideallo.cloudillo.access !== 'read' ? setActiveDocumentId : undefined
-				}
-				onDocumentViewStateChange={!isReadOnly ? handleDocumentViewStateChange : undefined}
+				onDocumentActivate={setActiveDocumentId}
+				onDocumentReport={!isReadOnly ? handleDocumentReport : undefined}
+				onDocumentUseView={!isReadOnly ? handleDocumentUseView : undefined}
+				onDocumentEditable={!isReadOnly ? handleDocumentEditable : undefined}
 				readOnly={isReadOnly}
 			/>
+
+			{isReadOnly && (
+				<ReaderFrameList
+					frames={frames}
+					onZoomToFrame={zoomToFrame}
+					onCopyFrameLink={copyFrameLink}
+				/>
+			)}
 
 			{/* Toolbar */}
 			{!isReadOnly && (
@@ -2122,6 +2305,14 @@ export function IdealloApp() {
 					onBringForward={() => applyZOrder('forward')}
 					onSendBackward={() => applyZOrder('backward')}
 					onSendToBack={() => applyZOrder('back')}
+					frames={frames}
+					onZoomToFrame={zoomToFrame}
+					onCopyFrameLink={copyFrameLink}
+					onRenameFrame={(frame, name) => {
+						if (ideallo.yDoc && ideallo.doc) {
+							renameFrame(ideallo.yDoc, ideallo.doc, frame.id, name)
+						}
+					}}
 				/>
 			)}
 
@@ -2132,7 +2323,7 @@ export function IdealloApp() {
 					doc={ideallo.doc}
 					objects={ideallo.objects}
 					selectedIds={selectedIds}
-					screenBounds={screenSelectionBounds}
+					screenBounds={selectHandler.isPressed ? null : screenSelectionBounds}
 					rotation={selectedObjectRotation}
 					currentStyle={ideallo.currentStyle}
 					onCurrentStyleChange={(updates) => {
@@ -2143,6 +2334,7 @@ export function IdealloApp() {
 					resolvedObjects={resolvedObjects}
 					onClearSelection={clearSelection}
 					onSelectObjects={selectObjects}
+					onCopyFrameLink={copyFrameLink}
 				/>
 			)}
 

@@ -34,7 +34,9 @@ export const TYPE_PAINT_RULES: Record<ObjectType, { stroke: ClearRule; fill: Cle
 	sticky: { stroke: true, fill: false },
 	// The content is the body; a border is decoration.
 	image: { stroke: true, fill: true },
-	document: { stroke: true, fill: true }
+	document: { stroke: true, fill: true },
+	// The title label always stays visible, so a frame can never vanish.
+	frame: { stroke: true, fill: true }
 }
 
 function allows(rule: ClearRule, obj: IdealloObject): boolean {

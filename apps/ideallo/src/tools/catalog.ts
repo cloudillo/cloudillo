@@ -12,7 +12,7 @@
 
 import type { DragShapeTool, ToolType } from './types.js'
 
-export type ToolCategory = 'select' | 'draw' | 'shape' | 'connector' | 'text' | 'embed'
+export type ToolCategory = 'select' | 'draw' | 'shape' | 'frame' | 'connector' | 'text' | 'embed'
 
 export interface ToolDescriptor {
 	tool: ToolType
@@ -42,6 +42,7 @@ export const TOOL_CATALOG: Record<ToolType, ToolDescriptor> = {
 		shortcut: 'G',
 		keys: ['g']
 	},
+	frame: { tool: 'frame', label: 'Frame', category: 'frame', shortcut: 'F', keys: ['f'] },
 	connector: {
 		tool: 'connector',
 		label: 'Connector',
@@ -60,13 +61,21 @@ export const CATEGORY_LABELS: Record<ToolCategory, string> = {
 	select: 'Select',
 	draw: 'Draw',
 	shape: 'Shapes',
+	frame: 'Frames',
 	connector: 'Connector',
 	text: 'Text & notes',
 	embed: 'Embeds'
 }
 
 /** Row order in the mobile popover. */
-export const CATEGORY_ORDER: ToolCategory[] = ['draw', 'shape', 'connector', 'text', 'embed']
+export const CATEGORY_ORDER: ToolCategory[] = [
+	'draw',
+	'shape',
+	'frame',
+	'connector',
+	'text',
+	'embed'
+]
 
 const ALL_DESCRIPTORS = Object.values(TOOL_CATALOG)
 
@@ -97,7 +106,7 @@ export const TOOL_BY_KEY: Record<string, ToolType> = (() => {
 /** Tools whose gesture is a drag-out box handled by useShapeHandler. */
 export function isDragShapeTool(tool: ToolType): tool is DragShapeTool {
 	const category = TOOL_CATALOG[tool].category
-	return category === 'shape' || category === 'connector'
+	return category === 'shape' || category === 'connector' || category === 'frame'
 }
 
 // vim: ts=4

@@ -8,6 +8,7 @@
  */
 
 import {
+	type DocLinkResult,
 	type DocPickResult,
 	getAppBus,
 	type MediaFileResolvedPush,
@@ -81,8 +82,9 @@ function useMediaInsertHandler(kind: MediaInsertKind, options: UseMediaInsertHan
 	}, [kind])
 
 	const insert = React.useCallback(
-		async (centerX: number = 0, centerY: number = 0) => {
-			if (!enabled || isInserting) return
+		async (centerX: number = 0, centerY: number = 0, link?: DocLinkResult) => {
+			// A pre-resolved `link` (pasted `cl:` ref) skips the picker and works with any tool
+			if ((!enabled && !link) || isInserting) return
 
 			setIsInserting(true)
 
@@ -95,10 +97,11 @@ function useMediaInsertHandler(kind: MediaInsertKind, options: UseMediaInsertHan
 								documentFileId,
 								title: 'Insert Image'
 							})
-						: await bus.pickDocument({
+						: (link ??
+							(await bus.pickDocument({
 								sourceFileId: documentFileId,
 								title: 'Embed Document'
-							})
+							})))
 
 				if (!result) {
 					// User cancelled the picker
@@ -134,6 +137,7 @@ function useMediaInsertHandler(kind: MediaInsertKind, options: UseMediaInsertHan
 						fileId: picked.fileId,
 						contentType: picked.contentType,
 						appId: picked.appId,
+						...(link?.nav && { navState: link.nav }),
 						rotation: 0,
 						pivotX: 0.5,
 						pivotY: 0.5,
@@ -149,7 +153,8 @@ function useMediaInsertHandler(kind: MediaInsertKind, options: UseMediaInsertHan
 				}
 
 				onObjectCreated?.(objectId)
-				onInsertComplete?.()
+				// A paste didn't start from the tool, so it has no tool to switch back
+				if (!link) onInsertComplete?.()
 			} catch (error) {
 				console.error(
 					kind === 'image' ? 'Failed to insert image:' : 'Failed to embed document:',
@@ -158,7 +163,7 @@ function useMediaInsertHandler(kind: MediaInsertKind, options: UseMediaInsertHan
 				// Without this the tool stays on 'image': the effect that opens the
 				// picker is keyed on activeTool alone, so re-clicking the button changes
 				// nothing and the tool is inert until the user switches away and back.
-				onInsertComplete?.()
+				if (!link) onInsertComplete?.()
 			} finally {
 				setIsInserting(false)
 			}

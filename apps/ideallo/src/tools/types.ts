@@ -17,6 +17,7 @@ export type ToolType =
 	// Both place a `polygon` object from a vertex preset - see tools/shape-presets.ts
 	| 'diamond'
 	| 'triangle'
+	| 'frame'
 	| 'connector'
 	| 'text'
 	| 'sticky'
@@ -27,7 +28,7 @@ export type ToolType =
  * The tools whose gesture is a drag-out box, which is also exactly the set of previewable shapes.
  * `isDragShapeTool` in catalog.ts narrows to it from the tool's category.
  */
-export type DragShapeTool = 'rect' | 'ellipse' | 'diamond' | 'triangle' | 'connector'
+export type DragShapeTool = 'rect' | 'ellipse' | 'diamond' | 'triangle' | 'frame' | 'connector'
 
 export interface ToolContext {
 	currentStyle: Partial<Style>

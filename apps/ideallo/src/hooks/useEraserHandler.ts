@@ -99,7 +99,7 @@ export function useEraserHandler(options: UseEraserHandlerOptions) {
 				if (obj.locked) continue
 
 				// Precise hit testing with eraser radius as tolerance
-				if (hitTestObject(obj, [x, y], canvasRadius)) {
+				if (hitTestObject(obj, [x, y], canvasRadius, 1, false)) {
 					hitIds.add(obj.id)
 				}
 			}
@@ -122,7 +122,7 @@ export function useEraserHandler(options: UseEraserHandlerOptions) {
 				// Skip locked objects
 				if (obj.locked) continue
 				// Precise hit testing with eraser radius as tolerance
-				if (hitTestObject(obj, [x, y], canvasRadius)) {
+				if (hitTestObject(obj, [x, y], canvasRadius, 1, false)) {
 					return obj.id
 				}
 			}

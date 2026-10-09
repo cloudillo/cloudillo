@@ -32,6 +32,7 @@ import {
 	getAllObjects,
 	getObject
 } from '../crdt/index.js'
+import type { FrameObject } from '../crdt/runtime-types.js'
 import { isDragShapeTool } from '../tools/catalog.js'
 import { isCommittableShapePreview, takePending } from '../tools/lifecycle.js'
 import { polygonPresetVertices } from '../tools/shape-presets.js'
@@ -282,6 +283,22 @@ export function useShapeHandler(options: UseShapeHandlerOptions) {
 					strokeStyle: DEFAULT_STYLE.strokeStyle,
 					opacity: DEFAULT_STYLE.opacity
 				}
+			}
+			objectId = addObject(yDoc, doc, obj)
+		} else if (type === 'frame') {
+			// Neutral by design, not the current style: a frame is a region, not a shape.
+			// addObject names it and puts it at the back.
+			const obj: Omit<FrameObject, 'id'> = {
+				type: 'frame',
+				x: minX,
+				y: minY,
+				width,
+				height,
+				rotation: 0,
+				pivotX: 0.5,
+				pivotY: 0.5,
+				locked: false,
+				style: { ...DEFAULT_STYLE, strokeColor: 'n3', fillColor: 'n5', strokeWidth: 1 }
 			}
 			objectId = addObject(yDoc, doc, obj)
 		} else if (type === 'ellipse') {

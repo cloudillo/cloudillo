@@ -15,6 +15,7 @@ import { ActionSheet, ActionSheetItem, useIsMobile } from '@cloudillo/react'
 import * as React from 'react'
 import type { IconType } from 'react-icons'
 import {
+	PiListBulletsBold as IcFrameList,
 	PiLockBold as IcLocked,
 	PiDotsThreeBold as IcMore,
 	PiArrowArcRightBold as IcRedo,
@@ -24,6 +25,7 @@ import {
 	PiLockOpenBold as IcUnlocked
 } from 'react-icons/pi'
 
+import type { FrameObject } from '../crdt/runtime-types.js'
 import type { ToolCategory, ToolType } from '../tools/index.js'
 import {
 	CATEGORY_LABELS,
@@ -33,6 +35,7 @@ import {
 	TOOL_CATALOG,
 	TOOLS_BY_CATEGORY
 } from '../tools/index.js'
+import { FramesPopover } from './FramesPopover.js'
 import { ToolPopover, type ToolPopoverSection } from './ToolPopover.js'
 import { LAYER_ACTIONS, type LayerActionId, TOOL_ICONS } from './tool-icons.js'
 
@@ -51,6 +54,10 @@ export interface ToolbarProps {
 	onBringForward: () => void
 	onSendBackward: () => void
 	onSendToBack: () => void
+	frames: FrameObject[]
+	onZoomToFrame: (frame: FrameObject) => void
+	onCopyFrameLink: (frame: FrameObject) => void
+	onRenameFrame: (frame: FrameObject, name: string) => void
 }
 
 /**
@@ -196,7 +203,7 @@ function ToolGroupButton({
 }
 
 /** Which popover, if any, is open. A single value is what keeps them mutually exclusive. */
-type OpenMenu = 'draw' | 'shapes' | 'layer' | 'tools' | 'more' | null
+type OpenMenu = 'draw' | 'shapes' | 'layer' | 'tools' | 'frames' | 'more' | null
 
 /**
  * Which member of each category a group trigger shows, seeded from the catalog's first entry.
@@ -236,7 +243,11 @@ export function Toolbar({
 	onBringToFront,
 	onBringForward,
 	onSendBackward,
-	onSendToBack
+	onSendToBack,
+	frames,
+	onZoomToFrame,
+	onCopyFrameLink,
+	onRenameFrame
 }: ToolbarProps) {
 	const isMobile = useIsMobile()
 
@@ -248,6 +259,7 @@ export function Toolbar({
 	const layerTriggerRef = React.useRef<HTMLButtonElement>(null)
 	const toolsTriggerRef = React.useRef<HTMLButtonElement>(null)
 	const moreTriggerRef = React.useRef<HTMLButtonElement>(null)
+	const framesTriggerRef = React.useRef<HTMLButtonElement>(null)
 
 	// ActionSheet open state for "More" overflow menu
 	const [moreOpen, setMoreOpen] = React.useState(false)
@@ -356,6 +368,33 @@ export function Toolbar({
 		}))
 	}
 
+	const framesGroup = (size: number) => (
+		<div className="ideallo-tool-group">
+			<button
+				type="button"
+				ref={framesTriggerRef}
+				className="ideallo-tool-btn"
+				aria-haspopup="dialog"
+				aria-expanded={openMenu === 'frames'}
+				title="Frame list — jump to a frame"
+				aria-label="Frame list"
+				onClick={() => toggleMenu('frames')}
+			>
+				<IcFrameList size={size} />
+			</button>
+			<FramesPopover
+				open={openMenu === 'frames'}
+				onClose={closeMenu}
+				anchorRef={framesTriggerRef}
+				frames={frames}
+				onZoomToFrame={onZoomToFrame}
+				onCopyFrameLink={onCopyFrameLink}
+				onRenameFrame={onRenameFrame}
+				onDrawFrame={() => pickTool('frame')}
+			/>
+		</div>
+	)
+
 	// --- Mobile toolbar ---
 	if (isMobile) {
 		const drawTool = lastPerCategory.draw
@@ -446,6 +485,8 @@ export function Toolbar({
 						aria-label="Tools"
 					/>
 				</ToolGroupButton>
+
+				{framesGroup(22)}
 
 				<div className="ideallo-toolbar-divider" />
 
@@ -572,6 +613,15 @@ export function Toolbar({
 			</ToolGroupButton>
 
 			<ToolButton
+				tool="frame"
+				activeTool={activeTool}
+				size={24}
+				toolLocked={toolLocked}
+				onToolChange={onToolChange}
+				onToolLockChange={onToolLockChange}
+			/>
+
+			<ToolButton
 				tool="connector"
 				activeTool={activeTool}
 				size={24}
@@ -662,6 +712,10 @@ export function Toolbar({
 					</ToolGroupButton>
 				</>
 			)}
+
+			<div className="ideallo-toolbar-divider" />
+
+			{framesGroup(24)}
 
 			{/* Export lives in the DocBar: a document-wide action, and one a
 			    read-only viewer needs even though this toolbar is unmounted then. */}

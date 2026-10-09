@@ -76,10 +76,14 @@ interface DragState {
 /**
  * Find the topmost object at a given point
  */
-function findObjectAtPoint(objects: IdealloObject[], point: Point): IdealloObject | null {
+function findObjectAtPoint(
+	objects: IdealloObject[],
+	point: Point,
+	scale: number
+): IdealloObject | null {
 	// Hit test in reverse order (top objects first)
 	for (let i = objects.length - 1; i >= 0; i--) {
-		if (hitTestObject(objects[i], point, HIT_TOLERANCE)) {
+		if (hitTestObject(objects[i], point, HIT_TOLERANCE, scale)) {
 			return objects[i]
 		}
 	}
@@ -204,7 +208,7 @@ export function useSelectHandler(options: UseSelectHandlerOptions) {
 			if (!enabled) return
 
 			const point: Point = [x, y]
-			const hitObject = findObjectAtPoint(resolveAll(), point)
+			const hitObject = findObjectAtPoint(resolveAll(), point, scaleRef.current)
 
 			if (hitObject) {
 				// Select the object
@@ -321,7 +325,7 @@ export function useSelectHandler(options: UseSelectHandlerOptions) {
 			} else {
 				// Not dragging - update hover state
 				const point: Point = [x, y]
-				const hitObj = findObjectAtPoint(resolveAll(), point)
+				const hitObj = findObjectAtPoint(resolveAll(), point, scaleRef.current)
 				setHoveredId(hitObj?.id ?? null)
 			}
 		},
@@ -376,9 +380,12 @@ export function useSelectHandler(options: UseSelectHandlerOptions) {
 	// - The handlers use dragStateRef (ref) to avoid recreating on every dragState change
 	// - Including dragState here would cause the return object to change on every mouse move
 	//   during drag, triggering cascading re-renders (Maximum update depth exceeded)
+	// - isPressed flips only twice per gesture (press, release), so it is safe as a dep
+	const isPressed = dragState !== null
 	return React.useMemo(
 		() => ({
 			isDragging: dragOffset !== null,
+			isPressed,
 			dragOffset,
 			hoveredId,
 			stackedHighlightIds,
@@ -389,6 +396,7 @@ export function useSelectHandler(options: UseSelectHandlerOptions) {
 		}),
 		[
 			dragOffset,
+			isPressed,
 			hoveredId,
 			stackedHighlightIds,
 			handlePointerDown,

@@ -179,7 +179,7 @@ describe('updateDocumentAspect', () => {
 		expect((getObject(doc, ID) as DocumentObject).aspectFixed).toBe(true)
 	})
 
-	it('is a no-op when nothing changed - the embed pushes viewstate on every scroll', () => {
+	it('is a no-op when nothing changed - the embed reports on every scroll', () => {
 		const { yDoc, doc } = makeDoc()
 		updateDocumentAspect(yDoc, doc, ID, [16, 9], true)
 
@@ -189,15 +189,13 @@ describe('updateDocumentAspect', () => {
 		expect(updates()).toBe(0)
 	})
 
-	/** A push that omits the ratio keeps the stored one, so it is not a change either. */
-	it('is a no-op when a later push omits the ratio', () => {
+	// A reflow size depends on each writer's viewport: storing it would ping-pong the CRDT
+	it('does not store a reflow size', () => {
 		const { yDoc, doc } = makeDoc()
-		updateDocumentAspect(yDoc, doc, ID, [16, 9], true)
-
 		const updates = countUpdates(yDoc)
-		updateDocumentAspect(yDoc, doc, ID, undefined, true)
+		updateDocumentAspect(yDoc, doc, ID, [800, 1200], false)
+
 		expect(updates()).toBe(0)
-		expect((doc.o.get(ID) as StoredDocument).ar).toEqual([16, 9])
 	})
 
 	it('clears the flag when the app stops reporting a fixed aspect', () => {

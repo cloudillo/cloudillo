@@ -8,6 +8,7 @@ import {
 	DESKTOP_BOTTOM_RESERVED,
 	MOBILE_BOTTOM_RESERVED,
 	SELECTION_GAP,
+	SMALL_SELECTION_GAP,
 	VIEWPORT_PADDING
 } from '../utils/property-bar-position.js'
 
@@ -96,9 +97,21 @@ describe('computeBarPosition - vertical placement', () => {
 	})
 
 	it('flips below when there is no room above', () => {
-		const sel = bounds({ y: 10, height: 40 })
+		const sel = bounds({ y: 10, height: 80 })
 		const { top } = computeBarPosition(input({ screenBounds: sel, rotation: 135 }))
 		expect(top).toBe(sel.y + sel.height + SELECTION_GAP)
+	})
+
+	it('leaves a wider gap below a small selection', () => {
+		const sel = bounds({ y: 300, height: 32 })
+		const { top } = computeBarPosition(input({ screenBounds: sel }))
+		expect(top).toBe(sel.y + sel.height + SMALL_SELECTION_GAP)
+	})
+
+	it('keeps the wider gap when a small selection flips above', () => {
+		const sel = bounds({ y: 700, height: 32 })
+		const { top } = computeBarPosition(input({ screenBounds: sel }))
+		expect(top).toBe(sel.y - SMALL_SELECTION_GAP - 48)
 	})
 
 	it('respects the measured height rather than a 48px assumption', () => {

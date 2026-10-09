@@ -37,7 +37,7 @@ export function ShapePreview({ preview, connectorContext }: ShapePreviewProps) {
 		opacity: 0.7
 	}
 
-	if (type === 'rect') {
+	if (type === 'rect' || type === 'frame') {
 		return <rect x={minX} y={minY} width={width} height={height} {...commonProps} />
 	}
 

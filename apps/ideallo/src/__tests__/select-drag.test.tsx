@@ -133,6 +133,23 @@ describe('useSelectHandler drag', () => {
 		expect(position()).toEqual([0, 0])
 	})
 
+	/** The property bar hides on isPressed, so it must cover the whole press and only movable objects */
+	it('reports isPressed from press to release on a movable object only', () => {
+		const { view, down, move, up } = setup()
+
+		down(50, 50)
+		expect(view.result.current.handler.isPressed).toBe(true)
+		move(70, 50)
+		expect(view.result.current.handler.isPressed).toBe(true)
+		up()
+		expect(view.result.current.handler.isPressed).toBe(false)
+
+		const locked = setup({ locked: true })
+		locked.down(50, 50)
+		expect(locked.view.result.current.handler.isPressed).toBe(false)
+		locked.up()
+	})
+
 	/**
 	 * The threshold is in SCREEN pixels, so the same world delta is a drag when zoomed in and a
 	 * click when zoomed out - the slop follows the hand, not the document.

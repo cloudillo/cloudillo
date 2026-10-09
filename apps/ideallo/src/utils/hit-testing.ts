@@ -14,6 +14,7 @@
  */
 
 import type { Bounds, IdealloObject } from '../crdt/index.js'
+import type { FrameObject } from '../crdt/runtime-types.js'
 // Cyclic with bounds.ts, which imports calculatePathBounds from here. Both sides only call across
 // the cycle at runtime, never during module initialisation, so it resolves cleanly - and one
 // shared getObjectBounds is worth it.
@@ -508,6 +509,37 @@ export function distanceToPolygonEdge(
 }
 
 // ============================================================================
+// Frames
+// ============================================================================
+
+/** Frame title size and its gap above the frame's top edge, in SCREEN pixels */
+export const FRAME_TITLE_FONT_PX = 12
+export const FRAME_TITLE_GAP_PX = 6
+
+/** `fallback` is the translated default at render sites; hit testing only needs its length */
+export function frameTitle(frame: FrameObject, fallback = 'Frame'): string {
+	return frame.name || fallback
+}
+
+function frameBounds(frame: FrameObject): Bounds {
+	return { x: frame.x, y: frame.y, width: frame.width, height: frame.height }
+}
+
+/**
+ * The title's hit box in canvas units, above the frame's top-left corner.
+ * Width is estimated from character count, not measured; measure if titles misclick.
+ */
+export function frameTitleBounds(frame: FrameObject, scale: number): Bounds {
+	const height = (FRAME_TITLE_FONT_PX + FRAME_TITLE_GAP_PX) / scale
+	return {
+		x: frame.x,
+		y: frame.y - height,
+		width: (frameTitle(frame).length * FRAME_TITLE_FONT_PX * 0.6) / scale,
+		height
+	}
+}
+
+// ============================================================================
 // Unified Hit Testing
 // ============================================================================
 
@@ -543,9 +575,17 @@ function isFilled(obj: IdealloObject): boolean {
  * @param obj - The object to test against
  * @param point - The point to test (in canvas coordinates)
  * @param tolerance - Hit tolerance in canvas units (default 8)
+ * @param scale - Canvas zoom; sizes a frame's screen-constant title
+ * @param frameBody - false: a filled frame's interior misses too (the eraser)
  * @returns true if the point hits the object
  */
-export function hitTestObject(obj: IdealloObject, point: Point, tolerance: number = 8): boolean {
+export function hitTestObject(
+	obj: IdealloObject,
+	point: Point,
+	tolerance: number = 8,
+	scale: number = 1,
+	frameBody: boolean = true
+): boolean {
 	// Transform point to object's local coordinate system if rotated
 	let testPoint = point
 	if (obj.rotation && Math.abs(obj.rotation) > 0.1) {
@@ -582,6 +622,22 @@ export function hitTestObject(obj: IdealloObject, point: Point, tolerance: numbe
 		// Check distance to path stroke
 		const dist = distanceToFreehandPath(relPoint, obj.pathData, tolerance)
 		return dist <= tolerance
+	}
+
+	// A filled frame is grabbable by its body; objects on it still win, since frames sit at the
+	// back of the z-order. An unfilled one is only its edge band and title, so a click inside
+	// falls through to whatever lies behind.
+	if (obj.type === 'frame') {
+		if (pointInBounds(testPoint, frameTitleBounds(obj, scale))) return true
+		if (frameBody && isFilled(obj)) {
+			return pointInBounds(testPoint, expandBounds(frameBounds(obj), tolerance))
+		}
+		const outer = expandBounds(frameBounds(obj), tolerance)
+		const inner = expandBounds(frameBounds(obj), -tolerance)
+		return (
+			pointInBounds(testPoint, outer) &&
+			(inner.width <= 0 || inner.height <= 0 || !pointInBounds(testPoint, inner))
+		)
 	}
 
 	const bounds = getObjectBounds(obj)

@@ -64,7 +64,9 @@ export interface CanvasSceneProps
 		| 'sourceFileId'
 		| 'activeDocumentId'
 		| 'onDocumentActivate'
-		| 'onDocumentViewStateChange'
+		| 'onDocumentReport'
+		| 'onDocumentUseView'
+		| 'onDocumentEditable'
 		| 'activeStroke'
 		| 'shapePreview'
 		| 'connectorTarget'
@@ -118,7 +120,9 @@ export const CanvasScene = React.memo(function CanvasScene({
 	sourceFileId,
 	activeDocumentId,
 	onDocumentActivate,
-	onDocumentViewStateChange,
+	onDocumentReport,
+	onDocumentUseView,
+	onDocumentEditable,
 	activeStroke,
 	shapePreview,
 	connectorTarget,
@@ -163,10 +167,11 @@ export const CanvasScene = React.memo(function CanvasScene({
 						token={token}
 						scale={scale}
 						sourceFileId={sourceFileId}
-						activeDocument={
-							obj.type === 'document' && (readOnly || activeDocumentId === obj.id)
-						}
-						onDocumentViewStateChange={onDocumentViewStateChange}
+						activeDocument={obj.type === 'document' && activeDocumentId === obj.id}
+						onDocumentActivate={onDocumentActivate}
+						onDocumentReport={onDocumentReport}
+						onDocumentUseView={onDocumentUseView}
+						onDocumentEditable={onDocumentEditable}
 						isEditing={isEditing}
 						onSave={isEditing ? onEditSave : undefined}
 						caretPoint={isEditing ? editing?.caretPoint : undefined}
@@ -195,6 +200,7 @@ export const CanvasScene = React.memo(function CanvasScene({
 						isHighlighted={eraserHighlightedIds?.has(obj.id) ?? false}
 						isEraserHovered={activeTool === 'eraser' && hoveredId === obj.id}
 						isStacked={stackedHighlightIds?.has(obj.id) ?? false}
+						isSelected={obj.type === 'document' && selectedIds.has(obj.id)}
 						isHovered={
 							activeTool === 'select' &&
 							!dragOffset &&

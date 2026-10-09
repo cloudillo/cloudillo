@@ -621,7 +621,7 @@ export function isClosedPath(points: Point[], threshold: number = 20): boolean {
  * The aspect ratio `useResizable` must lock a single selection to, or undefined for a free resize.
  *
  * An image is intrinsically aspect-locked. An embedded document is locked only when the embedded app
- * reports that its aspect is FIXED (`aspectFixed`, pushed over the bus as `embed:viewstate.push`).
+ * reports that its aspect is FIXED (`aspectFixed`, reported over the bus as `embed:view.report`).
  *
  * Every denominator is checked: these records are peer-writable, and NaN/Infinity must never reach
  * the resize hook.

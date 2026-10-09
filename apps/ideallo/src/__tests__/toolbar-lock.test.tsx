@@ -55,7 +55,11 @@ function baseProps(): ToolbarProps {
 		onBringToFront: () => {},
 		onBringForward: () => {},
 		onSendBackward: () => {},
-		onSendToBack: () => {}
+		onSendToBack: () => {},
+		frames: [],
+		onZoomToFrame: () => {},
+		onCopyFrameLink: () => {},
+		onRenameFrame: () => {}
 	}
 }
 

@@ -18,12 +18,14 @@
 import { ActionSheet, ActionSheetDivider, ActionSheetItem, useIsMobile } from '@cloudillo/react'
 import type Quill from 'quill'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import {
 	PiTextBBold as IcBold,
 	PiBezierCurveBold as IcCurved,
 	PiCopyBold as IcDuplicate,
 	PiFlowArrowBold as IcElbow,
 	PiTextItalicBold as IcItalic,
+	PiLinkBold as IcLink,
 	PiListBulletsBold as IcListBullets,
 	PiListNumbersBold as IcListNumbers,
 	PiLockBold as IcLocked,
@@ -66,6 +68,7 @@ import {
 	updateObject,
 	updateObjectFields
 } from '../crdt/index.js'
+import type { FrameObject } from '../crdt/runtime-types.js'
 import type { CurrentStyle } from '../hooks/useIdealloDocument.js'
 import { usePropertyBarPosition } from '../hooks/usePropertyBarPosition.js'
 import { defaultObjectFontSize } from '../utils/object-text.js'
@@ -123,6 +126,8 @@ export interface PropertyBarProps {
 	onClearSelection?: () => void
 	/** Duplicates become the selection, so the copy is what the next drag moves */
 	onSelectObjects?: (ids: ObjectId[]) => void
+	/** Copies a `frame:<id>` embed link - offered when exactly one frame is selected */
+	onCopyFrameLink?: (frame: FrameObject) => void
 }
 
 type PopoverType = 'stroke' | 'fill' | 'text' | 'align' | 'arrows' | 'overflow' | null
@@ -189,6 +194,7 @@ const TYPE_CAPS: Record<ObjectType, Caps> = {
 	ellipse: { ...SHAPE_CAPS, text: true, vAlign: true },
 	polygon: { ...SHAPE_CAPS, text: true, vAlign: true },
 	connector: { ...SHAPE_CAPS, fill: false, route: true, ends: true },
+	frame: SHAPE_CAPS,
 	text: { ...NO_CAPS, stroke: true, text: true },
 	sticky: { ...NO_CAPS, fill: true, text: true, vAlign: true },
 	image: { ...NO_CAPS, stroke: true, width: true, radius: true },
@@ -196,6 +202,14 @@ const TYPE_CAPS: Record<ObjectType, Caps> = {
 }
 
 /** Opacity is on every type, so it is not in Caps - it simply always lives in the overflow menu. */
+
+/** Frame presets: height = width × ratio */
+const FRAME_PRESETS = [
+	{ label: '16:9', title: 'Widescreen 16:9', ratio: 9 / 16 },
+	{ label: '4:3', title: 'Standard 4:3', ratio: 3 / 4 },
+	{ label: 'A4', title: 'A4 portrait', ratio: Math.SQRT2 },
+	{ label: '1:1', title: 'Square', ratio: 1 }
+]
 
 /**
  * The value every item agrees on, or null when they disagree.
@@ -220,8 +234,10 @@ export function PropertyBar({
 	isTextEditing = false,
 	resolvedObjects,
 	onClearSelection,
-	onSelectObjects
+	onSelectObjects,
+	onCopyFrameLink
 }: PropertyBarProps) {
+	const { t } = useTranslation()
 	const isMobile = useIsMobile()
 
 	// Popover state
@@ -744,6 +760,20 @@ export function PropertyBar({
 		[yDoc, doc, selectedIds]
 	)
 
+	/** Frame size presets keep each frame's width and set its height from the ratio */
+	const allFrames = selectedObjects.length > 0 && selectedObjects.every((o) => o.type === 'frame')
+	const handleFramePreset = React.useCallback(
+		(ratio: number) => {
+			yDoc.transact(() => {
+				for (const obj of selectedObjects) {
+					if (obj.type !== 'frame') continue
+					updateObjectFields(yDoc, doc, obj.id, { height: obj.width * ratio })
+				}
+			}, yDoc.clientID)
+		},
+		[yDoc, doc, selectedObjects]
+	)
+
 	// Don't render if nothing selected
 	if (selectedIds.size === 0 || !position) return null
 
@@ -1052,6 +1082,39 @@ export function PropertyBar({
 	 * The overflow. Always present, and the same set on every type: opacity, then lock, duplicate
 	 * and delete. Desktop opens an in-bar menu, mobile the ActionSheet the toolbar already uses.
 	 */
+	if (allFrames) {
+		groups.push({
+			key: 'frame-presets',
+			node: (
+				<div className="ideallo-property-group">
+					{FRAME_PRESETS.map((p) => (
+						<button
+							key={p.label}
+							type="button"
+							className="ideallo-format-btn"
+							title={p.title}
+							onClick={() => handleFramePreset(p.ratio)}
+						>
+							{p.label}
+						</button>
+					))}
+					{onCopyFrameLink && selectedObjects.length === 1 && (
+						<button
+							type="button"
+							className="ideallo-format-btn"
+							title={t('Copy embed link')}
+							aria-label={t('Copy embed link')}
+							// Synchronous inside the click: the clipboard write needs user activation
+							onClick={() => onCopyFrameLink(selectedObjects[0] as FrameObject)}
+						>
+							<IcLink size={16} />
+						</button>
+					)}
+				</div>
+			)
+		})
+	}
+
 	groups.push({
 		key: 'overflow',
 		node: (

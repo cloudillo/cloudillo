@@ -7,6 +7,7 @@
  */
 
 import { type ZOrderOp, zOrderTarget } from '@cloudillo/canvas-tools'
+import { LAYOUT_ORIGIN, naturalSizeChanged } from '@cloudillo/react'
 import * as Y from 'yjs'
 
 import {
@@ -30,6 +31,7 @@ import type {
 	ConnectorObject,
 	DocumentObject,
 	EllipseObject,
+	FrameObject,
 	FreehandObject,
 	IdealloObject,
 	ImageObject,
@@ -86,6 +88,7 @@ export type ObjectUpdateFields = Partial<{
 	// along with the rest of the style through updateObject.
 	cornerRadius: number
 	locked: boolean
+	editable: boolean
 	style: Partial<IdealloObject['style']>
 }>
 
@@ -96,7 +99,7 @@ export type ObjectUpdateFields = Partial<{
  * a consequence of typing, and making it a second undo step means one Ctrl+Z that only shrinks a
  * box the user never sized by hand.
  */
-export const LAYOUT_ORIGIN = 'layout'
+export { LAYOUT_ORIGIN }
 
 /**
  * Update an object with fields that may come from any variant.
@@ -246,6 +249,11 @@ export type NewImageInput = Omit<ImageObject, 'id'> & { id?: ObjectId }
 export type NewDocumentInput = Omit<DocumentObject, 'id'> & { id?: ObjectId }
 
 /**
+ * Input type for creating new frames. Without a `name` one is assigned ("Frame N").
+ */
+export type NewFrameInput = Omit<FrameObject, 'id'> & { id?: ObjectId }
+
+/**
  * Input type for creating new objects
  * Text/geometry fields use expanded names, tid/gid are generated internally
  */
@@ -256,6 +264,7 @@ export type NewObjectInput =
 	| NewStickyInput
 	| NewImageInput
 	| NewDocumentInput
+	| NewFrameInput
 	| NewRectInput
 	| NewEllipseInput
 	| (Omit<ConnectorObject, 'id'> & { id?: ObjectId })
@@ -315,6 +324,15 @@ export function addObject(yDoc: Y.Doc, doc: YIdealloDocument, input: NewObjectIn
 				objectWithId = { ...sticky, id: objectId } as StickyObject
 				break
 			}
+			case 'frame': {
+				const frame = input as NewFrameInput
+				objectWithId = {
+					...frame,
+					id: objectId,
+					name: frame.name ?? `Frame ${countFrames(doc) + 1}`
+				} as FrameObject
+				break
+			}
 			default: {
 				objectWithId = { ...input, id: objectId } as IdealloObject
 			}
@@ -322,10 +340,36 @@ export function addObject(yDoc: Y.Doc, doc: YIdealloDocument, input: NewObjectIn
 
 		const stored = compactObject(objectWithId)
 		doc.o.set(objectId, stored)
-		doc.r.push([objectId])
+		// A frame is drawn behind its contents, so it goes to the back of the z-order
+		if (stored.t === 'M') {
+			doc.r.insert(0, [objectId])
+		} else {
+			doc.r.push([objectId])
+		}
 	}, yDoc.clientID)
 
 	return objectId
+}
+
+function countFrames(doc: YIdealloDocument): number {
+	let n = 0
+	for (const stored of doc.o.values()) {
+		if (stored.t === 'M') n++
+	}
+	return n
+}
+
+/**
+ * Rename a frame. No-op if the id is missing or not a frame.
+ */
+export function renameFrame(
+	yDoc: Y.Doc,
+	doc: YIdealloDocument,
+	objectId: ObjectId,
+	name: string
+): void {
+	if (doc.o.get(objectId)?.t !== 'M') return
+	updateObject(yDoc, doc, objectId, { name } as Partial<FrameObject>)
 }
 
 /**
@@ -934,66 +978,58 @@ export function sendBackward(yDoc: Y.Doc, doc: YIdealloDocument, objectId: Objec
 }
 
 /**
- * Update the navigation state (and optional aspect ratio) of a document embed object.
- * Only writes to CRDT if the stored value actually differs.
+ * Persist the navigation state of a document embed object ("Use current view").
+ * A user action, so written under the local client origin and undoable.
  */
 export function updateDocumentNavState(
 	yDoc: Y.Doc,
 	doc: YIdealloDocument,
 	objectId: ObjectId,
-	navState: string,
-	aspectRatio?: [number, number]
+	navState: string
 ): void {
 	const existing = doc.o.get(objectId)
 	if (existing?.t !== 'D') return
 
 	const stored = existing as StoredDocument
-	// Skip if nothing changed
-	if (
-		stored.ns === navState &&
-		stored.ar?.[0] === aspectRatio?.[0] &&
-		stored.ar?.[1] === aspectRatio?.[1]
-	) {
-		return
-	}
+	if (stored.ns === navState) return
 
 	yDoc.transact(() => {
-		const updated: StoredDocument = { ...stored, ns: navState }
-		if (aspectRatio) {
-			updated.ar = aspectRatio
-		}
-		doc.o.set(objectId, updated)
+		doc.o.set(objectId, { ...stored, ns: navState })
 	}, yDoc.clientID)
 }
 
 /**
- * Update the aspect metadata (ratio + fixed flag) of a document embed object.
+ * Update the reported natural size (`ar`, used as aspect ratio and `lastNatural`) and the
+ * fixed-aspect flag of a document embed object. A reflow report only clears the flag: its size
+ * depends on each writer's viewport, so storing it would churn the CRDT.
  *
- * Separate from updateDocumentNavState because navState is flushed lazily (on deactivate, so
- * scrolling inside an embed does not spam the CRDT) while the aspect arrives once at load and the
- * resize gizmo needs it immediately. Written under LAYOUT_ORIGIN: an embed reporting its own aspect
- * follows from loading, not from a user edit, so it must not become a stray undo step.
+ * Written under LAYOUT_ORIGIN: an embed reporting its own size follows from loading, not from a
+ * user edit, so it must not become a stray undo step. Small changes are ignored
+ * (`naturalSizeChanged`).
  */
 export function updateDocumentAspect(
 	yDoc: Y.Doc,
 	doc: YIdealloDocument,
 	objectId: ObjectId,
-	aspectRatio?: [number, number],
-	aspectFixed?: boolean
+	natural: [number, number],
+	aspectFixed: boolean
 ): void {
 	const existing = doc.o.get(objectId)
 	if (existing?.t !== 'D') return
 
 	const stored = existing as StoredDocument
-	// The embed pushes viewstate on every scroll - this guard keeps the write to once per load.
-	// Compare against what the write below would actually produce: an absent aspectRatio KEEPS the
-	// stored one, so a push that omits it must not count as a change.
-	const nextAr = aspectRatio ?? stored.ar
-	if (
-		stored.ar?.[0] === nextAr?.[0] &&
-		stored.ar?.[1] === nextAr?.[1] &&
-		!!stored.af === !!aspectFixed
-	) {
+	if (aspectFixed) {
+		if (
+			stored.af &&
+			stored.ar &&
+			!naturalSizeChanged(
+				{ w: stored.ar[0], h: stored.ar[1] },
+				{ w: natural[0], h: natural[1] }
+			)
+		) {
+			return
+		}
+	} else if (!stored.af) {
 		return
 	}
 
@@ -1003,10 +1039,8 @@ export function updateDocumentAspect(
 		if (current?.t !== 'D') return
 
 		const updated: StoredDocument = { ...(current as StoredDocument) }
-		if (aspectRatio) {
-			updated.ar = aspectRatio
-		}
 		if (aspectFixed) {
+			updated.ar = natural
 			updated.af = true
 		} else {
 			delete updated.af

@@ -12,6 +12,7 @@ import {
 	RotationHandle,
 	type RotationHandleProps
 } from '@cloudillo/canvas-tools'
+import type { EmbedViewReportPayload } from '@cloudillo/core'
 import type Quill from 'quill'
 import * as React from 'react'
 import type { RotationState } from 'react-svg-canvas'
@@ -391,14 +392,14 @@ export interface CanvasProps {
 	sourceFileId?: string
 	// Document embed activation
 	activeDocumentId?: ObjectId | null
-	onDocumentActivate?: (id: ObjectId) => void
-	// Callback when an embedded document reports view state changes
-	onDocumentViewStateChange?: (
-		objectId: string,
-		viewState: string,
-		aspectRatio?: [number, number],
-		aspectFixed?: boolean
-	) => void
+	/** null deactivates */
+	onDocumentActivate?: (id: ObjectId | null) => void
+	// Embedded document reported its view (natural size, kind)
+	onDocumentReport?: (objectId: string, report: EmbedViewReportPayload) => void
+	// "Use current view" on an embedded document; set only when the board is editable
+	onDocumentUseView?: (objectId: string, nav: string) => void
+	// "Allow editing" on an embedded document; set only when the board is editable
+	onDocumentEditable?: (objectId: string, fileId: string, editable: boolean) => unknown
 	// Read-only mode: all document embeds are always interactive
 	readOnly?: boolean
 }
@@ -480,7 +481,9 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 		// Document embed activation
 		activeDocumentId,
 		onDocumentActivate,
-		onDocumentViewStateChange,
+		onDocumentReport,
+		onDocumentUseView,
+		onDocumentEditable,
 		readOnly
 	},
 	ref
@@ -991,7 +994,9 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 					sourceFileId={sourceFileId}
 					activeDocumentId={activeDocumentId}
 					onDocumentActivate={onDocumentActivate}
-					onDocumentViewStateChange={onDocumentViewStateChange}
+					onDocumentReport={onDocumentReport}
+					onDocumentUseView={onDocumentUseView}
+					onDocumentEditable={onDocumentEditable}
 					activeStroke={activeStroke}
 					shapePreview={shapePreview}
 					connectorTarget={connectorTarget}

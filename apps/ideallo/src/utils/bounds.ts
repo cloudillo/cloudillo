@@ -29,6 +29,7 @@ export function getObjectBounds(obj: IdealloObject): Bounds {
 			return { x: obj.x, y: obj.y, width: obj.width, height: obj.height }
 		}
 		case 'rect':
+		case 'frame':
 		case 'ellipse':
 		case 'text':
 		case 'sticky':

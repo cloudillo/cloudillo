@@ -7,15 +7,23 @@
  */
 
 import type { CaretPoint } from '@cloudillo/canvas-text'
-import { SvgDocumentEmbed } from '@cloudillo/react'
+import type { EmbedViewReportPayload } from '@cloudillo/core'
+import { SvgViewEmbed } from '@cloudillo/react'
 import type Quill from 'quill'
 import * as React from 'react'
 
-import type { IdealloObject, TextBearingObject, YIdealloDocument } from '../crdt/index.js'
+import type {
+	DocumentObject,
+	IdealloObject,
+	ObjectId,
+	TextBearingObject,
+	YIdealloDocument
+} from '../crdt/index.js'
 import { getObjectYText, toObjectId } from '../crdt/index.js'
 import { getRotationCenter } from '../utils/bounds.js'
 import { isPaintSet } from '../utils/paint.js'
 import { colorToCss } from '../utils/palette.js'
+import { FrameRenderer } from './FrameRenderer.js'
 import { FreehandPath } from './FreehandPath.js'
 import { ImageRenderer } from './ImageRenderer.js'
 import { ObjectTextDisplay } from './ObjectTextDisplay.js'
@@ -68,13 +76,16 @@ export interface ObjectRendererProps {
 	isEraserHovered?: boolean
 	// Stacked move highlight (object will move together with dragged object)
 	isStacked?: boolean
-	// Callback when an embedded document reports view state changes
-	onDocumentViewStateChange?: (
-		objectId: string,
-		viewState: string,
-		aspectRatio?: [number, number],
-		aspectFixed?: boolean
-	) => void
+	// Object is selected; a document embed shows its bar
+	isSelected?: boolean
+	// Chrome Interact / Done on an embedded document; null deactivates
+	onDocumentActivate?: (id: ObjectId | null) => void
+	// Embedded document reported its view (natural size, kind)
+	onDocumentReport?: (objectId: string, report: EmbedViewReportPayload) => void
+	// "Use current view" on an embedded document; set only when the board is editable
+	onDocumentUseView?: (objectId: string, nav: string) => void
+	// "Allow editing" on an embedded document; set only when the board is editable
+	onDocumentEditable?: (objectId: string, fileId: string, editable: boolean) => unknown
 }
 
 type RenderProps = Pick<
@@ -94,7 +105,11 @@ type RenderProps = Pick<
 	| 'activeDocument'
 	| 'isHovered'
 	| 'isEraserHovered'
-	| 'onDocumentViewStateChange'
+	| 'isSelected'
+	| 'onDocumentActivate'
+	| 'onDocumentReport'
+	| 'onDocumentUseView'
+	| 'onDocumentEditable'
 >
 
 /** A shape's optional label, in display or edit form */
@@ -138,6 +153,8 @@ function renderObject(object: IdealloObject, props: RenderProps): React.ReactNod
 			)
 		case 'connector':
 			return <ConnectorRenderer object={object} />
+		case 'frame':
+			return <FrameRenderer object={object} scale={props.scale} />
 		case 'polygon':
 			return (
 				<>
@@ -195,7 +212,7 @@ function renderObject(object: IdealloObject, props: RenderProps): React.ReactNod
 		case 'document':
 			return (
 				<>
-					<SvgDocumentEmbed
+					<SvgViewEmbed
 						x={object.x}
 						y={object.y}
 						width={object.width}
@@ -204,23 +221,26 @@ function renderObject(object: IdealloObject, props: RenderProps): React.ReactNod
 						contentType={object.contentType}
 						sourceFileId={props.sourceFileId || ''}
 						appId={object.appId}
-						access="read"
-						navState={object.navState}
-						active={props.activeDocument}
-						onViewStateChange={
-							props.onDocumentViewStateChange
-								? (viewState, aspectRatio, aspectFixed) =>
-										props.onDocumentViewStateChange!(
-											object.id,
-											viewState,
-											aspectRatio,
-											aspectFixed
-										)
+						owner={props.ownerTag}
+						access={object.editable && props.onDocumentEditable ? 'write' : 'read'}
+						nav={object.navState}
+						settings={{
+							sizing: 'box',
+							lastNatural: object.aspectRatio
+						}}
+						canInteract={!!props.activeDocument}
+						active={!!props.activeDocument}
+						canEdit={!!props.onDocumentUseView}
+						selected={props.isSelected}
+						onReport={
+							props.onDocumentReport
+								? (report) => props.onDocumentReport!(object.id, report)
 								: undefined
 						}
+						actions={documentActions(object, props)}
 					/>
 					{/*
-					 * The border is drawn HERE rather than passed to SvgDocumentEmbed: that
+					 * The border is drawn HERE rather than passed to SvgViewEmbed: that
 					 * component is shared across apps, and it renders a <foreignObject> with an
 					 * iframe, which an SVG clipPath cannot reliably clip across browsers. So the
 					 * embedded content's own corners are NOT clipped - the rounded border simply
@@ -247,6 +267,23 @@ function renderObject(object: IdealloObject, props: RenderProps): React.ReactNod
 	}
 }
 
+function documentActions(object: DocumentObject, props: RenderProps) {
+	return {
+		...(props.onDocumentActivate && {
+			onActivate: () => props.onDocumentActivate!(object.id),
+			onDeactivate: () => props.onDocumentActivate!(null)
+		}),
+		...(props.onDocumentUseView && {
+			onUseCurrentView: (nav: string) => props.onDocumentUseView!(object.id, nav)
+		}),
+		...(props.onDocumentEditable && {
+			editable: !!object.editable,
+			onEditableChange: (editable: boolean) =>
+				props.onDocumentEditable!(object.id, object.fileId, editable)
+		})
+	}
+}
+
 export function ObjectRenderer({
 	object,
 	doc,
@@ -267,7 +304,11 @@ export function ObjectRenderer({
 	isHovered = false,
 	isEraserHovered = false,
 	isStacked = false,
-	onDocumentViewStateChange
+	isSelected,
+	onDocumentActivate,
+	onDocumentReport,
+	onDocumentUseView,
+	onDocumentEditable
 }: ObjectRendererProps) {
 	const content = renderObject(object, {
 		doc,
@@ -285,7 +326,11 @@ export function ObjectRenderer({
 		onHeightChange,
 		isHovered,
 		isEraserHovered,
-		onDocumentViewStateChange
+		isSelected,
+		onDocumentActivate,
+		onDocumentReport,
+		onDocumentUseView,
+		onDocumentEditable
 	})
 	if (!content) return null
 

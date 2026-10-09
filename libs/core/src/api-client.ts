@@ -769,11 +769,16 @@ export class ApiClient {
 
 		/** GET /files/:fileId/descriptor - Get file descriptor and variants */
 		getDescriptor: (fileId: string) =>
-			this.request('GET', `/files/${fileId}/descriptor`, Types.tFileDescriptor),
+			this.request(
+				'GET',
+				`/files/${encodeURIComponent(fileId)}/descriptor`,
+				Types.tFileDescriptor
+			),
 
 		/** GET /files/:id/metadata — the serving node's own answer about a file. Takes either id;
 		 *  a content id answers with the granting entry, so pass the row's `entryId` when held. */
-		getMetadata: (id: string) => this.request('GET', `/files/${id}/metadata`, Types.tFileView),
+		getMetadata: (id: string) =>
+			this.request('GET', `/files/${encodeURIComponent(id)}/metadata`, Types.tFileView),
 
 		/** GET /files/:fileId - Get file (best variant selected) */
 		get: (fileId: string, selector?: Types.GetFileVariantSelector) => {
@@ -882,21 +887,39 @@ export class ApiClient {
 
 		/** GET /files/:entryId/shares - List share entries for a file */
 		listShares: (entryId: string) =>
-			this.request('GET', `/files/${entryId}/shares`, Types.tListShareEntriesResult),
+			this.request(
+				'GET',
+				`/files/${encodeURIComponent(entryId)}/shares`,
+				Types.tListShareEntriesResult
+			),
 
 		/** POST /files/:entryId/shares - Create share entry */
 		createShare: (entryId: string, data: Types.CreateShareEntryRequest) =>
-			this.request('POST', `/files/${entryId}/shares`, Types.tShareEntry, { data }),
+			this.request(
+				'POST',
+				`/files/${encodeURIComponent(entryId)}/shares`,
+				Types.tShareEntry,
+				{ data }
+			),
 
 		/** PATCH /files/:entryId/shares/:shareId - Update share entry */
 		updateShare: (entryId: string, shareId: number, data: Types.UpdateShareEntryRequest) =>
-			this.request('PATCH', `/files/${entryId}/shares/${shareId}`, Types.tShareEntry, {
-				data
-			}),
+			this.request(
+				'PATCH',
+				`/files/${encodeURIComponent(entryId)}/shares/${shareId}`,
+				Types.tShareEntry,
+				{
+					data
+				}
+			),
 
 		/** DELETE /files/:entryId/shares/:shareId - Delete share entry */
 		deleteShare: (entryId: string, shareId: number) =>
-			this.request('DELETE', `/files/${entryId}/shares/${shareId}`, T.nullValue)
+			this.request(
+				'DELETE',
+				`/files/${encodeURIComponent(entryId)}/shares/${shareId}`,
+				T.nullValue
+			)
 	}
 
 	// ========================================================================

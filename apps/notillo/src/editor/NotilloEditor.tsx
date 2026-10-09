@@ -29,8 +29,13 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import '@blocknote/mantine/style.css'
 
-import { getFileUrl, getImageVariantForDisplaySize, parseSiteFileRef } from '@cloudillo/core'
-import { usePresence } from '@cloudillo/react'
+import {
+	getAppBus,
+	getFileUrl,
+	getImageVariantForDisplaySize,
+	parseSiteFileRef
+} from '@cloudillo/core'
+import { usePresence, useReflowViewReport } from '@cloudillo/react'
 import type { RtdbClient, RtdbPresence } from '@cloudillo/rtdb'
 
 import { useBlockLocks } from '../hooks/useBlockLocks.js'
@@ -161,6 +166,8 @@ interface NotilloEditorProps {
 	knownBlockIds: Set<string>
 	knownBlockOrders: Map<string, number>
 	readOnly: boolean
+	/** Write access to the document (unlike `readOnly`, independent of embed activation) */
+	canWrite?: boolean
 	userId: string
 	ownerTag: string
 	token?: string
@@ -187,7 +194,14 @@ interface NotilloEditorProps {
 	syncFlushRef?: React.RefObject<() => void>
 	tags: Set<string>
 	pageTags?: string[]
+	/** Embedded as a reflow view: report this page's height to the host. */
+	embedded?: boolean
+	embedTitle?: string
+	/** Host text scale (embed only), applied as a font-size factor. */
+	textScale?: number
 }
+
+const NO_ELEMENT: React.RefObject<HTMLElement | null> = { current: null }
 
 export const NotilloEditor = React.memo(
 	function NotilloEditor({
@@ -198,6 +212,7 @@ export const NotilloEditor = React.memo(
 		knownBlockIds,
 		knownBlockOrders,
 		readOnly,
+		canWrite,
 		userId,
 		ownerTag,
 		token,
@@ -211,7 +226,10 @@ export const NotilloEditor = React.memo(
 		onCommentBlock,
 		syncFlushRef,
 		tags,
-		pageTags
+		pageTags,
+		embedded,
+		embedTitle,
+		textScale
 	}: NotilloEditorProps) {
 		const { t } = useTranslation()
 		const containerWidthRef = React.useRef(900)
@@ -246,11 +264,45 @@ export const NotilloEditor = React.memo(
 		const editorHandleRef = React.useRef<NotilloEditorType | null>(null)
 		const wikiLinkTrigger = React.useMemo(() => createWikiLinkTrigger(editorHandleRef), [])
 
+		// The paste handler is fixed at creation; access can change after it (upgrade)
+		const noLinkPasteRef = React.useRef(false)
+		noLinkPasteRef.current = readOnly || !!embedded
+
 		const editor = useCreateBlockNote({
 			schema: notilloSchema,
 			// biome-ignore lint/suspicious/noExplicitAny: BlockNote initialContent type boundary with custom schema
 			initialContent: initialBlocks.length > 0 ? (initialBlocks as any) : undefined,
 			resolveFileUrl,
+			// A pasted `cl:` doc link becomes an embed; the shell creates the share and shows
+			// the permission disclosure. Cancel or failure inserts nothing; the shell toasts the reason.
+			pasteHandler: ({ event, editor, defaultPasteHandler }) => {
+				const p =
+					fileId && !noLinkPasteRef.current
+						? getAppBus().linkFromPaste(event, fileId)
+						: undefined
+				if (!p) return defaultPasteHandler()
+				const anchor = editor.getTextCursorPosition().block
+				p.then((res) => {
+					if (!res) return
+					editor.insertBlocks(
+						[
+							{
+								type: 'documentEmbed',
+								props: {
+									fileId: res.fileId,
+									contentType: res.contentType,
+									appId: res.appId ?? '',
+									navState: res.nav ?? '',
+									name: res.fileName
+								}
+							}
+						],
+						anchor,
+						'after'
+					)
+				})
+				return true
+			},
 			// Suppress Tiptap Link's built-in click-to-open behavior. Tiptap
 			// Link registers a ProseMirror plugin whose `handleClick` calls
 			// `window.open` on any click inside an `<a>`. ProseMirror runs
@@ -420,6 +472,23 @@ export const NotilloEditor = React.memo(
 			ro.observe(el)
 			return () => ro.disconnect()
 		}, [])
+
+		// Lives here rather than in the app: the element remounts per page
+		// (`key={activePageId}`), and the hook only attaches on mount / base change.
+		useReflowViewReport(
+			embedded ? editorRef : NO_ELEMENT,
+			embedded
+				? {
+						nav: pageId,
+						viewId: pageId,
+						named: true,
+						title: embedTitle,
+						a11yLabel: embedTitle
+							? t('Page "{{title}}"', { title: embedTitle })
+							: undefined
+					}
+				: {}
+		)
 
 		// Wiki-link click handling via event delegation
 		React.useEffect(() => {
@@ -678,16 +747,26 @@ export const NotilloEditor = React.memo(
 				pageId,
 				ownerTag,
 				token,
-				homePageId
+				homePageId,
+				canWrite
 			}),
-			[pages, listingPages, fileId, pageId, ownerTag, token, homePageId]
+			[pages, listingPages, fileId, pageId, ownerTag, token, homePageId, canWrite]
 		)
 
 		return (
 			<div
 				ref={editorRef}
 				className="notillo-editor"
-				style={notilloThemeOverrides as React.CSSProperties}
+				style={
+					embedded
+						? {
+								...(notilloThemeOverrides as React.CSSProperties),
+								// Content height, not the container's: the frame grows to it.
+								flex: 'none',
+								fontSize: textScale ? `${textScale * 100}%` : undefined
+							}
+						: (notilloThemeOverrides as React.CSSProperties)
+				}
 			>
 				<NotilloEditorProvider value={editorContext}>
 					<BlockNoteView
@@ -738,6 +817,7 @@ export const NotilloEditor = React.memo(
 			prev.presence === next.presence &&
 			prev.pageId === next.pageId &&
 			prev.readOnly === next.readOnly &&
+			prev.canWrite === next.canWrite &&
 			prev.userId === next.userId &&
 			prev.ownerTag === next.ownerTag &&
 			prev.token === next.token &&
@@ -746,7 +826,10 @@ export const NotilloEditor = React.memo(
 			prev.pages === next.pages &&
 			prev.homePageId === next.homePageId &&
 			prev.tags === next.tags &&
-			prev.onCommentBlock === next.onCommentBlock
+			prev.onCommentBlock === next.onCommentBlock &&
+			prev.embedded === next.embedded &&
+			prev.embedTitle === next.embedTitle &&
+			prev.textScale === next.textScale
 		)
 	}
 )

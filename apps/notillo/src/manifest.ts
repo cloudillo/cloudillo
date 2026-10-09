@@ -108,7 +108,8 @@ export const manifest: AppManifest = {
 			// — so this version only matters to a packaged copy or an older shell
 			// that still PUTs its manifest.
 			formatVersion: '1.0.2',
-			search: SEARCH_INDEX_RULES
+			search: SEARCH_INDEX_RULES,
+			embed: { view: 'reflow', namedViews: true }
 		}
 	],
 	capabilities: ['rtdb'],

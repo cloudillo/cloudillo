@@ -3,6 +3,7 @@
 
 import {
 	createApiClient,
+	docRef,
 	getAppBus,
 	getDocWsUrl,
 	getFileUrl,
@@ -25,9 +26,12 @@ import {
 	PresenceProvider,
 	Toasts,
 	useComments,
+	useCopyEmbedLink,
 	useDialog,
+	useEmbedLayout,
 	useIsMobile,
-	useToast
+	useToast,
+	useViewReport
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -98,6 +102,30 @@ const RECENT_PAGE_LIMIT = 8
 
 /** Cap on rendered search rows — each one costs an ancestor walk for its breadcrumb. */
 const MAX_SIDEBAR_RESULTS = 50
+
+/**
+ * The page a nav string addresses — a page id, or failing that an exact title.
+ * No nav ⇒ the first root page.
+ */
+function resolveNavPage(
+	nav: string | undefined,
+	pages: Map<string, { id: string; title?: string; parentPageId?: unknown; order: number }>
+): string | undefined {
+	if (nav) {
+		if (pages.has(nav)) return nav
+		for (const page of pages.values()) {
+			if (page.title === nav) return page.id
+		}
+		return undefined
+	}
+	let firstPage: { id: string; order: number } | undefined
+	for (const page of pages.values()) {
+		if (page.parentPageId === ROOT_PARENT && (!firstPage || page.order < firstPage.order)) {
+			firstPage = { id: page.id, order: page.order }
+		}
+	}
+	return firstPage?.id
+}
 
 export function NotilloApp() {
 	const { t } = useTranslation()
@@ -443,32 +471,40 @@ export function NotilloApp() {
 	const clearActivePage = React.useCallback(() => setActivePageId(undefined), [])
 	useActivePageGuard(pages, pagesReady, activePageId, clearActivePage)
 
-	// Auto-select initial page: deep link (nav param) or first root page
+	// Embed view source: the view is one page, `nav` = page id. The host's initial
+	// `navState` wins over the URL nav param; `embed:view.set` overrides both, and
+	// `embed:view.set` with no nav resets to that default.
+	const embedded = getAppBus().embedded
+	const embedLayout = useEmbedLayout()
+	const [embedNav, setEmbedNav] = React.useState<string | undefined>()
+	const defaultNav = embedded
+		? (getAppBus().getState().navState ?? notillo.navParam)
+		: notillo.navParam
+	const navTarget = embedNav ?? defaultNav
+	React.useEffect(() => {
+		if (!embedded) return
+		return getAppBus().onViewSet((nav) => {
+			setEmbedNav(nav)
+			const id = resolveNavPage(nav ?? defaultNav, pagesRef.current)
+			if (id) handleSelectPage(id)
+		})
+	}, [embedded, defaultNav, handleSelectPage])
+	const embedMissing = embedded && pagesReady && !!navTarget && !resolveNavPage(navTarget, pages)
+	useViewReport(
+		embedMissing
+			? { kind: 'reflow', nav: navTarget, missing: true, natural: { w: 0, h: 0 } }
+			: null
+	)
+
+	// Auto-select initial page: deep link (nav param) or first root page. An
+	// embed never falls back — an unknown page is reported missing instead.
 	React.useEffect(() => {
 		if (activePageId || !pagesReady || pages.size === 0) return
-
-		// Deep link: the nav param is a page id, or failing that an exact title.
-		if (notillo.navParam) {
-			if (pages.has(notillo.navParam)) {
-				handleSelectPage(notillo.navParam)
-				return
-			}
-			for (const page of pages.values()) {
-				if (page.title === notillo.navParam) {
-					handleSelectPage(page.id)
-					return
-				}
-			}
-		}
-
-		let firstPage: { id: string; order: number } | undefined
-		for (const page of pages.values()) {
-			if (page.parentPageId === ROOT_PARENT && (!firstPage || page.order < firstPage.order)) {
-				firstPage = { id: page.id, order: page.order }
-			}
-		}
-		if (firstPage) handleSelectPage(firstPage.id)
-	}, [pages, pagesReady, activePageId, notillo.navParam, handleSelectPage])
+		const id =
+			resolveNavPage(navTarget, pages) ??
+			(embedded ? undefined : resolveNavPage(undefined, pages))
+		if (id) handleSelectPage(id)
+	}, [pages, pagesReady, activePageId, navTarget, embedded, handleSelectPage])
 
 	const toggleComments = React.useCallback(() => {
 		setShowComments((s) => !s)
@@ -640,6 +676,12 @@ export function NotilloApp() {
 			console.error('[Notillo] Share page failed:', err)
 		}
 	}, [activePageId, pages, t])
+
+	const copyEmbedLink = useCopyEmbedLink()
+	const handleCopyPageEmbedLink = React.useCallback(() => {
+		if (!activePageId) return
+		copyEmbedLink(docRef('notillo', `${notillo.ownerTag}:${notillo.fileId}`, activePageId))
+	}, [activePageId, copyEmbedLink, notillo.ownerTag, notillo.fileId])
 
 	const handleShareDocument = React.useCallback(async () => {
 		try {
@@ -1263,6 +1305,12 @@ export function NotilloApp() {
 							onClick={handleSharePage}
 						/>
 						<MenuItem
+							icon={<IcLink />}
+							label={t('Copy embed link to this page')}
+							disabled={!activePage}
+							onClick={handleCopyPageEmbedLink}
+						/>
+						<MenuItem
 							label={t('Export as Markdown (.md)')}
 							disabled={!activePage}
 							onClick={handleExportMarkdown}
@@ -1299,47 +1347,53 @@ export function NotilloApp() {
 					</DocBarMenu>
 				</AppDocBar>
 				<Fcd.Container className="pt-2 g-2 flex-fill" fluid detailsMode="adaptive">
-					<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
-						<Panel elevation="mid" className="c-vbox fill">
-							<PageSidebar
-								client={notillo.client}
-								pages={pages}
-								expanded={expanded}
-								unfiledPage={unfiledPage}
-								onExpand={expand}
-								onToggleExpand={toggleExpand}
-								activePageId={activePageId}
-								onSelectPage={handleSelectPage}
-								userId={notillo.idTag}
-								readOnly={!canWrite}
-								tags={tags}
-								tagCounts={tagCounts}
-								activeTags={activeTags}
-								onToggleTag={handleToggleTag}
-								onClearTags={handleClearTags}
-								searchQuery={searchQuery}
-								onSearchChange={setSearchQuery}
-								filteredResults={filteredResults}
-								resultsTruncated={resultsTruncated}
-								isFiltering={isFiltering}
-								contentSearchPending={
-									!!searchQuery.trim() && contentSearchEnabled && !contentReady
-								}
-								contentSearchError={contentError}
-								onRetryContentSearch={retryContentSearch}
-								focusSearchSeq={focusSearchSeq}
-								onSearchActivate={enableContentSearch}
-								recentPageIds={recentPageIds}
-								onImportMarkdown={canWrite ? handleImportMarkdownInto : undefined}
-								siteMode={siteMode}
-								homePageId={homePageId}
-								onSetHome={homeActions.setHome}
-								onClearHome={homeActions.clearHome}
-								homeBusy={homeActions.busy}
-								homePickerSeq={homePickerSeq}
-							/>
-						</Panel>
-					</Fcd.Filter>
+					{!embedded && (
+						<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
+							<Panel elevation="mid" className="c-vbox fill">
+								<PageSidebar
+									client={notillo.client}
+									pages={pages}
+									expanded={expanded}
+									unfiledPage={unfiledPage}
+									onExpand={expand}
+									onToggleExpand={toggleExpand}
+									activePageId={activePageId}
+									onSelectPage={handleSelectPage}
+									userId={notillo.idTag}
+									readOnly={!canWrite}
+									tags={tags}
+									tagCounts={tagCounts}
+									activeTags={activeTags}
+									onToggleTag={handleToggleTag}
+									onClearTags={handleClearTags}
+									searchQuery={searchQuery}
+									onSearchChange={setSearchQuery}
+									filteredResults={filteredResults}
+									resultsTruncated={resultsTruncated}
+									isFiltering={isFiltering}
+									contentSearchPending={
+										!!searchQuery.trim() &&
+										contentSearchEnabled &&
+										!contentReady
+									}
+									contentSearchError={contentError}
+									onRetryContentSearch={retryContentSearch}
+									focusSearchSeq={focusSearchSeq}
+									onSearchActivate={enableContentSearch}
+									recentPageIds={recentPageIds}
+									onImportMarkdown={
+										canWrite ? handleImportMarkdownInto : undefined
+									}
+									siteMode={siteMode}
+									homePageId={homePageId}
+									onSetHome={homeActions.setHome}
+									onClearHome={homeActions.clearHome}
+									homeBusy={homeActions.busy}
+									homePickerSeq={homePickerSeq}
+								/>
+							</Panel>
+						</Fcd.Filter>
+					)}
 					{/* No `header`: the page title, its comments toggle and its actions
 					    all live in the DocBar's second crumb now. */}
 					<Fcd.Content>
@@ -1359,7 +1413,7 @@ export function NotilloApp() {
 								</Button>
 							</div>
 						)}
-						{activePage ? (
+						{activePage && !embedMissing ? (
 							blocksError ? (
 								<div className="c-vbox fill align-items-center justify-content-center">
 									<EmptyState
@@ -1384,7 +1438,8 @@ export function NotilloApp() {
 									initialBlocks={blocks}
 									knownBlockIds={knownBlockIds}
 									knownBlockOrders={knownBlockOrders}
-									readOnly={!canWrite}
+									readOnly={!canWrite || (embedded && !embedLayout?.interactive)}
+									canWrite={canWrite}
 									userId={notillo.idTag}
 									ownerTag={notillo.ownerTag}
 									token={notillo.token}
@@ -1398,6 +1453,9 @@ export function NotilloApp() {
 									onCommentBlock={canComment ? handleCommentBlock : undefined}
 									syncFlushRef={syncFlushRef}
 									tags={tags}
+									embedded={embedded}
+									embedTitle={embedded ? activePage.title : undefined}
+									textScale={embedded ? embedLayout?.textScale : undefined}
 									pageTags={activePage.tags}
 								/>
 							)
@@ -1421,7 +1479,7 @@ export function NotilloApp() {
 							</div>
 						)}
 					</Fcd.Content>
-					{canComment && showComments && (
+					{!embedded && canComment && showComments && (
 						<Fcd.Details
 							isVisible={showComments}
 							hide={() => setShowComments(false)}
@@ -1455,7 +1513,7 @@ export function NotilloApp() {
 							</div>
 						</Fcd.Details>
 					)}
-					{showProperties && siteMode && activePage && (
+					{!embedded && showProperties && siteMode && activePage && (
 						<Fcd.Details
 							isVisible={showProperties}
 							hide={() => setShowProperties(false)}

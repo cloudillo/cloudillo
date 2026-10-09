@@ -591,16 +591,43 @@ function renderMedia(
  */
 function renderDocumentEmbed(block: NotilloSourceBlock, opts: SiteSerializerOptions): string {
 	const fileId = stringProp(block.pr, 'fileId')
-	const height = sitePositiveInt(block.pr?.height)
+	// Last reported natural height capped by maxH (legacy `height` stands in for it)
+	const lastH = sitePositiveInt(block.pr?.lastH)
+	const maxH = sitePositiveInt(block.pr?.maxH) ?? sitePositiveInt(block.pr?.height)
+	const height =
+		lastH !== undefined && maxH !== undefined ? Math.min(lastH, maxH) : (lastH ?? maxH)
 	const spec = siteIslandSpec('documentEmbed', opts.islands)
 	const props = spec ? siteIslandProps(spec, block) : {}
 
-	const declarations = height === undefined ? [] : [`height:${height}px`]
-	// `width` is a percent (20–100, default 100), not px — mirroring
-	// `apps/notillo/src/editor/DocumentEmbed.tsx`, which centres anything below 100.
-	const width = sitePositiveInt(block.pr?.width)
-	if (width !== undefined && width < 100)
-		declarations.push(`width:${width}%`, 'margin-inline:auto')
+	const align = block.pr?.align
+	const alignDecl =
+		align === 'left'
+			? 'margin-inline-end:auto'
+			: align === 'right'
+				? 'margin-inline-start:auto'
+				: 'margin-inline:auto'
+	const lastW = sitePositiveInt(block.pr?.lastW)
+	const declarations: string[] = []
+	if (block.pr?.kind === 'fixed' && lastW !== undefined && lastH !== undefined) {
+		// A fixed view scales to `min(scale, availW / lastW)` and ignores `maxH` and `width`
+		// (`computeEmbedFrame` in `@cloudillo/react`): the static form is an aspect-ratio box
+		// capped at the scaled natural width.
+		const s = Number(block.pr?.scale)
+		const scale = block.pr?.sizing === 'actual' && Number.isFinite(s) && s > 0 ? s : 1
+		declarations.push(
+			`aspect-ratio:${lastW}/${lastH}`,
+			'width:100%',
+			`max-width:${Math.round(lastW * scale)}px`,
+			alignDecl
+		)
+	} else {
+		if (height !== undefined) declarations.push(`height:${height}px`)
+		// `width` is a percent (10–100, default 100), not px, placed by `align` ('' = centre) —
+		// mirroring `apps/notillo/src/editor/DocumentEmbed.tsx`. The island mounts inside this
+		// box, so it takes only `align`, not `width`.
+		const width = sitePositiveInt(block.pr?.width)
+		if (width !== undefined && width < 100) declarations.push(`width:${width}%`, alignDecl)
+	}
 
 	return (
 		`<div class="cl-site-embed"${attr('data-cl-file', fileId || undefined)}` +

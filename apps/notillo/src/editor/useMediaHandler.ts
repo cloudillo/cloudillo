@@ -217,7 +217,8 @@ export function useMediaHandler({
 								props: {
 									fileId: result.fileId,
 									contentType: result.contentType,
-									appId: result.appId || ''
+									appId: result.appId || '',
+									name: result.fileName
 								}
 							})
 						} catch (err) {

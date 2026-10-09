@@ -2,12 +2,43 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import { createReactBlockSpec } from '@blocknote/react'
-import { DocumentEmbedIframe, useDocumentEmbed } from '@cloudillo/react'
+import type { EmbedViewReportPayload } from '@cloudillo/core'
+import {
+	DocViewEmbed,
+	type EmbedViewSettings,
+	embedReportToStore,
+	grantEmbedEditable,
+	normalizeEmbedSettings
+} from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { useNotilloEditor } from './NotilloEditorContext.js'
 
+interface BlockLike {
+	id: string
+	type: string
+	props: Record<string, unknown>
+	children: BlockLike[]
+}
+
+/**
+ * Another editable embed of `fileId` still needs the 'W' share.
+ * Scans only the open page; the share is per notillo document, so an editable embed
+ * on another page can still be downgraded. Scan the RTDB block store if that matters.
+ */
+function othersEditable(blocks: readonly BlockLike[], self: string, fileId: string): boolean {
+	return blocks.some(
+		(b) =>
+			(b.id !== self &&
+				b.type === 'documentEmbed' &&
+				!!b.props.editable &&
+				b.props.fileId === fileId) ||
+			othersEditable(b.children, self, fileId)
+	)
+}
+
+// Numeric props use 0 for "unset"
 export const DocumentEmbed = createReactBlockSpec(
 	{
 		type: 'documentEmbed' as const,
@@ -17,204 +48,51 @@ export const DocumentEmbed = createReactBlockSpec(
 			contentType: { default: '' },
 			appId: { default: '' },
 			navState: { default: '' },
+			/** Source document's file name, shown as the embed title */
+			name: { default: '' },
+			/** % of the container width (caps a fixed view, sizes a reflow one) */
 			width: { default: 100 },
-			height: { default: 400 }
+			/** left / center / right; '' = center */
+			align: { default: '' },
+			/** Legacy fixed height (px); read as `maxH` when no `maxH` is stored */
+			height: { default: 0 },
+			sizing: { default: 'fit-width' },
+			scale: { default: 0 },
+			maxH: { default: 0 },
+			textScale: { default: 0 },
+			lastW: { default: 0 },
+			lastH: { default: 0 },
+			/** Last reported view kind ('fixed' | 'reflow'), for the published placeholder */
+			kind: { default: '' },
+			/** Readers with write access on this page may edit the embedded document */
+			editable: { default: false }
 		}
 	},
 	{
 		render: (props) => {
 			const { t } = useTranslation()
-			const { fileId, contentType, navState, width, height } = props.block.props
-			const { sourceFileId } = useNotilloEditor()
-			const [active, setActive] = React.useState(false)
-			const isEditable = props.editor.isEditable
-			const containerRef = React.useRef<HTMLDivElement>(null)
+			const { block, editor } = props
+			const { fileId, contentType, appId, navState, height } = block.props
+			const { sourceFileId, ownerTag, canWrite } = useNotilloEditor()
+			const isEditable = editor.isEditable
+			const app = appId || contentType.replace(/^cloudillo\//, '')
 
-			const embed = useDocumentEmbed(
-				fileId && sourceFileId
-					? {
-							targetFileId: fileId,
-							targetContentType: contentType,
-							sourceFileId,
-							access: 'read',
-							navState: navState || undefined
-						}
-					: null
+			const settings = normalizeEmbedSettings(
+				{ ...block.props, maxH: block.props.maxH || height },
+				'center'
 			)
 
-			// Cache pending navState (flushed on deactivate)
-			const pendingNavStateRef = React.useRef<string | null>(null)
+			const update = (p: Partial<typeof block.props>) =>
+				editor.updateBlock(block.id, { props: p })
 
-			// Aspect ratio from embedded app
-			const aspectRef = React.useRef<{ ratio?: [number, number]; fixed?: boolean }>({})
+			const handleReport = (report: EmbedViewReportPayload) => {
+				if (!isEditable) return
+				const { lastW: w, lastH: h, kind } = block.props
+				const next = embedReportToStore({ w, h, kind }, report)
+				if (next) update({ lastW: next.w, lastH: next.h, kind: next.kind })
+			}
 
-			const handleViewStateChange = React.useCallback(
-				(viewState: string, aspectRatio?: [number, number], aspectFixed?: boolean) => {
-					pendingNavStateRef.current = viewState
-					if (aspectRatio) aspectRef.current = { ratio: aspectRatio, fixed: aspectFixed }
-				},
-				[]
-			)
-
-			const handleDeactivate = React.useCallback(() => {
-				setActive(false)
-				const pending = pendingNavStateRef.current
-				if (pending != null && pending !== (navState || '')) {
-					if (isEditable) {
-						props.editor.updateBlock(props.block.id, {
-							props: { navState: pending }
-						})
-					}
-					pendingNavStateRef.current = null
-				}
-			}, [navState, isEditable, props.editor, props.block.id])
-
-			// Flush pending navState on unmount (e.g. user navigates away while embed is active)
-			const navStateRef = React.useRef(navState)
-			navStateRef.current = navState
-			const editorRef = React.useRef(props.editor)
-			editorRef.current = props.editor
-			const blockIdRef = React.useRef(props.block.id)
-			blockIdRef.current = props.block.id
-
-			React.useEffect(() => {
-				return () => {
-					const pending = pendingNavStateRef.current
-					if (pending != null && pending !== (navStateRef.current || '')) {
-						if (editorRef.current.isEditable) {
-							editorRef.current.updateBlock(blockIdRef.current, {
-								props: { navState: pending }
-							})
-						}
-					}
-				}
-			}, [])
-
-			// Helper: get parent width for percentage calculations
-			const getParentWidth = React.useCallback(() => {
-				return containerRef.current?.parentElement?.clientWidth || 1
-			}, [])
-
-			// Bottom resize (height only)
-			const handleResizeBottom = React.useCallback(
-				(e: React.PointerEvent) => {
-					e.preventDefault()
-					e.stopPropagation()
-					const target = e.target as HTMLElement
-					target.setPointerCapture(e.pointerId)
-					const pointerId = e.pointerId
-					const startY = e.clientY
-					const startHeight = height as number
-
-					const onPointerMove = (ev: PointerEvent) => {
-						const newHeight = Math.max(100, startHeight + ev.clientY - startY)
-						props.editor.updateBlock(props.block.id, {
-							props: { height: newHeight }
-						})
-					}
-
-					const onPointerUp = () => {
-						target.releasePointerCapture(pointerId)
-						target.removeEventListener('pointermove', onPointerMove)
-						target.removeEventListener('pointerup', onPointerUp)
-					}
-
-					target.addEventListener('pointermove', onPointerMove)
-					target.addEventListener('pointerup', onPointerUp)
-				},
-				[height, props.editor, props.block.id]
-			)
-
-			// Right resize (width only, with optional aspect-ratio height adjustment)
-			const handleResizeRight = React.useCallback(
-				(e: React.PointerEvent) => {
-					e.preventDefault()
-					e.stopPropagation()
-					const target = e.target as HTMLElement
-					target.setPointerCapture(e.pointerId)
-					const pointerId = e.pointerId
-					const startX = e.clientX
-					const parentWidth = getParentWidth()
-					const startPixelWidth = ((width as number) / 100) * parentWidth
-					const _startHeight = height as number
-
-					const onPointerMove = (ev: PointerEvent) => {
-						const newPixelWidth = startPixelWidth + ev.clientX - startX
-						const newWidth = Math.max(
-							20,
-							Math.min(100, Math.round((newPixelWidth / parentWidth) * 100))
-						)
-						const update: Record<string, number> = { width: newWidth }
-
-						if (aspectRef.current.fixed && aspectRef.current.ratio) {
-							const [aw, ah] = aspectRef.current.ratio
-							const actualPixelWidth = (newWidth / 100) * parentWidth
-							update.height = Math.max(100, Math.round(actualPixelWidth * (ah / aw)))
-						}
-
-						props.editor.updateBlock(props.block.id, { props: update })
-					}
-
-					const onPointerUp = () => {
-						target.releasePointerCapture(pointerId)
-						target.removeEventListener('pointermove', onPointerMove)
-						target.removeEventListener('pointerup', onPointerUp)
-					}
-
-					target.addEventListener('pointermove', onPointerMove)
-					target.addEventListener('pointerup', onPointerUp)
-				},
-				[width, height, props.editor, props.block.id, getParentWidth]
-			)
-
-			// Corner resize (width + height, aspect-ratio lock when fixed)
-			const handleResizeCorner = React.useCallback(
-				(e: React.PointerEvent) => {
-					e.preventDefault()
-					e.stopPropagation()
-					const target = e.target as HTMLElement
-					target.setPointerCapture(e.pointerId)
-					const pointerId = e.pointerId
-					const startX = e.clientX
-					const startY = e.clientY
-					const parentWidth = getParentWidth()
-					const startPixelWidth = ((width as number) / 100) * parentWidth
-					const startHeight = height as number
-
-					const onPointerMove = (ev: PointerEvent) => {
-						const newPixelWidth = startPixelWidth + ev.clientX - startX
-						const newWidth = Math.max(
-							20,
-							Math.min(100, Math.round((newPixelWidth / parentWidth) * 100))
-						)
-
-						let newHeight: number
-						if (aspectRef.current.fixed && aspectRef.current.ratio) {
-							const [aw, ah] = aspectRef.current.ratio
-							const actualPixelWidth = (newWidth / 100) * parentWidth
-							newHeight = Math.max(100, Math.round(actualPixelWidth * (ah / aw)))
-						} else {
-							newHeight = Math.max(100, startHeight + ev.clientY - startY)
-						}
-
-						props.editor.updateBlock(props.block.id, {
-							props: { width: newWidth, height: newHeight }
-						})
-					}
-
-					const onPointerUp = () => {
-						target.releasePointerCapture(pointerId)
-						target.removeEventListener('pointermove', onPointerMove)
-						target.removeEventListener('pointerup', onPointerUp)
-					}
-
-					target.addEventListener('pointermove', onPointerMove)
-					target.addEventListener('pointerup', onPointerUp)
-				},
-				[width, height, props.editor, props.block.id, getParentWidth]
-			)
-
-			if (!fileId) {
+			if (!fileId || !sourceFileId) {
 				return (
 					<div className="notillo-document-embed notillo-document-embed--empty">
 						{t('No document selected')}
@@ -222,69 +100,60 @@ export const DocumentEmbed = createReactBlockSpec(
 				)
 			}
 
-			if (embed.status === 'loading') {
-				return (
-					<div className="notillo-document-embed notillo-document-embed--loading">
-						{t('Loading embedded document...')}
-					</div>
-				)
-			}
-
-			if (embed.status === 'error') {
-				return (
-					<div className="notillo-document-embed notillo-document-embed--error">
-						{t('Failed to load document: {{error}}', { error: embed.error })}
-					</div>
-				)
-			}
-
 			return (
-				<div
-					ref={containerRef}
-					className={`notillo-document-embed${active ? ' active' : ''}`}
-					style={{
-						height: `${height}px`,
-						width: `${width}%`,
-						margin: (width as number) < 100 ? '0 auto' : undefined
-					}}
-				>
-					{embed.iframeSrc && (
-						<>
-							<DocumentEmbedIframe
-								src={embed.iframeSrc}
-								active={!isEditable || active}
-								onActivate={() => setActive(true)}
-								onDeactivate={handleDeactivate}
-								onViewStateChange={handleViewStateChange}
-							/>
-							{isEditable && !active && (
-								<div
-									className="notillo-document-embed-overlay"
-									contentEditable={false}
-									onDoubleClick={() => setActive(true)}
-								/>
-							)}
-							{isEditable && (
-								<>
-									<div
-										className="notillo-document-embed-resize-bottom"
-										contentEditable={false}
-										onPointerDown={handleResizeBottom}
-									/>
-									<div
-										className="notillo-document-embed-resize-right"
-										contentEditable={false}
-										onPointerDown={handleResizeRight}
-									/>
-									<div
-										className="notillo-document-embed-resize-corner"
-										contentEditable={false}
-										onPointerDown={handleResizeCorner}
-									/>
-								</>
-							)}
-						</>
-					)}
+				<div className="notillo-document-embed" contentEditable={false}>
+					<DocViewEmbed
+						fileId={fileId}
+						contentType={contentType}
+						sourceFileId={sourceFileId}
+						// Granted access, not interactivity: an inactive nested embed keeps its token
+						access={block.props.editable && canWrite ? 'write' : 'read'}
+						title={block.props.name || undefined}
+						appId={app}
+						owner={ownerTag}
+						nav={navState || undefined}
+						settings={settings}
+						canInteract={true}
+						canEdit={isEditable}
+						onReport={handleReport}
+						actions={{
+							...(isEditable && {
+								onSizing: (s: EmbedViewSettings) =>
+									update({
+										sizing: s.sizing,
+										scale: s.scale ?? 0,
+										maxH: s.maxH ?? 0,
+										textScale: s.textScale ?? 0,
+										width: s.width ?? 100,
+										align: s.align ?? '',
+										// The legacy height stops standing in for maxH
+										height: 0
+									}),
+								onUseCurrentView: (nav: string) => update({ navState: nav }),
+								editable: block.props.editable,
+								onEditableChange: async (editable: boolean) => {
+									const others = othersEditable(
+										editor.document as unknown as BlockLike[],
+										block.id,
+										fileId
+									)
+									if (
+										(await grantEmbedEditable(
+											fileId,
+											sourceFileId,
+											editable,
+											others
+										)) &&
+										// The block may be gone once the confirm dialog closes
+										editor.getBlock(block.id)
+									) {
+										update({ editable })
+									}
+								},
+								onRemove: () => editor.removeBlocks([block.id])
+							})
+						}}
+					/>
 				</div>
 			)
 		}

@@ -34,6 +34,8 @@ interface NotilloEditorContextValue {
 	 * whole site once published.
 	 */
 	homePageId?: string
+	/** Write access to the document, whether or not the editor is currently interactive */
+	canWrite?: boolean
 }
 
 const NotilloEditorContext = React.createContext<NotilloEditorContextValue>({

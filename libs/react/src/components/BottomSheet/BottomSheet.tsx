@@ -4,8 +4,8 @@
 import * as React from 'react'
 import { createPortal } from 'react-dom'
 
-import { Modal } from '../Modal/Modal.js'
 import { useMergedRefs, usePrefersReducedMotion } from '../hooks.js'
+import { Modal } from '../Modal/Modal.js'
 import { createComponent, mergeClasses } from '../utils.js'
 
 export type BottomSheetSnapPoint = 'closed' | 'peek' | 'half' | 'full'

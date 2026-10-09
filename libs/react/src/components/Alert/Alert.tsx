@@ -3,11 +3,11 @@
 
 import * as React from 'react'
 import {
-	LuCircleCheck as IcSuccess,
+	LuX as IcClose,
 	LuCircleX as IcError,
 	LuInfo as IcInfo,
-	LuTriangleAlert as IcWarning,
-	LuX as IcClose
+	LuCircleCheck as IcSuccess,
+	LuTriangleAlert as IcWarning
 } from 'react-icons/lu'
 
 import { useLibTranslation } from '../../i18n.js'

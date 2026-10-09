@@ -3,8 +3,8 @@
 
 import * as React from 'react'
 
-import { Button } from '../Button/index.js'
 import { useLibTranslation } from '../../i18n.js'
+import { Button } from '../Button/index.js'
 import { createComponent, mergeClasses } from '../utils.js'
 
 export interface ClampProps extends React.HTMLAttributes<HTMLDivElement> {

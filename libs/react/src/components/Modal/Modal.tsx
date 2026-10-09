@@ -4,9 +4,9 @@
 import * as React from 'react'
 import { createPortal } from 'react-dom'
 
+import { useBodyScrollLock } from '../hooks.js'
 import { trackInputModality } from '../Popover/Popover.js'
 import { mergeRefs } from '../Tooltip/Tooltip.js'
-import { useBodyScrollLock } from '../hooks.js'
 import type { Elevation } from '../types.js'
 import { createComponent, mergeClasses } from '../utils.js'
 

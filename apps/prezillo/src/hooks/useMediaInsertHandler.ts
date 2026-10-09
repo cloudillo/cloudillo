@@ -8,12 +8,14 @@
  */
 
 import {
+	type DocLinkResult,
 	type DocPickResult,
 	getAppBus,
 	type MediaFileResolvedPush,
 	type MediaPickResult
 } from '@cloudillo/core'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import type * as Y from 'yjs'
 
 import type {
@@ -62,6 +64,7 @@ export function registerPendingImageTempId(
 
 function useMediaInsertHandler(kind: MediaInsertKind, options: UseMediaInsertHandlerOptions) {
 	const { yDoc, doc, enabled, documentFileId, onObjectCreated, onInsertComplete } = options
+	const { t } = useTranslation()
 
 	// Track if we're currently inserting (to prevent double-opens)
 	const [isInserting, setIsInserting] = React.useState(false)
@@ -92,8 +95,9 @@ function useMediaInsertHandler(kind: MediaInsertKind, options: UseMediaInsertHan
 	}, [kind])
 
 	const insert = React.useCallback(
-		async (centerX: number = 0, centerY: number = 0) => {
-			if (!enabled || isInserting) return
+		async (centerX: number = 0, centerY: number = 0, link?: DocLinkResult) => {
+			// A pre-resolved `link` (pasted `cl:` ref) skips the picker and works with any tool
+			if ((!enabled && !link) || isInserting) return
 
 			setIsInserting(true)
 
@@ -104,12 +108,13 @@ function useMediaInsertHandler(kind: MediaInsertKind, options: UseMediaInsertHan
 						? await bus.pickMedia({
 								mediaType: 'image/*',
 								documentFileId,
-								title: 'Insert Image'
+								title: t('Insert Image')
 							})
-						: await bus.pickDocument({
+						: (link ??
+							(await bus.pickDocument({
 								sourceFileId: documentFileId,
-								title: 'Embed Document'
-							})
+								title: t('Embed Document')
+							})))
 
 				if (!result) {
 					// User cancelled the picker
@@ -147,6 +152,7 @@ function useMediaInsertHandler(kind: MediaInsertKind, options: UseMediaInsertHan
 						fileId: picked.fileId,
 						contentType: picked.contentType,
 						appId: picked.appId,
+						...(link?.nav && { navState: link.nav }),
 						rotation: 0,
 						pivotX: 0.5,
 						pivotY: 0.5,
@@ -164,7 +170,8 @@ function useMediaInsertHandler(kind: MediaInsertKind, options: UseMediaInsertHan
 				}
 
 				onObjectCreated?.(objectId)
-				onInsertComplete?.()
+				// A paste didn't start from the tool, so it has no tool to switch back
+				if (!link) onInsertComplete?.()
 			} catch (error) {
 				console.error(
 					kind === 'image' ? 'Failed to insert image:' : 'Failed to embed document:',
@@ -173,12 +180,22 @@ function useMediaInsertHandler(kind: MediaInsertKind, options: UseMediaInsertHan
 				// Without this the tool stays on 'image': the effect that opens the
 				// picker is keyed on activeTool alone, so re-clicking the button changes
 				// nothing and the tool is inert until the user switches away and back.
-				onInsertComplete?.()
+				if (!link) onInsertComplete?.()
 			} finally {
 				setIsInserting(false)
 			}
 		},
-		[enabled, isInserting, kind, yDoc, doc, documentFileId, onObjectCreated, onInsertComplete]
+		[
+			enabled,
+			isInserting,
+			kind,
+			yDoc,
+			doc,
+			documentFileId,
+			onObjectCreated,
+			onInsertComplete,
+			t
+		]
 	)
 
 	return React.useMemo(

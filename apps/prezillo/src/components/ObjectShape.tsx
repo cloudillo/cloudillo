@@ -12,10 +12,12 @@ import type { BaseTextStyle } from '@cloudillo/canvas-text'
 import { RichTextDisplay } from '@cloudillo/canvas-text'
 import type { Gradient } from '@cloudillo/canvas-tools'
 import { createLinearGradientDef, createRadialGradientDef } from '@cloudillo/canvas-tools'
-import { SvgDocumentEmbed } from '@cloudillo/react'
+import type { EmbedViewReportPayload } from '@cloudillo/core'
+import { SvgViewEmbed } from '@cloudillo/react'
 import * as React from 'react'
 
 import type {
+	ObjectId,
 	PrezilloObject,
 	ResolvedTextStyle,
 	resolveShapeStyle,
@@ -102,13 +104,14 @@ export interface ObjectShapeProps {
 	stateValues?: {
 		userCount: number
 	}
-	// Callback when an embedded document reports view state changes
-	onDocumentViewStateChange?: (
-		objectId: string,
-		viewState: string,
-		aspectRatio?: [number, number],
-		aspectFixed?: boolean
-	) => void
+	// Embedded document reported its view (natural size, kind)
+	onDocumentReport?: (objectId: string, report: EmbedViewReportPayload) => void
+	// "Use current view" on an embedded document; set only when the presentation is editable
+	onDocumentUseView?: (objectId: string, nav: string) => void
+	// "Allow editing" on an embedded document; set only when the presentation is editable
+	onDocumentEditable?: (objectId: string, fileId: string, editable: boolean) => unknown
+	// Host-controlled interact mode for embedded documents (chrome Interact / Done / Esc)
+	onDocumentActivate?: (objectId: ObjectId | null) => void
 }
 
 /**
@@ -140,7 +143,10 @@ function arePropsEqual(prev: ObjectShapeProps, next: ObjectShapeProps): boolean 
 		prev.tempBounds === next.tempBounds &&
 		prev.showInstanceIndicator === next.showInstanceIndicator &&
 		prev.activeDocument === next.activeDocument &&
-		prev.onDocumentViewStateChange === next.onDocumentViewStateChange &&
+		prev.onDocumentReport === next.onDocumentReport &&
+		prev.onDocumentUseView === next.onDocumentUseView &&
+		prev.onDocumentEditable === next.onDocumentEditable &&
+		prev.onDocumentActivate === next.onDocumentActivate &&
 		shallowEqual(prev.style, next.style) &&
 		shallowEqual(prev.textStyle, next.textStyle)
 	)
@@ -200,7 +206,10 @@ export const ObjectShape = React.memo(function ObjectShape({
 	activeDocument,
 	showInstanceIndicator,
 	stateValues,
-	onDocumentViewStateChange
+	onDocumentReport,
+	onDocumentUseView,
+	onDocumentEditable,
+	onDocumentActivate
 }: ObjectShapeProps) {
 	// Use temp bounds if provided, otherwise use object bounds
 	const x = tempBounds?.x ?? object.x
@@ -506,7 +515,7 @@ export const ObjectShape = React.memo(function ObjectShape({
 		case 'document':
 			return (
 				<g transform={rotationTransform} opacity={objectOpacity} {...commonProps}>
-					<SvgDocumentEmbed
+					<SvgViewEmbed
 						x={x}
 						y={y}
 						width={width}
@@ -515,20 +524,33 @@ export const ObjectShape = React.memo(function ObjectShape({
 						contentType={object.contentType}
 						sourceFileId={sourceFileId || ''}
 						appId={object.appId}
-						access="read"
-						navState={object.navState}
-						active={activeDocument}
-						onViewStateChange={
-							onDocumentViewStateChange
-								? (viewState, aspectRatio, aspectFixed) =>
-										onDocumentViewStateChange!(
-											object.id,
-											viewState,
-											aspectRatio,
-											aspectFixed
-										)
+						owner={ownerTag}
+						access={object.editable && onDocumentEditable ? 'write' : 'read'}
+						nav={object.navState}
+						settings={{ sizing: 'box', lastNatural: object.aspectRatio }}
+						canInteract={!!activeDocument}
+						active={!!activeDocument}
+						canEdit={!!onDocumentUseView}
+						selected={isSelected}
+						onReport={
+							onDocumentReport
+								? (report) => onDocumentReport(object.id, report)
 								: undefined
 						}
+						actions={{
+							...(onDocumentActivate && {
+								onActivate: () => onDocumentActivate(object.id as ObjectId),
+								onDeactivate: () => onDocumentActivate(null)
+							}),
+							...(onDocumentUseView && {
+								onUseCurrentView: (nav: string) => onDocumentUseView(object.id, nav)
+							}),
+							...(onDocumentEditable && {
+								editable: !!object.editable,
+								onEditableChange: (editable: boolean) =>
+									onDocumentEditable(object.id, object.fileId, editable)
+							})
+						}}
 					/>
 					{/* Invisible rect for click handling */}
 					<rect

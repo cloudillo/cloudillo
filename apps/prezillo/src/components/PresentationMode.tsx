@@ -7,7 +7,7 @@
 
 import { RichTextDisplay } from '@cloudillo/canvas-text'
 import { createLinearGradientDef, createRadialGradientDef } from '@cloudillo/canvas-tools'
-import { SvgDocumentEmbed } from '@cloudillo/react'
+import { SvgViewEmbed } from '@cloudillo/react'
 import * as React from 'react'
 import {
 	PiXBold as IcClose,
@@ -93,7 +93,8 @@ function PresentationObjectShape({
 	hasMyVote = false,
 	onPollClick,
 	isFocused = false,
-	userCount = 1
+	userCount = 1,
+	canWrite = false
 }: {
 	object: PrezilloObject
 	doc: YPrezilloDocument
@@ -109,6 +110,8 @@ function PresentationObjectShape({
 	onPollClick?: (frameId: string) => void
 	isFocused?: boolean
 	userCount?: number
+	/** Host presentation is writable — gates embed write access */
+	canWrite?: boolean
 }) {
 	// Hidden objects are not rendered in presentation mode
 	if (object.hidden) return null
@@ -245,7 +248,7 @@ function PresentationObjectShape({
 		case 'document': {
 			const docObj = object as DocumentObject
 			content = (
-				<SvgDocumentEmbed
+				<SvgViewEmbed
 					x={object.x}
 					y={object.y}
 					width={object.width}
@@ -254,8 +257,11 @@ function PresentationObjectShape({
 					contentType={docObj.contentType}
 					sourceFileId={sourceFileId || ''}
 					appId={docObj.appId}
-					access="read"
-					active={true}
+					access={docObj.editable && canWrite ? 'write' : 'read'}
+					nav={docObj.navState}
+					settings={{ sizing: 'box', lastNatural: docObj.aspectRatio }}
+					canInteract
+					active
 				/>
 			)
 			break
@@ -378,6 +384,7 @@ interface PresentationSlideProps {
 	focusedPollId?: string | null
 	// State variable props
 	userCount?: number
+	canWrite?: boolean
 }
 
 const PresentationSlide = React.memo(function PresentationSlide({
@@ -394,7 +401,8 @@ const PresentationSlide = React.memo(function PresentationSlide({
 	myVote,
 	onPollClick,
 	focusedPollId,
-	userCount = 1
+	userCount = 1,
+	canWrite
 }: PresentationSlideProps) {
 	// Each slide fetches its own objects - this keeps the component stable
 	// Only fetch when renderContent is true to avoid unnecessary work
@@ -502,6 +510,7 @@ const PresentationSlide = React.memo(function PresentationSlide({
 						onPollClick={isPollFrame ? onPollClick : undefined}
 						isFocused={isFocused}
 						userCount={userCount}
+						canWrite={canWrite}
 					/>
 				)
 			})}
@@ -856,6 +865,7 @@ export function PresentationMode({
 						onPollClick={isCurrentSlide && awareness ? handlePollClick : undefined}
 						focusedPollId={isCurrentSlide ? focusedPollId : undefined}
 						userCount={userCount}
+						canWrite={prezillo.cloudillo.access === 'write'}
 					/>
 				)
 			})}

@@ -166,7 +166,7 @@ export function useInteractionHooks({
 	const storedSelectionRef = React.useRef(storedSelection)
 	storedSelectionRef.current = storedSelection
 
-	// Compute aspect ratio for single image/qrcode/symbol selection
+	// Compute aspect ratio for single image/qrcode/symbol/fixed-aspect document selection
 	// This is used by useResizable for aspect-locked resize
 	const selectionAspectRatio = React.useMemo(() => {
 		if (prezillo.selectedIds.size !== 1) return undefined
@@ -182,6 +182,8 @@ export function useInteractionHooks({
 		if (stored.t === 'Q') return 1
 		// 'S' = symbol type - always square (1:1)
 		if (stored.t === 'S') return 1
+		// 'D' = document embed - a fixed-aspect source stored its natural size in `ar`
+		if (stored.t === 'D' && stored.ar) return stored.ar[0] / stored.ar[1]
 		return undefined
 	}, [prezillo.selectedIds, prezillo.objects])
 

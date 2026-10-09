@@ -5,10 +5,11 @@
  * Main hook for Prezillo document state
  */
 
-import { getAppBus } from '@cloudillo/core'
+import { type EmbedViewReportPayload, getAppBus } from '@cloudillo/core'
 import { initPresence } from '@cloudillo/crdt'
-import { useCloudilloEditor } from '@cloudillo/react'
+import { useCloudilloEditor, useViewReport } from '@cloudillo/react'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import { useY } from 'react-yjs'
 import type { Awareness } from 'y-protocols/awareness'
 import * as Y from 'yjs'
@@ -107,6 +108,7 @@ const APP_NAME = 'Prezillo'
 
 export function usePrezilloDocument(): UsePrezilloDocumentResult {
 	const cloudillo = useCloudilloEditor(APP_NAME)
+	const { t } = useTranslation()
 
 	// Get document structure (without initializing defaults)
 	const doc = React.useMemo(() => getOrCreateDocument(cloudillo.yDoc, false), [cloudillo.yDoc])
@@ -153,49 +155,53 @@ export function usePrezilloDocument(): UsePrezilloDocumentResult {
 		}
 	}, [viewOrder, activeViewId])
 
-	// Embed support: register viewstate.set handler once
+	// Embed support: the view the host asked for (initial navState, then embed:view.set)
+	const [embedNav, setEmbedNav] = React.useState<string>()
+	// Bumped on every view:set so "Reset view" re-applies an unchanged nav
+	const [embedResetTick, setEmbedResetTick] = React.useState(0)
 	React.useEffect(() => {
 		const bus = getAppBus()
 		if (!bus.embedded) return
-
-		bus.onViewStateSet((viewState?: string) => {
-			if (viewState) {
-				setActiveViewIdInternal(toViewId(viewState))
-			}
+		return bus.onViewSet((nav) => {
+			setEmbedNav(nav)
+			setEmbedResetTick((t) => t + 1)
 		})
 	}, [])
 
-	// Embed support: apply initial navState once when viewOrder is available
 	const initialNavAppliedRef = React.useRef(false)
 	React.useEffect(() => {
 		const bus = getAppBus()
-		if (!bus.embedded) return
-
-		if (!initialNavAppliedRef.current && viewOrder && viewOrder.length > 0) {
-			const initialNav = bus.getState().navState
-			if (initialNav && viewOrder.includes(initialNav)) {
-				setActiveViewIdInternal(toViewId(initialNav))
-			}
-			initialNavAppliedRef.current = true
-		}
+		if (!bus.embedded || initialNavAppliedRef.current || !viewOrder?.length) return
+		initialNavAppliedRef.current = true
+		const initialNav = bus.getState().navState
+		if (initialNav) setEmbedNav(initialNav)
 	}, [viewOrder])
 
-	// Embed support: push view state to parent when active view changes
+	// No nav ⇒ first slide; unknown nav ⇒ keep the current slide and report it missing
+	const embedMissing = !!embedNav && !!viewOrder && !viewOrder.includes(embedNav)
+	// Only the target slide, not the whole order: a remote reorder must not move the embed
+	const embedTarget = embedNav ?? viewOrder?.[0]
 	React.useEffect(() => {
-		const bus = getAppBus()
-		if (!bus.embedded || !activeViewId) return
+		if (!getAppBus().embedded || !embedTarget || embedMissing) return
+		setActiveViewIdInternal(toViewId(embedTarget))
+	}, [embedTarget, embedResetTick, embedMissing])
 
-		const view = doc.v.get(activeViewId)
-		const aspectRatio: [number, number] | undefined = view
-			? [view.width, view.height]
-			: undefined
-
-		bus.pushViewState({
-			viewState: activeViewId,
-			aspectRatio,
-			aspectFixed: true
-		})
-	}, [activeViewId, doc.v])
+	// Embed support: report the active slide as a fixed view
+	let embedReport: EmbedViewReportPayload | null = null
+	const embedView = getAppBus().embedded && activeViewId ? views?.[activeViewId] : undefined
+	if (embedView && activeViewId) {
+		embedReport = {
+			kind: 'fixed',
+			nav: embedMissing ? embedNav : activeViewId,
+			viewId: activeViewId,
+			named: true,
+			natural: { w: embedView.width, h: embedView.height },
+			title: embedView.name,
+			a11yLabel: t('Slide "{{name}}"', { name: embedView.name }),
+			...(embedMissing ? { missing: true } : {})
+		}
+	}
+	useViewReport(embedReport)
 
 	// Undo manager
 	const undoManager = React.useMemo(() => {

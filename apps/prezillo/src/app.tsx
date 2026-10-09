@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next'
 import {
 	PiBugBold as IcDebug,
 	PiExportBold as IcExport,
+	PiLinkBold as IcLink,
 	PiFilePdfBold as IcPDF,
 	PiFilePptBold as IcPPTX,
 	PiWrenchBold as IcRepair,
@@ -36,7 +37,7 @@ import '@cloudillo/canvas-tools/components.css'
 import './style.css'
 
 import { RichTextEditor } from '@cloudillo/canvas-text'
-import { getAppBus } from '@cloudillo/core'
+import { docRef, getAppBus } from '@cloudillo/core'
 import { downloadYDocExport } from '@cloudillo/crdt'
 import {
 	AppDocBar,
@@ -47,7 +48,9 @@ import {
 	MenuHeader,
 	MenuItem,
 	Toasts,
+	useCopyEmbedLink,
 	useDialog,
+	useDocumentEmbedHandlers,
 	useIsMobile,
 	useToast
 } from '@cloudillo/react'
@@ -77,7 +80,7 @@ import type {
 	TemplateId,
 	ViewId
 } from './crdt'
-import { updateDocumentNavState } from './crdt'
+import { updateDocumentAspect, updateDocumentEditable, updateDocumentNavState } from './crdt'
 import { getBulletIcon, migrateBullet } from './data/bullet-icons'
 import {
 	type TempObjectState,
@@ -146,56 +149,37 @@ export function PrezilloApp() {
 	// Debug helper - access via window.prezillo in browser console
 	;(window as unknown as Record<string, unknown>).prezillo = prezillo
 	const isReadOnly = prezillo.cloudillo.access !== 'write'
-	const [activeDocumentId, setActiveDocumentIdRaw] = React.useState<ObjectId | null>(null)
+	const [activeDocumentId, setActiveDocumentId] = React.useState<ObjectId | null>(null)
+	const copyEmbedLink = useCopyEmbedLink()
 
-	// Cache pending navState changes per document embed objectId
-	const pendingNavStateRef = React.useRef<
-		Map<string, { viewState: string; aspectRatio?: [number, number] }>
-	>(new Map())
-
-	// Flush cached navState to CRDT for a given objectId
-	const flushNavState = React.useCallback(
-		(objectId: ObjectId) => {
-			if (isReadOnly) return
-			const pending = pendingNavStateRef.current.get(objectId)
-			if (!pending) return
-			pendingNavStateRef.current.delete(objectId)
-			updateDocumentNavState(
-				prezillo.yDoc,
-				prezillo.doc,
-				objectId,
-				pending.viewState,
-				pending.aspectRatio
-			)
+	/*
+	 * Embedded document reports: only a fixed-aspect source's natural size is persisted (the
+	 * resize locks on it). Panning inside an embed is never written - only "Use current view"
+	 * persists the nav. The callbacks are passed only when the presentation is editable.
+	 */
+	const {
+		onReport: handleDocumentReport,
+		onUseView: handleDocumentUseView,
+		onEditable: handleDocumentEditable
+	} = useDocumentEmbedHandlers({
+		getFileId: () => prezillo.cloudillo.fileId,
+		setAspect: (objectId, natural, fixed) => {
+			if (!fixed) return
+			updateDocumentAspect(prezillo.yDoc, prezillo.doc, objectId as ObjectId, natural)
 		},
-		[isReadOnly, prezillo.yDoc, prezillo.doc]
-	)
-
-	// Wrap setActiveDocumentId to flush on deactivate
-	const setActiveDocumentId = React.useCallback(
-		(id: ObjectId | null) => {
-			setActiveDocumentIdRaw((prev) => {
-				if (prev && prev !== id) {
-					flushNavState(prev)
-				}
-				return id
-			})
+		setNav: (objectId, nav) => {
+			updateDocumentNavState(prezillo.yDoc, prezillo.doc, objectId as ObjectId, nav)
 		},
-		[flushNavState]
-	)
-
-	// Callback for embedded document view state changes (cache only)
-	const handleDocumentViewStateChange = React.useCallback(
-		(
-			objectId: string,
-			viewState: string,
-			aspectRatio?: [number, number],
-			_aspectFixed?: boolean
-		) => {
-			pendingNavStateRef.current.set(objectId, { viewState, aspectRatio })
+		setEditable: (objectId, editable) => {
+			updateDocumentEditable(prezillo.yDoc, prezillo.doc, objectId as ObjectId, editable)
 		},
-		[]
-	)
+		isOtherEditable: (objectId, targetFileId) => {
+			for (const [id, o] of prezillo.doc.o.entries()) {
+				if (id !== objectId && o.t === 'D' && o.ed && o.fid === targetFileId) return true
+			}
+			return false
+		}
+	})
 
 	const views = useViews(prezillo.doc)
 
@@ -701,59 +685,53 @@ export function PrezilloApp() {
 	// Get active view
 	const activeView = prezillo.activeViewId ? getView(prezillo.doc, prezillo.activeViewId) : null
 
+	// Media lands at the template frame centre on a template page, else the active view centre
+	const templateLayout = prezillo.selectedTemplateId
+		? templateLayouts.get(prezillo.selectedTemplateId)
+		: undefined
+	const insertFrame = templateLayout ?? activeView
+	const insertCenter: [number, number] | null = insertFrame
+		? [insertFrame.x + insertFrame.width / 2, insertFrame.y + insertFrame.height / 2]
+		: null
+
 	// Trigger image insertion when image tool is activated
 	React.useEffect(() => {
-		if (prezillo.activeTool === 'image' && !imageHandler.isInserting) {
-			// If on a template page, use template frame center
-			if (prezillo.selectedTemplateId) {
-				const layout = templateLayouts.get(prezillo.selectedTemplateId)
-				if (layout) {
-					const centerX = layout.x + layout.width / 2
-					const centerY = layout.y + layout.height / 2
-					imageHandler.insertImage(centerX, centerY)
-					return
-				}
-			}
-			// Otherwise use active view center
-			if (activeView) {
-				const centerX = activeView.x + activeView.width / 2
-				const centerY = activeView.y + activeView.height / 2
-				imageHandler.insertImage(centerX, centerY)
-			}
+		if (prezillo.activeTool === 'image' && !imageHandler.isInserting && insertCenter) {
+			imageHandler.insertImage(...insertCenter)
 		}
-	}, [
-		prezillo.activeTool,
-		activeView,
-		prezillo.selectedTemplateId,
-		templateLayouts,
-		imageHandler
-	])
+	}, [prezillo.activeTool, insertCenter?.[0], insertCenter?.[1], imageHandler])
 
 	// Trigger document insertion when document tool is activated
 	React.useEffect(() => {
-		if (prezillo.activeTool === 'document' && !documentHandler.isInserting) {
-			if (prezillo.selectedTemplateId) {
-				const layout = templateLayouts.get(prezillo.selectedTemplateId)
-				if (layout) {
-					const centerX = layout.x + layout.width / 2
-					const centerY = layout.y + layout.height / 2
-					documentHandler.insertDocument(centerX, centerY)
-					return
-				}
-			}
-			if (activeView) {
-				const centerX = activeView.x + activeView.width / 2
-				const centerY = activeView.y + activeView.height / 2
-				documentHandler.insertDocument(centerX, centerY)
-			}
+		if (prezillo.activeTool === 'document' && !documentHandler.isInserting && insertCenter) {
+			documentHandler.insertDocument(...insertCenter)
 		}
-	}, [
-		prezillo.activeTool,
-		activeView,
-		prezillo.selectedTemplateId,
-		templateLayouts,
-		documentHandler
-	])
+	}, [prezillo.activeTool, insertCenter?.[0], insertCenter?.[1], documentHandler])
+
+	// Pasting a `cl:` embed link embeds it at the insert centre (as quillo/notillo do)
+	const pasteRef = React.useRef({ insertCenter, documentHandler })
+	pasteRef.current = { insertCenter, documentHandler }
+	React.useEffect(() => {
+		const bus = getAppBus()
+		const fileId = prezillo.cloudillo.fileId
+		if (isReadOnly || bus.embedded || !fileId) return
+		const onPaste = (e: ClipboardEvent) => {
+			const target = e.target as HTMLElement | null
+			if (
+				target?.closest?.(
+					'input, textarea, select, [contenteditable], [data-rich-text-editor], [role="dialog"]'
+				)
+			)
+				return
+			const center = pasteRef.current.insertCenter
+			if (!center) return
+			bus.linkFromPaste(e, fileId)?.then((res) => {
+				if (res) pasteRef.current.documentHandler.insertDocument(...center, res)
+			})
+		}
+		document.addEventListener('paste', onPaste)
+		return () => document.removeEventListener('paste', onPaste)
+	}, [isReadOnly, prezillo.cloudillo.fileId])
 
 	// Auto-expand/collapse mobile panel based on selection
 	React.useEffect(() => {
@@ -910,7 +888,7 @@ export function PrezilloApp() {
 		dialog,
 		handleDuplicate,
 		setEditingTextId,
-		setActiveDocumentId: isReadOnly ? undefined : setActiveDocumentId,
+		setActiveDocumentId,
 		justFinishedInteractionRef,
 		objectMenuRef
 	})
@@ -1011,6 +989,17 @@ export function PrezilloApp() {
 						icon={<IcUsers />}
 						label={t('Share for following')}
 						onClick={handleShareFollow}
+					/>
+					<MenuItem
+						icon={<IcLink />}
+						label={t('Copy embed link to this slide')}
+						disabled={!prezillo.activeViewId}
+						onClick={() => {
+							const resId = getAppBus().resId
+							if (resId && prezillo.activeViewId) {
+								copyEmbedLink(docRef('prezillo', resId, prezillo.activeViewId))
+							}
+						}}
 					/>
 					{/* Editor-only tools. The toolbar that would otherwise gate them is
 					    unmounted for viewers, so they are gated here. */}
@@ -1499,11 +1488,17 @@ export function PrezilloApp() {
 									sourceFileId={prezillo.cloudillo.fileId}
 									scale={canvasScale}
 									activeDocument={
-										object.type === 'document' &&
-										(isReadOnly || activeDocumentId === object.id)
+										object.type === 'document' && activeDocumentId === object.id
 									}
-									onDocumentViewStateChange={
-										!isReadOnly ? handleDocumentViewStateChange : undefined
+									onDocumentActivate={setActiveDocumentId}
+									onDocumentReport={
+										!isReadOnly ? handleDocumentReport : undefined
+									}
+									onDocumentUseView={
+										!isReadOnly ? handleDocumentUseView : undefined
+									}
+									onDocumentEditable={
+										!isReadOnly ? handleDocumentEditable : undefined
 									}
 								/>
 							)

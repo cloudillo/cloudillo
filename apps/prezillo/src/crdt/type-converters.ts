@@ -419,7 +419,8 @@ export function expandObject(id: string, stored: Stored.StoredObject): Runtime.P
 				contentType: docEmbed.ct,
 				appId: docEmbed.aid,
 				navState: docEmbed.ns,
-				aspectRatio: docEmbed.ar
+				aspectRatio: docEmbed.ar,
+				editable: docEmbed.ed
 			} as Runtime.DocumentObject
 		}
 
@@ -605,7 +606,8 @@ export function compactObject(runtime: Runtime.PrezilloObject): Stored.StoredObj
 				ct: docEmbed2.contentType,
 				...(docEmbed2.appId && { aid: docEmbed2.appId }),
 				...(docEmbed2.navState && { ns: docEmbed2.navState }),
-				...(docEmbed2.aspectRatio && { ar: docEmbed2.aspectRatio })
+				...(docEmbed2.aspectRatio && { ar: docEmbed2.aspectRatio }),
+				...(docEmbed2.editable && { ed: true })
 			} as Stored.StoredDocEmbed
 		}
 

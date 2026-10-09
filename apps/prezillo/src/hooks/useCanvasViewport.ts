@@ -5,6 +5,8 @@
  * Hook for canvas viewport state, bounds calculation, and auto-centering effects
  */
 
+import { getAppBus } from '@cloudillo/core'
+import { useEmbedLayout } from '@cloudillo/react'
 import * as React from 'react'
 import type { SvgCanvasContext, SvgCanvasHandle } from 'react-svg-canvas'
 
@@ -102,11 +104,13 @@ export function useCanvasViewport({
 		return () => window.removeEventListener('resize', handleResize)
 	}, [canvasContextRef, updateViewportBounds])
 
+	const embedded = getAppBus().embedded
+
 	// Center on active view when it changes (smart zoom - only if page is off-screen or explicit navigation)
 	const activeView = prezillo.activeViewId ? getView(prezillo.doc, prezillo.activeViewId) : null
 	const hasActiveView = !!activeView
 	React.useEffect(() => {
-		if (!canvasReady || !activeView || !canvasRef.current) return
+		if (embedded || !canvasReady || !activeView || !canvasRef.current) return
 
 		const isInView = canvasRef.current.isRectInView(
 			activeView.x,
@@ -130,6 +134,35 @@ export function useCanvasViewport({
 			)
 		}
 	}, [prezillo.activeViewId, canvasReady, hasActiveView])
+
+	// Embedded: fit the active view exactly to the iframe (the host sizes the frame to
+	// natural × scale, so this is zoom = layout.scale). Re-fit on layout and on resize.
+	const embedLayout = useEmbedLayout()
+	const [resizeTick, setResizeTick] = React.useState(0)
+	React.useEffect(() => {
+		if (!embedded) return
+		const handleResize = () => setResizeTick((t) => t + 1)
+		window.addEventListener('resize', handleResize)
+		return () => window.removeEventListener('resize', handleResize)
+	}, [embedded])
+	const fitKey = activeView
+		? `${activeView.x},${activeView.y},${activeView.width},${activeView.height}`
+		: ''
+	React.useEffect(() => {
+		const container = canvasContainerRef.current
+		if (!embedded || !canvasReady || !activeView || !canvasRef.current || !container) return
+		const rect = container.getBoundingClientRect()
+		if (!rect.width || !rect.height) return
+		const s = Math.min(rect.width / activeView.width, rect.height / activeView.height)
+		canvasRef.current.setMatrix([
+			s,
+			0,
+			0,
+			s,
+			(rect.width - activeView.width * s) / 2 - activeView.x * s,
+			(rect.height - activeView.height * s) / 2 - activeView.y * s
+		])
+	}, [embedded, canvasReady, fitKey, embedLayout, resizeTick])
 
 	// Center on selected template (template frames above views)
 	React.useEffect(() => {

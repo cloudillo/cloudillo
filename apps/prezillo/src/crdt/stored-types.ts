@@ -227,6 +227,7 @@ export interface StoredDocEmbed extends StoredObjectBase {
 	aid?: string // appId (resolved from contentType)
 	ns?: string // navigation state (opaque, app-specific)
 	ar?: [number, number] // aspect ratio from embedded doc (e.g. [16, 9])
+	ed?: boolean // editors may edit the embedded document in place
 }
 
 // Connector

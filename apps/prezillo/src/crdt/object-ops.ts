@@ -6,6 +6,7 @@
  */
 
 import { type ZOrderOp, zOrderTarget } from '@cloudillo/canvas-tools'
+import { LAYOUT_ORIGIN, naturalSizeChanged } from '@cloudillo/react'
 import * as Y from 'yjs'
 
 import { getContainerChildren } from './document'
@@ -1386,36 +1387,71 @@ export function fixDocumentIssues(
 }
 
 /**
- * Update the navigation state (and optional aspect ratio) of a document embed object.
- * Only writes to CRDT if the stored value actually differs.
+ * Persist the navigation state of a document embed object ("Use current view").
+ * A user action, so written under the local client origin and undoable.
  */
 export function updateDocumentNavState(
 	yDoc: Y.Doc,
 	doc: YPrezilloDocument,
 	objectId: ObjectId,
-	navState: string,
-	aspectRatio?: [number, number]
+	navState: string
 ): void {
 	const existing = doc.o.get(objectId)
 	if (existing?.t !== 'D') return
 
 	const stored = existing as StoredDocEmbed
-	// Skip if nothing changed
+	if (stored.ns === navState) return
+
+	yDoc.transact(() => {
+		doc.o.set(objectId, { ...stored, ns: navState })
+	}, yDoc.clientID)
+}
+
+/**
+ * Persist the "Allow editing" flag of a document embed object.
+ * A user action, so written under the local client origin and undoable.
+ */
+export function updateDocumentEditable(
+	yDoc: Y.Doc,
+	doc: YPrezilloDocument,
+	objectId: ObjectId,
+	editable: boolean
+): void {
+	const existing = doc.o.get(objectId)
+	if (existing?.t !== 'D') return
+
+	const { ed: _ed, ...stored } = existing as StoredDocEmbed
+	yDoc.transact(() => {
+		doc.o.set(objectId, editable ? { ...stored, ed: true } : stored)
+	}, yDoc.clientID)
+}
+
+/**
+ * Store the natural size a fixed-aspect embedded document reported (`ar`; also locks the resize
+ * aspect). Written under a non-client origin: it follows from loading, not from a user edit, so
+ * the UndoManager (tracking only yDoc.clientID) ignores it. Small changes are ignored
+ * (`naturalSizeChanged`).
+ */
+export function updateDocumentAspect(
+	yDoc: Y.Doc,
+	doc: YPrezilloDocument,
+	objectId: ObjectId,
+	natural: [number, number]
+): void {
+	const existing = doc.o.get(objectId)
+	if (existing?.t !== 'D') return
+
+	const stored = existing as StoredDocEmbed
 	if (
-		stored.ns === navState &&
-		stored.ar?.[0] === aspectRatio?.[0] &&
-		stored.ar?.[1] === aspectRatio?.[1]
+		stored.ar &&
+		!naturalSizeChanged({ w: stored.ar[0], h: stored.ar[1] }, { w: natural[0], h: natural[1] })
 	) {
 		return
 	}
 
 	yDoc.transact(() => {
-		const updated: StoredDocEmbed = { ...stored, ns: navState }
-		if (aspectRatio) {
-			updated.ar = aspectRatio
-		}
-		doc.o.set(objectId, updated)
-	}, yDoc.clientID)
+		doc.o.set(objectId, { ...stored, ar: natural })
+	}, LAYOUT_ORIGIN)
 }
 
 // vim: ts=4

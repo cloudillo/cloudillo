@@ -113,13 +113,14 @@ export function useCanvasEventHandlers({
 
 	// Handle object double-click (edit text or activate document)
 	function handleObjectDoubleClick(e: React.MouseEvent, objectId: ObjectId) {
-		if (isReadOnly) return
+		const obj = prezillo.doc.o.get(objectId)
+		// Readers may still activate embedded documents
+		if (isReadOnly && obj?.t !== 'D') return
 		e.stopPropagation()
 
 		// Auto-switch to object's page if clicking on an object from a different page
 		prezillo.autoSwitchToObjectPage(objectId)
 
-		const obj = prezillo.doc.o.get(objectId)
 		if (obj?.t === 'T') {
 			setEditingTextId(objectId)
 		} else if (obj?.t === 'D') {
@@ -255,10 +256,20 @@ export function useCanvasEventHandlers({
 						handleDelete()
 					}
 					break
+				case 'Enter': {
+					// Enter on a single selected embed activates it
+					const [id] = prezillo.selectedIds
+					if (prezillo.selectedIds.size === 1 && prezillo.doc.o.get(id)?.t === 'D') {
+						setActiveDocumentId?.(id)
+						evt.preventDefault()
+					}
+					break
+				}
 				case 'Escape':
 					prezillo.clearSelection()
 					prezillo.setActiveTool(null)
 					setEditingTextId(null)
+					setActiveDocumentId?.(null)
 					break
 			}
 		} else if (!evt.altKey && !evt.shiftKey && (evt.ctrlKey || evt.metaKey)) {

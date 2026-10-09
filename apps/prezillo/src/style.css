@@ -2196,8 +2196,8 @@ body,
 }
 
 /* Document embeds are interactive in presentation mode */
-.c-presentation-svg > foreignObject.cl-document-embed-fo,
-.c-presentation-svg > g > foreignObject.cl-document-embed-fo {
+.c-presentation-svg > foreignObject.cl-view-embed-fo,
+.c-presentation-svg > g > foreignObject.cl-view-embed-fo {
 	pointer-events: auto;
 }
 

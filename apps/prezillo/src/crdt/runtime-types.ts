@@ -234,6 +234,7 @@ export interface DocumentObject extends PrezilloObjectBase {
 	appId?: string
 	navState?: string // navigation state (opaque, app-specific)
 	aspectRatio?: [number, number] // aspect ratio from embedded doc
+	editable?: boolean // editors may edit the embedded document in place
 }
 
 // Connector object

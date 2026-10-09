@@ -6,6 +6,7 @@
  */
 
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import {
 	PiAlignBottomBold as IcAlignBottom,
 	PiTextAlignCenterBold as IcAlignCenter,
@@ -128,6 +129,7 @@ export function Toolbar({
 	selectedSymbolId,
 	onSelectSymbol
 }: ToolbarProps) {
+	const { t } = useTranslation()
 	return (
 		<div className={mergeClasses('c-nav c-hbox p-1 mb-1', className)}>
 			{/* Undo/Redo */}
@@ -199,7 +201,7 @@ export function Toolbar({
 			<button
 				onClick={() => setTool('image')}
 				className={mergeClasses('c-button icon', tool === 'image' ? 'active' : '')}
-				title="Image"
+				title={t('Insert Image')}
 			>
 				<IcImage />
 			</button>
@@ -208,7 +210,7 @@ export function Toolbar({
 			<button
 				onClick={() => setTool('document')}
 				className={mergeClasses('c-button icon', tool === 'document' ? 'active' : '')}
-				title="Embed Document"
+				title={t('Embed Document')}
 			>
 				<IcDocument />
 			</button>

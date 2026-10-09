@@ -3,6 +3,11 @@
 
 const _APP_NAME = 'quillo'
 
+// Quillo has no i18next instance yet, so this only marks keys for extraction
+// (interpolating `{{name}}` like i18next); swap for a real `i18n.t` when quillo gets translations.
+const t = (key: string, o?: Record<string, string>): string =>
+	key.replace(/\{\{(\w+)\}\}/g, (_, n) => o?.[n] ?? '')
+
 import * as Y from 'yjs'
 
 //import { IndexeddbPersistence } from 'y-indexeddb'
@@ -18,8 +23,7 @@ import '@enzedonline/quill-blot-formatter2/dist/css/quill-blot-formatter2.css'
 import QuillTableBetter from 'quill-table-better'
 import 'quill-table-better/dist/quill-table-better.css'
 
-import { ClDocumentBlot } from './blots/ClDocumentBlot.js'
-import { ClDocumentSpec } from './blots/ClDocumentSpec.js'
+import { ClDocumentBlot, refreshDocumentEmbeds } from './blots/ClDocumentBlot.js'
 import { ClImageBlot } from './blots/ClImageBlot.js'
 import { ClImageSpec } from './blots/ClImageSpec.js'
 import { registerSafeTableBlots } from './blots/SafeTableBlots.js'
@@ -38,7 +42,7 @@ import 'quill/dist/quill.snow.css'
 
 //import 'quill/dist/quill.bubble.css'
 
-import { getAppBus, idAccent } from '@cloudillo/core'
+import { docRef, type EmbedViewReportPayload, getAppBus, idAccent, parseNav } from '@cloudillo/core'
 import { initPresence, openYDoc } from '@cloudillo/crdt'
 import {
 	FONTS,
@@ -50,9 +54,16 @@ import {
 import { Cloud, CloudOff, createElement } from 'lucide'
 import type { Awareness } from 'y-protocols/awareness'
 
+import {
+	BID_ATTRIBUTE,
+	BID_FORMAT,
+	registerBlockIdNormalizer,
+	registerBlockIdPasteMatcher
+} from './block-ids.js'
 import { mountDocBar } from './docbar.js'
 import { importMarkdown } from './import-markdown.js'
 import { registerTablePasteNormalizer } from './normalize-table-paste.js'
+import { applySectionVisibility, currentSectionBid, findSection } from './section-view.js'
 import '@cloudillo/fonts/fonts.css'
 
 // ============================================
@@ -352,7 +363,8 @@ function updatePairingBadges(
 			keyName: string,
 			options: { scope: number; whitelist: string[] }
 		) => unknown
-		Scope: { INLINE: number }
+		Attributor: new (name: string, keyName: string, options: { scope: number }) => unknown
+		Scope: { INLINE: number; BLOCK: number }
 	}
 	const Parchment = Quill.import('parchment') as unknown as ParchmentStatic
 	const fontWhitelist = FONTS.map((f) => sanitizeFontName(f.family))
@@ -369,6 +381,12 @@ function updatePairingBadges(
 	})
 	Quill.register('formats/size', SizeClass, true)
 
+	// Stable per-line block id (see block-ids.ts)
+	const BidAttr = new Parchment.Attributor(BID_FORMAT, BID_ATTRIBUTE, {
+		scope: Parchment.Scope.BLOCK
+	})
+	Quill.register(`formats/${BID_FORMAT}`, BidAttr, true)
+
 	// Fix: Override table blots with null-safe versions (fixes crash on Yjs sync)
 	registerSafeTableBlots()
 
@@ -381,6 +399,7 @@ function updatePairingBadges(
 
 	const bus = getAppBus()
 	const state = await bus.init('quillo')
+	if (bus.embedded) document.body.classList.add('quillo-embed')
 
 	// Set ownerTag for image URL construction (extract from URL hash, not bus.idTag which is the user's identity)
 	const [ownerTag, fileId] = docId.split(':')
@@ -394,6 +413,8 @@ function updatePairingBadges(
 	let awareness: Awareness | undefined
 	bus.onIdentityChange(() => {
 		if (awareness) initPresence(awareness, bus)
+		// Embed blots read the host's edit rights at render time
+		refreshDocumentEmbeds()
 	})
 
 	const yDoc = new Y.Doc()
@@ -425,7 +446,12 @@ function updatePairingBadges(
 						) as HTMLInputElement | null
 						input?.click()
 					},
-					onOpenSettings: () => openSettingsDialog?.()
+					onOpenSettings: () => openSettingsDialog?.(),
+					// `editor` is declared further down; this only runs on a click.
+					getSectionLink: () => {
+						const bid = currentSectionBid(editor)
+						return bid ? docRef('quillo', docId, `sec:${bid}`) : null
+					}
 				}
 			})
 		}
@@ -465,6 +491,8 @@ function updatePairingBadges(
 	// ============================================
 	// Must populate before Quill transforms the select into its picker UI
 	const toolbarEl = document.getElementById('toolbar')
+	toolbarEl?.querySelector('.ql-image')?.setAttribute('title', t('Insert Image'))
+	toolbarEl?.querySelector('.ql-cl-document')?.setAttribute('title', t('Embed Document'))
 	const fontSelect = toolbarEl?.querySelector('.ql-font') as HTMLSelectElement | null
 	if (fontSelect) {
 		for (const font of FONTS) {
@@ -479,7 +507,7 @@ function updatePairingBadges(
 			cursors: true,
 			toolbar: '#toolbar',
 			blotFormatter2: {
-				specs: [ClImageSpec, ClDocumentSpec]
+				specs: [ClImageSpec]
 			},
 			history: {
 				userOnly: true
@@ -503,6 +531,43 @@ function updatePairingBadges(
 	// Delta on reopen. Registered after `new Quill` so this matcher runs after
 	// quill-table-better's own table matchers and rewrites their output.
 	registerTablePasteNormalizer(editor)
+	// Pasted / imported lines must not clone the source's block ids.
+	registerBlockIdPasteMatcher(editor)
+
+	// Pasting a `cl:` embed link embeds it. Capture phase: runs before Quill's
+	// clipboard handler; the shell creates the file-link share and shows the disclosure.
+	// Cancel or failure inserts nothing; the shell toasts the reason.
+	editor.root.addEventListener(
+		'paste',
+		(e: ClipboardEvent) => {
+			if (bus.access !== 'write' || bus.embedded) return
+			const p = bus.linkFromPaste(e, fileId)
+			if (!p) return
+			e.stopPropagation()
+			// The dialog can stay open for minutes: keep the index in step with edits meanwhile
+			let index = editor.getSelection(true).index
+			const track = (d: Delta) => {
+				index = d.transformPosition(index)
+			}
+			editor.on('text-change', track)
+			p.then((res) => {
+				if (!res) return
+				editor.insertEmbed(
+					index,
+					'cl-document',
+					{
+						fileId: res.fileId,
+						appId: res.appId || 'view',
+						contentType: res.contentType,
+						navState: res.nav
+					},
+					'user'
+				)
+				editor.setSelection(index + 1, 0, 'silent')
+			}).finally(() => editor.off('text-change', track))
+		},
+		true
+	)
 
 	/*
 	 * Give every remote caret its owner's identity colour.
@@ -548,6 +613,16 @@ function updatePairingBadges(
 		editor.setContents = origSetContents
 	}
 
+	// Block ids: start after the binding exists AND the initial sync landed, so the
+	// first pass sees the whole document (legacy docs get ids from the first writer).
+	const startBlockIds = () => {
+		const normalizeBlockIds = registerBlockIdNormalizer(editor, () => bus.access === 'write')
+		// A corrective `auth:init.push` can upgrade a reader to writer.
+		bus.onIdentityChange(normalizeBlockIds)
+	}
+	if (doc.provider.synced) startBlockIds()
+	else doc.provider.once('sync', startBlockIds)
+
 	// quill-cursors fixes a cursor's colour at creation, and `createCursor`
 	// (wrapper and all) hands back an existing cursor untouched for an id it
 	// already knows. So a theme flip drops them and lets y-quill's own awareness
@@ -561,8 +636,84 @@ function updatePairingBadges(
 		aw.emit('change', [{ added: [], updated: remote, removed: [] }, 'local'])
 	})
 
-	// Set read-only mode based on access level
-	if (bus.access !== 'write') {
+	if (bus.embedded) {
+		// Embed view source: toolbar hidden by `body.quillo-embed` CSS; editable
+		// only while the host has activated the embed, and only for writers.
+		const editorEl = document.getElementById('editor')
+		const applyLayout = () => {
+			const layout = bus.viewLayout
+			editor.enable(bus.access === 'write' && !!layout?.interactive)
+			if (editorEl) {
+				editorEl.style.fontSize = layout?.textScale ? `${layout.textScale * 100}%` : ''
+			}
+			refreshDocumentEmbeds()
+		}
+		applyLayout()
+		bus.onViewLayout(applyLayout)
+
+		const qlEditor = document.querySelector<HTMLElement>('.ql-editor')
+		if (qlEditor) {
+			let nav = state.navState
+			// A section that no longer resolves keeps showing the last good one, reported missing
+			let lastSection: ReturnType<typeof findSection> = null
+			// What `report` last resolved; null until the first report
+			let base: Omit<EmbedViewReportPayload, 'kind' | 'natural'> | null = null
+			const send = () => {
+				if (!base) return
+				bus.reportView({
+					...base,
+					kind: 'reflow',
+					natural: { w: qlEditor.clientWidth, h: qlEditor.scrollHeight }
+				})
+			}
+			// One observer for the editor's lifetime; `report` only swaps what `send` reports
+			new ResizeObserver(send).observe(qlEditor)
+			const report = () => {
+				const docTitle = bus.docInfo?.fileName
+				const { kind, value: bid } = parseNav(nav ?? '')
+				if (kind === 'sec') {
+					// Before the first sync every bid looks missing.
+					if (!doc.provider.synced) return
+					const section = findSection(editor, bid)
+					if (section) lastSection = section
+					applySectionVisibility(editor, section ?? lastSection)
+					base = section
+						? {
+								nav,
+								viewId: bid,
+								named: true,
+								title: section.heading,
+								a11yLabel: t('Section "{{heading}}" from {{doc}}', {
+									heading: section.heading,
+									doc: docTitle ?? t('document')
+								})
+							}
+						: { nav, missing: true }
+				} else {
+					applySectionVisibility(editor, null)
+					base = docTitle
+						? {
+								title: docTitle,
+								a11yLabel: t('Document "{{title}}"', { title: docTitle })
+							}
+						: {}
+				}
+				send()
+			}
+			report()
+			bus.onDocInfo(report)
+			bus.onViewSet((n) => {
+				nav = n
+				report()
+			})
+			if (!doc.provider.synced) doc.provider.once('sync', report)
+			// Section bounds move with every edit (local or remote).
+			editor.on('text-change', () => {
+				if (parseNav(nav ?? '').kind === 'sec') report()
+			})
+		}
+	} else if (bus.access !== 'write') {
+		// Set read-only mode based on access level
 		editor.enable(false)
 		const toolbar = document.getElementById('toolbar')
 		if (toolbar) toolbar.style.display = 'none'
@@ -580,7 +731,7 @@ function updatePairingBadges(
 			const result = await bus.pickMedia({
 				mediaType: 'image/*',
 				documentFileId: fileId,
-				title: 'Insert Image'
+				title: t('Insert Image')
 			})
 
 			if (!result) return // User cancelled
@@ -604,20 +755,25 @@ function updatePairingBadges(
 		try {
 			const result = await bus.pickDocument({
 				sourceFileId: fileId,
-				title: 'Embed Document'
+				title: t('Embed Document')
 			})
 
 			if (!result) return // User cancelled
 
 			const range = editor.getSelection(true)
-			editor.insertEmbed(
-				range.index,
-				'cl-document',
-				{
-					fileId: result.fileId,
-					appId: result.appId || 'view',
-					contentType: result.contentType
-				},
+			// One op with the format, so the new embed starts centered (absent still reads as left)
+			editor.updateContents(
+				new Delta().retain(range.index).insert(
+					{
+						'cl-document': {
+							fileId: result.fileId,
+							appId: result.appId || 'view',
+							contentType: result.contentType,
+							...(result.fileName && { name: result.fileName })
+						}
+					},
+					{ embedAlign: 'center' }
+				),
 				'user'
 			)
 			editor.setSelection(range.index + 1, 0, 'silent')
@@ -846,6 +1002,8 @@ function updatePairingBadges(
 	// Close dialog on Escape
 	settingsDialog.addEventListener('keydown', (e) => {
 		if (e.key === 'Escape') {
+			// Consumed here, so an embedding host doesn't also leave interact mode
+			e.preventDefault()
 			settingsDialog.close()
 		}
 	})
@@ -865,10 +1023,12 @@ function updatePairingBadges(
 	})
 
 	document.addEventListener('keydown', (e) => {
-		if (e.key === 'Escape') {
-			colorPicker.classList.add('hidden')
-			backgroundPicker.classList.add('hidden')
-		}
+		if (e.key !== 'Escape') return
+		const open = [colorPicker, backgroundPicker].filter((p) => !p.classList.contains('hidden'))
+		if (!open.length) return
+		// Consumed here, so an embedding host doesn't also leave interact mode
+		e.preventDefault()
+		for (const p of open) p.classList.add('hidden')
 	})
 })().catch((err) => {
 	// Same guard as `useCloudilloEditor` (libs/react/src/hooks.tsx) - see there for why an

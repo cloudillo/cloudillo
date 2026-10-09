@@ -114,6 +114,32 @@ body {
 	backdrop-filter: none;
 }
 
+/* Embedded as a reflow view: the host frame grows to the content height, so
+ * nothing scrolls and #editor must not stretch to the viewport (its height
+ * would then follow the frame and feed back into the reported height). */
+body.quillo-embed {
+	height: auto;
+	overflow: hidden;
+
+	& #editor-canvas {
+		padding: 0;
+		overflow: hidden;
+	}
+
+	& #editor {
+		min-height: auto;
+	}
+
+	& #toolbar {
+		display: none;
+	}
+
+	/* Lines outside the `sec:` section being embedded (section-view.ts). */
+	& .cl-embed-hidden {
+		display: none;
+	}
+}
+
 .c-panel.ql-toolbar {
 	z-index: 10;
 }

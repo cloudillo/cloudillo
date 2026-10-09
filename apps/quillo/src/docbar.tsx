@@ -21,11 +21,17 @@ import {
 	MenuDivider,
 	MenuItem,
 	Toasts,
-	useLibTranslation
+	useCopyEmbedLink,
+	useLibTranslation,
+	useToast
 } from '@cloudillo/react/doc-bar'
 import * as React from 'react'
 import { createRoot, type Root } from 'react-dom/client'
-import { PiDownloadSimpleBold as IcImport, PiGearBold as IcSettings } from 'react-icons/pi'
+import {
+	PiDownloadSimpleBold as IcImport,
+	PiLinkBold as IcLink,
+	PiGearBold as IcSettings
+} from 'react-icons/pi'
 import type { Awareness } from 'y-protocols/awareness'
 
 export interface DocBarActions {
@@ -33,6 +39,8 @@ export interface DocBarActions {
 	onImportMarkdown?: () => void
 	/** Show the document settings dialog. Absent for a read-only viewer. */
 	onOpenSettings?: () => void
+	/** Embed link of the section at the cursor; null when there is none. Shown to readers too. */
+	getSectionLink?: () => string | null
 }
 
 export interface MountDocBarOptions {
@@ -63,21 +71,40 @@ function QuilloDocBar({ awareness, actions }: MountDocBarOptions) {
 	// Gated on write access rather than on the toolbar's visibility: the toolbar
 	// is hidden in read-only, but the DocBar is not.
 	const hasActions = canWrite && !!(actions?.onImportMarkdown || actions?.onOpenSettings)
+	const toast = useToast()
+	const copyEmbedLink = useCopyEmbedLink()
+
+	const getSectionLink = actions?.getSectionLink
+	function copySectionLink() {
+		const link = getSectionLink?.()
+		if (link) copyEmbedLink(link)
+		else toast.warning(t('Place the cursor in a section with a heading'))
+	}
 
 	return (
 		<React.Fragment>
 			<AppDocBar awareness={awareness}>
-				{hasActions && (
+				{(hasActions || getSectionLink) && (
 					<DocBarMenu>
-						{actions?.onImportMarkdown && (
+						{getSectionLink && (
+							<MenuItem
+								icon={<IcLink />}
+								label={t('Copy embed link to this section')}
+								onClick={copySectionLink}
+							/>
+						)}
+						{getSectionLink && hasActions && <MenuDivider />}
+						{hasActions && actions?.onImportMarkdown && (
 							<MenuItem
 								icon={<IcImport />}
 								label={t('Import Markdown')}
 								onClick={actions.onImportMarkdown}
 							/>
 						)}
-						{actions?.onImportMarkdown && actions?.onOpenSettings && <MenuDivider />}
-						{actions?.onOpenSettings && (
+						{hasActions && actions?.onImportMarkdown && actions?.onOpenSettings && (
+							<MenuDivider />
+						)}
+						{hasActions && actions?.onOpenSettings && (
 							<MenuItem
 								icon={<IcSettings />}
 								label={t('Document Settings')}

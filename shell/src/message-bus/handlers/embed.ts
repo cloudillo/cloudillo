@@ -24,11 +24,29 @@ import {
 } from '@cloudillo/core'
 
 import { shellEmbedAppName } from '../../app-name.js'
+// The leaf modules, not manifest-registry.ts: that one pulls in the icon registry and React
+import { bundledManifests } from '../../bundled-manifests.js'
+import { shellManifests } from '../../shell-manifests.js'
 import { getAccessSuffix } from '../app-tracker.js'
 import type { ShellMessageBus } from '../shell-bus.js'
 import { fileIdFromResId, idTagFromResId } from './resId.js'
 
 const MAX_EMBED_DEPTH = 3
+
+/** Whether any manifest declares `embed.render` for this content type */
+function canRender(contentType: string): boolean {
+	return [...shellManifests, ...bundledManifests].some((m) =>
+		m.contentTypes?.some((ct) => ct.mimeType === contentType && !!ct.embed?.render?.length)
+	)
+}
+
+/**
+ * Whether `appName` is one of ours. A relayed nested render arrives from the host app's
+ * window, so it is the host's attested name that is checked here.
+ */
+function isOwnApp(appName: string | undefined): boolean {
+	return [...shellManifests, ...bundledManifests].some((m) => m.id === appName)
+}
 
 /**
  * Initialize embed message handlers on the shell bus
@@ -71,8 +89,32 @@ export function initEmbedHandlers(bus: ShellMessageBus): void {
 
 		// `ancestors` stays in the schema for compatibility but is not read: the chain comes
 		// from the stored via-entry, which the requester cannot forge.
-		const { targetFileId, targetContentType, sourceFileId, access, navState, params } =
+		const { targetFileId, targetContentType, sourceFileId, access, navState, params, mode } =
 			msg.payload
+		// Headless renders only for sources that declare them: a reflow source would never
+		// answer and the host would wait out the whole render deadline
+		if (mode === 'render' && !canRender(targetContentType)) {
+			bus.sendResponse(
+				appWindow,
+				'embed:open.res',
+				msg.id,
+				false,
+				undefined,
+				'Source cannot render'
+			)
+			return
+		}
+		// The backend only checks that the source links to the target; a third-party app
+		// must not read back the content of the documents its own document links to
+		if (mode === 'render' && !isOwnApp(connection.appName)) {
+			bus.sendResponse(appWindow, 'embed:open.res', msg.id, false, undefined, 'Not allowed')
+			return
+		}
+		// The picker is the shell's own (shell-embed.ts); an app may not open one
+		if (mode === 'pick-view') {
+			bus.sendResponse(appWindow, 'embed:open.res', msg.id, false, undefined, 'Not allowed')
+			return
+		}
 		// quillo sends `owner:fileId`, the other apps the bare fileId
 		const srcFileId = fileIdFromResId(sourceFileId) || sourceFileId
 		const tgtFileId = fileIdFromResId(targetFileId) || targetFileId
@@ -95,7 +137,8 @@ export function initEmbedHandlers(bus: ShellMessageBus): void {
 		}
 		const nextAncestorChain = [...(via ? via.ancestors : []), srcFileId]
 		const sourceAccess = via ? via.access : connection.access
-		const requestedAccess = sourceAccess === 'write' ? access || 'read' : 'read'
+		const requestedAccess =
+			mode !== 'render' && sourceAccess === 'write' ? access || 'read' : 'read'
 
 		// Depth check
 		if (nextAncestorChain.length >= MAX_EMBED_DEPTH) {
@@ -180,6 +223,7 @@ export function initEmbedHandlers(bus: ShellMessageBus): void {
 				displayName: connection?.displayName,
 				navState,
 				params,
+				mode,
 				ancestors: nextAncestorChain
 			})
 

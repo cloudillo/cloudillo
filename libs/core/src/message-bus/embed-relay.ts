@@ -11,9 +11,24 @@
 
 import * as T from '@symbion/runtype'
 
+import { MAX_RENDER_PAGES, MAX_RENDER_TOTAL_SIZE } from '../render-limits.js'
 import { parseAppHash } from './app-bus.js'
 import { validateMessage } from './registry.js'
 import { PROTOCOL_VERSION } from './types.js'
+
+/**
+ * Cheap size check of an `embed:render.res` before the full decode/validate walks it.
+ * (The postMessage structured clone has already happened: that can't be bounded here.)
+ */
+function renderResTooLarge(msg: { type?: unknown; payload?: unknown }): boolean {
+	if (msg.type !== 'embed:render.res') return false
+	const pages = (msg.payload as { pages?: unknown }).pages
+	if (pages === undefined) return false
+	if (!Array.isArray(pages) || pages.length > MAX_RENDER_PAGES) return true
+	let total = 0
+	for (const p of pages) total += typeof p === 'string' ? p.length : 0
+	return total > MAX_RENDER_TOTAL_SIZE
+}
 
 let embedCounter = 0
 const EMBED_ID_RANGE = 1_000_000
@@ -92,6 +107,15 @@ export interface EmbedRelayHandle {
 	sendToChild: (type: string, payload: unknown) => void
 }
 
+/** Lets the shell drop the token it stored for embed `key` */
+export function notifyEmbedClosed(key: string): void {
+	if (window.parent === window) return
+	window.parent.postMessage(
+		{ cloudillo: true, v: PROTOCOL_VERSION, type: 'embed:close.notify', payload: { key } },
+		'*'
+	)
+}
+
 /**
  * Set up a bidirectional message relay for a nested embedded iframe.
  *
@@ -140,7 +164,7 @@ export function setupEmbedRelay(
 		) {
 			// Hosts act on these (sizing, errors, ready): only well-formed ones reach them.
 			// `validateSync` on top of the registry decode for the refinements (report bounds).
-			const rule = validateMessage(msg, 'app>shell')?.rule
+			const rule = !renderResTooLarge(msg) && validateMessage(msg, 'app>shell')?.rule
 			const valid = rule && T.validateSync(rule[2] as T.Type<{ payload: unknown }>, msg)
 			if (valid && T.isOk(valid)) options.onChildNotification(msg.type, valid.ok.payload)
 		}
@@ -210,21 +234,8 @@ export function setupEmbedRelay(
 		window.removeEventListener('message', upHandler)
 		window.removeEventListener('message', downHandler)
 		relayedIds.clear()
-		// Lets the shell drop the token it stored for this embed
-		const key = isTopWindow
-			? undefined
-			: parseAppHash(new URL(iframe.src, location.href).hash).embedAuthKey
-		if (key) {
-			window.parent.postMessage(
-				{
-					cloudillo: true,
-					v: PROTOCOL_VERSION,
-					type: 'embed:close.notify',
-					payload: { key }
-				},
-				'*'
-			)
-		}
+		const key = parseAppHash(new URL(iframe.src, location.href).hash).embedAuthKey
+		if (key) notifyEmbedClosed(key)
 	}
 
 	const sendToChild = (type: string, payload: unknown) => {

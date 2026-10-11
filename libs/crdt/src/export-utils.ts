@@ -7,7 +7,7 @@
  * Provides common helpers for exporting CRDT documents to JSON files.
  */
 
-import { downloadBlob, sanitizeFilename } from '@cloudillo/core'
+import { docBaseName, downloadBlob, sanitizeFilename } from '@cloudillo/core'
 import * as Y from 'yjs'
 
 /** Opaque type alias for Yjs shared types used in serialization.
@@ -184,7 +184,7 @@ export function exportYDoc(
  * download of the JSON file. Shared by the canvas apps (prezillo, ideallo).
  *
  * @param yDoc - Document to export
- * @param docName - Human-readable document name (used for the filename)
+ * @param docName - Fallback name for the filename when the shell gives no file name
  * @param opts - Envelope options plus the file `extension`
  * @param filename - Optional explicit filename (without extension)
  */
@@ -196,7 +196,7 @@ export function downloadYDocExport(
 ): void {
 	const json = JSON.stringify(exportYDoc(yDoc, opts), null, 2)
 	const blob = new Blob([json], { type: 'application/json' })
-	const safeName = sanitizeFilename(docName || 'untitled')
+	const safeName = sanitizeFilename(docBaseName() || docName || 'untitled')
 	downloadBlob(blob, filename ? `${filename}.${opts.extension}` : `${safeName}.${opts.extension}`)
 }
 

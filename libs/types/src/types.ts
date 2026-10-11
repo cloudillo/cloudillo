@@ -864,7 +864,9 @@ export type PartAddressing = T.TypeOf<typeof tPartAddressing>
 // is shown as a view embed.
 export const tEmbedCaps = T.struct({
 	view: T.optional(T.literal('fixed', 'reflow')),
-	namedViews: T.optional(T.boolean)
+	namedViews: T.optional(T.boolean),
+	// Output formats the source can render headlessly (`embed:render.req`)
+	render: T.optional(T.array(T.literal('svg')))
 })
 export type EmbedCaps = T.TypeOf<typeof tEmbedCaps>
 

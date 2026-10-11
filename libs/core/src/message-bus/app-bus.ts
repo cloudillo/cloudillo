@@ -17,6 +17,7 @@ import * as T from '@symbion/runtype'
 
 import { setApiToken } from '../api-registry.js'
 import { clampNatural } from '../embed-view.js'
+import { MAX_RENDER_PAGES, MAX_RENDER_SVG_SIZE, MAX_RENDER_TOTAL_SIZE } from '../render-limits.js'
 import { parseDocRef } from '../urls.js'
 import { randomId } from '../utils.js'
 import { MessageBusBase, type MessageBusConfig } from './core.js'
@@ -41,6 +42,9 @@ import {
 	type DocRenameRes,
 	type EmbedMode,
 	type EmbedOpenRes,
+	type EmbedRenderReq,
+	type EmbedRenderReqPayload,
+	type EmbedRenderResPayload,
 	type EmbedViewLayout,
 	type EmbedViewLayoutPayload,
 	type EmbedViewReportPayload,
@@ -58,6 +62,7 @@ import {
 	type StorageOp,
 	type StorageOpRes,
 	type ThemeUpdate,
+	tEmbedRenderReq,
 	tEmbedViewLayout,
 	type Visibility
 } from './types.js'
@@ -365,6 +370,11 @@ export interface OverlayItemData {
 // EMBED API
 // ============================================
 
+/** App-side renderer for `embed:render.req` ({@link AppMessageBus.onRenderRequest}) */
+export type EmbedRenderHandler = (
+	req: EmbedRenderReqPayload
+) => Promise<{ pages: string[]; natural: { w: number; h: number } }>
+
 /**
  * Result from embed open request
  */
@@ -600,6 +610,11 @@ export class AppMessageBus extends MessageBusBase {
 	/** Whether this app is running as an embedded document (nested iframe) */
 	get embedded(): boolean {
 		return this.isEmbed
+	}
+
+	/** How this embed was booted (`embed:open` mode); undefined when not embedded. Absent = 'view'. */
+	get embedMode(): EmbedMode | undefined {
+		return this.isEmbed ? (this.state.mode ?? 'view') : undefined
 	}
 
 	/** Booted by the shell's view picker (`embed:open` mode 'pick-view') */
@@ -849,6 +864,12 @@ export class AppMessageBus extends MessageBusBase {
 		})
 		this.on('embed:view.set', (msg: EmbedViewSet) => {
 			for (const h of this.viewSetHandlers) h(msg.payload.nav)
+		})
+		this.on('embed:render.req', (msg: EmbedRenderReq) => {
+			if (this.embedMode !== 'render') return
+			if (!T.isOk(T.validateSync(tEmbedRenderReq, msg))) return
+			if (this.renderHandler) this.answerRender(this.renderHandler, msg.payload)
+			else this.pendingRenderReqs.push(msg.payload)
 		})
 
 		// Handle live theme changes broadcast by the shell
@@ -1640,6 +1661,8 @@ export class AppMessageBus extends MessageBusBase {
 		access?: 'read' | 'comment' | 'write'
 		navState?: string
 		params?: string
+		/** How the embed boots; absent = 'view' */
+		mode?: EmbedMode
 	}): Promise<EmbedOpenResult> {
 		if (!this.initialized) {
 			throw new Error('AppBus not initialized. Call init() first.')
@@ -1656,6 +1679,7 @@ export class AppMessageBus extends MessageBusBase {
 					access: options.access,
 					navState: options.navState,
 					params: options.params,
+					...(options.mode && { mode: options.mode }),
 					// The shell appends the source document itself
 					ancestors: this.state.ancestors || []
 				})
@@ -1732,6 +1756,63 @@ export class AppMessageBus extends MessageBusBase {
 		return () => {
 			this.viewSetHandlers.delete(handler)
 		}
+	}
+
+	// ============================================
+	// RENDER API (embedMode === 'render')
+	// ============================================
+
+	private renderHandler: EmbedRenderHandler | undefined
+	/** Requests that arrived before a handler was set; answered when one is */
+	private pendingRenderReqs: EmbedRenderReqPayload[] = []
+
+	/**
+	 * Answer the host's `embed:render.req` with static SVG page(s). One handler at a time
+	 * (a later call replaces it). The bus answers `embed:render.res`; a throw or rejection
+	 * becomes `ok: false`. Requests are only accepted when `embedMode === 'render'`, and
+	 * ones received before the handler was set are answered on registration.
+	 * Returns an unsubscribe function.
+	 */
+	onRenderRequest(handler: EmbedRenderHandler): () => void {
+		this.renderHandler = handler
+		const pending = this.pendingRenderReqs
+		this.pendingRenderReqs = []
+		for (const req of pending) this.answerRender(handler, req)
+		return () => {
+			if (this.renderHandler === handler) this.renderHandler = undefined
+		}
+	}
+
+	private async answerRender(
+		handler: EmbedRenderHandler,
+		req: EmbedRenderReqPayload
+	): Promise<void> {
+		// Past the deadline the host has already given up ("Render timed out")
+		if (Date.now() >= req.deadline) return
+		let payload: EmbedRenderResPayload
+		try {
+			const { pages, natural } = await handler(req)
+			// The host drops oversized answers silently, so it would only see a timeout
+			if (
+				pages.length > MAX_RENDER_PAGES ||
+				pages.some((p) => p.length > MAX_RENDER_SVG_SIZE) ||
+				pages.reduce((n, p) => n + p.length, 0) > MAX_RENDER_TOTAL_SIZE
+			) {
+				throw new Error('Render output too large')
+			}
+			payload = { reqId: req.reqId, ok: true, pages, natural: clampNatural(natural) }
+		} catch (err) {
+			this.log('Render failed:', err)
+			const error = (err instanceof Error ? err.message : String(err)).slice(0, 1024)
+			payload = { reqId: req.reqId, ok: false, error }
+		}
+		if (Date.now() >= req.deadline) return
+		this.sendToShell({
+			cloudillo: true,
+			v: PROTOCOL_VERSION,
+			type: 'embed:render.res',
+			payload
+		})
 	}
 
 	// ============================================
@@ -2413,6 +2494,18 @@ export function getAppBus(config?: Partial<MessageBusConfig>): AppMessageBus {
 		appBusInstance = new AppMessageBus(config)
 	}
 	return appBusInstance
+}
+
+/** The open document's file name (shell docInfo) without extension, for naming exports */
+export function docBaseName(): string | undefined {
+	return (
+		getAppBus()
+			.docInfo?.fileName?.replace(
+				/\.(xlsx?|csv|ods|pptx?|odp|docx?|odt|pdf|md|txt|json)$/i,
+				''
+			)
+			.trim() || undefined
+	)
 }
 
 /**

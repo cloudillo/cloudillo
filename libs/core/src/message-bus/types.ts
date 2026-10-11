@@ -11,6 +11,8 @@
 
 import * as T from '@symbion/runtype'
 
+import { MAX_RENDER_PAGES, MAX_RENDER_SVG_SIZE } from '../render-limits.js'
+
 // Protocol version - increment on breaking changes
 export const PROTOCOL_VERSION = 1
 
@@ -731,7 +733,8 @@ export const tEmbedOpenReq = msg('embed:open.req', {
 		access: T.optional(T.literal('read', 'comment', 'write')),
 		navState: T.optional(T.string),
 		params: T.optional(T.string),
-		ancestors: T.optional(T.array(T.string))
+		ancestors: T.optional(T.array(T.string)),
+		mode: T.optional(tEmbedMode)
 	})
 })
 export type EmbedOpenReq = T.TypeOf<typeof tEmbedOpenReq>
@@ -820,6 +823,53 @@ export const tEmbedCloseNotify = msg('embed:close.notify', {
 	})
 })
 export type EmbedCloseNotify = T.TypeOf<typeof tEmbedCloseNotify>
+
+/**
+ * Host asks an embed booted in `mode: 'render'` for a static SVG of a view
+ * Direction: shell -> app (notification; sent by the host's relay)
+ *
+ * `page` is in CSS px at 96 dpi; without it the source returns one SVG at the view's
+ * natural size. `deadline` is epoch ms.
+ */
+export const tEmbedRenderReq = msg('embed:render.req', {
+	payload: T.struct({
+		reqId: T.string.maxLength(64),
+		nav: T.optional(T.string.maxLength(1024)),
+		page: T.optional(
+			T.struct({
+				w: T.number.between(1, 20000),
+				h: T.number.between(1, 20000),
+				repeatHead: T.optional(T.boolean)
+			})
+		),
+		deadline: T.number
+	})
+})
+export type EmbedRenderReq = T.TypeOf<typeof tEmbedRenderReq>
+export type EmbedRenderReqPayload = EmbedRenderReq['payload']
+
+/**
+ * Render-mode embed answers `embed:render.req`: one SVG string per page
+ * Direction: app -> host app (notification, consumed by the host's relay, never forwarded)
+ */
+export const tEmbedRenderRes = msg('embed:render.res', {
+	payload: T.struct({
+		reqId: T.string.maxLength(64),
+		ok: T.boolean,
+		pages: T.optional(
+			T.array(T.string.maxLength(MAX_RENDER_SVG_SIZE)).maxLength(MAX_RENDER_PAGES)
+		),
+		natural: T.optional(
+			T.struct({
+				w: T.number.between(0, 20000),
+				h: T.number.between(0, 20000)
+			})
+		),
+		error: T.optional(T.string.maxLength(1024))
+	})
+})
+export type EmbedRenderRes = T.TypeOf<typeof tEmbedRenderRes>
+export type EmbedRenderResPayload = EmbedRenderRes['payload']
 
 /** `embed:open.res` errors for an embed that would nest too deep or contain itself */
 export const EMBED_ERR_DEPTH = 'Embed depth limit exceeded'
@@ -1495,6 +1545,8 @@ export const tCloudilloMessage = T.taggedUnion('type')({
 	'embed:view.set': tEmbedViewSet,
 	'embed:view.exit': tEmbedViewExit,
 	'embed:close.notify': tEmbedCloseNotify,
+	'embed:render.req': tEmbedRenderReq,
+	'embed:render.res': tEmbedRenderRes,
 
 	// Settings messages
 	'settings:get.req': tSettingsGetReq,

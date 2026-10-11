@@ -40,10 +40,20 @@
 	"scripts": {
 		"postinstall": "node scripts/download-fonts.js",
 		"download": "node scripts/download-fonts.js",
-		"download:force": "node scripts/download-fonts.js --force"
+		"download:force": "node scripts/download-fonts.js --force",
+		"ts-test": "tsgo --noEmit -p tsconfig.test.json",
+		"test": "NODE_OPTIONS=\"--experimental-vm-modules\" jest",
+		"test:watch": "NODE_OPTIONS=\"--experimental-vm-modules\" jest --watch",
+		"test:coverage": "NODE_OPTIONS=\"--experimental-vm-modules\" jest --coverage"
 	},
 	"devDependencies": {
-		"typescript": "^7.0.2",
+		"@types/jest": "^30.0.0",
+		"@types/node": "^26.6.3",
+		"@typescript/native": "npm:typescript@^7.0.2",
+		"jest": "^30.5.2",
+		"jest-environment-jsdom": "^30.5.2",
+		"ts-jest": "^29.4.14",
+		"typescript": "npm:@typescript/typescript6@^6.0.2",
 		"wawoff2": "^2.0.1"
 	}
 }

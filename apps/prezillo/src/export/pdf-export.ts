@@ -13,11 +13,32 @@ import type { BaseTextStyle, DeltaOp } from '@cloudillo/canvas-text'
 import { createRichTextSVGElement } from '@cloudillo/canvas-text'
 import type { Gradient } from '@cloudillo/canvas-tools'
 import { createLinearGradientDef, createRadialGradientDef } from '@cloudillo/canvas-tools'
+import {
+	docBaseName,
+	embedLabel,
+	type EmbedRenderContext,
+	embedPlaceholderSvg,
+	nestSvg,
+	parseSvg,
+	type RenderEmbedOutcome,
+	renderEmbedMap,
+	sanitizeFilename,
+	sanitizeSvg,
+	stripXmlControl
+} from '@cloudillo/core'
+import {
+	collectSvgFonts,
+	type FontFaceRef,
+	loadFontFaces,
+	registerPdfFonts,
+	resolveFontFamily
+} from '@cloudillo/fonts'
 import { jsPDF } from 'jspdf'
 import { svg2pdf } from 'svg2pdf.js'
 
 import { calculateGridPositions } from '../components/TableGridRenderer'
 import type {
+	DocumentObject,
 	ImageObject,
 	PollFrameObject,
 	PrezilloObject,
@@ -35,9 +56,9 @@ import {
 	resolveShapeStyle,
 	resolveTextStyle
 } from '../crdt'
+import { getBulletIcon, migrateBullet } from '../data/bullet-icons'
 import { getSymbolById } from '../data/symbol-library'
 import { buildFillProps, buildStrokeProps, calculateRotationTransform } from '../utils'
-import { getPDFFontFamily, registerUsedFonts } from './font-handler'
 import {
 	collectImageObjectsFromArray,
 	createImageSVGElement,
@@ -54,6 +75,31 @@ const DEFAULT_HEIGHT = 1080
 
 // PDF points per pixel (72 DPI)
 const _POINTS_PER_PIXEL = 72 / 96
+
+/** `RenderContext` plus the pre-rendered document embeds, keyed by object id */
+export interface SlideRenderContext extends RenderContext {
+	embeds?: Map<string, RenderEmbedOutcome>
+}
+
+export interface PDFExportRenderOptions extends PDFExportOptions {
+	/** Without it every embed is a placeholder */
+	embeds?: EmbedRenderContext
+	signal?: AbortSignal
+}
+
+/**
+ * Render every document embed among `objects` headlessly (no caching: each export asks
+ * again). Failures stay in the map as `{ ok: false }` and print as placeholders.
+ */
+export function prerenderEmbeds(
+	objects: PrezilloObject[],
+	ctx: EmbedRenderContext
+): Promise<Map<string, RenderEmbedOutcome>> {
+	return renderEmbedMap(
+		objects.filter((o): o is DocumentObject => o.type === 'document'),
+		ctx
+	)
+}
 
 /**
  * Convert percentage string to decimal (e.g., "50%" -> "0.5")
@@ -120,7 +166,7 @@ function createGradientDef(id: string, gradient: Gradient): SVGElement | null {
  */
 async function renderObjectToSVG(
 	object: PrezilloObject,
-	context: RenderContext,
+	context: SlideRenderContext,
 	defs: SVGDefsElement
 ): Promise<SVGElement | null> {
 	const storedObj = context.doc.o.get(object.id)
@@ -194,7 +240,7 @@ async function renderObjectToSVG(
 		case 'text': {
 			// Try rich text from Y.Text first, fall back to plain text
 			const yText = context.doc.rt.get(object.id)
-			const pdfFontFamily = getPDFFontFamily(textStyle.fontFamily || 'Lato')
+			const pdfFontFamily = resolveFontFamily(textStyle.fontFamily || 'Lato')
 
 			if (yText && yText.length > 0) {
 				const delta = yText.toDelta() as DeltaOp[]
@@ -219,7 +265,8 @@ async function renderObjectToSVG(
 						width: object.width,
 						height: object.height
 					},
-					baseStyle
+					baseStyle,
+					getBulletIcon(migrateBullet(textStyle.listBullet) ?? '')
 				)
 			} else {
 				// Fallback to plain text (legacy)
@@ -280,7 +327,7 @@ async function renderObjectToSVG(
 			if (pollObj.label) {
 				const pdfLabelStyle = {
 					...textStyle,
-					fontFamily: getPDFFontFamily(textStyle.fontFamily || 'Lato'),
+					fontFamily: resolveFontFamily(textStyle.fontFamily || 'Lato'),
 					textAlign: 'center' as const,
 					verticalAlign: 'middle' as const
 				}
@@ -464,30 +511,24 @@ async function renderObjectToSVG(
 		}
 
 		case 'document': {
-			// Document embeds cannot be captured in PDF - render placeholder
-			const docRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
-			docRect.setAttribute('x', String(object.x))
-			docRect.setAttribute('y', String(object.y))
-			docRect.setAttribute('width', String(object.width))
-			docRect.setAttribute('height', String(object.height))
-			docRect.setAttribute('fill', '#f0f0f0')
-			docRect.setAttribute('stroke', '#ccc')
-			docRect.setAttribute('stroke-width', '1')
-			docRect.setAttribute('stroke-dasharray', '4 2')
-
+			const rendered = context.embeds?.get(object.id)
+			// Already sanitized by renderEmbed; re-run as defense in depth before it joins this frame's
+			// document (the slide tree itself is never attached, svg2pdf walks it detached)
+			const page = rendered?.ok ? sanitizeSvg(rendered.pages[0]) : null
+			const el = page ? nestSvg(page, object) : null
+			if (el) {
+				content = document.importNode(el, true)
+				break
+			}
+			// No render (none asked, failed, or not render-capable) - placeholder
+			const { app, ref } = embedLabel(object, context.ownerTag)
+			const card = parseSvg(
+				`<svg xmlns="http://www.w3.org/2000/svg">${embedPlaceholderSvg(object, app, ref)}</svg>`
+			)
 			const fragment = document.createDocumentFragment()
-			fragment.appendChild(docRect)
-
-			const label = document.createElementNS('http://www.w3.org/2000/svg', 'text')
-			label.setAttribute('x', String(object.x + object.width / 2))
-			label.setAttribute('y', String(object.y + object.height / 2))
-			label.setAttribute('text-anchor', 'middle')
-			label.setAttribute('dominant-baseline', 'middle')
-			label.setAttribute('font-size', '14')
-			label.setAttribute('fill', '#999')
-			label.textContent = 'Embedded document'
-			fragment.appendChild(label)
-
+			for (const child of Array.from(card?.childNodes ?? [])) {
+				fragment.appendChild(document.importNode(child, true))
+			}
 			content = fragment
 			break
 		}
@@ -535,10 +576,10 @@ function applyStyleProps(
 /**
  * Render a slide/view to an SVG element
  */
-async function renderSlideToSVG(
+export async function renderSlideToSVG(
 	view: ViewNode,
 	objects: PrezilloObject[],
-	context: RenderContext
+	context: SlideRenderContext
 ): Promise<SVGSVGElement> {
 	const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
 	svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
@@ -585,23 +626,55 @@ async function renderSlideToSVG(
 	return svg
 }
 
+/** Objects of a view that are drawn (visible and not presentation-hidden) */
+function visibleViewObjects(doc: YPrezilloDocument, view: ViewNode): PrezilloObject[] {
+	return getViewObjects(doc, view).filter((obj) => obj.visible && !obj.hidden)
+}
+
+/**
+ * One view as a serialized SVG string: the render source's answer to `embed:render.req`.
+ * Images are inlined with this document's own token; embeds render nested.
+ */
+export async function renderViewSvg(
+	doc: YPrezilloDocument,
+	view: ViewNode,
+	/** deadline: epoch ms to stop waiting for fonts by */
+	opts: { ownerTag?: string; token?: string; embeds?: EmbedRenderContext; deadline?: number }
+): Promise<string> {
+	const objects = visibleViewObjects(doc, view)
+	const imageCache = await preloadImages(
+		collectImageObjectsFromArray(objects),
+		opts.ownerTag,
+		opts.token
+	)
+	const embeds = opts.embeds ? await prerenderEmbeds(objects, opts.embeds) : undefined
+	const render = () =>
+		renderSlideToSVG(view, objects, { doc, ownerTag: opts.ownerTag, imageCache, embeds })
+	let svg = await render()
+	// Text is laid out with whatever font is loaded: redo it once the slide's faces are in
+	const wait = Math.min(3000, (opts.deadline ?? Number.POSITIVE_INFINITY) - Date.now())
+	if (wait > 0 && (await loadFontFaces(collectSvgFonts(svg), wait))) svg = await render()
+	// XMLSerializer writes control characters as is, which the host's parse rejects
+	return stripXmlControl(new XMLSerializer().serializeToString(svg))
+}
+
 /**
  * Export presentation to PDF
  */
 export async function exportToPDF(
 	doc: YPrezilloDocument,
 	views: ViewNode[],
-	options: PDFExportOptions = {}
+	options: PDFExportRenderOptions = {}
 ): Promise<void> {
-	const { filename, ownerTag, token, onProgress } = options
+	const { filename, ownerTag, token, onProgress, signal } = options
 
 	if (views.length === 0) {
 		throw new Error('No slides to export')
 	}
 
 	// Get document name
-	const docName = (doc.m.get('name') as string) || 'presentation'
-	const safeName = docName.replace(/[^a-zA-Z0-9-_]/g, '_')
+	const docName = docBaseName() || (doc.m.get('name') as string) || 'presentation'
+	const safeName = sanitizeFilename(docName)
 	const finalFilename = filename || `${safeName}.pdf`
 
 	onProgress?.(0)
@@ -613,6 +686,15 @@ export async function exportToPDF(
 		allObjects.push(...viewObjects)
 	}
 
+	// Render document embeds up front (the app shows "Preparing embeds n of m")
+	const embeds = options.embeds
+		? await prerenderEmbeds(
+				allObjects.filter((obj) => obj.visible && !obj.hidden),
+				{ ...options.embeds, signal }
+			)
+		: undefined
+	signal?.throwIfAborted()
+
 	// Pre-load images
 	const imageObjects = collectImageObjectsFromArray(allObjects)
 	const imageCache = await preloadImages(imageObjects, ownerTag, token, (loaded, total) => {
@@ -620,10 +702,13 @@ export async function exportToPDF(
 		onProgress?.(Math.round((loaded / total) * 30))
 	})
 
-	const context: RenderContext = {
+	signal?.throwIfAborted()
+
+	const context: SlideRenderContext = {
 		doc,
 		ownerTag,
-		imageCache
+		imageCache,
+		embeds
 	}
 
 	// Get first slide dimensions for PDF page size
@@ -657,16 +742,39 @@ export async function exportToPDF(
 		})
 	}
 
-	// Register fonts used in the document
-	await registerUsedFonts(pdf, doc, views, (loaded, total) => {
+	// Render every slide first, so one pass finds the fonts they use, nested embeds included.
+	// All slide SVGs are held in memory at once; stream per slide again if that matters
+	const slides: SVGSVGElement[] = []
+	for (const view of views) {
+		signal?.throwIfAborted()
+		slides.push(await renderSlideToSVG(view, visibleViewObjects(doc, view), context))
+	}
+
+	// Lato regular + bold always, as the fallback family
+	const faces = new Map<string, FontFaceRef>()
+	for (const face of [
+		{ family: 'Lato', weight: 'normal', style: 'normal' } as const,
+		{ family: 'Lato', weight: 'bold', style: 'normal' } as const,
+		...slides.flatMap((svg) => collectSvgFonts(svg))
+	]) {
+		faces.set(`${face.family}|${face.weight}|${face.style}`, face)
+	}
+	// Slides were laid out with whatever font was loaded: redo them once their faces are in
+	if (await loadFontFaces([...faces.values()])) {
+		for (let i = 0; i < views.length; i++) {
+			signal?.throwIfAborted()
+			slides[i] = await renderSlideToSVG(views[i], visibleViewObjects(doc, views[i]), context)
+		}
+	}
+	await registerPdfFonts(pdf, faces.values(), (loaded, total) => {
 		// Font loading is 30-40% of progress
 		onProgress?.(30 + Math.round((loaded / total) * 10))
 	})
 
-	// Render each slide
+	// Convert each slide
 	for (let i = 0; i < views.length; i++) {
+		signal?.throwIfAborted()
 		const view = views[i]
-		const viewObjects = getViewObjects(doc, view)
 
 		// Calculate this view's dimensions in mm
 		const vWidth = view.width || DEFAULT_WIDTH
@@ -679,14 +787,8 @@ export async function exportToPDF(
 			pdf.addPage([vPdfWidth, vPdfHeight], vPdfWidth > vPdfHeight ? 'landscape' : 'portrait')
 		}
 
-		// Filter out invisible and presentation-mode-hidden objects
-		const visibleObjects = viewObjects.filter((obj) => obj.visible && !obj.hidden)
-
-		// Render slide to SVG
-		const svg = await renderSlideToSVG(view, visibleObjects, context)
-
 		// Convert SVG to PDF using THIS view's dimensions
-		await svg2pdf(svg, pdf, {
+		await svg2pdf(slides[i], pdf, {
 			x: 0,
 			y: 0,
 			width: vPdfWidth,
@@ -698,6 +800,7 @@ export async function exportToPDF(
 	}
 
 	// Save PDF
+	signal?.throwIfAborted()
 	pdf.save(finalFilename)
 	onProgress?.(100)
 }
@@ -710,9 +813,9 @@ export async function downloadPDF(
 	views: ViewNode[],
 	ownerTag?: string,
 	token?: string,
-	onProgress?: (progress: number) => void
+	options: Omit<PDFExportRenderOptions, 'ownerTag' | 'token'> = {}
 ): Promise<void> {
-	await exportToPDF(doc, views, { ownerTag, token, onProgress })
+	await exportToPDF(doc, views, { ...options, ownerTag, token })
 }
 
 // vim: ts=4

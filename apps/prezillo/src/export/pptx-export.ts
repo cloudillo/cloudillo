@@ -8,6 +8,8 @@
  * ensuring maximum editability when opened in PowerPoint/LibreOffice.
  */
 
+import { docBaseName, sanitizeFilename } from '@cloudillo/core'
+
 import type { PrezilloObject, QrCodeObject, ViewNode, YPrezilloDocument } from '../crdt'
 import { collectImageObjectsFromArray, preloadImages } from './image-embedder'
 import { addObjectToSlide } from './pptx-shape-mapper'
@@ -101,8 +103,8 @@ export async function exportToPPTX(
 	// Dynamic import to avoid loading PptxGenJS at app startup
 	const PptxGenJS = (await import('pptxgenjs')).default
 
-	const docName = (doc.m.get('name') as string) || 'presentation'
-	const safeName = docName.replace(/[^a-zA-Z0-9-_]/g, '_')
+	const docName = docBaseName() || (doc.m.get('name') as string) || 'presentation'
+	const safeName = sanitizeFilename(docName)
 	const finalFilename = filename || `${safeName}.pptx`
 
 	onProgress?.(0)

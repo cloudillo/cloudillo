@@ -66,7 +66,7 @@ export const manifest: AppManifest = {
 				}
 			],
 			storeTp: 'CRDT',
-			embed: { view: 'fixed', namedViews: true },
+			embed: { view: 'fixed', namedViews: true, render: ['svg'] },
 			// Major.minor is the document-format contract itself; patch counts
 			// compatible tweaks to the rules above.
 			formatVersion: '1.0.0',

@@ -794,6 +794,20 @@ body,
 	cursor: default;
 }
 
+/* Embedded slide: no letterbox bars around a frame sized to the slide */
+.c-presentation-container.embed {
+	background-color: transparent;
+}
+
+/* Present controls over an interactive embedded slide */
+.c-embed-present {
+	position: absolute;
+	right: 0.5rem;
+	bottom: 0.5rem;
+	display: flex;
+	gap: 0.25rem;
+}
+
 /* Windowed mode control bar */
 .c-presentation-controls {
 	position: absolute;

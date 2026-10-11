@@ -10,6 +10,7 @@
  */
 
 import { measureTextWidth } from '@cloudillo/canvas-text'
+import { escapeHtml } from '@cloudillo/core'
 
 import type { ResolvedTextStyle } from '../crdt'
 import { getBulletIcon, migrateBullet } from '../data/bullet-icons'
@@ -245,7 +246,7 @@ function generateBulletSVG(
 	// Create a group with transform for positioning and scaling
 	return `<g transform="translate(${x}, ${y})">
 		<svg width="${size}" height="${size}" viewBox="${vbX} ${vbY} ${vbW} ${vbH}">
-			<path d="${escapeXML(icon.pathData)}" fill="${fill}"/>
+			<path d="${escapeHtml(icon.pathData)}" fill="${fill}"/>
 		</svg>
 	</g>`
 }
@@ -302,13 +303,13 @@ export function generateSVGText(text: string, bounds: Bounds, style: ResolvedTex
 	const tspans = layout.lines
 		.map(
 			(line, index) =>
-				`<tspan x="${line.x}" dy="${index === 0 ? 0 : fontSize * (style.lineHeight || 1.2)}">${line.text ? escapeXML(line.text) : '&#160;'}</tspan>`
+				`<tspan x="${line.x}" dy="${index === 0 ? 0 : fontSize * (style.lineHeight || 1.2)}">${line.text ? escapeHtml(line.text) : '&#160;'}</tspan>`
 		)
 		.join('')
 
 	// Build the text element
 	const textElement = `<text
-		font-family="${escapeXML(fontFamily)}"
+		font-family="${escapeHtml(fontFamily)}"
 		font-size="${fontSize}"
 		font-weight="${fontWeight}"
 		font-style="${fontStyle}"
@@ -450,18 +451,6 @@ function createBulletElement(
 	groupEl.appendChild(svgEl)
 
 	return groupEl
-}
-
-/**
- * Escape special XML characters
- */
-function escapeXML(str: string): string {
-	return str
-		.replace(/&/g, '&amp;')
-		.replace(/</g, '&lt;')
-		.replace(/>/g, '&gt;')
-		.replace(/"/g, '&quot;')
-		.replace(/'/g, '&#39;')
 }
 
 // vim: ts=4

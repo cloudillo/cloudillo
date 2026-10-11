@@ -5,7 +5,12 @@
  * Main hook for Prezillo document state
  */
 
-import { type EmbedViewReportPayload, getAppBus } from '@cloudillo/core'
+import {
+	type EmbedViewReportPayload,
+	getAppBus,
+	nestedEmbedCtx,
+	RENDER_ANSWER_MARGIN_MS
+} from '@cloudillo/core'
 import { initPresence } from '@cloudillo/crdt'
 import { useCloudilloEditor, useViewReport } from '@cloudillo/react'
 import * as React from 'react'
@@ -26,7 +31,8 @@ import {
 	updatePresentingView
 } from '../awareness'
 import type { ContainerId, ObjectId, TemplateId, ViewId, YPrezilloDocument } from '../crdt'
-import { getOrCreateDocument, getTemplateIdForPrototype, toViewId } from '../crdt'
+import { getOrCreateDocument, getTemplateIdForPrototype, getView, toViewId } from '../crdt'
+import { renderViewSvg } from '../export/pdf-export'
 
 export interface UsePrezilloDocumentResult {
 	// Cloudillo context
@@ -194,9 +200,30 @@ export function usePrezilloDocument(): UsePrezilloDocumentResult {
 		setActiveViewIdInternal(toViewId(embedTarget))
 	}, [embedTarget, embedResetTick, embedMissing])
 
+	// Render mode (a host's headless render): answer render requests once synced, nothing
+	// else. Nav = view id, none = first slide. The bus buffers requests that arrive earlier.
+	const renderMode = getAppBus().embedMode === 'render'
+	React.useEffect(() => {
+		if (!renderMode || !cloudillo.synced) return
+		const bus = getAppBus()
+		return bus.onRenderRequest(async (req) => {
+			const viewId = req.nav || doc.vo.get(0)
+			const view = viewId ? getView(doc, toViewId(viewId)) : undefined
+			if (!view) throw new Error(`View not found: ${req.nav || '(default)'}`)
+			const svg = await renderViewSvg(doc, view, {
+				ownerTag: cloudillo.ownerTag,
+				token: cloudillo.token,
+				embeds: nestedEmbedCtx(bus, cloudillo.fileId, req.deadline),
+				deadline: req.deadline - RENDER_ANSWER_MARGIN_MS
+			})
+			return { pages: [svg], natural: { w: view.width, h: view.height } }
+		})
+	}, [renderMode, cloudillo.synced, doc, cloudillo.ownerTag, cloudillo.token, cloudillo.fileId])
+
 	// Embed support: report the active slide as a fixed view
 	let embedReport: EmbedViewReportPayload | null = null
-	const embedView = getAppBus().embedded && activeViewId ? views?.[activeViewId] : undefined
+	const embedView =
+		getAppBus().embedded && !renderMode && activeViewId ? views?.[activeViewId] : undefined
 	const reportMissing = embedMissing && !pickView
 	if (embedView && activeViewId) {
 		embedReport = {
@@ -378,7 +405,8 @@ export function usePrezilloDocument(): UsePrezilloDocumentResult {
 	// Publish who we are. `initPresence` writes the same shape every Cloudillo
 	// app uses, under the same `user` field.
 	React.useEffect(() => {
-		if (!awareness) return
+		// A headless render is nobody: it publishes no presence
+		if (!awareness || renderMode) return
 		initPresence(awareness, {
 			idTag: cloudillo.idTag,
 			displayName: cloudillo.displayName,
@@ -386,7 +414,7 @@ export function usePrezilloDocument(): UsePrezilloDocumentResult {
 			// `cloudillo.idTag` falls back to it.
 			authenticated: cloudillo.authenticated
 		})
-	}, [awareness, cloudillo.idTag, cloudillo.displayName, cloudillo.authenticated])
+	}, [awareness, renderMode, cloudillo.idTag, cloudillo.displayName, cloudillo.authenticated])
 
 	// Listen for awareness changes from remote clients
 	React.useEffect(() => {

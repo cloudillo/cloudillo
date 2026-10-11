@@ -387,7 +387,7 @@ interface PresentationSlideProps {
 	canWrite?: boolean
 }
 
-const PresentationSlide = React.memo(function PresentationSlide({
+export const PresentationSlide = React.memo(function PresentationSlide({
 	view,
 	doc,
 	ownerTag,
@@ -771,7 +771,7 @@ export function PresentationMode({
 				case 'f':
 				case 'F':
 					// Toggle fullscreen from windowed mode
-					if (!fullscreen) {
+					if (!fullscreen && document.fullscreenEnabled) {
 						e.preventDefault()
 						handleToggleFullscreen()
 					}
@@ -898,13 +898,15 @@ export function PresentationMode({
 						<IcNext />
 					</button>
 					<div className="c-presentation-controls__spacer" />
-					<button
-						className="c-presentation-controls__btn"
-						onClick={handleToggleFullscreen}
-						title={isInFullscreen ? 'Exit fullscreen' : 'Fullscreen (F)'}
-					>
-						<IcFullscreen />
-					</button>
+					{document.fullscreenEnabled && (
+						<button
+							className="c-presentation-controls__btn"
+							onClick={handleToggleFullscreen}
+							title={isInFullscreen ? 'Exit fullscreen' : 'Fullscreen (F)'}
+						>
+							<IcFullscreen />
+						</button>
+					)}
 					<button
 						className="c-presentation-controls__btn exit"
 						onClick={onExit}

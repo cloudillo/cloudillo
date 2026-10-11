@@ -415,16 +415,18 @@ export function ViewPicker({
 								<IcPlay />
 								<span>{t('Present in window')}</span>
 							</button>
-							<button
-								className="c-present-split__option"
-								onClick={() => {
-									onPresent(true)
-									setShowPresentDropdown(false)
-								}}
-							>
-								<IcFullscreen />
-								<span>{t('Present fullscreen')}</span>
-							</button>
+							{document.fullscreenEnabled && (
+								<button
+									className="c-present-split__option"
+									onClick={() => {
+										onPresent(true)
+										setShowPresentDropdown(false)
+									}}
+								>
+									<IcFullscreen />
+									<span>{t('Present fullscreen')}</span>
+								</button>
+							)}
 							{(onSharePresent || onShareFollow) && (
 								<>
 									<div className="c-present-split__divider" />

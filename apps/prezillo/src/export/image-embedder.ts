@@ -10,36 +10,9 @@
  * 3. Converting them to base64 data URLs for embedding
  */
 
-import { getFileUrl } from '@cloudillo/core'
+import { EXPORT_IMAGE_VARIANT, fetchAsDataUrl, getFileUrl } from '@cloudillo/core'
 
 import type { ImageObject, PrezilloObject, YPrezilloDocument } from '../crdt'
-
-// Use HD variant for PDF quality
-const IMAGE_VARIANT = 'vis.hd'
-
-/**
- * Fetch an image and convert it to a base64 data URL
- */
-async function fetchImageAsDataURL(url: string): Promise<string> {
-	const response = await fetch(url)
-	if (!response.ok) {
-		throw new Error(`Failed to fetch image: ${response.statusText}`)
-	}
-
-	const blob = await response.blob()
-	return new Promise((resolve, reject) => {
-		const reader = new FileReader()
-		reader.onloadend = () => {
-			if (typeof reader.result === 'string') {
-				resolve(reader.result)
-			} else {
-				reject(new Error('Failed to convert image to data URL'))
-			}
-		}
-		reader.onerror = reject
-		reader.readAsDataURL(blob)
-	})
-}
 
 /**
  * Collect all image objects from a document
@@ -104,13 +77,18 @@ export async function preloadImages(
 				console.warn(`Cannot load image ${fileId}: no owner tag`)
 				return
 			}
-			const url = getFileUrl(ownerTag, fileId, IMAGE_VARIANT, token ? { token } : undefined)
+			const url = getFileUrl(
+				ownerTag,
+				fileId,
+				EXPORT_IMAGE_VARIANT,
+				token ? { token } : undefined
+			)
 			// Skip a fileId `getFileUrl` refuses, as an absent owner tag is skipped
 			if (!url) {
 				console.warn(`Cannot load image ${fileId}: invalid file id`)
 				return
 			}
-			const dataUrl = await fetchImageAsDataURL(url)
+			const dataUrl = await fetchAsDataUrl(url)
 			cache.set(fileId, dataUrl)
 		} catch (error) {
 			console.error(`Failed to load image ${fileId}:`, error)

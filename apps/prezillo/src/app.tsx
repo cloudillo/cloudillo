@@ -6,8 +6,10 @@ import { useTranslation } from 'react-i18next'
 import {
 	PiBugBold as IcDebug,
 	PiExportBold as IcExport,
+	PiArrowsOutBold as IcFullscreen,
 	PiLinkBold as IcLink,
 	PiFilePdfBold as IcPDF,
+	PiPlayBold as IcPlay,
 	PiFilePptBold as IcPPTX,
 	PiWrenchBold as IcRepair,
 	PiShareNetworkBold as IcShare,
@@ -44,6 +46,8 @@ import {
 	type BottomSheetSnapPoint,
 	DialogContainer,
 	DocBarMenu,
+	Button,
+	ExportProgressDialog,
 	MenuDivider,
 	MenuHeader,
 	MenuItem,
@@ -51,13 +55,15 @@ import {
 	useCopyEmbedLink,
 	useDialog,
 	useDocumentEmbedHandlers,
+	useEmbedLayout,
+	useExportProgress,
 	useIsMobile,
 	useToast
 } from '@cloudillo/react'
 
 import { ContextMenu } from './components/ContextMenu'
 import { ObjectShape } from './components/ObjectShape'
-import { PresentationMode } from './components/PresentationMode'
+import { PresentationMode, PresentationSlide } from './components/PresentationMode'
 import {
 	MobilePropertyPanel,
 	PrezilloPropertiesPanel,
@@ -149,6 +155,7 @@ export function PrezilloApp() {
 	// Debug helper - access via window.prezillo in browser console
 	;(window as unknown as Record<string, unknown>).prezillo = prezillo
 	const isReadOnly = prezillo.cloudillo.access !== 'write'
+	const embedLayout = useEmbedLayout()
 	const [activeDocumentId, setActiveDocumentId] = React.useState<ObjectId | null>(null)
 	const copyEmbedLink = useCopyEmbedLink()
 
@@ -213,6 +220,29 @@ export function PrezilloApp() {
 		handleStopPresenting,
 		handleExitFullscreenFollowing
 	} = usePresentationMode({ prezillo, toast })
+
+	// Embedded presentation returns to the embedded slide, so the host sees no drift
+	const presentFromRef = React.useRef<ViewId | null>(null)
+	const startPresenting = React.useCallback(
+		(fullscreen?: boolean) => {
+			presentFromRef.current = prezillo.activeViewId
+			handleStartPresenting(fullscreen)
+		},
+		[prezillo.activeViewId, handleStartPresenting]
+	)
+	const stopPresenting = React.useCallback(() => {
+		handleStopPresenting()
+		if (getAppBus().embedded && presentFromRef.current) {
+			prezillo.setActiveViewId(presentFromRef.current)
+		}
+		presentFromRef.current = null
+	}, [handleStopPresenting, prezillo.setActiveViewId])
+
+	// The host took interact mode away (click outside, Esc): end an embedded presentation
+	React.useEffect(() => {
+		if (getAppBus().embedded && isPresentationMode && !embedLayout?.interactive)
+			stopPresenting()
+	}, [embedLayout?.interactive])
 
 	// Share link handlers
 	const handleSharePresent = React.useCallback(async () => {
@@ -357,7 +387,10 @@ export function PrezilloApp() {
 	const [isPanelVisible, setIsPanelVisible] = React.useState(true)
 
 	// Export state
-	const [isExportingPDF, setIsExportingPDF] = React.useState(false)
+	// PDF export progress: percent, plus embed renders while those run
+	const pdfExport = useExportProgress()
+	const runPdfExport = pdfExport.run
+	const isExportingPDF = pdfExport.progress !== null
 	const [isExportingPPTX, setIsExportingPPTX] = React.useState(false)
 
 	// Named rather than inline in `cmds`, because the DocBar offers the same
@@ -378,21 +411,34 @@ export function PrezilloApp() {
 	}, [prezillo.yDoc, prezillo.doc])
 
 	const handleExportPDF = React.useCallback(async () => {
-		if (!prezillo.doc || !views.length) return
-		setIsExportingPDF(true)
+		const doc = prezillo.doc
+		if (!doc || !views.length) return
+		const fileId = prezillo.cloudillo.fileId
 		try {
-			await downloadPDF(
-				prezillo.doc,
-				views,
-				prezillo.cloudillo.ownerTag,
-				prezillo.cloudillo.token
+			await runPdfExport(({ signal, setProgress }) =>
+				downloadPDF(doc, views, prezillo.cloudillo.ownerTag, prezillo.cloudillo.token, {
+					signal,
+					onProgress: (pct) => setProgress({ pct }),
+					embeds: fileId
+						? {
+								bus: getAppBus(),
+								sourceFileId: fileId,
+								onProgress: (done, total) => setProgress({ done, total })
+							}
+						: undefined
+				})
 			)
 		} catch (error) {
 			console.error('PDF export failed:', error)
-		} finally {
-			setIsExportingPDF(false)
 		}
-	}, [prezillo.doc, views, prezillo.cloudillo.ownerTag, prezillo.cloudillo.token])
+	}, [
+		prezillo.doc,
+		views,
+		prezillo.cloudillo.ownerTag,
+		prezillo.cloudillo.token,
+		prezillo.cloudillo.fileId,
+		runPdfExport
+	])
 
 	const handleExportPPTX = React.useCallback(async () => {
 		if (isExportingPPTX || !prezillo.doc || !views.length) return
@@ -955,6 +1001,65 @@ export function PrezilloApp() {
 			pivotY: tempObjectState?.pivotY ?? obj.pv?.[1] ?? 0.5
 		}
 	}, [prezillo.selectedIds, prezillo.doc.o, tempObjectState])
+
+	// Render mode: usePrezilloDocument answers the host's render requests; nothing to show
+	if (getAppBus().embedMode === 'render') return null
+
+	// Embedded view: show the referenced slide as presented, not the editor canvas.
+	// Interact + write keeps the editor for in-place editing ("Allow editing").
+	const presentation = isPresentationMode && (
+		<PresentationMode
+			prezillo={prezillo}
+			views={views}
+			initialViewId={prezillo.activeViewId}
+			onExit={stopPresenting}
+			fullscreen={presentationFullscreen}
+			ownerTag={prezillo.cloudillo.ownerTag}
+			token={prezillo.cloudillo.token}
+			sourceFileId={prezillo.cloudillo.fileId}
+			onViewChange={(_viewIndex, viewId) => {
+				prezillo.setActiveViewId(viewId)
+			}}
+		/>
+	)
+
+	const bus = getAppBus()
+	if (bus.embedded && !bus.pickView && !(embedLayout?.interactive && !isReadOnly)) {
+		if (presentation) return presentation
+		// From useViews: getView lacks the template-inherited background
+		const slide = views.find((v) => v.id === prezillo.activeViewId)
+		return (
+			<div className="c-presentation-container windowed embed">
+				{slide && (
+					<PresentationSlide
+						view={slide}
+						doc={prezillo.doc}
+						isVisible
+						ownerTag={prezillo.cloudillo.ownerTag}
+						token={prezillo.cloudillo.token}
+						sourceFileId={prezillo.cloudillo.fileId}
+						canWrite={!isReadOnly}
+					/>
+				)}
+				{slide && embedLayout?.interactive && (
+					<div className="c-embed-present">
+						<Button icon={<IcPlay />} onClick={() => startPresenting(false)}>
+							{t('Present')}
+						</Button>
+						{document.fullscreenEnabled && (
+							<Button
+								icon={<IcFullscreen />}
+								aria-label={t('Present fullscreen')}
+								// requestFullscreen needs the click's user activation
+								immediate
+								onClick={() => startPresenting(true)}
+							/>
+						)}
+					</div>
+				)}
+			</div>
+		)
+	}
 
 	return (
 		<>
@@ -1568,8 +1673,8 @@ export function PrezilloApp() {
 						onDeleteView: handleDeleteView
 					}}
 					presentCmds={{
-						onPresent: handleStartPresenting,
-						onStopPresenting: handleStopPresenting,
+						onPresent: startPresenting,
+						onStopPresenting: stopPresenting,
 						onFollow: prezillo.followPresenter,
 						onUnfollow: prezillo.unfollowPresenter,
 						onSharePresent: handleSharePresent,
@@ -1587,21 +1692,7 @@ export function PrezilloApp() {
 			</div>
 
 			{/* Presentation mode - local presenting */}
-			{isPresentationMode && (
-				<PresentationMode
-					prezillo={prezillo}
-					views={views}
-					initialViewId={prezillo.activeViewId}
-					onExit={handleStopPresenting}
-					fullscreen={presentationFullscreen}
-					ownerTag={prezillo.cloudillo.ownerTag}
-					token={prezillo.cloudillo.token}
-					sourceFileId={prezillo.cloudillo.fileId}
-					onViewChange={(_viewIndex, viewId) => {
-						prezillo.setActiveViewId(viewId)
-					}}
-				/>
-			)}
+			{presentation}
 
 			{/* Fullscreen following mode */}
 			{isFullscreenFollowing && followedPresenter && (
@@ -1635,6 +1726,13 @@ export function PrezilloApp() {
 			<Toasts position="top-right" />
 			{/* Dialog container for confirmation dialogs */}
 			<DialogContainer />
+			<ExportProgressDialog
+				title={t('Export to PDF')}
+				busyLabel={t('Exporting slides…')}
+				progress={pdfExport.progress}
+				cancelable={pdfExport.cancelable}
+				onCancel={pdfExport.abort}
+			/>
 		</>
 	)
 }

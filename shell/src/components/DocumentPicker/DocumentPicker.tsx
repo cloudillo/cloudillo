@@ -12,7 +12,7 @@
 
 import { ActionBar, Button, Dialog, Text, useToast } from '@cloudillo/react'
 import { useAtom, useSetAtom } from 'jotai'
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { LuFileText as IcDocument } from 'react-icons/lu'
 import { useNavigate } from 'react-router-dom'
@@ -23,6 +23,7 @@ import {
 	docPickerAtom,
 	openDocPickerAtom
 } from '../../context/doc-picker-atom.js'
+import { isEmbeddable } from '../../manifest-registry.js'
 import {
 	setDocGrantConfirm,
 	setDocLinkConfirm,
@@ -31,6 +32,7 @@ import {
 	setDocPickerNotifier
 } from '../../message-bus/handlers/document.js'
 import { DocumentPickerBrowseTab } from './DocumentPickerBrowseTab.js'
+import { DocumentPickerViewPane } from './DocumentPickerViewPane.js'
 
 export function DocumentPicker() {
 	const { t } = useTranslation()
@@ -43,6 +45,10 @@ export function DocumentPicker() {
 	const [selectedFile, setSelectedFile] = useState<DocPickerResult | null>(null)
 	// A non-public pick awaiting the permission disclosure
 	const [pendingFile, setPendingFile] = useState<DocPickerResult | null>(null)
+	// An embeddable pick awaiting "Whole document" / "Choose a view…"
+	const [stepFile, setStepFile] = useState<DocPickerResult | null>(null)
+	// The file shown in the "Choose a view" pane
+	const [viewFile, setViewFile] = useState<DocPickerResult | null>(null)
 	// The paste path (doc:link.req) asking for the same disclosure, or doc:grant.req
 	// asking before an embed is made editable from the host
 	const [linkConfirm, setLinkConfirm] = useState<{ fileName: string; host?: string } | null>(null)
@@ -113,13 +119,31 @@ export function DocumentPicker() {
 		}
 	}, [navigate])
 
-	// Reset state when opening
+	// Reset state on open and on close, so a reopen never renders a stale step for a frame
+	// isOpen is the trigger
 	useEffect(() => {
-		if (state.isOpen) {
-			setSelectedFile(null)
-			setPendingFile(null)
-		}
+		setSelectedFile(null)
+		setPendingFile(null)
+		setStepFile(null)
+		setViewFile(null)
 	}, [state.isOpen])
+
+	// Change view (doc:pick.req with a `fileId`): straight into the pane, no browse list,
+	// no disclosure — the file is already linked to the host. Derived, not state, so the
+	// browse list never mounts for a frame first.
+	const options = state.options
+	const presetFile = useMemo<DocPickerResult | null>(
+		() =>
+			options?.fileId
+				? {
+						fileId: options.fileId,
+						fileName: options.fileName ?? options.fileId,
+						contentType: options.contentType ?? '',
+						srcIdTag: options.idTag
+					}
+				: null,
+		[options]
+	)
 
 	const handleCancel = useCallback(() => {
 		closeDocPicker(null)
@@ -127,7 +151,7 @@ export function DocumentPicker() {
 
 	// Embedding grants the host document's readers access to the WHOLE file — say so
 	// before a non-public one is handed back.
-	const choose = useCallback(
+	const disclose = useCallback(
 		(file: DocPickerResult) => {
 			if (state.options?.sourceFileId && file.visibility !== 'P') {
 				setPendingFile(file)
@@ -136,6 +160,19 @@ export function DocumentPicker() {
 			}
 		},
 		[state.options?.sourceFileId, closeDocPicker]
+	)
+
+	// Only app embed requests get the view step: internal callers (site mounts, feed
+	// compose) take a whole file and have nowhere to store a view.
+	const choose = useCallback(
+		(file: DocPickerResult) => {
+			if (state.options?.isExternalContext && isEmbeddable(file.contentType)) {
+				setStepFile(file)
+			} else {
+				disclose(file)
+			}
+		},
+		[state.options?.isExternalContext, disclose]
 	)
 
 	const handleSelect = useCallback(() => {
@@ -206,6 +243,62 @@ export function DocumentPicker() {
 				}
 			>
 				<Text as="p">{disclosure(pendingFile.fileName)}</Text>
+			</Dialog>
+		)
+	}
+
+	if (presetFile) {
+		return (
+			<DocumentPickerViewPane
+				file={presetFile}
+				nav={options?.nav}
+				title={options?.title || t('Change view')}
+				backLabel={t('Cancel')}
+				onBack={handleCancel}
+				onWholeDocument={() => closeDocPicker(presetFile)}
+				onConfirm={(nav) => closeDocPicker({ ...presetFile, nav })}
+				onClose={handleCancel}
+			/>
+		)
+	}
+
+	if (viewFile) {
+		return (
+			<DocumentPickerViewPane
+				file={viewFile}
+				title={title}
+				backLabel={t('Back')}
+				onBack={() => setViewFile(null)}
+				onWholeDocument={() => disclose(viewFile)}
+				onConfirm={(nav) => disclose({ ...viewFile, nav })}
+				onClose={handleCancel}
+			/>
+		)
+	}
+
+	if (stepFile) {
+		return (
+			<Dialog
+				open
+				onClose={handleCancel}
+				size="sm"
+				icon={<IcDocument />}
+				title={title}
+				footer={
+					<ActionBar>
+						<Button onClick={() => setStepFile(null)}>{t('Back')}</Button>
+						<Button onClick={() => disclose(stepFile)}>{t('Whole document')}</Button>
+						<Button color="primary" onClick={() => setViewFile(stepFile)}>
+							{t('Choose a view…')}
+						</Button>
+					</ActionBar>
+				}
+			>
+				<Text as="p">
+					{t('Embed all of "{{name}}", or only a part of it?', {
+						name: stepFile.fileName
+					})}
+				</Text>
 			</Dialog>
 		)
 	}

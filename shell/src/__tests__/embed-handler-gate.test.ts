@@ -83,6 +83,7 @@ interface Response {
  */
 function createBus(connection: Partial<AppConnection>, api: unknown = null, win = {} as Window) {
 	const responses: Response[] = []
+	const notifies: { type: string; payload: Record<string, unknown> }[] = []
 	const pending: unknown[] = []
 	const handlers = new Map<string, (msg: unknown, source: unknown) => Promise<void>>()
 	const getApi = jest.fn(() => api)
@@ -114,6 +115,9 @@ function createBus(connection: Partial<AppConnection>, api: unknown = null, win 
 			error?: string
 		) => {
 			responses.push({ type, ok, data, error })
+		},
+		sendNotify: (_win: unknown, type: string, payload: Record<string, unknown>) => {
+			notifies.push({ type, payload })
 		}
 	}
 
@@ -125,6 +129,7 @@ function createBus(connection: Partial<AppConnection>, api: unknown = null, win 
 
 	return {
 		responses,
+		notifies,
 		pending,
 		getApi,
 		win,
@@ -938,6 +943,121 @@ describe('the dispatch gate on an embed connection', () => {
 		})
 
 		expect(bus.handler).toHaveBeenCalledTimes(1)
+	})
+})
+
+describe('doc:pick.req change view', () => {
+	let warn: ReturnType<typeof jest.spyOn>
+	let log: ReturnType<typeof jest.spyOn>
+	type PickCb = (result: Record<string, unknown> | null) => Promise<void>
+	const picker = jest.fn((_opts: Record<string, unknown>, _cb: PickCb) => {})
+
+	beforeEach(() => {
+		resetAppTracker()
+		warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+		log = jest.spyOn(console, 'log').mockImplementation(() => {})
+		picker.mockClear()
+		setDocPickerCallback(picker as never)
+	})
+
+	afterEach(() => {
+		warn.mockRestore()
+		log.mockRestore()
+		setDocPickerCallback(null)
+		resetAppTracker()
+	})
+
+	/** A write connection on f1 that embedded f2 into f1 */
+	function setup(api: unknown = fakeApi()) {
+		const bus = createBus({ resId: 'home.example:f1' }, api)
+		seedEmbed(bus.win, 'n1', 'f2', 'read', ['f1'])
+		return bus
+	}
+
+	it.each([
+		['a file not embedded into the source', { fileId: 'f3', sourceFileId: 'f1' }],
+		['a foreign context prefix', { fileId: 'other.tld:f2', sourceFileId: 'f1' }],
+		['no source document', { fileId: 'f2' }]
+	] as const)('refuses %s', async (_, payload) => {
+		const bus = setup()
+
+		await bus.send('doc:pick.req', { sessionId: 's1', ...payload })
+
+		expect(bus.responses[0]).toMatchObject({ ok: false, error: 'Not embedded' })
+		expect(picker).not.toHaveBeenCalled()
+	})
+
+	it('refuses an over-long nav', async () => {
+		const bus = setup()
+
+		await bus.send('doc:pick.req', {
+			sessionId: 's1',
+			fileId: 'f2',
+			sourceFileId: 'f1',
+			nav: 'x'.repeat(1025)
+		})
+
+		expect(bus.responses[0]).toMatchObject({ ok: false, error: 'Invalid nav' })
+		expect(picker).not.toHaveBeenCalled()
+	})
+
+	it('answers Not found when the metadata lookup fails', async () => {
+		const api = fakeApi()
+		api.files.getMetadata.mockRejectedValue(new Error('gone'))
+		const bus = setup(api)
+
+		await bus.send('doc:pick.req', { sessionId: 's1', fileId: 'f2', sourceFileId: 'f1' })
+
+		expect(bus.responses[0]).toMatchObject({ ok: false, error: 'Not found' })
+		expect(picker).not.toHaveBeenCalled()
+	})
+
+	it('opens on the embedded file and answers for it, without a share', async () => {
+		const api = fakeApi()
+		const bus = setup(api)
+
+		await bus.send('doc:pick.req', {
+			sessionId: 's1',
+			fileId: 'home.example:f2',
+			sourceFileId: 'f1',
+			nav: 'old'
+		})
+
+		expect(bus.responses[0]).toMatchObject({ type: 'doc:pick.ack', ok: true })
+		const [opts, cb] = picker.mock.calls[0]
+		expect(opts).toMatchObject({
+			fileId: 'f2',
+			fileName: 'f2.doc',
+			contentType: 'cloudillo/quillo',
+			nav: 'old'
+		})
+		await cb({ fileId: 'f9', fileName: 'f9.doc', contentType: 'cloudillo/other', nav: 'x' })
+
+		expect(bus.notifies).toEqual([
+			{
+				type: 'doc:pick.result',
+				payload: expect.objectContaining({
+					sessionId: 's1',
+					selected: true,
+					fileId: 'f2',
+					fileName: 'f2.doc',
+					contentType: 'cloudillo/quillo',
+					nav: 'x'
+				})
+			}
+		])
+		expect(api.files.createShare).not.toHaveBeenCalled()
+	})
+
+	it('cancels when the picked nav is over-long', async () => {
+		const bus = setup()
+
+		await bus.send('doc:pick.req', { sessionId: 's1', fileId: 'f2', sourceFileId: 'f1' })
+		await picker.mock.calls[0][1]({ fileId: 'f2', nav: 'x'.repeat(1025) })
+
+		expect(bus.notifies).toEqual([
+			{ type: 'doc:pick.result', payload: { sessionId: 's1', selected: false } }
+		])
 	})
 })
 

@@ -19,7 +19,7 @@
  * `buildRtdbUrl` emits `?access=read` and the backend forces guest read-only access.
  */
 
-import { appBundleUrl } from '@cloudillo/core'
+import { appBundleUrl, type EmbedMode } from '@cloudillo/core'
 import * as React from 'react'
 
 import { shellEmbedAppName } from './app-name.js'
@@ -37,6 +37,8 @@ export interface ShellEmbedRegistration {
 	/** Which bundle was launched. Handlers treat the recorded name as attested. */
 	appName: string
 	navState?: string
+	/** Embed boot mode (absent = 'view'); the app reads `bus.pickView`. */
+	mode?: EmbedMode
 }
 
 /** `key` is the per-mount `_embed:<nonce>` handshake key, not the document's resId. */
@@ -75,6 +77,8 @@ export interface ShellEmbedOptions {
 	/** Defaults to `read` — the only level a published page ever asks for. */
 	access?: ShellEmbedAccess
 	navState?: string
+	/** Embed boot mode (absent = 'view'). Part of the re-mount key. */
+	mode?: EmbedMode
 	/** Shell build version, for the `?v=` cache buster on the bundle URL. */
 	version?: string
 	/** Bump to force a fresh mount: a new registration key, a new iframe, timers reset.
@@ -155,7 +159,7 @@ export function useShellEmbed(options: ShellEmbedOptions | null): ShellEmbedStat
 	// Callbacks and navState change identity freely; only these decide which document is
 	// being embedded — plus `retryKey`, the caller's explicit "start over".
 	const key = options
-		? `${options.resId}|${options.idTag}|${options.contentType}|${options.access ?? 'read'}|${options.version ?? ''}|${options.retryKey ?? ''}`
+		? `${options.resId}|${options.idTag}|${options.contentType}|${options.access ?? 'read'}|${options.version ?? ''}|${options.retryKey ?? ''}|${options.mode ?? ''}`
 		: null
 	const optionsRef = React.useRef(options)
 	optionsRef.current = options
@@ -251,7 +255,8 @@ export function useShellEmbed(options: ShellEmbedOptions | null): ShellEmbedStat
 			resId: opts.resId,
 			idTag,
 			appName,
-			navState: opts.navState
+			navState: opts.navState,
+			mode: opts.mode
 		})
 
 		const version = encodeURIComponent(opts.version ?? '1')

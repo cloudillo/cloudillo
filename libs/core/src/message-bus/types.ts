@@ -28,6 +28,14 @@ export const tMessageEnvelope = T.struct({
 })
 export type MessageEnvelope = T.TypeOf<typeof tMessageEnvelope>
 
+/**
+ * How an embedded source is booted. Absent = `'view'`.
+ * `'pick-view'`: the document picker hosts the source read-only with free navigation,
+ * and the source reports its live selection as a view.
+ */
+export const tEmbedMode = T.literal('view', 'render', 'pick-view')
+export type EmbedMode = T.TypeOf<typeof tEmbedMode>
+
 /** Build a message runtype with the shared envelope preamble. */
 /** Equivalent of `T.struct`'s required/optional key split, for message fields. */
 // biome-ignore lint/suspicious/noExplicitAny: runtype types are invariant under tsgo's strict variance; `unknown` rejects NumberType etc.
@@ -137,7 +145,8 @@ export const tAuthInitRes = msg('auth:init.res', {
 			displayName: T.optional(T.string),
 			navState: T.optional(T.string),
 			ancestors: T.optional(T.array(T.string)),
-			params: T.optional(T.string)
+			params: T.optional(T.string),
+			mode: T.optional(tEmbedMode)
 		})
 	),
 	error: T.optional(T.string)
@@ -453,7 +462,10 @@ export const tDocPickReq = msg('doc:pick.req', {
 		sourceFileId: T.optional(T.string),
 		// Site sources: only Public documents may be embedded — see tMediaPickReq
 		requirePublic: T.optional(T.boolean),
-		title: T.optional(T.string)
+		title: T.optional(T.string),
+		// Change view: open the picker straight on this already-linked file, at `nav`
+		fileId: T.optional(T.string),
+		nav: T.optional(T.string.maxLength(1024))
 	})
 })
 export type DocPickReq = T.TypeOf<typeof tDocPickReq>
@@ -486,7 +498,8 @@ export const tDocPickResultPush = msg('doc:pick.result', {
 		fileName: T.optional(T.string),
 		contentType: T.optional(T.string),
 		fileTp: T.optional(T.string),
-		appId: T.optional(T.string)
+		appId: T.optional(T.string),
+		nav: T.optional(T.string.maxLength(1024))
 	})
 })
 export type DocPickResultPush = T.TypeOf<typeof tDocPickResultPush>

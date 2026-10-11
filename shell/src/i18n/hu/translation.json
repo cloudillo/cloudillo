@@ -2458,5 +2458,10 @@
 	"Embedded document": "Beágyazott dokumentum",
 	"This embed is nested too deeply or embeds itself": "Ez a beágyazás túl mélyen van egymásba ágyazva, vagy önmagát ágyazza be",
 	"This kind of document can't be embedded.": "Ez a dokumentumtípus nem ágyazható be.",
-	"You can't add embeds to this document.": "Ebbe a dokumentumba nem adhatsz hozzá beágyazást."
+	"You can't add embeds to this document.": "Ebbe a dokumentumba nem adhatsz hozzá beágyazást.",
+	"Whole document": "Teljes dokumentum",
+	"Choose a view…": "Nézet kiválasztása…",
+	"Embed all of \"{{name}}\", or only a part of it?": "A teljes „{{name}}” dokumentumot ágyazod be, vagy csak egy részét?",
+	"Use this view": "Ez a nézet",
+	"Select the part you want to embed": "Jelöld ki a beágyazandó részt"
 }

@@ -9,7 +9,7 @@
  * - auth:token.refresh.req - App requests token refresh
  */
 
-import type { AuthInitReq, AuthTokenRefreshReq } from '@cloudillo/core'
+import type { AuthInitReq, AuthTokenRefreshReq, EmbedMode } from '@cloudillo/core'
 import { jwtRemainingSeconds } from '@cloudillo/core/jwt'
 
 import type { ShellMessageBus } from '../shell-bus.js'
@@ -30,6 +30,7 @@ export function initAuthHandlers(bus: ShellMessageBus): void {
 		let displayName: string | undefined
 		let navState: string | undefined
 		let ancestors: string[] | undefined
+		let mode: EmbedMode | undefined
 
 		// Relayed embed init: the parent app is already initialized and the
 		// child's resId starts with "_embed:". Consume the pending registration
@@ -76,7 +77,8 @@ export function initAuthHandlers(bus: ShellMessageBus): void {
 				displayName: pending.displayName,
 				navState: pending.navState,
 				ancestors: pending.ancestors,
-				params: pending.params
+				params: pending.params,
+				mode: pending.mode
 			})
 
 			console.log('[Auth] Relayed embed initialized:', msg.payload.appName, msg.payload.resId)
@@ -114,6 +116,7 @@ export function initAuthHandlers(bus: ShellMessageBus): void {
 			displayName = pending.displayName
 			navState = pending.navState
 			ancestors = pending.ancestors
+			mode = pending.mode
 
 			console.log(
 				'[Auth] Registering app from init.req:',
@@ -222,7 +225,8 @@ export function initAuthHandlers(bus: ShellMessageBus): void {
 				displayName,
 				navState,
 				ancestors,
-				params: connection?.params
+				params: connection?.params,
+				mode
 			})
 
 			console.log('[Auth] App initialized:', msg.payload.appName)

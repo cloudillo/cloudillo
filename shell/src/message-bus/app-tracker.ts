@@ -9,6 +9,8 @@
  * their Window object to validate message sources.
  */
 
+import type { EmbedMode } from '@cloudillo/core'
+
 // ============================================
 // TYPES
 // ============================================
@@ -92,6 +94,8 @@ export interface PendingRegistration {
 	ancestors?: string[]
 	/** Launch params as serialized query string */
 	params?: string
+	/** Embed boot mode, delivered in auth:init.res (absent = 'view') */
+	mode?: EmbedMode
 	/**
 	 * The document the iframe was opened on, when the entry is keyed by an
 	 * `_embed:<nonce>` handshake key rather than by the resId itself. The

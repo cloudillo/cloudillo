@@ -42,6 +42,11 @@ export interface DocPickerOpenOptions {
 	title?: string
 	isExternalContext?: boolean
 	idTag?: string // Document's context idTag (from app connection)
+	// Change view: open straight in pick-view on this already-linked file. The handler
+	// resolved `fileName` and `contentType` from the file's metadata, not from the app.
+	fileId?: string
+	fileName?: string
+	nav?: string
 }
 
 /**
@@ -54,6 +59,7 @@ export interface DocPickerResultData {
 	contentType: string
 	fileTp?: string
 	appId?: string
+	nav?: string
 }
 
 /**
@@ -63,6 +69,9 @@ export type DocPickerCallback = (
 	options: DocPickerOpenOptions,
 	onResult: (result: DocPickerResultData | null) => void
 ) => void
+
+// Registry decode skips refinements: enforce tDocPickReq's nav cap here
+export const NAV_MAX = 1024
 
 // Callback set by the DocumentPicker component
 let openDocPickerCallback: DocPickerCallback | null = null
@@ -282,7 +291,47 @@ export function initDocumentHandlers(bus: ShellMessageBus): void {
 			bus.sendResponse(appWindow, 'doc:pick.ack', msg.id, false, undefined, 'Not allowed')
 			return
 		}
+		if ((msg.payload.nav?.length ?? 0) > NAV_MAX) {
+			bus.sendResponse(appWindow, 'doc:pick.ack', msg.id, false, undefined, 'Invalid nav')
+			return
+		}
 		const sourceFileId = pickSource ? fileIdFromResId(pickSource) || pickSource : undefined
+
+		// Extract context idTag from resId (format: "contextIdTag:fileId")
+		const contextIdTag = idTagFromResId(connection.resId) || connection.idTag
+
+		// Change view on an existing embed: no disclosure, no share — so the file must be one
+		// this connection embedded this session into `sourceFileId` (same guard as doc:grant).
+		let preset: { fileId: string; fileName: string; contentType: string } | undefined
+		if (msg.payload.fileId) {
+			const presetCtx = idTagFromResId(msg.payload.fileId)
+			const fileId = fileIdFromResId(msg.payload.fileId) || msg.payload.fileId
+			if (
+				!sourceFileId ||
+				(presetCtx && presetCtx !== contextIdTag) ||
+				!bus.getAppTracker().hasEmbed(appWindow, fileId, sourceFileId)
+			) {
+				bus.sendResponse(
+					appWindow,
+					'doc:pick.ack',
+					msg.id,
+					false,
+					undefined,
+					'Not embedded'
+				)
+				return
+			}
+			try {
+				const api = await getContextApi(bus, contextIdTag, fileId)
+				const meta = api ? await api.files.getMetadata(fileId) : undefined
+				if (!meta) throw new Error('No access to the document context')
+				preset = { fileId, fileName: meta.fileName, contentType: meta.contentType }
+			} catch (err) {
+				console.warn('[Document] Change view: metadata lookup failed', fileId, err)
+				bus.sendResponse(appWindow, 'doc:pick.ack', msg.id, false, undefined, 'Not found')
+				return
+			}
+		}
 
 		console.log(
 			'[Document] Opening document picker for app:',
@@ -294,38 +343,41 @@ export function initDocumentHandlers(bus: ShellMessageBus): void {
 		// Send ACK immediately
 		bus.sendResponse(appWindow, 'doc:pick.ack', msg.id, true, { sessionId })
 
-		// Extract context idTag from resId (format: "contextIdTag:fileId")
-		const contextIdTag = idTagFromResId(connection.resId) || connection.idTag
-
 		// Open the modal and wait for result
 		openDocPickerCallback(
 			{
 				fileTp: msg.payload.fileTp,
-				contentType: msg.payload.contentType,
+				contentType: preset?.contentType ?? msg.payload.contentType,
 				sourceFileId,
 				requirePublic: msg.payload.requirePublic,
 				// This request only ever serves app embedding
 				embeddableOnly: true,
 				title: msg.payload.title,
 				isExternalContext: true,
-				idTag: contextIdTag // Document's context idTag from resId
+				idTag: contextIdTag, // Document's context idTag from resId
+				fileId: preset?.fileId,
+				fileName: preset?.fileName,
+				nav: msg.payload.nav
 			},
 			async (result) => {
-				if (result) {
+				if (result && (result.nav?.length ?? 0) <= NAV_MAX) {
 					console.log('[Document] Document picker result:', result)
 
-					if (sourceFileId) {
+					// A preset file is already linked to the host: never re-share it
+					if (sourceFileId && !preset) {
 						await ensureFileLinkShare(bus, contextIdTag, result, sourceFileId)
 					}
 
 					bus.sendNotify(appWindow, 'doc:pick.result', {
 						sessionId,
 						selected: true,
-						fileId: result.fileId,
-						fileName: result.fileName,
-						contentType: result.contentType,
+						// A preset answers with the file it was asked for, whatever the pane returns
+						fileId: preset?.fileId ?? result.fileId,
+						fileName: preset?.fileName ?? result.fileName,
+						contentType: preset?.contentType ?? result.contentType,
 						fileTp: result.fileTp,
-						appId: result.appId
+						appId: result.appId,
+						nav: result.nav
 					})
 				} else {
 					console.log('[Document] Document picker cancelled')

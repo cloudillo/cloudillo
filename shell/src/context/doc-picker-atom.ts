@@ -26,6 +26,12 @@ export interface DocPickerOptions {
 	isExternalContext?: boolean
 	/** Document's context idTag (from app connection) */
 	idTag?: string
+	/** Change view: open straight in the pick-view pane on this already-linked file (content
+	 *  id on the `idTag` node). `fileName`/`contentType` are then the shell-resolved metadata. */
+	fileId?: string
+	fileName?: string
+	/** Initial view for the pick-view pane */
+	nav?: string
 }
 
 /**
@@ -52,6 +58,8 @@ export interface DocPickerResult {
 	canWrite?: boolean
 	/** The file's visibility (`'P'` = public); drives the embed permission disclosure */
 	visibility?: string | null
+	/** View chosen in the pick-view pane; absent = whole document */
+	nav?: string
 }
 
 /**

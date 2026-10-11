@@ -12,6 +12,7 @@
  * - Event handling for pushed messages
  */
 
+import { isIdTag } from '@cloudillo/types'
 import * as T from '@symbion/runtype'
 
 import { setApiToken } from '../api-registry.js'
@@ -38,6 +39,7 @@ import {
 	type DocPickAck,
 	type DocPickResultPush,
 	type DocRenameRes,
+	type EmbedMode,
 	type EmbedOpenRes,
 	type EmbedViewLayout,
 	type EmbedViewLayoutPayload,
@@ -119,6 +121,8 @@ export interface AppState {
 	 * Read via `bus.params` (raw) or `bus.parsedParams` (URLSearchParams).
 	 */
 	params?: string
+	/** Embed boot mode (absent = 'view'). Read via `bus.pickView`. */
+	mode?: EmbedMode
 }
 
 // ============================================
@@ -203,6 +207,13 @@ export interface DocPickOptions {
 	requirePublic?: boolean
 	/** Custom dialog title */
 	title?: string
+	/**
+	 * Change view: open the picker straight in pick-view on this already-linked file
+	 * (requires `sourceFileId`). No browse list, disclosure or share.
+	 */
+	fileId?: string
+	/** Initial view for the pick-view pane */
+	nav?: string
 }
 
 /**
@@ -219,6 +230,8 @@ export interface DocPickResult {
 	fileTp?: string
 	/** App ID resolved from content type */
 	appId?: string
+	/** View chosen in the pick-view pane; absent = whole document */
+	nav?: string
 }
 
 /**
@@ -589,6 +602,11 @@ export class AppMessageBus extends MessageBusBase {
 		return this.isEmbed
 	}
 
+	/** Booted by the shell's view picker (`embed:open` mode 'pick-view') */
+	get pickView(): boolean {
+		return this.isEmbed && this.state.mode === 'pick-view'
+	}
+
 	/** Resource this app was launched for, as '<ownerTag>:<fileId>' */
 	get resId(): string | undefined {
 		return this.state.resId
@@ -713,7 +731,8 @@ export class AppMessageBus extends MessageBusBase {
 				resId,
 				navState: initData.navState,
 				ancestors: initData.ancestors,
-				params: initData.params
+				params: initData.params,
+				mode: initData.mode
 			}
 
 			// Apply theme to document
@@ -753,7 +772,9 @@ export class AppMessageBus extends MessageBusBase {
 				resId: this.state.resId,
 				navState: msg.payload.navState,
 				ancestors: msg.payload.ancestors,
-				params: msg.payload.params
+				params: msg.payload.params,
+				// Only auth:init.res carries it — carry it over
+				mode: this.state.mode
 			}
 			this.applyTheme()
 			this.syncApiToken()
@@ -1402,6 +1423,30 @@ export class AppMessageBus extends MessageBusBase {
 	>()
 
 	/**
+	 * Change view on an embed: picker opens straight on the linked `fileId`.
+	 *
+	 * @returns the chosen nav, `''` meaning the whole document; `undefined` on cancel or
+	 * refusal (logged) — the caller then leaves the embed unchanged. A result for another
+	 * file (an older shell ignoring `fileId` and browsing instead) also counts as cancel.
+	 */
+	async pickEmbedView(opts: DocPickOptions): Promise<string | undefined> {
+		try {
+			const r = await this.pickDocument({ ...opts, nav: opts.nav || undefined })
+			if (!r) return undefined
+			const id = opts.fileId ?? ''
+			const i = id.indexOf(':')
+			const bareId = i > 0 && isIdTag(id.slice(0, i)) ? id.slice(i + 1) : id
+			if (r.fileId !== bareId) {
+				console.warn('[AppBus] Change view answered for another file', r.fileId)
+				return undefined
+			}
+			return r.nav ?? ''
+		} catch (err) {
+			console.error('[AppBus] Change view failed', err)
+		}
+	}
+
+	/**
 	 * Open the document picker to select a document
 	 *
 	 * Uses the same ACK + push pattern as pickMedia().
@@ -1427,7 +1472,9 @@ export class AppMessageBus extends MessageBusBase {
 						contentType: options?.contentType,
 						sourceFileId: options?.sourceFileId,
 						requirePublic: options?.requirePublic,
-						title: options?.title
+						title: options?.title,
+						fileId: options?.fileId,
+						nav: options?.nav
 					})
 				)
 			}, AppMessageBus.DOC_PICK_ACK_TIMEOUT)
@@ -1474,7 +1521,8 @@ export class AppMessageBus extends MessageBusBase {
 				fileName: msg.payload.fileName || '',
 				contentType: msg.payload.contentType || '',
 				fileTp: msg.payload.fileTp,
-				appId: msg.payload.appId
+				appId: msg.payload.appId,
+				nav: msg.payload.nav
 			})
 		} else {
 			this.log('Document picker cancelled')

@@ -193,6 +193,16 @@ function renderEmbed(node: HTMLElement): void {
 						})
 					},
 					onUseCurrentView: (n: string) => writeFormats(node, { navState: n }),
+					onChangeView: async () => {
+						const n = await getAppBus().pickEmbedView({
+							fileId,
+							contentType,
+							nav,
+							sourceFileId
+						})
+						// Whole document clears the format; cancel changes nothing
+						if (n !== undefined) writeFormats(node, { navState: n || null })
+					},
 					// Hidden inside an embed by DocViewEmbed: the shell refuses doc:grant there
 					editable: embedEditable,
 					onEditableChange: async (v: boolean) => {

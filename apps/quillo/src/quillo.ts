@@ -63,7 +63,12 @@ import {
 import { mountDocBar } from './docbar.js'
 import { importMarkdown } from './import-markdown.js'
 import { registerTablePasteNormalizer } from './normalize-table-paste.js'
-import { applySectionVisibility, currentSectionBid, findSection } from './section-view.js'
+import {
+	applySectionVisibility,
+	currentSectionBid,
+	findSection,
+	type Section
+} from './section-view.js'
 import '@cloudillo/fonts/fonts.css'
 
 // ============================================
@@ -399,7 +404,10 @@ function updatePairingBadges(
 
 	const bus = getAppBus()
 	const state = await bus.init('quillo')
-	if (bus.embedded) document.body.classList.add('quillo-embed')
+	// Pick-view (the shell's view picker) is the normal scrolling read-only editor, so it
+	// does not get the reflow-embed layout
+	const pickView = bus.pickView
+	if (bus.embedded && !pickView) document.body.classList.add('quillo-embed')
 
 	// Set ownerTag for image URL construction (extract from URL hash, not bus.idTag which is the user's identity)
 	const [ownerTag, fileId] = docId.split(':')
@@ -636,7 +644,58 @@ function updatePairingBadges(
 		aw.emit('change', [{ added: [], updated: remote, removed: [] }, 'local'])
 	})
 
-	if (bus.embedded) {
+	// Report fields shared by the view and pick-view sources
+	const sectionReport = (nav: string, bid: string, section: Section) => ({
+		nav,
+		viewId: bid,
+		named: true,
+		title: section.heading,
+		a11yLabel: t('Section "{{heading}}" from {{doc}}', {
+			heading: section.heading,
+			doc: bus.docInfo?.fileName ?? t('document')
+		})
+	})
+	const documentReport = () => {
+		const docTitle = bus.docInfo?.fileName
+		return docTitle
+			? { title: docTitle, a11yLabel: t('Document "{{title}}"', { title: docTitle }) }
+			: {}
+	}
+
+	if (pickView) {
+		// Pick-view source: the section at the cursor, else the whole document (no nav).
+		// Free navigation; the initial nav only scrolls to its section, once.
+		editor.enable(false)
+		const toolbar = document.getElementById('toolbar')
+		if (toolbar) toolbar.style.display = 'none'
+		const qlEditor = document.querySelector<HTMLElement>('.ql-editor')
+		const report = () => {
+			const bid = currentSectionBid(editor)
+			const section = bid ? findSection(editor, bid) : null
+			bus.reportView({
+				kind: 'reflow',
+				natural: { w: qlEditor?.clientWidth ?? 0, h: qlEditor?.scrollHeight ?? 0 },
+				...(bid && section ? sectionReport(`sec:${bid}`, bid, section) : documentReport())
+			})
+		}
+		const position = () => {
+			const { kind, value: bid } = parseNav(state.navState ?? '')
+			const section = kind === 'sec' ? findSection(editor, bid) : null
+			if (section) {
+				editor.setSelection(section.start, 0, 'silent')
+				const [line] = editor.getLine(section.start)
+				;(line?.domNode as HTMLElement | undefined)?.scrollIntoView({ block: 'start' })
+			}
+			report()
+		}
+		if (doc.provider.synced) position()
+		else doc.provider.once('sync', position)
+		editor.on('selection-change', (range) => {
+			if (range) report()
+		})
+		editor.on('text-change', report)
+		bus.onDocInfo(report)
+	} else if (bus.embedded) {
 		// Embed view source: toolbar hidden by `body.quillo-embed` CSS; editable
 		// only while the host has activated the embed, and only for writers.
 		const editorEl = document.getElementById('editor')
@@ -669,7 +728,6 @@ function updatePairingBadges(
 			// One observer for the editor's lifetime; `report` only swaps what `send` reports
 			new ResizeObserver(send).observe(qlEditor)
 			const report = () => {
-				const docTitle = bus.docInfo?.fileName
 				const { kind, value: bid } = parseNav(nav ?? '')
 				if (kind === 'sec') {
 					// Before the first sync every bid looks missing.
@@ -677,26 +735,11 @@ function updatePairingBadges(
 					const section = findSection(editor, bid)
 					if (section) lastSection = section
 					applySectionVisibility(editor, section ?? lastSection)
-					base = section
-						? {
-								nav,
-								viewId: bid,
-								named: true,
-								title: section.heading,
-								a11yLabel: t('Section "{{heading}}" from {{doc}}', {
-									heading: section.heading,
-									doc: docTitle ?? t('document')
-								})
-							}
-						: { nav, missing: true }
+					base =
+						section && nav ? sectionReport(nav, bid, section) : { nav, missing: true }
 				} else {
 					applySectionVisibility(editor, null)
-					base = docTitle
-						? {
-								title: docTitle,
-								a11yLabel: t('Document "{{title}}"', { title: docTitle })
-							}
-						: {}
+					base = documentReport()
 				}
 				send()
 			}

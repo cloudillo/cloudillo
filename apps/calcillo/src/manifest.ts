@@ -73,7 +73,7 @@ export const manifest: AppManifest = {
 			formatVersion: '1.0.1',
 			search: SEARCH_INDEX_RULES,
 			// Ranges (`range:…`) and named ranges (`name:<id>`) embed at their natural pixel size
-			embed: { view: 'fixed', namedViews: true }
+			embed: { view: 'fixed', namedViews: true, render: ['svg'] }
 		}
 	],
 	capabilities: ['crdt'],

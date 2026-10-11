@@ -23,8 +23,8 @@ import {
 import type { SheetId } from './yjs-types'
 
 // Fortune Sheet 1.0.4 defaults (`defaultColWidth` / `defaultRowHeight`)
-const DEFAULT_COL_WIDTH = 73
-const DEFAULT_ROW_HEIGHT = 19
+export const DEFAULT_COL_WIDTH = 73
+export const DEFAULT_ROW_HEIGHT = 19
 
 export interface EmbedTarget {
 	range: ResolvedRange
@@ -48,13 +48,17 @@ function orderOf(sheet: Y.Map<unknown>, key: 'rowOrder' | 'colOrder'): string[] 
 	return a instanceof Y.Array ? (a.toArray() as string[]) : []
 }
 
+/** Sheet name, '' when the sheet is gone */
+export function sheetName(yDoc: Y.Doc, sheetId: string): string {
+	return String(sheetMap(yDoc, sheetId)?.get('name') ?? '')
+}
+
 /**
- * Bounding box of the non-empty cells of the first sheet (A1 when empty), or null without sheets.
+ * Bounding box of the non-empty cells of a sheet (A1 when empty), or null when the sheet is gone.
  */
-export function usedRangeOfFirstSheet(yDoc: Y.Doc): ResolvedRange | null {
-	const sheetId = yDoc.getArray<SheetId>('sheetOrder').get(0)
-	const sheet = sheetId ? sheetMap(yDoc, sheetId) : null
-	if (!sheetId || !sheet) return null
+export function usedRange(yDoc: Y.Doc, sheetId: SheetId): ResolvedRange | null {
+	const sheet = sheetMap(yDoc, sheetId)
+	if (!sheet) return null
 	const rowIndex = new Map(orderOf(sheet, 'rowOrder').map((id, i) => [id, i]))
 	const colIndex = new Map(orderOf(sheet, 'colOrder').map((id, i) => [id, i]))
 	let bottom = 0
@@ -70,6 +74,12 @@ export function usedRangeOfFirstSheet(yDoc: Y.Doc): ResolvedRange | null {
 		}
 	}
 	return { sheetId, top: 0, left: 0, bottom, right }
+}
+
+/** {@link usedRange} of the first sheet, or null without sheets */
+export function usedRangeOfFirstSheet(yDoc: Y.Doc): ResolvedRange | null {
+	const id = yDoc.getArray<SheetId>('sheetOrder').get(0)
+	return id ? usedRange(yDoc, id) : null
 }
 
 /**

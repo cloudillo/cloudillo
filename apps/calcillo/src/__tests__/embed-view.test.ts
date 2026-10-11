@@ -9,11 +9,13 @@ import {
 	isEmbedEditOp,
 	naturalSize,
 	resolveEmbedNav,
+	sheetName,
+	usedRange,
 	usedRangeOfFirstSheet
 } from '../embed-view'
 import { generateSheetId } from '../id-generator'
 import { anchorFromIndices, createNamedRange, formatNameNav } from '../named-ranges'
-import { ensureSheetDimensions, getOrCreateSheet } from '../ydoc-helpers'
+import { ensureSheetDimensions, getOrCreateSheet, hideRow } from '../ydoc-helpers'
 import type { SheetId, YSheetStructure } from '../yjs-types'
 
 describe('embed view', () => {
@@ -82,6 +84,22 @@ describe('embed view', () => {
 		const empty = new Y.Doc()
 		expect(usedRangeOfFirstSheet(empty)).toBeNull()
 		expect(resolveEmbedNav(empty, undefined)).toBeNull()
+	})
+
+	it('measures the used range of any sheet', () => {
+		expect(usedRange(doc, sheetId)).toEqual({ sheetId, top: 0, left: 0, bottom: 0, right: 0 })
+		setCell(1, 1) // B2
+		setCell(4, 3) // D5
+		hideRow(sheet, 10) // hidden, but empty: not used
+		expect(usedRange(doc, sheetId)).toEqual({ sheetId, top: 0, left: 0, bottom: 4, right: 3 })
+		expect(usedRangeOfFirstSheet(doc)).toEqual(usedRange(doc, sheetId))
+		expect(usedRange(doc, 'missing' as SheetId)).toBeNull()
+	})
+
+	it('reads the sheet name', () => {
+		;(doc.getMap('sheets').get(sheetId) as Y.Map<unknown>).set('name', 'Q1')
+		expect(sheetName(doc, sheetId)).toBe('Q1')
+		expect(sheetName(doc, 'missing')).toBe('')
 	})
 
 	it('measures a range with default sizes plus grid lines', () => {

@@ -51,6 +51,8 @@
 		"yjs": "^13.6.33"
 	},
 	"dependencies": {
-		"exceljs": "^4.4.0"
+		"exceljs": "^4.4.0",
+		"jspdf": "^4.2.1",
+		"svg2pdf.js": "^2.8.1"
 	}
 }

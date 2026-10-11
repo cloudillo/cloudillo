@@ -9,7 +9,7 @@
  * reading data from the CRDT document.
  */
 
-import { downloadBlob, sanitizeFilename } from '@cloudillo/core'
+import { docBaseName, downloadBlob, sanitizeFilename } from '@cloudillo/core'
 import type { Cell } from '@fortune-sheet/core'
 import ExcelJS from 'exceljs'
 import type * as Y from 'yjs'
@@ -89,7 +89,7 @@ export async function downloadXlsxExport(yDoc: Y.Doc): Promise<void> {
 	const blob = new Blob([buffer], {
 		type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 	})
-	const safeName = sanitizeFilename(firstName || 'spreadsheet')
+	const safeName = sanitizeFilename(docBaseName() || firstName || 'spreadsheet')
 	downloadBlob(blob, `${safeName}.xlsx`)
 }
 

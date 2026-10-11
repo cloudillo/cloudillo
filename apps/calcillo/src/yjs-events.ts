@@ -6,6 +6,7 @@ import * as Y from 'yjs'
 
 import type { CellStyleAttr, ExtendedCell, FreezeType } from './fortune-sheet-types'
 import { freezeSheet, setCellFormatExt } from './fortune-sheet-types'
+import { legacyFontName } from './fonts'
 import { normalizeCt } from './ydoc-helpers'
 import type { RowId, SheetId, YSheetStructure } from './yjs-types'
 import { toColId, toRowId } from './yjs-types'
@@ -106,7 +107,11 @@ export function applySheetYEvent(
 						]
 						for (const attr of formatAttrs) {
 							if (extCell[attr] !== undefined) {
-								setCellFormatExt(wb, rowIndex, colIndex, attr, extCell[attr], {
+								const v =
+									attr === 'ff'
+										? (legacyFontName(extCell.ff) ?? extCell.ff)
+										: extCell[attr]
+								setCellFormatExt(wb, rowIndex, colIndex, attr, v, {
 									id: sheetId
 								})
 							}

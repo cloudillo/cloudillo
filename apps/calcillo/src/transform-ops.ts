@@ -4,6 +4,7 @@
 import type { Cell, Op } from '@fortune-sheet/core'
 import type * as Y from 'yjs'
 
+import { editorFontName } from './fonts'
 import { DEV } from './utils'
 import {
 	clearCell,
@@ -44,6 +45,11 @@ interface BorderEdge {
  * Maps border type names to the sides they affect.
  * This eliminates the need for repetitive switch statements.
  */
+/** Store the font name the editor showed, never its list index */
+function fromEditor(cell: Cell): Cell {
+	return cell.ff != null ? { ...cell, ff: editorFontName(cell.ff) } : cell
+}
+
 const BORDER_TYPE_MAP: Record<string, BorderSide[]> = {
 	'border-all': ['top', 'bottom', 'left', 'right'],
 	'border-outside': ['top', 'bottom', 'left', 'right'],
@@ -174,7 +180,7 @@ function transformCellOp(sheet: YSheetStructure, op: Op): void {
 				for (let c = 0; c < op.value.length; c++) {
 					const cellValue = op.value[c]
 					if (cellValue && typeof cellValue === 'object') {
-						setCell(sheet, rowIndex, c, cellValue)
+						setCell(sheet, rowIndex, c, fromEditor(cellValue))
 					}
 				}
 			} else {
@@ -186,7 +192,7 @@ function transformCellOp(sheet: YSheetStructure, op: Op): void {
 					clearCell(sheet, rowIndex, colIndex)
 				} else if (op.path.length === 3) {
 					// Full cell replacement
-					setCell(sheet, rowIndex, colIndex, op.value)
+					setCell(sheet, rowIndex, colIndex, fromEditor(op.value))
 				} else {
 					// Property update — single (data[r][c].v) or nested
 					// (data[r][c].ct.fa). Merge into the existing sub-object
@@ -195,7 +201,7 @@ function transformCellOp(sheet: YSheetStructure, op: Op): void {
 					const updated = setCellProperty(
 						currentCell as Record<string, unknown>,
 						op.path.slice(3),
-						op.value
+						op.path[3] === 'ff' ? editorFontName(op.value) : op.value
 					)
 					setCell(sheet, rowIndex, colIndex, updated as Cell)
 				}

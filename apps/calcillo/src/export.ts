@@ -10,7 +10,7 @@
  * v3.0.0: Uses generic exportYDoc() with inline @T type markers.
  */
 
-import { downloadBlob, sanitizeFilename } from '@cloudillo/core'
+import { docBaseName, downloadBlob, sanitizeFilename } from '@cloudillo/core'
 import { type ExportEnvelope, exportYDoc } from '@cloudillo/crdt'
 import type { Cell } from '@fortune-sheet/core'
 import type * as Y from 'yjs'
@@ -100,7 +100,7 @@ export function downloadExport(yDoc: Y.Doc): void {
 	const json = JSON.stringify(exportData, null, 2)
 	const blob = new Blob([json], { type: 'application/json' })
 
-	// Generate safe filename from first sheet name
+	// Filename: the document's name, else the first sheet's
 	const sheetOrder = exportData.data.sheetOrder
 	const sheets = exportData.data.sheets as Record<string, unknown> | undefined
 	let firstName = ''
@@ -117,7 +117,7 @@ export function downloadExport(yDoc: Y.Doc): void {
 			firstName = nameField
 		}
 	}
-	const safeName = sanitizeFilename(firstName || 'spreadsheet')
+	const safeName = sanitizeFilename(docBaseName() || firstName || 'spreadsheet')
 
 	downloadBlob(blob, `${safeName}.calcillo`)
 }

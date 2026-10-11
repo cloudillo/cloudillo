@@ -55,11 +55,13 @@ import {
 	clampSelection,
 	type EmbedTarget,
 	isEmbedEditOp,
+	naturalSize,
 	resolveEmbedNav,
 	sameRange
 } from './embed-view'
 import { downloadExport } from './export.js'
 import { downloadXlsxExport } from './export-xlsx.js'
+import { installCalcFonts, legacyFontName, loadCalcFonts } from './fonts'
 import type { FreezeType } from './fortune-sheet-types'
 import { freezeSheet } from './fortune-sheet-types'
 import { generateSheetId } from './id-generator'
@@ -74,6 +76,8 @@ import {
 	type RangeAnchor,
 	type ResolvedRange
 } from './named-ranges'
+import { PdfExportDialog, type PdfExportDialogProps } from './PdfExportDialog'
+import { renderRangeSvg } from './render-svg'
 import { deleteSheet, transformOp } from './transform-ops'
 import {
 	createDebouncedThrottle,
@@ -163,6 +167,23 @@ function readSheets(yDoc: Y.Doc, readOnly: boolean): FortuneSheet[] {
 	return data
 }
 
+/** Rewrite numeric legacy `ff`s (1–3) to their font names, so the editor's font list can't misread them */
+function normalizeLegacyFonts(yDoc: Y.Doc): void {
+	yDoc.transact(() => {
+		for (const sheetId of yDoc.getArray<SheetId>('sheetOrder').toArray()) {
+			const sheet = readSheet(yDoc, sheetId)
+			sheet?.rows.forEach((rowMap) => {
+				rowMap.forEach((cell, colId) => {
+					const name = legacyFontName(cell?.ff)
+					if (name) rowMap.set(colId, { ...cell, ff: name })
+				})
+			})
+		}
+	}, 'load')
+}
+
+installCalcFonts()
+
 export function CalcilloApp() {
 	const { t } = useTranslation()
 	const cloudillo = useCloudilloEditor(APP_NAME)
@@ -171,10 +192,13 @@ export function CalcilloApp() {
 	// Pick-view (the shell's view picker) runs the normal read-only UI and reports the live
 	// selection, so `embedded` below means view mode only
 	const pickView = getAppBus().pickView
-	const embedded = getAppBus().embedded && !pickView
+	// Render mode (a host's headless `renderEmbed`): no Fortune, no presence, only render answers
+	const renderMode = getAppBus().embedMode === 'render'
+	const embedded = getAppBus().embedded && !pickView && !renderMode
 	const [loaded, setLoaded] = React.useState(false)
 	const [initialized, setInitialized] = React.useState(false)
 	const [origCellData, setOrigCellData] = React.useState<FortuneSheet[] | undefined>()
+	const [fontsReady, setFontsReady] = React.useState(false)
 	const [workbookKey, setWorkbookKey] = React.useState(0)
 	const workbookRef = React.useRef<WorkbookInstance>(null)
 	// Fortune hands out a new handle on every context change, so state tracks mount only
@@ -332,6 +356,10 @@ export function CalcilloApp() {
 	const toast = useToast()
 	const copyLink = useCopyEmbedLink()
 	const [showNames, setShowNames] = React.useState(false)
+	const [pdfExport, setPdfExport] = React.useState<Pick<
+		PdfExportDialogProps,
+		'sheetId' | 'selection'
+	> | null>(null)
 
 	// Guarded: selecting a range must never write to the doc
 	function selectRange(r: ResolvedRange) {
@@ -415,6 +443,23 @@ export function CalcilloApp() {
 		}, FROZEN_PANE_APPLY_DELAY_MS)
 		return () => clearTimeout(timerId)
 	}, [pickView, workbookReady])
+
+	function openPdfExport() {
+		const wb = workbookRef.current
+		const sheetId = wb?.getSheet()?.id as SheetId | undefined
+		const sel = wb?.getSelection()?.[0]
+		const selection: ResolvedRange | null =
+			sheetId && sel && sel.row.length >= 2 && sel.column.length >= 2
+				? {
+						sheetId,
+						top: sel.row[0],
+						left: sel.column[0],
+						bottom: sel.row[1],
+						right: sel.column[1]
+					}
+				: null
+		setPdfExport({ sheetId, selection })
+	}
 
 	function copySelectionLink() {
 		const anchor = getSelectionAnchor()
@@ -683,13 +728,14 @@ export function CalcilloApp() {
 	// Otherwise race condition: multiple clients see empty sheets and each creates their own
 	React.useEffect(() => {
 		// Wait for BOTH: document is initialized AND sync has completed
-		if (!loaded || !cloudillo.synced || origCellData) return
+		if (!loaded || !cloudillo.synced || origCellData || renderMode) return
 
 		const sheetOrder = cloudillo.yDoc.getArray<SheetId>('sheetOrder')
 
 		// Use sheetOrder array for consistent ordering across clients.
 		// An embed never creates the first sheet: it does not write to the document.
 		if (sheetOrder.length > 0 || embedded || pickView) {
+			if (!isReadOnly && !embedded && !pickView) normalizeLegacyFonts(cloudillo.yDoc)
 			setOrigCellData(readSheets(cloudillo.yDoc, embedded || pickView))
 		} else {
 			const data: FortuneSheet[] = []
@@ -715,10 +761,32 @@ export function CalcilloApp() {
 		setInitialized(true)
 	}, [loaded, cloudillo.synced, origCellData])
 
+	// Fortune measures and paints with whatever font is loaded at mount, so load the sheets' fonts first
+	React.useEffect(() => {
+		if (!origCellData || fontsReady) return
+		loadCalcFonts(origCellData)
+			.catch(() => {})
+			.finally(() => setFontsReady(true))
+	}, [origCellData])
+
+	// Render mode: answer the host's render requests once the document is in (the bus
+	// buffers requests that arrive earlier)
+	React.useEffect(() => {
+		if (!renderMode || !loaded || !cloudillo.synced) return
+		return getAppBus().onRenderRequest(async (req) => {
+			const target = resolveEmbedNav(cloudillo.yDoc, req.nav)
+			if (!target) throw new Error(`View not found: ${req.nav ?? '(default)'}`)
+			return {
+				pages: renderRangeSvg(cloudillo.yDoc, target.range, req.page),
+				natural: naturalSize(cloudillo.yDoc, target.range)
+			}
+		})
+	}, [renderMode, loaded, cloudillo.synced])
+
 	// Calculate formulas and apply frozen panes after initialization
 	// (embeds recalculate in their scroll effect and ignore frozen panes)
 	React.useEffect(() => {
-		if (!initialized || !workbookRef.current || embedded) return
+		if (!initialized || !fontsReady || !workbookRef.current || embedded) return
 
 		workbookRef.current.calculateFormula()
 
@@ -757,7 +825,7 @@ export function CalcilloApp() {
 		}, FROZEN_PANE_APPLY_DELAY_MS)
 
 		return () => clearTimeout(timerId)
-	}, [initialized])
+	}, [initialized, fontsReady])
 
 	// Handle operations from FortuneSheet
 	const onOp = React.useCallback(
@@ -837,7 +905,7 @@ export function CalcilloApp() {
 		: isReadOnly
 			? READONLY_WORKBOOK_PROPS
 			: {}
-	const workbook = workbookData && workbookData.length > 0 && (
+	const workbook = fontsReady && workbookData && workbookData.length > 0 && (
 		<Workbook
 			key={fortuneKey}
 			ref={combinedRef}
@@ -849,6 +917,8 @@ export function CalcilloApp() {
 			{...workbookProps}
 		/>
 	)
+
+	if (renderMode) return null
 
 	if (embedded) {
 		return (
@@ -878,6 +948,11 @@ export function CalcilloApp() {
 							icon={<PiExportBold />}
 							label={t('Export to XLSX')}
 							onClick={() => downloadXlsxExport(cloudillo.yDoc)}
+						/>
+						<MenuItem
+							icon={<PiExportBold />}
+							label={t('Export to PDF')}
+							onClick={openPdfExport}
 						/>
 						<MenuDivider />
 						{!isReadOnly && (
@@ -917,6 +992,13 @@ export function CalcilloApp() {
 						/>
 					)}
 				</div>
+				{pdfExport && (
+					<PdfExportDialog
+						yDoc={cloudillo.yDoc}
+						{...pdfExport}
+						onClose={() => setPdfExport(null)}
+					/>
+				)}
 				<DialogContainer />
 				<Toasts />
 			</div>

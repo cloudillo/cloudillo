@@ -6,6 +6,7 @@ import { isRealNum, update } from '@fortune-sheet/core'
 import * as Y from 'yjs'
 
 import { stripCellDefaults } from './cell-defaults'
+import { legacyFontName } from './fonts'
 import { generateUniqueColIds, generateUniqueRowIds } from './id-generator'
 import { fixupNamedRangesOnDelete } from './named-ranges'
 import { DEV } from './utils'
@@ -515,6 +516,9 @@ export function transformSheetToCelldata(sheet: YSheetStructure): {
 				const cleanCell: Cell = cell ? { ...cell } : {}
 				// Heal legacy string `ct` from pre-fix documents (see normalizeCt).
 				if (cleanCell.ct != null) cleanCell.ct = normalizeCt(cleanCell.ct)
+				// A stored numeric `ff` is a legacy index; the editor's list would misread it
+				if (cleanCell.ff != null)
+					cleanCell.ff = legacyFontName(cleanCell.ff) ?? cleanCell.ff
 				applyDisplayMask(cleanCell)
 
 				// Add merge information

@@ -21,7 +21,8 @@ const SVG_NS = 'http://www.w3.org/2000/svg'
 export function createRichTextSVGElement(
 	delta: DeltaOp[],
 	bounds: TextBounds,
-	baseStyle: BaseTextStyle
+	baseStyle: BaseTextStyle,
+	bulletIcon?: { pathData: string; viewBox: [number, number, number, number] }
 ): SVGGElement | null {
 	const lines = deltaToLines(delta)
 	const layout = calculateRichTextLayout(lines, bounds, baseStyle)
@@ -33,23 +34,40 @@ export function createRichTextSVGElement(
 	for (const line of layout.lines) {
 		if (line.runs.length === 0) continue
 
-		// List marker
+		// List marker: inline, 0.3em before the text (matches .rt-list-bullet::before)
+		const fs = baseStyle.fontSize
+		const gap = fs * 0.3
+		const textX = line.runs[0].x
+		const baselineY = line.runs[0].y
 		if (line.listType === 'bullet') {
-			const bulletSize = baseStyle.fontSize * 0.3
-			const bulletY = line.y + line.height * 0.5
-			const bulletX = bounds.x + baseStyle.fontSize * 0.5
-			const circle = document.createElementNS(SVG_NS, 'circle')
-			circle.setAttribute('cx', String(bulletX))
-			circle.setAttribute('cy', String(bulletY))
-			circle.setAttribute('r', String(bulletSize))
-			circle.setAttribute('fill', baseStyle.fill)
-			groupEl.appendChild(circle)
+			if (bulletIcon) {
+				const size = fs * 0.5
+				const [vx, vy, vw] = bulletIcon.viewBox
+				const k = size / vw
+				const path = document.createElementNS(SVG_NS, 'path')
+				path.setAttribute('d', bulletIcon.pathData)
+				path.setAttribute(
+					'transform',
+					`translate(${textX - gap - size - vx * k} ${baselineY - fs * 0.3 - size / 2 - vy * k}) scale(${k})`
+				)
+				path.setAttribute('fill', baseStyle.fill)
+				groupEl.appendChild(path)
+			} else {
+				const r = fs * 0.15
+				const circle = document.createElementNS(SVG_NS, 'circle')
+				circle.setAttribute('cx', String(textX - gap - r))
+				circle.setAttribute('cy', String(baselineY - fs * 0.3))
+				circle.setAttribute('r', String(r))
+				circle.setAttribute('fill', baseStyle.fill)
+				groupEl.appendChild(circle)
+			}
 		} else if (line.listType === 'ordered' && line.listIndex !== undefined) {
 			const numEl = document.createElementNS(SVG_NS, 'text')
 			const resolved = resolveRunStyle({}, baseStyle)
 			applyResolvedStyleToElement(numEl, resolved)
-			numEl.setAttribute('x', String(bounds.x + baseStyle.fontSize * 0.2))
-			numEl.setAttribute('y', String(line.runs[0]?.y ?? line.y))
+			numEl.setAttribute('text-anchor', 'end')
+			numEl.setAttribute('x', String(textX - gap))
+			numEl.setAttribute('y', String(baselineY))
 			numEl.textContent = `${line.listIndex}.`
 			groupEl.appendChild(numEl)
 		}
@@ -63,7 +81,11 @@ export function createRichTextSVGElement(
 			tspan.setAttribute('x', String(run.x))
 			tspan.setAttribute('y', String(run.y))
 			applyResolvedStyleToElement(tspan, resolved)
-			tspan.textContent = run.text || '\u00A0'
+			// Characters XML forbids would make the serialized SVG unparseable
+			tspan.textContent =
+				// biome-ignore lint/suspicious/noControlCharactersInRegex: matching them is the point
+				run.text.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g, ' ') ||
+				'\u00A0'
 			textEl.appendChild(tspan)
 		}
 

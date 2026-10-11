@@ -154,6 +154,13 @@ export { DropZone, FileButton, pickFiles, useFilePicker } from './DropZone/index
 export type { EmptyStateProps, EmptyStateSize } from './EmptyState/index.js'
 // EmptyState Component
 export { EmptyState } from './EmptyState/index.js'
+export type {
+	ExportProgressDialogProps,
+	ExportProgressState,
+	ExportTaskHandle
+} from './ExportProgress/index.js'
+// Export progress hook + dialog
+export { ExportProgressDialog, useExportProgress } from './ExportProgress/index.js'
 export type { FABProps } from './FAB/index.js'
 // FAB Component
 export { FAB } from './FAB/index.js'

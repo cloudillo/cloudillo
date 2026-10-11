@@ -16,6 +16,7 @@ import {
 	DialogContainer,
 	DocBarMenu,
 	EmptyState,
+	ExportProgressDialog,
 	Fcd,
 	isInDialog,
 	LoadingSpinner,
@@ -29,6 +30,7 @@ import {
 	useCopyEmbedLink,
 	useDialog,
 	useEmbedLayout,
+	useExportProgress,
 	useIsMobile,
 	useToast,
 	useViewReport
@@ -1041,17 +1043,34 @@ export function NotilloApp() {
 		}
 	}, [activePage, dialog, t])
 
+	// PDF export progress (embed renders)
+	const pdfExport = useExportProgress()
+	const runPdfExport = pdfExport.run
+
 	const handleExportPdf = React.useCallback(async () => {
-		if (!editorRef.current || !activePage) return
+		const editor = editorRef.current
+		if (!editor || !activePage) return
 		try {
-			await exportPdf(editorRef.current, activePage.title || t('Untitled'), resolveFileUrl)
+			await runPdfExport(({ signal, setProgress }) =>
+				exportPdf(editor, activePage.title || t('Untitled'), resolveFileUrl, {
+					signal,
+					onProgress: (done, total) => setProgress({ done, total }),
+					...(notillo.fileId
+						? {
+								bus: getAppBus(),
+								sourceFileId: notillo.fileId,
+								ownerTag: notillo.ownerTag
+							}
+						: {})
+				})
+			)
 		} catch (err) {
 			await dialog.tell(
 				t('Export error'),
-				t('Failed to export PDF: {{error}}', { error: String(err) })
+				t('Failed to export PDF: {{error}}', { error: String(err ?? 'error') })
 			)
 		}
-	}, [activePage, dialog, resolveFileUrl, t])
+	}, [activePage, dialog, resolveFileUrl, t, notillo.fileId, notillo.ownerTag, runPdfExport])
 
 	const handleExportDocx = React.useCallback(async () => {
 		if (!editorRef.current || !activePage) return
@@ -1623,6 +1642,13 @@ export function NotilloApp() {
 						onClose={() => setDocSettingsOpen(false)}
 					/>
 					<DialogContainer />
+					<ExportProgressDialog
+						title={t('Export to PDF')}
+						busyLabel={t('Exporting PDF…')}
+						progress={pdfExport.progress}
+						cancelable={pdfExport.cancelable}
+						onCancel={pdfExport.abort}
+					/>
 					<Toasts />
 				</Fcd.Container>
 			</div>

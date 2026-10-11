@@ -124,6 +124,15 @@ import { scalePathData } from './utils/path-scaling.js'
 
 type EmbedRect = { x: number; y: number; w: number; h: number }
 
+/** The canvas rect the board's svg shows under `matrix` (undefined before it mounts). */
+function visibleRect(matrix: readonly number[]): EmbedRect | undefined {
+	const svg = document.querySelector('.ideallo-app svg')
+	if (!svg) return undefined
+	const { width, height } = svg.getBoundingClientRect()
+	const s = matrix[0]
+	return { x: -matrix[4] / s, y: -matrix[5] / s, w: width / s, h: height / s }
+}
+
 /** The whole board: union of all objects' bounds plus 5% padding (empty ⇒ 800×600 at origin) */
 function boardRect(objects: IdealloObject[]): EmbedRect {
 	if (!objects.length) return { x: 0, y: 0, w: 800, h: 600 }
@@ -1580,6 +1589,8 @@ export function IdealloApp() {
 
 	// --- Embed source: show the addressed canvas rect at layout.scale, report it as a fixed view ---
 	const embedded = getAppBus().embedded
+	// Pick-view (the shell's view picker): free navigation, the nav only positions the board once
+	const pickView = getAppBus().pickView
 	const embedLayout = useEmbedLayout()
 	const embedInteractive = !!embedLayout?.interactive
 	const embedInteractiveRef = useLatestRef(embedInteractive)
@@ -1636,10 +1647,43 @@ export function IdealloApp() {
 			? frames.find((f) => f.id === embedParsedNav.id)
 			: undefined
 
+	const docTitle = getAppBus().docInfo?.fileName ?? t('a board')
+	const frameReportFields = (frame: FrameObject) => {
+		const name = frameTitle(frame, t('Frame'))
+		return {
+			named: true,
+			viewId: frame.id,
+			title: name,
+			a11yLabel: t('Frame "{{name}}" from {{doc}}', { name, doc: docTitle })
+		}
+	}
+
+	// Pick-view reports the single selected frame, else the visible rect (set by
+	// handleMatrixChange once a pan/zoom settles)
+	const [pickRect, setPickRect] = React.useState<EmbedRect>()
+	const pickRectTimerRef = React.useRef<ReturnType<typeof setTimeout>>(undefined)
+	React.useEffect(() => () => clearTimeout(pickRectTimerRef.current), [])
+	const pickFrame =
+		pickView && selectedIds.size === 1 ? frames.find((f) => selectedIds.has(f.id)) : undefined
+
 	let embedReport: EmbedViewReportPayload | null = null
-	if (embedShown) {
-		const frameName = embedFrame && frameTitle(embedFrame, t('Frame'))
-		const docTitle = getAppBus().docInfo?.fileName ?? t('a board')
+	if (pickView) {
+		if (pickFrame) {
+			const b = getRotatedObjectBounds(pickFrame)
+			embedReport = {
+				kind: 'fixed',
+				nav: `frame:${pickFrame.id}`,
+				natural: { w: b.width, h: b.height },
+				...frameReportFields(pickFrame)
+			}
+		} else if (pickRect) {
+			embedReport = {
+				kind: 'fixed',
+				nav: formatRectNav(pickRect),
+				natural: { w: pickRect.w, h: pickRect.h }
+			}
+		}
+	} else if (embedShown) {
 		embedReport = {
 			kind: 'fixed',
 			nav:
@@ -1649,17 +1693,7 @@ export function IdealloApp() {
 						? undefined
 						: formatRectNav(embedShown),
 			natural: { w: embedShown.w, h: embedShown.h },
-			...(embedFrame
-				? {
-						named: true,
-						viewId: embedFrame.id,
-						title: frameName,
-						a11yLabel: t('Frame "{{name}}" from {{doc}}', {
-							name: frameName,
-							doc: docTitle
-						})
-					}
-				: {}),
+			...(embedFrame ? frameReportFields(embedFrame) : {}),
 			...(embedMissing ? { missing: true } : {})
 		}
 	}
@@ -1680,7 +1714,7 @@ export function IdealloApp() {
 		const justActivated = embedInteractive && !prevEmbedInteractiveRef.current
 		prevEmbedInteractiveRef.current = embedInteractive
 		if (embedCx === undefined || embedCy === undefined || !ideallo.cloudillo.synced) return
-		if (justActivated) return
+		if (justActivated || pickView) return
 		if (!embedInteractive) setEmbedDrifting(false)
 		// Our own setViewport fires onMatrixChange too; that is not drift
 		applyingEmbedViewportRef.current = true
@@ -1703,6 +1737,44 @@ export function IdealloApp() {
 		ideallo.cloudillo.synced
 	])
 
+	// Pick-view: fit the initial nav's rect into the board once (its frame also selected), then
+	// leave navigation to the user. embedNav lags the init navState by a render, hence the check.
+	const pickPositionedRef = React.useRef(false)
+	React.useEffect(() => {
+		if (!pickView || pickPositionedRef.current || !embedShown || !ideallo.cloudillo.synced)
+			return
+		if (embedNav !== getAppBus().getState().navState) return
+		const r = embedShown
+		const frame = embedFrame
+		const raf = requestAnimationFrame(() => {
+			const svg = document.querySelector('.ideallo-app svg')
+			if (!svg) return
+			pickPositionedRef.current = true
+			if (frame) setSelectedIds(new Set([frame.id]))
+			const { width, height } = svg.getBoundingClientRect()
+			const zoom = Math.min(width / Math.max(r.w, 1), height / Math.max(r.h, 1))
+			applyingEmbedViewportRef.current = true
+			canvasRef.current?.setViewport(r.x + r.w / 2, r.y + r.h / 2, zoom)
+			requestAnimationFrame(() => {
+				applyingEmbedViewportRef.current = false
+			})
+			// Report the stored rect, not the fitted viewport (which would drift on confirm)
+			setPickRect(r)
+		})
+		return () => cancelAnimationFrame(raf)
+	}, [pickView, embedNav, embedCx, embedCy, ideallo.cloudillo.synced])
+
+	// Readers cannot select on the canvas, so in pick-view the frame list picks the frame
+	const pickZoomToFrame = (frame: FrameObject) => {
+		clearTimeout(pickRectTimerRef.current)
+		setSelectedIds(new Set([frame.id]))
+		applyingEmbedViewportRef.current = true
+		zoomToFrame(frame)
+		requestAnimationFrame(() => {
+			applyingEmbedViewportRef.current = false
+		})
+	}
+
 	const handleMatrixChange = React.useCallback(
 		(matrix: [number, number, number, number, number, number]) => {
 			// Above the embed check: that only gates the drift report, never the matrix mirror.
@@ -1713,22 +1785,27 @@ export function IdealloApp() {
 			if (hasSelectionRef.current) setCanvasMatrix(matrix)
 
 			const bus = getAppBus()
+			if (bus.pickView) {
+				// Pick-view: the visible rect is the report, not drift. Settle before the
+				// re-render (the bus only debounces the send). Only a user pan/zoom replaces
+				// the reported rect and drops a picked frame; our own positioning does not.
+				if (applyingEmbedViewportRef.current) return
+				setSelectedIds((prev) => (prev.size ? new Set() : prev))
+				clearTimeout(pickRectTimerRef.current)
+				pickRectTimerRef.current = setTimeout(() => {
+					const r = visibleRect(matrix)
+					if (r) setPickRect(r)
+				}, 150)
+				return
+			}
 			const base = embedReportRef.current
 			if (!bus.embedded || !base || !embedInteractiveRef.current) return
 			if (applyingEmbedViewportRef.current) return
 
 			// The user is exploring: report the visible rect as drift (the bus debounces)
-			const svg = document.querySelector('.ideallo-app svg')
-			if (!svg) return
-			const { width, height } = svg.getBoundingClientRect()
-			const s = matrix[0]
-			const nav = formatRectNav({
-				x: -matrix[4] / s,
-				y: -matrix[5] / s,
-				w: width / s,
-				h: height / s
-			})
-			bus.reportView({ ...base, nav, drifted: true })
+			const shown = visibleRect(matrix)
+			if (!shown) return
+			bus.reportView({ ...base, nav: formatRectNav(shown), drifted: true })
 			if (!embedDriftingRef.current) setEmbedDrifting(true)
 		},
 		[hasSelectionRef, embedReportRef, embedInteractiveRef, embedDriftingRef]
@@ -2284,7 +2361,7 @@ export function IdealloApp() {
 			{isReadOnly && (
 				<ReaderFrameList
 					frames={frames}
-					onZoomToFrame={zoomToFrame}
+					onZoomToFrame={pickView ? pickZoomToFrame : zoomToFrame}
 					onCopyFrameLink={copyFrameLink}
 				/>
 			)}

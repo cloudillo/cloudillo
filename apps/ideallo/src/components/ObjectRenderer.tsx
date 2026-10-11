@@ -7,7 +7,7 @@
  */
 
 import type { CaretPoint } from '@cloudillo/canvas-text'
-import type { EmbedViewReportPayload } from '@cloudillo/core'
+import { type EmbedViewReportPayload, getAppBus } from '@cloudillo/core'
 import { SvgViewEmbed } from '@cloudillo/react'
 import type Quill from 'quill'
 import * as React from 'react'
@@ -223,7 +223,7 @@ function renderObject(object: IdealloObject, props: RenderProps): React.ReactNod
 						appId={object.appId}
 						owner={props.ownerTag}
 						access={object.editable && props.onDocumentEditable ? 'write' : 'read'}
-						nav={object.navState}
+						nav={object.navState || undefined}
 						settings={{
 							sizing: 'box',
 							lastNatural: object.aspectRatio
@@ -274,7 +274,16 @@ function documentActions(object: DocumentObject, props: RenderProps) {
 			onDeactivate: () => props.onDocumentActivate!(null)
 		}),
 		...(props.onDocumentUseView && {
-			onUseCurrentView: (nav: string) => props.onDocumentUseView!(object.id, nav)
+			onUseCurrentView: (nav: string) => props.onDocumentUseView!(object.id, nav),
+			onChangeView: async () => {
+				const nav = await getAppBus().pickEmbedView({
+					fileId: object.fileId,
+					contentType: object.contentType,
+					nav: object.navState,
+					sourceFileId: props.sourceFileId
+				})
+				if (nav !== undefined) props.onDocumentUseView!(object.id, nav)
+			}
 		}),
 		...(props.onDocumentEditable && {
 			editable: !!object.editable,

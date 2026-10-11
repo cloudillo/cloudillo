@@ -18,6 +18,8 @@ export interface DocumentEmbedIframeProps {
 	src: string
 	className?: string
 	active?: boolean
+	/** Lets the embed present fullscreen from its own click */
+	allowFullscreen?: boolean
 	/** The iframe document loaded; the app inside may still be booting */
 	onLoad?: () => void
 	/** The embedded app asked to leave interact mode (`embed:view.exit`, i.e. Esc) */
@@ -41,7 +43,17 @@ export interface DocumentEmbedIframeRef {
 
 export const DocumentEmbedIframe = React.memo(
 	React.forwardRef<DocumentEmbedIframeRef, DocumentEmbedIframeProps>(function DocumentEmbedIframe(
-		{ src, className, active, onLoad, onExit, onAppReady, onAppError, onViewReport },
+		{
+			src,
+			className,
+			active,
+			allowFullscreen = false,
+			onLoad,
+			onExit,
+			onAppReady,
+			onAppError,
+			onViewReport
+		},
 		ref
 	) {
 		const iframeRef = React.useRef<HTMLIFrameElement | null>(null)
@@ -132,6 +144,8 @@ export const DocumentEmbedIframe = React.memo(
 				src={src}
 				className={className}
 				sandbox={APP_SANDBOX}
+				allow={allowFullscreen ? 'fullscreen' : undefined}
+				allowFullScreen={allowFullscreen}
 				loading="lazy"
 				// Inactive: the embed's container is its single tab stop
 				tabIndex={active ? undefined : -1}

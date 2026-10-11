@@ -49,6 +49,8 @@ export interface ViewEmbedProps {
 	onFrameLoad?: () => void
 	/** The app has not reported ready in time: an error overlay over the still-mounted iframe */
 	stalled?: boolean
+	/** Lets the embed present fullscreen from its own click */
+	allowFullscreen?: boolean
 	className?: string
 	/** Extra host controls in the chrome bar */
 	children?: React.ReactNode
@@ -76,6 +78,7 @@ export function ViewEmbed({
 	onAppError,
 	onFrameLoad,
 	stalled,
+	allowFullscreen,
 	className,
 	children
 }: ViewEmbedProps) {
@@ -162,6 +165,7 @@ export function ViewEmbed({
 			selected={selected}
 			canEdit={canEdit}
 			resizable={!!onSizing && settings.sizing !== 'box'}
+			allowFullscreen={allowFullscreen}
 			onResize={onResize}
 			onDelete={actions.onRemove}
 			className={className}
@@ -366,6 +370,8 @@ function DocViewEmbedInner({
 			onAppError={handleAppError}
 			onFrameLoad={handleFrameLoad}
 			stalled={stalled}
+			// Hard-coded to prezillo; move it to a manifest embed cap if another app needs it
+			allowFullscreen={contentType === 'cloudillo/prezillo'}
 		/>
 	)
 }

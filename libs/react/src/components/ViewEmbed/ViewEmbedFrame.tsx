@@ -56,6 +56,8 @@ export interface ViewEmbedFrameProps {
 	onResize?: (frameW: number, availW: number) => void
 	/** Delete / Backspace while selected */
 	onDelete?: () => void
+	/** Lets the embed present fullscreen from its own click */
+	allowFullscreen?: boolean
 	className?: string
 	/** Overlay (chrome) rendered inside the frame container */
 	children?: React.ReactNode
@@ -92,6 +94,7 @@ export const ViewEmbedFrame = React.forwardRef<ViewEmbedFrameHandle, ViewEmbedFr
 			resizable = false,
 			onResize,
 			onDelete,
+			allowFullscreen,
 			className,
 			children
 		},
@@ -374,6 +377,7 @@ export const ViewEmbedFrame = React.forwardRef<ViewEmbedFrameHandle, ViewEmbedFr
 								src={src}
 								className="cl-view-embed-iframe"
 								active={active}
+								allowFullscreen={allowFullscreen}
 								onLoad={onFrameLoad}
 								onExit={handleExit}
 								onAppReady={handleAppReady}

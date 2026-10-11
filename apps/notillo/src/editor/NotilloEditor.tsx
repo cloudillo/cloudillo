@@ -35,10 +35,11 @@ import {
 	getImageVariantForDisplaySize,
 	parseSiteFileRef
 } from '@cloudillo/core'
-import { usePresence, useReflowViewReport } from '@cloudillo/react'
+import { usePresence } from '@cloudillo/react'
 import type { RtdbClient, RtdbPresence } from '@cloudillo/rtdb'
 
 import { useBlockLocks } from '../hooks/useBlockLocks.js'
+import { useBlockRange } from '../hooks/useBlockRange.js'
 import { useEditorLocks } from '../hooks/useEditorLocks.js'
 import { useDocumentSync, useRtdbToEditor } from '../hooks/useEditorSync.js'
 import { type BlockPeer, useLockIndicators } from '../hooks/useLockIndicators.js'
@@ -196,12 +197,16 @@ interface NotilloEditorProps {
 	pageTags?: string[]
 	/** Embedded as a reflow view: report this page's height to the host. */
 	embedded?: boolean
+	/**
+	 * A `blk:` block range on this page (top-level block ids). View mode shows only
+	 * that range; pick-view selects and scrolls to it once, on mount.
+	 */
+	rangeStart?: string
+	rangeEnd?: string
 	embedTitle?: string
 	/** Host text scale (embed only), applied as a font-size factor. */
 	textScale?: number
 }
-
-const NO_ELEMENT: React.RefObject<HTMLElement | null> = { current: null }
 
 export const NotilloEditor = React.memo(
 	function NotilloEditor({
@@ -228,6 +233,8 @@ export const NotilloEditor = React.memo(
 		tags,
 		pageTags,
 		embedded,
+		rangeStart,
+		rangeEnd,
 		embedTitle,
 		textScale
 	}: NotilloEditorProps) {
@@ -473,22 +480,13 @@ export const NotilloEditor = React.memo(
 			return () => ro.disconnect()
 		}, [])
 
-		// Lives here rather than in the app: the element remounts per page
-		// (`key={activePageId}`), and the hook only attaches on mount / base change.
-		useReflowViewReport(
-			embedded ? editorRef : NO_ELEMENT,
-			embedded
-				? {
-						nav: pageId,
-						viewId: pageId,
-						named: true,
-						title: embedTitle,
-						a11yLabel: embedTitle
-							? t('Page "{{title}}"', { title: embedTitle })
-							: undefined
-					}
-				: {}
-		)
+		const hideCss = useBlockRange(editor, editorRef, {
+			embedded,
+			pageId,
+			rangeStart,
+			rangeEnd,
+			embedTitle
+		})
 
 		// Wiki-link click handling via event delegation
 		React.useEffect(() => {
@@ -758,7 +756,7 @@ export const NotilloEditor = React.memo(
 				ref={editorRef}
 				className="notillo-editor"
 				style={
-					embedded
+					embedded && !getAppBus().pickView
 						? {
 								...(notilloThemeOverrides as React.CSSProperties),
 								// Content height, not the container's: the frame grows to it.
@@ -768,6 +766,7 @@ export const NotilloEditor = React.memo(
 						: (notilloThemeOverrides as React.CSSProperties)
 				}
 			>
+				{hideCss && <style>{hideCss}</style>}
 				<NotilloEditorProvider value={editorContext}>
 					<BlockNoteView
 						editor={editor}
@@ -828,6 +827,8 @@ export const NotilloEditor = React.memo(
 			prev.tags === next.tags &&
 			prev.onCommentBlock === next.onCommentBlock &&
 			prev.embedded === next.embedded &&
+			prev.rangeStart === next.rangeStart &&
+			prev.rangeEnd === next.rangeEnd &&
 			prev.embedTitle === next.embedTitle &&
 			prev.textScale === next.textScale
 		)

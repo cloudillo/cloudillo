@@ -60,6 +60,7 @@ import {
 } from './comments/index.js'
 import { NotilloEditor as NotilloEditorComponent } from './editor/NotilloEditor.js'
 import type { NotilloEditor } from './editor/schema.js'
+import { parseBlockRangeNav } from './embed-range.js'
 import { exportDocx, exportMarkdown, exportOdt, exportPdf, importMarkdown } from './export/index.js'
 import { useActivePageGuard } from './hooks/useActivePageGuard.js'
 import { useAllPages } from './hooks/useAllPages.js'
@@ -104,13 +105,15 @@ const RECENT_PAGE_LIMIT = 8
 const MAX_SIDEBAR_RESULTS = 50
 
 /**
- * The page a nav string addresses — a page id, or failing that an exact title.
- * No nav ⇒ the first root page.
+ * The page a nav string addresses — a page id, or failing that an exact title; a
+ * `blk:` block range addresses its page by id. No nav ⇒ the first root page.
  */
 function resolveNavPage(
 	nav: string | undefined,
 	pages: Map<string, { id: string; title?: string; parentPageId?: unknown; order: number }>
 ): string | undefined {
+	const range = parseBlockRangeNav(nav)
+	if (range) return pages.has(range.pageId) ? range.pageId : undefined
 	if (nav) {
 		if (pages.has(nav)) return nav
 		for (const page of pages.values()) {
@@ -471,10 +474,16 @@ export function NotilloApp() {
 	const clearActivePage = React.useCallback(() => setActivePageId(undefined), [])
 	useActivePageGuard(pages, pagesReady, activePageId, clearActivePage)
 
-	// Embed view source: the view is one page, `nav` = page id. The host's initial
-	// `navState` wins over the URL nav param; `embed:view.set` overrides both, and
-	// `embed:view.set` with no nav resets to that default.
+	// Embed view source: the view is one page, `nav` = page id (or title), or a block
+	// range on one page, `nav` = `blk:<pageId>:<start>:<end>` (`embed-range.ts`). The
+	// host's initial `navState` wins over the URL nav param; `embed:view.set` overrides
+	// both, and `embed:view.set` with no nav resets to that default.
+	//
+	// Pick-view (inside the shell's document picker) shows the navigable read-only
+	// app: no clamping, no missing report; the initial nav only positions it, once.
 	const embedded = getAppBus().embedded
+	const pickView = getAppBus().pickView
+	const viewEmbed = embedded && !pickView
 	const embedLayout = useEmbedLayout()
 	const [embedNav, setEmbedNav] = React.useState<string | undefined>()
 	const defaultNav = embedded
@@ -489,7 +498,20 @@ export function NotilloApp() {
 			if (id) handleSelectPage(id)
 		})
 	}, [embedded, defaultNav, handleSelectPage])
-	const embedMissing = embedded && pagesReady && !!navTarget && !resolveNavPage(navTarget, pages)
+	const embedMissing = viewEmbed && pagesReady && !!navTarget && !resolveNavPage(navTarget, pages)
+	// A block range for the editor: the live nav in view mode; in pick-view the initial
+	// nav, dropped once the user leaves its page so a revisit does not re-position.
+	const [pickRange, setPickRange] = React.useState(() =>
+		pickView ? parseBlockRangeNav(defaultNav) : null
+	)
+	// Another page may be active at mount: only drop the range once its page was shown
+	const pickRangeSeenRef = React.useRef(false)
+	React.useEffect(() => {
+		if (!pickRange || !activePageId) return
+		if (activePageId === pickRange.pageId) pickRangeSeenRef.current = true
+		else if (pickRangeSeenRef.current) setPickRange(null)
+	}, [activePageId, pickRange])
+	const editorRange = viewEmbed ? parseBlockRangeNav(navTarget) : pickRange
 	useViewReport(
 		embedMissing
 			? { kind: 'reflow', nav: navTarget, missing: true, natural: { w: 0, h: 0 } }
@@ -502,9 +524,9 @@ export function NotilloApp() {
 		if (activePageId || !pagesReady || pages.size === 0) return
 		const id =
 			resolveNavPage(navTarget, pages) ??
-			(embedded ? undefined : resolveNavPage(undefined, pages))
+			(viewEmbed ? undefined : resolveNavPage(undefined, pages))
 		if (id) handleSelectPage(id)
-	}, [pages, pagesReady, activePageId, navTarget, embedded, handleSelectPage])
+	}, [pages, pagesReady, activePageId, navTarget, viewEmbed, handleSelectPage])
 
 	const toggleComments = React.useCallback(() => {
 		setShowComments((s) => !s)
@@ -1347,7 +1369,7 @@ export function NotilloApp() {
 					</DocBarMenu>
 				</AppDocBar>
 				<Fcd.Container className="pt-2 g-2 flex-fill" fluid detailsMode="adaptive">
-					{!embedded && (
+					{!viewEmbed && (
 						<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
 							<Panel elevation="mid" className="c-vbox fill">
 								<PageSidebar
@@ -1454,8 +1476,18 @@ export function NotilloApp() {
 									syncFlushRef={syncFlushRef}
 									tags={tags}
 									embedded={embedded}
+									rangeStart={
+										editorRange?.pageId === activePage.id
+											? editorRange.start
+											: undefined
+									}
+									rangeEnd={
+										editorRange?.pageId === activePage.id
+											? editorRange.end
+											: undefined
+									}
 									embedTitle={embedded ? activePage.title : undefined}
-									textScale={embedded ? embedLayout?.textScale : undefined}
+									textScale={viewEmbed ? embedLayout?.textScale : undefined}
 									pageTags={activePage.tags}
 								/>
 							)

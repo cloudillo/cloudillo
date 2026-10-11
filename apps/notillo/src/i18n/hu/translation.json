@@ -306,5 +306,6 @@
 	"Copy embed link": "Beágyazási link másolása",
 	"Shrink to fit": "Kicsinyítés a szélességhez",
 	"This embed is nested too deeply or embeds itself": "Ez a beágyazás túl mélyen van egymásba ágyazva, vagy önmagát ágyazza be",
-	"Copy embed link to this page": "Beágyazási link másolása erre az oldalra"
+	"Copy embed link to this page": "Beágyazási link másolása erre az oldalra",
+	"Blocks from {{title}}": "Blokkok innen: {{title}}"
 }

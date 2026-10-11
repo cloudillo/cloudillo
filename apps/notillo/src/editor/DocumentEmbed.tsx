@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import { createReactBlockSpec } from '@blocknote/react'
-import type { EmbedViewReportPayload } from '@cloudillo/core'
+import { type EmbedViewReportPayload, getAppBus } from '@cloudillo/core'
 import {
 	DocViewEmbed,
 	type EmbedViewSettings,
@@ -130,6 +130,18 @@ export const DocumentEmbed = createReactBlockSpec(
 										height: 0
 									}),
 								onUseCurrentView: (nav: string) => update({ navState: nav }),
+								onChangeView: async () => {
+									const nav = await getAppBus().pickEmbedView({
+										fileId,
+										contentType,
+										nav: navState,
+										sourceFileId
+									})
+									// Cancel changes nothing; the block may be gone by now
+									if (nav !== undefined && editor.getBlock(block.id)) {
+										update({ navState: nav })
+									}
+								},
 								editable: block.props.editable,
 								onEditableChange: async (editable: boolean) => {
 									const others = othersEditable(

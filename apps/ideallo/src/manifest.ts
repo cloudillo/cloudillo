@@ -53,7 +53,7 @@ export const manifest: AppManifest = {
 			// compatible tweaks to the rules above.
 			formatVersion: '1.0.0',
 			search: SEARCH_INDEX_RULES,
-			embed: { view: 'fixed', namedViews: true }
+			embed: { view: 'fixed', namedViews: true, render: ['svg'] }
 		}
 	],
 	capabilities: ['crdt'],

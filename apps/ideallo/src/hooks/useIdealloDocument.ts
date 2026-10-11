@@ -6,6 +6,7 @@
  * Simpler than prezillo - no views/containers, just a flat object list
  */
 
+import { getAppBus } from '@cloudillo/core'
 import { initPresence } from '@cloudillo/crdt'
 import { useCloudilloEditor } from '@cloudillo/react'
 import * as React from 'react'
@@ -263,8 +264,10 @@ export function useIdealloDocument(): UseIdealloDocumentResult {
 
 	// Publish who we are. `initPresence` writes the same shape every Cloudillo
 	// app uses, under the same `user` field.
+	const renderMode = getAppBus().embedMode === 'render'
 	React.useEffect(() => {
-		if (!awareness) return
+		// A headless render is nobody: it publishes no presence
+		if (!awareness || renderMode) return
 		initPresence(awareness, {
 			idTag: cloudillo.idTag,
 			displayName: cloudillo.displayName,
@@ -272,7 +275,7 @@ export function useIdealloDocument(): UseIdealloDocumentResult {
 			// `cloudillo.idTag` falls back to it.
 			authenticated: cloudillo.authenticated
 		})
-	}, [awareness, cloudillo.idTag, cloudillo.displayName, cloudillo.authenticated])
+	}, [awareness, renderMode, cloudillo.idTag, cloudillo.displayName, cloudillo.authenticated])
 
 	// Listen for awareness changes from remote clients
 	// IMPORTANT: Only update state when content actually changes to avoid

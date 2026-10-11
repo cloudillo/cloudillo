@@ -9,6 +9,8 @@ module.exports = createJestConfig({
 	setupFiles: ['<rootDir>/jest.setup.cjs'],
 	moduleNameMapper: {
 		'^~/(.*)$': '<rootDir>/$1',
+		// jsdom resolves the browser build, which needs MessageChannel (absent in jsdom)
+		'^react-dom/server$': 'react-dom/server.node',
 		'^(\\.{1,2}/.*)\\.js$': '$1'
 	},
 	// The app's components are ESM too, so a test that imports one (GhostShapes' awareness

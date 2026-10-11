@@ -19,7 +19,13 @@ import '@cloudillo/react/components.css'
 import './style.css'
 
 import { calculateArcRadius } from '@cloudillo/canvas-tools'
-import { docRef, type EmbedViewReportPayload, getAppBus } from '@cloudillo/core'
+import {
+	docRef,
+	type EmbedViewReportPayload,
+	getAppBus,
+	nestedEmbedCtx,
+	RENDER_ANSWER_MARGIN_MS
+} from '@cloudillo/core'
 import { downloadYDocExport } from '@cloudillo/crdt'
 import {
 	AppDocBar,
@@ -84,6 +90,7 @@ import {
 } from './crdt/index.js'
 import { renameFrame } from './crdt/object-ops.js'
 import type { FrameObject } from './crdt/runtime-types.js'
+import { renderBoardSvg } from './export/render-svg.js'
 import {
 	useConnectorEndpointDrag,
 	useDocumentHandler,
@@ -1622,6 +1629,33 @@ export function IdealloApp() {
 		if (initialNav) setEmbedNav(initialNav)
 	}, [ideallo.cloudillo.synced])
 
+	// Render mode (a host's headless render): answer render requests once synced, nothing else.
+	// The bus buffers requests that arrive earlier. No nav = the whole board.
+	const renderMode = getAppBus().embedMode === 'render'
+	const renderDoc = ideallo.doc
+	const { synced, ownerTag, token, fileId } = ideallo.cloudillo
+	React.useEffect(() => {
+		if (!renderMode || !synced || !renderDoc) return
+		const bus = getAppBus()
+		return bus.onRenderRequest(async (req) => {
+			const objects = resolvedObjectsRef.current
+			// Legacy centre/zoom navs are sized from the hidden iframe's viewport
+			const rect = resolveEmbedRect(parseIdealloNav(req.nav), objects, {
+				w: window.innerWidth,
+				h: window.innerHeight
+			})
+			if (!rect) throw new Error(`View not found: ${req.nav}`)
+			const svg = await renderBoardSvg(objects, rect, {
+				doc: renderDoc,
+				ownerTag,
+				token,
+				embeds: nestedEmbedCtx(bus, fileId, req.deadline),
+				deadline: req.deadline - RENDER_ANSWER_MARGIN_MS
+			})
+			return { pages: [svg], natural: { w: rect.w, h: rect.h } }
+		})
+	}, [renderMode, synced, renderDoc, ownerTag, token, fileId])
+
 	// Legacy centre/zoom navs are sized from the first layout, so later resizes keep the same rect
 	const firstEmbedAvailRef = React.useRef<{ w: number; h: number } | undefined>(undefined)
 	if (embedLayout && !firstEmbedAvailRef.current) {
@@ -1699,7 +1733,7 @@ export function IdealloApp() {
 	}
 	const embedReportRef = useLatestRef(embedReport)
 	// A report change while drifting (e.g. the board grows) is only sent on reset
-	useViewReport(embedDrifting ? null : embedReport)
+	useViewReport(embedDrifting || renderMode ? null : embedReport)
 
 	// Centre the shown rect at zoom = layout.scale. Not on activation (what follows is the user's
 	// exploration); again on deactivation, resize, rect change and embed:view.set.
@@ -2247,6 +2281,9 @@ export function IdealloApp() {
 			}
 		}
 	}, [])
+
+	// A headless render draws nothing: renderBoardSvg answers the requests
+	if (renderMode) return null
 
 	// Show loading state until synced
 	if (!ideallo.cloudillo.synced) {

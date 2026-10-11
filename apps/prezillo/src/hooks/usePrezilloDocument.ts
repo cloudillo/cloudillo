@@ -181,24 +181,33 @@ export function usePrezilloDocument(): UsePrezilloDocumentResult {
 	const embedMissing = !!embedNav && !!viewOrder && !viewOrder.includes(embedNav)
 	// Only the target slide, not the whole order: a remote reorder must not move the embed
 	const embedTarget = embedNav ?? viewOrder?.[0]
+	// Pick-view (the shell's view picker): navigation is free, so the nav only positions the
+	// first slide once, and the report is always the current slide, never missing
+	const pickView = getAppBus().pickView
+	const pickPositionedRef = React.useRef(false)
 	React.useEffect(() => {
 		if (!getAppBus().embedded || !embedTarget || embedMissing) return
+		if (pickView) {
+			if (pickPositionedRef.current || !embedNav) return
+			pickPositionedRef.current = true
+		}
 		setActiveViewIdInternal(toViewId(embedTarget))
 	}, [embedTarget, embedResetTick, embedMissing])
 
 	// Embed support: report the active slide as a fixed view
 	let embedReport: EmbedViewReportPayload | null = null
 	const embedView = getAppBus().embedded && activeViewId ? views?.[activeViewId] : undefined
+	const reportMissing = embedMissing && !pickView
 	if (embedView && activeViewId) {
 		embedReport = {
 			kind: 'fixed',
-			nav: embedMissing ? embedNav : activeViewId,
+			nav: reportMissing ? embedNav : activeViewId,
 			viewId: activeViewId,
 			named: true,
 			natural: { w: embedView.width, h: embedView.height },
 			title: embedView.name,
 			a11yLabel: t('Slide "{{name}}"', { name: embedView.name }),
-			...(embedMissing ? { missing: true } : {})
+			...(reportMissing ? { missing: true } : {})
 		}
 	}
 	useViewReport(embedReport)

@@ -12,7 +12,7 @@ import type { BaseTextStyle } from '@cloudillo/canvas-text'
 import { RichTextDisplay } from '@cloudillo/canvas-text'
 import type { Gradient } from '@cloudillo/canvas-tools'
 import { createLinearGradientDef, createRadialGradientDef } from '@cloudillo/canvas-tools'
-import type { EmbedViewReportPayload } from '@cloudillo/core'
+import { type EmbedViewReportPayload, getAppBus } from '@cloudillo/core'
 import { SvgViewEmbed } from '@cloudillo/react'
 import * as React from 'react'
 
@@ -526,7 +526,7 @@ export const ObjectShape = React.memo(function ObjectShape({
 						appId={object.appId}
 						owner={ownerTag}
 						access={object.editable && onDocumentEditable ? 'write' : 'read'}
-						nav={object.navState}
+						nav={object.navState || undefined}
 						settings={{ sizing: 'box', lastNatural: object.aspectRatio }}
 						canInteract={!!activeDocument}
 						active={!!activeDocument}
@@ -543,7 +543,17 @@ export const ObjectShape = React.memo(function ObjectShape({
 								onDeactivate: () => onDocumentActivate(null)
 							}),
 							...(onDocumentUseView && {
-								onUseCurrentView: (nav: string) => onDocumentUseView(object.id, nav)
+								onUseCurrentView: (nav: string) =>
+									onDocumentUseView(object.id, nav),
+								onChangeView: async () => {
+									const nav = await getAppBus().pickEmbedView({
+										fileId: object.fileId,
+										contentType: object.contentType,
+										nav: object.navState,
+										sourceFileId
+									})
+									if (nav !== undefined) onDocumentUseView(object.id, nav)
+								}
 							}),
 							...(onDocumentEditable && {
 								editable: !!object.editable,

@@ -24,7 +24,7 @@ import '@cloudillo/react/components.css'
 import '@fortune-sheet/react/dist/index.css'
 import './style.css'
 
-import { docRef, getAppBus } from '@cloudillo/core'
+import { docRef, type EmbedViewReportPayload, getAppBus } from '@cloudillo/core'
 import {
 	AppDocBar,
 	DialogContainer,
@@ -55,7 +55,8 @@ import {
 	clampSelection,
 	type EmbedTarget,
 	isEmbedEditOp,
-	resolveEmbedNav
+	resolveEmbedNav,
+	sameRange
 } from './embed-view'
 import { downloadExport } from './export.js'
 import { downloadXlsxExport } from './export-xlsx.js'
@@ -67,6 +68,7 @@ import { NamedRangesPanel, nameErrorText } from './NamedRangesPanel'
 import {
 	anchorFromIndices,
 	createNamedRange,
+	formatNameNav,
 	formatRangeNav,
 	getNamesMap,
 	type RangeAnchor,
@@ -166,7 +168,10 @@ export function CalcilloApp() {
 	const cloudillo = useCloudilloEditor(APP_NAME)
 	const isReadOnly = cloudillo.access !== 'write'
 	const meta = cloudillo.yDoc.getMap('meta')
-	const embedded = getAppBus().embedded
+	// Pick-view (the shell's view picker) runs the normal read-only UI and reports the live
+	// selection, so `embedded` below means view mode only
+	const pickView = getAppBus().pickView
+	const embedded = getAppBus().embedded && !pickView
 	const [loaded, setLoaded] = React.useState(false)
 	const [initialized, setInitialized] = React.useState(false)
 	const [origCellData, setOrigCellData] = React.useState<FortuneSheet[] | undefined>()
@@ -221,7 +226,49 @@ export function CalcilloApp() {
 			}
 		)
 	}, [initialized, embedNav, docVersion, t])
-	useViewReport(embedView?.report ?? null)
+
+	// Pick-view: the live selection is the view. A named range clicked in the panel reports
+	// by name for as long as the selection stays exactly on it.
+	const pickedNameRef = React.useRef<{ id: string; name: string; range: ResolvedRange } | null>(
+		null
+	)
+	const [pickReport, setPickReport] = React.useState<EmbedViewReportPayload | null>(null)
+	const onPickSelectionRef = React.useRef<
+		(sheetId: string, sel: { row: number[]; column: number[] }) => void
+	>(() => {})
+	onPickSelectionRef.current = (sheetId, sel) => {
+		if (!pickView || sel.row.length < 2 || sel.column.length < 2) return
+		const range: ResolvedRange = {
+			sheetId: sheetId as SheetId,
+			top: Math.min(sel.row[0], sel.row[1]),
+			left: Math.min(sel.column[0], sel.column[1]),
+			bottom: Math.max(sel.row[0], sel.row[1]),
+			right: Math.max(sel.column[0], sel.column[1])
+		}
+		const picked = pickedNameRef.current
+		const named = picked && sameRange(picked.range, range) ? picked : null
+		let nav: string
+		try {
+			nav = named
+				? formatNameNav(named.id)
+				: formatRangeNav(
+						anchorFromIndices(
+							cloudillo.yDoc,
+							range.sheetId,
+							range.top,
+							range.left,
+							range.bottom,
+							range.right
+						)
+					)
+		} catch {
+			return
+		}
+		const target = named ? { range, nameId: named.id, name: named.name } : { range }
+		setPickReport(buildEmbedReport(t, cloudillo.yDoc, nav, target, false))
+	}
+
+	useViewReport(embedView?.report ?? pickReport)
 
 	const embedRange = embedView?.range
 	const embedRangeRef = React.useRef(embedRange)
@@ -243,14 +290,16 @@ export function CalcilloApp() {
 
 	// Stable identity: FortuneSheet memoises its settings on prop values (see READONLY_WORKBOOK_PROPS).
 	// afterActivateSheet fires in a setTimeout, after the library has seeded the new sheet.
-	// afterSelectionChange keeps an embed's selection inside its range (no-op otherwise).
+	// afterSelectionChange keeps an embed's selection inside its range, and reports it in
+	// pick-view (no-op otherwise). Fortune fires it for programmatic selections too.
 	const workbookHooks = React.useMemo(
 		() => ({
 			afterActivateSheet: () => fixSeededSelection(workbookRef.current),
 			afterSelectionChange: (
-				_sheetId: string,
+				sheetId: string,
 				sel: { row: number[]; column: number[] } | undefined
 			) => {
+				if (sel) onPickSelectionRef.current(sheetId, sel)
 				const r = embedRangeRef.current
 				const clamped = r && sel && clampSelection(sel, r)
 				if (clamped) workbookRef.current?.setSelection([clamped])
@@ -330,6 +379,42 @@ export function CalcilloApp() {
 		const resId = getAppBus().resId
 		if (resId) copyLink(docRef('calcillo', resId, nav))
 	}
+
+	function selectNamedRange(r: ResolvedRange, named: { id: string; name: string }) {
+		pickedNameRef.current = pickView ? { ...named, range: r } : null
+		selectRange(r)
+	}
+
+	// Pick-view: the initial nav only positions the UI, once; the names panel is the way to
+	// pick a named range there, as the DocBar (and its menu) is hidden in any embed
+	const pickPositionedRef = React.useRef(false)
+	React.useEffect(() => {
+		if (!pickView) return
+		setShowNames(true)
+		if (!workbookReady || pickPositionedRef.current) return
+		const timerId = setTimeout(() => {
+			pickPositionedRef.current = true
+			const nav = getAppBus().getState().navState
+			const target = nav ? resolveEmbedNav(cloudillo.yDoc, nav) : null
+			if (!target) {
+				// Nothing to position: report the default selection so confirm is enabled
+				const wb = workbookRef.current
+				const sel = wb?.getSelection()?.[0]
+				const sheetId = wb?.getSheet()?.id
+				if (sel && sheetId) onPickSelectionRef.current(sheetId, sel)
+				return
+			}
+			if (target.nameId) {
+				pickedNameRef.current = {
+					id: target.nameId,
+					name: target.name ?? target.nameId,
+					range: target.range
+				}
+			}
+			selectRange(target.range)
+		}, FROZEN_PANE_APPLY_DELAY_MS)
+		return () => clearTimeout(timerId)
+	}, [pickView, workbookReady])
 
 	function copySelectionLink() {
 		const anchor = getSelectionAnchor()
@@ -604,8 +689,8 @@ export function CalcilloApp() {
 
 		// Use sheetOrder array for consistent ordering across clients.
 		// An embed never creates the first sheet: it does not write to the document.
-		if (sheetOrder.length > 0 || embedded) {
-			setOrigCellData(readSheets(cloudillo.yDoc, embedded))
+		if (sheetOrder.length > 0 || embedded || pickView) {
+			setOrigCellData(readSheets(cloudillo.yDoc, embedded || pickView))
 		} else {
 			const data: FortuneSheet[] = []
 			// No sheets - create first sheet - MUST be in transaction!
@@ -826,7 +911,7 @@ export function CalcilloApp() {
 							yDoc={cloudillo.yDoc}
 							readOnly={isReadOnly}
 							getSelectionAnchor={getSelectionAnchor}
-							onSelect={selectRange}
+							onSelect={selectNamedRange}
 							onCopyLink={copyEmbedLink}
 							onClose={() => setShowNames(false)}
 						/>

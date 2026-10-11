@@ -49,7 +49,7 @@ export interface NamedRangesPanelProps {
 	/** Copies a `cl:` ref for the nav; must run synchronously inside the click */
 	onCopyLink: (nav: string) => void
 	/** Activates the range's sheet and selects it */
-	onSelect: (r: ResolvedRange) => void
+	onSelect: (r: ResolvedRange, named: { id: string; name: string }) => void
 	onClose: () => void
 }
 
@@ -143,11 +143,13 @@ export function NamedRangesPanel({
 								tabIndex={resolved ? 0 : -1}
 								aria-disabled={!resolved}
 								title={resolved ? t('Select range') : undefined}
-								onClick={() => resolved && onSelect(resolved)}
+								onClick={() =>
+									resolved && onSelect(resolved, { id: r.id, name: r.name })
+								}
 								onKeyDown={(e) => {
 									if (resolved && (e.key === 'Enter' || e.key === ' ')) {
 										e.preventDefault()
-										onSelect(resolved)
+										onSelect(resolved, { id: r.id, name: r.name })
 									}
 								}}
 							>

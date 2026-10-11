@@ -153,6 +153,16 @@ export function isEmbedEditOp(op: Op, r: ResolvedRange): boolean {
 	return row >= r.top && row <= r.bottom && col >= r.left && col <= r.right
 }
 
+export function sameRange(a: ResolvedRange, b: ResolvedRange): boolean {
+	return (
+		a.sheetId === b.sheetId &&
+		a.top === b.top &&
+		a.left === b.left &&
+		a.bottom === b.bottom &&
+		a.right === b.right
+	)
+}
+
 /** Clamp a selection box into the range; null when it is already inside. */
 export function clampSelection(
 	sel: { row: number[]; column: number[] },

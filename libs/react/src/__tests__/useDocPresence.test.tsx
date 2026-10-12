@@ -57,6 +57,8 @@ jest.unstable_mockModule('@cloudillo/core', async () => {
 		getCrdtUrl,
 		getFileUrl,
 		idHue,
+		// Imported by `@cloudillo/crdt`'s export utils, which `presence.tsx` pulls in.
+		docBaseName: () => undefined,
 		getAppBus: () => bus,
 		createApiClient: () => ({
 			profiles: {

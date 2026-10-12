@@ -11,11 +11,25 @@ import { Dropdown } from '../Dropdown/index.js'
 import { MenuHeader, MenuItem } from '../Menu/index.js'
 import { mergeClasses } from '../utils.js'
 
+/**
+ * `onUserClick` handed down by `AppDocBar` past `DocBar`, which renders this component
+ * and has no prop for it. An explicit `onUserClick` prop wins.
+ */
+export const DocBarUserClickContext = React.createContext<
+	((user: PresenceEntry) => void) | undefined
+>(undefined)
+
 export interface DocBarPresenceProps extends Omit<React.HTMLAttributes<HTMLElement>, 'children'> {
 	/** Roster from `useDocPresence`, already sorted and deduplicated. */
 	users?: PresenceEntry[]
 	/** Faces shown before the group collapses into a `+N` chip. */
 	max?: number
+	/**
+	 * A collaborator's face or roster row was clicked — e.g. scroll to their caret.
+	 * With it, clicking another user's face calls this instead of opening the roster
+	 * (your own face and the `+N` chip still open it).
+	 */
+	onUserClick?(user: PresenceEntry): void
 }
 
 /**
@@ -24,8 +38,16 @@ export interface DocBarPresenceProps extends Omit<React.HTMLAttributes<HTMLEleme
  * Renders nothing for an empty roster, so a document whose presence channel is
  * absent or still connecting needs no conditional at the call site.
  */
-export function DocBarPresence({ className, users, max = 4, ...props }: DocBarPresenceProps) {
+export function DocBarPresence({
+	className,
+	users,
+	max = 4,
+	onUserClick: onUserClickProp,
+	...props
+}: DocBarPresenceProps) {
 	const { t } = useLibTranslation()
+	const onUserClickCtx = React.useContext(DocBarUserClickContext)
+	const onUserClick = onUserClickProp ?? onUserClickCtx
 	const guestLabel = t('Guest')
 
 	// '<name> (you)' / '<name> (guest)' — a guest is anyone with no idTag
@@ -46,6 +68,20 @@ export function DocBarPresence({ className, users, max = 4, ...props }: DocBarPr
 			? t('1 collaborator')
 			: t('{{count}} collaborators', { count: users.length })
 
+	// The group's children are the visible faces in roster order, then the `+N` chip.
+	const visible = users.length > max ? max : users.length
+	const onFaceClick = (e: React.MouseEvent<HTMLDivElement>) => {
+		if (!onUserClick) return
+		const faces = [...e.currentTarget.children]
+		const idx = faces.findIndex((f) => f.contains(e.target as Node))
+		const user = idx >= 0 && idx < visible ? users[idx] : undefined
+		if (!user || user.self) return
+		// Keep the click from reaching the dropdown trigger.
+		e.stopPropagation()
+		e.preventDefault()
+		onUserClick(user)
+	}
+
 	return (
 		<Dropdown
 			className={mergeClasses('c-docbar-presence', className)}
@@ -58,7 +94,7 @@ export function DocBarPresence({ className, users, max = 4, ...props }: DocBarPr
 			triggerClassName="c-hbox align-items-center"
 			triggerProps={{ title: label, 'aria-label': label }}
 			trigger={
-				<AvatarGroup max={max} size="sm">
+				<AvatarGroup max={max} size="sm" onClick={onUserClick ? onFaceClick : undefined}>
 					{users.map((user) => (
 						<PresenceAvatar
 							key={user.idTag ?? user.connId}
@@ -88,6 +124,7 @@ export function DocBarPresence({ className, users, max = 4, ...props }: DocBarPr
 					// Two tabs of one person collapse to one row; say how many.
 					shortcut={user.connections > 1 ? `×${user.connections}` : undefined}
 					title={user.idTag}
+					onClick={onUserClick && !user.self ? () => onUserClick(user) : undefined}
 				/>
 			))}
 		</Dropdown>

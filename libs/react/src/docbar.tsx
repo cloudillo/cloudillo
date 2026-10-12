@@ -10,13 +10,15 @@
  * directly instead.
  */
 
-import { type DocInfo, docRef, getAppBus, parseAppHash } from '@cloudillo/core'
+import { type DocInfo, docRef, getAppBus, type PresenceEntry, parseAppHash } from '@cloudillo/core'
 import * as React from 'react'
 import { LuLink as IcRef, LuShare2 as IcShare } from 'react-icons/lu'
 import type { Awareness } from 'y-protocols/awareness'
+import type { WebsocketProvider } from 'y-websocket'
 
 import { Button } from './components/Button/Button.js'
 import { DocBar, type DocBarSubItem } from './components/DocBar/index.js'
+import { DocBarUserClickContext } from './components/DocBar/DocBarPresence.js'
 import { useToast } from './components/Toast/index.js'
 import { useLibTranslation } from './i18n.js'
 import { useDocPresence, usePresenceContext } from './presence.js'
@@ -124,6 +126,56 @@ export function useDocBar(): UseDocBarReturn {
 	}
 }
 
+/** What the bar says about the CRDT connection; none while all is well. */
+type ConnectionNote = 'offline' | 'reconnecting' | 'synced'
+
+/**
+ * Connection state off a y-websocket provider: "Offline" at once when the browser is offline,
+ * "Reconnecting…" after 3 s down otherwise, then a brief "Synced" — only after a note was shown,
+ * so a blip nobody saw stays silent. Exported for tests (`@internal`).
+ */
+export function useConnectionNote(provider?: WebsocketProvider | null): ConnectionNote | undefined {
+	const [note, setNote] = React.useState<ConnectionNote>()
+	React.useEffect(() => {
+		setNote(undefined)
+		if (!provider) return
+		let timer: ReturnType<typeof setTimeout> | undefined
+		let shown = false
+		const show = (n: ConnectionNote | undefined, ms = 0) => {
+			clearTimeout(timer)
+			timer = setTimeout(() => {
+				if (n === 'offline' || n === 'reconnecting') shown = true
+				setNote(n)
+			}, ms)
+		}
+		const onStatus = () => {
+			if (provider.wsconnected) clearTimeout(timer)
+			else show(navigator.onLine ? 'reconnecting' : 'offline', navigator.onLine ? 3000 : 0)
+		}
+		const onSync = (synced: boolean) => {
+			if (!synced || !provider.wsconnected) return
+			if (shown) {
+				shown = false
+				setNote('synced')
+				show(undefined, 2000)
+			} else show(undefined)
+		}
+		onStatus()
+		provider.on('status', onStatus)
+		provider.on('sync', onSync)
+		window.addEventListener('online', onStatus)
+		window.addEventListener('offline', onStatus)
+		return () => {
+			clearTimeout(timer)
+			provider.off('status', onStatus)
+			provider.off('sync', onSync)
+			window.removeEventListener('online', onStatus)
+			window.removeEventListener('offline', onStatus)
+		}
+	}, [provider])
+	return note
+}
+
 export interface AppDocBarProps {
 	/**
 	 * Yjs awareness for the presence roster, for an app that has one and no
@@ -131,6 +183,8 @@ export interface AppDocBarProps {
 	 * RTDB apps feed the same slot without a prop. With neither, it renders empty.
 	 */
 	awareness?: Awareness | null
+	/** CRDT provider: when given, the bar shows the connection state (offline, reconnecting). */
+	provider?: WebsocketProvider | null
 	className?: string
 	/** Unsaved changes: rendered as the leading `*` the tab title also uses. */
 	dirty?: boolean
@@ -144,6 +198,8 @@ export interface AppDocBarProps {
 	/** Actions scoped to `sub`, rendered right after it. */
 	subActions?: React.ReactNode
 	maxAvatars?: number
+	/** A collaborator's face / roster row was clicked (e.g. scroll to their caret or page). */
+	onUserClick?(user: PresenceEntry): void
 	/** Document-wide actions. Anything scoped to `sub` belongs in `subActions`. */
 	children?: React.ReactNode
 }
@@ -155,12 +211,14 @@ export interface AppDocBarProps {
  */
 export function AppDocBar({
 	awareness,
+	provider,
 	className,
 	dirty,
 	sub,
 	start,
 	subActions,
 	maxAvatars,
+	onUserClick,
 	children
 }: AppDocBarProps) {
 	const { info, title, state, canRename, canPost, rename, renaming, hidden } = useDocBar()
@@ -172,84 +230,97 @@ export function AppDocBar({
 	const provided = usePresenceContext()
 	const own = useDocPresence(hidden || provided ? undefined : awareness)
 	const { users } = provided ?? own
+	const note = useConnectionNote(hidden ? undefined : provider)
 
 	if (hidden) return null
 
 	return (
-		<DocBar
-			className={className}
-			owner={info?.owner}
-			showOwner={!!info?.isCrossOwner}
-			title={title}
-			// No push yet is the same thing as still resolving, as far as the
-			// title area is concerned.
-			state={state ?? 'loading'}
-			dirty={dirty}
-			canRename={canRename}
-			onRename={rename}
-			renaming={renaming}
-			sub={sub}
-			// With the name, not in the trailing cluster: what it copies is the
-			// document's identity, while the trailing cluster is the app's own actions.
-			//
-			// `docRef` is the same writer the shell's `buildRef` uses for a document
-			// route. Built here rather than asked of the shell — one getter beats a new
-			// message type. No `?nav=`: an app never pushes it back into the shell URL.
-			//
-			// `immediate` keeps the clipboard write inside the click's user-activation
-			// window — `Button` otherwise defers the handler past its press animation,
-			// which Safari and Firefox reject as a user-gesture-less clipboard write.
-			titleActions={
-				state === 'ready' &&
-				info?.resId && (
-					<Button
-						variant="link"
-						immediate
-						icon={<IcRef />}
-						title={t('Copy reference')}
-						aria-label={t('Copy reference')}
-						onClick={() =>
-							navigator.clipboard
-								.writeText(docRef(getAppBus().appName ?? '', info.resId))
-								.then(() => toastSuccess(t('Reference copied')))
-								.catch((err: Error) => {
-									console.error('[DocBar] Copy reference failed', err)
-									toastError(t('Failed to copy reference'))
-								})
-						}
-					/>
-				)
-			}
-			start={start}
-			subActions={subActions}
-			presence={users}
-			maxAvatars={maxAvatars}
-		>
-			{/* An embedded document never gets here — `hidden` returned above. A
+		// DocBar renders DocBarPresence and has no prop for the click: hand it down past it.
+		<DocBarUserClickContext.Provider value={onUserClick}>
+			<DocBar
+				className={className}
+				owner={info?.owner}
+				showOwner={!!info?.isCrossOwner}
+				title={title}
+				// No push yet is the same thing as still resolving, as far as the
+				// title area is concerned.
+				state={state ?? 'loading'}
+				dirty={dirty}
+				canRename={canRename}
+				onRename={rename}
+				renaming={renaming}
+				sub={sub}
+				// With the name, not in the trailing cluster: what it copies is the
+				// document's identity, while the trailing cluster is the app's own actions.
+				//
+				// `docRef` is the same writer the shell's `buildRef` uses for a document
+				// route. Built here rather than asked of the shell — one getter beats a new
+				// message type. No `?nav=`: an app never pushes it back into the shell URL.
+				//
+				// `immediate` keeps the clipboard write inside the click's user-activation
+				// window — `Button` otherwise defers the handler past its press animation,
+				// which Safari and Firefox reject as a user-gesture-less clipboard write.
+				titleActions={
+					state === 'ready' &&
+					info?.resId && (
+						<Button
+							variant="link"
+							immediate
+							icon={<IcRef />}
+							title={t('Copy reference')}
+							aria-label={t('Copy reference')}
+							onClick={() =>
+								navigator.clipboard
+									.writeText(docRef(getAppBus().appName ?? '', info.resId))
+									.then(() => toastSuccess(t('Reference copied')))
+									.catch((err: Error) => {
+										console.error('[DocBar] Copy reference failed', err)
+										toastError(t('Failed to copy reference'))
+									})
+							}
+						/>
+					)
+				}
+				start={start}
+				subActions={subActions}
+				presence={users}
+				maxAvatars={maxAvatars}
+			>
+				{note && (
+					<span role="status" className="text-muted small">
+						{note === 'offline'
+							? t('Offline · changes saved on this device')
+							: note === 'reconnecting'
+								? t('Reconnecting…')
+								: t('Synced')}
+					</span>
+				)}
+				{/* An embedded document never gets here — `hidden` returned above. A
 			    document that has not resolved yet has nothing to post, and a
 			    share-link guest has no feed to post it to: the click would only
 			    navigate them out of the document they were sent. */}
-			{state === 'ready' && canPost && (
-				<Button
-					variant="link"
-					icon={<IcShare />}
-					title={t('Share to feed')}
-					aria-label={t('Share to feed')}
-					onClick={() =>
-						getAppBus()
-							.postToFeed()
-							.catch((err: Error) => {
-								// The wire message is a protocol string, not UI copy — log it,
-								// never toast it. The toast needs an app-mounted <Toasts/> sink;
-								// the log always lands.
-								console.error('[DocBar] Share to feed failed', err)
-								toastError(t('Could not share this document'))
-							})
-					}
-				/>
-			)}
-			{children}
-		</DocBar>
+				{state === 'ready' && canPost && (
+					<Button
+						variant="link"
+						icon={<IcShare />}
+						title={t('Share to feed')}
+						aria-label={t('Share to feed')}
+						onClick={() =>
+							getAppBus()
+								.postToFeed()
+								.catch((err: Error) => {
+									// The wire message is a protocol string, not UI copy — log it,
+									// never toast it. The toast needs an app-mounted <Toasts/> sink;
+									// the log always lands.
+									console.error('[DocBar] Share to feed failed', err)
+									toastError(t('Could not share this document'))
+								})
+						}
+					/>
+				)}
+				{children}
+			</DocBar>
+		</DocBarUserClickContext.Provider>
 	)
 }
 

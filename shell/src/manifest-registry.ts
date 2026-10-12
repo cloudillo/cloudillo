@@ -20,6 +20,8 @@ import { getIcon } from './icon-registry.js'
 import { shellManifests } from './shell-manifests.js'
 import type { AppConfigState, MenuItem } from './utils.js'
 
+export { appRequiresTrusted, appTrust } from './app-trust.js'
+
 // All registered manifests
 export const allManifests: AppManifest[] = [...shellManifests, ...bundledManifests]
 
@@ -129,8 +131,7 @@ export function buildAppConfig(manifests: AppManifest[]): AppConfigState {
 		.filter((m) => m.kind !== 'internal')
 		.map((m) => ({
 			id: m.id,
-			url: m.url!,
-			trust: m.kind === 'bundled' ? (true as const) : undefined
+			url: m.url!
 		}))
 
 	// Build MIME map

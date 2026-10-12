@@ -1,0 +1,360 @@
+/* SPDX-FileCopyrightText: Szilárd Hajba */
+/* SPDX-License-Identifier: LGPL-3.0-or-later */
+
+html,
+body,
+#app {
+	height: 100%;
+	margin: 0;
+}
+
+.pagillo-app {
+	height: 100%;
+	overflow: hidden;
+}
+
+.pagillo-main {
+	min-height: 0;
+}
+
+/* Page column — padding/gap must match PAD/GAP in view/PageList.tsx */
+.pagillo-pages {
+	display: flex;
+	flex-direction: column;
+	align-items: safe center;
+	gap: 16px;
+	padding: 24px;
+	overflow: auto;
+	min-width: 0;
+	background: var(--col-surface);
+}
+
+.pagillo-page {
+	flex: none;
+	background: #fff;
+	box-shadow: 0 1px 4px rgb(0 0 0 / 25%);
+	user-select: none;
+	-webkit-user-select: none;
+}
+
+.pagillo-page-canvas {
+	display: block;
+}
+
+/* Over the canvas; only link boxes take pointer events. */
+.pagillo-page-svg {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+}
+
+.pagillo-page-svg a {
+	pointer-events: auto;
+}
+
+/* Screen-only overlay */
+.pagillo-ghost {
+	fill: rgb(0 0 0 / 35%);
+	font-family: sans-serif;
+	font-style: italic;
+}
+
+.pagillo-empty-img {
+	fill: rgb(0 0 0 / 4%);
+	stroke: rgb(0 0 0 / 30%);
+	stroke-width: 1;
+	stroke-dasharray: 4 3;
+}
+
+.pagillo-empty-img-label {
+	fill: rgb(0 0 0 / 45%);
+	font-family: sans-serif;
+	font-size: 10px;
+}
+
+/* Pages rail */
+.pagillo-rail {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 4px;
+	flex: none;
+	width: 128px;
+	padding: 8px 0;
+	overflow-y: auto;
+	border-right: 1px solid var(--col-outline, rgb(0 0 0 / 10%));
+}
+
+/* SortableList inside the rail: no glass surface, never shrinks to the rail height */
+.pagillo-rail-list {
+	--auto-bg: transparent;
+	--auto-bg-blur: none;
+	flex: none;
+	align-self: stretch;
+	border: none;
+}
+
+.pagillo-rail-sep {
+	align-self: stretch;
+	padding: 4px 8px;
+}
+
+.pagillo-thumb {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 2px;
+	content-visibility: auto;
+	contain-intrinsic-size: auto 96px auto 150px;
+}
+
+.pagillo-thumb-page {
+	background: #fff;
+	box-shadow: 0 1px 2px rgb(0 0 0 / 25%);
+	user-select: none;
+	-webkit-user-select: none;
+	overflow: hidden;
+}
+
+.pagillo-thumb[aria-current='page'] .pagillo-thumb-page {
+	outline: 2px solid var(--col-primary);
+}
+
+.pagillo-rail-pending {
+	padding: 8px;
+}
+
+/* A11y mirror (`a11y/Mirror.tsx`): whole book in the DOM, off-screen pages skip layout */
+#pagillo-a11y-mirror > [data-page] {
+	content-visibility: auto;
+	contain-intrinsic-size: auto 1000px;
+}
+
+/* Status bar */
+.pagillo-status {
+	align-items: center;
+	gap: 8px;
+	padding: 2px 8px;
+	border-top: 1px solid var(--col-outline, rgb(0 0 0 / 10%));
+	font-size: 0.85em;
+}
+
+.pagillo-mode {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--col-on-container);
+}
+
+/* Mode chip + key hints */
+.pagillo-mode-chip {
+	padding: 0 6px;
+	margin-right: 8px;
+	border-radius: 999px;
+	background: color-mix(in srgb, var(--col-primary) 15%, transparent);
+	font-weight: 600;
+}
+
+.pagillo-mode-hint + .pagillo-mode-hint::before {
+	content: ' · ';
+	color: var(--col-on-container);
+	opacity: 0.6;
+}
+
+.pagillo-zoom-pct {
+	min-width: 3.5em;
+	text-align: center;
+	font-variant-numeric: tabular-nums;
+}
+
+/* Phones: no rail; on touch, swipe snaps page by page */
+@media (max-width: 600px) {
+	.pagillo-rail {
+		display: none;
+	}
+}
+
+@media (hover: none) and (pointer: coarse) {
+	.pagillo-pages {
+		scroll-snap-type: y proximity;
+	}
+
+	.pagillo-page {
+		scroll-snap-align: start;
+	}
+}
+
+/* OpalUI inputs fill the row; a wrapping toolbar keeps the menus' popups unclipped (no .scroll). */
+.pagillo-toolbar {
+	flex-wrap: wrap;
+	& > * {
+		flex: none;
+	}
+	& .c-font-picker {
+		width: 10rem;
+	}
+}
+
+/* Paragraph-style listbox (`toolbar/StyleSelect.tsx`): fixed width, the
+   paragraph state never resizes the toolbar. Menu look follows `.c-font-picker__menu`. */
+.pagillo-style-select {
+	display: flex;
+	align-items: center;
+	gap: var(--space-1);
+	width: 9rem;
+	cursor: pointer;
+	text-align: left;
+}
+
+.pagillo-style-label {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.pagillo-style-dot {
+	flex: none;
+	width: 0.5rem;
+	height: 0.5rem;
+	border-radius: 50%;
+	background: var(--col-accent);
+}
+
+.pagillo-style-menu {
+	display: flex;
+	flex-direction: column;
+	min-width: 12rem;
+	max-height: 24rem;
+	overflow-y: auto;
+	padding: var(--space-2);
+	background-color: lch(from var(--col-overlay) l c h / var(--op-panel, 0.95));
+	backdrop-filter: blur(var(--blur-radius));
+	border: 1px solid var(--col-outline);
+	border-radius: var(--radius-md);
+	box-shadow: var(--shadow-lg);
+	z-index: var(--z-popover, 1000);
+}
+
+.pagillo-style-item,
+.pagillo-style-act {
+	display: block;
+	width: 100%;
+	padding: var(--space-1) var(--space-2);
+	border: none;
+	border-radius: var(--radius-sm);
+	background: transparent;
+	color: var(--col-on-container);
+	text-align: left;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	cursor: pointer;
+	&.highlighted {
+		background: var(--col-container-low);
+	}
+	&:disabled {
+		opacity: 0.5;
+		cursor: default;
+	}
+}
+
+.pagillo-style-item.selected {
+	background: var(--col-container-primary);
+	color: var(--col-on-container-primary);
+}
+
+.pagillo-style-act {
+	font-size: var(--text-sm);
+}
+
+.pagillo-style-foot {
+	margin-top: var(--space-2);
+	padding-top: var(--space-2);
+	border-top: 1px solid var(--col-outline);
+}
+
+.pagillo-style-nudge {
+	display: flex;
+	& > :first-child {
+		flex: 1;
+		color: var(--col-primary);
+	}
+	& > :last-child {
+		width: auto;
+	}
+}
+
+.pagillo-inline-hover {
+	fill: none;
+	stroke: var(--col-accent);
+	stroke-width: 1;
+	vector-effect: non-scaling-stroke;
+}
+
+.pagillo-inline-sel {
+	fill: none;
+	stroke: var(--col-primary);
+	stroke-width: 1.5;
+	vector-effect: non-scaling-stroke;
+}
+
+/* Format panel: never scrolls horizontally at 300 px. */
+.pagillo-panel-scroll {
+	overflow-x: hidden;
+	overflow-y: auto;
+	min-height: 0;
+	& .c-property-field-control {
+		min-width: 0;
+	}
+}
+
+/* Control + a reset slot that is always reserved, so the right edge never jumps */
+.pagillo-prop-row {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) var(--size-sm);
+	align-items: center;
+	gap: var(--space-1);
+}
+
+/* Style list entries read as a list, not as centered buttons */
+.pagillo-style-entry {
+	justify-content: flex-start;
+}
+
+.pagillo-section-actions {
+	display: flex;
+	justify-content: flex-end;
+}
+
+.pagillo-group-title {
+	font-size: 0.8em;
+	font-weight: 600;
+	opacity: 0.7;
+	margin-top: 0.5rem;
+}
+
+/* X/Y and W/H as a 2×2 grid. */
+.pagillo-grid2 {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 0.25rem 0.5rem;
+	& > * {
+		min-width: 0;
+	}
+}
+
+/* Indents: three inputs in one row, captions below. */
+.pagillo-indents {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 0 0.25rem;
+	min-width: 0;
+	& > * {
+		min-width: 0;
+	}
+}

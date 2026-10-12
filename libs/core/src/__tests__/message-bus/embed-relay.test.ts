@@ -372,4 +372,35 @@ describe('setupEmbedRelay — a top-level window', () => {
 	})
 })
 
+describe('setupEmbedRelay — targetOrigin toward the child', () => {
+	function sentOrigin(sandbox: string): unknown {
+		const iframe = document.createElement('iframe')
+		iframe.setAttribute('sandbox', sandbox)
+		iframe.src = 'https://cl-o.x/apps/pagillo/index.html#h:f2:_embed:n1'
+		document.body.appendChild(iframe)
+		const child = iframe.contentWindow
+		if (!child) throw new Error('jsdom gave the iframe no contentWindow')
+		let origin: unknown
+		Object.defineProperty(child, 'postMessage', {
+			configurable: true,
+			value: (_msg: unknown, target: unknown) => {
+				origin = target
+			}
+		})
+		const relay = setupEmbedRelay(iframe)
+		relay.sendToChild('embed:view.push', {})
+		relay.cleanup()
+		iframe.remove()
+		return origin
+	}
+
+	it('names the origin of a same-origin child', () => {
+		expect(sentOrigin('allow-scripts allow-same-origin')).toBe('https://cl-o.x')
+	})
+
+	it("keeps '*' for an opaque child", () => {
+		expect(sentOrigin('allow-scripts')).toBe('*')
+	})
+})
+
 // vim: ts=4

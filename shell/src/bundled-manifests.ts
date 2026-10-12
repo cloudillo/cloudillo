@@ -20,6 +20,7 @@ import { manifest as formilloManifest } from '../../apps/formillo/src/manifest.j
 import { manifest as idealloManifest } from '../../apps/ideallo/src/manifest.js'
 import { manifest as mapilloManifest } from '../../apps/mapillo/src/manifest.js'
 import { manifest as notilloManifest } from '../../apps/notillo/src/manifest.js'
+import { manifest as pagilloManifest } from '../../apps/pagillo/src/manifest.js'
 import { manifest as prezilloManifest } from '../../apps/prezillo/src/manifest.js'
 import { manifest as quilloManifest } from '../../apps/quillo/src/manifest.js'
 import { manifest as scanilloManifest } from '../../apps/scanillo/src/manifest.js'
@@ -30,6 +31,7 @@ export const bundledManifests: AppManifest[] = [
 	calcilloManifest,
 	idealloManifest,
 	prezilloManifest,
+	pagilloManifest,
 	formilloManifest,
 	taskilloManifest,
 	notilloManifest,

@@ -874,6 +874,8 @@ export type EmbedRenderResPayload = EmbedRenderRes['payload']
 /** `embed:open.res` errors for an embed that would nest too deep or contain itself */
 export const EMBED_ERR_DEPTH = 'Embed depth limit exceeded'
 export const EMBED_ERR_CYCLE = 'Circular embed detected'
+/** `embed:open.res` error for a `requiresTrusted` target the shell cannot frame trusted */
+export const EMBED_ERR_TRUST = 'App needs trusted mode'
 
 /**
  * Shell responds with embed URL and nonce for token isolation
@@ -886,7 +888,9 @@ export const tEmbedOpenRes = msg('embed:open.res', {
 		T.struct({
 			embedUrl: T.string,
 			nonce: T.string,
-			resId: T.optional(T.string)
+			resId: T.optional(T.string),
+			// The shell framed a trusted (bundled) app: use `appSandbox(trusted)`
+			trusted: T.optional(T.boolean)
 		})
 	),
 	error: T.optional(T.string)

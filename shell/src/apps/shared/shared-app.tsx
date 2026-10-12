@@ -46,7 +46,6 @@ export function renderSharedApp(file: FileView, opts: RenderSharedAppOpts): Reac
 			app={app.id}
 			resId={resId}
 			appUrl={app.url}
-			trust={app.trust}
 			access={access}
 			token={token}
 			refId={refId}

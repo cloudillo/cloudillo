@@ -14,6 +14,7 @@ export type AppId =
 	| 'ideallo'
 	| 'scanillo'
 	| 'mapillo'
+	| 'pagillo'
 	| 'files'
 	| 'feed'
 	| 'messages'
@@ -36,6 +37,7 @@ export const APP_IDS: readonly AppId[] = [
 	'ideallo',
 	'scanillo',
 	'mapillo',
+	'pagillo',
 	'files',
 	'feed',
 	'messages',
@@ -60,6 +62,7 @@ export const GLYPH_COLOR2: Record<GlyphId, string> = {
 	ideallo: 'pink',
 	scanillo: 'navy',
 	mapillo: 'teal',
+	pagillo: 'orange',
 	files: 'orange',
 	feed: 'violet',
 	messages: 'green',
@@ -92,6 +95,8 @@ export const GLYPHS: Record<GlyphId, string> = {
 		'<path class="gs" d="M8 16v-4a4 4 0 0 1 4-4h4M32 8h4a4 4 0 0 1 4 4v4M40 32v4a4 4 0 0 1-4 4h-4M16 40h-4a4 4 0 0 1-4-4v-4"/><rect class="gf" x="16" y="13" width="16" height="22" rx="2"/><rect class="go" x="11" y="22" width="26" height="4" rx="2"/>',
 	mapillo:
 		'<path class="gf" d="M7 13l11-4v26l-11 4z"/><path class="gh" d="M18 9l12 4v26l-12-4z"/><path class="gf" d="M30 13l11-4v26l-11 4z"/><path class="go" style="stroke:var(--tile);stroke-width:2.5" d="M24 9a7 7 0 0 1 7 7c0 5-7 12-7 12s-7-7-7-12a7 7 0 0 1 7-7z"/><circle class="gf" cx="24" cy="16" r="2.5"/>',
+	pagillo:
+		'<rect class="gh" x="6" y="9" width="17" height="30" rx="2"/><rect class="gf" x="25" y="9" width="17" height="30" rx="2"/><rect class="go" x="28" y="13" width="11" height="8" rx="1.5"/><path class="gtl" d="M28 26h11M28 31h11M28 35h7"/>',
 	files: '<path class="gh" d="M7 13a3 3 0 0 1 3-3h9l4 4h15a3 3 0 0 1 3 3v5H7z"/><path class="gf" d="M7 20h34v17a3 3 0 0 1-3 3H10a3 3 0 0 1-3-3z"/><rect class="go" x="28" y="25" width="8" height="4" rx="2"/>',
 	feed: '<rect class="gf" x="8" y="6" width="32" height="15" rx="4"/><circle class="go" cx="15.5" cy="13.5" r="3.5"/><rect class="gt" x="22" y="11.5" width="12" height="4" rx="2"/><rect class="gh" x="8" y="25" width="32" height="12" rx="4"/><rect class="gh" x="12" y="40" width="24" height="3" rx="1.5"/>',
 	messages:

@@ -1,0 +1,263 @@
+// SPDX-FileCopyrightText: Szilárd Hajba
+// SPDX-License-Identifier: LGPL-3.0-or-later
+
+import * as Y from 'yjs'
+
+import { computeBlockIdFixes, stripBlockIds } from '../crdt/block-ids.js'
+import { openPublication } from '../crdt/document.js'
+import { registerNormalizer } from '../crdt/normalize.js'
+import type { StoredFrame, StoredMaster, YPagilloDocument } from '../crdt/stored-types.js'
+import {
+	byIds,
+	deltaToParagraphs,
+	flipRegion,
+	flowOrder,
+	framesToEngine,
+	isRtlLang,
+	masterToEngine,
+	readMeta,
+	resolveSide
+} from '../crdt/type-converters.js'
+import { type PageInfo, snapAt, snapTargets } from '../editor/frames.js'
+import { parseLength } from '../ui/LengthInput.js'
+
+const area = (id: string, x: number, y: number, w: number, h: number) => ({
+	id,
+	x,
+	y,
+	w,
+	h,
+	cols: 1,
+	gutter: 0
+})
+const ids = (rs: { id: string }[]) => rs.map((r) => r.id)
+
+describe('flowOrder', () => {
+	// Stacked rows: a full-width header above two columns.
+	const head = area('head', 0, 0, 500, 100)
+	const a = area('a', 0, 120, 240, 300)
+	const b = area('b', 260, 120, 240, 300)
+
+	it('orders rows top to bottom, areas left to right', () => {
+		expect(ids(flowOrder([b, head, a], false))).toEqual(['head', 'a', 'b'])
+	})
+
+	it('orders areas right to left for RTL', () => {
+		expect(ids(flowOrder([a, b, head], true))).toEqual(['head', 'b', 'a'])
+	})
+
+	it('puts a main area and an outer sidebar in position order on each side', () => {
+		const main = area('main', 70, 50, 400, 700)
+		const side = area('side', 490, 50, 100, 700)
+		expect(ids(flowOrder([side, main], false))).toEqual(['main', 'side'])
+		// Mirrored (left-hand page): the sidebar is now on the left, so it comes first.
+		const left = [main, side].map((r) => flipRegion(r, 660))
+		expect(ids(flowOrder(left, false))).toEqual(['side', 'main'])
+	})
+})
+
+describe('mirroring', () => {
+	const m: StoredMaster = {
+		name: 'Body',
+		w: 660,
+		h: 800,
+		margins: { t: 50, b: 50, in: 70, out: 70 },
+		cols: 1,
+		gutter: 10,
+		regions: [area('side', 490, 50, 100, 700), area('main', 70, 50, 400, 700)],
+		items: ['logo'],
+		rows: 2,
+		regionNames: { main: 'Main' }
+	}
+	const opts = { facing: true, rtl: false }
+
+	it('flips x across the page', () => {
+		expect(flipRegion(area('r', 70, 0, 400, 10), 660).x).toBe(190)
+	})
+
+	it('resolves the facing mode', () => {
+		expect(resolveSide(m, false)).toBe('same')
+		expect(resolveSide(m, true)).toBe('mirror')
+		expect(resolveSide({ ...m, left: { cols: 2 } }, true)).toBe('different')
+		expect(resolveSide({ ...m, left: { cols: 2 }, side: 'same' }, true)).toBe('same')
+	})
+
+	it('synthesizes the left variant and strips pagillo-only fields', () => {
+		const e = masterToEngine('mid', m, opts)
+		expect(ids(e.regions)).toEqual(['main', 'side'])
+		expect(ids(e.left?.regions ?? [])).toEqual(['side', 'main'])
+		expect(e.left?.regions?.find((r) => r.id === 'main')?.x).toBe(190)
+		expect(e.left?.items).toEqual(['logo~m'])
+		expect(e.right).toBeUndefined()
+		for (const k of ['name', 'rows', 'regionNames', 'side', 'flow', 'leftOrder'])
+			expect(Object.hasOwn(e, k)).toBe(false)
+	})
+
+	it('keeps stored order with manual flow, leftOrder on the left', () => {
+		const e = masterToEngine('mid', { ...m, flow: 'manual', leftOrder: ['main'] }, opts)
+		expect(ids(e.regions)).toEqual(['side', 'main'])
+		expect(ids(e.left?.regions ?? [])).toEqual(['main', 'side'])
+	})
+
+	it('has no variants when not facing or same', () => {
+		expect(masterToEngine('mid', m, { facing: false, rtl: false }).left).toBeUndefined()
+		const e = masterToEngine('mid', { ...m, side: 'same', left: { cols: 2 } }, opts)
+		// Facing 'same': only the margins, swapped back so the implicit area does not flip.
+		expect(e.left).toEqual({ margins: { t: 50, b: 50, in: 70, out: 70 } })
+		const lop = masterToEngine(
+			'mid',
+			{ ...m, side: 'same', margins: { t: 0, b: 0, in: 70, out: 30 } },
+			opts
+		)
+		expect(lop.left).toEqual({ margins: { t: 0, b: 0, in: 30, out: 70 } })
+	})
+
+	it('detects RTL languages', () => {
+		expect(isRtlLang('he-IL')).toBe(true)
+		expect(isRtlLang('en')).toBe(false)
+	})
+})
+
+describe('byIds', () => {
+	it('orders by ids, unknown ids last in their order', () => {
+		const rs = ['x', 'a', 'y', 'b'].map((id) => area(id, 0, 0, 1, 1))
+		expect(ids(byIds(rs, ['b', 'a', 'gone']))).toEqual(['b', 'a', 'x', 'y'])
+		expect(byIds(rs, undefined)).toBe(rs)
+	})
+})
+
+describe('peer data reaching the layout worker', () => {
+	it('drops ill-typed marks', () => {
+		const ps = deltaToParagraphs([
+			{ insert: 'x', attributes: { color: 5, link: {}, bold: 'x' } },
+			{ insert: '\n' }
+		])
+		expect(ps[0].runs).toEqual([{ text: 'x', marks: {} }])
+	})
+
+	it('coerces meta', () => {
+		const m = new Y.Doc().getMap('m')
+		m.set('lang', 5)
+		m.set('facing', 'yes')
+		m.set('styleMap', [1])
+		m.set('title', 3)
+		const meta = readMeta(m)
+		expect(meta).toMatchObject({ lang: 'en', facing: false, styleMap: {}, title: undefined })
+	})
+
+	it('skips stored frames with a reserved ~ id', () => {
+		const doc = openPublication(new Y.Doc())
+		const f = { t: 'shp', x: 0, y: 0, w: 1, h: 1, rot: 0, z: 0 } as unknown as StoredFrame
+		doc.f.set('a', f)
+		doc.f.set('a~m', f)
+		expect(Object.keys(framesToEngine(doc, (id) => ({ id, paragraphs: [] })))).toEqual(['a'])
+	})
+
+	it('normalises stories next to a non-text tx entry', () => {
+		const yDoc = new Y.Doc()
+		const doc = openPublication(yDoc)
+		const t = new Y.Text()
+		yDoc.transact(() => {
+			doc.tx.set('bad', new Y.Map() as unknown as Y.Text)
+			doc.tx.set('ok', t)
+			t.insert(0, 'no newline')
+		})
+		expect(() => registerNormalizer(yDoc, doc, () => true)).not.toThrow()
+		expect(t.toString()).toBe('no newline\n')
+	})
+})
+
+describe('parseLength', () => {
+	const close = (v: number | undefined, pt: number) => expect(v).toBeCloseTo(pt, 6)
+
+	it('parses units and the default unit', () => {
+		close(parseLength('10mm', 'pt'), (10 * 72) / 25.4)
+		close(parseLength('1in', 'mm'), 72)
+		close(parseLength('2"', 'mm'), 144)
+		close(parseLength('12', 'pt'), 12)
+		close(parseLength('1,5 cm', 'pt'), (1.5 * 72) / 2.54)
+	})
+
+	it('does arithmetic', () => {
+		close(parseLength('1in+2pt', 'mm'), 74)
+		close(parseLength('3×2', 'pt'), 6)
+		close(parseLength('10pt − 4pt', 'pt'), 6)
+		close(parseLength('-3pt', 'pt'), -3)
+	})
+
+	it('rejects junk and division by zero', () => {
+		expect(parseLength('4÷0', 'pt')).toBeUndefined()
+		expect(parseLength('abc', 'pt')).toBeUndefined()
+		expect(parseLength('2*3mm', 'pt')).toBeUndefined()
+		expect(parseLength('1+', 'pt')).toBeUndefined()
+	})
+})
+
+describe('block ids', () => {
+	let n = 0
+	const gen = () => `n${++n}`
+
+	it('fills missing and dedupes, keeping the first non-empty owner', () => {
+		n = 0
+		const fixes = computeBlockIdFixes(
+			[
+				{ insert: '\n', attributes: { bid: 'a' } },
+				{ insert: 'x' },
+				{ insert: '\n', attributes: { bid: 'a' } },
+				{ insert: 'y\n' }
+			],
+			gen
+		)
+		// empty first 'a' loses to the non-empty one; the bare paragraph gets an id
+		expect(fixes).toEqual([
+			{ index: 0, bid: 'n1' },
+			{ index: 4, bid: 'n2' }
+		])
+	})
+
+	it('counts embeds as length 1 and is empty when all is well', () => {
+		expect(
+			computeBlockIdFixes([
+				{ insert: { img: { fileId: 'f' } } },
+				{ insert: '\n', attributes: { bid: 'a' } }
+			])
+		).toEqual([])
+	})
+
+	it('strips bid only', () => {
+		expect(
+			stripBlockIds([
+				{ insert: '\n', attributes: { bid: 'a', ps: 'h1' } },
+				{ insert: '\n', attributes: { bid: 'b' } }
+			])
+		).toEqual([{ insert: '\n', attributes: { ps: 'h1' } }, { insert: '\n' }])
+	})
+})
+
+describe('snapping', () => {
+	const m = {
+		name: 'Body',
+		w: 600,
+		h: 800,
+		margins: { t: 50, b: 50, in: 50, out: 50 },
+		cols: 1,
+		gutter: 10,
+		regions: [area('a', 123, 77, 211, 333)],
+		items: []
+	} as unknown as StoredMaster
+	const doc = { ms: new Map([['m', m]]) } as unknown as YPagilloDocument
+	const page = { master: 'm', w: 600, h: 800 } as unknown as PageInfo
+
+	it('snapTargets skips excluded text areas but keeps the margin box', () => {
+		expect(snapTargets(doc, page, [], new Set()).xs).toContain(123)
+		const t = snapTargets(doc, page, [], new Set(['a']))
+		expect(t.xs).not.toContain(123)
+		expect(t.ys).not.toContain(77)
+		expect(t.xs).toContain(50)
+	})
+
+	it('snapAt picks the nearest target within the threshold', () => {
+		expect(snapAt(10, [0, 12, 30], 4)).toBe(12)
+		expect(snapAt(10, [0, 30], 4)).toBeUndefined()
+	})
+})

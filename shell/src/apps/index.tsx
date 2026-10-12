@@ -11,6 +11,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import { version } from '../../package.json'
 import { fileViewUpdateAtom, useCtx, useGuestDocument } from '../context/index.js'
+import { appRequiresTrusted, appTrust } from '../manifest-registry.js'
 import { releaseClientIdsForWindow } from '../message-bus/handlers/crdt.js'
 import { fileIdFromResId, idTagFromResId } from '../message-bus/handlers/resId.js'
 import { offAppTitle, onAppError, onAppReady, onAppTitle } from '../message-bus/index.js'
@@ -18,7 +19,7 @@ import { getShellBus, type InitAppData } from '../message-bus/shell-bus.js'
 import { filesPath } from '../routes.js'
 import { AppFrame } from '../ui/AppFrame.js'
 import { documentTitleAtom } from '../title.js'
-import { normalizeTrust, type TrustLevel, useAppConfig } from '../utils.js'
+import { useAppConfig } from '../utils.js'
 import { AppLoadingIndicator, type LoadingStage } from './AppLoadingIndicator.js'
 import type { AccessConflict } from './access-conflict.js'
 import { useAppToken } from './useAppToken.js'
@@ -34,7 +35,6 @@ interface MicrofrontendContainerProps {
 	resId?: string
 	/** Root-relative bundle path; `resolveAppUrl` makes it absolute on the API domain. */
 	appUrl: string
-	trust?: TrustLevel | boolean
 	access?: 'read' | 'comment' | 'write'
 	token?: string // Optional pre-fetched token (for guest access via share links)
 	refId?: string // Share link ref ID for guest token refresh
@@ -48,7 +48,6 @@ export function MicrofrontendContainer({
 	app,
 	resId,
 	appUrl,
-	trust,
 	access,
 	token: providedToken,
 	refId,
@@ -69,7 +68,11 @@ export function MicrofrontendContainer({
 	const fileId = host ? fileIdFromResId(resId) : resId
 	// Extract context from resId (format: "contextIdTag:resource-path")
 	const contextIdTag = host || auth?.idTag || api?.idTag
-	const trustLevel = normalizeTrust(trust)
+	const trustLevel = appTrust(app)
+	// A `requiresTrusted` app launched below 'trusted' never boots: AppFrame shows a refusal
+	// card and the init effect below does nothing (no token, no iframe, no timeout).
+	const requiresTrusted = appRequiresTrusted(app)
+	const refused = requiresTrusted && trustLevel !== 'trusted'
 	const timeoutRef = React.useRef<number | undefined>(undefined)
 	// Track the app window for subscription persistence across effect re-runs
 	const appWindowRef = React.useRef<Window | null>(null)
@@ -179,7 +182,7 @@ export function MicrofrontendContainer({
 		function onLoad() {
 			// Skip if already initialized (prevents re-running on auth/api changes)
 			// Only re-run when core structure changes (app, resId, retry)
-			if (initializedRef.current) {
+			if (initializedRef.current || refused) {
 				return
 			}
 
@@ -211,6 +214,11 @@ export function MicrofrontendContainer({
 					: currentRequestToken().then((token) => ({ token }))
 
 				const shellBus = getShellBus()
+				// Trusted frames share the bundle's real origin; `sendToApp` targets it
+				const origin =
+					trustLevel === 'trusted'
+						? new URL(resolveAppUrl(currentApi.idTag, appUrl)).origin
+						: undefined
 
 				// Set pending registration BEFORE loading iframe
 				// This ensures token/refId is available when auth:init.req arrives
@@ -225,7 +233,8 @@ export function MicrofrontendContainer({
 						// `connection.appName` rather than the iframe's `bus.init(name)`.
 						appName: app,
 						displayName: currentGuestName,
-						params: paramsRef.current
+						params: paramsRef.current,
+						origin
 					})
 				}
 
@@ -332,7 +341,8 @@ export function MicrofrontendContainer({
 						token: latestProvidedToken,
 						refId: latestRefId,
 						displayName: guestNameRef.current,
-						params: paramsRef.current
+						params: paramsRef.current,
+						origin
 					})
 
 					await delay(100) // Wait for app JavaScript to initialize
@@ -428,20 +438,22 @@ export function MicrofrontendContainer({
 		// Minimal dependencies - only things that require re-creating the iframe/subscription
 		// Auth/token changes are handled by token refresh mechanism and refs, not effect re-runs
 		// isReady transitions false→true once when api/auth become available, preventing re-runs on token renewal
-		[app, appUrl, resId, retryCount, isReady]
+		[app, appUrl, resId, retryCount, isReady, refused]
 	)
 
 	// clipboard-read/clipboard-write are required for in-app context-menu
 	// copy/paste (Fortune Sheet and others use the async Clipboard API for menu actions)
 	// Bundles load from the API domain, so shell storage is already out of reach:
 	// `swKey` is a host-only cookie (`../pwa/cookie.ts` writes no `Domain=`) and the
-	// ServiceWorker registration is scoped to the shell host. The sandbox's opaque
-	// origin is what keeps apps off the SW API entirely — and why bundles cannot be
-	// SW-cached (see `shell/sw/cache-strategy.ts`).
+	// ServiceWorker registration is scoped to the shell host. Untrusted apps also run in
+	// an opaque origin, which keeps them off the SW API entirely. Trusted (bundled) apps
+	// get `allow-same-origin` and so share the API origin with each other — never the
+	// shell's (see `libs/core/src/iframe-sandbox.ts`).
 	return (
 		<AppFrame
 			ref={ref}
 			trust={trustLevel}
+			requiresTrusted={requiresTrusted}
 			className={className}
 			src={url}
 			allow="clipboard-read; clipboard-write; fullscreen; geolocation; accelerometer; gyroscope; magnetometer"
@@ -579,7 +591,6 @@ export function ExternalApp({ className }: { className?: string }) {
 				app={app.id}
 				resId={resId}
 				appUrl={`${app.url}`}
-				trust={app.trust}
 				access={effectiveAccess}
 				token={guestToken}
 				guestName={guestName}

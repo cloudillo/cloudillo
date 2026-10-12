@@ -29,6 +29,8 @@ import {
 
 export interface ViewEmbedFrameProps {
 	src: string
+	/** Passed to `<DocumentEmbedIframe trusted>` */
+	trusted?: boolean
 	settings: EmbedViewSettings
 	/** Frame size in `box` sizing mode */
 	box?: { w: number; h: number }
@@ -78,6 +80,7 @@ export const ViewEmbedFrame = React.forwardRef<ViewEmbedFrameHandle, ViewEmbedFr
 	function ViewEmbedFrame(
 		{
 			src,
+			trusted,
 			settings,
 			box,
 			label,
@@ -375,6 +378,7 @@ export const ViewEmbedFrame = React.forwardRef<ViewEmbedFrameHandle, ViewEmbedFr
 							<DocumentEmbedIframe
 								ref={iframeRef}
 								src={src}
+								trusted={trusted}
 								className="cl-view-embed-iframe"
 								active={active}
 								allowFullscreen={allowFullscreen}

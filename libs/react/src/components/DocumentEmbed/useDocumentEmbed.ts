@@ -8,7 +8,7 @@
  * then constructs the full iframe src with the appropriate hash.
  */
 
-import { EMBED_ERR_CYCLE, EMBED_ERR_DEPTH, getAppBus } from '@cloudillo/core'
+import { EMBED_ERR_CYCLE, EMBED_ERR_DEPTH, EMBED_ERR_TRUST, getAppBus } from '@cloudillo/core'
 import * as React from 'react'
 
 export interface UseDocumentEmbedOptions {
@@ -24,13 +24,19 @@ export interface UseDocumentEmbedOptions {
 export interface DocumentEmbedState {
 	status: 'loading' | 'ready' | 'error'
 	iframeSrc?: string
+	/** The shell runs the target app trusted; pass to `<DocumentEmbedIframe trusted>` */
+	trusted?: boolean
 	error?: string
-	/** The shell refused the embed for nesting too deep or containing itself */
-	reason?: 'nested'
+	/** The shell refused the embed for nesting too deep or containing itself (`nested`),
+	 *  or because the target app needs trusted mode it cannot get here (`needs-trusted`) */
+	reason?: EmbedErrorReason
 }
 
+export type EmbedErrorReason = 'nested' | 'needs-trusted'
+
 /** The `reason` an `embed:open.req` error message stands for, if any */
-export function embedErrorReason(message: string | undefined): 'nested' | undefined {
+export function embedErrorReason(message: string | undefined): EmbedErrorReason | undefined {
+	if (message === EMBED_ERR_TRUST) return 'needs-trusted'
 	return message === EMBED_ERR_DEPTH || message === EMBED_ERR_CYCLE ? 'nested' : undefined
 }
 
@@ -73,7 +79,7 @@ export function useDocumentEmbed(options: UseDocumentEmbedOptions | null): Docum
 					: `_embed:${result.nonce}`
 				const iframeSrc = `${result.embedUrl}?v=1#${hash}`
 
-				setState({ status: 'ready', iframeSrc })
+				setState({ status: 'ready', iframeSrc, trusted: result.trusted })
 			} catch (err) {
 				if (cancelled) return
 				console.error('[useDocumentEmbed] Failed to request embed:', err)

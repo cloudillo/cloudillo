@@ -145,6 +145,12 @@ export function setupEmbedRelay(
 	const idOffset = ++embedCounter * EMBED_ID_RANGE
 	const relayedIds = new Map<number, number>() // remapped → original
 	const isTopWindow = window.parent === window
+	// A same-origin (trusted) child gets its origin named, so a navigated-away frame never
+	// receives a token; an opaque one has no origin to name.
+	const childOrigin = () =>
+		iframe.getAttribute('sandbox')?.split(/\s+/).includes('allow-same-origin')
+			? new URL(iframe.src, location.href).origin
+			: '*'
 
 	// Upward: child → shell (remap request IDs, forward to parent)
 	const upHandler = (event: MessageEvent) => {
@@ -214,7 +220,7 @@ export function setupEmbedRelay(
 			typeof event.data.id !== 'number' &&
 			BROADCAST_TYPES.has(event.data.type)
 		) {
-			iframe.contentWindow?.postMessage(event.data, '*')
+			iframe.contentWindow?.postMessage(event.data, childOrigin())
 			return
 		}
 
@@ -224,7 +230,7 @@ export function setupEmbedRelay(
 		if (original === undefined) return
 
 		relayedIds.delete(event.data.replyTo)
-		iframe.contentWindow?.postMessage({ ...event.data, replyTo: original }, '*')
+		iframe.contentWindow?.postMessage({ ...event.data, replyTo: original }, childOrigin())
 	}
 
 	window.addEventListener('message', upHandler)
@@ -246,7 +252,7 @@ export function setupEmbedRelay(
 				type,
 				payload
 			},
-			'*'
+			childOrigin()
 		)
 	}
 

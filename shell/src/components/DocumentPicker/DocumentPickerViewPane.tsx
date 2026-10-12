@@ -133,6 +133,7 @@ export function DocumentPickerViewPane({
 						// A fresh element per boot (see LiveDocCard / `useShellEmbed`)
 						key={embed.iframeSrc}
 						src={embed.iframeSrc}
+						trusted={embed.trusted}
 						status="live"
 						title={file.fileName}
 						appId={appId}

@@ -15,9 +15,9 @@
  * 5. This service forwards resolution to the app that requested it
  */
 
-import { PROTOCOL_VERSION } from '@cloudillo/core'
-
 import { getAppTracker } from '../message-bus/app-tracker.js'
+// Cycle-safe: only called at runtime, after both modules have loaded.
+import { getShellBus } from '../message-bus/shell-bus.js'
 
 /**
  * Information about a pending temp ID
@@ -69,16 +69,10 @@ export function registerPendingTempId(tempId: string, appWindow: Window): void {
 
 		// Forward resolution immediately to the app
 		try {
-			const message = {
-				cloudillo: true,
-				v: PROTOCOL_VERSION,
-				type: 'media:file.resolved',
-				payload: {
-					tempId,
-					finalId: earlyResolution.finalId
-				}
-			}
-			appWindow.postMessage(message, '*')
+			getShellBus()?.sendNotify(appWindow, 'media:file.resolved', {
+				tempId,
+				finalId: earlyResolution.finalId
+			})
 			console.log('[FileIdResolver] Sent early resolution to app window')
 		} catch (err) {
 			console.warn('[FileIdResolver] Failed to send early resolution to app window:', err)
@@ -112,19 +106,13 @@ export function handleFileIdGenerated(tempId: string, finalId: string, rootId?: 
 		// No registration - try rootId-based lookup to find the app window
 		if (rootId) {
 			const tracker = getAppTracker()
-			const message = {
-				cloudillo: true,
-				v: PROTOCOL_VERSION,
-				type: 'media:file.resolved',
-				payload: { tempId, finalId }
-			}
 
 			let forwarded = false
 			for (const win of tracker.getInitializedWindows()) {
 				const conn = tracker.getApp(win)
 				if (conn?.resId?.endsWith(':' + rootId)) {
 					try {
-						win.postMessage(message, '*')
+						getShellBus()?.sendNotify(win, 'media:file.resolved', { tempId, finalId })
 						console.log(
 							'[FileIdResolver] Forwarded resolution via rootId to app:',
 							conn.appName
@@ -161,16 +149,7 @@ export function handleFileIdGenerated(tempId: string, finalId: string, rootId?: 
 	// Send resolution to all registered app windows
 	for (const { appWindow } of pending) {
 		try {
-			const message = {
-				cloudillo: true,
-				v: PROTOCOL_VERSION,
-				type: 'media:file.resolved',
-				payload: {
-					tempId,
-					finalId
-				}
-			}
-			appWindow.postMessage(message, '*')
+			getShellBus()?.sendNotify(appWindow, 'media:file.resolved', { tempId, finalId })
 			console.log('[FileIdResolver] Sent resolution to app window')
 		} catch (err) {
 			console.warn('[FileIdResolver] Failed to send resolution to app window:', err)

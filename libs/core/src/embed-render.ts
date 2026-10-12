@@ -12,7 +12,7 @@
  */
 
 import { base64ToBytes } from './base64.js'
-import { APP_SANDBOX } from './iframe-sandbox.js'
+import { appSandbox } from './iframe-sandbox.js'
 import { type AppMessageBus, parseAppHash } from './message-bus/app-bus.js'
 import { notifyEmbedClosed, setupEmbedRelay } from './message-bus/embed-relay.js'
 import type { EmbedRenderResPayload } from './message-bus/types.js'
@@ -157,7 +157,7 @@ export async function renderEmbed(opts: RenderEmbedOptions): Promise<RenderEmbed
 					mode: 'render'
 				})
 				.then(
-					({ embedUrl, nonce, resId }) => {
+					({ embedUrl, nonce, resId, trusted }) => {
 						// Same hash format as `useDocumentEmbed`: the relay and the shell read the
 						// embed key from it
 						const hash = resId ? `${resId}:_embed:${nonce}` : `_embed:${nonce}`
@@ -168,7 +168,7 @@ export async function renderEmbed(opts: RenderEmbedOptions): Promise<RenderEmbed
 							return
 						}
 						const el = document.createElement('iframe')
-						el.setAttribute('sandbox', APP_SANDBOX)
+						el.setAttribute('sandbox', appSandbox(!!trusted))
 						el.setAttribute('aria-hidden', 'true')
 						el.tabIndex = -1
 						el.style.cssText = RENDER_FRAME_STYLE

@@ -32,6 +32,7 @@ export type EmbedStatus =
 	| 'missing'
 	| 'untrusted'
 	| 'nested'
+	| 'needs-trusted'
 	| 'error'
 
 export interface EmbedPlaceholderProps {
@@ -82,6 +83,12 @@ const STATUS: Record<
 		icon: <IcNested />,
 		color: 'neutral',
 		reason: 'This embed is nested too deeply or embeds itself',
+		actions: ['openSource', 'remove']
+	},
+	'needs-trusted': {
+		icon: <IcUntrusted />,
+		color: 'warning',
+		reason: 'This app needs trusted mode',
 		actions: ['openSource', 'remove']
 	},
 	error: {

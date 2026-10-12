@@ -362,7 +362,8 @@ export class ShellMessageBus extends MessageBusBase {
 	 */
 	private sendToApp(appWindow: Window, message: Record<string, unknown>): void {
 		this.log('Sending to app:', message.type)
-		appWindow.postMessage(message, '*')
+		// Opaque (untrusted) frames have no origin to name, so they stay '*'
+		appWindow.postMessage(message, this.appTracker.getApp(appWindow)?.origin ?? '*')
 	}
 
 	/**
@@ -461,6 +462,7 @@ export class ShellMessageBus extends MessageBusBase {
 			refId?: string
 			displayName?: string
 			params?: string
+			origin?: string
 		}
 	): void {
 		const existing = this.appTracker.getApp(appWindow)
@@ -473,6 +475,7 @@ export class ShellMessageBus extends MessageBusBase {
 			if (options.access) existing.access = options.access
 			if (options.displayName) existing.displayName = options.displayName
 			if (options.params) existing.params = options.params
+			if (options.origin) existing.origin = options.origin
 			this.log('Updated existing app registration:', options.appName, options.resId)
 		} else {
 			this.appTracker.registerApp({
@@ -484,7 +487,8 @@ export class ShellMessageBus extends MessageBusBase {
 				token: options.token,
 				refId: options.refId,
 				displayName: options.displayName,
-				params: options.params
+				params: options.params,
+				origin: options.origin
 			})
 			this.log('Pre-registered app:', options.appName, options.resId)
 		}

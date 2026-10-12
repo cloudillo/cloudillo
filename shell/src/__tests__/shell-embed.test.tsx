@@ -101,7 +101,10 @@ describe('useShellEmbed', () => {
 			resId: 'bob.org:f1',
 			idTag: 'bob.org',
 			appName: 'notillo',
-			navState: undefined
+			navState: undefined,
+			mode: undefined,
+			// notillo is bundled, so trusted: the shell posts to its real origin
+			origin: 'https://cl-o.alice.example'
 		})
 	})
 

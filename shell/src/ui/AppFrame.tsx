@@ -1,10 +1,11 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { APP_SANDBOX } from '@cloudillo/core'
-import { mergeClasses, VisuallyHidden } from '@cloudillo/react'
+import { appSandbox } from '@cloudillo/core'
+import { EmptyState, mergeClasses, VisuallyHidden } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
+import { LuShieldAlert as IcTrust } from 'react-icons/lu'
 
 import type { TrustLevel } from '../utils.js'
 import './app-frame.css'
@@ -12,6 +13,8 @@ import './app-frame.css'
 export interface AppFrameProps
 	extends Omit<React.IframeHTMLAttributes<HTMLIFrameElement>, 'sandbox' | 'className'> {
 	trust: TrustLevel
+	/** The manifest's `requiresTrusted`: below `'trusted'` the frame shows a refusal card, not the app */
+	requiresTrusted?: boolean
 	/** On the frame box, not the iframe */
 	className?: string
 	/** Overlays above the iframe, e.g. the loading indicator */
@@ -19,11 +22,15 @@ export interface AppFrameProps
 }
 
 /**
- * The sandboxed microfrontend iframe with its trust badge. The sandbox is always
- * `APP_SANDBOX` — never `allow-same-origin` — and is not overridable.
+ * The sandboxed microfrontend iframe with its trust badge. The sandbox comes from
+ * `appSandbox()` and is not overridable: only `trust === 'trusted'` (the trust level from
+ * `appTrust()`, `shell/src/app-trust.ts`) gets `APP_SANDBOX_TRUSTED`, which adds
+ * `allow-same-origin`; semi-trusted and untrusted apps keep the opaque-origin
+ * `APP_SANDBOX`. A `requiresTrusted` app below `'trusted'` never boots — the frame
+ * renders a refusal card instead of the iframe.
  */
 export const AppFrame = React.forwardRef<HTMLIFrameElement, AppFrameProps>(function AppFrame(
-	{ trust, className, children, ...iframeProps },
+	{ trust, requiresTrusted, className, children, ...iframeProps },
 	ref
 ) {
 	const { t } = useTranslation()
@@ -41,6 +48,19 @@ export const AppFrame = React.forwardRef<HTMLIFrameElement, AppFrameProps>(funct
 				? t('Unverified')
 				: undefined
 
+	if (requiresTrusted && trust !== 'trusted') {
+		return (
+			<EmptyState
+				fill
+				className={className}
+				color="warning"
+				icon={<IcTrust />}
+				title={t('This app needs trusted mode')}
+				description={t('It can only run when its trust level is set to trusted.')}
+			/>
+		)
+	}
+
 	return (
 		<div className={mergeClasses('c-app-frame flex-fill pos-relative', trust, className)}>
 			{children}
@@ -48,7 +68,7 @@ export const AppFrame = React.forwardRef<HTMLIFrameElement, AppFrameProps>(funct
 			<iframe
 				{...iframeProps}
 				ref={ref}
-				sandbox={APP_SANDBOX}
+				sandbox={appSandbox(trust === 'trusted')}
 				className="c-app-frame-iframe"
 			/>
 			{badge && (

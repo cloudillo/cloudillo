@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import type { OverlayItem } from '@cloudillo/core'
-import { PROTOCOL_VERSION } from '@cloudillo/core'
 import { Button, EmptyState, HBox, ImmersiveOverlay } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -21,6 +20,7 @@ import {
 	setCameraCaptureCallback,
 	setCameraPreviewCallbacks
 } from '../../message-bus/handlers/camera.js'
+import { getShellBus } from '../../message-bus/shell-bus.js'
 
 interface CaptureSession {
 	options: CameraCaptureOpenOptions
@@ -88,15 +88,15 @@ export function CameraCaptureDialog() {
 					const base64 = dataUrl.split(',')[1]
 					const seq = ++previewSeqRef.current
 
-					previewAppWindowRef.current?.postMessage(
-						{
-							cloudillo: true,
-							v: PROTOCOL_VERSION,
-							type: 'camera:preview.frame',
-							payload: { sessionId, seq, imageData: base64, width, height }
-						},
-						'*'
-					)
+					const win = previewAppWindowRef.current
+					if (win)
+						getShellBus()?.sendNotify(win, 'camera:preview.frame', {
+							sessionId,
+							seq,
+							imageData: base64,
+							width,
+							height
+						})
 				}, 1000 / fps)
 			},
 			onPreviewStop: (_sessionId) => {

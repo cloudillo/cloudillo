@@ -961,6 +961,9 @@ export const tAppManifest = T.struct({
 	// Bus capabilities this app uses
 	capabilities: T.optional(T.array(T.string)),
 
+	// Can't boot without trusted mode (allow-same-origin): the shell refuses to launch it untrusted
+	requiresTrusted: T.optional(T.boolean),
+
 	// Extensibility
 	meta: T.optional(T.record(T.unknown))
 })

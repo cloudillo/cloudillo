@@ -108,25 +108,18 @@ export function coerceSettingValue(
  * How far a microfrontend app is trusted — 'trusted' (first-party), 'semi-trusted'
  * (verified third-party), 'untrusted' (everything else).
  *
- * A **presentation and policy** label only: it becomes the visible trust badge and a CSS
- * class on the frame (`<AppFrame trust={…}>`, `shell/src/ui/AppFrame.tsx`). It does **not**
- * reach the sandbox. Every level gets the same `APP_SANDBOX` from
- * `libs/core/src/iframe-sandbox.ts`, which never grants `allow-same-origin` — see that
- * file for why.
+ * It becomes the visible trust badge and a CSS class on the frame (`<AppFrame trust={…}>`,
+ * `shell/src/ui/AppFrame.tsx`), and it picks the sandbox there via `appSandbox()` from
+ * `libs/core/src/iframe-sandbox.ts`: `'trusted'` gets `APP_SANDBOX_TRUSTED`
+ * (`allow-same-origin`, sharing the API origin with other trusted apps); `'semi-trusted'`
+ * and `'untrusted'` get the opaque-origin `APP_SANDBOX`. Only the shell sets it, from
+ * `appTrust()` (`shell/src/app-trust.ts`).
  */
 export type TrustLevel = 'trusted' | 'semi-trusted' | 'untrusted'
-
-/** Booleans are the legacy spelling of trusted/untrusted; a TrustLevel passes through. */
-export function normalizeTrust(trust: TrustLevel | boolean | undefined): TrustLevel {
-	if (trust === true) return 'trusted'
-	if (trust === false || trust === undefined) return 'untrusted'
-	return trust
-}
 
 export interface AppConfig {
 	id: string
 	url: string
-	trust?: TrustLevel | boolean // boolean for backwards compatibility
 }
 
 export interface MenuItem {

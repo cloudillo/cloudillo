@@ -20,6 +20,8 @@ import { ViewEmbedFrame, type ViewEmbedFrameHandle } from './ViewEmbedFrame.js'
 export interface ViewEmbedProps {
 	/** Iframe src; required for `status: 'live'` */
 	src?: string
+	/** The shell runs the source app trusted (`embed:open.res`); picks the iframe's `appSandbox()` */
+	trusted?: boolean
 	status: EmbedStatus
 	/** Shown in the chip and placeholders until the source reports its own title */
 	title?: string
@@ -58,6 +60,7 @@ export interface ViewEmbedProps {
 
 export function ViewEmbed({
 	src,
+	trusted,
 	status,
 	title: titleProp,
 	appId,
@@ -151,6 +154,7 @@ export function ViewEmbed({
 		<ViewEmbedFrame
 			ref={frameRef}
 			src={src}
+			trusted={trusted}
 			settings={settings}
 			box={box}
 			label={report?.title || title}
@@ -271,9 +275,7 @@ function DocViewEmbedInner({
 		embed.status === 'ready'
 			? 'live'
 			: embed.status === 'error'
-				? embed.reason === 'nested'
-					? 'nested'
-					: 'error'
+				? (embed.reason ?? 'error')
 				: 'loading'
 	const baseStatus = requestStatus === 'live' ? (appStatus ?? 'live') : requestStatus
 	// Offline only replaces a not-yet-live state: a running embed keeps its own offline mode
@@ -364,6 +366,7 @@ function DocViewEmbedInner({
 			{...props}
 			actions={actions}
 			src={embed.iframeSrc}
+			trusted={embed.trusted}
 			status={status}
 			nav={nav}
 			onAppReady={handleAppReady}

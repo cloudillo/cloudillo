@@ -142,7 +142,8 @@ export function initAuthHandlers(bus: ShellMessageBus): void {
 				idTag: pending.idTag,
 				token: pending.token,
 				refId: pending.refId,
-				params: pending.params
+				params: pending.params,
+				origin: pending.origin
 			})
 		} else if (!connection) {
 			console.warn('[Auth] Init request from unregistered app without resId — rejecting')

@@ -243,6 +243,7 @@ export function LiveDocCard({ docRef, width, collapsedOnly, className }: LiveDoc
 								// readiness against the new mount (see `useShellEmbed`).
 								key={embed.iframeSrc}
 								src={embed.iframeSrc}
+								trusted={embed.trusted}
 								// 'live' as soon as there is a src: the bundle has to mount to
 								// report ready. Unmounted on error — a bundle behind the opaque
 								// overlay is invisible work, and its own retry loops keep running.

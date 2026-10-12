@@ -1,0 +1,11 @@
+{
+	"extends": "./tsconfig.json",
+	"include": ["src/**/*"],
+	"exclude": [],
+	"compilerOptions": {
+		"esModuleInterop": true,
+		"allowSyntheticDefaultImports": true,
+		"types": ["jest"],
+		"lib": ["es2022", "dom", "dom.iterable"]
+	}
+}

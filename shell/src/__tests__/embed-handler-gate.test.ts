@@ -15,7 +15,7 @@
  * `feed-post-gate.test.ts`) and `handlers/lifecycle.ts` carry the same guard.
  */
 
-import { EMBED_ERR_CYCLE, EMBED_ERR_DEPTH } from '@cloudillo/core'
+import { EMBED_ERR_CYCLE, EMBED_ERR_DEPTH, EMBED_ERR_TRUST } from '@cloudillo/core'
 import { jest } from '@jest/globals'
 
 import { getAppTracker, resetAppTracker } from '../message-bus/app-tracker.js'
@@ -388,7 +388,8 @@ describe('the embed guard on the picker and nested-embed handlers', () => {
 			fileId: 'f2',
 			token: 't',
 			access: 'write',
-			ancestors: ['f1']
+			ancestors: ['f1'],
+			appName: 'quillo'
 		})
 	})
 
@@ -602,7 +603,7 @@ describe('the embed guard on the picker and nested-embed handlers', () => {
 		}
 		// No `embed` flag, no `token`: `viaApi` stays `api` itself, so nothing here
 		// reaches `createApiClient`.
-		const bus = createBus({ resId: 'community.tld:f1' }, api)
+		const bus = createBus({ resId: 'community.tld:f1', appName: 'notillo' }, api)
 
 		await bus.send('embed:open.req', {
 			targetFileId: 'f2',
@@ -615,9 +616,55 @@ describe('the embed guard on the picker and nested-embed handlers', () => {
 			ok: true,
 			data: {
 				embedUrl: 'https://cl-o.home.example/apps/quillo/index.html',
-				resId: 'community.tld:f2'
+				resId: 'community.tld:f2',
+				// Bundled = trusted: same-origin follows trust level alone, not `requiresTrusted`.
+				trusted: true
 			}
 		})
+		expect(bus.pending[0]).toMatchObject({ origin: 'https://cl-o.home.example' })
+	})
+
+	// An untrusted host's sandbox is inherited, so the frame is opaque whatever its own trust
+	it('frames a trusted target opaque under an untrusted host', async () => {
+		const api = {
+			idTag: 'home.example',
+			auth: { getAccessTokenVia: async () => ({ token: 't' }) }
+		}
+		const bus = createBus({ resId: 'home.example:f1', appName: 'untrusted-app' }, api)
+
+		await bus.send('embed:open.req', {
+			targetFileId: 'f2',
+			targetContentType: 'cloudillo/quillo',
+			sourceFileId: 'f1'
+		})
+
+		expect(bus.responses[0]).toMatchObject({ ok: true, data: { trusted: false } })
+		expect((bus.pending[0] as { origin?: string }).origin).toBeUndefined()
+	})
+
+	// Every host in the chain must be trusted, not just the instance a request is relayed through
+	it('refuses a requiresTrusted target under an untrusted top-level app', async () => {
+		const api = {
+			idTag: 'home.example',
+			auth: { getAccessTokenVia: jest.fn(async () => ({ token: 't' })) }
+		}
+		const bus = createBus({ resId: 'home.example:f1', appName: 'untrusted-app' }, api)
+		getAppTracker().storeEmbedToken(bus.win, '_embed:n1', {
+			fileId: 'f9',
+			token: 'tok-n1',
+			access: 'read',
+			ancestors: ['f1'],
+			appName: 'quillo'
+		})
+
+		await bus.send(
+			'embed:open.req',
+			{ targetFileId: 'f2', targetContentType: 'cloudillo/pagillo', sourceFileId: 'f9' },
+			relayedFrom('n1')
+		)
+
+		expect(api.auth.getAccessTokenVia).not.toHaveBeenCalled()
+		expect(bus.responses[0]).toMatchObject({ ok: false, error: EMBED_ERR_TRUST })
 	})
 
 	/*
@@ -643,6 +690,8 @@ describe('the embed guard on the picker and nested-embed handlers', () => {
 			ok: true,
 			data: { embedUrl: 'https://cl-o.home.example/apps/view/index.html' }
 		})
+		// The `view` fallback is `kind: 'internal'`, never trusted.
+		expect(bus.responses[0].data?.trusted).toBeFalsy()
 	})
 })
 

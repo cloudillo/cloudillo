@@ -23,6 +23,7 @@ import { appBundleUrl, type EmbedMode } from '@cloudillo/core'
 import * as React from 'react'
 
 import { shellEmbedAppName } from './app-name.js'
+import { appRequiresTrusted, appTrust } from './app-trust.js'
 import { getShellBus } from './message-bus/shell-bus.js'
 
 export type ShellEmbedAccess = 'read' | 'comment' | 'write'
@@ -39,6 +40,8 @@ export interface ShellEmbedRegistration {
 	navState?: string
 	/** Embed boot mode (absent = 'view'); the app reads `bus.pickView`. */
 	mode?: EmbedMode
+	/** The bundle's origin, for a trusted frame only (see `AppConnection.origin`) */
+	origin?: string
 }
 
 /** `key` is the per-mount `_embed:<nonce>` handshake key, not the document's resId. */
@@ -102,6 +105,8 @@ export interface ShellEmbedState {
 	/** What the embed box should show right now. */
 	stage: ShellEmbedStage
 	iframeSrc?: string
+	/** The target app runs trusted (`appTrust()`); pass to `<ViewEmbed trusted>`. */
+	trusted: boolean
 	/** Fallback error text (malformed resId, or the app's own message). */
 	error?: string
 	/** App error code — 4401/4403/4404 — for `<AppLoadingIndicator errorCode>`. */
@@ -151,7 +156,7 @@ function embedRegistrationKey(): string {
  * bootable. Pass `null` while the caller is still missing an input.
  */
 export function useShellEmbed(options: ShellEmbedOptions | null): ShellEmbedState {
-	type EmbedStatus = Omit<ShellEmbedState, 'onAppReady' | 'onAppError'>
+	type EmbedStatus = Omit<ShellEmbedState, 'onAppReady' | 'onAppError' | 'trusted'>
 	const [state, setState] = React.useState<EmbedStatus>({ stage: 'connecting' })
 	const timerRef = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 	const syncTimerRef = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
@@ -245,6 +250,12 @@ export function useShellEmbed(options: ShellEmbedOptions | null): ShellEmbedStat
 		}
 
 		const appName = shellEmbedAppName(opts.contentType)
+		// The same refusal `<AppFrame requiresTrusted>` shows: such an app never boots untrusted
+		if (appRequiresTrusted(appName) && appTrust(appName) !== 'trusted') {
+			setState({ stage: 'error', error: 'This app needs trusted mode' })
+			return
+		}
+		const bundleUrl = appBundleUrl(opts.idTag, appName)
 		// Captured next to `release`, and for the same reason: the cleanup must
 		// consume the entry *this* effect run created and nothing else.
 		const registrationKey = embedRegistrationKey()
@@ -256,7 +267,8 @@ export function useShellEmbed(options: ShellEmbedOptions | null): ShellEmbedStat
 			idTag,
 			appName,
 			navState: opts.navState,
-			mode: opts.mode
+			mode: opts.mode,
+			origin: appTrust(appName) === 'trusted' ? new URL(bundleUrl).origin : undefined
 		})
 
 		const version = encodeURIComponent(opts.version ?? '1')
@@ -265,7 +277,7 @@ export function useShellEmbed(options: ShellEmbedOptions | null): ShellEmbedStat
 		setState({
 			stage: 'connecting',
 			// `opts.idTag` is the home node; the local `idTag` is the document owner.
-			iframeSrc: `${appBundleUrl(opts.idTag, appName)}?v=${version}#${opts.resId}:${registrationKey}`
+			iframeSrc: `${bundleUrl}?v=${version}#${opts.resId}:${registrationKey}`
 		})
 		// No `errorCode` and no message: `AppLoadingIndicator` then falls back to its
 		// own generic text, which keeps this module i18n-free.
@@ -280,7 +292,8 @@ export function useShellEmbed(options: ShellEmbedOptions | null): ShellEmbedStat
 		}
 	}, [key])
 
-	return { ...state, onAppReady, onAppError }
+	const trusted = !!options && appTrust(shellEmbedAppName(options.contentType)) === 'trusted'
+	return { ...state, trusted, onAppReady, onAppError }
 }
 
 // vim: ts=4

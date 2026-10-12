@@ -49,6 +49,9 @@ export interface AppConnection {
 	embed?: boolean
 	/** Launch params as serialized query string */
 	params?: string
+	/** The frame's real origin, set only for trusted (non-opaque) frames: `sendToApp` posts
+	 *  to it instead of `'*'`, so a frame navigated elsewhere never receives a token */
+	origin?: string
 }
 
 /**
@@ -77,6 +80,8 @@ export interface RegisterAppOptions {
 	embed?: boolean
 	/** Launch params as serialized query string */
 	params?: string
+	/** See {@link AppConnection.origin} */
+	origin?: string
 }
 
 /**
@@ -105,6 +110,8 @@ export interface PendingRegistration {
 	resId?: string
 	/** See {@link AppConnection.embed} */
 	embed?: boolean
+	/** See {@link AppConnection.origin} */
+	origin?: string
 }
 
 /**
@@ -117,6 +124,8 @@ export interface EmbedTokenEntry {
 	access: 'read' | 'write'
 	/** The embed chain above `fileId`, ending with the document that embeds it */
 	ancestors: string[]
+	/** The app framing `fileId`; a nested embed's host trust is read off it */
+	appName?: string
 }
 
 // ============================================
@@ -169,7 +178,8 @@ export class AppTracker {
 			token: options.token,
 			refId: options.refId,
 			displayName: options.displayName,
-			params: options.params
+			params: options.params,
+			origin: options.origin
 		}
 
 		// Only increment count if this is a new connection

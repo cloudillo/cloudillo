@@ -19,11 +19,13 @@ import {
 	createApiClient,
 	EMBED_ERR_CYCLE,
 	EMBED_ERR_DEPTH,
+	EMBED_ERR_TRUST,
 	type EmbedCloseNotify,
 	type EmbedOpenReq
 } from '@cloudillo/core'
 
 import { shellEmbedAppName } from '../../app-name.js'
+import { appRequiresTrusted, appTrust } from '../../app-trust.js'
 // The leaf modules, not manifest-registry.ts: that one pulls in the icon registry and React
 import { bundledManifests } from '../../bundled-manifests.js'
 import { shellManifests } from '../../shell-manifests.js'
@@ -154,6 +156,23 @@ export function initEmbedHandlers(bus: ShellMessageBus): void {
 			return
 		}
 
+		const appName = shellEmbedAppName(targetContentType)
+		// Trust level alone decides same-origin, as for a shell-rendered embed (`shell-embed.ts`):
+		// a trusted app runs on its real origin, an untrusted one stays sandboxed.
+		const trusted = appTrust(appName) === 'trusted'
+		// An untrusted host's opaque sandbox is inherited by every frame inside it, so a
+		// `requiresTrusted` target needs every host in the chain trusted: the top-level app
+		// and, for a relayed request, the embed instance it came through.
+		const hostTrusted =
+			appTrust(connection.appName) === 'trusted' &&
+			(!via || appTrust(via.appName) === 'trusted')
+		if (appRequiresTrusted(appName) && (!trusted || !hostTrusted)) {
+			bus.sendResponse(appWindow, 'embed:open.res', msg.id, false, undefined, EMBED_ERR_TRUST)
+			return
+		}
+		// What the frame really gets: under an untrusted host it is opaque whatever its own trust.
+		const framed = trusted && hostTrusted
+
 		try {
 			const api = bus.getApi()
 			// The idTag too, not just the client: an empty one would build the bundle URL
@@ -194,10 +213,9 @@ export function initEmbedHandlers(bus: ShellMessageBus): void {
 				fileId: tgtFileId,
 				token: tokenResult.token,
 				access: tokenResult.accessLevel === 'write' ? 'write' : 'read',
-				ancestors: nextAncestorChain
+				ancestors: nextAncestorChain,
+				appName
 			})
-
-			const appName = shellEmbedAppName(targetContentType)
 
 			const idTag = contextIdTag
 
@@ -224,13 +242,15 @@ export function initEmbedHandlers(bus: ShellMessageBus): void {
 				navState,
 				params,
 				mode,
-				ancestors: nextAncestorChain
+				ancestors: nextAncestorChain,
+				origin: framed ? new URL(embedUrl).origin : undefined
 			})
 
 			bus.sendResponse(appWindow, 'embed:open.res', msg.id, true, {
 				embedUrl,
 				nonce,
-				resId: `${idTag}:${tgtFileId}`
+				resId: `${idTag}:${tgtFileId}`,
+				trusted: framed
 			})
 		} catch (err) {
 			console.error('[Embed] Failed to process embed request:', err)

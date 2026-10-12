@@ -6,7 +6,7 @@
  */
 
 import {
-	APP_SANDBOX,
+	appSandbox,
 	type EmbedRelayHandle,
 	type EmbedViewLayoutPayload,
 	type EmbedViewReportPayload,
@@ -16,6 +16,8 @@ import * as React from 'react'
 
 export interface DocumentEmbedIframeProps {
 	src: string
+	/** From the shell's `embed:open.res` (`useDocumentEmbed().trusted`); picks `appSandbox()` */
+	trusted?: boolean
 	className?: string
 	active?: boolean
 	/** Lets the embed present fullscreen from its own click */
@@ -45,6 +47,7 @@ export const DocumentEmbedIframe = React.memo(
 	React.forwardRef<DocumentEmbedIframeRef, DocumentEmbedIframeProps>(function DocumentEmbedIframe(
 		{
 			src,
+			trusted,
 			className,
 			active,
 			allowFullscreen = false,
@@ -143,7 +146,7 @@ export const DocumentEmbedIframe = React.memo(
 				ref={setIframeRef}
 				src={src}
 				className={className}
-				sandbox={APP_SANDBOX}
+				sandbox={appSandbox(!!trusted)}
 				allow={allowFullscreen ? 'fullscreen' : undefined}
 				allowFullScreen={allowFullscreen}
 				loading="lazy"

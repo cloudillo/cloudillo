@@ -385,6 +385,8 @@ export interface EmbedOpenResult {
 	nonce: string
 	/** Real resource ID (ownerTag:fileId) for correct WebSocket routing */
 	resId?: string
+	/** The shell framed a trusted (bundled) app: pass to `appSandbox()` */
+	trusted?: boolean
 }
 
 // ============================================
@@ -1693,7 +1695,8 @@ export class AppMessageBus extends MessageBusBase {
 		return {
 			embedUrl: data.embedUrl,
 			nonce: data.nonce,
-			resId: data.resId
+			resId: data.resId,
+			trusted: data.trusted
 		}
 	}
 

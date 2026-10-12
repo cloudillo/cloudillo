@@ -15,6 +15,7 @@ import { createPortal } from 'react-dom'
 import { PiCaretDownBold as IcCaret } from 'react-icons/pi'
 import { usePopper } from 'react-popper'
 
+import { useFieldControl } from '../Form/Field.js'
 import { useEscapeKey, useOutsideClick } from '../hooks.js'
 import { mergeClasses } from '../utils.js'
 
@@ -31,6 +32,10 @@ export interface FontPickerProps {
 	disabled?: boolean
 	/** Additional class name */
 	className?: string
+	size?: 'sm' | 'md' | 'lg'
+	id?: string
+	'aria-label'?: string
+	'aria-labelledby'?: string
 }
 
 interface FontGroup {
@@ -59,13 +64,19 @@ export function FontPicker({
 	role,
 	suggestPairingsFor,
 	disabled,
-	className
+	className,
+	size,
+	...labelProps
 }: FontPickerProps) {
 	const [isOpen, setIsOpen] = React.useState(false)
 	const [highlightedIndex, setHighlightedIndex] = React.useState(-1)
 
 	// Popper setup
 	const [buttonRef, setButtonRef] = React.useState<HTMLButtonElement | null>(null)
+	const field = useFieldControl<HTMLButtonElement>(labelProps, setButtonRef, 'FontPicker')
+	const sizeClass = (size ?? field.size) !== 'md' && (size ?? field.size)
+	// `required` is not a <button> attribute
+	const { required: _required, ...controlProps } = field.controlProps
 	const [menuEl, setMenuEl] = React.useState<HTMLDivElement | null>(null)
 	const menuRef = React.useRef<HTMLDivElement | null>(null)
 
@@ -223,10 +234,13 @@ export function FontPicker({
 	return (
 		<div className={mergeClasses('c-font-picker', className)}>
 			<button
-				ref={setButtonRef}
+				{...labelProps}
+				{...controlProps}
+				ref={field.ref}
 				type="button"
 				className={mergeClasses(
 					'c-font-picker__button c-input',
+					sizeClass,
 					isOpen && 'c-font-picker__button--open'
 				)}
 				onClick={handleButtonClick}

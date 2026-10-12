@@ -1144,6 +1144,23 @@
 
 .c-color-input {
 	display: flex;
+	align-items: stretch;
+}
+
+/* The swatch matches the hex box beside it; apps may still override */
+.c-color-input-picker {
+	inline-size: var(--size-sm);
+	block-size: auto;
+	min-block-size: var(--size-sm);
+	padding: 2px;
+	flex: none;
+}
+
+/* sm controls line up with `Button size="sm"` (both --size-sm).
+   Belongs upstream in OpalUI c-form.css */
+.c-input.sm,
+.c-select.sm {
+	min-height: var(--size-sm);
 }
 
 .c-number-input > .c-input {
@@ -1927,8 +1944,6 @@ dialog.c-modal.c-bottom-sheet-modal {
 	justify-content: space-between;
 	gap: var(--space-2);
 	width: 100%;
-	min-height: 2rem;
-	padding: var(--space-1) var(--space-2);
 	text-align: left;
 	cursor: pointer;
 }
@@ -2421,7 +2436,14 @@ dialog.c-modal.c-bottom-sheet-modal {
 
 .c-property-field {
 	align-items: center;
+	min-height: var(--size-sm);
 	font-size: var(--text-xs);
+}
+
+/* Wrap labels at words (hyphenating long ones), never mid-word */
+.c-property-field .c-field-label {
+	overflow-wrap: normal;
+	hyphens: auto;
 }
 
 .c-property-field-label {

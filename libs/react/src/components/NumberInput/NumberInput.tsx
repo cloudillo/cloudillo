@@ -3,10 +3,15 @@
 
 import * as React from 'react'
 
+import { useFieldControl } from '../Form/Field.js'
 import { createComponent, mergeClasses } from '../utils.js'
 
 export interface NumberInputProps
-	extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'type' | 'onChange' | 'value'> {
+	extends Omit<
+		React.InputHTMLAttributes<HTMLInputElement>,
+		'type' | 'onChange' | 'value' | 'size'
+	> {
+	size?: 'sm' | 'md' | 'lg'
 	value?: number
 	onChange?: (value: number) => void
 	/** Fires continuously during scrub for live preview (doesn't commit to CRDT) */
@@ -17,6 +22,13 @@ export interface NumberInputProps
 	step?: number
 	/** Pixels of mouse movement per step increment (default: 5) */
 	scrubSensitivity?: number
+	/**
+	 * Text mode: the input takes free text (units, arithmetic…) and commits `parse(text)` on
+	 * blur/Enter; `undefined` rejects it. ArrowUp/Down step; scrub still works.
+	 */
+	parse?: (text: string) => number | undefined
+	/** Text mode: how a value is shown (default: `String`) */
+	format?: (value: number) => string
 }
 
 const SCRUB_THRESHOLD = 3 // pixels before entering scrub mode
@@ -34,11 +46,21 @@ export const NumberInput = createComponent<HTMLDivElement, NumberInputProps>(
 			max,
 			step = 1,
 			scrubSensitivity = 5,
+			parse,
+			format = String,
+			onBlur,
+			onKeyDown,
+			size,
 			...props
 		},
 		ref
 	) => {
 		const inputRef = React.useRef<HTMLInputElement>(null)
+		// The Field's id/size go on the inner <input>; the outer ref stays on the wrapper
+		const field = useFieldControl(props, inputRef, 'NumberInput')
+		const sizeClass = (size ?? field.size) !== 'md' && (size ?? field.size)
+		// Text mode: what the user is typing, until committed or cancelled
+		const [draft, setDraft] = React.useState<string | undefined>(undefined)
 
 		// Local value for visual feedback during scrub (doesn't update CRDT)
 		const [localValue, setLocalValue] = React.useState<number | undefined>(value)
@@ -75,9 +97,48 @@ export const NumberInput = createComponent<HTMLDivElement, NumberInputProps>(
 			return 1
 		}, [])
 
+		// Text mode: commit a parsed draft
+		const commit = (text: string) => {
+			setDraft(undefined)
+			const parsed = parse?.(text)
+			if (parsed === undefined || Number.isNaN(parsed)) return
+			const clamped = clampValue(parsed)
+			// No optimistic local value: an accepted change comes back through `value`.
+			if (clamped !== value) onChange?.(clamped)
+		}
+
+		const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+			if (parse && draft !== undefined) commit(draft)
+			onBlur?.(e)
+		}
+
+		const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+			onKeyDown?.(e)
+			if (!parse || e.defaultPrevented) return
+			if (e.key === 'Enter' && draft !== undefined) {
+				e.preventDefault()
+				commit(draft)
+			} else if (e.key === 'Escape' && draft !== undefined) {
+				e.preventDefault()
+				setDraft(undefined)
+			} else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+				e.preventDefault()
+				const base = (draft !== undefined ? parse(draft) : undefined) ?? value ?? 0
+				const next = clampValue(
+					base + (e.key === 'ArrowUp' ? 1 : -1) * step * getMultiplier(e)
+				)
+				setDraft(undefined)
+				onChange?.(next)
+			}
+		}
+
 		// Handle text input change (commit immediately for typing)
 		const handleChange = React.useCallback(
 			(e: React.ChangeEvent<HTMLInputElement>) => {
+				if (parse) {
+					setDraft(e.target.value)
+					return
+				}
 				const newValue = parseFloat(e.target.value)
 				if (!Number.isNaN(newValue)) {
 					const clamped = clampValue(newValue)
@@ -85,7 +146,7 @@ export const NumberInput = createComponent<HTMLDivElement, NumberInputProps>(
 					onChange?.(clamped)
 				}
 			},
-			[onChange, clampValue]
+			[onChange, clampValue, parse]
 		)
 
 		// Mouse down - prepare for potential scrub
@@ -169,16 +230,24 @@ export const NumberInput = createComponent<HTMLDivElement, NumberInputProps>(
 				className={mergeClasses('c-number-input', isScrubbing && 'scrubbing', className)}
 			>
 				<input
-					ref={inputRef}
-					type="number"
-					className="c-input"
-					value={localValue ?? ''}
+					ref={field.ref}
+					type={parse ? 'text' : 'number'}
+					inputMode={parse ? 'decimal' : undefined}
+					className={mergeClasses('c-input', sizeClass)}
+					value={
+						parse
+							? (draft ?? (localValue === undefined ? '' : format(localValue)))
+							: (localValue ?? '')
+					}
 					onChange={handleChange}
+					onBlur={handleBlur}
+					onKeyDown={handleKeyDown}
 					onMouseDown={handleMouseDown}
 					min={min}
 					max={max}
 					step={step}
 					{...props}
+					{...field.controlProps}
 				/>
 				{suffix && <span className="c-number-input-suffix">{suffix}</span>}
 			</div>

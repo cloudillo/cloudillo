@@ -3,6 +3,7 @@
 
 import * as React from 'react'
 
+import { FieldContext } from '../Form/Field.js'
 import { useMergedRefs } from '../hooks.js'
 import { createComponent, mergeClasses } from '../utils.js'
 
@@ -54,7 +55,13 @@ export type SegmentedProps = SegmentedBaseProps &
  */
 export const Segmented = createComponent<HTMLDivElement, SegmentedProps>(
 	'Segmented',
-	({ className, value, onChange, multiple, size, fill, layout, children, ...props }, ref) => {
+	(
+		{ className, value, onChange, multiple, size: sizeProp, fill, layout, children, ...props },
+		ref
+	) => {
+		// Inside a Field (e.g. a property row) follow its size rather than the md touch target
+		const fieldSize = React.useContext(FieldContext)?.size
+		const size = sizeProp ?? fieldSize
 		// A fresh object per render would re-render every item on any parent render;
 		// these fields are the whole state, so memoizing on them is exact.
 		const context = React.useMemo<SegmentedContextValue>(() => {

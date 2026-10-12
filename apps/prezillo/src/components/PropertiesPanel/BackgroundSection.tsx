@@ -3,7 +3,13 @@
 
 import type { Gradient } from '@cloudillo/canvas-tools'
 import { GradientPicker } from '@cloudillo/canvas-tools'
-import { ColorInput, PropertyField, PropertySection } from '@cloudillo/react'
+import {
+	ColorInput,
+	PropertyField,
+	PropertySection,
+	Segmented,
+	SegmentedItem
+} from '@cloudillo/react'
 import * as React from 'react'
 import { PiArrowCounterClockwiseBold as IcReset } from 'react-icons/pi'
 import type * as Y from 'yjs'
@@ -214,22 +220,17 @@ export function BackgroundSection({ doc, yDoc, view }: BackgroundSectionProps) {
 			)}
 
 			{/* Type selector */}
-			<div className="c-hbox g-1 mb-2">
-				<button
-					type="button"
-					className={`c-btn c-btn-sm flex-1 ${activeType === 'solid' ? 'c-btn-primary' : ''}`}
-					onClick={() => handleTypeSwitch('solid')}
-				>
-					Solid
-				</button>
-				<button
-					type="button"
-					className={`c-btn c-btn-sm flex-1 ${activeType === 'gradient' ? 'c-btn-primary' : ''}`}
-					onClick={() => handleTypeSwitch('gradient')}
-				>
-					Gradient
-				</button>
-			</div>
+			<Segmented
+				size="sm"
+				fill
+				className="mb-2"
+				aria-label="Background type"
+				value={activeType}
+				onChange={(v) => handleTypeSwitch(v as BackgroundType)}
+			>
+				<SegmentedItem value="solid">Solid</SegmentedItem>
+				<SegmentedItem value="gradient">Gradient</SegmentedItem>
+			</Segmented>
 
 			{/* Solid color picker */}
 			{activeType === 'solid' && (

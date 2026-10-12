@@ -3,6 +3,7 @@
 
 import * as React from 'react'
 
+import { useFieldControl } from '../Form/Field.js'
 import { createComponent, mergeClasses } from '../utils.js'
 
 export interface ColorInputProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'onChange'> {
@@ -12,14 +13,40 @@ export interface ColorInputProps extends Omit<React.HTMLAttributes<HTMLDivElemen
 	onPreview?: (color: string) => void
 	disabled?: boolean
 	showHex?: boolean
+	size?: 'sm' | 'md' | 'lg'
 }
 
 export const ColorInput = createComponent<HTMLDivElement, ColorInputProps>(
 	'ColorInput',
 	(
-		{ className, value = '#000000', onChange, onPreview, disabled, showHex = true, ...props },
+		{
+			className,
+			value = '#000000',
+			onChange,
+			onPreview,
+			disabled,
+			showHex = true,
+			size,
+			id,
+			'aria-label': ariaLabel,
+			'aria-labelledby': ariaLabelledBy,
+			...props
+		},
 		ref
 	) => {
+		// The Field's id (the label target) goes on the hex box, or the swatch without one
+		const field = useFieldControl<HTMLInputElement>(
+			{ id, 'aria-label': ariaLabel, 'aria-labelledby': ariaLabelledBy },
+			undefined,
+			'ColorInput'
+		)
+		const sizeClass = (size ?? field.size) !== 'md' && (size ?? field.size)
+		const labelProps = {
+			...field.controlProps,
+			ref: field.ref,
+			'aria-label': ariaLabel,
+			'aria-labelledby': ariaLabelledBy
+		}
 		// Local state to buffer color changes during drag
 		const [localColor, setLocalColor] = React.useState(value)
 		const [isEditing, setIsEditing] = React.useState(false)
@@ -108,16 +135,18 @@ export const ColorInput = createComponent<HTMLDivElement, ColorInputProps>(
 					onChange={handleColorDrag}
 					onBlur={handleColorBlur}
 					disabled={disabled}
+					{...(showHex ? undefined : labelProps)}
 				/>
 				{showHex && (
 					<input
 						type="text"
-						className="c-input c-color-input-hex"
+						className={mergeClasses('c-input c-color-input-hex', sizeClass)}
 						value={localColor}
 						onChange={handleHexChange}
 						disabled={disabled}
 						maxLength={7}
 						placeholder="#000000"
+						{...labelProps}
 					/>
 				)}
 			</div>

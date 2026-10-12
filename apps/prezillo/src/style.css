@@ -22,7 +22,6 @@ body,
 
 .c-property-field-control .c-input,
 .c-property-field-control .c-select {
-	padding: var(--space-1);
 	font-size: 11px;
 }
 
@@ -38,7 +37,6 @@ body,
 
 /* Number Input */
 .c-number-input .c-input {
-	padding: var(--space-1);
 	font-size: 11px;
 }
 
@@ -72,14 +70,7 @@ body,
 }
 
 /* Color Input */
-.c-color-input {
-	align-items: center;
-}
-
 .c-color-input-picker {
-	width: 24px;
-	height: 24px;
-	padding: 0;
 	border: 1px solid var(--col-outline);
 	border-radius: var(--radius-sm);
 	cursor: pointer;
@@ -87,7 +78,6 @@ body,
 
 .c-color-input-hex {
 	width: 70px;
-	padding: var(--space-1);
 	font-size: 11px;
 	font-family: monospace;
 }

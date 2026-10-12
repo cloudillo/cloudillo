@@ -29,6 +29,9 @@
 	"main": "./src/index.ts",
 	"exports": {
 		".": "./src/index.ts",
+		"./font-files": "./src/font-files.ts",
+		"./font-metrics": "./src/font-metrics.ts",
+		"./metadata": "./src/metadata.ts",
 		"./fonts.css": "./src/fonts.css"
 	},
 	"files": [
@@ -39,8 +42,9 @@
 	],
 	"scripts": {
 		"postinstall": "node scripts/download-fonts.js",
-		"download": "node scripts/download-fonts.js",
-		"download:force": "node scripts/download-fonts.js --force",
+		"download": "node scripts/download-fonts.js && node scripts/hash-fonts.js",
+		"download:force": "node scripts/download-fonts.js --force && node scripts/hash-fonts.js",
+		"hash": "node scripts/hash-fonts.js",
 		"ts-test": "tsgo --noEmit -p tsconfig.test.json",
 		"test": "NODE_OPTIONS=\"--experimental-vm-modules\" jest",
 		"test:watch": "NODE_OPTIONS=\"--experimental-vm-modules\" jest --watch",

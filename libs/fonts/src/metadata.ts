@@ -3,6 +3,9 @@
 
 import type { FontMetadata } from './types.js'
 
+/** Bundled fallback face for glyphs the style's family lacks (deterministic layout) */
+export const FALLBACK_FACE_FAMILY = 'Noto Sans'
+
 /**
  * Curated font collection metadata
  * All fonts are from Google Fonts, licensed under OFL or Apache 2.0
@@ -151,6 +154,19 @@ export const FONTS: FontMetadata[] = [
 		hasItalic: true,
 		license: 'OFL',
 		directory: 'source-sans-3'
+	},
+	{
+		family: 'Noto Sans',
+		displayName: 'Noto Sans',
+		category: 'sans-serif',
+		roles: ['body'],
+		weights: [
+			{ value: 400, label: 'Regular' },
+			{ value: 700, label: 'Bold' }
+		],
+		hasItalic: true,
+		license: 'OFL',
+		directory: 'noto-sans'
 	},
 
 	// Serif fonts

@@ -4,7 +4,8 @@
  * Font Download Script
  * Downloads Google Fonts and converts variable fonts to static fonts:
  * - WOFF2 from Google Fonts API (for browser CSS)
- * - TTF converted from WOFF2 using wawoff2, then made static using fonttools
+ * - TTF from the full (non-subset) upstream files in github.com/google/fonts, made static using
+ *   fonttools. The CSS API woff2 files are latin-only subsets, so they are not used for TTFs.
  *
  * Usage:
  *   node download-fonts.js          # Download missing fonts
@@ -12,13 +13,38 @@
  */
 
 import { execFileSync } from 'child_process'
-import { existsSync, mkdirSync, readdirSync, rmdirSync, unlinkSync, writeFileSync } from 'fs'
+import { createHash } from 'crypto'
+import {
+	existsSync,
+	mkdirSync,
+	readdirSync,
+	readFileSync,
+	rmdirSync,
+	unlinkSync,
+	writeFileSync
+} from 'fs'
 import { dirname, join } from 'path'
 import { fileURLToPath } from 'url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const FONTS_DIR = join(__dirname, '..', 'fonts')
 const CONVERT_SCRIPT = join(__dirname, 'convert-to-static.py')
+
+/**
+ * Expected sha256 per '<dir>/<File>.ttf', read from the generated `src/font-metrics.ts`. Empty
+ * under --force, which regenerates them (`download:force` runs hash-fonts.js afterwards).
+ */
+const EXPECTED_SHA256 = process.argv.includes('--force') ? {} : readExpectedHashes()
+
+function readExpectedHashes() {
+	try {
+		const src = readFileSync(join(__dirname, '..', 'src', 'font-metrics.ts'), 'utf-8')
+		const re = /'([^']+\.ttf)': \{\s*sha256: '([0-9a-f]{64})'/g
+		return Object.fromEntries([...src.matchAll(re)].map(([, file, hash]) => [file, hash]))
+	} catch {
+		return {}
+	}
+}
 
 // Font definitions
 // All fonts now support PDF embedding via variable→static conversion
@@ -35,6 +61,7 @@ const FONT_SPECS = [
 	{ family: 'Raleway', weights: [400, 700], italic: true, dir: 'raleway' },
 	{ family: 'DM Sans', weights: [400, 700], italic: true, dir: 'dm-sans' },
 	{ family: 'Source Sans 3', weights: [400, 700], italic: true, dir: 'source-sans-3' },
+	{ family: 'Noto Sans', weights: [400, 700], italic: true, dir: 'noto-sans' },
 
 	// Serif
 	{ family: 'DM Serif Display', weights: [400], italic: true, dir: 'dm-serif-display' },
@@ -141,6 +168,33 @@ function getLocalFilename(baseName, weight, isItalic, ext) {
 	return `${baseName}-${weightName}${isItalic ? 'Italic' : ''}.${ext}`
 }
 
+// Pinned google/fonts commit: bumping it changes the TTFs, so run `download:force` after.
+const UPSTREAM_REV = 'bd8f81ddb5c74d5c8897b36ad88b440266245103'
+const UPSTREAM_BASE = `https://raw.githubusercontent.com/google/fonts/${UPSTREAM_REV}`
+
+/**
+ * List a family's upstream TTFs from google/fonts METADATA.pb:
+ * [{ style: 'normal' | 'italic', weight, url }] (variable files list their default weight)
+ */
+async function fetchUpstreamFonts(family) {
+	const famDir = family.toLowerCase().replace(/ /g, '')
+	for (const lic of ['ofl', 'apache', 'ufl']) {
+		const res = await fetch(`${UPSTREAM_BASE}/${lic}/${famDir}/METADATA.pb`)
+		if (!res.ok) continue
+		const pb = await res.text()
+		return [...pb.matchAll(/fonts \{([^}]+)\}/g)].map(([, block]) => {
+			const filename = block.match(/filename: "([^"]+)"/)[1]
+			return {
+				style: block.match(/style: "(\w+)"/)[1],
+				weight: parseInt(block.match(/weight: (\d+)/)[1], 10),
+				variable: filename.includes('['),
+				url: `${UPSTREAM_BASE}/${lic}/${famDir}/${encodeURIComponent(filename)}`
+			}
+		})
+	}
+	throw new Error(`no upstream METADATA.pb for ${family}`)
+}
+
 /**
  * Download a single file
  */
@@ -148,36 +202,6 @@ async function downloadFile(url, destPath) {
 	const response = await fetchWithRetry(url)
 	const buffer = await response.arrayBuffer()
 	writeFileSync(destPath, Buffer.from(buffer))
-}
-
-/**
- * Check if wawoff2 (woff2_decompress) is available
- */
-function checkWawoff2() {
-	try {
-		// wawoff2 npm package provides woff2_decompress.js (shell wrapper)
-		// Check local node_modules first (for standalone installs)
-		const localBin = join(__dirname, '..', 'node_modules', '.bin', 'woff2_decompress.js')
-		if (existsSync(localBin)) return localBin
-
-		// Check root node_modules (for pnpm monorepo with hoisting)
-		const rootBin = join(
-			__dirname,
-			'..',
-			'..',
-			'..',
-			'node_modules',
-			'.bin',
-			'woff2_decompress.js'
-		)
-		if (existsSync(rootBin)) return rootBin
-
-		// Try global woff2_decompress
-		execFileSync('which', ['woff2_decompress'], { encoding: 'utf-8' })
-		return 'woff2_decompress'
-	} catch {
-		return null
-	}
 }
 
 /**
@@ -191,23 +215,6 @@ function checkPython() {
 		})
 		return true
 	} catch {
-		return false
-	}
-}
-
-/**
- * Convert WOFF2 to variable TTF using wawoff2 (woff2_decompress)
- */
-function convertWoff2ToTTF(woff2Path, ttfPath, wawoff2Bin) {
-	try {
-		// woff2_decompress.js is a shell wrapper, execute with bash
-		execFileSync('bash', [wawoff2Bin, woff2Path, ttfPath], {
-			encoding: 'utf-8',
-			stdio: ['pipe', 'pipe', 'pipe']
-		})
-		return true
-	} catch (error) {
-		console.log(`  wawoff2 failed: ${error.message}`)
 		return false
 	}
 }
@@ -234,7 +241,7 @@ function convertVariableToStatic(inputTTF, outputTTF, weight, isItalic) {
 /**
  * Download WOFF2 fonts from Google Fonts API and convert to static TTF
  */
-async function downloadAndConvertFonts(spec, wawoff2Bin, hasPython) {
+async function downloadAndConvertFonts(spec, hasPython) {
 	const { family, weights, italic, dir } = spec
 	const fontDir = join(FONTS_DIR, dir)
 	const tempDir = join(fontDir, '.temp')
@@ -261,9 +268,12 @@ async function downloadAndConvertFonts(spec, wawoff2Bin, hasPython) {
 	const familyParam = `${family.replace(/ /g, '+')}:ital,wght@${variants.join(';')}`
 	const cssUrl = `https://fonts.googleapis.com/css2?family=${familyParam}&display=swap`
 
+	// The CSS API can't be pinned, so the WOFF2 files stay unverified; self-host them from
+	// UPSTREAM_REV (woff2 compress) if that matters.
 	const response = await fetchWithRetry(cssUrl)
 	const css = await response.text()
 	const fonts = parseGoogleFontsCss(css)
+	let upstream = null
 
 	const baseName = dir
 		.split('-')
@@ -283,28 +293,34 @@ async function downloadAndConvertFonts(spec, wawoff2Bin, hasPython) {
 			console.log(`  Downloaded WOFF2: ${woff2Filename}`)
 		}
 
-		// Convert to static TTF if needed
-		if (!existsSync(ttfPath) && wawoff2Bin && hasPython) {
-			// First convert WOFF2 to variable TTF in temp dir
-			const tempTTFPath = join(tempDir, `variable-${ttfFilename}`)
+		// Static TTF from the full upstream file (variable → instanced, static → re-saved)
+		if (!existsSync(ttfPath) && hasPython) {
+			upstream ??= await fetchUpstreamFonts(family)
+			const style = isItalic ? 'italic' : 'normal'
+			const src =
+				upstream.find(
+					(u) => u.style === style && !u.variable && u.weight === font.weight
+				) ?? upstream.find((u) => u.style === style && u.variable)
+			if (!src) throw new Error(`no upstream TTF for ${family} ${font.weight} ${style}`)
 
-			if (convertWoff2ToTTF(woff2Path, tempTTFPath, wawoff2Bin)) {
-				// Then convert variable TTF to static TTF
-				if (convertVariableToStatic(tempTTFPath, ttfPath, font.weight, isItalic)) {
-					console.log(`  Created static TTF: ${ttfFilename}`)
-				}
-
-				// Clean up temp file
-				if (existsSync(tempTTFPath)) {
-					unlinkSync(tempTTFPath)
-				}
+			const tempTTFPath = join(tempDir, `upstream-${ttfFilename}`)
+			await downloadFile(src.url, tempTTFPath)
+			if (!convertVariableToStatic(tempTTFPath, ttfPath, font.weight, isItalic)) {
+				throw new Error(`static conversion failed for ${ttfFilename}`)
 			}
+			unlinkSync(tempTTFPath)
+			const want = EXPECTED_SHA256[`${dir}/${ttfFilename}`]
+			const got = createHash('sha256').update(readFileSync(ttfPath)).digest('hex')
+			if (want && got !== want) {
+				console.warn(
+					`  WARNING: sha256 mismatch for ${ttfFilename}: got ${got}, want ${want} ` +
+						'(different fonttools version? layout will refuse this face; run ' +
+						'`pnpm -C libs/fonts download:force` with the pinned fonttools or re-hash)'
+				)
+			}
+			console.log(`  Created static TTF: ${ttfFilename}`)
 		} else if (!existsSync(ttfPath)) {
-			if (!wawoff2Bin) {
-				console.log(`  Skipping TTF (wawoff2 not available)`)
-			} else if (!hasPython) {
-				console.log(`  Skipping TTF (Python fonttools not available)`)
-			}
+			console.log(`  Skipping TTF (Python fonttools not available)`)
 		}
 	}
 
@@ -322,13 +338,13 @@ async function downloadAndConvertFonts(spec, wawoff2Bin, hasPython) {
 /**
  * Process a single font family
  */
-async function processFont(spec, wawoff2Bin, hasPython) {
+async function processFont(spec, hasPython) {
 	const { family } = spec
 
 	console.log(`Processing ${family}...`)
 
 	try {
-		await downloadAndConvertFonts(spec, wawoff2Bin, hasPython)
+		await downloadAndConvertFonts(spec, hasPython)
 		return true
 	} catch (error) {
 		console.error(`  Error processing ${family}: ${error.message}`)
@@ -407,30 +423,25 @@ async function main() {
 	console.log('')
 
 	// Check for tools
-	const wawoff2Bin = checkWawoff2()
 	const hasPython = checkPython()
 
 	console.log('Tool availability:')
-	console.log(`  wawoff2: ${wawoff2Bin ? 'OK' : 'NOT FOUND (TTF conversion disabled)'}`)
 	console.log(
 		`  Python fonttools: ${hasPython ? 'OK' : 'NOT FOUND (static font conversion disabled)'}`
 	)
 	console.log('')
 
-	if (!wawoff2Bin || !hasPython) {
+	if (!hasPython) {
 		console.log('To enable static TTF generation for PDF export:')
-		if (!wawoff2Bin) {
-			console.log('  Install wawoff2: cd libs/fonts && pnpm add wawoff2')
-		}
-		if (!hasPython) {
-			console.log('  Install fonttools: pip install fonttools brotli')
-		}
+		console.log('  Install fonttools: pip install fonttools brotli')
 		console.log('')
 	}
 
 	console.log('Sources:')
 	console.log('  WOFF2: Google Fonts API (for browser CSS)')
-	console.log('  TTF:   Converted from WOFF2 using wawoff2 + fonttools (for PDF)')
+	console.log(
+		'  TTF:   Full upstream files from github.com/google/fonts, made static with fonttools'
+	)
 	console.log('')
 
 	if (!existsSync(FONTS_DIR)) {
@@ -447,7 +458,7 @@ async function main() {
 	let skipped = 0
 	let failed = 0
 
-	const requireTTF = wawoff2Bin && hasPython
+	const requireTTF = hasPython
 
 	for (const spec of FONT_SPECS) {
 		if (!force && isFontComplete(spec, requireTTF)) {
@@ -456,7 +467,7 @@ async function main() {
 			continue
 		}
 
-		const success = await processFont(spec, wawoff2Bin, hasPython)
+		const success = await processFont(spec, hasPython)
 		if (success) {
 			processed++
 		} else {

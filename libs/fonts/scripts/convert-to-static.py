@@ -37,7 +37,8 @@ def convert_variable_to_static(input_path, output_path, weight=400, italic=False
         weight: Font weight (100-900, default 400 = Regular)
         italic: Whether to create an italic instance
     """
-    varfont = TTFont(input_path)
+    # No head.modified bump on save: the output must hash the same every run (FONT_METRICS)
+    varfont = TTFont(input_path, recalcTimestamp=False)
 
     # Check if it's actually a variable font
     if 'fvar' not in varfont:

@@ -6,9 +6,16 @@
  * frame hit order (one Auto model, no tool modes).
  */
 
-import { type GeomIndex, nearestCaret, type PlacedLine } from './caret'
+import { type GeomIndex, nearestCaret, type PlacedLine, sameRow, xDist } from './caret'
 import type { StoredTextFrameData, YPagilloDocument } from '../crdt/stored-types'
-import { containsPoint, flowBoxes, type PageInfo, type PageItem, pageItems } from './frames'
+import {
+	containsPoint,
+	edgeDist,
+	flowBoxes,
+	type PageInfo,
+	type PageItem,
+	pageItems
+} from './frames'
 
 export interface TextHit {
 	story: string
@@ -94,7 +101,10 @@ export function hitText(
 					l.y <= a.y + a.h
 		)
 		if (!lines.length) return
-		const last = lines.reduce((m, l) => (l.line.y > m.line.y ? l : m))
+		// Bottom row; on a tie within one row (a split row) the later segment, so its end can match.
+		const last = lines.reduce((m, l) =>
+			l.line.y > m.line.y || (sameRow(l, m) && l.to > m.to) ? l : m
+		)
 		const end = index.stories.get(last.line.story)?.at(-1)?.to
 		if (y > last.line.y + last.line.descent && last.to === end)
 			return { story: last.line.story, offset: end }
@@ -110,6 +120,7 @@ export function hitText(
 	const right = (l: PlacedLine['line']) => l.carets[l.carets.length - 1]
 	let best: PlacedLine = lines[0]
 	let bd = Number.POSITIVE_INFINITY
+	let bo = Number.POSITIVE_INFINITY
 	for (const pl of lines) {
 		const l = pl.line
 		// Column extent: lines of this story overlapping this one horizontally.
@@ -125,16 +136,19 @@ export function hitText(
 		const dx = Math.max(0, cl - x, x - cr)
 		const dy = Math.max(0, l.y - l.ascent - y, y - l.y - l.descent)
 		const d = dx * dx + dy * dy
-		if (d < bd) {
+		// Lines of a split row share the column extent: the one nearest x itself wins a tie.
+		const own = xDist(pl, x)
+		if (d < bd || (d === bd && own < bo)) {
 			bd = d
+			bo = own
 			best = pl
 		}
 	}
 	return { story: best.line.story, offset: nearestCaret(best, x) }
 }
 
-/** `frame` = select it; `text` = a text box's own text (place a caret); undefined = text below. */
-export type FrameHit = { kind: 'frame'; id: string } | { kind: 'text' } | undefined
+/** `frame` = select it; `text` = text box `id`'s own text (place a caret); undefined = text below. */
+export type FrameHit = { kind: 'frame' | 'text'; id: string } | undefined
 
 export interface FrameHitOptions {
 	/** Ctrl/Cmd held: any frame under the pointer, also under the text and text boxes. */
@@ -144,14 +158,22 @@ export interface FrameHitOptions {
 	current?: string
 	/** Edit layout: every item (text areas, master items) is selectable by a plain click. */
 	layout: boolean
+	/** Grab band around a text box's outline (Fx): there it is the box, not its text. */
+	edge?: number
 }
 
 /**
  * Hit order over `pageItems` (paint order): frames above the text (`z ≥ 0`) win over it,
- * except a text box's own text; a click on an image's wrap margin is outside its box (text).
+ * except a text box's own text away from its outline (`edge`); a click on an image's wrap
+ * margin is outside its box (text).
  */
 export function hitFrame(items: PageItem[], x: number, y: number, o: FrameHitOptions): FrameHit {
-	const stack = items.filter((it) => containsPoint(it, x, y)).reverse()
+	// The band shrinks on tiny boxes, so their middle still takes a caret.
+	const onEdge = (it: PageItem) =>
+		!!o.edge &&
+		it.frame?.t === 'txt' &&
+		Math.abs(edgeDist(it, x, y)) <= Math.min(o.edge, Math.min(it.w, it.h) / 4)
+	const stack = items.filter((it) => containsPoint(it, x, y) || onEdge(it)).reverse()
 	if (!stack.length) return
 	if (o.alt) {
 		const i = o.current ? stack.findIndex((it) => it.id === o.current) : -1
@@ -160,7 +182,7 @@ export function hitFrame(items: PageItem[], x: number, y: number, o: FrameHitOpt
 	if (o.mod || o.layout) return { kind: 'frame', id: stack[0].id }
 	const top = stack.find((it) => it.z >= 0)
 	if (!top) return
-	return top.frame?.t === 'txt' ? { kind: 'text' } : { kind: 'frame', id: top.id }
+	return { kind: top.frame?.t === 'txt' && !onEdge(top) ? 'text' : 'frame', id: top.id }
 }
 
 // vim: ts=4

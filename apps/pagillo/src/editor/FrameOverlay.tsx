@@ -4,14 +4,16 @@
 /**
  * The frame layer. `useFrames` wraps the editor's page pointer callback (frames are hit first)
  * and owns the frame selection: canvas-tools gizmos (move, resize with aspect lock — images
- * locked, Shift toggles — rotate), snapping (magenta lines, 4 px, Alt suspends), marquee in Edit
- * layout, hover cue and cursor, frame keys on a focused key target, image insert (inline at the
- * caret, else page-anchored), text boxes, the ghost-page bar, contextual rulers and Edit layout
- * (master items and drawn text areas, rest dimmed).
+ * locked, Shift toggles — rotate with 15° snap inside the arc's inner zone or on Shift),
+ * snapping (magenta lines, 4 px, Alt suspends), marquee in Edit layout, hover cue and cursor,
+ * frame keys on a focused key target, image insert (inline at the caret, else page-anchored),
+ * text boxes, the ghost-page bar, contextual rulers and Edit layout (master items and drawn text
+ * areas, rest dimmed).
  */
 
 import {
 	calculateResizeBounds,
+	getAngleFromCenter,
 	initResizeState,
 	type ResizeHandle,
 	type ResizeState,
@@ -20,7 +22,7 @@ import {
 } from '@cloudillo/canvas-tools'
 import { getAppBus } from '@cloudillo/core'
 import { Button, useFileImage } from '@cloudillo/react'
-import { FX, type Region } from '@cloudillo/typeset'
+import { FX, type Region, trackCount } from '@cloudillo/typeset'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { LuPin } from 'react-icons/lu'
@@ -61,6 +63,8 @@ import {
 	containsPoint,
 	flowRegions,
 	gridLines,
+	guideBoxes,
+	gutterEdges,
 	IMPLICIT_REGION,
 	marginBox,
 	type PageInfo,
@@ -68,6 +72,9 @@ import {
 	pageItems,
 	pageMaster,
 	readingOrder,
+	rotArcRadius,
+	rotateTo,
+	rotatedBounds,
 	type SnapLine,
 	snapAt,
 	snapBox,
@@ -186,6 +193,8 @@ interface Live {
 	lines?: SnapLine[]
 	rect?: Box
 	rotating?: boolean
+	snap?: boolean
+	guides?: boolean
 }
 
 export interface UseFramesOptions {
@@ -543,12 +552,20 @@ export function useFrames({
 	}
 
 	const insertTextBox = () => {
-		const page = targetPage()
+		// With a caret: on its page, under its line; else centred on the target page.
+		const pl =
+			es && !sel && !layoutEdit
+				? lineAt(editor.index.stories.get(es.story) ?? [], es.head)
+				: undefined
+		const page = pl?.page ?? targetPage()
 		const pg = info(page)
 		if (!pg) return
 		const mb = marginBox(doc, pg)
 		const w = Math.min(200 * FX, mb.w)
 		const h = 100 * FX
+		const y = pl
+			? Math.max(0, Math.min(pl.line.y + pl.line.descent, pg.h - h))
+			: mb.y + (mb.h - h) / 2
 		const id = layoutTx(() =>
 			addFrame(
 				yDoc,
@@ -556,7 +573,7 @@ export function useFrames({
 				{
 					t: 'txt',
 					anchor: { sec: pg.sec, page: pg.index },
-					...round({ x: mb.x + (mb.w - w) / 2, y: mb.y + (mb.h - h) / 2, w, h, rot: 0 }),
+					...round({ x: mb.x + (mb.w - w) / 2, y, w, h, rot: 0 }),
 					z: 1,
 					wrap: { mode: 'box', off: 6 * FX },
 					data: { story: '' }
@@ -604,7 +621,13 @@ export function useFrames({
 		const y = pl ? pl.line.y + pl.line.descent : mb.y
 		const id = inlineToFrame(yDoc, doc, story, offset, {
 			anchor: { sec: pg.sec, page: pg.index },
-			...round({ x: mb.x + (mb.w - w) / 2, y: Math.min(y, pg.h - h), w, h, rot: 0 })
+			...round({
+				x: mb.x + (mb.w - w) / 2,
+				y: Math.max(0, Math.min(y, pg.h - h)),
+				w,
+				h,
+				rot: 0
+			})
 		})
 		if (!id) return
 		select({ ids: [id], page })
@@ -637,35 +660,33 @@ export function useFrames({
 	}
 
 	/** Rotation runs on window listeners: canvas-tools' handle stops pointer propagation. */
-	const startRotate = (e: React.PointerEvent, page: number, it: PageItem) => {
+	const startRotate = (e: React.PointerEvent, page: number, it: PageItem, scale: number) => {
 		const svg = (e.target as SVGElement).ownerSVGElement
 		const pg = info(page)
 		if (!svg || !pg) return
-		const cx = it.x + it.w / 2
-		const cy = it.y + it.h / 2
+		const c = { x: it.x + it.w / 2, y: it.y + it.h / 2 }
+		const arc = rotArcRadius(it, scale)
 		const at = (ev: PointerEvent) => {
 			const r = svg.getBoundingClientRect()
-			const x = ((ev.clientX - r.left) / r.width) * pg.w
-			const y = ((ev.clientY - r.top) / r.height) * pg.h
-			return (Math.atan2(y - cy, x - cx) * 180) / Math.PI
+			return {
+				x: ((ev.clientX - r.left) / r.width) * pg.w,
+				y: ((ev.clientY - r.top) / r.height) * pg.h
+			}
 		}
-		const a0 = at(e.nativeEvent)
-		const rotOf = (ev: PointerEvent) => {
-			let rot = it.rot + at(ev) - a0
-			if (ev.shiftKey) rot = Math.round(rot / 15) * 15
-			return ((((rot + 180) % 360) + 360) % 360) - 180
+		const a0 = getAngleFromCenter(c, at(e.nativeEvent))
+		const rotOf = (ev: PointerEvent) => rotateTo(it, a0, at(ev), arc, ev.shiftKey)
+		const move = (ev: PointerEvent) => {
+			const { rot, snap } = rotOf(ev)
+			show({ page, rotating: true, snap, boxes: new Map([[it.id, { ...boxOf(it), rot }]]) })
 		}
-		const move = (ev: PointerEvent) =>
-			show({
-				page,
-				rotating: true,
-				boxes: new Map([[it.id, { ...boxOf(it), rot: rotOf(ev) }]])
-			})
 		const up = (ev: PointerEvent) => {
 			window.removeEventListener('pointermove', move)
 			window.removeEventListener('pointercancel', cancel)
 			show(undefined)
-			commit(page, new Map([[it.id, { ...boxOf(it), rot: Math.round(rotOf(ev) * 10) / 10 }]]))
+			commit(
+				page,
+				new Map([[it.id, { ...boxOf(it), rot: Math.round(rotOf(ev).rot * 10) / 10 }]])
+			)
 		}
 		const cancel = () => {
 			window.removeEventListener('pointermove', move)
@@ -676,6 +697,9 @@ export function useFrames({
 		window.addEventListener('pointerup', up, { once: true })
 		window.addEventListener('pointercancel', cancel, { once: true })
 	}
+
+	/** A text box's outline grab band: 6 CSS px in page Fx. */
+	const grab = (hit: PageHit) => (6 / (hit.scale ?? 1)) * FX
 
 	const onPointer = (type: 'down' | 'move' | 'up', hit: PageHit, e: React.PointerEvent) => {
 		const d = drag.current
@@ -741,7 +765,8 @@ export function useFrames({
 				mod,
 				alt: e.altKey,
 				current: sel?.ids[0],
-				layout: !!layoutEdit
+				layout: !!layoutEdit,
+				edge: grab(hit)
 			})
 			if (h?.kind === 'frame') {
 				// A double-click on an image frame enters crop mode.
@@ -827,7 +852,7 @@ export function useFrames({
 				let lines: SnapLine[] = []
 				const pg = info(d.page)
 				if (view.snap && !e.altKey && pg) {
-					const bs = [...shift(dx, dy).values()]
+					const bs = [...shift(dx, dy).values()].map(rotatedBounds)
 					const x = Math.min(...bs.map((b) => b.x))
 					const y = Math.min(...bs.map((b) => b.y))
 					const bb = {
@@ -846,7 +871,12 @@ export function useFrames({
 					dy += s.dy
 					lines = s.lines
 				}
-				show({ page: d.page, boxes: shift(dx, dy), lines })
+				show({
+					page: d.page,
+					boxes: shift(dx, dy),
+					lines,
+					guides: view.snap && !e.altKey
+				})
 			} else if (d.k === 'resize') {
 				// Only text areas snap while resizing (unrotated); frames resize freely.
 				const b = calculateResizeBounds(
@@ -964,18 +994,18 @@ export function useFrames({
 		const h = hitFrame(items(hit.index), hit.x, hit.y, {
 			mod: false,
 			alt: false,
-			layout: !!layoutEdit
+			layout: !!layoutEdit,
+			edge: grab(hit)
 		})
 		const im =
 			!h && canEdit && !layoutEdit
 				? inlineImages(hit.index).find((m) => containsPoint(m.box, hit.x, hit.y))
 				: undefined
-		const next =
-			h?.kind === 'frame'
-				? { page: hit.index, id: h.id }
-				: im
-					? { page: hit.index, bid: im.bid }
-					: undefined
+		const next = h
+			? { page: hit.index, id: h.id }
+			: im
+				? { page: hit.index, bid: im.bid }
+				: undefined
 		el.style.cursor =
 			h?.kind === 'frame'
 				? 'move'
@@ -1138,7 +1168,7 @@ export function useFrames({
 		)
 		if (!a) return
 		const r = a as Partial<Region>
-		const cols = Math.max(1, r.cols ?? 1)
+		const cols = trackCount(r.cols)
 		const gut = r.gutter ?? 0
 		const cw = (a.w - (cols - 1) * gut) / cols
 		const n = Math.max(0, Math.min(cols - 1, Math.floor((l.x - a.x) / (cw + gut))))
@@ -1184,6 +1214,8 @@ export function useFrames({
 		const colsOf = (id: string) =>
 			id === IMPLICIT_REGION ? (mb?.cols ?? 1) : (flow.find((r) => r.id === id)?.cols ?? 1)
 		const grid = lay && view.guides ? gridLines(doc, pg) : undefined
+		// Snap guides while moving: `guideBoxes`, as `snapTargets` snaps to.
+		const sg = L?.guides && !layoutEdit ? guideBoxes(doc, pg) : []
 		const regionBox = new Map(
 			its.filter((it) => it.kind === 'region').map((it) => [it.id, bx(it)])
 		)
@@ -1270,6 +1302,7 @@ export function useFrames({
 							/>
 						</g>
 					)}
+					{sg.length > 0 && <SnapGuides boxes={sg} k={k} px={px} />}
 					{thread.map((pts) => (
 						<polyline
 							key={pts}
@@ -1286,9 +1319,33 @@ export function useFrames({
 							it.frame?.t === 'img' ? (it.frame.data as StoredImageData) : undefined
 						const isSel = selected.includes(it)
 						const isHover = hv?.id === it.id
+						// The text box holding the caret keeps its outline while typing.
+						const typing =
+							it.frame?.t === 'txt' &&
+							(it.frame.data as StoredTextFrameData).story === es?.story
+						// An empty text box (just its paragraph mark) would be invisible: always outline it.
+						const blank =
+							editable &&
+							it.frame?.t === 'txt' &&
+							(doc.tx.get((it.frame.data as StoredTextFrameData).story)?.length ??
+								0) <= 1
+						const cue = !(isSel || isHover || typing || layoutEdit)
 						return (
 							<g key={it.id} transform={turn(b)}>
-								{(isSel || isHover || layoutEdit) && (
+								{blank && cue && (
+									<rect
+										x={b.x * k}
+										y={b.y * k}
+										width={b.w * k}
+										height={b.h * k}
+										fill="none"
+										stroke="var(--col-on-container, #888)"
+										strokeOpacity={0.4}
+										strokeDasharray={`${4 * px} ${3 * px}`}
+										strokeWidth={px}
+									/>
+								)}
+								{!cue && (
 									<rect
 										x={b.x * k}
 										y={b.y * k}
@@ -1296,7 +1353,7 @@ export function useFrames({
 										height={b.h * k}
 										fill="none"
 										stroke={
-											it.kind === 'region' || (isHover && !isSel)
+											it.kind === 'region' || (isHover && !isSel && !typing)
 												? 'var(--col-accent, #0a7)'
 												: 'var(--col-primary, #06f)'
 										}
@@ -1458,7 +1515,8 @@ export function useFrames({
 								rotation={ob.rot}
 								scale={scale}
 								isRotating={!!L?.rotating}
-								onRotateStart={(e) => startRotate(e, i, one)}
+								isSnapActive={!!L?.snap}
+								onRotateStart={(e) => startRotate(e, i, one, scale)}
 							/>
 						</g>
 					)}
@@ -1600,6 +1658,41 @@ export function useFrames({
 		startCrop,
 		endCrop
 	}
+}
+
+/** Snap guides while moving: dashed region boxes and their column gutters. */
+function SnapGuides({ boxes, k, px }: { boxes: Region[]; k: number; px: number }) {
+	return (
+		<g stroke="var(--col-primary, #06f)" strokeWidth={px} fill="none" opacity={0.35}>
+			{boxes.map((b) => {
+				const e = gutterEdges(b.x, b.w, b.cols, b.gutter)
+				return (
+					<g key={b.id}>
+						<rect
+							x={b.x * k}
+							y={b.y * k}
+							width={b.w * k}
+							height={b.h * k}
+							strokeDasharray={`${4 * px} ${3 * px}`}
+						/>
+						{e.map((x, n) =>
+							n % 2 ? null : (
+								<rect
+									key={x}
+									x={x * k}
+									y={b.y * k}
+									width={(e[n + 1] - x) * k}
+									height={b.h * k}
+									fill="var(--col-primary, #06f)"
+									fillOpacity={0.15}
+								/>
+							)
+						)}
+					</g>
+				)
+			})}
+		</g>
+	)
 }
 
 /** Frame types as the UI names them. */

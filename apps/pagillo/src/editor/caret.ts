@@ -134,13 +134,32 @@ export function nearestCaret(pl: PlacedLine, x: number): number {
 	return pl.from + best
 }
 
-/** Up/down one line (across columns and pages) keeping goal x. */
+/** Horizontal distance from `x` to the line's caret span; 0 inside it. */
+export const xDist = (l: PlacedLine, x: number) => {
+	const c = l.line.carets
+	return Math.max(0, c[0] - x, x - c[c.length - 1])
+}
+
+/** Both lines are segments of one row (a row split around a frame). */
+export const sameRow = (a: PlacedLine, b: PlacedLine) =>
+	a.page === b.page && a.line.bid === b.line.bid && a.line.row === b.line.row
+
+/**
+ * Up/down one line row (across columns and pages) keeping goal x. A row wrapped around a frame
+ * holds several lines sharing a baseline; the one spanning goal x (else the nearest) is taken.
+ */
 export function lineMove(lines: PlacedLine[], off: number, dir: -1 | 1, goalX: number): number {
 	const pl = lineAt(lines, off)
 	if (!pl) return off
-	const next = lines[lines.indexOf(pl) + dir]
+	let i = lines.indexOf(pl)
+	while (lines[i] && sameRow(lines[i], pl)) i += dir
+	const next = lines[i]
 	if (!next) return dir < 0 ? lines[0].from : lines[lines.length - 1].to
-	return nearestCaret(next, goalX)
+	let best = next
+	for (let k = i; lines[k] && sameRow(lines[k], next); k += dir) {
+		if (xDist(lines[k], goalX) < xDist(best, goalX)) best = lines[k]
+	}
+	return nearestCaret(best, goalX)
 }
 
 /** Page up/down: the story's line on the next page nearest the same baseline, at goal x. */
@@ -155,8 +174,10 @@ export function pageMove(lines: PlacedLine[], off: number, dir: -1 | 1, goalX: n
 		cand = beyond.filter((l) => l.page === page)
 	}
 	let best = cand[0]
-	for (const l of cand)
-		if (Math.abs(l.line.y - pl.line.y) < Math.abs(best.line.y - pl.line.y)) best = l
+	for (const l of cand) {
+		const d = Math.abs(l.line.y - pl.line.y) - Math.abs(best.line.y - pl.line.y)
+		if (d < 0 || (d === 0 && xDist(l, goalX) < xDist(best, goalX))) best = l
+	}
 	return nearestCaret(best, goalX)
 }
 

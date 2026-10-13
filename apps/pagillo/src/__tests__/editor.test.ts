@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { isInSnapZone } from '@cloudillo/canvas-tools'
+import { FX, MAX_COLS } from '@cloudillo/typeset'
 import * as Y from 'yjs'
 
 import { openPublication } from '../crdt/document.js'
@@ -13,7 +15,16 @@ import {
 } from '../crdt/frame-ops.js'
 import { type GeomIndex, mapOffset, type PlacedLine } from '../editor/caret.js'
 import { sliceDelta } from '../editor/clipboard.js'
-import { containsPoint } from '../editor/frames.js'
+import {
+	containsPoint,
+	gutterEdges,
+	type PageInfo,
+	type PageItem,
+	rotArcRadius,
+	rotatedBounds,
+	rotateTo,
+	snapTargets
+} from '../editor/frames.js'
 import { hitText, type TextArea } from '../editor/hit-test.js'
 import { deleteRange, insertText } from '../editor/text-edit.js'
 
@@ -40,11 +51,100 @@ describe('sliceDelta', () => {
 	})
 })
 
+describe('rotArcRadius', () => {
+	it('puts the rotate snap zone inside the drawn arc', () => {
+		const fr = { x: 100 * FX, y: 50 * FX, w: 80 * FX, h: 40 * FX }
+		const r = rotArcRadius(fr, 1)
+		const c = { x: fr.x + fr.w / 2, y: fr.y + fr.h / 2 }
+		expect(r).toBeGreaterThan(0)
+		expect(isInSnapZone({ x: c.x + 0.5 * r, y: c.y }, c, r)).toBe(true)
+		expect(isInSnapZone({ x: c.x + 1.5 * r, y: c.y }, c, r)).toBe(false)
+	})
+})
+
 describe('containsPoint', () => {
 	it('honours rotation', () => {
 		const box = { x: 0, y: 0, w: 100, h: 10, rot: 90 }
 		expect(containsPoint(box, 50, 40)).toBe(true)
 		expect(containsPoint(box, 5, 5)).toBe(false)
+	})
+})
+
+describe('rotatedBounds', () => {
+	it('keeps an unrotated box', () => {
+		const box = { x: 1, y: 2, w: 3, h: 4, rot: 0 }
+		expect(rotatedBounds(box)).toEqual(box)
+	})
+
+	it('swaps extents at 90°', () => {
+		const r = rotatedBounds({ x: 0, y: 0, w: 100, h: 20, rot: 90 })
+		expect(r.x).toBeCloseTo(40)
+		expect(r.y).toBeCloseTo(-40)
+		expect(r.w).toBeCloseTo(20)
+		expect(r.h).toBeCloseTo(100)
+	})
+
+	it('centres on the floored centre for an odd size', () => {
+		const r = rotatedBounds({ x: 0, y: 0, w: 101, h: 20, rot: 90 })
+		expect(r.x).toBeCloseTo(40)
+		expect(r.y).toBeCloseTo(-40.5)
+	})
+
+	it('ignores a non-finite rotation', () => {
+		const box = { x: 1, y: 2, w: 3, h: 4, rot: Infinity }
+		expect(rotatedBounds(box)).toEqual(box)
+	})
+})
+
+describe('rotateTo', () => {
+	const it0 = { x: 0, y: 0, w: 100 * FX, h: 100 * FX, rot: 0 }
+	const c = { x: 50 * FX, y: 50 * FX }
+	const arc = rotArcRadius(it0, 1)
+	/** Point at `deg` (screen angle, as getAngleFromCenter) and distance `d` from the centre. */
+	const at = (deg: number, d: number) => {
+		const a = (deg * Math.PI) / 180
+		return { x: c.x + d * Math.cos(a), y: c.y + d * Math.sin(a) }
+	}
+	const far = 3 * arc
+
+	it('passes the raw angle through away from the arc', () => {
+		const r = rotateTo(it0, 0, at(37, far), arc, false)
+		expect(r.snap).toBe(false)
+		expect(r.rot).toBeCloseTo(37)
+	})
+
+	it('snaps to 15° on shift', () => {
+		expect(rotateTo(it0, 0, at(37, far), arc, true)).toEqual({ rot: 30, snap: true })
+	})
+
+	it('snaps inside the snap zone', () => {
+		const p = at(37, 0.5 * arc)
+		expect(isInSnapZone(p, c, arc)).toBe(true)
+		expect(rotateTo(it0, 0, p, arc, false).rot).toBeCloseTo(30)
+	})
+
+	it('wraps to (−180, 180]', () => {
+		expect(rotateTo({ ...it0, rot: 170 }, 0, at(30, far), arc, false).rot).toBeCloseTo(-160)
+		expect(rotateTo({ ...it0, rot: 150 }, 0, at(30, far), arc, true).rot).toBe(180)
+	})
+})
+
+describe('gutterEdges', () => {
+	it('clamps peer-controlled track counts', () => {
+		expect(gutterEdges(0, 1000, 1e9, 0)).toHaveLength(2 * (MAX_COLS - 1))
+		expect(gutterEdges(0, 1000, Number.NaN, 0)).toEqual([])
+	})
+})
+
+describe('snapTargets', () => {
+	it('uses the rotated bounds of an item', () => {
+		const doc = openPublication(new Y.Doc())
+		const page: PageInfo = { sec: 's', index: 0, w: 600 * FX, h: 800 * FX, master: 'm' }
+		const item = { id: 'a', kind: 'frame', z: 0, x: 1000, y: 0, w: 100, h: 20, rot: 90 }
+		const { xs } = snapTargets(doc, page, [item as PageItem], new Set())
+		const has = (v: number) => xs.some((x) => Math.abs(x - v) < 1e-6)
+		expect(has(1040) && has(1060)).toBe(true)
+		expect(has(1000) || has(1100)).toBe(false)
 	})
 })
 
@@ -169,6 +269,8 @@ describe('hitText with text areas (UX-22)', () => {
 	const L = (story: string, y: number, w: number, from: number, page = 0): PlacedLine => ({
 		line: {
 			story,
+			bid: story,
+			row: y,
 			x: 0,
 			y,
 			ascent: 8,
@@ -211,5 +313,58 @@ describe('hitText with text areas (UX-22)', () => {
 		expect(hitText(idx(), 0, 80, 58, undefined, areas)).toEqual({ story: 's', offset: 32 })
 		const more = [L('s', 10, 100, 33, 1)]
 		expect(hitText(idx(more), 0, 80, 58, undefined, areas)).toEqual({ story: 's', offset: 30 })
+	})
+})
+
+describe('hitText on a split row', () => {
+	/** A line of 10 clusters, `step` wide each, starting at `x`. */
+	const L = (x: number, y: number, from: number, step = 10): PlacedLine => ({
+		line: {
+			story: 's',
+			bid: 's',
+			row: y,
+			x,
+			y,
+			ascent: 8,
+			descent: 2,
+			carets: Array.from({ length: 11 }, (_, i) => x + i * step)
+		} as unknown as PlacedLine['line'],
+		page: 0,
+		from,
+		to: from + 10
+	})
+	const idx = (lines: PlacedLine[]): GeomIndex => ({
+		stories: new Map([['s', lines]]),
+		pages: new Map([[0, lines]])
+	})
+
+	it('a click right of the frame hits the right line', () => {
+		const lines = [L(0, 10, 0, 30), L(0, 30, 10), L(200, 30, 20), L(0, 50, 30, 30)]
+		expect(hitText(idx(lines), 0, 250, 30)).toEqual({ story: 's', offset: 25 })
+		expect(hitText(idx(lines), 0, 50, 30)).toEqual({ story: 's', offset: 15 })
+	})
+
+	it('below a story ending in a split row goes to the story end', () => {
+		const lines = [L(0, 10, 0), L(0, 30, 10), L(200, 30, 20)]
+		const areas: TextArea[] = [{ x: 0, y: 0, w: 300, h: 60 }]
+		expect(hitText(idx(lines), 0, 80, 50, undefined, areas)).toEqual({ story: 's', offset: 30 })
+	})
+
+	it('below a story sharing its last baseline with another story goes to its end', () => {
+		const s = [L(0, 10, 0), L(0, 30, 10)]
+		const t0 = { ...L(200, 30, 0), line: { ...L(200, 30, 0).line, story: 't', bid: 't' } }
+		const t1 = { ...t0, page: 1, from: 10, to: 20 }
+		const index: GeomIndex = {
+			stories: new Map([
+				['s', s],
+				['t', [t0, t1]]
+			]),
+			pages: new Map([
+				[0, [...s, t0]],
+				[1, [t1]]
+			])
+		}
+		const areas: TextArea[] = [{ x: 0, y: 0, w: 300, h: 60 }]
+		expect(hitText(index, 0, 50, 50, undefined, areas)).toEqual({ story: 's', offset: 20 })
 	})
 })

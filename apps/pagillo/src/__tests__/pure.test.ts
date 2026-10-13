@@ -18,7 +18,8 @@ import {
 	readMeta,
 	resolveSide
 } from '../crdt/type-converters.js'
-import { type PageInfo, snapAt, snapTargets } from '../editor/frames.js'
+import { type PageInfo, type PageItem, snapAt, snapTargets } from '../editor/frames.js'
+import { hitFrame } from '../editor/hit-test.js'
 import { parseLength } from '../ui/LengthInput.js'
 
 const area = (id: string, x: number, y: number, w: number, h: number) => ({
@@ -259,5 +260,36 @@ describe('snapping', () => {
 	it('snapAt picks the nearest target within the threshold', () => {
 		expect(snapAt(10, [0, 12, 30], 4)).toBe(12)
 		expect(snapAt(10, [0, 30], 4)).toBeUndefined()
+	})
+})
+
+describe('hitFrame', () => {
+	const box = {
+		id: 'tb',
+		kind: 'frame',
+		x: 100,
+		y: 100,
+		w: 200,
+		h: 100,
+		rot: 0,
+		z: 1,
+		master: false,
+		frame: { t: 'txt' }
+	} as unknown as PageItem
+	const o = { mod: false, alt: false, layout: false, edge: 6 }
+
+	it('places the caret inside a text box but grabs it on its outline', () => {
+		expect(hitFrame([box], 200, 150, o)).toEqual({ kind: 'text', id: 'tb' })
+		expect(hitFrame([box], 103, 150, o)).toEqual({ kind: 'frame', id: 'tb' })
+		expect(hitFrame([box], 96, 150, o)).toEqual({ kind: 'frame', id: 'tb' })
+		expect(hitFrame([box], 90, 150, o)).toBeUndefined()
+		expect(hitFrame([box], 103, 150, { ...o, edge: undefined })?.kind).toBe('text')
+	})
+
+	it('shrinks the grab band on a tiny text box, so its middle takes a caret', () => {
+		const tiny = { ...box, w: 10, h: 10 } as PageItem
+		const e = { ...o, edge: 12 }
+		expect(hitFrame([tiny], 105, 105, e)).toEqual({ kind: 'text', id: 'tb' })
+		expect(hitFrame([tiny], 101, 105, e)).toEqual({ kind: 'frame', id: 'tb' })
 	})
 })

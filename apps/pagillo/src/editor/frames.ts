@@ -7,7 +7,15 @@
  * move snapping to margins, columns, frames and the page centre.
  */
 
-import { FX, marginRegion, type PageDL, type Region } from '@cloudillo/typeset'
+import {
+	calculateArcRadius,
+	DEFAULT_SNAP_ANGLES,
+	getAngleFromCenter,
+	isInSnapZone,
+	normalizeAngle,
+	snapAngle
+} from '@cloudillo/canvas-tools'
+import { FX, marginRegion, type PageDL, type Region, trackCount } from '@cloudillo/typeset'
 
 import type { StoredFrame, StoredMaster, YPagilloDocument } from '../crdt/stored-types'
 import {
@@ -110,16 +118,22 @@ export function marginBox(doc: YPagilloDocument, page: PageInfo): Region {
 export function gridLines(doc: YPagilloDocument, page: PageInfo): { xs: number[]; ys: number[] } {
 	const b = marginBox(doc, page)
 	const m = doc.ms.get(page.master)
-	const edges = (start: number, len: number, n: number, gap: number) => {
-		const out: number[] = []
-		const cw = (len - (n - 1) * gap) / n
-		for (let c = 1; c < n; c++) out.push(start + c * (cw + gap) - gap, start + c * (cw + gap))
-		return out
-	}
 	return {
-		xs: edges(b.x, b.w, Math.max(1, b.cols), b.gutter),
-		ys: edges(b.y, b.h, Math.max(1, m?.rows ?? 1), m?.rowGutter ?? b.gutter)
+		xs: gutterEdges(b.x, b.w, b.cols, b.gutter),
+		ys: gutterEdges(b.y, b.h, m?.rows ?? 1, m?.rowGutter ?? b.gutter)
 	}
+}
+
+/**
+ * Gutter edges in pairs (start, end) of `len` from `start` split into `n` tracks `gap` apart
+ * (`n` clamped by `trackCount`).
+ */
+export function gutterEdges(start: number, len: number, tracks: number, gap: number): number[] {
+	const n = trackCount(tracks)
+	const out: number[] = []
+	const cw = (len - (n - 1) * gap) / n
+	for (let c = 1; c < n; c++) out.push(start + c * (cw + gap) - gap, start + c * (cw + gap))
+	return out
 }
 
 /**
@@ -207,14 +221,65 @@ export function pageItems(
 
 export const boxOf = (it: Box): Box => ({ x: it.x, y: it.y, w: it.w, h: it.h, rot: it.rot })
 
+/** Axis-aligned bounds of the box rotated `rot`° about the renderer's centre `(x + ⌊w/2⌋, y + ⌊h/2⌋)`. */
+export function rotatedBounds(b: Box): Box {
+	if (!b.rot || !Number.isFinite(b.rot)) return b
+	const a = (b.rot * Math.PI) / 180
+	const c = Math.abs(Math.cos(a))
+	const s = Math.abs(Math.sin(a))
+	const w = b.w * c + b.h * s
+	const h = b.w * s + b.h * c
+	const cx = b.x + Math.floor(b.w / 2)
+	const cy = b.y + Math.floor(b.h / 2)
+	return { x: cx - w / 2, y: cy - h / 2, w, h, rot: 0 }
+}
+
+/** Rotation arc radius in page units, as RotationHandle draws it in overlay units (page / FX). */
+export function rotArcRadius(
+	it: { x: number; y: number; w: number; h: number },
+	scale: number
+): number {
+	return (
+		calculateArcRadius({
+			bounds: { x: it.x / FX, y: it.y / FX, width: it.w / FX, height: it.h / FX },
+			scale
+		}) * FX
+	)
+}
+
+/**
+ * Rotation for pointer `p` dragged from start angle `a0` (deg); snaps to 15° in the arc's
+ * inner zone or on `shift`; result in (−180, 180].
+ */
+export function rotateTo(
+	it: Box,
+	a0: number,
+	p: { x: number; y: number },
+	arc: number,
+	shift: boolean
+): { rot: number; snap: boolean } {
+	const c = { x: it.x + it.w / 2, y: it.y + it.h / 2 }
+	const snap = shift || isInSnapZone(p, c, arc)
+	const raw = it.rot + getAngleFromCenter(c, p) - a0
+	// threshold 180: any angle, so it always snaps to the nearest
+	const rot = snap ? snapAngle(raw, DEFAULT_SNAP_ANGLES, 180).angle : raw
+	const r = normalizeAngle(rot)
+	return { rot: r > 180 ? r - 360 : r, snap }
+}
+
 /** Point inside the (rotated) box. */
 export function containsPoint(it: Box, x: number, y: number): boolean {
+	return edgeDist(it, x, y) <= 0
+}
+
+/** Distance of the point to the (rotated) box's outline: negative inside, positive outside. */
+export function edgeDist(it: Box, x: number, y: number): number {
 	const a = (-it.rot * Math.PI) / 180
 	const dx = x - (it.x + it.w / 2)
 	const dy = y - (it.y + it.h / 2)
 	const lx = dx * Math.cos(a) - dy * Math.sin(a)
 	const ly = dx * Math.sin(a) + dy * Math.cos(a)
-	return Math.abs(lx) <= it.w / 2 && Math.abs(ly) <= it.h / 2
+	return Math.max(Math.abs(lx) - it.w / 2, Math.abs(ly) - it.h / 2)
 }
 
 type Rect = Pick<Box, 'x' | 'y' | 'w' | 'h'>
@@ -253,21 +318,26 @@ export function snapTargets(
 	const g = grid ? gridLines(doc, page) : { xs: [], ys: [] }
 	const xs = [page.w / 2, ...g.xs]
 	const ys = [page.h / 2, ...g.ys]
-	for (const b of [marginBox(doc, page), ...flowBoxes(doc, page)]) {
+	for (const b of guideBoxes(doc, page)) {
 		if (exclude.has(b.id)) continue
 		xs.push(b.x, b.x + b.w)
 		ys.push(b.y, b.y + b.h)
-		const cols = Math.max(1, b.cols)
-		const cw = (b.w - (cols - 1) * b.gutter) / cols
-		for (let c = 1; c < cols; c++)
-			xs.push(b.x + c * (cw + b.gutter) - b.gutter, b.x + c * (cw + b.gutter))
+		xs.push(...gutterEdges(b.x, b.w, b.cols, b.gutter))
 	}
 	for (const it of items) {
 		if (exclude.has(it.id)) continue
-		xs.push(it.x, it.x + it.w / 2, it.x + it.w)
-		ys.push(it.y, it.y + it.h / 2, it.y + it.h)
+		const r = rotatedBounds(it)
+		xs.push(r.x, r.x + r.w / 2, r.x + r.w)
+		ys.push(r.y, r.y + r.h / 2, r.y + r.h)
 	}
 	return { xs, ys }
+}
+
+/** Snap guide boxes of a page: the margin box and the flow boxes, deduped by id. */
+export function guideBoxes(doc: YPagilloDocument, page: PageInfo): Region[] {
+	return [
+		...new Map([marginBox(doc, page), ...flowBoxes(doc, page)].map((b) => [b.id, b])).values()
+	]
 }
 
 /** The target in `ts` nearest to `v` within `thr`, if any. */

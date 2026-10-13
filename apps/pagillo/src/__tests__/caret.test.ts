@@ -8,6 +8,9 @@ import { openPublication } from '../crdt/document.js'
 import {
 	charMove,
 	indexGeom,
+	lineMove,
+	pageMove,
+	type PlacedLine,
 	paragraphAt,
 	paragraphMove,
 	wordAt,
@@ -79,6 +82,7 @@ describe('indexGeom', () => {
 			bid,
 			from,
 			to,
+			row: 0,
 			x: 0,
 			y: 0,
 			ascent: 0,
@@ -109,6 +113,68 @@ describe('indexGeom', () => {
 			[11, 13]
 		])
 		expect(index.pages.get(0)).toHaveLength(5)
+	})
+})
+
+describe('lineMove', () => {
+	/** A line of clusters 10 wide, x from `x`, offsets [from, to). */
+	const line = (x: number, y: number, from: number, to: number, bid = 'p'): PlacedLine => ({
+		line: {
+			story: 'main',
+			bid,
+			from,
+			to,
+			// One row per baseline in these fixtures.
+			row: y,
+			x,
+			y,
+			ascent: 8,
+			descent: 2,
+			carets: Int32Array.from({ length: to - from + 1 }, (_, i) => x + i * 10)
+		},
+		page: 0,
+		from,
+		to
+	})
+	// Row A full width, row B split around a frame (x 100..200), row C full width.
+	const lines = [
+		line(0, 10, 0, 30),
+		line(0, 20, 30, 40),
+		line(200, 20, 40, 50),
+		line(0, 30, 50, 80)
+	]
+
+	it('moves into the split row line spanning goal x', () => {
+		expect(lineMove(lines, 5, 1, 250)).toBe(45)
+	})
+
+	it('leaves a split row as a whole', () => {
+		expect(lineMove(lines, 35, 1, 50)).toBe(55)
+		expect(lineMove(lines, 55, -1, 50)).toBe(35)
+	})
+
+	it('moves up into the split row line nearest goal x', () => {
+		expect(lineMove(lines, 52, -1, 20)).toBe(32)
+		expect(lineMove(lines, 75, -1, 250)).toBe(45)
+	})
+
+	it('goes to the end below the last row', () => {
+		expect(lineMove(lines, 55, 1, 50)).toBe(80)
+	})
+
+	it('keeps lines of different paragraphs on one baseline as separate rows', () => {
+		// Two columns: paragraph p ends where paragraph q starts, on the same baseline.
+		const cols = [line(0, 10, 0, 30), line(200, 10, 30, 40, 'q'), line(200, 20, 40, 50, 'q')]
+		expect(lineMove(cols, 5, 1, 250)).toBe(35)
+	})
+
+	it('pages into the split row line spanning goal x', () => {
+		const paged = [
+			line(0, 20, 0, 30),
+			{ ...line(0, 20, 30, 40), page: 1 },
+			{ ...line(200, 20, 40, 50), page: 1 }
+		]
+		expect(pageMove(paged, 5, 1, 250)).toBe(45)
 	})
 })
 

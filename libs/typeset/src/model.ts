@@ -164,8 +164,9 @@ export interface ShapeFrameData {
 }
 
 /**
- * A page-anchored frame (page space). `wrap` excludes its box grown by `off` from the story's
- * lines: `box` = lines take the widest free part of the column, `tb` = the whole band is skipped.
+ * A page-anchored frame (page space). `wrap` excludes its outline (box, rotated box or ellipse)
+ * grown by `off` from the story's lines: `box` = lines take every free part of the column (≥ 2 em),
+ * `tb` = the whole band is skipped.
  */
 export interface Frame {
 	id: string
@@ -176,7 +177,7 @@ export interface Frame {
 	y: Fx
 	w: Fx
 	h: Fx
-	/** Degrees clockwise about the box centre; applied only as a render transform (wrap ignores it). */
+	/** Degrees clockwise about the box centre; the render transform, and wrap follows it. */
 	rot: number
 	/** Paint order on the page; `z < 0` paints below the story text, `z >= 0` above it. */
 	z: number

@@ -96,6 +96,8 @@ export interface LineGeom {
 	 */
 	from: number
 	to: number
+	/** Row index in paragraph `bid`; lines of a row wrapped around a frame share it (and `y`). */
+	row: number
 	x: Fx
 	/** Baseline. */
 	y: Fx

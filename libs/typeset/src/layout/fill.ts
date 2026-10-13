@@ -5,7 +5,7 @@ import type { LineGeom, PageDL, TagRole } from '../display-list.js'
 import type { Fx } from '../fixed.js'
 import type { Box, Story } from '../model.js'
 import type { ItemizedParagraph, ItemizeEnv } from '../text/itemize.js'
-import { type Exclusion, freeSpan, nextFreeTop, type Span } from './exclusions.js'
+import { type Exclusion, freeSpan, freeSpans, nextFreeTop, type Span } from './exclusions.js'
 import { emitLine, layoutParagraph, layoutParagraphAt } from './paragraph.js'
 
 /** One column to fill: the page it lies on and its rectangle in page space. */
@@ -19,6 +19,12 @@ export interface FlowSlot {
 /** Narrowest usable free width beside a frame, in em of the paragraph (plus its indents). */
 // Fixed 2 em; make it a paragraph prop if designers want slivers kept or dropped.
 const WRAP_MIN_EM = 2
+// ponytail: fixed ceilings on wrap re-layout passes, per band growth (ITER) and per paragraph
+// (PASS); past either the band jumps to a bound no row can exceed, so text may sit lower beside a
+// frame than needed but never overlaps it. Raise them if real documents hit them (constants, so
+// layout stays deterministic).
+const WRAP_ITER_MAX = 16
+const WRAP_PASS_MAX = 64
 
 /**
  * Flow the story's itemized paragraphs (`paras[i]` ↔ `story.paragraphs[i]`) through the columns
@@ -29,8 +35,10 @@ const WRAP_MIN_EM = 2
  * anyway at the column top. Space before is dropped at a column top. When a paragraph continues
  * into a column of another width, it is re-broken from that line on (the lines before it are
  * unchanged: greedy breaking only looks back).
- * Wrap: each line takes the widest free interval of its column across its band (`slot.ex`); a
- * band with less than `WRAP_MIN_EM` free moves down past the frames in the way.
+ * Wrap: a line row takes every free interval of at least `WRAP_MIN_EM` of its column across its
+ * band (`slot.ex`), one line each, left to right; a band with less than `WRAP_MIN_EM` free moves
+ * down past the frames in the way.
+ * Orphans and widows count rows.
  * Paragraph rules: `breakBefore` starts a new column/page (not at the top of one already);
  * `keepTogether` and `orphans` move a paragraph that would split badly whole to the next column,
  * and `widows` breaks it earlier — all within the paragraph, never re-placing an earlier one.
@@ -176,27 +184,69 @@ export function fillFlow(
 		let fresh = y === 0
 		if (!fresh) y += st.spaceBefore
 		let pl = layoutParagraphAt(ip, env, slot.col.w)
-		// Wrap band of every line: the tallest line at the column width.
-		// A taller line after re-breaking (mixed sizes) may graze a frame by the difference.
+		// Wrap band of every line: the tallest line at the column width. Each placement segment
+		// keeps its own band; a taller row after re-breaking (mixed sizes) grows only the last
+		// segment's (`wrapLayout`), so rows already placed keep their widths.
 		let band: Fx = 0
 		for (const l of pl.lines) band = Math.max(band, l.height)
 		/**
 		 * Line placement by line top relative to the paragraph's first line; the last entry with
 		 * `rel` ≤ the line's wins: the line at `rel` lies in `col` with its top at page y `top`.
 		 */
-		const segs: { rel: Fx; col: Box; ex: Exclusion[]; top: Fx }[] = [
-			{ rel: 0, col: slot.col, ex: slot.ex ?? [], top: slot.col.y + y }
+		const segs: { rel: Fx; col: Box; ex: Exclusion[]; top: Fx; band: Fx }[] = [
+			{ rel: 0, col: slot.col, ex: slot.ex ?? [], top: slot.col.y + y, band }
 		]
-		const spanAt = (ry: Fx): Span => {
+		const spansAt = (ry: Fx): Span[] => {
 			let s = segs[0]
 			for (const g of segs) {
 				if (ry >= g.rel) s = g
 			}
 			const t = s.top + ry - s.rel
-			return s.ex.length ? freeSpan(s.col, s.ex, t, t + band) : { x: s.col.x, w: s.col.w }
+			if (!s.ex.length) return [{ x: s.col.x, w: s.col.w }]
+			const sp = freeSpans(s.col, s.ex, t, t + s.band, Math.min(minW, s.col.w))
+			return sp.length ? sp : [{ x: s.col.x, w: 0 }]
 		}
-		const widthAt = (ry: Fx): Fx => spanAt(ry).w
-		if (slot.ex?.length) pl = layoutParagraph(ip, env, widthAt)
+		const widthAt = (ry: Fx): Fx[] => spansAt(ry).map((s) => s.w)
+		/** Wrap layout passes left for this paragraph. */
+		let passes = WRAP_PASS_MAX
+		/** Upper bound on any row height (one cluster per line), once needed. */
+		let bound: Fx | undefined
+		/**
+		 * Lay out against the wrap; grow the last segment's band until every row in its span fits it
+		 * (rows only get taller). A NaN or repeated infinite height stops the loop; no convergence
+		 * within the pass limits takes the `bound` band.
+		 */
+		const wrapLayout = () => {
+			const last = segs[segs.length - 1]
+			const end = last.rel + last.col.y + last.col.h - last.top
+			for (let n = 0; n < WRAP_ITER_MAX && passes > 0; n++) {
+				passes--
+				const l = layoutParagraph(ip, env, widthAt)
+				let h = band
+				// Row tops relative to the first line (a row's lines share `height`).
+				let top: Fx = 0
+				l.lines.forEach((x, k) => {
+					if (top >= last.rel && top < end) h = Math.max(h, x.height)
+					if (l.lines[k + 1]?.row !== x.row) top += x.height
+				})
+				if (!(h > band)) return l
+				band = h
+				last.band = h
+			}
+			if (bound === undefined) {
+				let up: Fx = 0
+				let down: Fx = 0
+				for (const x of layoutParagraph(ip, env, () => [1]).lines) {
+					up = Math.max(up, x.baseline)
+					down = Math.max(down, x.height - x.baseline)
+				}
+				bound = up + down
+			}
+			if (bound > band) band = bound
+			last.band = band
+			return layoutParagraph(ip, env, widthAt)
+		}
+		if (slot.ex?.length) pl = wrapLayout()
 		let tagged: PageDL | undefined
 		let rel: Fx = 0
 		/** First line of the paragraph in the current column. */
@@ -207,23 +257,27 @@ export function fillFlow(
 		while (j < pl.lines.length) {
 			const { pg, col, ex = [] } = slot
 			if (ex.length) {
-				// No usable width in this band: move down past the frames in the way, re-break from here.
-				const ny = nextFreeTop(col, ex, col.y + y, band, minW) - col.y
-				if (ny !== y) {
+				// No usable width in this band: move down past the frames in the way, re-break from here;
+				// again if the re-break grew the band. Only a strict move counts (NaN y stops).
+				for (let n = 0; n < WRAP_ITER_MAX; n++) {
+					const ny = nextFreeTop(col, ex, col.y + y, band, minW) - col.y
+					if (!(ny > y)) break
 					y = ny
-					segs.push({ rel, col, ex, top: col.y + y })
-					pl = layoutParagraph(ip, env, widthAt)
+					segs.push({ rel, col, ex, top: col.y + y, band })
+					pl = wrapLayout()
 				}
 			}
 			const line = pl.lines[j]
 			if (y > 0 && y + line.height > col.h) {
 				// Break before line `b` ≤ j: whole paragraph (keep-together, orphans) or earlier (widows).
-				const n = pl.lines.length
+				// Line j starts a row; orphans and widows count rows.
+				const rows = pl.lines[pl.lines.length - 1].row + 1
 				let b = j
-				if (cs === 0 && !fresh && (st.keepTogether || j < st.orphans)) b = 0
-				else if (n - j < st.widows) {
-					const w = n - st.widows
-					if (w > cs && (cs > 0 || w >= st.orphans)) b = w
+				if (cs === 0 && !fresh && (st.keepTogether || line.row < st.orphans)) b = 0
+				else if (rows - line.row < st.widows) {
+					const wr = rows - st.widows
+					const w = pl.lines.findIndex((l) => l.row === wr)
+					if (w > cs && (cs > 0 || wr >= st.orphans)) b = w
 				}
 				if (b < j) {
 					const m = marks[b - cs]
@@ -241,11 +295,14 @@ export function fillFlow(
 				cs = j
 				marks.length = 0
 				// The new column (width, top, exclusions) applies from line j on.
-				segs.push({ rel, col: slot.col, ex: slot.ex ?? [], top: slot.col.y })
-				pl = layoutParagraph(ip, env, widthAt)
+				segs.push({ rel, col: slot.col, ex: slot.ex ?? [], top: slot.col.y, band })
+				pl = wrapLayout()
 				continue
 			}
-			const sx = spanAt(rel).x
+			// Same spans layoutParagraph saw.
+			const s = spansAt(rel)[line.seg]
+			if (!s) throw new Error(`fill: no span for segment ${line.seg}`)
+			const sx = s.x
 			marks.push({
 				items: pg.items.length,
 				lines: pg.lines.length,
@@ -263,6 +320,7 @@ export function fillFlow(
 				bid: p.bid,
 				from: line.from,
 				to: line.to,
+				row: line.row,
 				x: sx + line.carets[0],
 				y: oy + line.baseline,
 				ascent: line.ascent,
@@ -271,9 +329,12 @@ export function fillFlow(
 			}
 			if (!ip.text && p.placeholder) geom.placeholder = p.placeholder
 			pg.lines.push(geom)
-			y += line.height
-			rel += line.height
 			j++
+			// Row end: the next line starts below (a row's lines share `height`).
+			if (pl.lines[j]?.row !== line.row) {
+				y += line.height
+				rel += line.height
+			}
 		}
 		y += st.spaceAfter
 		off += ip.text.length + 1

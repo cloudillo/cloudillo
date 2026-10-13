@@ -8,10 +8,11 @@ import { type BreakOpp, findBreaks, hyphenGlyph } from '../text/breaks.js'
 import type { ItemizedParagraph, ItemizeEnv } from '../text/itemize.js'
 
 /**
- * Available width (Fx) of a line whose top is `y` Fx below the paragraph's first line top
- * (space before excluded). The hook for wrap exclusions; indents are subtracted by the caller.
+ * Available widths (Fx), left to right, of the segments of a line row whose top is `y` Fx below
+ * the paragraph's first line top (space before excluded); never empty. The hook for wrap
+ * exclusions; indents are subtracted by the caller.
  */
-export type WidthAt = (y: Fx) => Fx
+export type WidthAt = (y: Fx) => Fx[]
 
 export interface ParaLine {
 	/** Paragraph offsets; `to` includes trailing whitespace. */
@@ -30,6 +31,10 @@ export interface ParaLine {
 	carets: Int32Array
 	/** Justification space added after the cluster starting at each offset `from..to−1`. */
 	extra: Int32Array
+	/** Row index in the paragraph; the lines of a row share `height` and `baseline`. */
+	row: number
+	/** Segment index in the row's `WidthAt` widths. */
+	seg: number
 }
 
 export interface ParaLayout {
@@ -122,7 +127,7 @@ export function layoutParagraphAt(ip: ItemizedParagraph, env: ItemizeEnv, w: Fx)
 	}
 	let pl = byW.get(w)
 	if (!pl) {
-		pl = layoutParagraph(ip, env, () => w)
+		pl = layoutParagraph(ip, env, () => [w])
 		byW.set(w, pl)
 	}
 	return pl
@@ -165,7 +170,9 @@ export function layoutParagraph(
 		hyphen: boolean,
 		last: boolean,
 		avail: Fx,
-		indent: Fx
+		indent: Fx,
+		row: number,
+		seg: number
 	): ParaLine => {
 		const end = trim(a, b)
 		const hy = hyphen && end > a ? hyphenAt(end - 1) : undefined
@@ -225,7 +232,20 @@ export function layoutParagraph(
 			o = nb
 		}
 		carets[b - a] = x
-		return { from: a, to: b, end, hyphen: hy, height, baseline, ascent, descent, carets, extra }
+		return {
+			from: a,
+			to: b,
+			end,
+			hyphen: hy,
+			height,
+			baseline,
+			ascent,
+			descent,
+			carets,
+			extra,
+			row,
+			seg
+		}
 	}
 
 	// Lines are cut from the paragraph-wide shaping (no reshape at line ends, `unsafeToBreak`
@@ -236,49 +256,82 @@ export function layoutParagraph(
 	let a = 0
 	let top = 0
 	let oi = 0
+	let row = 0
 	do {
-		const indent = style.indentStart + (a === 0 ? style.indentFirst : 0)
-		const avail = widthAt(top) - indent - style.indentEnd
-		let b = 0
-		let hyphen = false
-		let last = true
-		if (n) {
-			let fit = -1
-			let fitWord = -1
-			for (; oi < opps.length; oi++) {
-				const o = opps[oi]
-				if (o.offset <= a || !isStart[o.offset]) continue
-				if (measure(a, o.offset, o.kind === 'hyphen') > avail) break
-				fit = oi
-				if (o.kind !== 'hyphen') fitWord = oi
-				if (o.kind === 'mandatory') break
+		// A row: one line per segment, left to right, until the text runs out.
+		const ws = widthAt(top)
+		if (!ws.length) throw new TypeError('widthAt: no segments')
+		const rs = lines.length
+		// The roomiest segment (first on a tie) takes a word that fits nowhere; the start indent
+		// moves to whichever segment emits first, so only the end indent tells them apart.
+		const room = (k: number) => ws[k] - (k === ws.length - 1 ? style.indentEnd : 0)
+		let force = 0
+		for (let k = 1; k < ws.length; k++) if (room(k) > room(force)) force = k
+		for (let seg = 0; seg < ws.length && (seg === 0 || a < n); seg++) {
+			const lastSeg = seg === ws.length - 1
+			// The indent goes on the row's first emitted line (a skipped segment emits none).
+			const indent =
+				lines.length === rs ? style.indentStart + (a === 0 ? style.indentFirst : 0) : 0
+			const avail = ws[seg] - indent - (lastSeg ? style.indentEnd : 0)
+			let b = 0
+			let hyphen = false
+			let last = true
+			if (n) {
+				let fit = -1
+				let fitWord = -1
+				for (; oi < opps.length; oi++) {
+					const o = opps[oi]
+					if (o.offset <= a || !isStart[o.offset]) continue
+					if (measure(a, o.offset, o.kind === 'hyphen') > avail) break
+					fit = oi
+					if (o.kind !== 'hyphen') fitWord = oi
+					if (o.kind === 'mandatory') break
+				}
+				if (fit < 0) {
+					// Nothing fits: once the row has a line, end it (the next row may be wider);
+					// else skip the segment, and only in the widest segment of a row that has
+					// emitted nothing is the word broken between clusters, one cluster at least.
+					if (lines.length > rs) break
+					if (seg !== force) continue
+					const limit = oi < opps.length ? opps[oi].offset : n
+					b = a + 1
+					while (!isStart[b]) b++
+					for (let c = b + 1; c < limit; c++)
+						if (isStart[c] && px[c] - px[a] <= avail) b = c
+					last = false
+				} else {
+					let pick = fit
+					if (
+						opps[fit].kind === 'hyphen' &&
+						fitWord >= 0 &&
+						measure(a, opps[fitWord].offset, false) + penalty >=
+							measure(a, opps[fit].offset, true)
+					)
+						pick = fitWord
+					b = opps[pick].offset
+					hyphen = opps[pick].kind === 'hyphen'
+					last = opps[pick].kind === 'mandatory'
+					oi = pick + 1
+				}
 			}
-			if (fit < 0) {
-				// Nothing fits: break the word between clusters, at least one cluster per line.
-				const limit = oi < opps.length ? opps[oi].offset : n
-				b = a + 1
-				while (!isStart[b]) b++
-				for (let c = b + 1; c < limit; c++) if (isStart[c] && px[c] - px[a] <= avail) b = c
-				last = false
-			} else {
-				let pick = fit
-				if (
-					opps[fit].kind === 'hyphen' &&
-					fitWord >= 0 &&
-					measure(a, opps[fitWord].offset, false) + penalty >=
-						measure(a, opps[fit].offset, true)
-				)
-					pick = fitWord
-				b = opps[pick].offset
-				hyphen = opps[pick].kind === 'hyphen'
-				last = opps[pick].kind === 'mandatory'
-				oi = pick + 1
-			}
+			lines.push(makeLine(a, b, hyphen, last, avail, indent, row, seg))
+			a = b
+			// A mandatory break ends the row.
+			if (last) break
 		}
-		const line = makeLine(a, b, hyphen, last, avail, indent)
-		lines.push(line)
-		top += line.height
-		a = b
+		// The row's lines share one baseline (the lowest) and the height holding them all.
+		let baseline = 0
+		let below = 0
+		for (let k = rs; k < lines.length; k++) {
+			baseline = Math.max(baseline, lines[k].baseline)
+			below = Math.max(below, lines[k].height - lines[k].baseline)
+		}
+		for (let k = rs; k < lines.length; k++) {
+			lines[k].baseline = baseline
+			lines[k].height = baseline + below
+		}
+		top += baseline + below
+		row++
 	} while (a < n)
 	return { ip, adv, lines }
 }

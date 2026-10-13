@@ -116,6 +116,39 @@ describe.each(PUB_CORPUS.map((c) => [c.name, c.pub] as const))('publication %s',
 		expect(pg?.items.some((it) => it.k === 'image' && it.fileId === 'file-1')).toBe(true)
 	})
 
+	it('wraps body text around the ellipse shape, not its box', async () => {
+		const r = await layout(pub)
+		const f = pub.frames['f-dot']
+		const R = f.w / 2 + f.wrap.off
+		const cx = f.x + Math.floor(f.w / 2)
+		const cy = f.y + Math.floor(f.h / 2)
+		const pg = r.pages.find((q) => q.page.sec === 's2' && q.page.index === 0)
+		const beside = (pg?.lines ?? []).filter(
+			(l) => l.story === 's2' && l.y - l.ascent < cy + R && l.y + l.descent > cy - R
+		)
+		expect(beside.length).toBeGreaterThan(0)
+		const paragraphs = pub.sections.find((s) => s.id === 's2')?.story.paragraphs ?? []
+		let inBox = 0
+		for (const l of beside) {
+			const p = paragraphs.find((q) => q.bid === l.bid)
+			const text = p ? paragraphText(p) : ''
+			let to = l.to
+			while (to > l.from && /\s/.test(text[to - 1])) to--
+			const left = l.carets[0]
+			const right = l.carets[to - l.from]
+			// Half-chord of the circle across the line's band.
+			const top = l.y - l.ascent
+			const bottom = l.y + l.descent
+			const d =
+				top <= cy && bottom >= cy ? 0 : Math.min(Math.abs(top - cy), Math.abs(bottom - cy))
+			const half = Math.sqrt(R * R - d * d)
+			expect(left >= cx + half || right <= cx - half).toBe(true)
+			if (left < cx + R && right > cx - R) inBox++
+		}
+		// Some line uses room the old box wrap blocked.
+		expect(inBox).toBeGreaterThan(0)
+	})
+
 	it('renders the rotated shape frame rotated', async () => {
 		const r = await layout(pub)
 		const pg = r.pages.find((q) => q.page.sec === 's2' && q.page.index === 0)

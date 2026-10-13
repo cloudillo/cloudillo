@@ -67,6 +67,14 @@ export function marginRegion(
 	}
 }
 
+/** Cap on column/row counts: they come from peers unvalidated. */
+export const MAX_COLS = 64
+
+/** A column/row count made safe: an integer in [1, `MAX_COLS`], 1 when not finite. */
+export function trackCount(n: number | undefined): number {
+	return Number.isFinite(n) ? Math.min(MAX_COLS, Math.max(1, Math.floor(n as number))) : 1
+}
+
 export function masterColumns(m: Master, side?: 'l' | 'r'): Box[] {
 	const v = side === 'l' ? m.left : side === 'r' ? m.right : undefined
 	let regions = v?.regions ?? m.regions
@@ -86,7 +94,7 @@ export function masterColumns(m: Master, side?: 'l' | 'r'): Box[] {
 	}
 	const cols: Box[] = []
 	for (const r of regions) {
-		const n = Math.max(1, r.cols)
+		const n = trackCount(r.cols)
 		const cw = Math.floor((r.w - (n - 1) * r.gutter) / n)
 		for (let k = 0; k < n; k++)
 			cols.push({ x: r.x + k * (cw + r.gutter), y: r.y, w: cw, h: r.h })
@@ -178,9 +186,10 @@ function ellipsePath(b: Box): string {
  * page is appended to the previous section (its `rest` master), or, for the first section,
  * prepended to that section. Parity pages are not counted against `maxPages`.
  * With `pub.facing`, odd global pages are right-hand (`side` 'r'), even ones left-hand ('l').
- * Page-anchored frames (`pub.frames`): their wrap boxes exclude story text on their page, the
- * section has at least `anchor.page + 1` pages (up to `maxPages`), and their items paint in
- * z order — `z < 0` below the story text, the rest above it — rotated by `rot` (render only).
+ * Page-anchored frames (`pub.frames`): their wrap outlines (box, rotated box or ellipse) exclude
+ * story text on their page, the section has at least `anchor.page + 1` pages (up to `maxPages`),
+ * and their items paint in z order — `z < 0` below the story text, the rest above it — rotated
+ * by `rot`, which wrap follows too.
  * Master items (frames listed in the page side's `items`; never anchored frames) paint on every
  * page using the master, below everything else in z order, all under one `Artifact` tag; they
  * add no `LineGeom`. A text item that overflows is reported once.
@@ -308,7 +317,13 @@ export function layoutPublication(
 				ex = added.ex
 				ci = 0
 			}
-			return { pg, col: cols[ci++], ex }
+			const col = cols[ci++]
+			// Only frames that can hit this column: every band top is at or below col.y, so
+			// hits() rejects the rest anyway.
+			// ponytail: many frames stacked on one column still cost O(frames) per row; index
+			// them by y if that shows up. wrapExclusions caps a page at WRAP_FRAMES_MAX frames.
+			const colEx = ex.filter((e) => e.x0 < col.x + col.w && e.x1 > col.x && e.y1 > col.y)
+			return { pg, col, ex: colEx }
 		}
 		const { paras, fields } = itemizeStory(sec.story, pub, env, baseCtx(sec.id))
 		secFields.set(sec.id, fields)

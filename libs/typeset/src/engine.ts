@@ -17,7 +17,7 @@ import type { ItemizeEnv } from './text/itemize.js'
 
 /** One paragraph-level edit of a section's story or a text frame's story. */
 export interface ParagraphPatch {
-	/** Story id: a section's `story.id` or a text frame's `data.story.id`. */
+	/** Story id: a section's `story.id` or a text frame's `data.story.id` (chain heads only). */
 	story: string
 	/** The paragraph edited; for `insert`, the new paragraph's bid. */
 	bid: string
@@ -242,7 +242,7 @@ export class Engine {
 		let found = false
 		for (const f of Object.values(pub.frames)) {
 			const data = f.data as TextFrameData
-			if (f.t !== 'txt' || data.story.id !== p.story) continue
+			if (f.t !== 'txt' || !data.story || data.story.id !== p.story) continue
 			frames[f.id] = { ...f, data: { ...data, story: edit(data.story) } }
 			found = true
 		}

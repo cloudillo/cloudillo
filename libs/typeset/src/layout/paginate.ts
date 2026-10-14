@@ -193,6 +193,10 @@ function ellipsePath(b: Box): string {
  * Master items (frames listed in the page side's `items`; never anchored frames) paint on every
  * page using the master, below everything else in z order, all under one `Artifact` tag; they
  * add no `LineGeom`. A text item that overflows is reported once.
+ * Text chains (a head's `chain`): one flow through the head's box, then each follower's box on
+ * its own page (any section); followers whose page does not exist are skipped. The overset is
+ * reported once, against the last frame laid out; the story's fields use the first laid-out
+ * frame's page, and every frame of the chain shares the head's tag range.
  * Lists: markers per `listMarkers` (counters per section). Fields: page number per
  * `Section.pageNum` (restart → 1 at the section's first page, else continuing; its `format`),
  * page count = all pages (decimal); in body text page numbers take a fixed 3-digit box.
@@ -231,6 +235,23 @@ export function layoutPublication(
 	const frames = Object.values(pub.frames)
 		.filter((f) => !masterIds.has(f.id))
 		.sort((a, b) => a.anchor.page - b.anchor.page || byPaint(a, b))
+	// Text chains: head id → its valid followers, follower id → its head. A `chain` id is dropped
+	// when it is not an anchored `txt` frame, has its own story (the head itself included) or is
+	// already claimed; heads go in id order, so the lowest head id wins a doubly claimed follower.
+	const chains = new Map<string, string[]>()
+	const headOf = new Map<string, string>()
+	for (const f of [...frames].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))) {
+		const { story, chain } = f.data as TextFrameData
+		if (f.t !== 'txt' || !story || !Array.isArray(chain)) continue
+		const ok = chain.filter((id) => {
+			const fr = pub.frames[id]
+			if (fr?.t !== 'txt' || (fr.data as TextFrameData).story) return false
+			if (masterIds.has(id) || headOf.has(id)) return false
+			headOf.set(id, f.id)
+			return true
+		})
+		if (ok.length) chains.set(f.id, ok)
+	}
 	const byPage = new Map<string, Frame[]>()
 	const lastPage = new Map<string, number>()
 	const tagBase = new Map<string, number>()
@@ -244,12 +265,13 @@ export function layoutPublication(
 		if (list) list.push(f)
 		else byPage.set(k, [f])
 		lastPage.set(sec, Math.max(lastPage.get(sec) ?? -1, page))
+		// A follower reserves its head story's range in its own section: tag ids are per page,
+		// and its page may belong to another section than the head's.
+		const head = headOf.get(f.id)
+		const story = (pub.frames[head ?? f.id]?.data as TextFrameData | undefined)?.story
 		const t = nextTag.get(sec) ?? 1
 		tagBase.set(f.id, t)
-		nextTag.set(
-			sec,
-			t + (f.t === 'txt' ? (f.data as TextFrameData).story.paragraphs.length : 1)
-		)
+		nextTag.set(sec, t + (f.t === 'txt' ? (story?.paragraphs.length ?? 0) : 1))
 	}
 
 	const titles = new Map(pub.sections.map((s) => [s.id, sectionTitle(s.story, pub.styles)]))
@@ -356,25 +378,56 @@ export function layoutPublication(
 	// Body-text fields (before any frame item joins the page).
 	for (const pg of pages) patchFields(pg.items, secFields.get(pg.page.sec) ?? [], ctxFor(pg), env)
 
-	/** Lay out a text frame's story inside `box` on a scratch copy of `pg` (fields resolved). */
-	const flowBox = (story: Story, box: Box, pg: PageDL) => {
-		const tmp: PageDL = { page: pg.page, items: [], lines: [], tags: [], rev: 0 }
-		const ctx = ctxFor(pg)
+	/**
+	 * Lay out a text story through `slots` in order, each `box` on a scratch copy of its `pg`
+	 * (fields resolved). One result per slot; the overset `chars` are on the last one only.
+	 */
+	const flowBox = (story: Story, slots: { box: Box; pg: PageDL }[]) => {
+		const out = slots.map(({ pg }): { tmp: PageDL; chars: number } => ({
+			tmp: { page: pg.page, items: [], lines: [], tags: [], rev: 0 },
+			chars: 0
+		}))
+		// A chained story resolves its fields (page number…) with its first slot's (the head's)
+		// page; per-slot fields would need itemizing per frame.
+		const ctx = ctxFor(slots[0].pg)
 		const { paras, fields } = itemizeStory(story, pub, env, ctx)
-		let open = true
-		const chars = fillFlow(
-			story,
-			paras,
-			() => {
-				if (!open) return undefined
-				open = false
-				return { pg: tmp, col: box }
-			},
-			env
-		)
-		placeMarkers(story, paras, [tmp], env)
-		patchFields(tmp.items, fields, ctx, env)
-		return { tmp, chars }
+		let i = 0
+		const next = (): FlowSlot | undefined => {
+			if (i >= slots.length) return undefined
+			const s = i++
+			return { pg: out[s].tmp, col: slots[s].box }
+		}
+		out[out.length - 1].chars = fillFlow(story, paras, next, env)
+		const tmps = out.map((r) => r.tmp)
+		placeMarkers(story, paras, tmps, env)
+		for (const tmp of tmps) patchFields(tmp.items, fields, ctx, env)
+		return out
+	}
+
+	/** Where a text frame's text flows: its box shrunk by its inset. */
+	const textBox = (f: Frame): Box => {
+		const i = (f.data as TextFrameData).inset ?? 0
+		return { x: f.x + i, y: f.y + i, w: Math.max(0, f.w - 2 * i), h: Math.max(0, f.h - 2 * i) }
+	}
+
+	// Each chain as one flow through its frames' boxes (followers on missing pages are skipped).
+	const pageAt = new Map(pages.map((pg) => [pageKey(pg.page.sec, pg.page.index), pg]))
+	const chainOut = new Map<string, { tmp: PageDL; chars: number }>()
+	const chained = new Set<string>() // heads with at least one frame laid out
+	for (const f of frames) {
+		const { story } = f.data as TextFrameData
+		const chain = chains.get(f.id)
+		if (!story || !chain) continue
+		const slots = [f.id, ...chain].flatMap((id) => {
+			const fr = pub.frames[id]
+			const pg = fr && pageAt.get(pageKey(fr.anchor.sec, fr.anchor.page))
+			return pg ? [{ id, box: textBox(fr), pg }] : []
+		})
+		if (!slots.length) continue
+		chained.add(f.id)
+		flowBox(story, slots).forEach((r, s) => {
+			chainOut.set(slots[s].id, r)
+		})
 	}
 
 	/**
@@ -384,6 +437,10 @@ export function layoutPublication(
 	const emitFrame = (f: Frame, pg: PageDL, out: DLItem[], tag: number, art: boolean): number => {
 		const from = out.length
 		const box: Box = { x: f.x, y: f.y, w: f.w, h: f.h }
+		const rot =
+			f.rot % 360
+				? { deg: f.rot, cx: f.x + Math.floor(f.w / 2), cy: f.y + Math.floor(f.h / 2) }
+				: undefined
 		let chars = 0
 		if (f.t === 'img') {
 			const d = f.data as ImageFrameData
@@ -408,23 +465,42 @@ export function layoutPublication(
 					: { k: 'rect', box, fill, stroke, strokeW, ...t }
 			)
 		} else {
-			const r = flowBox((f.data as TextFrameData).story, box, pg)
-			chars = r.chars
-			// The box's own tag ids (paragraph index + 1) move to the frame's range.
-			const d = tag - 1
-			for (const it of r.tmp.items) {
-				if ('tag' in it && it.tag !== undefined) it.tag = art ? tag : it.tag + d
-				out.push(it)
+			// Background and border (inside the box), even on a frame without text.
+			const { story, fill, stroke, strokeW } = f.data as TextFrameData
+			if (fill || (stroke && strokeW)) {
+				const h = stroke && strokeW ? strokeW / 2 : 0
+				out.push({
+					k: 'rect',
+					box: {
+						x: f.x + h,
+						y: f.y + h,
+						w: Math.max(0, f.w - 2 * h),
+						h: Math.max(0, f.h - 2 * h)
+					},
+					fill,
+					stroke,
+					strokeW,
+					...(art ? { tag } : {})
+				})
 			}
-			if (!art) {
-				for (const t of r.tmp.tags) pg.tags.push({ ...t, id: t.id + d })
-				pg.lines.push(...r.tmp.lines)
+			// A chain frame's share of its story, else its own story; a follower outside any
+			// laid-out chain has none.
+			const r = chainOut.get(f.id) ?? (story && flowBox(story, [{ box: textBox(f), pg }])[0])
+			if (r) {
+				chars = r.chars
+				// The box's own tag ids (paragraph index + 1) move to the frame's range.
+				const d = tag - 1
+				for (const it of r.tmp.items) {
+					if ('tag' in it && it.tag !== undefined) it.tag = art ? tag : it.tag + d
+					out.push(it)
+				}
+				if (!art) {
+					for (const t of r.tmp.tags) pg.tags.push({ ...t, id: t.id + d })
+					pg.lines.push(...(rot ? r.tmp.lines.map((l) => ({ ...l, rot })) : r.tmp.lines))
+				}
 			}
 		}
-		if (f.rot % 360) {
-			const rot = { deg: f.rot, cx: f.x + Math.floor(f.w / 2), cy: f.y + Math.floor(f.h / 2) }
-			for (let q = from; q < out.length; q++) out[q].rot = rot
-		}
+		if (rot) for (let q = from; q < out.length; q++) out[q].rot = rot
 		return chars
 	}
 
@@ -474,10 +550,12 @@ export function layoutPublication(
 		pg.items = [...art, ...below, ...pg.items, ...above]
 	}
 	if (stopped) return { pages, sections, overset, partial: true }
-	// Text frames anchored past their section's last page (or to no section): all overset.
+	// Text frames anchored past their section's last page (or to no section): all overset —
+	// unless a later frame of their chain was laid out (it carries the overset), or a follower.
 	for (const f of frames) {
-		if (f.t !== 'txt' || placed.has(pageKey(f.anchor.sec, f.anchor.page))) continue
 		const story = (f.data as TextFrameData).story
+		if (f.t !== 'txt' || !story || chained.has(f.id)) continue
+		if (placed.has(pageKey(f.anchor.sec, f.anchor.page))) continue
 		const { paras } = itemizeStory(story, pub, env, baseCtx(f.anchor.sec))
 		const chars = fillFlow(story, paras, () => undefined, env)
 		if (chars) overset.push({ sec: f.anchor.sec, chars, frame: f.id })

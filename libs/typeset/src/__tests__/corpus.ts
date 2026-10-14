@@ -395,6 +395,7 @@ export function publicationStories(pub: Publication): Story[] {
 		...Object.values(pub.frames)
 			.filter((f) => f.t === 'txt')
 			.map((f) => (f.data as TextFrameData).story)
+			.filter((s): s is Story => !!s)
 	]
 }
 

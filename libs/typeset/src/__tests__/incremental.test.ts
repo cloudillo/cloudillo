@@ -61,7 +61,7 @@ function storyOf(pub: Publication, id: string): Story {
 		Object.values(pub.frames)
 			.filter((f) => f.t === 'txt')
 			.map((f) => (f.data as TextFrameData).story)
-			.find((s) => s.id === id)
+			.find((s) => s?.id === id)
 	if (!st) throw new Error(`no story ${id}`)
 	return st
 }

@@ -1,16 +1,16 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { describe, expect, it } from '@jest/globals'
+import { beforeAll, describe, expect, it } from '@jest/globals'
 
 import type { DLItem, PageDL } from '../display-list.js'
 import { ptToFx } from '../fixed.js'
 import { FontRegistry } from '../fonts/registry.js'
 import { layoutPublication, marginRegion } from '../layout/paginate.js'
-import type { Publication } from '../model.js'
+import type { Frame, Publication, Story, TextFrameData } from '../model.js'
 import { renderPageSvg } from '../svg/render.js'
-import { paragraphText } from '../text/itemize.js'
-import { dlJson, loadPublication, PUB_CORPUS, sha256 } from './corpus.js'
+import { type ItemizeEnv, paragraphText } from '../text/itemize.js'
+import { dlJson, EN, HU, loadPublication, PUB_CORPUS, p, sha256 } from './corpus.js'
 
 async function layout(pub: Publication, registry = new FontRegistry()) {
 	return layoutPublication(pub, await loadPublication(pub, registry))
@@ -183,6 +183,229 @@ describe('publication without masters', () => {
 			pages: [],
 			sections: [{ id: sec.id, pages: 0 }],
 			overset: []
+		})
+	})
+})
+
+describe('text chains', () => {
+	const base = PUB_CORPUS[1].pub
+	const STORY: Story = {
+		id: 'tx-chain',
+		paragraphs: Array.from({ length: 8 }, (_, i) => p('left', i % 2 ? HU : EN))
+	}
+	const txt = (id: string, sec: string, page: number, y: number, data: TextFrameData): Frame => ({
+		id,
+		t: 'txt',
+		anchor: { sec, page },
+		x: ptToFx(48),
+		y: ptToFx(y),
+		w: ptToFx(324),
+		h: ptToFx(60),
+		rot: 0,
+		z: 0,
+		wrap: { mode: 'none', off: 0 },
+		data
+	})
+	/** c1 (head) → c2 → c3 at `at` = [sec, page] each, y 100/200/300 pt; `chain` overrides. */
+	const chained = (at: [string, number][], chain = ['c2', 'c3']) => {
+		const pub = structuredClone(base)
+		pub.frames.c1 = txt('c1', ...at[0], 100, { story: structuredClone(STORY), chain })
+		pub.frames.c2 = txt('c2', ...at[1], 200, {})
+		pub.frames.c3 = txt('c3', ...at[2], 300, {})
+		return pub
+	}
+	let env: ItemizeEnv
+	beforeAll(async () => {
+		// The base publication has no followers; the chain's story only adds paragraphs.
+		env = await loadPublication(base, new FontRegistry(), STORY.paragraphs)
+	})
+	const page = (pages: PageDL[], sec: string, index: number) =>
+		pages.find((pg) => pg.page.sec === sec && pg.page.index === index)
+	/** The chain's lines inside frame `f` (baselines within its box). */
+	const linesIn = (pages: PageDL[], f: Frame) =>
+		(page(pages, f.anchor.sec, f.anchor.page)?.lines ?? []).filter(
+			(l) => l.story === 'tx-chain' && l.y >= f.y && l.y <= f.y + f.h
+		)
+	const order = (pub: Publication, pages: PageDL[], ids: string[]) =>
+		ids.flatMap((id) =>
+			linesIn(pages, pub.frames[id]).map(
+				(l) => STORY.paragraphs.findIndex((q) => q.bid === l.bid) * 1e6 + l.from
+			)
+		)
+	const chainOverset = (r: { overset: { frame?: string; chars: number }[] }) =>
+		r.overset.filter((o) => o.frame && ['c1', 'c2', 'c3'].includes(o.frame))
+
+	it('splits a story across three boxes on one page, in order', () => {
+		const pub = chained([
+			['s1', 1],
+			['s1', 1],
+			['s1', 1]
+		])
+		const r = layoutPublication(pub, env)
+		for (const id of ['c1', 'c2', 'c3'])
+			expect(linesIn(r.pages, pub.frames[id]).length).toBeGreaterThan(0)
+		const seq = order(pub, r.pages, ['c1', 'c2', 'c3'])
+		expect(seq).toEqual([...seq].sort((a, b) => a - b))
+		expect(new Set(seq).size).toBe(seq.length)
+	})
+
+	it('drops invalid chain entries: self, a follower with a story, a doubly claimed one', () => {
+		const pub = chained(
+			[
+				['s1', 1],
+				['s1', 1],
+				['s1', 1]
+			],
+			['c1', 'c2', 'own', 'c3']
+		)
+		const OWN: Story = { id: 'tx-own', paragraphs: [STORY.paragraphs[0]] }
+		pub.frames.own = txt('own', 's1', 1, 400, { story: OWN })
+		pub.frames.c9 = txt('c9', 's1', 1, 500, { story: { ...OWN, id: 'tx-c9' }, chain: ['c2'] })
+		const r = layoutPublication(pub, env)
+		const all = r.pages.flatMap((pg) => pg.lines)
+		const key = (l: { story: string; bid: string; from: number }) =>
+			`${l.story}|${l.bid}|${l.from}`
+		expect(new Set(all.map(key)).size).toBe(all.length)
+		for (const id of ['c1', 'c2', 'c3'])
+			expect(linesIn(r.pages, pub.frames[id]).length).toBeGreaterThan(0)
+		expect(linesIn(r.pages, pub.frames.own)).toEqual([])
+		const seq = order(pub, r.pages, ['c1', 'c2', 'c3'])
+		expect(seq).toEqual([...seq].sort((a, b) => a - b))
+		// c9 keeps its own story in its own box; c2 stays c1's.
+		expect(all.filter((l) => l.story === 'tx-c9').every((l) => l.y >= pub.frames.c9.y)).toBe(
+			true
+		)
+	})
+
+	it('flows a chain across two pages', () => {
+		const pub = chained([
+			['s1', 1],
+			['s1', 2],
+			['s1', 2]
+		])
+		const r = layoutPublication(pub, env)
+		const seq = order(pub, r.pages, ['c1', 'c2', 'c3'])
+		expect(linesIn(r.pages, pub.frames.c1).length).toBeGreaterThan(0)
+		expect(linesIn(r.pages, pub.frames.c2).length).toBeGreaterThan(0)
+		expect(seq).toEqual([...seq].sort((a, b) => a - b))
+	})
+
+	it("gives a follower in another section tag ids from its own page's id space", () => {
+		// The head's range in s1 overlaps s2's paragraph ids on s2's third page.
+		const pub = chained(
+			[
+				['s1', 1],
+				['s2', 2],
+				['s2', 2]
+			],
+			['c2']
+		)
+		delete pub.sections[1].maxPages
+		const r = layoutPublication(pub, env)
+		const pg = page(r.pages, 's2', 2)
+		expect(linesIn(r.pages, pub.frames.c2).length).toBeGreaterThan(0)
+		const ids = (pg?.tags ?? []).map((t) => t.id)
+		expect(new Set(ids).size).toBe(ids.length)
+		for (const it of pg?.items ?? [])
+			if ('tag' in it && it.tag !== undefined) expect(ids).toContain(it.tag)
+	})
+
+	it('reports the overset once, on the last frame', () => {
+		const pub = chained([
+			['s1', 1],
+			['s1', 1],
+			['s1', 2]
+		])
+		const r = layoutPublication(pub, env)
+		const o = chainOverset(r)
+		expect(o).toHaveLength(1)
+		expect(o[0].frame).toBe('c3')
+		expect(o[0].chars).toBeGreaterThan(0)
+		// A follower on a page that does not exist (s2 has maxPages 2) is skipped as a slot.
+		const gone = chained([
+			['s1', 1],
+			['s1', 1],
+			['s2', 5]
+		])
+		const g = chainOverset(layoutPublication(gone, env))
+		expect(g.map((x) => x.frame)).toEqual(['c2'])
+		expect(g[0].chars).toBeGreaterThan(o[0].chars)
+	})
+
+	it('lays out a story-less follower outside any chain as nothing', () => {
+		const pub = chained(
+			[
+				['s1', 1],
+				['s1', 1],
+				['s1', 1]
+			],
+			[]
+		)
+		const r = layoutPublication(pub, env)
+		expect(linesIn(r.pages, pub.frames.c2)).toHaveLength(0)
+		expect(chainOverset(r).map((x) => x.frame)).toEqual(['c1'])
+		// A head anchored past its section's last page with no frame laid out: all overset.
+		const lost = chained([
+			['s2', 5],
+			['s2', 6],
+			['s2', 7]
+		])
+		const l = chainOverset(layoutPublication(lost, env))
+		expect(l.map((x) => x.frame)).toEqual(['c1'])
+	})
+
+	it('reflows when a follower leaves the chain', () => {
+		const at: [string, number][] = [
+			['s1', 1],
+			['s1', 1],
+			['s1', 1]
+		]
+		const pub3 = chained(at)
+		const pub2 = chained(at, ['c2'])
+		const r3 = layoutPublication(pub3, env)
+		const r2 = layoutPublication(pub2, env)
+		expect(linesIn(r2.pages, pub2.frames.c3)).toHaveLength(0)
+		expect(order(pub2, r2.pages, ['c1', 'c2'])).toEqual(order(pub3, r3.pages, ['c1', 'c2']))
+		const [o2] = chainOverset(r2)
+		const [o3] = chainOverset(r3)
+		expect(o2.frame).toBe('c2')
+		expect(o2.chars).toBeGreaterThan(o3.chars)
+	})
+
+	it('insets, paints and rotates a text box', () => {
+		const at: [string, number][] = [
+			['s1', 1],
+			['s1', 1],
+			['s1', 1]
+		]
+		const plain = chained(at, [])
+		const boxed = chained(at, [])
+		const inset = ptToFx(10)
+		const strokeW = ptToFx(2)
+		const c1 = boxed.frames.c1
+		Object.assign(c1, { rot: 30 })
+		Object.assign(c1.data, { inset, fill: '#eee', stroke: '#000', strokeW })
+		const lines = (pub: Publication) =>
+			(page(layoutPublication(pub, env).pages, 's1', 1)?.lines ?? []).filter(
+				(l) => l.story === 'tx-chain'
+			)
+		const [p0] = lines(plain)
+		const [b0] = lines(boxed)
+		expect(b0.x - p0.x).toBe(inset)
+		expect(b0.y - p0.y).toBe(inset)
+		expect(b0.rot).toEqual({
+			deg: 30,
+			cx: c1.x + Math.floor(c1.w / 2),
+			cy: c1.y + Math.floor(c1.h / 2)
+		})
+		expect(p0.rot).toBeUndefined()
+		const rect = page(layoutPublication(boxed, env).pages, 's1', 1)?.items.find(
+			(it) => it.k === 'rect' && it.fill === '#eee'
+		)
+		expect(rect).toMatchObject({
+			box: { x: c1.x + strokeW / 2, y: c1.y + strokeW / 2, w: c1.w - strokeW },
+			stroke: '#000',
+			rot: { deg: 30 }
 		})
 	})
 })

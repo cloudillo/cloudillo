@@ -151,9 +151,25 @@ export interface ImageFrameData {
 	deco?: boolean
 }
 
-/** A text box: its own short story, laid out inside the frame box (overflow is overset). */
+/**
+ * A text box. A **head** has its own short story, laid out inside the frame box, then on through
+ * the `chain` frames' boxes in order (one flow; what is left over is overset). A **follower** — a
+ * `txt` frame listed in some head's `chain` — has `{}`: no story, no chain.
+ * Only page-anchored frames thread (never master items); the engine drops invalid `chain` ids
+ * (not a `txt` follower, a master item, or claimed by a lower head id).
+ */
 export interface TextFrameData {
-	story: Story
+	/** Head (or standalone) only. */
+	story?: Story
+	/** Head only: follower frame ids, in flow order. */
+	chain?: string[]
+	/** Inner margin on every side: text flows in the box shrunk by it. */
+	inset?: Fx
+	/** Background. */
+	fill?: string
+	/** Border, drawn inside the box. */
+	stroke?: string
+	strokeW?: Fx
 }
 
 export interface ShapeFrameData {

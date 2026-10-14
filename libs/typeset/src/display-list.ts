@@ -107,6 +107,8 @@ export interface LineGeom {
 	carets: Int32Array
 	/** Ghost prompt of an empty paragraph with a placeholder; overlay only. */
 	placeholder?: string
+	/** Its rotated frame's rotation; the fields above are in the frame's unrotated space. */
+	rot?: Rot
 }
 
 export interface PageDL {

@@ -23,7 +23,7 @@ import type {
 	Story
 } from '@cloudillo/typeset'
 
-import { sanitizeMarks, sanitizeOverrides } from './overrides'
+import { sanitizeBox, sanitizeMarks, sanitizeOverrides } from './overrides'
 import type {
 	StoredFrame,
 	StoredLineAttrs,
@@ -316,21 +316,97 @@ export function framesToEngine(
 	story: (id: string) => Story
 ): Record<string, Frame> {
 	const out: Record<string, Frame> = {}
+	const chains = textChains(doc)
 	doc.f.forEach((f, id) => {
-		if (!id.includes('~')) out[id] = frameToEngine(id, f, story)
+		if (!id.includes('~')) out[id] = frameToEngine(id, f, story, chains.get(id))
 	})
 	return Object.assign(out, mirroredItemFrames(doc, story))
+}
+
+/** Ids of every master's static items, `left`/`right` variants included. */
+export function masterItems(doc: YPagilloDocument): Set<string> {
+	const out = new Set<string>()
+	doc.ms.forEach((m) => {
+		for (const id of [...m.items, ...(m.left?.items ?? []), ...(m.right?.items ?? [])])
+			out.add(id)
+	})
+	return out
+}
+
+/**
+ * Valid text chains: head id → follower ids, in flow order (non-empty). A head is a page-anchored
+ * `txt` frame with a `story`. A `chain` id is dropped when it is missing, not `txt`, has its own
+ * `story`, is a master item or synthesized (`~`), or already sits in an earlier chain. Heads go
+ * in id order, so every peer gives a doubly claimed follower to the same head.
+ * Cached per document until a transaction changes `f` or `ms` (bypassed inside one that already
+ * did); the returned map is shared and read-only.
+ */
+export function textChains(doc: YPagilloDocument): Map<string, string[]> {
+	const yDoc = doc.f.doc
+	const changed: Map<object, unknown> | undefined = yDoc?._transaction?.changed
+	if (!yDoc || changed?.has(doc.f) || changed?.has(doc.ms)) return buildTextChains(doc)
+	if (!chainsHooked.has(yDoc)) {
+		chainsHooked.add(yDoc)
+		yDoc.on('beforeObserverCalls', (tr: Y.Transaction) => {
+			const changed: Map<object, unknown> = tr.changed
+			if (changed.has(doc.f) || changed.has(doc.ms)) chainsCache.delete(doc.f)
+		})
+	}
+	let out = chainsCache.get(doc.f)
+	if (!out) {
+		out = buildTextChains(doc)
+		chainsCache.set(doc.f, out)
+	}
+	return out
+}
+
+const chainsCache = new WeakMap<object, Map<string, string[]>>()
+const chainsHooked = new WeakSet<Y.Doc>()
+
+function buildTextChains(doc: YPagilloDocument): Map<string, string[]> {
+	const master = masterItems(doc)
+	const bad = (id: string) => master.has(id) || id.includes('~')
+	const claimed = new Set<string>()
+	const out = new Map<string, string[]>()
+	const heads = [...doc.f.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+	for (const [id, f] of heads) {
+		const d = f.t === 'txt' ? (f.data as StoredTextFrameData) : undefined
+		if (typeof d?.story !== 'string' || !Array.isArray(d.chain) || bad(id)) continue
+		const ok = d.chain.filter((c) => {
+			if (typeof c !== 'string') return false
+			const cf = doc.f.get(c)
+			if (cf?.t !== 'txt' || (cf.data as StoredTextFrameData).story) return false
+			if (claimed.has(c) || bad(c)) return false
+			claimed.add(c)
+			return true
+		})
+		if (ok.length) out.set(id, ok)
+	}
+	return out
 }
 
 export function sectionToEngine(id: string, s: StoredSection, story: Story): Section {
 	return { ...s, id, story }
 }
 
-export function frameToEngine(id: string, f: StoredFrame, story: (id: string) => Story): Frame {
+/**
+ * `chain`: the head's validated followers (`textChains`); a story-less `txt` frame keeps only its
+ * box styling.
+ */
+export function frameToEngine(
+	id: string,
+	f: StoredFrame,
+	story: (id: string) => Story,
+	chain?: string[]
+): Frame {
+	if (f.t !== 'txt')
+		return { ...f, id, data: f.data as Exclude<StoredFrame['data'], StoredTextFrameData> }
+	const { story: st, chain: _, ...rest } = f.data as StoredTextFrameData
+	const box = sanitizeBox(rest)
 	const data: Frame['data'] =
-		f.t === 'txt'
-			? { story: story((f.data as StoredTextFrameData).story) }
-			: (f.data as Exclude<StoredFrame['data'], StoredTextFrameData>)
+		typeof st === 'string'
+			? { ...box, story: story(st), ...(chain?.length ? { chain } : {}) }
+			: box
 	return { ...f, id, data }
 }
 

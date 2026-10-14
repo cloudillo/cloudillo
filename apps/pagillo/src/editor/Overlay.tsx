@@ -10,7 +10,7 @@
 import { FX } from '@cloudillo/typeset'
 import * as React from 'react'
 
-import type { CaretBox, Rect } from './caret'
+import { type CaretBox, type Rect, rotAttr } from './caret'
 
 export interface OverlayProps {
 	/** Page size, Fx. */
@@ -65,6 +65,7 @@ export function Overlay({ w, h, rects, caret, blink, reveal, onCaretRect }: Over
 					y={pt(r.y)}
 					width={pt(r.w)}
 					height={pt(r.h)}
+					transform={rotAttr(r.rot)}
 					fill="var(--col-primary)"
 					fillOpacity={0.25}
 				/>
@@ -77,6 +78,7 @@ export function Overlay({ w, h, rects, caret, blink, reveal, onCaretRect }: Over
 					x2={pt(caret.x)}
 					y1={pt(caret.top)}
 					y2={pt(caret.bottom)}
+					transform={rotAttr(caret.rot)}
 					stroke="#000"
 					strokeWidth={1.5}
 					vectorEffect="non-scaling-stroke"

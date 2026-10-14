@@ -37,8 +37,11 @@ function searchStories(doc: YPagilloDocument): string[] {
 		const s = doc.s.get(id)?.story
 		if (s) out.add(s)
 	}
-	for (const f of doc.f.values())
-		if (f.t === 'txt') out.add((f.data as StoredTextFrameData).story)
+	for (const f of doc.f.values()) {
+		// Followers of a thread hold no story (the head's covers them).
+		const s = f.t === 'txt' ? (f.data as StoredTextFrameData).story : undefined
+		if (s) out.add(s)
+	}
 	return [...out]
 }
 
@@ -266,6 +269,7 @@ export function useFindReplace({
 						y={pt(r.y)}
 						width={pt(r.w)}
 						height={pt(r.h)}
+						transform={C.rotAttr(r.rot)}
 						fill={on ? '#ff9500' : '#ffd400'}
 						fillOpacity={0.45}
 					/>

@@ -303,6 +303,100 @@ body,
 	vector-effect: non-scaling-stroke;
 }
 
+/* Text thread ports: 24 CSS px at every zoom (WCAG 2.5.8); the symbol carries the state. */
+.pagillo-port {
+	position: absolute;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	box-sizing: border-box;
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	border: 1.5px solid var(--col-primary);
+	border-radius: 3px;
+	background: var(--col-surface, #fff);
+	color: var(--col-primary);
+	font: 600 14px / 1 sans-serif;
+	cursor: pointer;
+}
+
+.pagillo-port[aria-pressed='true'] {
+	background: var(--col-primary);
+	color: var(--col-on-primary, #fff);
+}
+
+.pagillo-port-over {
+	border-color: var(--col-error, #c00);
+	color: var(--col-error, #c00);
+}
+
+.pagillo-port-in {
+	cursor: default;
+	opacity: 0.8;
+}
+
+/* Thread line and badges of the selected text box: primary over a surface halo (≥ 3:1). */
+.pagillo-thread {
+	fill: none;
+	stroke: var(--col-primary, #06f);
+}
+
+.pagillo-thread-halo {
+	fill: none;
+	stroke: var(--col-surface, #fff);
+}
+
+.pagillo-thread-badge circle {
+	fill: var(--col-primary, #06f);
+	stroke: var(--col-surface, #fff);
+}
+
+.pagillo-thread-badge text {
+	fill: var(--col-on-primary, #fff);
+	font-weight: 600;
+}
+
+/* Cross-page jump badge ("→ p.7") at the end of a stub, and the empty-follower ghost label. */
+.pagillo-thread-jump,
+.pagillo-thread-ghost {
+	position: absolute;
+	transform: translate(-50%, -50%);
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+.pagillo-thread-jump {
+	min-height: 24px;
+	padding: 0 6px;
+	border: 1.5px solid var(--col-primary, #06f);
+	border-radius: 12px;
+	background: var(--col-surface, #fff);
+	color: var(--col-primary, #06f);
+	font: 600 12px / 1 sans-serif;
+}
+
+.pagillo-thread-ghost {
+	padding: 2px 6px;
+	border: none;
+	border-radius: 3px;
+	background: transparent;
+	color: var(--col-on-container, #666);
+	font: italic 12px / 1.4 sans-serif;
+	opacity: 0.75;
+}
+
+.pagillo-thread-ghost:hover,
+.pagillo-thread-ghost:focus-visible {
+	opacity: 1;
+	text-decoration: underline;
+}
+
+/* A hint without a key (link refusal reason): no empty key cap. */
+.pagillo-mode-hint > :empty:first-child {
+	display: none;
+}
+
 /* Format panel: never scrolls horizontally at 300 px. */
 .pagillo-panel-scroll {
 	overflow-x: hidden;

@@ -30,6 +30,8 @@ import type * as Y from 'yjs'
 
 import {
 	addFrame,
+	canLinkTarget,
+	chainOf,
 	deleteFrame,
 	embedImgAt,
 	FULL_CROP,
@@ -38,12 +40,14 @@ import {
 	inlineImageBid,
 	inlineToFrame,
 	insertImageParagraph,
+	type LinkRefusal,
+	linkFrame,
 	soleInlineImage,
 	updateFrame
 } from '../crdt/frame-ops'
 import { newId } from '../crdt/ids'
 import { layoutTx as masterLayoutTx, updateMaster, withAreas } from '../crdt/master-ops'
-import { flipRegion, mirrorFrame } from '../crdt/type-converters'
+import { flipRegion, isRtlLang, mirrorFrame, textChains } from '../crdt/type-converters'
 import type {
 	StoredFrame,
 	StoredImageData,
@@ -136,6 +140,8 @@ type Drag =
 			region?: Box
 	  }
 	| { k: 'marquee'; page: number; x0: number; y0: number; moved: boolean }
+	/** Link mode: drawing a new follower text box on empty page space. */
+	| { k: 'link'; page: number; x0: number; y0: number; moved: boolean }
 	/** Crop mode: pan (no `corner`) or zoom from a ghost corner; frame-local Fx. */
 	| {
 			k: 'crop'
@@ -153,6 +159,20 @@ type Drag =
 /** Page point → the unrotated space of frame `b` (rotation is about its centre). */
 const toLocal = (b: Box, x: number, y: number) =>
 	rotatePointAroundCenter({ x, y }, { x: b.x + b.w / 2, y: b.y + b.h / 2 }, -b.rot)
+
+/**
+ * CSS px point `d` CSS px outside frame `b`'s right (`side` 1) or left (-1) edge at height
+ * fraction `fy`, rotated with the frame (`scale` = CSS px per pt).
+ */
+const edgePt = (b: Box, scale: number, side: number, fy: number, d: number) => {
+	const off = (d / scale) * FX
+	const p = rotatePointAroundCenter(
+		{ x: side > 0 ? b.x + b.w + off : b.x - off, y: b.y + b.h * fy },
+		{ x: b.x + b.w / 2, y: b.y + b.h / 2 },
+		b.rot
+	)
+	return { x: (p.x / FX) * scale, y: (p.y / FX) * scale }
+}
 
 /**
  * The crop for a crop drag at frame-space `x`/`y`: a pan moves the image within its free
@@ -248,6 +268,24 @@ export interface FrameCtl {
 	startCrop(id: string): void
 	/** Leave crop mode, committing the crop as one undo step. */
 	endCrop(): void
+	/** Armed link mode: the text frame whose thread a click / drag continues. */
+	link?: { id: string }
+	startLink(id: string): void
+	endLink(): void
+	/** Link mode: why the hovered frame can't be linked. */
+	linkRefusal?: LinkRefusal
+	/** "New linked text box": a follower of `id`, same size, +24 pt, same page; selected. */
+	newLinked(id: string): void
+	/** Global page index of a frame's anchor page (-1 when not laid out). */
+	pageOf(id: string): number
+}
+
+/** Link refusal hints (English keys, translated at use). */
+export const LINK_REFUSALS: Record<LinkRefusal, string> = {
+	hasText: 'This text box has its own text · empty it first',
+	inThread: 'Already part of a thread',
+	layoutItem: "Layout items can't be linked",
+	notText: 'Only text boxes can be linked'
 }
 
 function readPrefs(): ViewPrefs {
@@ -291,6 +329,8 @@ export function useFrames({
 	const liveRef = React.useRef<Live | undefined>(undefined)
 	const keyEl = React.useRef<HTMLDivElement>(null)
 	const [crop, setCrop] = React.useState<CropState>()
+	const [link, setLink] = React.useState<{ id: string }>()
+	const [linkRefusal, setLinkRefusal] = React.useState<LinkRefusal>()
 	/** Last frame press, for the double-click that enters crop mode. */
 	const lastDown = React.useRef({ t: 0, x: 0, y: 0, id: '' })
 	const cf = crop ? doc.f.get(crop.id) : undefined
@@ -320,7 +360,21 @@ export function useFrames({
 	React.useEffect(() => {
 		setSel(undefined)
 		setCrop(undefined)
+		setLink(undefined)
+		setLinkRefusal(undefined)
 	}, [layoutEdit])
+	// Link mode: a press outside the pages (panel, toolbar…) disarms; page presses go to `onPointer`.
+	React.useEffect(() => {
+		if (!link) return
+		const down = (e: PointerEvent) => {
+			if (!(e.target as Element).closest?.('.pagillo-pages')) {
+				setLink(undefined)
+				setLinkRefusal(undefined)
+			}
+		}
+		document.addEventListener('pointerdown', down)
+		return () => document.removeEventListener('pointerdown', down)
+	}, [link])
 
 	const pages = React.useMemo(() => flattenPages(layout.sections), [layout.sections])
 	const info = (i: number): PageInfo | undefined => {
@@ -383,6 +437,69 @@ export function useFrames({
 		const old = d?.crop ?? FULL_CROP
 		if (d && (c.x !== old.x || c.y !== old.y || c.w !== old.w || c.h !== old.h))
 			updateFrame(yDoc, doc, crop.id, { data: { ...d, crop: c } })
+	}
+
+	const pageOf = (id: string): number => {
+		const f = doc.f.get(id)
+		return f ? pages.findIndex((p) => p.sec === f.anchor.sec && p.index === f.anchor.page) : -1
+	}
+
+	/** Link mode from text frame `id` (page frames only; not in Edit layout). */
+	const startLink = (id: string) => {
+		if (layoutEdit || doc.f.get(id)?.t !== 'txt') return
+		if (crop) endCrop()
+		setLinkRefusal(undefined)
+		setLink({ id })
+	}
+
+	const endLink = () => {
+		setLink(undefined)
+		setLinkRefusal(undefined)
+	}
+
+	/** Link `target` to the thread of `from`; leaves link mode and selects it. */
+	const linkTo = (from: string, target: string, page: number) => {
+		if (!linkFrame(yDoc, doc, from, target)) return
+		endLink()
+		select({ ids: [target], page })
+	}
+
+	/** A new empty follower text box of `from` at `b` on `page`: one undo step. */
+	const addFollower = (from: string, page: number, b: Box) => {
+		const pg = info(page)
+		if (!pg) return
+		let id: string | undefined
+		yDoc.transact(() => {
+			id = addFrame(yDoc, doc, {
+				t: 'txt',
+				anchor: { sec: pg.sec, page: pg.index },
+				...round(b),
+				z: 1,
+				wrap: { mode: 'box', off: 6 * FX },
+				data: {}
+			})
+			if (!linkFrame(yDoc, doc, from, id)) {
+				deleteFrame(yDoc, doc, id)
+				id = undefined
+			}
+		}, yDoc.clientID)
+		endLink()
+		if (id) select({ ids: [id], page })
+	}
+
+	const newLinked = (id: string) => {
+		const f = doc.f.get(id)
+		const page = pageOf(id)
+		const pg = info(page)
+		if (!f || !pg) return
+		const off = 24 * FX
+		addFollower(id, page, {
+			x: clamp(f.x + off, 0, Math.max(0, pg.w - f.w)),
+			y: clamp(f.y + off, 0, Math.max(0, pg.h - f.h)),
+			w: f.w,
+			h: f.h,
+			rot: f.rot
+		})
 	}
 
 	/** Crop geometry of page `i` in Fx (frame box `b` overrides the stored one). */
@@ -470,6 +587,7 @@ export function useFrames({
 			if (regs.size && pg) setRegions(pg, (rs) => rs.filter((r) => !regs.has(r.id)))
 		})
 		setCrop(undefined)
+		endLink()
 		setSel(undefined)
 		editor.focus()
 	}
@@ -736,6 +854,20 @@ export function useFrames({
 				}
 				endCrop()
 			}
+			// Link mode: a frame links (or stays armed when refused); empty page space draws one.
+			if (link && !handle) {
+				const lh = hitFrame(its, hit.x, hit.y, { mod: true, alt: false, layout: false })
+				if (lh) {
+					if (lh.id !== link.id) linkTo(link.id, lh.id, hit.index)
+					return
+				}
+				const pg = info(hit.index)
+				if (pg && hit.x >= 0 && hit.y >= 0 && hit.x <= pg.w && hit.y <= pg.h) {
+					const p = snapPoint(pg, hit.index, hit.x, hit.y, thr, e.altKey)
+					drag.current = { k: 'link', page: hit.index, x0: p.x, y0: p.y, moved: false }
+				} else endLink()
+				return
+			}
 			const one =
 				sel?.ids.length === 1 && sel.page === hit.index
 					? its.find((it) => it.id === sel.ids[0])
@@ -962,6 +1094,12 @@ export function useFrames({
 			else if (d.pick && canEdit) void pick(d.pick)
 		} else if (d.k === 'resize') {
 			if (l?.boxes) commit(d.page, l.boxes)
+		} else if (d.k === 'link') {
+			// A click (or a too-small box) on empty space leaves link mode.
+			const r = l?.rect
+			if (link && d.moved && r && r.w >= 18 * FX && r.h >= 18 * FX)
+				addFollower(link.id, d.page, r)
+			else endLink()
 		} else {
 			editor.onPointer('up', hit, e)
 			const r = l?.rect
@@ -991,6 +1129,28 @@ export function useFrames({
 	const hoverAt = (hit: PageHit, el: HTMLElement, alt: boolean, thr: number) => {
 		const pg = info(hit.index)
 		const onPage = !!pg && hit.x >= 0 && hit.y >= 0 && hit.x <= pg.w && hit.y <= pg.h
+		if (link) {
+			const lh = hitFrame(items(hit.index), hit.x, hit.y, {
+				mod: true,
+				alt: false,
+				layout: false
+			})
+			const r = lh && lh.id !== link.id ? canLinkTarget(doc, link.id, lh.id) : undefined
+			el.style.cursor = !lh
+				? onPage
+					? 'crosshair'
+					: 'default'
+				: lh.id === link.id
+					? 'default'
+					: r
+						? 'not-allowed'
+						: 'copy'
+			setLinkRefusal(r)
+			setHover((p) =>
+				p?.page === hit.index && p.id === lh?.id ? p : lh && { page: hit.index, id: lh.id }
+			)
+			return
+		}
 		const h = hitFrame(items(hit.index), hit.x, hit.y, {
 			mod: false,
 			alt: false,
@@ -1070,6 +1230,7 @@ export function useFrames({
 			case 'Escape':
 				done()
 				if (crop) return endCrop()
+				if (link) return endLink()
 				setSel(undefined)
 				editor.focus()
 				return
@@ -1112,12 +1273,13 @@ export function useFrames({
 				const f = cur.length === 1 ? cur[0].frame : undefined
 				if (f?.t === 'img' && (f.data as StoredImageData).fileId) startCrop(cur[0].id)
 				else if (f?.t === 'txt') {
+					// A follower edits its head's story.
+					const head = chainOf(doc, cur[0].id)?.head
+					const hf = head ? doc.f.get(head) : f
+					const story = (hf?.data as StoredTextFrameData | undefined)?.story
+					if (!story) return
 					setSel(undefined)
-					editor.select({
-						story: (f.data as StoredTextFrameData).story,
-						anchor: 0,
-						head: 0
-					})
+					editor.select({ story, anchor: 0, head: 0 })
 					editor.focus()
 				} else if (f?.t === 'img' && !(f.data as StoredImageData).fileId)
 					void pick(cur[0].id)
@@ -1185,6 +1347,67 @@ export function useFrames({
 		}
 	}
 
+	/** Text chains for this render (ports, thread badges, ghost labels). */
+	const chains = textChains(doc)
+
+	/**
+	 * Thread ports of a selected page text box, outside its box (clear of the resize handles):
+	 * out-port at ¾ height past the end edge, in-port (followers) at ¼ past the start edge; RTL
+	 * swaps sides. 24 CSS px at every zoom; symbols, never colour alone: empty = thread ends
+	 * here, ▸ = continues, + (red) = text doesn't fit.
+	 */
+	const portsOf = (it: PageItem, b: Box, scale: number) => {
+		if (layoutEdit || it.kind !== 'frame' || it.frame?.t !== 'txt' || it.master) return null
+		const c = chainOf(doc, it.id, chains)
+		const n = c ? c.frames.indexOf(it.id) : 0
+		const m = c?.frames.length ?? 1
+		// The last laid-out frame carries the overset — not always the chain's last (a follower
+		// past its section's pages is never laid out).
+		const over = layout.overset.some((o) => o.frame === it.id)
+		const rtl = isRtlLang(String(doc.m.get('lang') || 'en'))
+		const out = rtl ? -1 : 1
+		const arrow = rtl ? '◂' : '▸'
+		// The port centre sits 14 CSS px outside the edge.
+		const at = (side: number, fy: number): React.CSSProperties => {
+			const p = edgePt(b, scale, side, fy, 14)
+			return { left: p.x - 12, top: p.y - 12 }
+		}
+		const outLabel = over
+			? t("Text doesn't fit · link to another text box")
+			: n < m - 1
+				? t('Continues in frame {{n}} of {{m}}', { n: n + 2, m })
+				: t('End of text · link to another text box')
+		const inLabel = t('Continued from frame {{n}} of {{m}}', { n, m })
+		const armed = link?.id === it.id
+		return (
+			<>
+				{n > 0 && (
+					<span
+						className="pagillo-port pagillo-port-in"
+						style={at(-out, 0.25)}
+						role="img"
+						aria-label={inLabel}
+						title={inLabel}
+					>
+						{arrow}
+					</span>
+				)}
+				<button
+					type="button"
+					className={`pagillo-port${over ? ' pagillo-port-over' : ''}`}
+					style={at(out, 0.75)}
+					aria-label={outLabel}
+					title={outLabel}
+					aria-pressed={armed}
+					onPointerDown={(e) => e.stopPropagation()}
+					onClick={() => (armed ? endLink() : startLink(it.id))}
+				>
+					{over ? '+' : n < m - 1 ? arrow : ''}
+				</button>
+			</>
+		)
+	}
+
 	const overlay = (i: number, size: { w: number; h: number }, scale: number) => {
 		const pg = info(i)
 		if (!pg || !canEdit) return null
@@ -1230,6 +1453,66 @@ export function useFrames({
 		const ob = one && bx(one)
 		const lockedBy = one && locked?.get(one.id)
 		const turn = (b: Box) => `rotate(${b.rot} ${(b.x + b.w / 2) * k} ${(b.y + b.h / 2) * k})`
+		// Thread of the selected text box: its frames on this page (chain order), a dashed line
+		// between their centres, numbered badges, and jump badges to neighbours on other pages.
+		const chain =
+			!layoutEdit && sel?.ids.length === 1 ? chainOf(doc, sel.ids[0], chains) : undefined
+		const here = (chain?.frames ?? []).flatMap((id, n) => {
+			const it = its.find((x) => x.id === id)
+			return it ? [{ id, n, b: bx(it) }] : []
+		})
+		const mid = (b: Box) => `${(b.x + b.w / 2) * k},${(b.y + b.h / 2) * k}`
+		const threadLines = here.flatMap((a, j) => {
+			const z = here[j + 1]
+			return z && z.n === a.n + 1 ? [`${mid(a.b)} ${mid(z.b)}`] : []
+		})
+		const outSide = isRtlLang(String(doc.m.get('lang') || 'en')) ? -1 : 1
+		const jumps = here.flatMap(({ n, b }) =>
+			([-1, 1] as const).flatMap((dir) => {
+				const id = chain?.frames[n + dir]
+				const p = id ? pageOf(id) : -1
+				if (!id || p < 0 || p === i) return []
+				const side = dir * outSide
+				const fy = dir > 0 ? 0.75 : 0.25
+				return [
+					{
+						id,
+						p,
+						dir,
+						side,
+						a: edgePt(b, scale, side, fy, 0),
+						c: edgePt(b, scale, side, fy, 56)
+					}
+				]
+			})
+		)
+		// Followers on this page: those no line of the story reaches get the ghost label.
+		const pageLines = editor.index.pages.get(i) ?? []
+		const flowed = new Set<string>()
+		const ghosts: { id: string; b: Box; n: number; m: number; story: string }[] = []
+		for (const it of layoutEdit ? [] : its) {
+			if (it.frame?.t !== 'txt' || it.master || (it.frame.data as StoredTextFrameData).story)
+				continue
+			const c = chainOf(doc, it.id, chains)
+			const story = c && (doc.f.get(c.head)?.data as StoredTextFrameData | undefined)?.story
+			if (!c || !story) continue
+			// Lines are in the frame's unrotated space (rotation is render-only).
+			const b = { ...boxOf(it), rot: 0 }
+			const l = pageLines.find(
+				(pl) =>
+					pl.line.story === story &&
+					containsPoint(b, pl.line.x + 1, pl.line.y - pl.line.ascent / 2)
+			)
+			if (l) flowed.add(it.id)
+			else
+				ghosts.push({
+					id: it.id,
+					b: boxOf(it),
+					n: c.frames.indexOf(it.id) + 1,
+					m: c.frames.length,
+					story
+				})
+		}
 		const cIt = crop ? its.find((it) => it.id === crop.id) : undefined
 		const cg = cIt && cropAt(i, bx(cIt))
 		const cImg = (f: Rect, opacity?: number) => (
@@ -1324,11 +1607,17 @@ export function useFrames({
 							it.frame?.t === 'txt' &&
 							(it.frame.data as StoredTextFrameData).story === es?.story
 						// An empty text box (just its paragraph mark) would be invisible: always outline it.
+						// A follower is empty when no line of its thread's story reaches it.
+						const fd =
+							it.frame?.t === 'txt'
+								? (it.frame.data as StoredTextFrameData)
+								: undefined
 						const blank =
 							editable &&
-							it.frame?.t === 'txt' &&
-							(doc.tx.get((it.frame.data as StoredTextFrameData).story)?.length ??
-								0) <= 1
+							!!fd &&
+							(fd.story
+								? (doc.tx.get(fd.story)?.length ?? 0) <= 1
+								: !flowed.has(it.id))
 						const cue = !(isSel || isHover || typing || layoutEdit)
 						return (
 							<g key={it.id} transform={turn(b)}>
@@ -1556,7 +1845,82 @@ export function useFrames({
 							strokeWidth={px}
 						/>
 					)}
+					{/* Thread: a surface-coloured halo under the primary dash keeps ≥ 3:1 on any page content. */}
+					{threadLines.map((pts) => (
+						<ThreadStroke key={pts} pts={pts} px={px} />
+					))}
+					{jumps.map((j) => (
+						<ThreadStroke
+							key={`${j.id}${j.dir}`}
+							pts={`${j.a.x * px},${j.a.y * px} ${j.c.x * px},${j.c.y * px}`}
+							px={px}
+						/>
+					))}
+					{here.map(({ id, n, b }) => (
+						<g key={id} className="pagillo-thread-badge">
+							<circle
+								cx={(b.x + b.w / 2) * k}
+								cy={(b.y + b.h / 2) * k}
+								r={9 * px}
+								strokeWidth={1.5 * px}
+							/>
+							<text
+								x={(b.x + b.w / 2) * k}
+								y={(b.y + b.h / 2) * k + 4 * px}
+								fontSize={11 * px}
+								textAnchor="middle"
+							>
+								{n + 1}
+							</text>
+						</g>
+					))}
 				</svg>
+				{one && ob && !lockedBy && portsOf(one, ob, scale)}
+				{jumps.map((j) => {
+					const label =
+						j.dir > 0
+							? t('Continues on page {{n}}', { n: j.p + 1 })
+							: t('Continued from page {{n}}', { n: j.p + 1 })
+					return (
+						<button
+							key={`${j.id}${j.dir}`}
+							type="button"
+							className="pagillo-thread-jump"
+							style={{ left: j.c.x, top: j.c.y }}
+							aria-label={label}
+							title={label}
+							onPointerDown={(e) => e.stopPropagation()}
+							onClick={() => {
+								scrollToPage(pages[j.p].key)
+								select({ ids: [j.id], page: j.p })
+							}}
+						>
+							{j.side > 0 ? '→' : '←'} {t('p.{{n}}', { n: j.p + 1 })}
+						</button>
+					)
+				})}
+				{ghosts.map((g) => (
+					<button
+						key={g.id}
+						type="button"
+						className="pagillo-thread-ghost"
+						style={{
+							left: ((g.b.x + g.b.w / 2) / FX) * scale,
+							top: ((g.b.y + g.b.h / 2) / FX) * scale
+						}}
+						onPointerDown={(e) => e.stopPropagation()}
+						onClick={() => {
+							// Caret at the story end (before its trailing paragraph mark).
+							const at = Math.max(0, (doc.tx.get(g.story)?.length ?? 1) - 1)
+							endLink()
+							setSel(undefined)
+							editor.select({ story: g.story, anchor: at, head: at })
+							editor.focus()
+						}}
+					>
+						{t('Text continues here · {{n}} of {{m}}', { n: g.n, m: g.m })}
+					</button>
+				))}
 				{rulers && (
 					<PageRulers
 						w={size.w}
@@ -1656,11 +2020,32 @@ export function useFrames({
 		active: !!live?.boxes || !!live?.rotating,
 		crop: crop && sel?.ids.includes(crop.id) ? { id: crop.id, page: crop.page } : undefined,
 		startCrop,
-		endCrop
+		endCrop,
+		link,
+		startLink,
+		endLink,
+		linkRefusal: link ? linkRefusal : undefined,
+		newLinked,
+		pageOf
 	}
 }
 
 /** Snap guides while moving: dashed region boxes and their column gutters. */
+/** A thread link: dashed line over a halo, `pts` in overlay px. */
+function ThreadStroke({ pts, px }: { pts: string; px: number }) {
+	return (
+		<g>
+			<polyline points={pts} className="pagillo-thread-halo" strokeWidth={4 * px} />
+			<polyline
+				points={pts}
+				className="pagillo-thread"
+				strokeWidth={1.5 * px}
+				strokeDasharray={`${5 * px} ${4 * px}`}
+			/>
+		</g>
+	)
+}
+
 function SnapGuides({ boxes, k, px }: { boxes: Region[]; k: number; px: number }) {
 	return (
 		<g stroke="var(--col-primary, #06f)" strokeWidth={px} fill="none" opacity={0.35}>

@@ -135,7 +135,7 @@ export class PublicationAdapter {
 		for (const f of Object.values(pub.frames)) {
 			if (f.t === 'txt') {
 				const st = (f.data as TextFrameData).story
-				this.stories.set(st.id, st)
+				if (st) this.stories.set(st.id, st)
 			}
 		}
 		// Keep a live IME composition: `pub`'s stories are the cached ones, so patch in place.

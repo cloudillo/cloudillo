@@ -10,7 +10,10 @@
 
 import {
 	Button,
+	ColorInput,
 	Input,
+	Menu,
+	MenuItem,
 	NativeSelect,
 	NumberInput,
 	PropertyField,
@@ -22,11 +25,26 @@ import {
 import { FX } from '@cloudillo/typeset'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuTrash2 } from 'react-icons/lu'
+import { LuTrash2, LuX } from 'react-icons/lu'
 import type * as Y from 'yjs'
 
-import { embedImgAt, setInlineImage, soleInlineImage, updateFrame } from '../crdt/frame-ops'
-import type { StoredFrame, StoredImageData, YPagilloDocument } from '../crdt/stored-types'
+import {
+	breakThreadAfter,
+	chainOf,
+	embedImgAt,
+	linkFrame,
+	linkTargets,
+	setInlineImage,
+	soleInlineImage,
+	updateFrame
+} from '../crdt/frame-ops'
+import type {
+	StoredFrame,
+	StoredImageData,
+	StoredTextFrameData,
+	YPagilloDocument
+} from '../crdt/stored-types'
+import { masterItems } from '../crdt/type-converters'
 import * as Cmd from '../editor/commands'
 import { FRAME_LABELS, type FrameCtl } from '../editor/FrameOverlay'
 import { effectiveDpi } from '../editor/frames'
@@ -101,6 +119,26 @@ export function FormatPanel({
 	)
 }
 
+/** Colour with a clear button; empty = none. */
+function OptColor({ value, onChange }: { value?: string; onChange(c?: string): void }) {
+	const { t } = useTranslation()
+	return (
+		<div className="c-hbox g-1">
+			<ColorInput value={value ?? '#ffffff'} showHex={false} onChange={onChange} />
+			{value && (
+				<Button
+					variant="ghost"
+					size="sm"
+					icon={<LuX />}
+					aria-label={t('None')}
+					title={t('None')}
+					onClick={() => onChange(undefined)}
+				/>
+			)}
+		</div>
+	)
+}
+
 /** Delete as a ghost icon at the top of a section (PropertySection has no header slot). */
 function DeleteButton({ onClick }: { onClick(): void }) {
 	const { t } = useTranslation()
@@ -121,6 +159,7 @@ function DeleteButton({ onClick }: { onClick(): void }) {
 function FrameSection({ yDoc, doc, frames }: PanelProps & { frames: FrameCtl }) {
 	const { t } = useTranslation()
 	const altBox = React.useRef<HTMLDivElement>(null)
+	const [threadMenu, setThreadMenu] = React.useState(false)
 	// After an image insert, focus moves to Alt text.
 	React.useEffect(() => {
 		if (frames.focusAlt) altBox.current?.querySelector('input')?.focus()
@@ -142,11 +181,14 @@ function FrameSection({ yDoc, doc, frames }: PanelProps & { frames: FrameCtl }) 
 	}
 	const set = (p: Partial<StoredFrame>) => updateFrame(yDoc, doc, id, p)
 	const d = f.data as StoredImageData
-	const setData = (p: Partial<StoredImageData>) => set({ data: { ...d, ...p } })
-	const master = [...doc.ms.values()].some((m) =>
-		[...m.items, ...(m.left?.items ?? []), ...(m.right?.items ?? [])].includes(id)
-	)
+	const setData = (p: Partial<StoredImageData> | Partial<StoredTextFrameData>) =>
+		set({ data: { ...d, ...p } })
+	const td = f.data as StoredTextFrameData
+	const master = masterItems(doc).has(id)
 	const img = f.t === 'img'
+	const thread = f.t === 'txt' && !master
+	const chain = thread ? chainOf(doc, id) : undefined
+	const ci = chain ? chain.frames.indexOf(id) : 0
 	const dpi = img && d.px ? Math.round(effectiveDpi(d.px[0], f.w)) : undefined
 
 	return (
@@ -193,6 +235,40 @@ function FrameSection({ yDoc, doc, frames }: PanelProps & { frames: FrameCtl }) 
 					</>
 				)}
 			</PropertySection>
+			{f.t === 'txt' && (
+				<PropertySection title={t('Box')}>
+					<PropertyField label={t('Inset')}>
+						<LengthInput
+							value={td.inset ?? 0}
+							min={0}
+							onChange={(inset) => setData({ inset })}
+						/>
+					</PropertyField>
+					<PropertyField label={t('Background')}>
+						<OptColor value={td.fill} onChange={(fill) => setData({ fill })} />
+					</PropertyField>
+					<PropertyField label={t('Border')}>
+						<OptColor
+							value={td.stroke}
+							onChange={(stroke) =>
+								setData({
+									stroke,
+									strokeW: stroke ? (td.strokeW ?? FX) : undefined
+								})
+							}
+						/>
+					</PropertyField>
+					{td.stroke && (
+						<PropertyField label={t('Border width')}>
+							<LengthInput
+								value={td.strokeW ?? FX}
+								min={0}
+								onChange={(strokeW) => setData({ strokeW })}
+							/>
+						</PropertyField>
+					)}
+				</PropertySection>
+			)}
 			<PropertySection title={t('Placement')}>
 				{!master && img && d.fileId && (
 					<PropertyField label={t('Position')}>
@@ -270,6 +346,42 @@ function FrameSection({ yDoc, doc, frames }: PanelProps & { frames: FrameCtl }) 
 					/>
 				</PropertyField>
 			</PropertySection>
+			{thread && (
+				<PropertySection title={t('Thread')}>
+					{chain && (
+						<p className="small text-muted">
+							{t('Frame {{n}} of {{m}}', { n: ci + 1, m: chain.frames.length })}
+						</p>
+					)}
+					<Menu
+						trigger={<Button variant="link">{t('Continue in frame…')}</Button>}
+						open={threadMenu}
+						onOpenChange={setThreadMenu}
+					>
+						<MenuItem
+							label={t('New linked text box')}
+							onClick={() => frames.newLinked(id)}
+						/>
+						{threadMenu &&
+							linkTargets(doc, id)
+								.map((tid) => ({ tid, n: frames.pageOf(tid) }))
+								.filter(({ n }) => n >= 0)
+								.map(({ tid, n }) => (
+									<MenuItem
+										key={tid}
+										label={t('Page {{n}} · Text box', { n: n + 1 })}
+										onClick={() => linkFrame(yDoc, doc, id, tid)}
+									/>
+								))}
+						<MenuItem label={t('Pick on page…')} onClick={() => frames.startLink(id)} />
+					</Menu>
+					{chain && ci < chain.frames.length - 1 && (
+						<Button variant="link" onClick={() => breakThreadAfter(yDoc, doc, id)}>
+							{t('Stop text after this frame')}
+						</Button>
+					)}
+				</PropertySection>
+			)}
 			{img && (
 				<PropertySection title={t('Fit')}>
 					<PropertyField label={t('Fit')}>

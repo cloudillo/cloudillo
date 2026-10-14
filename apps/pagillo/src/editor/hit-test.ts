@@ -6,8 +6,13 @@
  * frame hit order (one Auto model, no tool modes).
  */
 
+import { rotatePointAroundCenter } from '@cloudillo/canvas-tools'
+import type { LineGeom } from '@cloudillo/typeset'
+
 import { type GeomIndex, nearestCaret, type PlacedLine, sameRow, xDist } from './caret'
+import { chainOf } from '../crdt/frame-ops'
 import type { StoredTextFrameData, YPagilloDocument } from '../crdt/stored-types'
+import { textChains } from '../crdt/type-converters'
 import {
 	containsPoint,
 	edgeDist,
@@ -29,21 +34,23 @@ export interface TextArea {
 	w: number
 	h: number
 	story?: string
+	/** A text box's rotation (degrees, about its centre). */
+	rot?: number
 }
 
 /** Text areas of a page (`flowBoxes`) then its text boxes, so a text box wins a tie. */
 export function textAreas(doc: YPagilloDocument, page: PageInfo): TextArea[] {
 	const out: TextArea[] = [...flowBoxes(doc, page)]
-	// A text box's rotation is ignored here (axis-aligned rect); rotate the point if needed.
-	for (const it of pageItems(doc, page))
-		if (it.frame?.t === 'txt')
-			out.push({
-				x: it.x,
-				y: it.y,
-				w: it.w,
-				h: it.h,
-				story: (it.frame.data as StoredTextFrameData).story
-			})
+	const chains = textChains(doc)
+	for (const it of pageItems(doc, page)) {
+		if (it.frame?.t !== 'txt') continue
+		// A thread follower edits its head's story; an orphan follower has none and is skipped.
+		const own = (it.frame.data as StoredTextFrameData).story
+		const head = own ? undefined : chainOf(doc, it.id, chains)?.head
+		const story =
+			own ?? (head && (doc.f.get(head)?.data as StoredTextFrameData | undefined)?.story)
+		if (story) out.push({ x: it.x, y: it.y, w: it.w, h: it.h, story, rot: it.rot })
+	}
 	return out
 }
 
@@ -57,9 +64,12 @@ export function nearArea(
 	let area: TextArea | undefined
 	let ad = slop
 	for (const a of areas) {
+		const p = a.rot
+			? rotatePointAroundCenter({ x, y }, { x: a.x + a.w / 2, y: a.y + a.h / 2 }, -a.rot)
+			: { x, y }
 		const d = Math.hypot(
-			Math.max(0, a.x - x, x - a.x - a.w),
-			Math.max(0, a.y - y, y - a.y - a.h)
+			Math.max(0, a.x - p.x, p.x - a.x - a.w),
+			Math.max(0, a.y - p.y, p.y - a.y - a.h)
 		)
 		if (d <= ad) {
 			ad = d
@@ -68,6 +78,10 @@ export function nearArea(
 	}
 	return area
 }
+
+/** Page point → the unrotated space of line `l` (its frame's). */
+const local = (l: LineGeom, x: number, y: number) =>
+	l.rot ? rotatePointAroundCenter({ x, y }, { x: l.rot.cx, y: l.rot.cy }, -l.rot.deg) : { x, y }
 
 /**
  * Text position at page point (`x`, `y` Fx) on global page `page`: the nearest line in the
@@ -106,7 +120,7 @@ export function hitText(
 			l.line.y > m.line.y || (sameRow(l, m) && l.to > m.to) ? l : m
 		)
 		const end = index.stories.get(last.line.story)?.at(-1)?.to
-		if (y > last.line.y + last.line.descent && last.to === end)
+		if (local(last.line, x, y).y > last.line.y + last.line.descent && last.to === end)
 			return { story: last.line.story, offset: end }
 	}
 	if (!lines.length) {
@@ -123,6 +137,7 @@ export function hitText(
 	let bo = Number.POSITIVE_INFINITY
 	for (const pl of lines) {
 		const l = pl.line
+		const p = local(l, x, y)
 		// Column extent: lines of this story overlapping this one horizontally.
 		// O(n²) per click over one page's lines; index columns if pages get huge.
 		let cl = l.x
@@ -133,18 +148,18 @@ export function hitText(
 			cl = Math.min(cl, ol.x)
 			cr = Math.max(cr, right(ol))
 		}
-		const dx = Math.max(0, cl - x, x - cr)
-		const dy = Math.max(0, l.y - l.ascent - y, y - l.y - l.descent)
+		const dx = Math.max(0, cl - p.x, p.x - cr)
+		const dy = Math.max(0, l.y - l.ascent - p.y, p.y - l.y - l.descent)
 		const d = dx * dx + dy * dy
 		// Lines of a split row share the column extent: the one nearest x itself wins a tie.
-		const own = xDist(pl, x)
+		const own = xDist(pl, p.x)
 		if (d < bd || (d === bd && own < bo)) {
 			bd = d
 			bo = own
 			best = pl
 		}
 	}
-	return { story: best.line.story, offset: nearestCaret(best, x) }
+	return { story: best.line.story, offset: nearestCaret(best, local(best.line, x, y).x) }
 }
 
 /** `frame` = select it; `text` = text box `id`'s own text (place a caret); undefined = text below. */

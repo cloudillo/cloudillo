@@ -23,6 +23,7 @@ import {
 	flipRegion,
 	flowOrder,
 	isRtlLang,
+	masterItems,
 	mirrorFrame,
 	resolveSide,
 	swapInOut
@@ -154,16 +155,6 @@ export function flowBoxes(doc: YPagilloDocument, page: PageInfo): Region[] {
 	return pm?.regions.length ? pm.regions : [marginBox(doc, page)]
 }
 
-/** Ids of every master's items, `left`/`right` variants included. */
-export function masterItemIds(doc: YPagilloDocument): Set<string> {
-	const out = new Set<string>()
-	doc.ms.forEach((m) => {
-		for (const id of [...m.items, ...(m.left?.items ?? []), ...(m.right?.items ?? [])])
-			out.add(id)
-	})
-	return out
-}
-
 /**
  * Selectable items of a page in paint order. Normal mode: the page's anchored frames. With
  * `layoutMaster` (Edit layout): that master's text areas and items, on pages using it only.
@@ -210,7 +201,7 @@ export function pageItems(
 			if (f) out.push(frame(id, pm.mirrored ? mirrorFrame(f, page.w) : f, true))
 		}
 	} else {
-		const masters = masterItemIds(doc)
+		const masters = masterItems(doc)
 		doc.f.forEach((f, id) => {
 			if (!masters.has(id) && f.anchor.sec === page.sec && f.anchor.page === page.index)
 				out.push(frame(id, f, false))

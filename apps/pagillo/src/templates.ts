@@ -18,7 +18,7 @@ import { type Align, type Fx, type ParagraphProps, ptToFx as pt } from '@cloudil
 import { addFrame } from './crdt/frame-ops'
 import { type MasterId, newId, type SectionId } from './crdt/ids'
 import type { PageSize } from './crdt/runtime-types'
-import { createStory, type SeedParagraph } from './crdt/section-ops'
+import { createStory, type SeedParagraph } from './crdt/story-ops'
 import type { StoredFrame, StoredSection, StoredStyle, YPagilloDocument } from './crdt/stored-types'
 import { applyStyleSet } from './crdt/style-ops'
 import { FULL_CROP, PAGE_SIZES } from './crdt/type-converters'

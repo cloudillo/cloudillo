@@ -6,7 +6,13 @@ import * as Y from 'yjs'
 import { computeBlockIdFixes, stripBlockIds } from '../crdt/block-ids.js'
 import { openPublication } from '../crdt/document.js'
 import { registerNormalizer } from '../crdt/normalize.js'
-import type { StoredFrame, StoredMaster, YPagilloDocument } from '../crdt/stored-types.js'
+import { sanitizeBox, sanitizeMarks } from '../crdt/overrides.js'
+import type {
+	StoredFrame,
+	StoredMaster,
+	StoredSection,
+	YPagilloDocument
+} from '../crdt/stored-types.js'
 import {
 	byIds,
 	deltaToParagraphs,
@@ -162,9 +168,70 @@ describe('peer data reaching the layout worker', () => {
 			doc.tx.set('bad', new Y.Map() as unknown as Y.Text)
 			doc.tx.set('ok', t)
 			t.insert(0, 'no newline')
+			doc.s.set('s1', { story: 'bad' } as StoredSection)
+			doc.s.set('s2', { story: 'ok' } as StoredSection)
 		})
 		expect(() => registerNormalizer(yDoc, doc, () => true)).not.toThrow()
 		expect(t.toString()).toBe('no newline\n')
+	})
+
+	it('sweeps unreferenced stories once, at the first write', () => {
+		const yDoc = new Y.Doc()
+		const doc = openPublication(yDoc)
+		const frame = (data: object) => ({ t: 'txt', data }) as unknown as StoredFrame
+		yDoc.transact(() => {
+			for (const id of ['sec', 'head', 'item', 'orphan']) doc.tx.set(id, new Y.Text('\n'))
+			doc.s.set('s1', { story: 'sec' } as StoredSection)
+			doc.f.set('h', frame({ story: 'head', chain: ['f'] }))
+			doc.f.set('f', frame({}))
+			doc.f.set('m', frame({ story: 'item' }))
+			doc.ms.set('M', { items: ['m'] } as unknown as StoredMaster)
+		})
+		let canWrite = false
+		const n = registerNormalizer(yDoc, doc, () => canWrite)
+		expect(doc.tx.has('orphan')).toBe(true)
+		canWrite = true
+		n.run()
+		expect([...doc.tx.keys()].sort()).toEqual(['head', 'item', 'sec'])
+		doc.tx.set('later', new Y.Text('\n'))
+		n.run()
+		expect(doc.tx.has('later')).toBe(true)
+		n.dispose()
+	})
+
+	it('survives ill-typed chains and drops ill-typed box styling', () => {
+		const doc = openPublication(new Y.Doc())
+		const txt = (data: unknown) =>
+			({
+				t: 'txt',
+				anchor: { sec: 's', page: 0 },
+				x: 0,
+				y: 0,
+				w: 1,
+				h: 1,
+				rot: 0,
+				z: 0,
+				data
+			}) as unknown as StoredFrame
+		doc.f.set('a', txt({ story: 'x', chain: 'x' }))
+		doc.f.set('b', txt({ story: 'y', chain: [1, null] }))
+		doc.f.set('c', txt({ inset: Number.NaN, strokeW: -1, fill: 5, stroke: 'red' }))
+		doc.f.set('d', txt({ inset: Number.POSITIVE_INFINITY }))
+		const frames = framesToEngine(doc, (id) => ({ id, paragraphs: [] }))
+		expect(frames.a.data).toEqual({ story: { id: 'x', paragraphs: [] } })
+		expect(frames.b.data).toEqual({ story: { id: 'y', paragraphs: [] } })
+		expect(frames.c.data).toEqual({ stroke: 'red' })
+		expect(frames.d.data).toEqual({})
+	})
+
+	it('allow-lists box and mark colours', () => {
+		for (const bad of ['url(x)', 'expression(alert(1))', 'red; x'])
+			expect(sanitizeBox({ fill: bad, stroke: bad })).toEqual({})
+		for (const ok of ['#abc', 'rgba(0,0,0,.5)', 'red']) {
+			expect(sanitizeBox({ fill: ok, stroke: ok })).toEqual({ fill: ok, stroke: ok })
+			expect(sanitizeMarks({ color: ok })).toEqual({ color: ok })
+		}
+		expect(sanitizeMarks({ color: 'url(x)' })).toEqual({})
 	})
 })
 

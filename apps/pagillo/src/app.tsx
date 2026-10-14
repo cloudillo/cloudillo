@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { initPresence } from '@cloudillo/crdt'
+import { downloadYDocExport, initPresence } from '@cloudillo/crdt'
 import {
 	AppDocBar,
 	Button,
@@ -20,6 +20,7 @@ import {
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { LuFileText as IcPagillo } from 'react-icons/lu'
+import { PiExportBold as IcExport } from 'react-icons/pi'
 
 import '@symbion/opalui'
 import '@symbion/opalui/themes/glass.css'
@@ -30,12 +31,21 @@ import './style.css'
 import { MIRROR_ID, Mirror } from './a11y/Mirror'
 import { useLandmarks } from './a11y/landmarks'
 import { isEmptyPublication, openPublication } from './crdt/document'
-import { soleInlineImage } from './crdt/frame-ops'
+import type * as Y from 'yjs'
+import {
+	chainOf,
+	chainOfStory,
+	soleInlineImage,
+	type ThreadState,
+	threadAnnouncements,
+	threadStates
+} from './crdt/frame-ops'
 import { registerNormalizer } from './crdt/normalize'
 import { moveSection } from './crdt/section-ops'
 import type { StoredFrame } from './crdt/stored-types'
 import { PAGE_SIZES } from './crdt/type-converters'
-import { selFrom, selTo } from './editor/caret'
+import { caretBox, selFrom, selTo } from './editor/caret'
+import { containsPoint } from './editor/frames'
 import { useClipboard } from './editor/clipboard'
 import { useFindReplace } from './editor/FindReplace'
 import { addPage, type CommandCtx, deletePage } from './editor/commands'
@@ -43,7 +53,7 @@ import { handleKey, type KeymapCtx, undoRedoKey } from './editor/keymap'
 import { pageMaster } from './editor/frames'
 import { useUndo } from './editor/undo'
 import { useEditor } from './editor/useEditor'
-import { type FrameCtl, useFrames } from './editor/FrameOverlay'
+import { type FrameCtl, LINK_REFUSALS, useFrames } from './editor/FrameOverlay'
 import { usePublishPresence, useRemote } from './editor/RemoteOverlay'
 import { pageKey, useLayout } from './layout/useLayout'
 import { FormatPanel } from './panels/FormatPanel'
@@ -58,6 +68,8 @@ import { PagesRail } from './view/PagesRail'
 import { SectionPopover } from './view/SectionPopover'
 import { type ModeInfo, StatusBar } from './view/StatusBar'
 import { Toolbar } from './toolbar/Toolbar'
+
+declare const __APP_VERSION__: string
 
 /** Touch-only devices open read-only. */
 const TOUCH_ONLY = '(hover: none) and (pointer: coarse)'
@@ -213,6 +225,14 @@ export function PagilloApp() {
 	const layoutPages = layoutEdit ? (layoutUsage.get(layoutEdit) ?? 0) : 0
 	const emptyImages = useEmptyImages(synced ? doc : undefined)
 	const defaultPage = (doc.m.get('page') as { w: number; h: number } | undefined) ?? PAGE_SIZES.A4
+	const handleExport = React.useCallback(() => {
+		downloadYDocExport(yDoc, (doc.m.get('title') as string | undefined) || 'untitled', {
+			contentType: 'application/vnd.cloudillo.pagillo+json',
+			appVersion: __APP_VERSION__,
+			formatVersion: '1.0.0',
+			extension: 'pagillo'
+		})
+	}, [yDoc, doc])
 	const curRef = flattenPages(layout.sections)[current]
 	const curMaster = curRef && layout.pages.get(curRef.key)?.page.master
 	// Edit layout follows the current page: navigating or re-assigning switches the edited layout.
@@ -226,7 +246,42 @@ export function PagilloApp() {
 		const f = o.frame ? (doc.f.get(o.frame) as StoredFrame | undefined) : undefined
 		const pages = layout.sections.find((s) => s.id === o.sec)?.pages ?? 1
 		scrollToPage(f ? pageKey(f.anchor.sec, f.anchor.page) : pageKey(o.sec, pages - 1))
+		const p = o.frame ? frames.pageOf(o.frame) : -1
+		if (o.frame && p >= 0) frames.select({ ids: [o.frame], page: p })
 	}
+
+	/** One-off live-region announcement (cleared after a while so the same text can repeat). */
+	const [said, setSaid] = React.useState<string>()
+	React.useEffect(() => {
+		if (!said) return
+		const id = setTimeout(() => setSaid(undefined), 3000)
+		return () => clearTimeout(id)
+	}, [said])
+	// Thread announcements: a local frame edit (link, delete, Stop text after this frame) is
+	// compared per story across the next settled layout. Undo/remote edits use other origins.
+	const localFrameEdit = React.useRef(false)
+	React.useEffect(() => {
+		const on = (_e: unknown, tr: Y.Transaction) => {
+			if (tr.origin === yDoc.clientID) localFrameEdit.current = true
+		}
+		doc.f.observeDeep(on)
+		return () => doc.f.unobserveDeep(on)
+	}, [yDoc, doc])
+	const prevThreads = React.useRef<Map<string, ThreadState>>(undefined)
+	React.useEffect(() => {
+		if (!synced || layout.pending) return
+		const now = threadStates(doc, layout.overset)
+		const prev = prevThreads.current
+		prevThreads.current = now
+		if (!prev || !localFrameEdit.current) return
+		localFrameEdit.current = false
+		for (const a of threadAnnouncements(prev, now))
+			setSaid(
+				a.kind === 'linked'
+					? t('Linked · frame {{n}} of {{m}}', { n: a.m, m: a.m })
+					: t('Text no longer fits · Ctrl+Z to undo')
+			)
+	}, [synced, layout.pending, layout.overset])
 
 	if (error) {
 		return <EmptyState icon={<IcPagillo />} title={t('Connection Error')} />
@@ -234,8 +289,25 @@ export function PagilloApp() {
 	if (!synced) return <LoadingSpinner />
 
 	const panels = { yDoc, doc }
+	/** Caret's frame in a threaded story: its text changes (→ announced) when the caret crosses frames. */
+	const caretFrame = (() => {
+		const es = editor.sel
+		if (!es) return
+		const c = chainOfStory(doc, es.story)
+		if (!c || c.frames.length < 2) return
+		const cb = caretBox(editor.index.stories.get(es.story) ?? [], es.head)
+		if (!cb) return
+		const y = (cb.top + cb.bottom) / 2
+		const n = c.frames.findIndex((id) => {
+			const f = doc.f.get(id)
+			return !!f && frames.pageOf(id) === cb.page && containsPoint({ ...f, rot: 0 }, cb.x, y)
+		})
+		return n < 0 ? undefined : { n: n + 1, m: c.frames.length }
+	})()
 	/** Announced by the a11y mirror's live region when they appear. */
 	const notices = [
+		caretFrame && t('Frame {{n}} of {{m}}', caretFrame),
+		said,
 		layout.readOnlyReason &&
 			t('This document is read-only: it needs a newer version of Pagillo'),
 		layout.fontsChanged && t('Fonts changed since this document was laid out'),
@@ -247,7 +319,11 @@ export function PagilloApp() {
 		setLayoutBase(undefined)
 		editor.focus()
 	}
-	escRef.current = layoutEdit && !frames.sel ? leaveLayout : undefined
+	escRef.current = frames.link
+		? frames.endLink
+		: layoutEdit && !frames.sel
+			? leaveLayout
+			: undefined
 	/** Enter (or switch) Edit layout; the Discard baseline is taken on entering only. */
 	const enterLayout = (m: string) => {
 		if (!layoutEdit) setLayoutBase({ depth: undo.mark(), master: m })
@@ -286,6 +362,23 @@ export function PagilloApp() {
 	}
 	/** Status-bar mode chip + key hints; `spoken` keeps the full sentence. */
 	const mode = (): ModeInfo => {
+		if (frames.link) {
+			const r = frames.linkRefusal
+			return {
+				chip: t('Linking text'),
+				// While hovering a refused frame, its reason replaces the hints (no key).
+				hints: r
+					? [['', t(LINK_REFUSALS[r])]]
+					: [
+							[t('Click'), t('an empty text box')],
+							[t('Drag'), t('draw one')],
+							[t('Esc'), t('cancel')]
+						],
+				spoken: t(
+					'Linking text · click an empty text box or drag to draw one · Esc cancels'
+				)
+			}
+		}
 		if (frames.crop)
 			return {
 				chip: t('Cropping'),
@@ -318,15 +411,23 @@ export function PagilloApp() {
 						'Image on the page · drag to move · Delete removes · Esc returns to text'
 					)
 				}
-			if (kind === 'txt')
+			if (kind === 'txt') {
+				const c = chainOf(doc, fs.ids[0])
+				const nm = c && { n: c.frames.indexOf(fs.ids[0]) + 1, m: c.frames.length }
 				return {
-					chip: t('Text box'),
+					chip: nm ? t('Text box · {{n}} of {{m}}', nm) : t('Text box'),
 					hints: [
 						[t('Enter'), t('edit text')],
 						[t('Esc'), t('text')]
 					],
-					spoken: t('Text box selected · Enter edits its text · Esc returns to text')
+					spoken: nm
+						? t(
+								'Text box {{n}} of {{m}} selected · Enter edits its text · Esc returns to text',
+								nm
+							)
+						: t('Text box selected · Enter edits its text · Esc returns to text')
 				}
+			}
 			return {
 				chip: t('{{n}} items', { n: fs.ids.length }),
 				hints: [
@@ -414,6 +515,11 @@ export function PagilloApp() {
 							/>
 						)}
 						<MenuItem label={t('Find…')} onClick={find.open} />
+						<MenuItem
+							icon={<IcExport />}
+							label={t('Export to JSON')}
+							onClick={handleExport}
+						/>
 					</DocBarMenu>
 				)}
 			</AppDocBar>

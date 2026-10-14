@@ -13,7 +13,8 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
 import type { StoredFrame, YPagilloDocument } from '../crdt/stored-types'
-import { masterItemIds } from '../editor/frames'
+import { masterItems } from '../crdt/type-converters'
+import { rotAttr } from '../editor/caret'
 import { pageKey } from '../layout/useLayout'
 
 /** Fx → pt. */
@@ -34,10 +35,9 @@ export function useEmptyImages(doc: YPagilloDocument | undefined): Map<string, E
 	const read = React.useCallback(() => {
 		const out = new Map<string, EmptyImage[]>()
 		if (!doc) return out
-		const masterItems = masterItemIds(doc)
+		const master = masterItems(doc)
 		doc.f.forEach((f: StoredFrame, id) => {
-			if (f.t !== 'img' || masterItems.has(id) || (f.data as { fileId?: string }).fileId)
-				return
+			if (f.t !== 'img' || master.has(id) || (f.data as { fileId?: string }).fileId) return
 			const key = pageKey(f.anchor.sec, f.anchor.page)
 			const list = out.get(key) ?? []
 			list.push({ id, x: f.x, y: f.y, w: f.w, h: f.h, rot: f.rot })
@@ -178,6 +178,7 @@ export const PageSvgOverlay = React.memo(function PageSvgOverlay({
 						x={pt(l.x)}
 						y={pt(l.y)}
 						fontSize={pt(l.ascent + l.descent) / 1.2}
+						transform={rotAttr(l.rot)}
 						className="pagillo-ghost"
 					>
 						{l.placeholder}

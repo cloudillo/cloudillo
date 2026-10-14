@@ -12,12 +12,14 @@ import type * as Y from 'yjs'
 import { newBlockId } from './block-ids'
 import { deltaOf } from './delta-cache'
 import { type FrameId, type MasterId, newId } from './ids'
-import { createStory, type SeedParagraph } from './section-ops'
-import type {
-	StoredFrame,
-	StoredImageData,
-	StoredTextFrameData,
-	YPagilloDocument
+import { createStory, type SeedParagraph } from './story-ops'
+import { masterItems, textChains } from './type-converters'
+import {
+	type StoredFrame,
+	type StoredImageData,
+	type StoredTextFrameData,
+	textBox,
+	type YPagilloDocument
 } from './stored-types'
 
 /** Inline image embed payload (`{ img }`). */
@@ -79,9 +81,170 @@ export function deleteFrame(yDoc: Y.Doc, doc: YPagilloDocument, id: FrameId): vo
 			if (m.right?.items) next.right = { ...m.right, items: drop(m.right.items) }
 			doc.ms.set(mid, next)
 		})
-		if (cur.t === 'txt') doc.tx.delete((cur.data as StoredTextFrameData).story)
+		if (cur.t === 'txt') {
+			// Never lose text: a follower leaves the chain, a head hands story + rest to the next.
+			const c = chainOf(doc, id)
+			const rest = c?.frames.slice(1).filter((x) => x !== id) ?? []
+			const story = (cur.data as StoredTextFrameData).story
+			if (c && c.head !== id) setData(doc, c.head, chainData(storyOf(doc, c.head), rest))
+			else if (c) setData(doc, rest[0], chainData(story, rest.slice(1)))
+			else if (story) doc.tx.delete(story)
+		}
 		doc.f.delete(id)
 	}, yDoc.clientID)
+}
+
+/** Why a frame can't be linked to (`undefined` = allowed). Each maps to one UI hint. */
+export type LinkRefusal = 'hasText' | 'inThread' | 'layoutItem' | 'notText'
+
+/** Replace the story/chain linkage of `id`; its box styling stays. */
+function setData(doc: YPagilloDocument, id: FrameId, data: StoredTextFrameData): void {
+	const f = doc.f.get(id)
+	if (f) doc.f.set(id, { ...f, data: { ...textBox(f.data as StoredTextFrameData), ...data } })
+}
+
+function chainData(story: string | undefined, chain: FrameId[]): StoredTextFrameData {
+	return chain.length ? { story, chain } : { story }
+}
+
+function storyOf(doc: YPagilloDocument, id: FrameId): string | undefined {
+	return (doc.f.get(id)?.data as StoredTextFrameData | undefined)?.story
+}
+
+/** No text: only empty paragraphs (no characters, no embeds), or no story at all. */
+function isEmptyText(doc: YPagilloDocument, id: FrameId): boolean {
+	const st = storyOf(doc, id)
+	const t = st ? doc.tx.get(st) : undefined
+	return !t || deltaOf(t).every((op) => typeof op.insert === 'string' && /^\n*$/.test(op.insert))
+}
+
+/**
+ * The valid chain holding `frameId` (`textChains`): its head and all frames, head first.
+ * `undefined` for a frame that is not threaded (a standalone text box included).
+ */
+export function chainOf(
+	doc: YPagilloDocument,
+	frameId: FrameId,
+	chains = textChains(doc)
+): { head: FrameId; frames: FrameId[] } | undefined {
+	for (const [head, chain] of chains)
+		if (head === frameId || chain.includes(frameId)) return { head, frames: [head, ...chain] }
+}
+
+/** Can `targetId` continue the thread of `fromId`? Targets: empty, unchained page `txt` frames. */
+export function canLinkTarget(
+	doc: YPagilloDocument,
+	fromId: FrameId,
+	targetId: FrameId,
+	chains = textChains(doc),
+	master = masterItems(doc)
+): LinkRefusal | undefined {
+	const target = doc.f.get(targetId)
+	if (target?.t !== 'txt' || doc.f.get(fromId)?.t !== 'txt') return 'notText'
+	if (master.has(targetId) || master.has(fromId)) return 'layoutItem'
+	if (targetId === fromId || chainOf(doc, targetId, chains)) return 'inThread'
+	if (!isEmptyText(doc, targetId)) return 'hasText'
+}
+
+/**
+ * Append `targetId` to the chain of `headOrMemberId` (its head is resolved). The target's empty
+ * story is deleted and it becomes a follower (`{}`). `false` when refused (`canLinkTarget`).
+ */
+export function linkFrame(
+	yDoc: Y.Doc,
+	doc: YPagilloDocument,
+	headOrMemberId: FrameId,
+	targetId: FrameId
+): boolean {
+	const c = chainOf(doc, headOrMemberId)
+	const head = c?.head ?? headOrMemberId
+	const story = storyOf(doc, head)
+	if (!story || canLinkTarget(doc, head, targetId)) return false
+	yDoc.transact(() => {
+		const own = storyOf(doc, targetId)
+		if (own) doc.tx.delete(own)
+		setData(doc, targetId, {})
+		setData(doc, head, { story, chain: [...(c?.frames.slice(1) ?? []), targetId] })
+	}, yDoc.clientID)
+	return true
+}
+
+/** Frames `fromId` may link to (`canLinkTarget`), in page order: `secs` order, then page. */
+export function linkTargets(doc: YPagilloDocument, fromId: FrameId): FrameId[] {
+	const secs = doc.secs.toArray()
+	const chains = textChains(doc)
+	const master = masterItems(doc)
+	const out: { id: FrameId; s: number; page: number }[] = []
+	doc.f.forEach((f, id) => {
+		const s = secs.indexOf(f.anchor.sec)
+		if (s >= 0 && !canLinkTarget(doc, fromId, id, chains, master))
+			out.push({ id, s, page: f.anchor.page })
+	})
+	return out.sort((a, b) => a.s - b.s || a.page - b.page).map((o) => o.id)
+}
+
+/**
+ * "Stop text after this frame": truncate the chain after `frameId`. Each dropped frame gets a
+ * fresh empty story; the text that no longer fits goes overset. One transaction.
+ */
+export function breakThreadAfter(yDoc: Y.Doc, doc: YPagilloDocument, frameId: FrameId): void {
+	const c = chainOf(doc, frameId)
+	const i = c?.frames.indexOf(frameId) ?? -1
+	if (!c || i < 0 || i === c.frames.length - 1) return
+	yDoc.transact(() => {
+		setData(doc, c.head, chainData(storyOf(doc, c.head), c.frames.slice(1, i + 1)))
+		for (const id of c.frames.slice(i + 1)) setData(doc, id, { story: createStory(doc, [{}]) })
+	}, yDoc.clientID)
+}
+
+/** The chain (`chainOf`) of the text frame holding `storyId`, or just that frame when unchained. */
+export function chainOfStory(
+	doc: YPagilloDocument,
+	storyId: string,
+	chains = textChains(doc)
+): { head: FrameId; frames: FrameId[] } | undefined {
+	for (const [id, f] of doc.f.entries())
+		if (f.t === 'txt' && (f.data as StoredTextFrameData).story === storyId)
+			return chainOf(doc, id, chains) ?? { head: id, frames: [id] }
+}
+
+export interface ThreadState {
+	/** Frames in the thread. */
+	m: number
+	/** Its text is overset. */
+	over: boolean
+}
+
+/** Per story of a text box: its thread state, given the layout's overset frames. */
+export function threadStates(
+	doc: YPagilloDocument,
+	overset: { frame?: string }[],
+	chains = textChains(doc)
+): Map<string, ThreadState> {
+	const over = new Set(overset.map((o) => o.frame))
+	const out = new Map<string, ThreadState>()
+	for (const [id, f] of doc.f.entries()) {
+		const story = f.t === 'txt' ? (f.data as StoredTextFrameData).story : undefined
+		if (!story) continue
+		const ids = chainOf(doc, id, chains)?.frames ?? [id]
+		out.set(story, { m: ids.length, over: ids.some((x) => over.has(x)) })
+	}
+	return out
+}
+
+/** What to announce per story between two `threadStates`: a link grew it, an unlink overset it. */
+export function threadAnnouncements(
+	prev: Map<string, ThreadState>,
+	now: Map<string, ThreadState>
+): Array<{ kind: 'linked'; m: number } | { kind: 'overset' }> {
+	const out: Array<{ kind: 'linked'; m: number } | { kind: 'overset' }> = []
+	for (const [story, a] of now) {
+		const b = prev.get(story)
+		if (!b) continue
+		if (a.m > b.m) out.push({ kind: 'linked', m: a.m })
+		else if (a.m < b.m && a.over && !b.over) out.push({ kind: 'overset' })
+	}
+	return out
 }
 
 /**

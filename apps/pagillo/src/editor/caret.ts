@@ -8,7 +8,7 @@
  */
 
 import type * as Y from 'yjs'
-import { FX, type LineGeom, type PageDL } from '@cloudillo/typeset'
+import { FX, type LineGeom, type PageDL, type Rot } from '@cloudillo/typeset'
 
 import type { YPagilloDocument } from '../crdt/stored-types'
 import { deltaOf, storyTextOf } from '../crdt/delta-cache'
@@ -46,6 +46,8 @@ export interface CaretBox {
 	x: number
 	top: number
 	bottom: number
+	/** The line's frame rotation: draw with `rotAttr`. */
+	rot?: Rot
 }
 
 /** Page-space rectangle, Fx. */
@@ -54,7 +56,12 @@ export interface Rect {
 	y: number
 	w: number
 	h: number
+	rot?: Rot
 }
+
+/** SVG `transform` drawing line geometry with its frame's rotation (page space in pt). */
+export const rotAttr = (rot?: Rot) =>
+	rot ? `rotate(${rot.deg} ${rot.cx / FX} ${rot.cy / FX})` : undefined
 
 const graphemes = new Intl.Segmenter(undefined, { granularity: 'grapheme' })
 const words = new Intl.Segmenter(undefined, { granularity: 'word' })
@@ -123,7 +130,13 @@ export function caretBox(lines: PlacedLine[], off: number): CaretBox | undefined
 	const pl = lineAt(lines, off)
 	if (!pl) return
 	const l = pl.line
-	return { page: pl.page, x: caretX(pl, off), top: l.y - l.ascent, bottom: l.y + l.descent }
+	return {
+		page: pl.page,
+		x: caretX(pl, off),
+		top: l.y - l.ascent,
+		bottom: l.y + l.descent,
+		...(l.rot ? { rot: l.rot } : {})
+	}
 }
 
 /** Offset of the caret position on `pl` nearest `x`. */
@@ -263,7 +276,13 @@ export function selectionRects(lines: PlacedLine[], a: number, b: number): Map<n
 			r = []
 			out.set(pl.page, r)
 		}
-		r.push({ x: x1, y: l.y - l.ascent, w: x2 - x1, h: l.ascent + l.descent })
+		r.push({
+			x: x1,
+			y: l.y - l.ascent,
+			w: x2 - x1,
+			h: l.ascent + l.descent,
+			...(l.rot ? { rot: l.rot } : {})
+		})
 	}
 	return out
 }

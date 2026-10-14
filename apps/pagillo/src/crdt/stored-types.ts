@@ -47,9 +47,23 @@ export type StoredSection = Omit<Section, 'id' | 'story'> & { story: string }
  */
 export type StoredImageData = ImageFrameData & { px?: [number, number] }
 
-/** `txt` frame data: `story` is a `tx` key. */
+/**
+ * `txt` frame data. A chain **head** has `story` (a `tx` key) and optionally `chain`, the
+ * follower frame ids in flow order. A **follower** stores `{}`: no `story`, no `chain`.
+ */
 export interface StoredTextFrameData {
-	story: string
+	story?: string
+	chain?: string[]
+	inset?: number
+	fill?: string
+	stroke?: string
+	strokeW?: number
+}
+
+/** Box styling of a text frame, without the story/chain linkage. */
+export function textBox(d: StoredTextFrameData): Omit<StoredTextFrameData, 'story' | 'chain'> {
+	const { story: _s, chain: _c, ...box } = d
+	return box
 }
 
 export type StoredShapeData = ShapeFrameData

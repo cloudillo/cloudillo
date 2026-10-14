@@ -5,7 +5,8 @@ import { masterColumns } from '@cloudillo/typeset'
 import * as Y from 'yjs'
 
 import { openPublication } from '../crdt/document.js'
-import { deleteMaster, ensureRegions, setMasterSide } from '../crdt/master-ops.js'
+import { deleteMaster, duplicateMaster, ensureRegions, setMasterSide } from '../crdt/master-ops.js'
+import { duplicateSection } from '../crdt/section-ops.js'
 import type { StoredFrame, StoredMaster, StoredTextFrameData } from '../crdt/stored-types.js'
 import { masterToEngine, mirrorFrame } from '../crdt/type-converters.js'
 
@@ -80,7 +81,7 @@ describe('setMasterSide', () => {
 		})
 		const story = ((doc.f.get(left[1]) as StoredFrame).data as StoredTextFrameData).story
 		expect(story).not.toBe('st')
-		expect(doc.tx.get(story)?.toString()).toBe('hi\n')
+		expect(doc.tx.get(story as string)?.toString()).toBe('hi\n')
 		expect(m.right?.items).toBeUndefined()
 
 		// Reselecting the same mode must not wipe the variant items.
@@ -120,6 +121,48 @@ describe('deleteMaster', () => {
 		expect(deleteMaster(yDoc, doc, 'm1')).toBe(true)
 		expect(doc.f.has('txt')).toBe(false)
 		expect(doc.tx.has('st')).toBe(false)
+	})
+})
+
+describe('copying text frames', () => {
+	const txt = (data: StoredTextFrameData): StoredFrame => ({
+		t: 'txt',
+		anchor: { sec: 's1', page: 0 },
+		x: 0,
+		y: 0,
+		w: 100,
+		h: 50,
+		rot: 0,
+		z: 0,
+		wrap: { mode: 'none', off: 0 },
+		data
+	})
+	const dataOf = (doc: ReturnType<typeof setup>['doc'], id: string) =>
+		doc.f.get(id)?.data as StoredTextFrameData
+
+	it('duplicateMaster keeps box styling and gives a story-less item a fresh story', () => {
+		const { yDoc, doc } = setup({ ...base, items: ['a', 'b'] })
+		doc.f.set('a', txt({ story: 'st', inset: 5, fill: 'red' }))
+		doc.f.set('b', txt({ stroke: 'blue' }))
+		doc.tx.set('st', new Y.Text('hi\n'))
+		const copy = duplicateMaster(yDoc, doc, 'm1', 'Copy') ?? ''
+		const [na, nb] = (doc.ms.get(copy) as StoredMaster).items
+		expect(dataOf(doc, na)).toMatchObject({ inset: 5, fill: 'red' })
+		expect(doc.tx.get(dataOf(doc, na).story ?? '')?.toString()).toBe('hi\n')
+		expect(dataOf(doc, nb).stroke).toBe('blue')
+		expect(doc.tx.has(dataOf(doc, nb).story ?? '')).toBe(true)
+	})
+
+	it('duplicateSection keeps box styling', () => {
+		const { yDoc, doc } = setup(base)
+		doc.s.set('s1', { story: 'sst', first: 'm1', rest: 'm1' } as never)
+		doc.secs.push(['s1'])
+		doc.tx.set('sst', new Y.Text('\n'))
+		doc.tx.set('st', new Y.Text('hi\n'))
+		doc.f.set('a', txt({ story: 'st', inset: 5, fill: 'red' }))
+		const copy = duplicateSection(yDoc, doc, 's1')
+		const [id] = [...doc.f.entries()].find(([, f]) => f.anchor.sec === copy) ?? []
+		expect(dataOf(doc, id ?? '')).toMatchObject({ inset: 5, fill: 'red' })
 	})
 })
 

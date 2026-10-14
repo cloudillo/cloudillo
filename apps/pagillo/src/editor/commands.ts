@@ -13,7 +13,7 @@ import type * as Y from 'yjs'
 import { newBlockId } from '../crdt/block-ids'
 import { deltaOf } from '../crdt/delta-cache'
 import { newId, type StyleId } from '../crdt/ids'
-import { createStory } from '../crdt/section-ops'
+import { createStory } from '../crdt/story-ops'
 import {
 	LINE_KEYS,
 	MARK_KEYS,

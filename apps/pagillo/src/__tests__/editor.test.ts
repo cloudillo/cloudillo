@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { isInSnapZone } from '@cloudillo/canvas-tools'
+import { isInSnapZone, rotatePointAroundCenter } from '@cloudillo/canvas-tools'
 import { FX, MAX_COLS } from '@cloudillo/typeset'
 import * as Y from 'yjs'
 
@@ -262,6 +262,18 @@ describe('hitText', () => {
 	it('picks the line by y within the column and clamps x to its end', () => {
 		expect(hitText(index, 0, 80, 28)).toEqual({ story: 's', offset: 21 })
 		expect(hitText(index, 0, 80, 34)).toEqual({ story: 's', offset: 21 })
+	})
+
+	it('maps a click on a rotated line through its rotation', () => {
+		const rot = { deg: 90, cx: 50, cy: 10 }
+		const l = line(10, 100, 0)
+		const r: PlacedLine = { ...l, line: { ...l.line, rot } }
+		const idx: GeomIndex = { stories: new Map([['s', [r]]]), pages: new Map([[0, [r]]]) }
+		// Unrotated (80, 8) — the 8th caret — drawn rotated 90° about (50, 10).
+		const p = rotatePointAroundCenter({ x: 80, y: 8 }, { x: 50, y: 10 }, 90)
+		expect(hitText(idx, 0, p.x, p.y)).toEqual({ story: 's', offset: 8 })
+		const areas: TextArea[] = [{ x: 0, y: 0, w: 100, h: 20, story: 's', rot: 90 }]
+		expect(hitText(idx, 0, p.x, p.y, undefined, areas)).toEqual({ story: 's', offset: 8 })
 	})
 })
 

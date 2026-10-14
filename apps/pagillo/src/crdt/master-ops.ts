@@ -5,17 +5,18 @@
  * Master ("Page layout" in the UI) operations (`ms` map) and the publication page size.
  */
 
-import type * as Y from 'yjs'
 import { type Margins, type MasterVariant, marginRegion, type Region } from '@cloudillo/typeset'
+import type * as Y from 'yjs'
 
 import { type MasterId, newId, type SectionId } from './ids'
-import { copyStory, updateSection } from './section-ops'
+import { updateSection } from './section-ops'
 import type {
 	StoredFrame,
 	StoredMaster,
 	StoredTextFrameData,
 	YPagilloDocument
 } from './stored-types'
+import { copyTextData } from './story-ops'
 import { byIds, flipRegion, mirrorFrame, readMeta, resolveSide } from './type-converters'
 
 export function addMaster(yDoc: Y.Doc, doc: YPagilloDocument, master: StoredMaster): MasterId {
@@ -121,7 +122,8 @@ export function deleteMaster(yDoc: Y.Doc, doc: YPagilloDocument, id: MasterId): 
 	yDoc.transact(() => {
 		for (const fid of [...m.items, ...(m.left?.items ?? []), ...(m.right?.items ?? [])]) {
 			const f = doc.f.get(fid)
-			if (f?.t === 'txt') doc.tx.delete((f.data as StoredTextFrameData).story)
+			const st = f?.t === 'txt' && (f.data as StoredTextFrameData).story
+			if (st) doc.tx.delete(st)
 			doc.f.delete(fid)
 		}
 		doc.ms.delete(id)
@@ -172,8 +174,7 @@ function cloneFrame(
 	const f = doc.f.get(fid)
 	if (!f) return
 	const nid = newId()
-	const data =
-		f.t === 'txt' ? { story: copyStory(doc, (f.data as StoredTextFrameData).story) } : f.data
+	const data = f.t === 'txt' ? copyTextData(doc, f.data as StoredTextFrameData) : f.data
 	doc.f.set(nid, { ...map(f), data })
 	return nid
 }
@@ -214,7 +215,8 @@ export function setMasterSide(
 		for (const fid of [...(m.left?.items ?? []), ...(m.right?.items ?? [])]) {
 			const f = doc.f.get(fid)
 			if (!f || own.has(fid)) continue
-			if (f.t === 'txt') doc.tx.delete((f.data as StoredTextFrameData).story)
+			const st = f.t === 'txt' && (f.data as StoredTextFrameData).story
+			if (st) doc.tx.delete(st)
 			doc.f.delete(fid)
 		}
 		if (side !== 'different') {

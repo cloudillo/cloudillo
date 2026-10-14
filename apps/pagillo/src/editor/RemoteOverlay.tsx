@@ -248,6 +248,7 @@ export function useRemote({ awareness, yDoc, doc, editor, layout }: UseRemoteOpt
 							y={r.y * k}
 							width={r.w * k}
 							height={r.h * k}
+							transform={C.rotAttr(r.rot)}
 							fill={p.color}
 							fillOpacity={0.2}
 						/>
@@ -255,17 +256,18 @@ export function useRemote({ awareness, yDoc, doc, editor, layout }: UseRemoteOpt
 				const c = p.caret
 				if (c?.page === i) {
 					svg.push(
-						<line
-							key={`${id}:c`}
-							x1={c.x * k}
-							x2={c.x * k}
-							y1={c.top * k}
-							y2={c.bottom * k}
-							stroke={p.color}
-							strokeWidth={2 * px}
-						/>
+						<g key={`${id}:c`} transform={C.rotAttr(c.rot)}>
+							<line
+								x1={c.x * k}
+								x2={c.x * k}
+								y1={c.top * k}
+								y2={c.bottom * k}
+								stroke={p.color}
+								strokeWidth={2 * px}
+							/>
+							{tag('t', c.x * k, c.top * k, p)}
+						</g>
 					)
-					svg.push(tag(`${id}:ct`, c.x * k, c.top * k, p))
 				}
 			}
 			if (pg && p.page === i && p.frames.length) {

@@ -7,20 +7,23 @@
 
 import type * as Y from 'yjs'
 
+import { setMeta } from './document'
+import { newStyleMap, patchStyle, styleOf, stylesOf } from './entities'
 import { newId, type StyleId } from './ids'
-import type { StoredStyle, StyleMap, YPagilloDocument } from './stored-types'
+import type { StoredStyle, YPagilloDocument } from './stored-types'
+import { readMeta } from './type-converters'
 
 export function addStyle(yDoc: Y.Doc, doc: YPagilloDocument, style: StoredStyle): StyleId {
 	const id = newId()
 	yDoc.transact(() => {
-		doc.st.set(id, style)
+		doc.st.set(id, newStyleMap(style))
 	}, yDoc.clientID)
 	return id
 }
 
 /**
- * Patch a style. `props` is merged into the current props; a prop set to `undefined` is
- * removed (falls back to `basedOn`). `basedOn: undefined` detaches the style.
+ * Patch a style; only the changed keys are written. `props` is per property: a prop set to
+ * `undefined` is removed (falls back to `basedOn`). `basedOn: undefined` detaches the style.
  */
 export function updateStyle(
 	yDoc: Y.Doc,
@@ -28,17 +31,11 @@ export function updateStyle(
 	id: StyleId,
 	patch: Partial<Omit<StoredStyle, 'k'>>
 ): void {
-	const cur = doc.st.get(id)
-	if (!cur) return
-	const next: Record<string, unknown> = { ...cur, ...patch }
-	if (patch.props) {
-		const props: Record<string, unknown> = { ...cur.props, ...patch.props }
-		for (const k of Object.keys(props)) if (props[k] === undefined) delete props[k]
-		next.props = props
-	}
-	if ('basedOn' in patch && patch.basedOn === undefined) delete next.basedOn
+	const y = doc.st.get(id)
+	if (!y) return
+	const { props, ...rest } = patch
 	yDoc.transact(() => {
-		doc.st.set(id, next as StoredStyle)
+		patchStyle(y, { ...rest, ...(props ? { props: { ...props } } : {}) })
 	}, yDoc.clientID)
 }
 
@@ -47,22 +44,15 @@ export function updateStyle(
  * are dropped. Paragraphs still using it fall back to the engine defaults until restyled.
  */
 export function deleteStyle(yDoc: Y.Doc, doc: YPagilloDocument, id: StyleId): void {
-	const cur = doc.st.get(id)
+	const cur = styleOf(doc, id)
 	if (!cur) return
 	yDoc.transact(() => {
-		doc.st.forEach((s, sid) => {
-			if (s.basedOn !== id) return
-			const { basedOn: _b, ...rest } = s
-			doc.st.set(sid, (cur.basedOn ? { ...rest, basedOn: cur.basedOn } : rest) as StoredStyle)
-		})
+		for (const [sid, s] of stylesOf(doc))
+			if (s.basedOn === id) patchStyle(doc.st.get(sid), { basedOn: cur.basedOn })
 		doc.st.delete(id)
-		const map = doc.m.get('styleMap') as StyleMap | undefined
-		if (map && Object.values(map).includes(id)) {
-			doc.m.set(
-				'styleMap',
-				Object.fromEntries(Object.entries(map).filter(([, v]) => v !== id))
-			)
-		}
+		const drop = Object.entries(readMeta(doc.m).styleMap ?? {}).filter(([, v]) => v === id)
+		if (drop.length)
+			setMeta(yDoc, doc, { styleMap: Object.fromEntries(drop.map(([k]) => [k, undefined])) })
 	}, yDoc.clientID)
 }
 
@@ -78,16 +68,14 @@ export function applyStyleSet(
 	set: Record<string, StoredStyle>
 ): Record<string, StyleId> {
 	const byName = new Map<string, StyleId>()
-	doc.st.forEach((s, id) => {
-		byName.set(`${s.k}:${s.name}`, id)
-	})
+	for (const [id, s] of stylesOf(doc)) byName.set(`${s.k}:${s.name}`, id)
 	const ids: Record<string, StyleId> = {}
 	for (const [key, s] of Object.entries(set)) ids[key] = byName.get(`${s.k}:${s.name}`) ?? newId()
 	yDoc.transact(() => {
 		for (const [key, s] of Object.entries(set)) {
 			const { basedOn, ...rest } = s
 			const target = basedOn === undefined ? undefined : ids[basedOn]
-			doc.st.set(ids[key], (target ? { ...rest, basedOn: target } : rest) as StoredStyle)
+			doc.st.set(ids[key], newStyleMap(target ? { ...rest, basedOn: target } : rest))
 		}
 	}, yDoc.clientID)
 	return ids

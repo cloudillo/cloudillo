@@ -4,6 +4,7 @@
 import * as Y from 'yjs'
 
 import { openPublication } from '../crdt/document.js'
+import { newFrameMap, newSectionMap } from '../crdt/entities.js'
 import type { StoredFrame, StoredSection } from '../crdt/stored-types.js'
 import { findHits } from '../editor/FindReplace.js'
 import { handleKey, IS_MAC, type KeymapCtx, undoRedoKey } from '../editor/keymap.js'
@@ -20,9 +21,21 @@ describe('findHits', () => {
 		text('A', 'Foo foo.\n')
 		text('B', 'a.FOO\n')
 		text('orphan', 'foo\n')
-		doc.s.set('s1', { story: 'A' } as StoredSection)
+		doc.s.set('s1', newSectionMap({ story: 'A' } as StoredSection))
 		doc.secs.push(['s1'])
-		doc.f.set('f1', { t: 'txt', data: { story: 'B' } } as StoredFrame)
+		const f1: StoredFrame = {
+			t: 'txt',
+			anchor: { sec: 's1', page: 0 },
+			x: 0,
+			y: 0,
+			w: 100,
+			h: 100,
+			rot: 0,
+			z: 0,
+			wrap: { mode: 'none', off: 0 },
+			data: { story: 'B' }
+		}
+		doc.f.set('f1', newFrameMap(f1))
 
 		expect(findHits(doc, 'foo', true)).toEqual([{ story: 'A', from: 4, to: 7 }])
 		expect(findHits(doc, 'foo', false).map((h) => `${h.story}${h.from}`)).toEqual([

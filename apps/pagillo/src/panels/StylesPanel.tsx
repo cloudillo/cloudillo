@@ -35,6 +35,7 @@ import {
 	LuUndo2
 } from 'react-icons/lu'
 
+import { styleOf, stylesOf } from '../crdt/entities'
 import type { StyleId } from '../crdt/ids'
 import type { StoredStyle, YPagilloDocument } from '../crdt/stored-types'
 import { addStyle, deleteStyle, updateStyle } from '../crdt/style-ops'
@@ -97,7 +98,7 @@ function dependsOn(doc: YPagilloDocument, cand: StyleId, id: StyleId): boolean {
 	for (
 		let cur: string | undefined = cand;
 		cur && !seen.has(cur);
-		cur = doc.st.get(cur)?.basedOn
+		cur = styleOf(doc, cur)?.basedOn
 	) {
 		if (cur === id) return true
 		seen.add(cur)
@@ -109,8 +110,8 @@ export const StylesPanel = React.memo(function StylesPanel({ yDoc, doc }: PanelP
 	const { t } = useTranslation()
 	useDocVersion(doc)
 	const [sel, setSel] = React.useState<StyleId>()
-	const styles = [...doc.st.entries()].sort(([, a], [, b]) => a.name.localeCompare(b.name))
-	const style = sel ? doc.st.get(sel) : undefined
+	const styles = stylesOf(doc).sort(([, a], [, b]) => a.name.localeCompare(b.name))
+	const style = sel ? styleOf(doc, sel) : undefined
 
 	return (
 		<>
@@ -182,9 +183,7 @@ function StyleEditor({ yDoc, doc, id, style, onDeleted }: StyleEditorProps) {
 	const eff = { ...inheritedProps(doc, style.basedOn), ...own }
 	const set = (k: string, v: unknown) =>
 		updateStyle(yDoc, doc, id, { props: { [k]: v } } as Partial<Omit<StoredStyle, 'k'>>)
-	const parents = [...doc.st.entries()].filter(
-		([pid, s]) => s.k === style.k && !dependsOn(doc, pid, id)
-	)
+	const parents = stylesOf(doc).filter(([pid, s]) => s.k === style.k && !dependsOn(doc, pid, id))
 
 	const row = ([k, label, kind, min]: FieldDef) => (
 		<PropRow

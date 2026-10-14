@@ -13,6 +13,7 @@ import { FONT_METRICS } from '@cloudillo/fonts/font-metrics'
 import { ENGINE_VERSION, type EngineLayout, glyphId, type PageDL } from '@cloudillo/typeset'
 
 import { openPublication, setMeta } from '../crdt/document'
+import { readMeta } from '../crdt/type-converters'
 import type { Composition, WorkerToMain } from '../worker/protocol'
 import { type LayoutHost, startLayoutWorker } from './worker-host'
 
@@ -170,7 +171,7 @@ export function useLayout(
 			const cmp = stored ? compareVersions(ENGINE_VERSION, stored) : 1
 			setReadOnlyReason(cmp < 0 ? 'engine' : undefined)
 			if (cmp > 0 && canWrite) setMeta(yDoc, doc, { engine: ENGINE_VERSION })
-			const fonts = (doc.m.get('fonts') ?? {}) as Record<string, string>
+			const fonts = readMeta(doc.m).fonts ?? {}
 			if (Object.entries(fonts).some(([file, sha]) => FONT_METRICS[file]?.sha256 !== sha))
 				setFontsChanged(true)
 		}
@@ -187,9 +188,10 @@ export function useLayout(
 		// `readOnlyReason` is only queued on first sync, so re-check the skew synchronously.
 		const engine = doc.m.get('engine') as string | undefined
 		if (engine && compareVersions(ENGINE_VERSION, engine) < 0) return
-		const stored = (doc.m.get('fonts') ?? {}) as Record<string, string>
+		const stored = readMeta(doc.m).fonts ?? {}
 		const add = [...usedFonts.current].filter(([file, sha]) => stored[file] !== sha)
-		if (add.length) setMeta(yDoc, doc, { fonts: { ...stored, ...Object.fromEntries(add) } })
+		// `setMeta` merges entries into the `fonts/<file>` keys.
+		if (add.length) setMeta(yDoc, doc, { fonts: Object.fromEntries(add) })
 	}, [yDoc, synced, canWrite, readOnlyReason, fontsSeen])
 
 	const setViewport = React.useCallback((p: [number, number]) => {

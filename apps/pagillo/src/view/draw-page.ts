@@ -10,12 +10,11 @@
 
 import { type DLItem, FX, glyphId, type PageDL } from '@cloudillo/typeset'
 
+import { FULL_CROP } from '../crdt/entities'
 import { cropGeom, type Rect } from './PageSvg'
 
 /** Fx → pt. */
 const pt = (fx: number) => fx / FX
-
-const FULL_CROP: Rect = { x: 0, y: 0, w: 1, h: 1 }
 
 export interface DrawOptions {
 	/** Device px per pt. */

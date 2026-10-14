@@ -34,7 +34,6 @@ import {
 	chainOf,
 	deleteFrame,
 	embedImgAt,
-	FULL_CROP,
 	findInlineImage,
 	frameToInline,
 	inlineImageBid,
@@ -45,6 +44,7 @@ import {
 	soleInlineImage,
 	updateFrame
 } from '../crdt/frame-ops'
+import { FULL_CROP, frameOf, framesOf, sectionOf } from '../crdt/entities'
 import { newId } from '../crdt/ids'
 import { layoutTx as masterLayoutTx, updateMaster, withAreas } from '../crdt/master-ops'
 import { flipRegion, isRtlLang, mirrorFrame, textChains } from '../crdt/type-converters'
@@ -333,7 +333,7 @@ export function useFrames({
 	const [linkRefusal, setLinkRefusal] = React.useState<LinkRefusal>()
 	/** Last frame press, for the double-click that enters crop mode. */
 	const lastDown = React.useRef({ t: 0, x: 0, y: 0, id: '' })
-	const cf = crop ? doc.f.get(crop.id) : undefined
+	const cf = crop ? frameOf(doc, crop.id) : undefined
 	const cd = cf?.t === 'img' ? (cf.data as StoredImageData) : undefined
 	// Variant sized for 2× the frame at 100% zoom; pass the page scale if it blurs.
 	const cz = crop ? 2 / FX / Math.max(0.01, crop.c.w) : 0
@@ -415,12 +415,10 @@ export function useFrames({
 
 	/** Crop mode on an image frame with an image. */
 	const startCrop = (id: string) => {
-		const f = doc.f.get(id)
+		const f = frameOf(doc, id)
 		const d = f?.t === 'img' ? (f.data as StoredImageData) : undefined
 		if (!f || !d?.fileId || locked?.has(id)) return
-		const page = sel?.ids.includes(id)
-			? sel.page
-			: pages.findIndex((p) => p.sec === f.anchor.sec && p.index === f.anchor.page)
+		const page = sel?.ids.includes(id) ? sel.page : pageOfFrame(f)
 		if (page < 0) return
 		select({ ids: [id], page })
 		setCrop({ id, page, c: d.crop ?? FULL_CROP })
@@ -429,24 +427,30 @@ export function useFrames({
 	const endCrop = () => {
 		if (!crop) return
 		setCrop(undefined)
-		const f = doc.f.get(crop.id)
+		const f = frameOf(doc, crop.id)
 		const d = f?.t === 'img' ? (f.data as StoredImageData) : undefined
 		const r4 = (v: number) => Math.round(v * 1e4) / 1e4
 		const w = r4(crop.c.w)
 		const c = { x: r4(crop.c.x), y: r4(crop.c.y), w, h: w }
 		const old = d?.crop ?? FULL_CROP
 		if (d && (c.x !== old.x || c.y !== old.y || c.w !== old.w || c.h !== old.h))
-			updateFrame(yDoc, doc, crop.id, { data: { ...d, crop: c } })
+			updateFrame(yDoc, doc, crop.id, { data: { crop: c } })
+	}
+
+	/** Global page index of a page frame's anchor (-1 for master items / not laid out). */
+	const pageOfFrame = (f: StoredFrame): number => {
+		const a = f.anchor
+		return 'sec' in a ? pages.findIndex((p) => p.sec === a.sec && p.index === a.page) : -1
 	}
 
 	const pageOf = (id: string): number => {
-		const f = doc.f.get(id)
-		return f ? pages.findIndex((p) => p.sec === f.anchor.sec && p.index === f.anchor.page) : -1
+		const f = frameOf(doc, id)
+		return f ? pageOfFrame(f) : -1
 	}
 
 	/** Link mode from text frame `id` (page frames only; not in Edit layout). */
 	const startLink = (id: string) => {
-		if (layoutEdit || doc.f.get(id)?.t !== 'txt') return
+		if (layoutEdit || frameOf(doc, id)?.t !== 'txt') return
 		if (crop) endCrop()
 		setLinkRefusal(undefined)
 		setLink({ id })
@@ -488,7 +492,7 @@ export function useFrames({
 	}
 
 	const newLinked = (id: string) => {
-		const f = doc.f.get(id)
+		const f = frameOf(doc, id)
 		const page = pageOf(id)
 		const pg = info(page)
 		if (!f || !pg) return
@@ -612,18 +616,17 @@ export function useFrames({
 	}
 
 	const pick = async (id: string) => {
-		const f = doc.f.get(id)
+		const f = frameOf(doc, id)
 		if (f?.t !== 'img') return
 		const r = await pickImage()
 		if (!r) return
-		updateFrame(yDoc, doc, id, {
-			data: { ...(f.data as StoredImageData), fileId: r.fileId, px: r.px }
-		})
+		// A new image resets the crop (`patchFrame`); only `src` is rewritten.
+		updateFrame(yDoc, doc, id, { data: { fileId: r.fileId, px: r.px } })
 		setFocusAlt((n) => n + 1)
 	}
 
 	const insertImage = async () => {
-		const one = sel?.ids.length === 1 ? doc.f.get(sel.ids[0]) : undefined
+		const one = sel?.ids.length === 1 ? frameOf(doc, sel.ids[0]) : undefined
 		if (sel && one?.t === 'img' && !(one.data as StoredImageData).fileId)
 			return pick(sel.ids[0])
 		const r = await pickImage()
@@ -699,7 +702,7 @@ export function useFrames({
 				{ paras: [{}], master: layoutEdit }
 			)
 		)
-		const story = (doc.f.get(id)?.data as StoredTextFrameData | undefined)?.story
+		const story = (frameOf(doc, id)?.data as StoredTextFrameData | undefined)?.story
 		if (story && !layoutEdit) {
 			setSel(undefined)
 			editor.select({ story, anchor: 0, head: 0 })
@@ -708,12 +711,10 @@ export function useFrames({
 	}
 
 	const toInline = (id: string) => {
-		const f = doc.f.get(id)
-		const story = f && doc.s.get(f.anchor.sec)?.story
+		const f = frameOf(doc, id)
+		const story = f && 'sec' in f.anchor ? sectionOf(doc, f.anchor.sec)?.story : undefined
 		const tx = story && doc.tx.get(story)
-		const page = pages.findIndex(
-			(p) => f && p.sec === f.anchor.sec && p.index === f.anchor.page
-		)
+		const page = f ? pageOfFrame(f) : -1
 		if (!f || !story || !tx) return
 		// The paragraph whose first line sits at or below the frame's top on its page.
 		const lines = (editor.index.pages.get(page) ?? []).filter((l) => l.line.story === story)
@@ -753,21 +754,21 @@ export function useFrames({
 	}
 
 	const sizeToImage = (id: string) => {
-		const f = doc.f.get(id)
+		const f = frameOf(doc, id)
 		const d = f?.data as StoredImageData | undefined
 		if (!f || !d?.px) return
 		updateFrame(yDoc, doc, id, {
 			h: Math.round((f.w * d.px[1]) / d.px[0]),
-			data: { ...d, fit: 'fill' }
+			data: { fit: 'fill' }
 		})
 	}
 
 	const fromText = (e: KeyboardEvent): boolean => {
 		if (e.key !== 'Escape' || !editor.sel || !canEdit) return false
 		const story = editor.sel.story
-		for (const [id, f] of doc.f.entries()) {
+		for (const [id, f] of framesOf(doc)) {
 			if (f.t !== 'txt' || (f.data as StoredTextFrameData).story !== story) continue
-			const page = pages.findIndex((p) => p.sec === f.anchor.sec && p.index === f.anchor.page)
+			const page = pageOfFrame(f)
 			if (page < 0) return false
 			select({ ids: [id], page })
 			return true
@@ -909,7 +910,7 @@ export function useFrames({
 					Math.abs(e.clientX - ld.x) < 4 &&
 					Math.abs(e.clientY - ld.y) < 4
 				Object.assign(ld, { t: e.timeStamp, x: e.clientX, y: e.clientY, id: h.id })
-				const hf = doc.f.get(h.id)
+				const hf = frameOf(doc, h.id)
 				if (dbl && !e.shiftKey && hf?.t === 'img' && (hf.data as StoredImageData).fileId) {
 					startCrop(h.id)
 					return
@@ -1275,7 +1276,7 @@ export function useFrames({
 				else if (f?.t === 'txt') {
 					// A follower edits its head's story.
 					const head = chainOf(doc, cur[0].id)?.head
-					const hf = head ? doc.f.get(head) : f
+					const hf = head ? frameOf(doc, head) : f
 					const story = (hf?.data as StoredTextFrameData | undefined)?.story
 					if (!story) return
 					setSel(undefined)
@@ -1298,7 +1299,7 @@ export function useFrames({
 	const ghostOf = (i: number) => {
 		const p = pages[i]
 		const pg = info(i)
-		const sec = p && doc.s.get(p.sec)
+		const sec = p && sectionOf(doc, p.sec)
 		if (!pg || !sec) return
 		if ((editor.index.pages.get(i) ?? []).some((l) => l.line.story === sec.story)) return
 		let last = -1
@@ -1494,7 +1495,8 @@ export function useFrames({
 			if (it.frame?.t !== 'txt' || it.master || (it.frame.data as StoredTextFrameData).story)
 				continue
 			const c = chainOf(doc, it.id, chains)
-			const story = c && (doc.f.get(c.head)?.data as StoredTextFrameData | undefined)?.story
+			const story =
+				c && (frameOf(doc, c.head)?.data as StoredTextFrameData | undefined)?.story
 			if (!c || !story) continue
 			// Lines are in the frame's unrotated space (rotation is render-only).
 			const b = { ...boxOf(it), rot: 0 }
@@ -1954,8 +1956,8 @@ export function useFrames({
 								const to = pages[ghost.to].index
 								yDoc.transact(() => {
 									for (const id of ghost.ids) {
-										const f = doc.f.get(id)
-										if (f)
+										const f = frameOf(doc, id)
+										if (f && 'sec' in f.anchor)
 											updateFrame(yDoc, doc, id, {
 												anchor: { ...f.anchor, page: to }
 											})

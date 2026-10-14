@@ -15,15 +15,10 @@ import type * as Y from 'yjs'
 
 import { newBlockId, stripBlockIds } from '../crdt/block-ids'
 import { deltaOf } from '../crdt/delta-cache'
+import { styleOf } from '../crdt/entities'
 import { sanitizeOverrides } from '../crdt/overrides'
-import {
-	LINE_KEYS,
-	MARK_KEYS,
-	type StyleMap,
-	type StyleMapKey,
-	type YPagilloDocument
-} from '../crdt/stored-types'
-import type { DeltaOp } from '../crdt/type-converters'
+import { LINE_KEYS, MARK_KEYS, type StyleMapKey, type YPagilloDocument } from '../crdt/stored-types'
+import { type DeltaOp, readMeta } from '../crdt/type-converters'
 import * as C from './caret'
 import type { CommandCtx } from './commands'
 import { deleteRange, insertText } from './text-edit'
@@ -68,7 +63,7 @@ function validEmbed(e: unknown): boolean {
 	return false
 }
 
-const styleMap = (doc: YPagilloDocument) => (doc.m.get('styleMap') as StyleMap | undefined) ?? {}
+const styleMap = (doc: YPagilloDocument) => readMeta(doc.m).styleMap
 
 /** Links we keep: `safeHref` (web, mail, relative) plus Cloudillo `cl:` refs. */
 const safeLink = (v: unknown) =>
@@ -342,7 +337,7 @@ export function pasteDelta(doc: YPagilloDocument, t: Y.Text, at: number, ops: De
 		const a = op.attributes ?? {}
 		const marks: Record<string, unknown> = { ...NO_MARKS }
 		for (const k of MARK_KEYS) if (typeof a[k] === MARK_TYPES[k]) marks[k] = a[k]
-		if (marks.cs && !doc.st.has(marks.cs as string)) marks.cs = null
+		if (marks.cs && !styleOf(doc, marks.cs as string)) marks.cs = null
 		if (marks.size != null && !(isNum(marks.size) && marks.size > 0)) marks.size = null
 		if (marks.link != null) marks.link = safeLink(marks.link) ?? null
 		if (typeof op.insert !== 'string') {
@@ -354,7 +349,7 @@ export function pasteDelta(doc: YPagilloDocument, t: Y.Text, at: number, ops: De
 		}
 		op.insert.split('\n').forEach((part, i) => {
 			if (i) {
-				const ps = typeof a.ps === 'string' && doc.st.has(a.ps) ? a.ps : null
+				const ps = typeof a.ps === 'string' && styleOf(doc, a.ps) ? a.ps : null
 				pos++
 				out.push({
 					insert: '\n',

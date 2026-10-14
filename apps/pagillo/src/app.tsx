@@ -31,6 +31,7 @@ import './style.css'
 import { MIRROR_ID, Mirror } from './a11y/Mirror'
 import { useLandmarks } from './a11y/landmarks'
 import { isEmptyPublication, openPublication } from './crdt/document'
+import { frameOf, framesOf, masterOf, sectionOf } from './crdt/entities'
 import type * as Y from 'yjs'
 import {
 	chainOf,
@@ -42,7 +43,6 @@ import {
 } from './crdt/frame-ops'
 import { registerNormalizer } from './crdt/normalize'
 import { moveSection } from './crdt/section-ops'
-import type { StoredFrame } from './crdt/stored-types'
 import { PAGE_SIZES } from './crdt/type-converters'
 import { caretBox, selFrom, selTo } from './editor/caret'
 import { containsPoint } from './editor/frames'
@@ -243,9 +243,13 @@ export function PagilloApp() {
 	const onOverset = () => {
 		const o = layout.overset[0]
 		if (!o) return
-		const f = o.frame ? (doc.f.get(o.frame) as StoredFrame | undefined) : undefined
+		const f = o.frame ? frameOf(doc, o.frame) : undefined
 		const pages = layout.sections.find((s) => s.id === o.sec)?.pages ?? 1
-		scrollToPage(f ? pageKey(f.anchor.sec, f.anchor.page) : pageKey(o.sec, pages - 1))
+		scrollToPage(
+			f && 'sec' in f.anchor
+				? pageKey(f.anchor.sec, f.anchor.page)
+				: pageKey(o.sec, pages - 1)
+		)
 		const p = o.frame ? frames.pageOf(o.frame) : -1
 		if (o.frame && p >= 0) frames.select({ ids: [o.frame], page: p })
 	}
@@ -299,7 +303,7 @@ export function PagilloApp() {
 		if (!cb) return
 		const y = (cb.top + cb.bottom) / 2
 		const n = c.frames.findIndex((id) => {
-			const f = doc.f.get(id)
+			const f = frameOf(doc, id)
 			return !!f && frames.pageOf(id) === cb.page && containsPoint({ ...f, rot: 0 }, cb.x, y)
 		})
 		return n < 0 ? undefined : { n: n + 1, m: c.frames.length }
@@ -358,7 +362,7 @@ export function PagilloApp() {
 		id: curRef.sec,
 		which: curRef.index === 0 ? ('first' as const) : ('rest' as const),
 		sec: doc.secs.toArray().indexOf(curRef.sec) + 1,
-		layoutName: (curMaster && doc.ms.get(curMaster)?.name) || ''
+		layoutName: (curMaster && masterOf(doc, curMaster)?.name) || ''
 	}
 	/** Status-bar mode chip + key hints; `spoken` keeps the full sentence. */
 	const mode = (): ModeInfo => {
@@ -398,7 +402,7 @@ export function PagilloApp() {
 			}
 		const fs = frames.sel
 		if (fs) {
-			const kind = fs.ids.length === 1 ? doc.f.get(fs.ids[0])?.t : undefined
+			const kind = fs.ids.length === 1 ? frameOf(doc, fs.ids[0])?.t : undefined
 			if (kind === 'img')
 				return {
 					chip: t('Image · on page'),
@@ -451,7 +455,7 @@ export function PagilloApp() {
 				hints: [[t('Del'), t('delete')]],
 				spoken: t('Image in the text · Format › Position puts it on the page')
 			}
-		for (const f of doc.f.values()) {
+		for (const [, f] of framesOf(doc)) {
 			if (f.t === 'txt' && (f.data as { story?: string } | undefined)?.story === es.story)
 				return {
 					chip: t('Text box'),
@@ -468,7 +472,7 @@ export function PagilloApp() {
 	/** Main story of global page `n`. */
 	const pageStory = (n: number) => {
 		const p = flattenPages(layout.sections)[n]
-		return p && doc.s.get(p.sec)?.story
+		return p && sectionOf(doc, p.sec)?.story
 	}
 	const onAddPage = (n: number) => {
 		const story = pageStory(n)

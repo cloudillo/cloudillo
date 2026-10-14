@@ -12,6 +12,7 @@ import type {
 import * as Y from 'yjs'
 
 import { openPublication } from '../crdt/document.js'
+import { frameOf, newFrameMap, newMasterMap, newSectionMap, patchFrame } from '../crdt/entities.js'
 import {
 	addFrame,
 	breakThreadAfter,
@@ -22,7 +23,8 @@ import {
 	linkFrame,
 	linkTargets,
 	threadAnnouncements,
-	threadStates
+	threadStates,
+	updateFrame
 } from '../crdt/frame-ops.js'
 import { deleteSection } from '../crdt/section-ops.js'
 import type {
@@ -42,7 +44,7 @@ describe('PublicationAdapter', () => {
 		const t = new Y.Text()
 		doc.tx.set('S', t)
 		t.insert(0, 'ab\n', { bid: 'A' })
-		doc.s.set('s1', { story: 'S' } as StoredSection)
+		doc.s.set('s1', newSectionMap({ story: 'S' } as StoredSection))
 		doc.secs.push(['s1'])
 
 		const calls = { pub: 0, patch: 0 }
@@ -79,7 +81,7 @@ describe('PublicationAdapter', () => {
 		doc.tx.set('S', t)
 		t.insert(0, 'aa\n', { bid: 'A' })
 		t.insert(3, 'bb\n', { bid: 'B' })
-		doc.s.set('s1', { story: 'S' } as StoredSection)
+		doc.s.set('s1', newSectionMap({ story: 'S' } as StoredSection))
 		doc.secs.push(['s1'])
 
 		const patches: ParagraphPatch[] = []
@@ -101,6 +103,42 @@ describe('PublicationAdapter', () => {
 		expect(a1).toBe(a0)
 		expect(adapter.drainFresh()).toEqual([b1])
 		expect(b1).toBe(patches[0].paragraph)
+	})
+
+	it('re-sends masters only when frame membership or anchors change', () => {
+		const yDoc = new Y.Doc()
+		const doc = openPublication(yDoc)
+		doc.secs.push(['s1'])
+		let masters = 0
+		const noop = () => {}
+		const engine = {
+			setPublication: noop,
+			setSections: noop,
+			setFrames: noop,
+			setStyles: noop,
+			patch: noop,
+			setMasters: () => {
+				masters++
+			}
+		}
+		new PublicationAdapter(yDoc, engine as unknown as Engine)
+		const id = addFrame(yDoc, doc, {
+			t: 'shp',
+			anchor: { sec: 's1', page: 0 },
+			x: 0,
+			y: 0,
+			w: 10,
+			h: 10,
+			rot: 0,
+			z: 1,
+			wrap: { mode: 'none', off: 0 },
+			data: {}
+		} as StoredFrame)
+		expect(masters).toBe(1)
+		updateFrame(yDoc, doc, id, { x: 5 })
+		expect(masters).toBe(1)
+		updateFrame(yDoc, doc, id, { anchor: { ms: 'm1' } })
+		expect(masters).toBe(2)
 	})
 })
 
@@ -131,7 +169,10 @@ describe('text chains', () => {
 		return { yDoc, doc, txt }
 	}
 	const storyOf = (doc: YPagilloDocument, id: string) =>
-		(doc.f.get(id)?.data as StoredTextFrameData | undefined)?.story
+		(frameOf(doc, id)?.data as StoredTextFrameData | undefined)?.story
+	/** A master with no layout to speak of — only its existence matters here. */
+	const master = (doc: YPagilloDocument, id: string) =>
+		doc.ms.set(id, newMasterMap({ name: id } as StoredMaster))
 
 	it('links empty unchained text frames and refuses the rest', () => {
 		const { yDoc, doc, txt } = setup()
@@ -148,7 +189,7 @@ describe('text chains', () => {
 		const bStory = storyOf(doc, b) ?? ''
 		expect(linkTargets(doc, a)).toEqual([c, b])
 		expect(linkFrame(yDoc, doc, a, b)).toBe(true)
-		expect(doc.f.get(b)?.data).toEqual({})
+		expect(frameOf(doc, b)?.data).toEqual({})
 		expect(doc.tx.has(bStory)).toBe(false)
 		expect(linkFrame(yDoc, doc, b, c)).toBe(true)
 		expect(chainOf(doc, c)).toEqual({ head: a, frames: [a, b, c] })
@@ -156,15 +197,13 @@ describe('text chains', () => {
 		expect(canLinkTarget(doc, a, full)).toBe('hasText')
 		expect(canLinkTarget(doc, a, img)).toBe('notText')
 		expect(linkFrame(yDoc, doc, a, full)).toBe(false)
+		master(doc, 'M')
 		const m = addFrame(
 			yDoc,
 			doc,
 			{ t: 'txt', anchor: { sec: '', page: 0 }, ...box, data: {} },
-			{
-				paras: [{}]
-			}
+			{ paras: [{}], master: 'M' }
 		)
-		doc.ms.set('M', { items: [m] } as unknown as StoredMaster)
 		expect(canLinkTarget(doc, a, m)).toBe('layoutItem')
 	})
 
@@ -184,7 +223,8 @@ describe('text chains', () => {
 		breakThreadAfter(yDoc, doc, b)
 		const broken = textChains(doc)
 		expect(broken).toEqual(new Map([[a, [b]]]))
-		doc.ms.set('M', { items: [b] } as unknown as StoredMaster)
+		master(doc, 'M')
+		updateFrame(yDoc, doc, b, { anchor: { ms: 'M' } })
 		expect(textChains(doc)).not.toBe(broken)
 		expect(textChains(doc)).toEqual(new Map())
 	})
@@ -205,10 +245,10 @@ describe('text chains', () => {
 		linkFrame(yDoc, doc, a, b)
 		linkFrame(yDoc, doc, a, c)
 		deleteFrame(yDoc, doc, a)
-		expect(doc.f.get(b)?.data).toEqual({ story, chain: [c] })
+		expect(frameOf(doc, b)?.data).toEqual({ story, chain: [c] })
 		expect(doc.tx.get(story)?.toString()).toContain('keep')
 		deleteFrame(yDoc, doc, b)
-		expect(doc.f.get(c)?.data).toEqual({ story })
+		expect(frameOf(doc, c)?.data).toEqual({ story })
 		deleteFrame(yDoc, doc, c)
 		expect(doc.tx.has(story)).toBe(false)
 	})
@@ -220,7 +260,7 @@ describe('text chains', () => {
 		linkFrame(yDoc, doc, a, c)
 		breakThreadAfter(yDoc, doc, a)
 		expect(chainOf(doc, a)).toBeUndefined()
-		expect(doc.f.get(a)?.data).toEqual({ story: storyOf(doc, a) })
+		expect(frameOf(doc, a)?.data).toEqual({ story: storyOf(doc, a) })
 		for (const id of [b, c]) {
 			const s = storyOf(doc, id) ?? ''
 			expect(s).not.toBe(storyOf(doc, a))
@@ -234,7 +274,7 @@ describe('text chains', () => {
 		linkFrame(yDoc, doc, a, b)
 		const story = storyOf(doc, a)
 		const raw = { story, chain: [b, 'missing', full, b] }
-		doc.f.set(a, { ...(doc.f.get(a) as StoredFrame), data: raw })
+		yDoc.transact(() => patchFrame(doc.f.get(a), { data: raw }))
 		const frames = toEnginePublication(doc).frames
 		expect((frames[a].data as TextFrameData).chain).toEqual([b])
 		expect(frames[b].data).toEqual({})
@@ -246,11 +286,11 @@ describe('text chains', () => {
 			['h1', 'h2']
 		]) {
 			const { doc, txt } = setup()
-			const tmpl = doc.f.get(txt(0)) as StoredFrame
+			const tmpl = frameOf(doc, txt(0)) as StoredFrame
 			const b = 'f'
-			doc.f.set(b, { ...tmpl, data: {} })
+			doc.f.set(b, newFrameMap({ ...tmpl, data: {} }))
 			for (const id of order)
-				doc.f.set(id, { ...tmpl, data: { story: `st-${id}`, chain: [b] } })
+				doc.f.set(id, newFrameMap({ ...tmpl, data: { story: `st-${id}`, chain: [b] } }))
 			const frames = toEnginePublication(doc).frames
 			expect((frames.h1.data as TextFrameData).chain).toEqual([b])
 			expect((frames.h2.data as TextFrameData).chain).toBeUndefined()
@@ -260,18 +300,16 @@ describe('text chains', () => {
 	it('link and break keep box styling', () => {
 		const { yDoc, doc, txt } = setup()
 		const [a, b] = [txt(0, 'x'), txt(0)]
-		const style = (id: string, inset: number, fill: string) => {
-			const f = doc.f.get(id) as StoredFrame
-			doc.f.set(id, { ...f, data: { ...f.data, inset, fill } })
-		}
+		const style = (id: string, inset: number, fill: string) =>
+			updateFrame(yDoc, doc, id, { data: { inset, fill } })
 		style(a, 5, 'red')
 		style(b, 7, 'blue')
 		linkFrame(yDoc, doc, a, b)
-		expect(doc.f.get(a)?.data).toMatchObject({ inset: 5, fill: 'red', chain: [b] })
-		expect(doc.f.get(b)?.data).toEqual({ inset: 7, fill: 'blue' })
+		expect(frameOf(doc, a)?.data).toMatchObject({ inset: 5, fill: 'red', chain: [b] })
+		expect(frameOf(doc, b)?.data).toEqual({ inset: 7, fill: 'blue' })
 		breakThreadAfter(yDoc, doc, a)
-		expect(doc.f.get(a)?.data).toEqual({ story: storyOf(doc, a), inset: 5, fill: 'red' })
-		expect(doc.f.get(b)?.data).toMatchObject({ inset: 7, fill: 'blue' })
+		expect(frameOf(doc, a)?.data).toEqual({ story: storyOf(doc, a), inset: 5, fill: 'red' })
+		expect(frameOf(doc, b)?.data).toMatchObject({ inset: 7, fill: 'blue' })
 	})
 
 	it('deleting a section hands a thread running on into another section its text', () => {
@@ -282,7 +320,7 @@ describe('text chains', () => {
 		linkFrame(yDoc, doc, a, b)
 		deleteSection(yDoc, doc, 's1')
 		expect(doc.f.has(a)).toBe(false)
-		expect(doc.f.get(b)?.data).toEqual({ story })
+		expect(frameOf(doc, b)?.data).toEqual({ story })
 		expect(doc.tx.get(story)?.toString()).toContain('keep')
 	})
 

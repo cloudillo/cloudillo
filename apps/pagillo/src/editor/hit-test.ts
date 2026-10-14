@@ -10,6 +10,7 @@ import { rotatePointAroundCenter } from '@cloudillo/canvas-tools'
 import type { LineGeom } from '@cloudillo/typeset'
 
 import { type GeomIndex, nearestCaret, type PlacedLine, sameRow, xDist } from './caret'
+import { frameOf } from '../crdt/entities'
 import { chainOf } from '../crdt/frame-ops'
 import type { StoredTextFrameData, YPagilloDocument } from '../crdt/stored-types'
 import { textChains } from '../crdt/type-converters'
@@ -48,7 +49,7 @@ export function textAreas(doc: YPagilloDocument, page: PageInfo): TextArea[] {
 		const own = (it.frame.data as StoredTextFrameData).story
 		const head = own ? undefined : chainOf(doc, it.id, chains)?.head
 		const story =
-			own ?? (head && (doc.f.get(head)?.data as StoredTextFrameData | undefined)?.story)
+			own ?? (head && (frameOf(doc, head)?.data as StoredTextFrameData | undefined)?.story)
 		if (story) out.push({ x: it.x, y: it.y, w: it.w, h: it.h, story, rot: it.rot })
 	}
 	return out

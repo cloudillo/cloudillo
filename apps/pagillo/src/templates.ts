@@ -15,13 +15,16 @@ import { getSuggestedBodyFonts } from '@cloudillo/fonts'
 import { FALLBACK_FACE_FAMILY } from '@cloudillo/fonts/metadata'
 import { type Align, type Fx, type ParagraphProps, ptToFx as pt } from '@cloudillo/typeset'
 
+import { setMeta } from './crdt/document'
+import { newFrameMap, newMasterMap, newSectionMap } from './crdt/entities'
 import { addFrame } from './crdt/frame-ops'
 import { type MasterId, newId, type SectionId } from './crdt/ids'
 import type { PageSize } from './crdt/runtime-types'
 import { createStory, type SeedParagraph } from './crdt/story-ops'
 import type { StoredFrame, StoredSection, StoredStyle, YPagilloDocument } from './crdt/stored-types'
 import { applyStyleSet } from './crdt/style-ops'
-import { FULL_CROP, PAGE_SIZES } from './crdt/type-converters'
+import { FULL_CROP } from './crdt/entities'
+import { PAGE_SIZES } from './crdt/type-converters'
 
 export type TemplateId = 'simple' | 'two-col' | 'hero' | 'newsletter' | 'report' | 'flyer' | 'blank'
 export type PagePreset = keyof typeof PAGE_SIZES
@@ -330,58 +333,68 @@ export function applyTemplate(
 			},
 			master: (name, [mt, mb, mi, mo], cols = 1, gutterPt = 0) => {
 				const mid = newId()
-				doc.ms.set(mid, {
-					name,
-					w,
-					h,
-					margins: { t: pt(mt), b: pt(mb), in: pt(mi), out: pt(mo) },
-					cols,
-					gutter: pt(gutterPt),
-					regions: [],
-					items: []
-				})
+				doc.ms.set(
+					mid,
+					newMasterMap({
+						name,
+						w,
+						h,
+						margins: { t: pt(mt), b: pt(mb), in: pt(mi), out: pt(mo) },
+						cols,
+						gutter: pt(gutterPt),
+						regions: []
+					})
+				)
 				return mid
 			},
 			section: (first, rest, paras, extra = {}) => {
 				const sid = newId()
-				doc.s.set(sid, {
-					start: 'any',
-					...extra,
-					story: createStory(doc, paras),
-					first,
-					rest
-				})
+				doc.s.set(
+					sid,
+					newSectionMap({
+						start: 'any',
+						...extra,
+						story: createStory(doc, paras),
+						first,
+						rest
+					})
+				)
 				doc.secs.push([sid])
 				return sid
 			},
 			image: (sec, x, y, iw, ih, wrap) => {
-				doc.f.set(newId(), {
-					t: 'img',
-					anchor: { sec, page: 0 },
-					x,
-					y,
-					w: iw,
-					h: ih,
-					rot: 0,
-					z: 0,
-					wrap: { mode: wrap, off: pt(12) },
-					data: { crop: FULL_CROP, fit: 'cover', alt: '' }
-				})
+				doc.f.set(
+					newId(),
+					newFrameMap({
+						t: 'img',
+						anchor: { sec, page: 0 },
+						x,
+						y,
+						w: iw,
+						h: ih,
+						rot: 0,
+						z: 0,
+						wrap: { mode: wrap, off: pt(12) },
+						data: { crop: FULL_CROP, fit: 'cover', alt: '' }
+					})
+				)
 			},
 			frame: (frame, fopts) => {
 				addFrame(yDoc, doc, frame, fopts)
 			}
 		})
-		doc.m.set('page', { w, h })
-		doc.m.set('facing', false)
-		doc.m.set('lang', opts.lang)
-		doc.m.set('styleMap', {
-			p: s.body,
-			h1: s.h1,
-			h2: s.h2,
-			h3: s.h3,
-			quote: s.quote,
-			caption: s.caption
+		setMeta(yDoc, doc, {
+			page: { w, h },
+			facing: false,
+			lang: opts.lang,
+			styleMap: {
+				p: s.body,
+				h1: s.h1,
+				h2: s.h2,
+				h3: s.h3,
+				quote: s.quote,
+				caption: s.caption
+			}
 		})
 		applied = true
 	}, TEMPLATE_ORIGIN)

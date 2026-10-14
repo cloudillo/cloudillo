@@ -12,6 +12,7 @@ import type * as Y from 'yjs'
 
 import { newBlockId } from '../crdt/block-ids'
 import { deltaOf } from '../crdt/delta-cache'
+import { newSectionMap, sectionOf, sectionsOf, styleOf } from '../crdt/entities'
 import { newId, type StyleId } from '../crdt/ids'
 import { createStory } from '../crdt/story-ops'
 import {
@@ -20,12 +21,11 @@ import {
 	type StoredInlineEmbed,
 	type StoredLineAttrs,
 	type StoredStyle,
-	type StyleMap,
 	type StyleMapKey,
 	type YPagilloDocument
 } from '../crdt/stored-types'
 import { updateStyle } from '../crdt/style-ops'
-import type { DeltaOp } from '../crdt/type-converters'
+import { type DeltaOp, readMeta } from '../crdt/type-converters'
 import * as C from './caret'
 import { sliceDelta } from './clipboard'
 import { deleteRange, insertText } from './text-edit'
@@ -115,15 +115,15 @@ export function inheritedProps(
 ): Record<string, unknown> {
 	const chain: StoredStyle[] = []
 	const seen = new Set<string>()
-	for (let cur = id; cur && !seen.has(cur); cur = doc.st.get(cur)?.basedOn) {
+	for (let cur = id; cur && !seen.has(cur); cur = styleOf(doc, cur)?.basedOn) {
 		seen.add(cur)
-		const s = doc.st.get(cur)
+		const s = styleOf(doc, cur)
 		if (s) chain.unshift(s)
 	}
 	return Object.assign({}, ...chain.map((s) => s.props))
 }
 
-const styleMap = (doc: YPagilloDocument) => (doc.m.get('styleMap') as StyleMap | undefined) ?? {}
+const styleMap = (doc: YPagilloDocument) => readMeta(doc.m).styleMap
 
 export interface TextState {
 	/** Paragraph style of every selected paragraph, or undefined when mixed. */
@@ -259,8 +259,8 @@ export function insertField({ editor }: CommandCtx, field: StoredInlineEmbed): v
  */
 export function insertSectionBreak({ doc, editor }: CommandCtx): void {
 	const story = editor.sel?.story
-	const secId = [...doc.s.entries()].find(([, s]) => s.story === story)?.[0]
-	const sec = secId ? doc.s.get(secId) : undefined
+	const secId = sectionsOf(doc).find(([, s]) => s.story === story)?.[0]
+	const sec = secId ? sectionOf(doc, secId) : undefined
 	if (!secId || !sec) return
 	let next: string | undefined
 	editor.run((t, from, to) => {
@@ -277,7 +277,7 @@ export function insertSectionBreak({ doc, editor }: CommandCtx): void {
 		if (t.length === 0) t.insert(0, '\n', { bid: newBlockId(), ...(body ? { ps: body } : {}) })
 		const { pageNum: _p, maxPages: _m, ...rest } = sec
 		const sid = newId()
-		doc.s.set(sid, { ...rest, story: id })
+		doc.s.set(sid, newSectionMap({ ...rest, story: id }))
 		doc.secs.insert(doc.secs.toArray().indexOf(secId) + 1, [sid])
 		next = id
 	})

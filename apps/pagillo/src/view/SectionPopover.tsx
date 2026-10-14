@@ -20,6 +20,7 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { LuArrowDown, LuArrowUp, LuCopy, LuTrash2 } from 'react-icons/lu'
 
+import { mastersOf, sectionOf } from '../crdt/entities'
 import type { SectionId } from '../crdt/ids'
 import { deleteSection, duplicateSection, moveSection, updateSection } from '../crdt/section-ops'
 import type { StoredSection } from '../crdt/stored-types'
@@ -45,12 +46,12 @@ export function SectionPopover({
 	const { t } = useTranslation()
 	const dialog = useDialog()
 	useDocVersion(doc)
-	const s = doc.s.get(secId)
+	const s = sectionOf(doc, secId)
 	if (!s) return null
 
 	const ids = doc.secs.toArray()
 	const index = ids.indexOf(secId)
-	const masters = [...doc.ms.entries()]
+	const masters = mastersOf(doc)
 	const pageNum = s.pageNum ?? { restart: false, format: '' }
 	const update = (p: Partial<Omit<StoredSection, 'story'>>) => updateSection(yDoc, doc, secId, p)
 	const setPageNum = (p: { restart: boolean; format: string }) =>

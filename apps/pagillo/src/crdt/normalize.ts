@@ -13,7 +13,8 @@ import * as Y from 'yjs'
 
 import { BID_FORMAT, computeBlockIdFixes } from './block-ids'
 import { deltaOf } from './delta-cache'
-import type { StoredTextFrameData, YPagilloDocument } from './stored-types'
+import { framesOf, isObj } from './entities'
+import type { YPagilloDocument } from './stored-types'
 
 export const NORMALIZE_ORIGIN = 'pagillo-normalize'
 
@@ -35,18 +36,22 @@ export function normalizeStory(text: Y.Text): boolean {
 }
 
 /**
- * Delete `tx` stories nothing references (no section, no text frame — master items included).
- * Every local op drops a story with its last reference, so these come from concurrent edits.
- * Call inside a transaction.
+ * Delete frames anchored to a missing master, then `tx` stories nothing references (no section,
+ * no frame — master items included). References are read raw, so the story of an entity this
+ * client cannot read (a newer peer's frame type) is kept. Every local op drops a story with its
+ * last reference and a master with its items, so these come from concurrent edits. Call inside
+ * a transaction.
  */
 export function sweepOrphanStories(doc: YPagilloDocument): void {
-	const used = new Set<unknown>()
-	doc.s.forEach((s) => {
-		used.add(s?.story)
-	})
-	doc.f.forEach((f) => {
-		if (f?.t === 'txt') used.add((f.data as StoredTextFrameData | undefined)?.story)
-	})
+	for (const [id, f] of framesOf(doc))
+		if ('ms' in f.anchor && !doc.ms.has(f.anchor.ms)) doc.f.delete(id)
+	const used = new Set<string>()
+	// A peer can put anything in an entity root.
+	for (const root of [doc.s, doc.f] as Y.Map<unknown>[])
+		for (const y of root.values()) {
+			const story = y instanceof Y.Map ? y.get('story') : isObj(y) ? y.story : undefined
+			if (typeof story === 'string') used.add(story)
+		}
 	for (const id of [...doc.tx.keys()]) if (!used.has(id)) doc.tx.delete(id)
 }
 

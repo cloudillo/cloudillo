@@ -44,6 +44,7 @@ import type {
 	StoredTextFrameData,
 	YPagilloDocument
 } from '../crdt/stored-types'
+import { frameOf, stylesOf } from '../crdt/entities'
 import { masterItems } from '../crdt/type-converters'
 import * as Cmd from '../editor/commands'
 import { FRAME_LABELS, type FrameCtl } from '../editor/FrameOverlay'
@@ -166,7 +167,7 @@ function FrameSection({ yDoc, doc, frames }: PanelProps & { frames: FrameCtl }) 
 	}, [frames.focusAlt])
 	const ids = frames.sel?.ids ?? []
 	const id = ids.length === 1 ? ids[0] : undefined
-	const f = id ? doc.f.get(id) : undefined
+	const f = id ? frameOf(doc, id) : undefined
 	if (!id || !f) {
 		return (
 			<PropertySection title={t('Selection')}>
@@ -181,8 +182,7 @@ function FrameSection({ yDoc, doc, frames }: PanelProps & { frames: FrameCtl }) 
 	}
 	const set = (p: Partial<StoredFrame>) => updateFrame(yDoc, doc, id, p)
 	const d = f.data as StoredImageData
-	const setData = (p: Partial<StoredImageData> | Partial<StoredTextFrameData>) =>
-		set({ data: { ...d, ...p } })
+	const setData = (p: Partial<StoredImageData> | Partial<StoredTextFrameData>) => set({ data: p })
 	const td = f.data as StoredTextFrameData
 	const master = masterItems(doc).has(id)
 	const img = f.t === 'img'
@@ -471,7 +471,7 @@ function TextSection({ yDoc, doc, editor }: PanelProps & { editor: Editor }) {
 	if (!st || !editor.sel) return null
 	const ctx: Cmd.CommandCtx = { yDoc, doc, editor }
 	const own = st.po as Record<string, unknown>
-	const charStyles = [...doc.st.entries()].filter(([, s]) => s.k === 'c')
+	const charStyles = stylesOf(doc).filter(([, s]) => s.k === 'c')
 	const setProps = (p: Record<string, unknown>) =>
 		Cmd.setParagraphProps(ctx, p as Cmd.ParagraphPatch)
 	const reset = (keys: readonly string[]) => {

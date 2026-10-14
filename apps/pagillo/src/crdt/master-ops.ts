@@ -3,43 +3,62 @@
 
 /**
  * Master ("Page layout" in the UI) operations (`ms` map) and the publication page size.
+ * Static items are frames anchored `{ ms, side? }` (`masterItemIndex`), not lists on the master.
  */
 
-import { type Margins, type MasterVariant, marginRegion, type Region } from '@cloudillo/typeset'
+import { type Margins, marginRegion, type Region } from '@cloudillo/typeset'
 import type * as Y from 'yjs'
 
+import {
+	frameOf,
+	framesOf,
+	masterOf,
+	mastersOf,
+	newFrameMap,
+	newMasterMap,
+	patchFrame,
+	patchMaster,
+	sectionOf,
+	sectionsOf
+} from './entities'
 import { type MasterId, newId, type SectionId } from './ids'
 import { updateSection } from './section-ops'
 import type {
 	StoredFrame,
 	StoredMaster,
+	StoredMasterVariant,
 	StoredTextFrameData,
 	YPagilloDocument
 } from './stored-types'
 import { copyTextData } from './story-ops'
-import { byIds, flipRegion, mirrorFrame, readMeta, resolveSide } from './type-converters'
+import {
+	byIds,
+	flipRegion,
+	masterItemIndex,
+	mirrorFrame,
+	readMeta,
+	resolveSide
+} from './type-converters'
 
 export function addMaster(yDoc: Y.Doc, doc: YPagilloDocument, master: StoredMaster): MasterId {
 	const id = newId()
 	yDoc.transact(() => {
-		doc.ms.set(id, master)
+		doc.ms.set(id, newMasterMap(master))
 	}, yDoc.clientID)
 	return id
 }
 
-/** Shallow patch; a key set to `undefined` is removed (e.g. `left` / `right` variants). */
+/** Patch; a layout key set to `undefined` is removed (e.g. `left` / `right` variants). */
 export function updateMaster(
 	yDoc: Y.Doc,
 	doc: YPagilloDocument,
 	id: MasterId,
 	patch: Partial<StoredMaster>
 ): void {
-	const cur = doc.ms.get(id)
-	if (!cur) return
-	const next: Record<string, unknown> = { ...cur, ...patch }
-	for (const k of Object.keys(next)) if (next[k] === undefined) delete next[k]
+	const y = doc.ms.get(id)
+	if (!y) return
 	yDoc.transact(() => {
-		doc.ms.set(id, next as StoredMaster)
+		patchMaster(y, patch)
 	}, yDoc.clientID)
 }
 
@@ -56,15 +75,12 @@ export function ensureRegions(
 	doc: YPagilloDocument,
 	id: MasterId
 ): string | undefined {
-	const m = doc.ms.get(id)
+	const m = masterOf(doc, id)
 	if (!m) return
 	const rid = newId()
-	const next: StoredMaster = { ...m }
-	let changed = false
-	if (!m.regions.length) {
-		next.regions = [{ ...marginRegion(m), id: rid }]
-		changed = true
-	}
+	// Only the changed keys: a copy of `m` would write back reader defaults over peer edits.
+	const next: Partial<StoredMaster> = {}
+	if (!m.regions.length) next.regions = [{ ...marginRegion(m), id: rid }]
 	if (resolveSide(m, readMeta(doc.m).facing) === 'different') {
 		for (const side of ['left', 'right'] as const) {
 			const v = m[side]
@@ -77,12 +93,11 @@ export function ensureRegions(
 				gutter: v?.gutter ?? m.gutter
 			}
 			next[side] = { ...v, regions: [{ ...marginRegion(g, side === 'left'), id: rid }] }
-			changed = true
 		}
 	}
-	if (!changed) return
+	if (!Object.keys(next).length) return
 	yDoc.transact(() => {
-		doc.ms.set(id, next)
+		patchMaster(doc.ms.get(id), next)
 	}, yDoc.clientID)
 	return rid
 }
@@ -114,26 +129,30 @@ export const withAreas = (
 			? { left: { ...m.left, regions } }
 			: { right: { ...m.right, regions } }
 
+/** Delete a static item frame and its story (items are never threaded). Inside a transaction. */
+function dropItem(doc: YPagilloDocument, fid: string): void {
+	const f = frameOf(doc, fid)
+	const st = f?.t === 'txt' && (f.data as StoredTextFrameData).story
+	if (st) doc.tx.delete(st)
+	doc.f.delete(fid)
+}
+
 /** Delete an unused master with its static items. Returns false if a section uses it. */
 export function deleteMaster(yDoc: Y.Doc, doc: YPagilloDocument, id: MasterId): boolean {
-	const m = doc.ms.get(id)
-	if (!m) return false
-	for (const s of doc.s.values()) if (s.first === id || s.rest === id) return false
+	if (!masterOf(doc, id)) return false
+	for (const [, s] of sectionsOf(doc)) if (s.first === id || s.rest === id) return false
 	yDoc.transact(() => {
-		for (const fid of [...m.items, ...(m.left?.items ?? []), ...(m.right?.items ?? [])]) {
-			const f = doc.f.get(fid)
-			const st = f?.t === 'txt' && (f.data as StoredTextFrameData).story
-			if (st) doc.tx.delete(st)
-			doc.f.delete(fid)
-		}
+		const e = masterItemIndex(doc).get(id)
+		for (const fid of e ? [...e.both, ...e.l, ...e.r] : []) dropItem(doc, fid)
 		doc.ms.delete(id)
 	}, yDoc.clientID)
 	return true
 }
 
 /**
- * Copy a master under `name`. Static items (base and variant) are cloned to new frame ids,
- * text items with a copied story. One transaction; undefined if `id` is missing.
+ * Copy a master under `name`. Its static items (every side) are cloned to new frame ids anchored
+ * to the copy with the same `side`, text items with a copied story. One transaction; undefined
+ * if `id` is missing.
  */
 export function duplicateMaster(
 	yDoc: Y.Doc,
@@ -141,43 +160,40 @@ export function duplicateMaster(
 	id: MasterId,
 	name: string
 ): MasterId | undefined {
-	const m = doc.ms.get(id)
+	const m = masterOf(doc, id)
 	if (!m) return
 	const copy = newId()
 	yDoc.transact(() => {
-		const ids = new Map<string, string>()
-		const clone = (fid: string) => {
-			let nid = ids.get(fid)
-			if (nid) return nid
-			nid = cloneFrame(doc, fid) ?? newId()
-			ids.set(fid, nid)
-			return nid
-		}
-		const side = (v: MasterVariant) => (v.items ? { ...v, items: v.items.map(clone) } : v)
-		const next: StoredMaster = { ...m, name, items: m.items.map(clone) }
-		if (m.left) next.left = side(m.left)
-		if (m.right) next.right = side(m.right)
-		doc.ms.set(copy, next)
+		doc.ms.set(copy, newMasterMap({ ...m, name }))
+		const e = masterItemIndex(doc).get(id)
+		for (const fid of e ? [...e.both, ...e.l, ...e.r] : [])
+			cloneFrame(doc, fid, (g) => ({ ...g, anchor: { ...g.anchor, ms: copy } }))
 	}, yDoc.clientID)
 	return copy
 }
 
 /**
- * Copy frame `fid` (through `map`) to a new id, a text frame with a copied story. Call inside a
+ * Copy frame `fid` (through `map`) to `nid`, a text frame with a copied story. Call inside a
  * transaction; undefined if `fid` is missing.
  */
 function cloneFrame(
 	doc: YPagilloDocument,
 	fid: string,
-	map = (f: StoredFrame) => f
+	map = (f: StoredFrame) => f,
+	nid = newId()
 ): string | undefined {
-	const f = doc.f.get(fid)
+	const f = frameOf(doc, fid)
 	if (!f) return
-	const nid = newId()
 	const data = f.t === 'txt' ? copyTextData(doc, f.data as StoredTextFrameData) : f.data
-	doc.f.set(nid, { ...map(f), data })
+	doc.f.set(nid, newFrameMap({ ...map(f), data }))
 	return nid
 }
+
+/**
+ * Id of item `id`'s mirrored left clone: deterministic, so peers splitting at once write one key
+ * (the loser's copied story is orphaned and swept on load). No `~`, which marks synthesized ids.
+ */
+export const leftCloneId = (id: string) => `${id}-l`
 
 /** Use master `masterId` for a section's first page (`'first'`) or its other pages (`'rest'`). */
 export function assignMaster(
@@ -193,9 +209,11 @@ export function assignMaster(
 /**
  * Facing-page mode, after `ensureRegions`; no-op when unchanged. → `'different'` seeds the
  * variants with what the pages showed, so nothing moves: `right` gets the base areas, `left`
- * the base areas as the old mode drew them (from 'mirror': flipped, in `leftOrder` when manual,
- * with mirrored clones of the static items). Any other mode drops both variants.
- * Variant-only static items are deleted either way.
+ * the base areas as the old mode drew them (from 'mirror': flipped, in `leftOrder` when manual).
+ * From 'mirror' the shared static items also split: each moves to `side: 'r'` and gets a
+ * mirrored clone with `side: 'l'` (shared items draw on both sides in 'different'). Leaving
+ * 'different', the right page's look becomes the shared one: `side: 'r'` items lose their side,
+ * `side: 'l'` items are deleted. Entering it, stale side items (not drawn before) are deleted.
  */
 export function setMasterSide(
 	yDoc: Y.Doc,
@@ -204,39 +222,41 @@ export function setMasterSide(
 	side: 'mirror' | 'same' | 'different'
 ): void {
 	yDoc.transact(() => {
-		const m0 = doc.ms.get(id)
+		const m0 = masterOf(doc, id)
 		if (!m0) return
 		const prev = resolveSide(m0, readMeta(doc.m).facing)
 		if (prev === side) return
 		ensureRegions(yDoc, doc, id)
-		const m = doc.ms.get(id)
+		const m = masterOf(doc, id)
 		if (!m) return
-		const own = new Set(m.items)
-		for (const fid of [...(m.left?.items ?? []), ...(m.right?.items ?? [])]) {
-			const f = doc.f.get(fid)
-			if (!f || own.has(fid)) continue
-			const st = f.t === 'txt' && (f.data as StoredTextFrameData).story
-			if (st) doc.tx.delete(st)
-			doc.f.delete(fid)
-		}
+		const items = masterItemIndex(doc).get(id) ?? { both: [], l: [], r: [] }
+		for (const fid of items.l) dropItem(doc, fid)
 		if (side !== 'different') {
+			for (const fid of items.r) patchFrame(doc.f.get(fid), { anchor: { ms: id } })
 			updateMaster(yDoc, doc, id, { side, left: undefined, right: undefined })
 			return
 		}
-		// Clones get random ids, so items with equal z may swap paint order; carry the source
-		// order into z if that shows.
-		const left: MasterVariant =
-			prev === 'mirror'
-				? {
-						regions: byIds(
-							m.regions.map((g) => flipRegion(g, m.w)),
-							m.flow === 'manual' ? m.leftOrder : undefined
-						),
-						items: m.items
-							.map((fid) => cloneFrame(doc, fid, (f) => mirrorFrame(f, m.w)))
-							.filter((x): x is string => !!x)
-					}
-				: { regions: m.regions }
+		for (const fid of items.r) dropItem(doc, fid)
+		let left: StoredMasterVariant = { regions: m.regions }
+		if (prev === 'mirror') {
+			left = {
+				regions: byIds(
+					m.regions.map((g) => flipRegion(g, m.w)),
+					m.flow === 'manual' ? m.leftOrder : undefined
+				)
+			}
+			// Clone ids sort differently from their sources, so items with equal z may swap paint
+			// order; carry the source order into z if that shows.
+			for (const fid of items.both) {
+				patchFrame(doc.f.get(fid), { anchor: { ms: id, side: 'r' } })
+				cloneFrame(
+					doc,
+					fid,
+					(f) => ({ ...mirrorFrame(f, m.w), anchor: { ms: id, side: 'l' } }),
+					leftCloneId(fid)
+				)
+			}
+		}
 		updateMaster(yDoc, doc, id, { side, left, right: { regions: m.regions } })
 	}, yDoc.clientID)
 }
@@ -258,8 +278,8 @@ function scaleRegion(g: Region, sx: number, sy: number): Region {
 	}
 }
 
-function scaleVariant(v: MasterVariant, sx: number, sy: number): MasterVariant {
-	const out: MasterVariant = { ...v }
+function scaleVariant(v: StoredMasterVariant, sx: number, sy: number): StoredMasterVariant {
+	const out: StoredMasterVariant = { ...v }
 	if (v.margins) out.margins = scaleMargins(v.margins, sx, sy)
 	if (v.gutter !== undefined) out.gutter = r(v.gutter * sx)
 	if (v.regions) out.regions = v.regions.map((g) => scaleRegion(g, sx, sy))
@@ -274,44 +294,38 @@ function scaleVariant(v: MasterVariant, sx: number, sy: number): MasterVariant {
 export function setPageSize(yDoc: Y.Doc, doc: YPagilloDocument, w: number, h: number): void {
 	yDoc.transact(() => {
 		const ratio = new Map<string, [number, number]>()
-		const frameRatio = new Map<string, [number, number]>()
-		doc.ms.forEach((m, id) => {
+		for (const [id, m] of mastersOf(doc)) {
 			const sx = w / m.w
 			const sy = h / m.h
 			ratio.set(id, [sx, sy])
-			for (const fid of [...m.items, ...(m.left?.items ?? []), ...(m.right?.items ?? [])]) {
-				frameRatio.set(fid, [sx, sy])
-			}
-			if (sx === 1 && sy === 1) return
-			const next: StoredMaster = {
-				...m,
+			if (sx === 1 && sy === 1) continue
+			patchMaster(doc.ms.get(id), {
 				w,
 				h,
 				margins: scaleMargins(m.margins, sx, sy),
 				gutter: r(m.gutter * sx),
-				regions: m.regions.map((g) => scaleRegion(g, sx, sy))
+				regions: m.regions.map((g) => scaleRegion(g, sx, sy)),
+				...(m.left ? { left: scaleVariant(m.left, sx, sy) } : {}),
+				...(m.right ? { right: scaleVariant(m.right, sx, sy) } : {})
+			})
+		}
+		for (const [fid, f] of framesOf(doc)) {
+			const a = f.anchor
+			let k: [number, number] | undefined
+			if ('ms' in a) k = ratio.get(a.ms)
+			else {
+				const sec = sectionOf(doc, a.sec)
+				k = sec && ratio.get(a.page === 0 ? sec.first : sec.rest)
 			}
-			if (m.left) next.left = scaleVariant(m.left, sx, sy)
-			if (m.right) next.right = scaleVariant(m.right, sx, sy)
-			doc.ms.set(id, next)
-		})
-		doc.f.forEach((f, fid) => {
-			let k = frameRatio.get(fid)
-			if (!k) {
-				const sec = doc.s.get(f.anchor.sec)
-				k = sec && ratio.get(f.anchor.page === 0 ? sec.first : sec.rest)
-			}
-			if (!k || (k[0] === 1 && k[1] === 1)) return
+			if (!k || (k[0] === 1 && k[1] === 1)) continue
 			const [sx, sy] = k
-			const next: StoredFrame = {
-				...f,
+			patchFrame(doc.f.get(fid), {
 				x: r(f.x * sx),
 				y: r(f.y * sy),
 				w: r(f.w * sx),
 				h: r(f.h * sy)
-			}
-			doc.f.set(fid, next)
-		})
+			})
+		}
 		doc.m.set('page', { w, h })
 	}, yDoc.clientID)
 }

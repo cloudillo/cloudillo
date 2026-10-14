@@ -17,13 +17,14 @@ import {
 } from '@cloudillo/canvas-tools'
 import { FX, marginRegion, type PageDL, type Region, trackCount } from '@cloudillo/typeset'
 
+import { frameOf, framesOf, masterOf } from '../crdt/entities'
 import type { StoredFrame, StoredMaster, YPagilloDocument } from '../crdt/stored-types'
 import {
 	byIds,
 	flipRegion,
 	flowOrder,
 	isRtlLang,
-	masterItems,
+	masterItemIndex,
 	mirrorFrame,
 	resolveSide,
 	swapInOut
@@ -75,12 +76,15 @@ export const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.mi
 
 /** The master of `page` as the engine sees it on that page side (`masterToEngine`'s modes). */
 export function pageMaster(doc: YPagilloDocument, page: PageInfo): ResolvedMaster | undefined {
-	const m = doc.ms.get(page.master)
+	const m = masterOf(doc, page.master)
 	if (!m) return
+	// O(frames) anchor reads per call (marginBox/flowBoxes/flowRegions too); cache per transaction
+	// if profiled.
+	const idx = masterItemIndex(doc).get(page.master)
 	const mode = resolveSide(m, !!page.side)
 	// 'same': the left page is an exact copy of the right one, implicit area included.
 	const margins = mode === 'same' && page.side === 'l' ? swapInOut(m.margins) : m.margins
-	const base = { m, margins, cols: m.cols, gutter: m.gutter, items: m.items }
+	const base = { m, margins, cols: m.cols, gutter: m.gutter, items: idx?.both ?? [] }
 	if (mode === 'mirror' && page.side === 'l')
 		return { ...base, regions: m.regions.map((r) => flipRegion(r, page.w)), mirrored: true }
 	if (mode !== 'different' || !page.side) return { ...base, regions: m.regions }
@@ -92,7 +96,8 @@ export function pageMaster(doc: YPagilloDocument, page: PageInfo): ResolvedMaste
 		cols: v?.cols ?? m.cols,
 		gutter: v?.gutter ?? m.gutter,
 		regions: v?.regions ?? m.regions,
-		items: v?.items ?? m.items,
+		// Shared items plus this side's own (as `masterToEngine` draws them).
+		items: [...(idx?.both ?? []), ...(idx?.[page.side] ?? [])],
 		side
 	}
 }
@@ -118,7 +123,7 @@ export function marginBox(doc: YPagilloDocument, page: PageInfo): Region {
  */
 export function gridLines(doc: YPagilloDocument, page: PageInfo): { xs: number[]; ys: number[] } {
 	const b = marginBox(doc, page)
-	const m = doc.ms.get(page.master)
+	const m = masterOf(doc, page.master)
 	return {
 		xs: gutterEdges(b.x, b.w, b.cols, b.gutter),
 		ys: gutterEdges(b.y, b.h, m?.rows ?? 1, m?.rowGutter ?? b.gutter)
@@ -196,16 +201,14 @@ export function pageItems(
 				master: true
 			})
 		for (const id of pm.items) {
-			const f = doc.f.get(id)
+			const f = frameOf(doc, id)
 			// Mirrored: shown where the engine draws the copy; the id stays the stored frame's.
 			if (f) out.push(frame(id, pm.mirrored ? mirrorFrame(f, page.w) : f, true))
 		}
 	} else {
-		const masters = masterItems(doc)
-		doc.f.forEach((f, id) => {
-			if (!masters.has(id) && f.anchor.sec === page.sec && f.anchor.page === page.index)
+		for (const [id, f] of framesOf(doc))
+			if ('sec' in f.anchor && f.anchor.sec === page.sec && f.anchor.page === page.index)
 				out.push(frame(id, f, false))
-		})
 	}
 	return out.sort((a, b) => a.z - b.z)
 }

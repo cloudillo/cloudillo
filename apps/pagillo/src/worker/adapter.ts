@@ -22,12 +22,14 @@ import type {
 } from '@cloudillo/typeset'
 
 import { openPublication } from '../crdt/document'
+import { mastersOf, sectionOf, stylesOf } from '../crdt/entities'
 import type { YPagilloDocument } from '../crdt/stored-types'
 import {
 	type DeltaOp,
 	deltaToParagraphs,
 	framesToEngine,
 	isRtlLang,
+	masterItemIndex,
 	masterToEngine,
 	readMeta,
 	sectionToEngine,
@@ -35,8 +37,11 @@ import {
 } from '../crdt/type-converters'
 import type { Composition } from './protocol'
 
-/** `m` keys that feed `Publication` (the rest — engine, fonts, pdf, … — do not affect layout). */
-const LAYOUT_META = new Set(['lang', 'facing', 'title', 'exportedAt', 'styleMap'])
+/**
+ * `m` keys that feed `Publication`, besides the `styleMap/*` entries (the rest — engine, fonts,
+ * pdf, … — do not affect layout).
+ */
+const LAYOUT_META = new Set(['lang', 'facing', 'title', 'exportedAt'])
 
 const json = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 
@@ -184,24 +189,37 @@ export class PublicationAdapter {
 		const d = this.doc
 		// Y.Transaction.changed is keyed by AbstractType<YEvent<any>>, which typed Y.Map/Y.Text do not satisfy.
 		const changed = tr.changed as Map<unknown, Set<string | null>>
+		// Entities are nested `Y.Map`s: an edit inside one marks only its root's parent types.
+		const deep = tr.changedParentTypes as Map<unknown, unknown>
 		const mKeys = changed.get(d.m)
-		if (mKeys && [...mKeys].some((k) => k !== null && LAYOUT_META.has(k))) {
+		if (
+			mKeys &&
+			[...mKeys].some((k) => k !== null && (LAYOUT_META.has(k) || k.startsWith('styleMap/')))
+		) {
 			this.rebuild()
 			return
 		}
-		if (changed.has(d.st)) {
-			this.styles = Object.fromEntries(d.st.entries())
+		if (deep.has(d.st)) {
+			this.styles = Object.fromEntries(stylesOf(d))
 			this.engine.setStyles(this.styles)
 			// New styles may name new faces for any paragraph.
 			this.fresh = this.all()
 		}
-		if (changed.has(d.ms)) {
+		// Master items are frames anchored to their master; `masterToEngine` uses only their ids,
+		// so only a frame added / removed (`f` keys) or re-anchored changes the masters.
+		const fKeys = changed.get(d.f)
+		const anchorsMoved =
+			!!fKeys?.size ||
+			[...changed].some(
+				([t, keys]) => t instanceof Y.Map && t.parent === d.f && keys.has('anchor')
+			)
+		if (deep.has(d.ms) || anchorsMoved) {
 			const meta = readMeta(d.m)
 			const opts = { facing: meta.facing, rtl: isRtlLang(meta.lang) }
+			const index = masterItemIndex(d)
 			const masters: Record<string, Master> = {}
-			d.ms.forEach((m, id) => {
-				masters[id] = masterToEngine(id, m, opts)
-			})
+			for (const [id, m] of mastersOf(d))
+				masters[id] = masterToEngine(id, m, index.get(id), opts)
 			this.engine.setMasters(masters)
 		}
 
@@ -210,14 +228,15 @@ export class PublicationAdapter {
 			if (changed.has(t)) texts.push(id)
 		})
 		// `ms` too: a side mode or items change re-derives the mirrored item frames.
-		const structural = [d.secs, d.s, d.f, d.tx, d.ms].some((t) => changed.has(t))
+		const structural =
+			changed.has(d.secs) || changed.has(d.tx) || [d.s, d.f, d.ms].some((t) => deep.has(t))
 		if (structural) {
 			const old = this.stories
 			this.stories = new Map()
 			for (const [id, st] of old) if (!texts.includes(id)) this.stories.set(id, st)
 			const sections: Section[] = []
 			for (const id of d.secs.toArray()) {
-				const s = d.s.get(id)
+				const s = sectionOf(d, id)
 				if (s) sections.push(sectionToEngine(id, s, this.story(s.story)))
 			}
 			const used = new Set(sections.map((s) => s.story.id))

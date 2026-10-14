@@ -5,14 +5,10 @@ import * as Y from 'yjs'
 
 import { computeBlockIdFixes, stripBlockIds } from '../crdt/block-ids.js'
 import { openPublication } from '../crdt/document.js'
+import { newFrameMap, newMasterMap, newSectionMap } from '../crdt/entities.js'
 import { registerNormalizer } from '../crdt/normalize.js'
 import { sanitizeBox, sanitizeMarks } from '../crdt/overrides.js'
-import type {
-	StoredFrame,
-	StoredMaster,
-	StoredSection,
-	YPagilloDocument
-} from '../crdt/stored-types.js'
+import type { StoredFrame, StoredMaster, StoredSection } from '../crdt/stored-types.js'
 import {
 	byIds,
 	deltaToParagraphs,
@@ -72,10 +68,10 @@ describe('mirroring', () => {
 		cols: 1,
 		gutter: 10,
 		regions: [area('side', 490, 50, 100, 700), area('main', 70, 50, 400, 700)],
-		items: ['logo'],
 		rows: 2,
 		regionNames: { main: 'Main' }
 	}
+	const items = { both: ['logo'], l: [], r: [] }
 	const opts = { facing: true, rtl: false }
 
 	it('flips x across the page', () => {
@@ -90,7 +86,7 @@ describe('mirroring', () => {
 	})
 
 	it('synthesizes the left variant and strips pagillo-only fields', () => {
-		const e = masterToEngine('mid', m, opts)
+		const e = masterToEngine('mid', m, items, opts)
 		expect(ids(e.regions)).toEqual(['main', 'side'])
 		expect(ids(e.left?.regions ?? [])).toEqual(['side', 'main'])
 		expect(e.left?.regions?.find((r) => r.id === 'main')?.x).toBe(190)
@@ -101,19 +97,20 @@ describe('mirroring', () => {
 	})
 
 	it('keeps stored order with manual flow, leftOrder on the left', () => {
-		const e = masterToEngine('mid', { ...m, flow: 'manual', leftOrder: ['main'] }, opts)
+		const e = masterToEngine('mid', { ...m, flow: 'manual', leftOrder: ['main'] }, items, opts)
 		expect(ids(e.regions)).toEqual(['side', 'main'])
 		expect(ids(e.left?.regions ?? [])).toEqual(['main', 'side'])
 	})
 
 	it('has no variants when not facing or same', () => {
-		expect(masterToEngine('mid', m, { facing: false, rtl: false }).left).toBeUndefined()
-		const e = masterToEngine('mid', { ...m, side: 'same', left: { cols: 2 } }, opts)
+		expect(masterToEngine('mid', m, items, { facing: false, rtl: false }).left).toBeUndefined()
+		const e = masterToEngine('mid', { ...m, side: 'same', left: { cols: 2 } }, items, opts)
 		// Facing 'same': only the margins, swapped back so the implicit area does not flip.
 		expect(e.left).toEqual({ margins: { t: 50, b: 50, in: 70, out: 70 } })
 		const lop = masterToEngine(
 			'mid',
 			{ ...m, side: 'same', margins: { t: 0, b: 0, in: 70, out: 30 } },
+			items,
 			opts
 		)
 		expect(lop.left).toEqual({ margins: { t: 0, b: 0, in: 30, out: 70 } })
@@ -154,9 +151,20 @@ describe('peer data reaching the layout worker', () => {
 
 	it('skips stored frames with a reserved ~ id', () => {
 		const doc = openPublication(new Y.Doc())
-		const f = { t: 'shp', x: 0, y: 0, w: 1, h: 1, rot: 0, z: 0 } as unknown as StoredFrame
-		doc.f.set('a', f)
-		doc.f.set('a~m', f)
+		const f = {
+			t: 'shp',
+			anchor: { sec: 's', page: 0 },
+			x: 0,
+			y: 0,
+			w: 1,
+			h: 1,
+			rot: 0,
+			z: 0,
+			wrap: { mode: 'none', off: 0 },
+			data: {}
+		} as unknown as StoredFrame
+		doc.f.set('a', newFrameMap(f))
+		doc.f.set('a~m', newFrameMap(f))
 		expect(Object.keys(framesToEngine(doc, (id) => ({ id, paragraphs: [] })))).toEqual(['a'])
 	})
 
@@ -168,8 +176,8 @@ describe('peer data reaching the layout worker', () => {
 			doc.tx.set('bad', new Y.Map() as unknown as Y.Text)
 			doc.tx.set('ok', t)
 			t.insert(0, 'no newline')
-			doc.s.set('s1', { story: 'bad' } as StoredSection)
-			doc.s.set('s2', { story: 'ok' } as StoredSection)
+			doc.s.set('s1', newSectionMap({ story: 'bad' } as StoredSection))
+			doc.s.set('s2', newSectionMap({ story: 'ok' } as StoredSection))
 		})
 		expect(() => registerNormalizer(yDoc, doc, () => true)).not.toThrow()
 		expect(t.toString()).toBe('no newline\n')
@@ -178,14 +186,27 @@ describe('peer data reaching the layout worker', () => {
 	it('sweeps unreferenced stories once, at the first write', () => {
 		const yDoc = new Y.Doc()
 		const doc = openPublication(yDoc)
-		const frame = (data: object) => ({ t: 'txt', data }) as unknown as StoredFrame
+		const frame = (data: object, anchor: StoredFrame['anchor'] = { sec: 's1', page: 0 }) =>
+			newFrameMap({
+				t: 'txt',
+				anchor,
+				x: 0,
+				y: 0,
+				w: 1,
+				h: 1,
+				rot: 0,
+				z: 0,
+				wrap: { mode: 'none', off: 0 },
+				data
+			})
 		yDoc.transact(() => {
 			for (const id of ['sec', 'head', 'item', 'orphan']) doc.tx.set(id, new Y.Text('\n'))
-			doc.s.set('s1', { story: 'sec' } as StoredSection)
+			doc.s.set('s1', newSectionMap({ story: 'sec' } as StoredSection))
 			doc.f.set('h', frame({ story: 'head', chain: ['f'] }))
 			doc.f.set('f', frame({}))
-			doc.f.set('m', frame({ story: 'item' }))
-			doc.ms.set('M', { items: ['m'] } as unknown as StoredMaster)
+			doc.ms.set('M', newMasterMap({ name: 'M' } as StoredMaster))
+			// A master item's story is referenced too (tx stories of entity maps are not orphans).
+			doc.f.set('m', frame({ story: 'item' }, { ms: 'M' }))
 		})
 		let canWrite = false
 		const n = registerNormalizer(yDoc, doc, () => canWrite)
@@ -202,7 +223,7 @@ describe('peer data reaching the layout worker', () => {
 	it('survives ill-typed chains and drops ill-typed box styling', () => {
 		const doc = openPublication(new Y.Doc())
 		const txt = (data: unknown) =>
-			({
+			newFrameMap({
 				t: 'txt',
 				anchor: { sec: 's', page: 0 },
 				x: 0,
@@ -211,8 +232,9 @@ describe('peer data reaching the layout worker', () => {
 				h: 1,
 				rot: 0,
 				z: 0,
+				wrap: { mode: 'none', off: 0 },
 				data
-			}) as unknown as StoredFrame
+			} as unknown as StoredFrame)
 		doc.f.set('a', txt({ story: 'x', chain: 'x' }))
 		doc.f.set('b', txt({ story: 'y', chain: [1, null] }))
 		doc.f.set('c', txt({ inset: Number.NaN, strokeW: -1, fill: 5, stroke: 'red' }))
@@ -310,10 +332,10 @@ describe('snapping', () => {
 		margins: { t: 50, b: 50, in: 50, out: 50 },
 		cols: 1,
 		gutter: 10,
-		regions: [area('a', 123, 77, 211, 333)],
-		items: []
-	} as unknown as StoredMaster
-	const doc = { ms: new Map([['m', m]]) } as unknown as YPagilloDocument
+		regions: [area('a', 123, 77, 211, 333)]
+	} as StoredMaster
+	const doc = openPublication(new Y.Doc())
+	doc.ms.set('m', newMasterMap(m))
 	const page = { master: 'm', w: 600, h: 800 } as unknown as PageInfo
 
 	it('snapTargets skips excluded text areas but keeps the margin box', () => {

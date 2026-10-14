@@ -3,13 +3,13 @@
 
 /**
  * Stored (Y.Doc) → engine model converters. Worker-safe: no DOM, no `@cloudillo/core`,
- * no `@cloudillo/fonts` barrel. The layout worker's adapter builds on these.
+ * no `@cloudillo/fonts` barrel. The layout worker's adapter builds on these. Entities are read
+ * through `entities.ts`.
  */
 
-import type * as Y from 'yjs'
+import * as Y from 'yjs'
 import { ptToFx } from '@cloudillo/typeset'
 import type {
-	Crop,
 	Frame,
 	InlineEmbed,
 	Margins,
@@ -23,6 +23,16 @@ import type {
 	Story
 } from '@cloudillo/typeset'
 
+import {
+	anchorOf,
+	FULL_CROP,
+	framesOf,
+	frameOf,
+	masterOf,
+	mastersOf,
+	sectionOf,
+	stylesOf
+} from './entities'
 import { sanitizeBox, sanitizeMarks, sanitizeOverrides } from './overrides'
 import type {
 	StoredFrame,
@@ -41,29 +51,32 @@ export const PAGE_SIZES = {
 	Letter: { w: ptToFx(612), h: ptToFx(792) }
 } satisfies Record<string, PageSize>
 
-export const FULL_CROP: Crop = { x: 0, y: 0, w: 1, h: 1 }
-
 const optStr = (v: unknown) => (typeof v === 'string' ? v : undefined)
+
+/** An `m` collection (`fonts`/`styleMap`/`spellIgnore`, flat `<name>/<entry>` keys) as a record. */
+function collection(m: Y.Map<unknown>, name: string): Record<string, unknown> | undefined {
+	const pre = `${name}/`
+	const e = [...m.entries()].filter(([k]) => k.startsWith(pre))
+	return e.length ? Object.fromEntries(e.map(([k, v]) => [k.slice(pre.length), v])) : undefined
+}
 
 /** `m` with defaults applied; the fields the layout worker reads are type-checked (peer data). */
 export function readMeta(m: Y.Map<unknown>): PublicationMeta {
 	const g = <K extends keyof StoredMeta>(k: K) => m.get(k) as StoredMeta[K]
 	const lang: unknown = g('lang')
-	const styleMap: unknown = g('styleMap')
+	const fonts = collection(m, 'fonts')
+	const spellIgnore = collection(m, 'spellIgnore')
 	return {
 		title: optStr(g('title')),
 		page: g('page') ?? PAGE_SIZES.A4,
 		facing: g('facing') === true,
 		engine: g('engine'),
-		fonts: g('fonts'),
+		fonts: fonts as PublicationMeta['fonts'],
 		pdf: g('pdf'),
 		lang: typeof lang === 'string' && lang ? lang : 'en',
-		styleMap:
-			styleMap && typeof styleMap === 'object' && !Array.isArray(styleMap)
-				? (styleMap as PublicationMeta['styleMap'])
-				: {},
+		styleMap: (collection(m, 'styleMap') ?? {}) as PublicationMeta['styleMap'],
 		exportedAt: optStr(g('exportedAt')),
-		spellIgnore: g('spellIgnore') ?? []
+		spellIgnore: spellIgnore ? Object.keys(spellIgnore) : []
 	}
 }
 
@@ -244,15 +257,47 @@ export function byIds<T extends { id: string }>(rs: T[], ids: string[] | undefin
 /** `mg` for the other page side: inside and outside swapped. */
 export const swapInOut = (mg: Margins): Margins => ({ ...mg, in: mg.out, out: mg.in })
 
+/** Static item frame ids of one master, by anchor side: `both` = no `side`, `l`/`r` = that side. */
+export interface MasterItemIds {
+	both: string[]
+	l: string[]
+	r: string[]
+}
+
+const NO_ITEMS: MasterItemIds = { both: [], l: [], r: [] }
+
+/**
+ * Master id → its static items, derived from frame anchors (`{ ms, side? }`), ids sorted.
+ * Synthesized (`~`) ids are skipped; masters without items are absent.
+ */
+export function masterItemIndex(doc: YPagilloDocument): Map<string, MasterItemIds> {
+	const out = new Map<string, MasterItemIds>()
+	for (const [id, y] of doc.f.entries()) {
+		const a = anchorOf(y)
+		if (!a || !('ms' in a) || id.includes('~')) continue
+		let e = out.get(a.ms)
+		if (!e) {
+			e = { both: [], l: [], r: [] }
+			out.set(a.ms, e)
+		}
+		e[a.side ?? 'both'].push(id)
+	}
+	for (const e of out.values()) for (const ids of [e.both, e.l, e.r]) ids.sort()
+	return out
+}
+
 /**
  * Engine master: pagillo-only fields stripped, regions in flow order (`flow` 'auto', per side),
  * and the facing mode applied — 'mirror' synthesizes the `left` variant (flipped regions, items
  * as `mirroredItemId` copies from `mirroredItemFrames`), 'same' drops the variants; on facing
  * pages its left margins are swapped back so the implicit area is an exact copy of the right one.
+ * `items` = the shared items (`items.both`); only in 'different' mode does a side add its own
+ * (`items.l`/`items.r`, drawn after the shared ones) — 'mirror' and 'same' draw shared items only.
  */
 export function masterToEngine(
 	id: string,
 	m: StoredMaster,
+	items: MasterItemIds | undefined,
 	opts: { facing: boolean; rtl: boolean }
 ): Master {
 	const {
@@ -267,49 +312,59 @@ export function masterToEngine(
 		right,
 		...rest
 	} = m
+	const its = items ?? NO_ITEMS
 	const order = (rs: Region[]) => (flow === 'manual' ? rs : flowOrder(rs, opts.rtl))
-	const out: Master = { ...rest, id, regions: order(rest.regions) }
+	const out: Master = { ...rest, id, regions: order(rest.regions), items: its.both }
 	const mode = resolveSide(m, opts.facing)
 	if (mode === 'mirror') {
 		const flipped = rest.regions.map((r) => flipRegion(r, m.w))
 		out.left = {
 			regions: flow === 'manual' ? byIds(flipped, leftOrder) : flowOrder(flipped, opts.rtl),
-			items: rest.items.map(mirroredItemId)
+			items: its.both.map(mirroredItemId)
 		}
 	} else if (mode === 'different') {
-		for (const [k, v] of [
-			['left', left],
-			['right', right]
-		] as const)
-			if (v) out[k] = v.regions ? { ...v, regions: order(v.regions) } : v
+		for (const [k, v, own] of [
+			['left', left, its.l],
+			['right', right, its.r]
+		] as const) {
+			if (!v && !own.length) continue
+			out[k] = {
+				...v,
+				...(v?.regions ? { regions: order(v.regions) } : {}),
+				...(own.length ? { items: [...its.both, ...own] } : {})
+			}
+		}
 	} else if (mode === 'same' && opts.facing) out.left = { margins: swapInOut(m.margins) }
 	return out
 }
 
 /**
- * Left-page copies of the static items of mirrored masters (facing publications), keyed by
- * `mirroredItemId` — the frames `masterToEngine`'s synthesized `left.items` name.
+ * Left-page copies of the shared static items of mirrored masters (facing publications), keyed
+ * by `mirroredItemId` — the frames `masterToEngine`'s synthesized `left.items` name.
  */
 export function mirroredItemFrames(
 	doc: YPagilloDocument,
-	story: (id: string) => Story
+	story: (id: string) => Story,
+	index: Map<string, MasterItemIds> = masterItemIndex(doc)
 ): Record<string, Frame> {
 	const out: Record<string, Frame> = {}
 	const facing = readMeta(doc.m).facing
-	doc.ms.forEach((m) => {
-		if (resolveSide(m, facing) !== 'mirror') return
-		for (const id of m.items) {
-			const f = doc.f.get(id)
+	for (const [msId, m] of mastersOf(doc)) {
+		if (resolveSide(m, facing) !== 'mirror') continue
+		for (const id of index.get(msId)?.both ?? []) {
+			const f = frameOf(doc, id)
 			const mid = mirroredItemId(id)
 			if (f) out[mid] = frameToEngine(mid, mirrorFrame(f, m.w), story)
 		}
-	})
+	}
 	return out
 }
 
 /**
- * Engine frames: the stored ones plus `mirroredItemFrames`. `~` is reserved for synthesized ids
- * (`newId` never makes one), so a stored id holding it is a peer's forgery and is skipped.
+ * Engine frames: page frames, the master items some engine master draws (`masterToEngine`:
+ * master present; a `side` item only in 'different' mode), plus `mirroredItemFrames`. `~` is
+ * reserved for synthesized ids (`newId` never makes one), so a stored id holding it is a peer's
+ * forgery and is skipped.
  */
 export function framesToEngine(
 	doc: YPagilloDocument,
@@ -317,20 +372,39 @@ export function framesToEngine(
 ): Record<string, Frame> {
 	const out: Record<string, Frame> = {}
 	const chains = textChains(doc)
-	doc.f.forEach((f, id) => {
-		if (!id.includes('~')) out[id] = frameToEngine(id, f, story, chains.get(id))
-	})
+	const facing = readMeta(doc.m).facing
+	for (const [id, f] of framesOf(doc)) {
+		if (id.includes('~')) continue
+		if ('ms' in f.anchor) {
+			const m = masterOf(doc, f.anchor.ms)
+			if (!m || (f.anchor.side && resolveSide(m, facing) !== 'different')) continue
+		}
+		out[id] = frameToEngine(id, f, story, chains.get(id))
+	}
 	return Object.assign(out, mirroredItemFrames(doc, story))
 }
 
-/** Ids of every master's static items, `left`/`right` variants included. */
+/** Ids of every master static item (frames anchored `{ ms }`), side items included. */
 export function masterItems(doc: YPagilloDocument): Set<string> {
 	const out = new Set<string>()
-	doc.ms.forEach((m) => {
-		for (const id of [...m.items, ...(m.left?.items ?? []), ...(m.right?.items ?? [])])
-			out.add(id)
-	})
+	for (const [id, y] of doc.f.entries()) {
+		const a = anchorOf(y)
+		if (a && 'ms' in a && doc.ms.has(a.ms)) out.add(id)
+	}
 	return out
+}
+
+/** `changed` (a transaction's changed types) holds `roots` or a type nested in one of them. */
+function touches(changed: Map<object, unknown> | undefined, roots: object[]): boolean {
+	if (!changed) return false
+	for (const t of changed.keys()) {
+		for (let p: Y.AbstractType<unknown> | null = t as Y.AbstractType<unknown>; p; ) {
+			if (roots.includes(p)) return true
+			const parent: unknown = p._item?.parent
+			p = parent instanceof Y.AbstractType ? parent : null
+		}
+	}
+	return false
 }
 
 /**
@@ -338,18 +412,17 @@ export function masterItems(doc: YPagilloDocument): Set<string> {
  * `txt` frame with a `story`. A `chain` id is dropped when it is missing, not `txt`, has its own
  * `story`, is a master item or synthesized (`~`), or already sits in an earlier chain. Heads go
  * in id order, so every peer gives a doubly claimed follower to the same head.
- * Cached per document until a transaction changes `f` or `ms` (bypassed inside one that already
- * did); the returned map is shared and read-only.
+ * Cached per document until a transaction changes `f` or `ms`, nested entity maps included
+ * (bypassed inside one that already did); the returned map is shared and read-only.
  */
 export function textChains(doc: YPagilloDocument): Map<string, string[]> {
 	const yDoc = doc.f.doc
-	const changed: Map<object, unknown> | undefined = yDoc?._transaction?.changed
-	if (!yDoc || changed?.has(doc.f) || changed?.has(doc.ms)) return buildTextChains(doc)
+	const roots = [doc.f, doc.ms]
+	if (!yDoc || touches(yDoc._transaction?.changed, roots)) return buildTextChains(doc)
 	if (!chainsHooked.has(yDoc)) {
 		chainsHooked.add(yDoc)
 		yDoc.on('beforeObserverCalls', (tr: Y.Transaction) => {
-			const changed: Map<object, unknown> = tr.changed
-			if (changed.has(doc.f) || changed.has(doc.ms)) chainsCache.delete(doc.f)
+			if (touches(tr.changed, roots)) chainsCache.delete(doc.f)
 		})
 	}
 	let out = chainsCache.get(doc.f)
@@ -364,17 +437,17 @@ const chainsCache = new WeakMap<object, Map<string, string[]>>()
 const chainsHooked = new WeakSet<Y.Doc>()
 
 function buildTextChains(doc: YPagilloDocument): Map<string, string[]> {
-	const master = masterItems(doc)
-	const bad = (id: string) => master.has(id) || id.includes('~')
+	const frames = new Map(framesOf(doc))
+	const bad = (id: string) => id.includes('~') || 'ms' in (frames.get(id)?.anchor ?? {})
 	const claimed = new Set<string>()
 	const out = new Map<string, string[]>()
-	const heads = [...doc.f.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+	const heads = [...frames].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
 	for (const [id, f] of heads) {
 		const d = f.t === 'txt' ? (f.data as StoredTextFrameData) : undefined
 		if (typeof d?.story !== 'string' || !Array.isArray(d.chain) || bad(id)) continue
 		const ok = d.chain.filter((c) => {
 			if (typeof c !== 'string') return false
-			const cf = doc.f.get(c)
+			const cf = frames.get(c)
 			if (cf?.t !== 'txt' || (cf.data as StoredTextFrameData).story) return false
 			if (claimed.has(c) || bad(c)) return false
 			claimed.add(c)
@@ -389,9 +462,12 @@ export function sectionToEngine(id: string, s: StoredSection, story: Story): Sec
 	return { ...s, id, story }
 }
 
+/** Engine anchor of a master item (the engine ignores it: `Master.items` names the frame). */
+const MASTER_ANCHOR: Frame['anchor'] = { sec: '', page: 0 }
+
 /**
  * `chain`: the head's validated followers (`textChains`); a story-less `txt` frame keeps only its
- * box styling.
+ * box styling. A master item gets a placeholder engine anchor.
  */
 export function frameToEngine(
 	id: string,
@@ -399,15 +475,21 @@ export function frameToEngine(
 	story: (id: string) => Story,
 	chain?: string[]
 ): Frame {
+	const anchor = 'ms' in f.anchor ? MASTER_ANCHOR : f.anchor
 	if (f.t !== 'txt')
-		return { ...f, id, data: f.data as Exclude<StoredFrame['data'], StoredTextFrameData> }
+		return {
+			...f,
+			id,
+			anchor,
+			data: f.data as Exclude<StoredFrame['data'], StoredTextFrameData>
+		}
 	const { story: st, chain: _, ...rest } = f.data as StoredTextFrameData
 	const box = sanitizeBox(rest)
 	const data: Frame['data'] =
 		typeof st === 'string'
 			? { ...box, story: story(st), ...(chain?.length ? { chain } : {}) }
 			: box
-	return { ...f, id, data }
+	return { ...f, id, anchor, data }
 }
 
 /** The whole publication as an engine model (worker init; incremental updates use the parts). */
@@ -416,7 +498,7 @@ export function toEnginePublication(doc: YPagilloDocument): Publication {
 	const story = (id: string) => storyToEngine(id, doc.tx.get(id), meta.styleMap.p)
 	const pub: Publication = {
 		lang: meta.lang,
-		styles: Object.fromEntries(doc.st.entries()),
+		styles: Object.fromEntries(stylesOf(doc)),
 		masters: {},
 		sections: [],
 		frames: framesToEngine(doc, story),
@@ -425,11 +507,11 @@ export function toEnginePublication(doc: YPagilloDocument): Publication {
 		exportedAt: meta.exportedAt
 	}
 	const opts = { facing: meta.facing, rtl: isRtlLang(meta.lang) }
-	doc.ms.forEach((m, id) => {
-		pub.masters[id] = masterToEngine(id, m, opts)
-	})
+	const index = masterItemIndex(doc)
+	for (const [id, m] of mastersOf(doc))
+		pub.masters[id] = masterToEngine(id, m, index.get(id), opts)
 	for (const id of doc.secs.toArray()) {
-		const s = doc.s.get(id)
+		const s = sectionOf(doc, id)
 		if (s) pub.sections.push(sectionToEngine(id, s, story(s.story)))
 	}
 	return pub

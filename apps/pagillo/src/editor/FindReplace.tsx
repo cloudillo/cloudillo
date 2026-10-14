@@ -16,6 +16,7 @@ import { useTranslation } from 'react-i18next'
 import { LuChevronDown, LuChevronUp, LuX } from 'react-icons/lu'
 import * as Y from 'yjs'
 
+import { framesOf, sectionOf } from '../crdt/entities'
 import type { StoredTextFrameData, YPagilloDocument } from '../crdt/stored-types'
 import type { LayoutState } from '../layout/useLayout'
 import { flattenPages, scrollToPage } from '../view/PageList'
@@ -34,10 +35,10 @@ export interface Hit {
 function searchStories(doc: YPagilloDocument): string[] {
 	const out = new Set<string>()
 	for (const id of doc.secs.toArray()) {
-		const s = doc.s.get(id)?.story
+		const s = sectionOf(doc, id)?.story
 		if (s) out.add(s)
 	}
-	for (const f of doc.f.values()) {
+	for (const [, f] of framesOf(doc)) {
 		// Followers of a thread hold no story (the head's covers them).
 		const s = f.t === 'txt' ? (f.data as StoredTextFrameData).story : undefined
 		if (s) out.add(s)
@@ -135,11 +136,11 @@ export function useFindReplace({
 		const bump = () => setVer((v) => v + 1)
 		doc.tx.observeDeep(bump)
 		doc.secs.observe(bump)
-		doc.f.observe(bump)
+		doc.f.observeDeep(bump)
 		return () => {
 			doc.tx.unobserveDeep(bump)
 			doc.secs.unobserve(bump)
-			doc.f.unobserve(bump)
+			doc.f.unobserveDeep(bump)
 		}
 	}, [shown, doc])
 

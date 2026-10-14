@@ -33,6 +33,7 @@ import {
 	LuTrash2
 } from 'react-icons/lu'
 
+import { frameOf, masterOf, mastersOf, sectionOf } from '../crdt/entities'
 import { deleteFrame } from '../crdt/frame-ops'
 import {
 	type AreaKey,
@@ -47,7 +48,14 @@ import {
 	withAreas
 } from '../crdt/master-ops'
 import type { StoredMaster } from '../crdt/stored-types'
-import { byIds, flipRegion, flowOrder, isRtlLang, resolveSide } from '../crdt/type-converters'
+import {
+	byIds,
+	flipRegion,
+	flowOrder,
+	isRtlLang,
+	masterItemIndex,
+	resolveSide
+} from '../crdt/type-converters'
 import { IMPLICIT_REGION } from '../editor/frames'
 import { LengthInput } from '../ui/LengthInput'
 import type { PanelProps } from './FormatPanel'
@@ -82,7 +90,7 @@ export function LayoutsPanel({ yDoc, doc, masterId, usage, page, onSwitch }: Lay
 	useDocVersion(doc)
 	const [renaming, setRenaming] = React.useState<string>()
 	const [req, setReq] = React.useState<DialogReq>()
-	const m = doc.ms.get(masterId)
+	const m = masterOf(doc, masterId)
 	if (!m) return null
 
 	const facing = !!doc.m.get('facing')
@@ -90,7 +98,7 @@ export function LayoutsPanel({ yDoc, doc, masterId, usage, page, onSwitch }: Lay
 	/** 1-based number of the first section using layout `id`, 0 if none. */
 	const usedBy = (id: string) =>
 		secs.findIndex((s) => {
-			const x = doc.s.get(s)
+			const x = sectionOf(doc, s)
 			return x?.first === id || x?.rest === id
 		}) + 1
 	/** Geometry write: materialize the implicit area first, one transaction. */
@@ -99,20 +107,25 @@ export function LayoutsPanel({ yDoc, doc, masterId, usage, page, onSwitch }: Lay
 	const rename = (id: string, name: string) => {
 		setRenaming(undefined)
 		const n = name.trim()
-		if (n && n !== doc.ms.get(id)?.name) updateMaster(yDoc, doc, id, { name: n })
+		if (n && n !== masterOf(doc, id)?.name) updateMaster(yDoc, doc, id, { name: n })
 	}
 	const remove = (id: string) => {
 		const next = [...doc.ms.keys()].find((k) => k !== id)
 		if (next && deleteMaster(yDoc, doc, id) && id === masterId) onSwitch(next)
 	}
 	const mg = m.margins
-	const items = [...new Set([...m.items, ...(m.left?.items ?? []), ...(m.right?.items ?? [])])]
+	const mi = masterItemIndex(doc).get(masterId)
+	const items = !mi
+		? []
+		: resolveSide(m, facing) === 'different'
+			? [...mi.both, ...mi.l, ...mi.r]
+			: mi.both
 
 	return (
 		<div className="c-vbox g-2 p-2">
 			<PropertySection title={t('Page layouts')}>
 				<div className="c-vbox g-1">
-					{[...doc.ms.entries()].map(([id, x]) => {
+					{mastersOf(doc).map(([id, x]) => {
 						const n = usage.get(id) ?? 0
 						const sec = usedBy(id)
 						return (
@@ -284,7 +297,7 @@ export function LayoutsPanel({ yDoc, doc, masterId, usage, page, onSwitch }: Lay
 			<PropertySection title={t('Items on every page')}>
 				{items.length === 0 && <p className="small text-muted">{t('None')}</p>}
 				{items.map((fid) => {
-					const f = doc.f.get(fid)
+					const f = frameOf(doc, fid)
 					return (
 						<div key={fid} className="c-hbox g-2">
 							<span className="flex-fill">
@@ -376,7 +389,7 @@ function TextAreas({ yDoc, doc, masterId, m, facing }: TextAreasProps) {
 	/** One undoable write: materialize the implicit area (`made` = its id), then patch. */
 	const edit = (fn: (cur: StoredMaster, made: string | undefined) => Partial<StoredMaster>) =>
 		layoutTx(yDoc, doc, masterId, (made) => {
-			const cur = doc.ms.get(masterId)
+			const cur = masterOf(doc, masterId)
 			if (cur) updateMaster(yDoc, doc, masterId, fn(cur, made))
 		})
 	const real = (id: string, made: string | undefined) => (id === IMPLICIT_REGION ? made : id)
@@ -717,7 +730,7 @@ function LayoutDialog({ yDoc, doc, req, page, onClose, onDone }: LayoutDialogPro
 		return assign && secs[0] ? `rest:${secs[0]}` : ''
 	})
 	const [name, setName] = React.useState('')
-	const src = doc.ms.get(req.id)
+	const src = masterOf(doc, req.id)
 	if (!src) return null
 	const defName =
 		from === 'copy'
@@ -739,8 +752,7 @@ function LayoutDialog({ yDoc, doc, req, page, onClose, onDone }: LayoutDialogPro
 					margins: src.margins,
 					cols,
 					gutter: cols > 1 && !src.gutter ? DEFAULT_GUTTER : src.gutter,
-					regions: [],
-					items: []
+					regions: []
 				})
 			}
 			const i = target.indexOf(':')
@@ -847,7 +859,7 @@ export function LayoutBanner({
 }: LayoutBannerProps) {
 	const { t } = useTranslation()
 	useDocVersion(doc)
-	const name = doc.ms.get(masterId)?.name ?? ''
+	const name = masterOf(doc, masterId)?.name ?? ''
 	const list = sections.join(', ')
 	return (
 		<Alert

@@ -40,6 +40,7 @@ import {
 	LuUndo2
 } from 'react-icons/lu'
 
+import { stylesOf } from '../crdt/entities'
 import * as Cmd from '../editor/commands'
 import type { Editor } from '../editor/useEditor'
 import type { Undo } from '../editor/undo'
@@ -143,7 +144,7 @@ export function Toolbar({ yDoc, doc, editor, undo, onInsertImage, onInsertTextBo
 		fn()
 		editor.focus()
 	}
-	const styles = [...doc.st.entries()].filter(([, s]) => s.k === 'p')
+	const styles = stylesOf(doc).filter(([, s]) => s.k === 'p')
 	/** Option preview: the style's inherited font, size clamped to 11–20 px. */
 	const preview = (id: string): React.CSSProperties => {
 		const p = Cmd.inheritedProps(doc, id)

@@ -11,15 +11,15 @@ import type * as Y from 'yjs'
 
 import { newBlockId } from './block-ids'
 import { deltaOf } from './delta-cache'
+import { FULL_CROP, frameOf, framesOf, newFrameMap, patchFrame } from './entities'
 import { type FrameId, type MasterId, newId } from './ids'
 import { createStory, type SeedParagraph } from './story-ops'
 import { masterItems, textChains } from './type-converters'
-import {
-	type StoredFrame,
-	type StoredImageData,
-	type StoredTextFrameData,
-	textBox,
-	type YPagilloDocument
+import type {
+	StoredFrame,
+	StoredImageData,
+	StoredTextFrameData,
+	YPagilloDocument
 } from './stored-types'
 
 /** Inline image embed payload (`{ img }`). */
@@ -30,11 +30,10 @@ export interface InlineImage {
 	alt: string
 }
 
-export const FULL_CROP = { x: 0, y: 0, w: 1, h: 1 }
-
 /**
  * Add a frame. For a `txt` frame pass `paras` instead of `data.story`: its story is created.
- * With `master` set, the frame becomes a static item of that master (its `anchor` is ignored).
+ * With `master` set (and existing), the frame becomes a shared static item of that master: its
+ * `anchor` is replaced by `{ ms: master }`.
  */
 export function addFrame(
 	yDoc: Y.Doc,
@@ -46,41 +45,35 @@ export function addFrame(
 	yDoc.transact(() => {
 		const data: StoredFrame['data'] =
 			frame.t === 'txt' && opts.paras ? { story: createStory(doc, opts.paras) } : frame.data
-		doc.f.set(id, { ...frame, data })
-		const m = opts.master ? doc.ms.get(opts.master) : undefined
-		if (opts.master && m) doc.ms.set(opts.master, { ...m, items: [...m.items, id] })
+		const anchor = opts.master && doc.ms.has(opts.master) ? { ms: opts.master } : frame.anchor
+		doc.f.set(id, newFrameMap({ ...frame, anchor, data }))
 	}, yDoc.clientID)
 	return id
 }
 
-/** Shallow patch (`data` is replaced whole — spread the current data to change one field). */
+/**
+ * Patch a frame: only the keys that changed are written (`data` fields one by one, so spreading
+ * the current data to change one field is fine; a `data` field set to `undefined` is removed).
+ */
 export function updateFrame(
 	yDoc: Y.Doc,
 	doc: YPagilloDocument,
 	id: FrameId,
 	patch: Partial<StoredFrame>
 ): void {
-	const cur = doc.f.get(id)
-	if (!cur) return
+	const y = doc.f.get(id)
+	if (!y) return
+	const { t: _t, data, ...rest } = patch
 	yDoc.transact(() => {
-		doc.f.set(id, { ...cur, ...patch })
+		patchFrame(y, { ...rest, data: data && { ...data } })
 	}, yDoc.clientID)
 }
 
-/** Delete a frame, its text story, and its entries in master item lists. */
+/** Delete a frame and its text story (a threaded frame hands its text on instead). */
 export function deleteFrame(yDoc: Y.Doc, doc: YPagilloDocument, id: FrameId): void {
-	const cur = doc.f.get(id)
+	const cur = frameOf(doc, id)
 	if (!cur) return
-	const drop = (items: string[] | undefined) => items?.filter((x) => x !== id)
 	yDoc.transact(() => {
-		doc.ms.forEach((m, mid) => {
-			const all = [...m.items, ...(m.left?.items ?? []), ...(m.right?.items ?? [])]
-			if (!all.includes(id)) return
-			const next = { ...m, items: drop(m.items) ?? [] }
-			if (m.left?.items) next.left = { ...m.left, items: drop(m.left.items) }
-			if (m.right?.items) next.right = { ...m.right, items: drop(m.right.items) }
-			doc.ms.set(mid, next)
-		})
 		if (cur.t === 'txt') {
 			// Never lose text: a follower leaves the chain, a head hands story + rest to the next.
 			const c = chainOf(doc, id)
@@ -97,10 +90,9 @@ export function deleteFrame(yDoc: Y.Doc, doc: YPagilloDocument, id: FrameId): vo
 /** Why a frame can't be linked to (`undefined` = allowed). Each maps to one UI hint. */
 export type LinkRefusal = 'hasText' | 'inThread' | 'layoutItem' | 'notText'
 
-/** Replace the story/chain linkage of `id`; its box styling stays. */
+/** Replace the story/chain linkage of `id` (writes only its `story` and `chain` keys). */
 function setData(doc: YPagilloDocument, id: FrameId, data: StoredTextFrameData): void {
-	const f = doc.f.get(id)
-	if (f) doc.f.set(id, { ...f, data: { ...textBox(f.data as StoredTextFrameData), ...data } })
+	patchFrame(doc.f.get(id), { data: { story: data.story, chain: data.chain } })
 }
 
 function chainData(story: string | undefined, chain: FrameId[]): StoredTextFrameData {
@@ -108,7 +100,7 @@ function chainData(story: string | undefined, chain: FrameId[]): StoredTextFrame
 }
 
 function storyOf(doc: YPagilloDocument, id: FrameId): string | undefined {
-	return (doc.f.get(id)?.data as StoredTextFrameData | undefined)?.story
+	return (frameOf(doc, id)?.data as StoredTextFrameData | undefined)?.story
 }
 
 /** No text: only empty paragraphs (no characters, no embeds), or no story at all. */
@@ -139,8 +131,8 @@ export function canLinkTarget(
 	chains = textChains(doc),
 	master = masterItems(doc)
 ): LinkRefusal | undefined {
-	const target = doc.f.get(targetId)
-	if (target?.t !== 'txt' || doc.f.get(fromId)?.t !== 'txt') return 'notText'
+	const target = frameOf(doc, targetId)
+	if (target?.t !== 'txt' || frameOf(doc, fromId)?.t !== 'txt') return 'notText'
 	if (master.has(targetId) || master.has(fromId)) return 'layoutItem'
 	if (targetId === fromId || chainOf(doc, targetId, chains)) return 'inThread'
 	if (!isEmptyText(doc, targetId)) return 'hasText'
@@ -148,7 +140,8 @@ export function canLinkTarget(
 
 /**
  * Append `targetId` to the chain of `headOrMemberId` (its head is resolved). The target's empty
- * story is deleted and it becomes a follower (`{}`). `false` when refused (`canLinkTarget`).
+ * story is deleted and it becomes a follower (no `story`/`chain`). `false` when refused
+ * (`canLinkTarget`).
  */
 export function linkFrame(
 	yDoc: Y.Doc,
@@ -175,11 +168,12 @@ export function linkTargets(doc: YPagilloDocument, fromId: FrameId): FrameId[] {
 	const chains = textChains(doc)
 	const master = masterItems(doc)
 	const out: { id: FrameId; s: number; page: number }[] = []
-	doc.f.forEach((f, id) => {
+	for (const [id, f] of framesOf(doc)) {
+		if (!('sec' in f.anchor)) continue
 		const s = secs.indexOf(f.anchor.sec)
 		if (s >= 0 && !canLinkTarget(doc, fromId, id, chains, master))
 			out.push({ id, s, page: f.anchor.page })
-	})
+	}
 	return out.sort((a, b) => a.s - b.s || a.page - b.page).map((o) => o.id)
 }
 
@@ -203,7 +197,7 @@ export function chainOfStory(
 	storyId: string,
 	chains = textChains(doc)
 ): { head: FrameId; frames: FrameId[] } | undefined {
-	for (const [id, f] of doc.f.entries())
+	for (const [id, f] of framesOf(doc))
 		if (f.t === 'txt' && (f.data as StoredTextFrameData).story === storyId)
 			return chainOf(doc, id, chains) ?? { head: id, frames: [id] }
 }
@@ -223,7 +217,7 @@ export function threadStates(
 ): Map<string, ThreadState> {
 	const over = new Set(overset.map((o) => o.frame))
 	const out = new Map<string, ThreadState>()
-	for (const [id, f] of doc.f.entries()) {
+	for (const [id, f] of framesOf(doc)) {
 		const story = f.t === 'txt' ? (f.data as StoredTextFrameData).story : undefined
 		if (!story) continue
 		const ids = chainOf(doc, id, chains)?.frames ?? [id]
@@ -344,7 +338,7 @@ export function frameToInline(
 	story: string,
 	at: number
 ): boolean {
-	const f = doc.f.get(id)
+	const f = frameOf(doc, id)
 	const t = doc.tx.get(story)
 	const d = f?.data as StoredImageData | undefined
 	if (f?.t !== 'img' || !d?.fileId || !t) return false

@@ -12,8 +12,8 @@ import { type DLItem, FX, type PageDL } from '@cloudillo/typeset'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
-import type { StoredFrame, YPagilloDocument } from '../crdt/stored-types'
-import { masterItems } from '../crdt/type-converters'
+import { framesOf } from '../crdt/entities'
+import type { YPagilloDocument } from '../crdt/stored-types'
 import { rotAttr } from '../editor/caret'
 import { pageKey } from '../layout/useLayout'
 
@@ -35,14 +35,14 @@ export function useEmptyImages(doc: YPagilloDocument | undefined): Map<string, E
 	const read = React.useCallback(() => {
 		const out = new Map<string, EmptyImage[]>()
 		if (!doc) return out
-		const master = masterItems(doc)
-		doc.f.forEach((f: StoredFrame, id) => {
-			if (f.t !== 'img' || master.has(id) || (f.data as { fileId?: string }).fileId) return
+		for (const [id, f] of framesOf(doc)) {
+			if (f.t !== 'img' || !('sec' in f.anchor) || (f.data as { fileId?: string }).fileId)
+				continue
 			const key = pageKey(f.anchor.sec, f.anchor.page)
 			const list = out.get(key) ?? []
 			list.push({ id, x: f.x, y: f.y, w: f.w, h: f.h, rot: f.rot })
 			out.set(key, list)
-		})
+		}
 		return out
 	}, [doc])
 	const [frames, setFrames] = React.useState(read)

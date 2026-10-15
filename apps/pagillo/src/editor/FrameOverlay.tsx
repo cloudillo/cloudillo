@@ -22,12 +22,13 @@ import {
 } from '@cloudillo/canvas-tools'
 import { getAppBus } from '@cloudillo/core'
 import { Button, useFileImage } from '@cloudillo/react'
-import { FX, type Region, trackCount } from '@cloudillo/typeset'
+import { cropGeom, FX, type Rect, type Region, trackCount } from '@cloudillo/typeset'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { LuPin } from 'react-icons/lu'
 import type * as Y from 'yjs'
 
+import { FULL_CROP, frameOf, framesOf, sectionOf } from '../crdt/entities'
 import {
 	addFrame,
 	canLinkTarget,
@@ -44,19 +45,18 @@ import {
 	soleInlineImage,
 	updateFrame
 } from '../crdt/frame-ops'
-import { FULL_CROP, frameOf, framesOf, sectionOf } from '../crdt/entities'
 import { newId } from '../crdt/ids'
 import { layoutTx as masterLayoutTx, updateMaster, withAreas } from '../crdt/master-ops'
-import { flipRegion, isRtlLang, mirrorFrame, textChains } from '../crdt/type-converters'
 import type {
 	StoredFrame,
 	StoredImageData,
 	StoredTextFrameData,
 	YPagilloDocument
 } from '../crdt/stored-types'
+import { flipRegion, isRtlLang, mirrorFrame, textChains } from '../crdt/type-converters'
 import type { LayoutState } from '../layout/useLayout'
 import { flattenPages, type PageHit, scrollToPage } from '../view/PageList'
-import { cropGeom, type ImageSource, type Rect, useImageAspect } from '../view/PageSvg'
+import { type ImageSource, useImageAspect } from '../view/PageSvg'
 import { PageRulers, type RulerIndents } from '../view/Ruler'
 import { lineAt, selFrom, selTo, storyText } from './caret'
 import * as Cmd from './commands'
@@ -79,10 +79,10 @@ import {
 	reachBoxes,
 	readingOrder,
 	rotArcRadius,
-	rotateTo,
-	sameBox,
 	rotatedBounds,
+	rotateTo,
 	type SnapLine,
+	sameBox,
 	snapAt,
 	snapBox,
 	snapTargets

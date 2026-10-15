@@ -39,6 +39,10 @@
 		"./base64": {
 			"import": "./lib/base64.js",
 			"types": "./lib/base64.d.ts"
+		},
+		"./urls": {
+			"import": "./lib/urls.js",
+			"types": "./lib/urls.d.ts"
 		}
 	},
 	"files": [

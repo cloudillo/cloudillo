@@ -4,8 +4,7 @@
 /**
  * The screen-only SVG layer above a page's `PageCanvas` (which draws the display list): link hit
  * boxes, ghost prompts of empty paragraphs (`LineGeom.placeholder`) and "Click to add image" boxes
- * of empty image frames. User units are points. Also home of the image crop geometry shared by
- * the canvas and the frame overlay.
+ * of empty image frames. User units are points.
  */
 
 import { type DLItem, FX, type PageDL } from '@cloudillo/typeset'
@@ -65,49 +64,7 @@ export interface ImageSource {
 	token?: string
 }
 
-type ImageItem = Extract<DLItem, { k: 'image' }>
 type LinkItem = Extract<DLItem, { k: 'link' }>
-
-export interface Rect {
-	x: number
-	y: number
-	w: number
-	h: number
-}
-
-/**
- * Crop geometry of frame `box` showing crop `c` (fractions of the source) under `fit`:
- * `r` where the cropped region lands, `full` where the whole source image lands, `clip` the
- * visible part (`r` ∩ `box`). `aspect` = source width / height; without it `r` is the box.
- */
-export function cropGeom(
-	box: Rect,
-	c: Rect,
-	fit: ImageItem['fit'],
-	aspect?: number
-): { r: Rect; full: Rect; clip: Rect } {
-	let r = box
-	if (fit !== 'fill' && aspect) {
-		const ra = (aspect * c.w) / c.h
-		const w = (fit === 'cover') === ra > box.w / box.h ? box.h * ra : box.w
-		const h = w / ra
-		r = { x: box.x + (box.w - w) / 2, y: box.y + (box.h - h) / 2, w, h }
-	}
-	const fw = r.w / c.w
-	const fh = r.h / c.h
-	const x = Math.max(r.x, box.x)
-	const y = Math.max(r.y, box.y)
-	return {
-		r,
-		full: { x: r.x - c.x * fw, y: r.y - c.y * fh, w: fw, h: fh },
-		clip: {
-			x,
-			y,
-			w: Math.min(r.x + r.w, box.x + box.w) - x,
-			h: Math.min(r.y + r.h, box.y + box.h) - y
-		}
-	}
-}
 
 /** Natural width / height of the image at `url`; undefined until it loads. */
 export function useImageAspect(url?: string): number | undefined {

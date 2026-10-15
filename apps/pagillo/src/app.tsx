@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { docBaseName, getApiUrl } from '@cloudillo/core'
 import { downloadYDocExport, initPresence } from '@cloudillo/crdt'
 import {
 	AppDocBar,
@@ -28,11 +29,12 @@ import '@cloudillo/fonts/fonts.css'
 import '@cloudillo/react/components.css'
 import './style.css'
 
-import { MIRROR_ID, Mirror } from './a11y/Mirror'
+import type * as Y from 'yjs'
+
 import { useLandmarks } from './a11y/landmarks'
+import { MIRROR_ID, Mirror } from './a11y/Mirror'
 import { isEmptyPublication, openPublication } from './crdt/document'
 import { frameOf, framesOf, masterOf, sectionOf } from './crdt/entities'
-import type * as Y from 'yjs'
 import {
 	chainOf,
 	chainOfStory,
@@ -45,29 +47,30 @@ import { registerNormalizer } from './crdt/normalize'
 import { moveSection } from './crdt/section-ops'
 import { PAGE_SIZES } from './crdt/type-converters'
 import { caretBox, selFrom, selTo } from './editor/caret'
-import { containsPoint } from './editor/frames'
 import { useClipboard } from './editor/clipboard'
-import { useFindReplace } from './editor/FindReplace'
 import { addPage, type CommandCtx, deletePage } from './editor/commands'
+import { useFindReplace } from './editor/FindReplace'
+import { type FrameCtl, LINK_REFUSALS, useFrames } from './editor/FrameOverlay'
+import { containsPoint, pageMaster } from './editor/frames'
 import { handleKey, type KeymapCtx, undoRedoKey } from './editor/keymap'
-import { pageMaster } from './editor/frames'
+import { usePublishPresence, useRemote } from './editor/RemoteOverlay'
 import { useUndo } from './editor/undo'
 import { useEditor } from './editor/useEditor'
-import { type FrameCtl, LINK_REFUSALS, useFrames } from './editor/FrameOverlay'
-import { usePublishPresence, useRemote } from './editor/RemoteOverlay'
+import { PdfExportDialog } from './export/PdfExportDialog'
+import { oversetTarget, type PreflightRow } from './export/preflight'
 import { pageKey, useLayout } from './layout/useLayout'
 import { FormatPanel } from './panels/FormatPanel'
 import { LayoutBanner, LayoutsPanel } from './panels/LayoutEditor'
 import { PublicationSettings } from './panels/PublicationSettings'
 import { StylesPanel } from './panels/StylesPanel'
 import { TemplateGallery } from './panels/TemplateGallery'
+import { Toolbar } from './toolbar/Toolbar'
 import { Banners, EngineStopped } from './view/Banners'
-import { useEmptyImages } from './view/PageSvg'
 import { flattenPages, PageList, scrollToPage, type Zoom } from './view/PageList'
+import { useEmptyImages } from './view/PageSvg'
 import { PagesRail } from './view/PagesRail'
 import { SectionPopover } from './view/SectionPopover'
 import { type ModeInfo, StatusBar } from './view/StatusBar'
-import { Toolbar } from './toolbar/Toolbar'
 
 declare const __APP_VERSION__: string
 
@@ -191,6 +194,7 @@ export function PagilloApp() {
 	/** Undo depth and edited layout on entering Edit layout: Discard returns there. */
 	const [layoutBase, setLayoutBase] = React.useState<{ depth: number; master: string }>()
 	const [pubSettings, setPubSettings] = React.useState(false)
+	const [pdfOpen, setPdfOpen] = React.useState(false)
 	const awareness = provider?.awareness
 	const remote = useRemote({ awareness, yDoc, doc, editor, layout })
 	const src = React.useMemo(() => ({ ownerTag, token }), [ownerTag, token])
@@ -228,12 +232,16 @@ export function PagilloApp() {
 	const emptyImages = useEmptyImages(synced ? doc : undefined)
 	const defaultPage = (doc.m.get('page') as { w: number; h: number } | undefined) ?? PAGE_SIZES.A4
 	const handleExport = React.useCallback(() => {
-		downloadYDocExport(yDoc, (doc.m.get('title') as string | undefined) || 'untitled', {
-			contentType: 'application/vnd.cloudillo.pagillo+json',
-			appVersion: __APP_VERSION__,
-			formatVersion: '1.0.0',
-			extension: 'pagillo'
-		})
+		downloadYDocExport(
+			yDoc,
+			(doc.m.get('title') as string | undefined) || docBaseName() || 'untitled',
+			{
+				contentType: 'application/vnd.cloudillo.pagillo+json',
+				appVersion: __APP_VERSION__,
+				formatVersion: '1.0.0',
+				extension: 'pagillo'
+			}
+		)
 	}, [yDoc, doc])
 	const curRef = flattenPages(layout.sections)[current]
 	const curMaster = curRef && layout.pages.get(curRef.key)?.page.master
@@ -242,18 +250,24 @@ export function PagilloApp() {
 		if (layoutEdit && curMaster) setLayoutEdit(curMaster)
 	}, [curMaster])
 
+	/** Scroll to the row's page (its frame's, if anchored to one) and select the frame. */
+	const jumpTo = (r: Pick<PreflightRow, 'page' | 'frame'>) => {
+		const f = r.frame ? frameOf(doc, r.frame) : undefined
+		const key = f && 'sec' in f.anchor ? pageKey(f.anchor.sec, f.anchor.page) : r.page
+		if (key) scrollToPage(key)
+		const p = r.frame ? frames.pageOf(r.frame) : -1
+		if (r.frame && p >= 0) frames.select({ ids: [r.frame], page: p })
+	}
+
 	const onOverset = () => {
-		const o = layout.overset[0]
-		if (!o) return
-		const f = o.frame ? frameOf(doc, o.frame) : undefined
-		const pages = layout.sections.find((s) => s.id === o.sec)?.pages ?? 1
-		scrollToPage(
-			f && 'sec' in f.anchor
-				? pageKey(f.anchor.sec, f.anchor.page)
-				: pageKey(o.sec, pages - 1)
-		)
-		const p = o.frame ? frames.pageOf(o.frame) : -1
-		if (o.frame && p >= 0) frames.select({ ids: [o.frame], page: p })
+		const target = oversetTarget(layout)
+		if (target) jumpTo(target)
+	}
+
+	/** Preflight Jump: close the export dialog, then jump. */
+	const onPdfJump = (r: PreflightRow) => {
+		setPdfOpen(false)
+		jumpTo(r)
 	}
 
 	/** One-off live-region announcement (cleared after a while so the same text can repeat). */
@@ -508,6 +522,11 @@ export function PagilloApp() {
 				)}
 				{!empty && !layout.failed && (
 					<DocBarMenu>
+						<MenuItem
+							icon={<IcExport />}
+							label={t('Export PDF…')}
+							onClick={() => setPdfOpen(true)}
+						/>
 						{canLayout && (
 							<MenuItem
 								label={t('Publication settings…')}
@@ -668,6 +687,19 @@ export function PagilloApp() {
 			)}
 			{canLayout && pubSettings && (
 				<PublicationSettings {...panels} onClose={() => setPubSettings(false)} />
+			)}
+			{pdfOpen && !layout.failed && (
+				<PdfExportDialog
+					{...panels}
+					layout={layout}
+					current={current}
+					emptyImages={emptyImages}
+					fallbackTitle={docBaseName() ?? 'untitled'}
+					files={{ api: getApiUrl(ownerTag), token }}
+					writer={writer}
+					onJump={onPdfJump}
+					onClose={() => setPdfOpen(false)}
+				/>
 			)}
 			<div data-landmark="status" style={{ display: 'contents' }}>
 				<StatusBar

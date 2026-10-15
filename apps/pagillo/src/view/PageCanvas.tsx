@@ -11,12 +11,12 @@
  */
 
 import { useFileImage } from '@cloudillo/react'
-import { type DLItem, FX, type PageDL } from '@cloudillo/typeset'
+import { type DLItem, FX, type PageDL, type Rect } from '@cloudillo/typeset'
 import * as React from 'react'
 
 import { clamp } from '../editor/frames'
 import { drawPage } from './draw-page'
-import type { ImageSource, Rect } from './PageSvg'
+import type { ImageSource } from './PageSvg'
 
 /** Fx → pt. */
 const pt = (fx: number) => fx / FX

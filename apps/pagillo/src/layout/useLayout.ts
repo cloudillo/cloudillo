@@ -7,20 +7,17 @@
  * sha256 of every face laid out) differing from the bundled fonts latches `fontsChanged`.
  */
 
-import * as React from 'react'
-import type * as Y from 'yjs'
 import { FONT_METRICS } from '@cloudillo/fonts/font-metrics'
 import { ENGINE_VERSION, type EngineLayout, glyphId, type PageDL } from '@cloudillo/typeset'
+import * as React from 'react'
+import type * as Y from 'yjs'
 
 import { openPublication, setMeta } from '../crdt/document'
 import { readMeta } from '../crdt/type-converters'
-import type { Composition, WorkerToMain } from '../worker/protocol'
+import { type Composition, pageKey, type WorkerToMain } from '../worker/protocol'
 import { type LayoutHost, startLayoutWorker } from './worker-host'
 
-/** Key of a page in `LayoutState.pages`. */
-export function pageKey(sec: string, index: number): string {
-	return `${sec}/${index}`
-}
+export { pageKey } from '../worker/protocol'
 
 export interface LayoutState {
 	/** Current page display lists by `pageKey(sec, index)`; a new Map whenever any page changed. */

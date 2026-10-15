@@ -8,10 +8,17 @@
  * HarfBuzz glyph ids are not characters. Links are not painted (they stay clickable SVG).
  */
 
-import { type DLItem, FX, glyphId, type PageDL } from '@cloudillo/typeset'
-
-import { FULL_CROP } from '../crdt/entities'
-import { cropGeom, type Rect } from './PageSvg'
+import {
+	cropGeom,
+	cropOf,
+	type DLItem,
+	EMBED_PLACEHOLDER,
+	FX,
+	glyphId,
+	MISSING_IMAGE_ALPHA,
+	type PageDL,
+	type Rect
+} from '@cloudillo/typeset'
 
 /** Fx → pt. */
 const pt = (fx: number) => fx / FX
@@ -121,14 +128,14 @@ function drawItem(ctx: CanvasRenderingContext2D, it: DLItem, opts: DrawOptions):
 			const box = { x: pt(b.x), y: pt(b.y), w: pt(b.w), h: pt(b.h) }
 			const img = opts.images.get(it.fileId)
 			if (!img) {
-				ctx.fillStyle = 'rgb(0 0 0 / 6%)'
+				ctx.fillStyle = `rgb(0 0 0 / ${MISSING_IMAGE_ALPHA})`
 				ctx.fillRect(box.x, box.y, box.w, box.h)
 				return false
 			}
 			// Uncropped is the full crop: fill stretches, contain letterboxes (meet), cover clips
 			// to the box (slice) — the same geometry as PageImage's preserveAspectRatio.
-			const c = it.crop && it.crop.w < 1 ? it.crop : FULL_CROP
-			const { full, clip } = cropGeom(box, c, it.fit, img.naturalWidth / img.naturalHeight)
+			const aspect = img.naturalWidth / img.naturalHeight
+			const { full, clip } = cropGeom(box, cropOf(it.crop), it.fit, aspect)
 			ctx.save()
 			ctx.beginPath()
 			ctx.rect(clip.x, clip.y, clip.w, clip.h)
@@ -140,10 +147,11 @@ function drawItem(ctx: CanvasRenderingContext2D, it: DLItem, opts: DrawOptions):
 		case 'embed': {
 			// Placeholder box; embed content is not rendered on canvas yet.
 			const b = it.box
-			ctx.fillStyle = 'rgb(0 0 0 / 4%)'
+			const p = EMBED_PLACEHOLDER
+			ctx.fillStyle = `rgb(0 0 0 / ${p.fill})`
 			ctx.fillRect(pt(b.x), pt(b.y), pt(b.w), pt(b.h))
-			ctx.strokeStyle = 'rgb(0 0 0 / 20%)'
-			ctx.lineWidth = 0.5
+			ctx.strokeStyle = `rgb(0 0 0 / ${p.stroke})`
+			ctx.lineWidth = p.width
 			ctx.strokeRect(pt(b.x), pt(b.y), pt(b.w), pt(b.h))
 			return false
 		}

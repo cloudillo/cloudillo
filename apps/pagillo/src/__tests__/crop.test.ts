@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { cropGeom } from '@cloudillo/typeset'
+
 import { cropDrag } from '../editor/FrameOverlay.js'
-import { cropGeom } from '../view/PageSvg.js'
 
 describe('cropGeom', () => {
 	it('fill stretches the crop over the box', () => {

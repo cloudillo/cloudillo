@@ -10,6 +10,7 @@
 
 import type { DLItem, FontRef, PageDL } from '../display-list.js'
 import { FX } from '../fixed.js'
+import { safeHref } from '../geometry.js'
 
 export type GlyphPathFn = (font: FontRef, gid: number) => string
 
@@ -114,10 +115,10 @@ function item(it: DLItem, href: RenderOptions['glyphHref']): string {
 			return `<rect ${attr} x="${pt(b.x)}" y="${pt(b.y)}" width="${pt(b.w)}" height="${pt(b.h)}" fill="none"/>`
 		}
 		case 'link': {
-			// Authored hrefs: only http(s)/mailto/fragment links become clickable (no `javascript:`).
-			if (!/^(https?:|mailto:|#)/i.test(it.href)) return ''
+			const href = safeHref(it.href)
+			if (!href) return ''
 			const b = it.box
-			return `<a href="${esc(it.href)}"><rect x="${pt(b.x)}" y="${pt(b.y)}" width="${pt(b.w)}" height="${pt(b.h)}" fill="transparent"/></a>`
+			return `<a href="${esc(href)}"><rect x="${pt(b.x)}" y="${pt(b.y)}" width="${pt(b.w)}" height="${pt(b.h)}" fill="transparent"/></a>`
 		}
 	}
 }

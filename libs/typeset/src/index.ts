@@ -4,6 +4,7 @@
 export * from './fixed.js'
 export * from './model.js'
 export * from './display-list.js'
+export * from './geometry.js'
 export * from './version.js'
 export * from './fonts/registry.js'
 export * from './fonts/loader.js'

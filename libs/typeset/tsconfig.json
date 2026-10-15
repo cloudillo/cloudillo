@@ -4,5 +4,5 @@
 		"rootDir": "src",
 		"outDir": "lib"
 	},
-	"files": ["src/index.ts"]
+	"files": ["src/index.ts", "src/pdf/writer.ts", "src/pdf/pdfkit.d.ts"]
 }

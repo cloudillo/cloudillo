@@ -449,13 +449,13 @@ export function layoutPublication(
 				if (!art)
 					pg.tags.push(
 						d.deco
-							? { id: tag, role: 'Artifact' }
-							: { id: tag, role: 'Figure', alt: d.alt }
+							? { id: tag, role: 'Artifact', frame: f.id }
+							: { id: tag, role: 'Figure', alt: d.alt, frame: f.id }
 					)
 			}
 		} else if (f.t === 'emb') {
 			out.push({ k: 'embed', frameId: f.id, box, tag })
-			if (!art) pg.tags.push({ id: tag, role: 'Figure' })
+			if (!art) pg.tags.push({ id: tag, role: 'Figure', frame: f.id })
 		} else if (f.t === 'shp') {
 			const { kind, fill, stroke, strokeW } = f.data as ShapeFrameData
 			const t = art ? { tag } : {}
@@ -495,7 +495,7 @@ export function layoutPublication(
 					out.push(it)
 				}
 				if (!art) {
-					for (const t of r.tmp.tags) pg.tags.push({ ...t, id: t.id + d })
+					for (const t of r.tmp.tags) pg.tags.push({ ...t, id: t.id + d, frame: f.id })
 					pg.lines.push(...(rot ? r.tmp.lines.map((l) => ({ ...l, rot })) : r.tmp.lines))
 				}
 			}

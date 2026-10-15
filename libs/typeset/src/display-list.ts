@@ -38,6 +38,8 @@ export interface TagNode {
 	bid?: string
 	alt?: string
 	lang?: string
+	/** Id of the page-anchored frame it was laid out in; absent = the section's flow. */
+	frame?: string
 	children?: TagNode[]
 }
 

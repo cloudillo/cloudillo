@@ -33,7 +33,12 @@ describe.each(PUB_CORPUS.map((c) => [c.name, c.pub] as const))('publication %s',
 		expect(sha256(dlJson(b.pages))).toBe(sha256(dlJson(a.pages)))
 		expect(b.overset).toEqual(a.overset)
 	})
+})
 
+// The BOOK-specific asserts below need its sections, frames and titles.
+const BOOKS = PUB_CORPUS.filter((c) => c.name.startsWith('book-'))
+
+describe.each(BOOKS.map((c) => [c.name, c.pub] as const))('publication %s', (_name, pub) => {
 	it('honours start parity, page sides and frame keepalive', async () => {
 		const r = await layout(pub)
 		const s2 = r.pages.findIndex((pg) => pg.page.sec === 's2')

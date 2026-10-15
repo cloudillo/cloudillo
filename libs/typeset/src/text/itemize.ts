@@ -42,6 +42,8 @@ export interface ItemizedParagraph {
 	/** BCP 47 language used for shaping and hyphenation. */
 	lang: string
 	runs: ItemRun[]
+	/** A table's cell paragraphs, `[row][cell][paragraph]` as in its `TableBlock`. */
+	cells?: ItemizedParagraph[][][]
 }
 
 let bidi: ReturnType<typeof bidiFactory> | undefined
@@ -79,18 +81,25 @@ export async function loadParagraphFaces(
 		])
 			refs.set(ref.sha256, ref)
 	}
-	for (const p of paragraphs) {
-		const ps = resolveParagraphStyle(styles, p.style, p.overrides)
-		add(ps)
-		for (const r of textRuns(p)) add(resolveCharStyle(styles, ps, r.marks))
+	const visit = (ps: Paragraph[]) => {
+		for (const p of ps) {
+			const st = resolveParagraphStyle(styles, p.style, p.overrides)
+			add(st)
+			for (const r of textRuns(p)) add(resolveCharStyle(styles, st, r.marks))
+			const b = p.runs
+			if (!Array.isArray(b) && b.k === 'table') {
+				for (const row of b.rows) for (const c of row.cells) visit(c.paragraphs)
+			}
+		}
 	}
+	visit(paragraphs)
 	await Promise.all([...refs.values()].map((ref) => loadFace(ref, fetchBytes)))
 }
 
 /**
  * Paragraph → shaped runs, split at source runs, bidi level changes and missing glyphs (gid 0
  * falls back to `registry.fallbackFace`). Faces must be loaded (`loadParagraphFaces`).
- * Table/embed blocks itemize to no runs.
+ * Table/embed blocks itemize to no runs; a table's cell paragraphs go in `cells`.
  */
 export function itemizeParagraph(
 	p: Paragraph,
@@ -107,6 +116,14 @@ export function itemizeParagraph(
 		font: env.registry.resolveFace(style.font, style.weight, style.italic),
 		lang,
 		runs: []
+	}
+	const b = p.runs
+	if (!Array.isArray(b) && b.k === 'table') {
+		// Cells skip list indents and field sizing (`itemizeStory`); add them when
+		// tables hold lists or fields.
+		out.cells = b.rows.map((r) =>
+			r.cells.map((c) => c.paragraphs.map((q) => itemizeParagraph(q, styles, env, pubLang)))
+		)
 	}
 	if (!text) return out
 

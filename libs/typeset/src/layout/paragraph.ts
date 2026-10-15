@@ -2,10 +2,13 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import { FONT_METRICS } from '@cloudillo/fonts/font-metrics'
-import type { DLItem, FontRef } from '../display-list.js'
+import type { DLItem, FontRef, LineGeom } from '../display-list.js'
 import { type Fx, unitsToFx } from '../fixed.js'
+import type { ShapedRun } from '../shape/hb.js'
 import { type BreakOpp, findBreaks, hyphenGlyph } from '../text/breaks.js'
 import type { ItemizedParagraph, ItemizeEnv } from '../text/itemize.js'
+import type { Exclusion } from './exclusions.js'
+import { textGlyphs } from './fields.js'
 
 /**
  * Available widths (Fx), left to right, of the segments of a line row whose top is `y` Fx below
@@ -336,6 +339,116 @@ export function layoutParagraph(
 	return { ip, adv, lines }
 }
 
+/** Cap on drop-cap lines: `dropCap` comes from peers unvalidated. */
+const DROP_CAP_MAX = 10
+
+export interface DropCap {
+	/** The paragraph with its first cluster as a zero-width run that paints nothing: lay out this. */
+	ip: ItemizedParagraph
+	/** The cap's wrap box, relative to the column's left edge and the paragraph's first line top. */
+	ex: Exclusion
+	/** Its height (n lines at the style's line height) below the first line top. */
+	h: Fx
+	/** The enlarged cluster, its left edge at `x`, for a first line top at `top`. */
+	item: (x: Fx, top: Fx, tag: number) => DLItem
+}
+
+const dropCaps = new WeakMap<ItemizedParagraph, DropCap | null>()
+
+/**
+ * Drop cap of `ip` (`style.dropCap` ≥ 2 lines): its first cluster, enlarged so its ascender lines up
+ * with the first line's and its baseline sits on line n's (at the style's line height), indented by
+ * `indentStart`; the first n lines wrap beside it through `ex` (plus a quarter-em gap). Memoized per
+ * `ip` identity. None for an empty paragraph, a blank or RTL first cluster.
+ */
+// Aligns ascenders, not cap heights (no cap-height metric), so the cap sits a little low;
+// read the glyph's bbox if designers notice.
+export function dropCap(ip: ItemizedParagraph, env: ItemizeEnv): DropCap | undefined {
+	const hit = dropCaps.get(ip)
+	if (hit !== undefined) return hit ?? undefined
+	const out = makeDropCap(ip, env)
+	dropCaps.set(ip, out ?? null)
+	return out
+}
+
+function makeDropCap(ip: ItemizedParagraph, env: ItemizeEnv): DropCap | undefined {
+	const { style, text } = ip
+	const n = Math.min(DROP_CAP_MAX, Math.floor(style.dropCap))
+	const r0 = ip.runs[0]
+	if (!(n >= 2) || !r0 || r0.from !== 0 || r0.level & 1 || r0.embed) return undefined
+	const s = r0.shaped
+	let end = r0.to
+	for (const c of s.clusters) if (c > 0 && c < end) end = c
+	const cap = text.slice(0, end)
+	if (!cap.trim()) return undefined
+	const keep: number[] = []
+	for (let i = 0; i < s.glyphs.length; i++) if (s.clusters[i] >= end) keep.push(i)
+	const rest: ShapedRun = {
+		glyphs: Uint16Array.from(keep, (i) => s.glyphs[i]),
+		clusters: Uint32Array.from(keep, (i) => s.clusters[i] - end),
+		advances: Int32Array.from(keep, (i) => s.advances[i]),
+		offsets: Int32Array.from(keep.flatMap((i) => [s.offsets[2 * i], s.offsets[2 * i + 1]])),
+		unsafeToBreak: Uint8Array.from(keep, (i) => s.unsafeToBreak?.[i] ?? 0)
+	}
+	const none: ShapedRun = {
+		glyphs: new Uint16Array(0),
+		clusters: new Uint32Array(0),
+		advances: new Int32Array(0),
+		offsets: new Int32Array(0),
+		unsafeToBreak: new Uint8Array(0)
+	}
+	const runs = [
+		{ ...r0, to: end, shaped: none },
+		...(end < r0.to ? [{ ...r0, from: end, shaped: rest }] : []),
+		...ip.runs.slice(1)
+	]
+	const m = faceMetrics(ip.font, style.size)
+	const lineH = Math.max(style.leading, m.ascent + m.descent)
+	const base = Math.floor((lineH - m.ascent - m.descent) / 2) + m.ascent
+	const ca = faceMetrics(r0.font, r0.size).ascent
+	const size = ca > 0 ? Math.floor((r0.size * ((n - 1) * lineH + m.ascent)) / ca) : r0.size
+	const g = textGlyphs(env, r0.font, size, cap, r0.features, r0.lang)
+	let w = 0
+	for (const a of g.advances) w += a
+	const h = n * lineH
+	return {
+		ip: { ...ip, runs },
+		ex: { x0: 0, y0: 0, x1: w + Math.floor(style.size / 4), y1: h, tb: false },
+		h,
+		item: (x, top, tag) => ({
+			k: 'glyphs',
+			font: r0.font,
+			size,
+			color: r0.char.color,
+			x,
+			y: top + (n - 1) * lineH + base,
+			...g,
+			// Fresh arrays per pass: `g` is memoized and the worker transfers (detaches) item buffers.
+			glyphs: g.glyphs.slice(),
+			advances: g.advances.slice(),
+			clusters: g.clusters.slice(),
+			...(g.offsets ? { offsets: g.offsets.slice() } : {}),
+			tag
+		})
+	}
+}
+
+/** A placed line's `LineGeom` (`ox, oy`: the paragraph's origin). */
+export function lineGeom(story: string, bid: string, line: ParaLine, ox: Fx, oy: Fx): LineGeom {
+	return {
+		story,
+		bid,
+		from: line.from,
+		to: line.to,
+		row: line.row,
+		x: ox + line.carets[0],
+		y: oy + line.baseline,
+		ascent: line.ascent,
+		descent: line.descent,
+		carets: line.carets.map((c) => c + ox)
+	}
+}
+
 /** Display list items of one line placed with its column's left edge at `ox` and its top at `oy`. */
 export function emitLine(pl: ParaLayout, line: ParaLine, ox: Fx, oy: Fx, tag: number): DLItem[] {
 	const { ip, adv } = pl
@@ -354,6 +467,8 @@ export function emitLine(pl: ParaLayout, line: ParaLine, ox: Fx, oy: Fx, tag: nu
 		}
 		const hy = line.hyphen && to === line.end ? line.hyphen : undefined
 		const m = idx.length + (hy ? 1 : 0)
+		// A run shaped to no glyphs (a drop cap's cluster, painted by `DropCap.item`) emits nothing.
+		if (!m) continue
 		const glyphs = new Uint16Array(m)
 		const advances = new Int32Array(m)
 		const clusters = new Uint32Array(m)

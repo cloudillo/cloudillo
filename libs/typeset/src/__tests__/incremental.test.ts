@@ -11,7 +11,19 @@ import { Engine, type ParagraphPatch } from '../engine.js'
 import { ptToFx } from '../fixed.js'
 import { layoutPublication } from '../layout/paginate.js'
 import type { Paragraph, Publication, Run, Story, TextFrameData } from '../model.js'
-import { DE, dlJson, EN, field, HU, loadPublication, p, PUB_CORPUS, sha256 } from './corpus.js'
+import {
+	DE,
+	dlJson,
+	EN,
+	field,
+	floatImg,
+	HU,
+	loadPublication,
+	p,
+	PUB_CORPUS,
+	sha256,
+	table
+} from './corpus.js'
 
 /** mulberry32: deterministic PRNG in [0, 1). */
 function prng(seed: number): () => number {
@@ -48,16 +60,38 @@ const TEMPLATES: Paragraph[] = [
 		field({ field: 'pages' }),
 		'.'
 	),
-	p('body', '')
+	p('body', ''),
+	table(
+		[
+			['Head', 'Col'],
+			['Cell', EN],
+			['x', 'y']
+		],
+		{ header: 1 }
+	),
+	p('left', field({ toc: { levels: 2 } })),
+	{ ...p('body', EN), overrides: { dropCap: 3 } },
+	{ ...p('h2', 'Spanning heading'), overrides: { spanColumns: true } },
+	p('body', 'Noted', field({ fn: 'n1' }), ` ${EN}`),
+	floatImg('l', 0.5),
+	floatImg('r', 0.333)
 ]
-const STORIES = ['s1', 's2', 'tx-note']
+
+/** Stories random patches go to: sections', footnotes', the `f-note` text frame's. */
+const storiesOf = (pub: Publication): string[] => [
+	...pub.sections.map((s) => s.story.id),
+	...Object.keys(pub.footnotes ?? {}),
+	...(pub.frames['f-note'] ? ['tx-note'] : [])
+]
 
 const keyOf = (pg: PageDL) => `${pg.page.sec}\u0000${pg.page.index}`
 const norm = (pg: PageDL) => sha256(dlJson([{ ...pg, rev: 0 }]))
 
 function storyOf(pub: Publication, id: string): Story {
+	const fs = pub.footnotes
 	const st =
 		pub.sections.find((s) => s.story.id === id)?.story ??
+		(fs && Object.hasOwn(fs, id) ? fs[id] : undefined) ??
 		Object.values(pub.frames)
 			.filter((f) => f.t === 'txt')
 			.map((f) => (f.data as TextFrameData).story)
@@ -82,7 +116,7 @@ function applyRef(pub: Publication, pt: ParagraphPatch): void {
 
 function randomPatch(rnd: () => number, pub: Publication, n: number): ParagraphPatch {
 	const pick = <T>(xs: T[]): T => xs[Math.floor(rnd() * xs.length)]
-	const story = pick(STORIES)
+	const story = pick(storiesOf(pub))
 	const ps = storyOf(pub, story).paragraphs
 	const q = pick(ps)
 	const fresh = (bid: string): Paragraph => ({ ...pick(TEMPLATES), bid })
@@ -116,18 +150,19 @@ function randomSetter(rnd: () => number, ref: Publication, engine: Engine): void
 		const size = ptToFx([10, 11, 12][Math.floor(rnd() * 3)])
 		ref.styles = { ...ref.styles, body: { ...body, props: { ...body.props, size } } }
 		engine.setStyles(structuredClone(ref.styles))
-	} else if (r < 0.45) {
+	} else if (r < 0.45 && (ref.frames['f-img'] || ref.frames['f-note'])) {
 		const img = ref.frames['f-img']
 		const note = ref.frames['f-note']
-		ref.frames = {
-			...ref.frames,
-			'f-img': {
+		const frames = { ...ref.frames }
+		if (img)
+			frames['f-img'] = {
 				...img,
 				anchor: { sec: 's1', page: Math.floor(rnd() * 3) },
 				x: ptToFx(60 + Math.floor(rnd() * 200))
-			},
-			'f-note': { ...note, anchor: { sec: 's1', page: 2 + Math.floor(rnd() * 4) } }
-		}
+			}
+		if (note)
+			frames['f-note'] = { ...note, anchor: { sec: 's1', page: 2 + Math.floor(rnd() * 4) } }
+		ref.frames = frames
 		engine.setFrames(structuredClone(ref.frames))
 	} else if (r < 0.6) {
 		const m = ref.masters['m-cols']
@@ -165,6 +200,42 @@ describe('Engine', () => {
 		expect(() => engine.layout()).toThrow()
 		engine.setPublication(PUB_CORPUS[0].pub)
 		expect(() => engine.patch([{ story: 'nope', bid: 'b', op: 'delete' }])).toThrow()
+	})
+
+	it('hands out fresh drop cap glyph arrays each pass (the worker transfers them)', async () => {
+		const pub = PUB_CORPUS.find((c) => c.name === 'advanced-text')!.pub
+		const engine = new Engine(await loadPublication(pub))
+		engine.setPublication(pub)
+		const r = engine.layout()
+		const bufs = (pages: PageDL[]) =>
+			pages.flatMap((pg) =>
+				pg.items.flatMap((it) =>
+					it.k === 'glyphs'
+						? [it.glyphs, it.advances, it.clusters, it.offsets]
+								.filter((a) => a !== undefined)
+								.map((a) => a.buffer)
+						: []
+				)
+			)
+		const first = new Set(bufs(r.changed))
+		structuredClone(r.changed, { transfer: [...first] as ArrayBuffer[] })
+
+		// Edit the heading after the first drop cap paragraph: same page, cap re-emitted.
+		const story = pub.sections[0].story
+		const q = story.paragraphs[3]
+		const [r0, ...rest] = q.runs as Run[]
+		engine.patch([
+			{
+				story: story.id,
+				bid: q.bid,
+				op: 'set',
+				paragraph: { ...q, runs: [{ ...r0, text: `${r0.text}!` }, ...rest] }
+			}
+		])
+		const r2 = engine.layout()
+		expect(r2.changed.length).toBeGreaterThan(0)
+		expect(() => structuredClone(r2.changed)).not.toThrow()
+		for (const b of bufs(r2.changed)) expect(first.has(b)).toBe(false)
 	})
 
 	it('returns no pages when nothing changed', async () => {

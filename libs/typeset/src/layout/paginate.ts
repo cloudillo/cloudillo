@@ -1,7 +1,8 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import type { DLItem, PageDL } from '../display-list.js'
+import type { DLItem, PageDL, TagNode } from '../display-list.js'
+import type { Fx } from '../fixed.js'
 import type {
 	Box,
 	Frame,
@@ -17,9 +18,20 @@ import type {
 import { type ItemizedParagraph, type ItemizeEnv, itemizeParagraph } from '../text/itemize.js'
 import { type Exclusion, wrapExclusions } from './exclusions.js'
 import { type FieldCtx, type FieldEmbed, patchFields, sectionTitle, sizeFields } from './fields.js'
-import { type FlowSlot, fillFlow } from './fill.js'
+import { type FlowSlot, fillFlow, type NextSlot } from './fill.js'
+import { collectRefs, type FnNote, type FnRef, numberRefs } from './footnotes.js'
 import { placeMarkers, withListIndent } from './lists.js'
 import { formatNumber } from './locale.js'
+import { storyTagCount } from './table.js'
+import {
+	fillToc,
+	type TocBlock,
+	type TocEntry,
+	type TocSlot,
+	tocBlock,
+	tocEntries,
+	tocLevels
+} from './toc.js'
 
 export interface PublicationLayout {
 	/** Every page of the publication, in order. */
@@ -76,6 +88,11 @@ export function trackCount(n: number | undefined): number {
 }
 
 export function masterColumns(m: Master, side?: 'l' | 'r'): Box[] {
+	return masterRegions(m, side).flatMap(regionColumns)
+}
+
+/** The flow regions of a master on a page side, in flow order (see `masterColumns`). */
+export function masterRegions(m: Master, side?: 'l' | 'r'): Region[] {
 	const v = side === 'l' ? m.left : side === 'r' ? m.right : undefined
 	let regions = v?.regions ?? m.regions
 	if (!regions.length) {
@@ -92,14 +109,19 @@ export function masterColumns(m: Master, side?: 'l' | 'r'): Box[] {
 			)
 		]
 	}
-	const cols: Box[] = []
-	for (const r of regions) {
-		const n = trackCount(r.cols)
-		const cw = Math.floor((r.w - (n - 1) * r.gutter) / n)
-		for (let k = 0; k < n; k++)
-			cols.push({ x: r.x + k * (cw + r.gutter), y: r.y, w: cw, h: r.h })
-	}
-	return cols
+	return regions
+}
+
+/** A region's columns, left to right. */
+function regionColumns(r: Region): Box[] {
+	const n = trackCount(r.cols)
+	const cw = Math.floor((r.w - (n - 1) * r.gutter) / n)
+	return Array.from({ length: n }, (_, k) => ({
+		x: r.x + k * (cw + r.gutter),
+		y: r.y,
+		w: cw,
+		h: r.h
+	}))
 }
 
 /**
@@ -200,7 +222,14 @@ function ellipsePath(b: Box): string {
  * Lists: markers per `listMarkers` (counters per section). Fields: page number per
  * `Section.pageNum` (restart → 1 at the section's first page, else continuing; its `format`),
  * page count = all pages (decimal); in body text page numbers take a fixed 3-digit box.
- * Tags: a section's frames take ids after its story's paragraphs (story paragraph count + 1 on),
+ * Span bands: `next('band' | 'cols', top)` re-cuts a region's columns per set (`fill.ts` `NextSlot`).
+ * TOC (`layout/toc.ts`): section flows only; two passes in this one call — the flows lay out with
+ * fixed number boxes, then `fillToc` writes the numbers once `pageNo` is known (`Engine.layout`
+ * calls this once, unchanged).
+ * Footnotes (`pub.footnotes`, `layout/footnotes.ts`): section flows only, numbered per section;
+ * refs in text frames stay unnumbered and place no body. Each ref takes a tag range (Note + its
+ * body paragraphs) after its section story's range.
+ * Tags: a section's frames take ids after its story's (and footnotes') range,
  * in (page, z, id) order: one per image/embed frame, one per paragraph of a text frame; the
  * master items' Artifact tag takes the next id.
  * Synchronous: call `initHarfBuzz()` and `loadParagraphFaces(…)` for every section's story and
@@ -255,8 +284,29 @@ export function layoutPublication(
 	const byPage = new Map<string, Frame[]>()
 	const lastPage = new Map<string, number>()
 	const tagBase = new Map<string, number>()
+	// Footnote refs per section; their tag ranges follow the story's.
+	const refsOf = new Map(pub.sections.map((s) => [s.id, collectRefs(s.story, pub.footnotes)]))
+	// TOC: headings collected once a TOC paragraph needs them; its entries' placeholders.
+	let tocAll: TocEntry[] | undefined
+	const tocOut: TocSlot[] = []
+	/** Per section: first TOCI tag id (after the story's and footnotes' ranges), TOCI count. */
+	const tociOf = new Map(
+		pub.sections.map((s): [string, { tag: number; n: number }] => {
+			let n = 0
+			for (const q of s.story.paragraphs) {
+				const lv = tocLevels(q)
+				if (lv === undefined) continue
+				tocAll ??= tocEntries(pub)
+				n += tocAll.filter((e) => e.level <= lv).length
+			}
+			return [s.id, { tag: storyTagCount(s.story) + (refsOf.get(s.id)?.tags ?? 0) + 1, n }]
+		})
+	)
 	const nextTag = new Map(
-		pub.sections.map((s): [string, number] => [s.id, s.story.paragraphs.length + 1])
+		pub.sections.map((s): [string, number] => {
+			const t = tociOf.get(s.id)
+			return [s.id, (t?.tag ?? 1) + (t?.n ?? 0)]
+		})
 	)
 	for (const f of frames) {
 		const { sec, page } = f.anchor
@@ -271,7 +321,7 @@ export function layoutPublication(
 		const story = (pub.frames[head ?? f.id]?.data as TextFrameData | undefined)?.story
 		const t = nextTag.get(sec) ?? 1
 		tagBase.set(f.id, t)
-		nextTag.set(sec, t + (f.t === 'txt' ? (story?.paragraphs.length ?? 0) : 1))
+		nextTag.set(sec, t + (f.t === 'txt' ? (story ? storyTagCount(story) : 0) : 1))
 	}
 
 	const titles = new Map(pub.sections.map((s) => [s.id, sectionTitle(s.story, pub.styles)]))
@@ -297,11 +347,10 @@ export function layoutPublication(
 		pages.push(pg)
 		return {
 			pg,
-			cols: masterColumns(m, side),
+			regions: masterRegions(m, side),
 			ex: wrapExclusions(byPage.get(pageKey(sec, index)) ?? [])
 		}
 	}
-
 	const secFields = new Map<string, FieldEmbed[]>()
 	for (let s = 0; s < pub.sections.length; s++) {
 		const sec = pub.sections[s]
@@ -322,10 +371,46 @@ export function layoutPublication(
 		const max = Math.max(1, sec.maxPages ?? Number.POSITIVE_INFINITY)
 		let text = 0
 		let pg: PageDL
-		let cols: Box[] = []
+		let regs: Region[] = []
+		/** The page's flow columns with their region index, in flow order. */
+		let cols: { box: Box; reg: number }[] = []
 		let ex: Exclusion[] = []
+		/** Per region: the box its current column set spans (from where the last band ended). */
+		let sets = new Map<number, Box>()
 		let ci = 0
-		const next = (kind?: 'page'): FlowSlot | undefined => {
+		/** Region of the last slot handed out. */
+		let cur = 0
+		const slotOf = (col: Box, region?: Box): FlowSlot => {
+			// Only frames that can hit this column: every band top is at or below col.y, so
+			// hits() rejects the rest anyway.
+			// Many frames stacked on one column still cost O(frames) per row; index
+			// them by y if that shows up. wrapExclusions caps a page at WRAP_FRAMES_MAX frames.
+			const colEx = ex.filter((e) => e.x0 < col.x + col.w && e.x1 > col.x && e.y1 > col.y)
+			return { pg, col, ex: colEx, ...(region ? { region } : {}) }
+		}
+		/** Index of the first column after region `reg`. */
+		const regionEnd = (reg: number) => {
+			let k = 0
+			while (k < cols.length && cols[k].reg <= reg) k++
+			return k
+		}
+		const below = (r: Region, top: Fx): Box => ({
+			x: r.x,
+			y: top,
+			w: r.w,
+			h: Math.max(0, r.y + r.h - top)
+		})
+		const next: NextSlot = (kind, top = 0) => {
+			if (kind === 'band' || kind === 'cols') {
+				const r = regs[cur]
+				const fits = top < r.y + r.h
+				ci = regionEnd(fits && kind === 'cols' ? cur - 1 : cur)
+				if (kind === 'cols') sets.set(cur, below(r, top))
+				else if (fits) {
+					const b = below(r, top)
+					return slotOf(b, b)
+				}
+			}
 			if (kind === 'page') ci = cols.length
 			if (ci >= cols.length) {
 				if (text >= max) return undefined
@@ -335,21 +420,51 @@ export function layoutPublication(
 				}
 				const added = addPage(sec.id, count++, text++ ? sec.rest : sec.first)
 				pg = added.pg
-				cols = added.cols
+				regs = added.regions
+				cols = regs.flatMap((r, reg) => regionColumns(r).map((box) => ({ box, reg })))
+				sets = new Map()
 				ex = added.ex
 				ci = 0
 			}
-			const col = cols[ci++]
-			// Only frames that can hit this column: every band top is at or below col.y, so
-			// hits() rejects the rest anyway.
-			// ponytail: many frames stacked on one column still cost O(frames) per row; index
-			// them by y if that shows up. wrapExclusions caps a page at WRAP_FRAMES_MAX frames.
-			const colEx = ex.filter((e) => e.x0 < col.x + col.w && e.x1 > col.x && e.y1 > col.y)
-			return { pg, col, ex: colEx }
+			cur = cols[ci].reg
+			const r = regs[cur]
+			let set = sets.get(cur)
+			if (!set) {
+				set = below(r, r.y)
+				sets.set(cur, set)
+			}
+			const multi = trackCount(r.cols) > 1
+			if (kind === 'band' && multi) {
+				// No room for the band where it was asked for: it opens this region's set instead.
+				ci = regionEnd(cur)
+				const b = { ...set }
+				return slotOf(b, b)
+			}
+			const { box } = cols[ci++]
+			const col = set.y === box.y ? box : { ...box, y: set.y, h: set.h }
+			return slotOf(col, multi ? set : undefined)
 		}
 		const { paras, fields } = itemizeStory(sec.story, pub, env, baseCtx(sec.id))
 		secFields.set(sec.id, fields)
-		const chars = fillFlow(sec.story, paras, next, env)
+		const refs = refsOf.get(sec.id)?.refs ?? []
+		const byPara = new Map<number, FnRef[]>()
+		for (const r of refs) byPara.set(r.pi, [...(byPara.get(r.pi) ?? []), r])
+		for (const [pi, rs] of byPara) paras[pi] = numberRefs(paras[pi], rs, env)
+		const notes: FnNote[] = refs.map((r) => ({
+			...r,
+			paras: r.story.paragraphs.map((q) => itemizeCached(q, pub, env))
+		}))
+		const blocks = new Map<number, TocBlock>()
+		sec.story.paragraphs.forEach((q, pi) => {
+			const lv = tocLevels(q)
+			if (lv === undefined) return
+			tocAll ??= tocEntries(pub)
+			blocks.set(pi, tocBlock(q, paras[pi], lv, tocAll, pub, env))
+		})
+		const toc = blocks.size
+			? { blocks, out: tocOut, tag: tociOf.get(sec.id)?.tag ?? 0 }
+			: undefined
+		const chars = fillFlow(sec.story, paras, next, env, notes, toc)
 		if (chars && !stopped) overset.push({ sec: sec.id, chars })
 		placeMarkers(sec.story, paras, pages.slice(firstPage), env)
 		// Anchored frames keep their pages alive, still capped by `maxPages`.
@@ -375,6 +490,25 @@ export function layoutPublication(
 		page: pageNo.get(pg),
 		pages: String(stopped ? (opts.pageTotal ?? pages.length) : pages.length)
 	})
+	// TOC pass 2: each entry's number is the page of its heading's first line.
+	if (tocOut.length) {
+		const at = new Map<string, PageDL>()
+		for (const pg of pages) {
+			for (const l of pg.lines) {
+				const k = `${l.story}\u0000${l.bid}`
+				if (!at.has(k)) at.set(k, pg)
+			}
+		}
+		fillToc(
+			tocOut,
+			(e) => {
+				const pg = at.get(`${e.story}\u0000${e.bid}`)
+				return pg && pageNo.get(pg)
+			},
+			env,
+			pub.lang
+		)
+	}
 	// Body-text fields (before any frame item joins the page).
 	for (const pg of pages) patchFields(pg.items, secFields.get(pg.page.sec) ?? [], ctxFor(pg), env)
 
@@ -488,14 +622,19 @@ export function layoutPublication(
 			const r = chainOut.get(f.id) ?? (story && flowBox(story, [{ box: textBox(f), pg }])[0])
 			if (r) {
 				chars = r.chars
-				// The box's own tag ids (paragraph index + 1) move to the frame's range.
+				// The box's own tag ids (`1..storyTagCount`, nested ones too) move to the frame's range.
 				const d = tag - 1
+				const shift = (t: TagNode): TagNode => ({
+					...t,
+					id: t.id + d,
+					...(t.children ? { children: t.children.map(shift) } : {})
+				})
 				for (const it of r.tmp.items) {
 					if ('tag' in it && it.tag !== undefined) it.tag = art ? tag : it.tag + d
 					out.push(it)
 				}
 				if (!art) {
-					for (const t of r.tmp.tags) pg.tags.push({ ...t, id: t.id + d, frame: f.id })
+					for (const t of r.tmp.tags) pg.tags.push({ ...shift(t), frame: f.id })
 					pg.lines.push(...(rot ? r.tmp.lines.map((l) => ({ ...l, rot })) : r.tmp.lines))
 				}
 			}

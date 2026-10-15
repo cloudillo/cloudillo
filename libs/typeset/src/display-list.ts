@@ -29,6 +29,13 @@ export type TagRole =
 	| 'H6'
 	| 'Figure'
 	| 'Artifact'
+	| 'Table'
+	| 'TR'
+	| 'TH'
+	| 'TD'
+	| 'Note'
+	| 'TOC'
+	| 'TOCI'
 
 /** Structure tree node (PDF/UA, a11y mirror). `DLItem.tag` refers to `id`. */
 export interface TagNode {
@@ -109,6 +116,8 @@ export interface LineGeom {
 	carets: Int32Array
 	/** Ghost prompt of an empty paragraph with a placeholder; overlay only. */
 	placeholder?: string
+	/** Table cell lines: the cell's horizontal extent (absolute), for hit-testing. */
+	cell?: { x: Fx; w: Fx }
 	/** Its rotated frame's rotation; the fields above are in the frame's unrotated space. */
 	rot?: Rot
 }

@@ -7,8 +7,9 @@
 // Roles: H1–H6, P and Figure as named; `Artifact` (master items, decorative images, untagged
 // vector items) is marked `/Artifact` and gets no element; the DL's `Document` becomes a `Div`
 // (the tree has one `Document` root). Any other role (L, LI, Lbl, LBody, Table, TR, TH, TD,
-// Note, …) is written under its own name, nested by `TagNode.children`. Links get a `Link`
-// element holding the annotation, inside the element of the item under them.
+// Note, TOC, TOCI, …) is written under its own name, nested by `TagNode.children`; `TH` gets
+// `/A << /O /Table /Scope /Column >>`. Links get a `Link` element holding the annotation,
+// inside the element of the item under them.
 
 import type { DLItem, PageDL, TagNode } from '../display-list.js'
 import type { Box } from '../model.js'
@@ -89,6 +90,16 @@ export class Tagger {
 						if (!t.alt) console.warn(`PDF: figure without alt text (page ${index + 1})`)
 						setAlt(el, t.alt ?? '')
 					}
+					// PDF/UA: a header cell names what it heads (rows are header rows only).
+					if (type === 'TH')
+						(
+							el as unknown as { dictionary: { data: Record<string, unknown> } }
+						).dictionary.data.A = { O: 'Table', Scope: 'Column' }
+					// PDF/UA: every Note carries a unique ID (one per page part of a body).
+					if (type === 'Note')
+						(
+							el as unknown as { dictionary: { data: Record<string, unknown> } }
+						).dictionary.data.ID = pdfString(`note-${index + 1}-${t.id}`)
 					e = { el, type, sec: this.sec, id: t.id, seq: this.seq++, frame: f }
 					this.elems.set(key, e)
 					if (parent) parent.el.add(el)

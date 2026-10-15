@@ -219,7 +219,8 @@ export interface Marks {
 }
 
 export type InlineEmbed =
-	| { img: { fileId: string; w: Fx; h: Fx; alt: string } }
+	/** `float`: line-start float, copied to `EmbedBlock.float` by the adapter. */
+	| { img: { fileId: string; w: Fx; h: Fx; alt: string; float?: { side: 'l' | 'r'; w: number } } }
 	| { emb: Record<string, unknown> }
 	| { fn: string /* footnote story id */ }
 	/** Page number, publication page count, section title (`tocLevel` heading), `Publication.title`. */
@@ -247,9 +248,14 @@ export interface TableRow {
 
 export interface TableBlock {
 	k: 'table'
-	/** Column widths. */
+	/**
+	 * Relative column widths, scaled to the column the table sits in; equal widths when one is
+	 * missing or not positive.
+	 */
 	cols: Fx[]
 	rows: TableRow[]
+	/** Rules: every cell edge (default), the outer box, a line below the header rows, none. */
+	borders?: 'all' | 'outer' | 'header' | 'none'
 }
 
 /**
@@ -267,6 +273,11 @@ export interface EmbedBlock {
 	h: Fx
 	/** Plain caption text; not part of the story's text offsets. */
 	caption?: string
+	/**
+	 * Line-start float: `w` of the column wide (a fraction, e.g. 0.5 or 0.333), at the
+	 * column's `side`, its top where the flow reaches it; following text in the column wraps beside it.
+	 */
+	float?: { side: 'l' | 'r'; w: number }
 }
 
 export interface Paragraph {
@@ -302,4 +313,9 @@ export interface Publication {
 	title?: string
 	/** ISO date written by export; printed by date fields with `src: 'export'` (empty if absent). */
 	exportedAt?: string
+	/**
+	 * Footnote body stories by story id (= the `{ fn }` embed id). Laid out at the bottom of the
+	 * column of their ref, in section flows only.
+	 */
+	footnotes?: Record<string, Story>
 }

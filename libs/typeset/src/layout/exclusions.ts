@@ -132,6 +132,18 @@ export function wrapExclusions(frames: Frame[]): Exclusion[] {
 	return out
 }
 
+/** `e` moved by (`dx`, `dy`): a paragraph-relative exclusion (drop cap) placed in page space. */
+export function moved(e: Exclusion, dx: Fx, dy: Fx): Exclusion {
+	return {
+		...e,
+		x0: e.x0 + dx,
+		y0: e.y0 + dy,
+		x1: e.x1 + dx,
+		y1: e.y1 + dy,
+		...(e.pts ? { pts: e.pts.map(([x, y]): [Fx, Fx] => [x + dx, y + dy]) } : {})
+	}
+}
+
 /** The exclusion's outline overlaps the column across the band [top, bottom). */
 function hits(col: Box, e: Exclusion, top: Fx, bottom: Fx): boolean {
 	if (!(e.y0 < bottom && e.y1 > top)) return false

@@ -17,7 +17,10 @@ import type { ItemizeEnv } from './text/itemize.js'
 
 /** One paragraph-level edit of a section's story or a text frame's story. */
 export interface ParagraphPatch {
-	/** Story id: a section's `story.id` or a text frame's `data.story.id` (chain heads only). */
+	/**
+	 * Story id: a section's `story.id`, a `pub.footnotes` key or a text frame's `data.story.id`
+	 * (chain heads only).
+	 */
 	story: string
 	/** The paragraph edited; for `insert`, the new paragraph's bid. */
 	bid: string
@@ -77,7 +80,7 @@ function same(a: unknown, b: unknown): boolean {
  * returns the pages that changed since the previous call. Inputs are never mutated (patches
  * copy on write), and are treated as immutable once handed over.
  * Synchronous like `layoutPublication`: load the faces of every new or patched paragraph
- * (`loadParagraphFaces`) before `layout()`.
+ * (`loadParagraphFaces`), footnote stories' included, before `layout()`.
  */
 // Every dirty `layout()` re-runs `layoutPublication` and diffs pages by (sec, index) and
 // `samePage`; the work per paragraph is memoized by identity (itemize in `paginate.ts`, `prepare` /
@@ -114,6 +117,10 @@ export class Engine {
 
 	setSections(sections: Section[]): void {
 		this.update({ sections })
+	}
+
+	setFootnotes(footnotes: Record<string, Story>): void {
+		this.update({ footnotes })
 	}
 
 	/** Apply patches in order. Throws on an unknown story, bid or `after`. */
@@ -236,6 +243,11 @@ export class Engine {
 			const sections = [...pub.sections]
 			sections[si] = { ...sections[si], story: edit(sections[si].story) }
 			this.pub = { ...pub, sections }
+			return
+		}
+		const fn = pub.footnotes
+		if (fn && Object.hasOwn(fn, p.story)) {
+			this.pub = { ...pub, footnotes: { ...fn, [p.story]: edit(fn[p.story]) } }
 			return
 		}
 		const frames = { ...pub.frames }

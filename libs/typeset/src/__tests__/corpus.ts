@@ -22,6 +22,8 @@ import type {
 	Run,
 	StyleDef,
 	Story,
+	TableBlock,
+	TableCell,
 	TextFrameData
 } from '../model.js'
 import { createShapeCache } from '../shape/cache.js'
@@ -89,6 +91,29 @@ export function p(style: string, ...runs: (string | Run)[]): Paragraph {
 		style,
 		overrides: {},
 		runs: runs.map((r) => (typeof r === 'string' ? { text: r, marks: {} } : r))
+	}
+}
+
+/** A table paragraph; a string cell is one `left` paragraph; the first `header` rows are headers. */
+export function table(
+	rows: (string | TableCell)[][],
+	opts: { header?: number; cols?: Fx[]; borders?: TableBlock['borders'] } = {}
+): Paragraph {
+	return {
+		bid: `b${++bidN}`,
+		style: 'left',
+		overrides: {},
+		runs: {
+			k: 'table',
+			cols: opts.cols ?? [],
+			rows: rows.map((cells, r) => ({
+				cells: cells.map((c) =>
+					typeof c === 'string' ? { paragraphs: [p('left', c)] } : c
+				),
+				...(r < (opts.header ?? 0) ? { header: true } : {})
+			})),
+			...(opts.borders ? { borders: opts.borders } : {})
+		}
 	}
 }
 
@@ -173,6 +198,55 @@ export const CORPUS: Case[] = [
 		story: {
 			id: 's-multi',
 			paragraphs: [p('h1', 'Many pages'), ...Array.from({ length: 6 }, () => p('body', EN))]
+		}
+	},
+	{
+		// Header repeat across pages, col/row spans, a row too tall for a page (clipped + mark),
+		// outer and header-only borders.
+		name: 'en-table-paginated',
+		lang: 'en',
+		page: { w: ptToFx(300), h: ptToFx(200) },
+		region: box(20, 20, 260, 160),
+		story: {
+			id: 's-table',
+			paragraphs: [
+				p('h2', 'Tables'),
+				table(
+					[
+						['Item', 'Qty', 'Note'],
+						...Array.from({ length: 8 }, (_, i) => [
+							`Row ${i + 1}`,
+							String(i + 1),
+							i % 3
+								? 'Short note.'
+								: 'A longer note that wraps onto more than one line.'
+						]),
+						[
+							{ paragraphs: [p('left', 'Spans two rows')], rowSpan: 2 },
+							{ paragraphs: [p('left', 'Spans two columns')], colSpan: 2 }
+						],
+						['9', 'Below the column span.'],
+						[{ paragraphs: [p('body', EN), p('body', EN), p('body', EN)], colSpan: 3 }],
+						['Last', '10', 'After the clipped row.']
+					],
+					{ header: 1, cols: [ptToFx(120), ptToFx(40), ptToFx(100)] }
+				),
+				p('body', 'Text between tables.'),
+				table(
+					[
+						['A', 'B'],
+						['c', 'd']
+					],
+					{ borders: 'outer' }
+				),
+				table(
+					[
+						['Head 1', 'Head 2'],
+						['e', 'f']
+					],
+					{ header: 1, borders: 'header' }
+				)
+			]
 		}
 	}
 ]
@@ -378,20 +452,120 @@ const BOOK: Publication = {
 	exportedAt: '2026-01-02'
 }
 
+/** A footnote body paragraph: `body` at 8/10 pt. */
+const note = (text: string): Paragraph => ({
+	...p('body', text),
+	overrides: { size: ptToFx(8), leading: ptToFx(10), spaceBefore: ptToFx(2) }
+})
+
+const FOOTNOTES: Record<string, Story> = {
+	n1: { id: 'n1', paragraphs: [note('A short note.')] },
+	// Long enough to split across columns.
+	n2: { id: 'n2', paragraphs: Array.from({ length: 6 }, (_, i) => note(i % 2 ? DE : EN)) },
+	n3: { id: 'n3', paragraphs: [note('Second note of one line.'), note(HU)] }
+}
+
+const FN_STORY: Story = {
+	id: 'fs',
+	paragraphs: [
+		p('h1', 'Footnotes'),
+		p('body', 'Typesetting', field({ fn: 'n1' }), ` ${EN}`),
+		...Array.from({ length: 3 }, () => p('body', EN)),
+		p('body', `${EN} A long note`, field({ fn: 'n2' }), ' follows.'),
+		p('body', 'Two refs', field({ fn: 'n3' }), ' on one line', field({ fn: 'n1' }), ` ${HU}`),
+		...Array.from({ length: 8 }, (_, i) => p('body', i % 2 ? HU : EN)),
+		p('body', 'A dangling ref', field({ fn: 'missing' }), ' places nothing.')
+	]
+}
+
+/** Footnotes in two columns: numbering per section, a body split across columns, two refs per line. */
+const FN_PUB: Publication = {
+	lang: 'en',
+	styles: PUB_STYLES,
+	masters: PUB_MASTERS,
+	sections: [{ id: 'fs', story: FN_STORY, first: 'm-cols', rest: 'm-cols', start: 'any' }],
+	frames: {},
+	facing: false,
+	footnotes: FOOTNOTES
+}
+
+/** A float: an inline image block `w` of the column wide at `side`, with a caption. */
+export const floatImg = (side: 'l' | 'r', w: number): Paragraph => ({
+	...p('left', ''),
+	runs: {
+		k: 'emb',
+		data: {},
+		img: { fileId: 'file-1', crop: { x: 0, y: 0, w: 1, h: 1 }, fit: 'cover', alt: 'A float' },
+		w: ptToFx(160),
+		h: ptToFx(100),
+		caption: 'Floating',
+		float: { side, w }
+	}
+})
+
+const ADV_STORY: Story = {
+	id: 'as',
+	paragraphs: [
+		{ ...p('h1', 'Advanced text'), overrides: { spanColumns: true } },
+		p('left', field({ toc: { levels: 2 } })),
+		{ ...p('body', EN), overrides: { dropCap: 3 } },
+		p('h2', 'Drop caps'),
+		...Array.from({ length: 3 }, (_, i) => ({
+			...p('body', i % 2 ? HU : EN),
+			overrides: { dropCap: 2 + i }
+		})),
+		floatImg('l', 0.5),
+		p('body', `${EN} ${HU}`),
+		floatImg('r', 0.333),
+		p('body', `${DE} ${EN}`),
+		{ ...p('h2', 'A spanning heading'), overrides: { spanColumns: true } },
+		{ ...p('left', 'A spanning paragraph right below it.'), overrides: { spanColumns: true } },
+		...Array.from({ length: 6 }, (_, i) => p('body', i % 2 ? DE : EN)),
+		p('h2', 'Second part'),
+		...Array.from({ length: 10 }, (_, i) => p('body', i % 2 ? HU : EN))
+	]
+}
+
+/** TOC (two levels, two sections), drop caps of 2–4 lines, span bands at the top and mid-flow. */
+const ADV_PUB: Publication = {
+	lang: 'en',
+	styles: PUB_STYLES,
+	masters: PUB_MASTERS,
+	sections: [
+		{ id: 'as', story: ADV_STORY, first: 'm-cols', rest: 'm-cols', start: 'any' },
+		{
+			id: 'as2',
+			story: {
+				id: 'as2',
+				paragraphs: [p('h1', 'Appendix'), p('h2', 'Notes'), p('body', EN)]
+			},
+			first: 'm-first',
+			rest: 'm-first',
+			start: 'any'
+		}
+	],
+	frames: {},
+	facing: false
+}
+
 /**
  * Publications exercising masters (first/rest, variants, items with fields), columns, keep rules,
- * wrap (box, tb, rotated), lists, start parity, page-frame keepalive and `maxPages` overset.
+ * wrap (box, tb, rotated), lists, start parity, page-frame keepalive and `maxPages` overset;
+ * footnotes; TOC, drop caps and span bands.
  * Treat as immutable (`structuredClone` before editing).
  */
 export const PUB_CORPUS: { name: string; pub: Publication }[] = [
 	{ name: 'book-facing', pub: BOOK },
-	{ name: 'book-plain', pub: { ...BOOK, facing: false } }
+	{ name: 'book-plain', pub: { ...BOOK, facing: false } },
+	{ name: 'footnotes', pub: FN_PUB },
+	{ name: 'advanced-text', pub: ADV_PUB }
 ]
 
-/** Every story the publication lays out: sections', then text frames' (master items included). */
+/** Every story the publication lays out: sections', footnotes', then text frames' (master items included). */
 export function publicationStories(pub: Publication): Story[] {
 	return [
 		...pub.sections.map((s) => s.story),
+		...Object.values(pub.footnotes ?? {}),
 		...Object.values(pub.frames)
 			.filter((f) => f.t === 'txt')
 			.map((f) => (f.data as TextFrameData).story)

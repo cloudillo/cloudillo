@@ -48,9 +48,21 @@ import { moveSection } from './crdt/section-ops'
 import { PAGE_SIZES } from './crdt/type-converters'
 import { caretBox, selFrom, selTo } from './editor/caret'
 import { useClipboard } from './editor/clipboard'
-import { addPage, type CommandCtx, deletePage } from './editor/commands'
+import {
+	addPage,
+	type CommandCtx,
+	deletePage,
+	footnoteRef,
+	isSectionStory,
+	leaveFootnote,
+	leaveTable,
+	tableAt
+} from './editor/commands'
 import { useFindReplace } from './editor/FindReplace'
 import { type FrameCtl, LINK_REFUSALS, useFrames } from './editor/FrameOverlay'
+import { SpellOverlay } from './editor/SpellOverlay'
+import { TextMenu } from './editor/TextMenu'
+import { userWords } from './editor/user-words'
 import { containsPoint, pageMaster } from './editor/frames'
 import { handleKey, type KeymapCtx, undoRedoKey } from './editor/keymap'
 import { usePublishPresence, useRemote } from './editor/RemoteOverlay'
@@ -58,7 +70,7 @@ import { useUndo } from './editor/undo'
 import { useEditor } from './editor/useEditor'
 import { PdfExportDialog } from './export/PdfExportDialog'
 import { oversetTarget, type PreflightRow } from './export/preflight'
-import { pageKey, useLayout } from './layout/useLayout'
+import { newerEngine, pageKey, useLayout } from './layout/useLayout'
 import { FormatPanel } from './panels/FormatPanel'
 import { LayoutBanner, LayoutsPanel } from './panels/LayoutEditor'
 import { PublicationSettings } from './panels/PublicationSettings'
@@ -112,6 +124,10 @@ export function PagilloApp() {
 		canInput,
 		label: t('Document text'),
 		onKey: (e) =>
+			((e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) && openTextMenu()) ||
+			(e.key === 'Escape' &&
+				!!keyCtx.current &&
+				(leaveTable(keyCtx.current) || leaveFootnote(keyCtx.current))) ||
 			!!framesRef.current?.fromText(e) ||
 			(keyCtx.current ? handleKey(e, keyCtx.current) : false)
 	})
@@ -119,6 +135,14 @@ export function PagilloApp() {
 	keyCtx.current = { ...cmd, undo, canEdit }
 	useClipboard(cmd)
 	const find = useFindReplace({ yDoc, doc, editor, layout, canEdit })
+	const [textMenu, setTextMenu] = React.useState<{ x: number; y: number }>()
+	/** Shift+F10 / Menu key: the text menu at the caret. */
+	const openTextMenu = () => {
+		if (!editor.sel || framesRef.current?.sel) return false
+		const r = editor.caretRect()
+		setTextMenu(r ? { x: r.left, y: r.bottom } : { x: innerWidth / 2, y: innerHeight / 2 })
+		return true
+	}
 
 	// Story normaliser (bids): writers only, and never while an older engine is read-only.
 	const canNormalize = React.useRef(false)
@@ -126,7 +150,8 @@ export function PagilloApp() {
 	const normalizer = React.useRef<{ run(): void } | undefined>(undefined)
 	React.useEffect(() => {
 		if (!synced) return
-		const n = registerNormalizer(yDoc, doc, () => canNormalize.current)
+		// `readOnlyReason` lands a render after sync: re-check the skew synchronously.
+		const n = registerNormalizer(yDoc, doc, () => canNormalize.current && !newerEngine(doc))
 		normalizer.current = n
 		return () => {
 			n.dispose()
@@ -211,6 +236,17 @@ export function PagilloApp() {
 		locked: remote.locked,
 		src
 	})
+	// Spell checking follows View › Check spelling (writers only); the user's words load once.
+	const spellOn = canEdit && frames.view.spell
+	const { setSpell } = layout
+	React.useEffect(() => {
+		setSpell(spellOn)
+	}, [spellOn, setSpell])
+	React.useEffect(() => {
+		userWords()
+			.then((w) => setSpell(undefined, w))
+			.catch(() => {})
+	}, [setSpell])
 	framesRef.current = frames
 	usePublishPresence(awareness, doc, {
 		sel: editor.sel,
@@ -471,6 +507,18 @@ export function PagilloApp() {
 				hints: [[t('Del'), t('delete')]],
 				spoken: t('Image in the text · Format › Position puts it on the page')
 			}
+		if (tx && tableAt(tx, selFrom(es)))
+			return {
+				chip: t('Table cell'),
+				hints: [
+					[t('Tab'), t('next cell')],
+					[t('Shift+Tab'), t('previous')],
+					[t('Esc'), t('text')]
+				],
+				spoken: t(
+					'Typing in a table cell · Tab moves to the next cell, Shift+Tab to the previous · Esc leaves the table'
+				)
+			}
 		for (const [, f] of framesOf(doc)) {
 			if (f.t === 'txt' && (f.data as { story?: string } | undefined)?.story === es.story)
 				return {
@@ -479,6 +527,12 @@ export function PagilloApp() {
 					spoken: t('Typing in a text box · Esc selects the box')
 				}
 		}
+		if (!isSectionStory(doc, es.story) && footnoteRef(doc, es.story))
+			return {
+				chip: t('Footnote'),
+				hints: [[t('Esc'), t('back to text')]],
+				spoken: t('Typing a footnote · Esc returns to its reference in the text')
+			}
 		return {
 			chip: t('Text'),
 			hints: [[t('Esc'), t('leave text')]],
@@ -624,11 +678,24 @@ export function PagilloApp() {
 									{remote.overlay(i, size, scale)}
 									{find.overlay(i, size)}
 									{!frames.sel && !layoutEdit && editor.overlay(i, size)}
+									{spellOn && !frames.sel && !layoutEdit && (
+										<SpellOverlay
+											w={size.w}
+											h={size.h}
+											lines={editor.index.pages.get(i)}
+											spell={layout.spell}
+										/>
+									)}
 									{frames.overlay(i, size, scale)}
 								</>
 							)}
 							pinned={editor.caretPage}
 							onPagePointer={frames.onPointer}
+							onPageContextMenu={(hit, e) => {
+								if (frames.sel || layoutEdit || !editor.contextMenu(hit)) return
+								e.preventDefault()
+								setTextMenu({ x: e.clientX, y: e.clientY })
+							}}
 							dragScroll={frames.dragScroll}
 							dragScrollEls={[railRef]}
 						/>
@@ -699,6 +766,16 @@ export function PagilloApp() {
 					writer={writer}
 					onJump={onPdfJump}
 					onClose={() => setPdfOpen(false)}
+				/>
+			)}
+			{textMenu && (
+				<TextMenu
+					at={textMenu}
+					ctx={cmd}
+					layout={layout}
+					canEdit={canEdit}
+					spell={spellOn}
+					onClose={() => setTextMenu(undefined)}
 				/>
 			)}
 			<div data-landmark="status" style={{ display: 'contents' }}>

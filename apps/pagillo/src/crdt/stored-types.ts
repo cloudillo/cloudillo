@@ -171,7 +171,35 @@ export interface StoredLineAttrs {
 	ph?: string
 	/** Heading nudge dismissed for this paragraph. */
 	nh?: 1
+	/**
+	 * Tables: quill-table-better (quillo) line attrs. A table is a run of consecutive lines: an
+	 * optional `table-temporary` line first (the table's own bid; `data-borders` absent = all),
+	 * then each cell's paragraphs, row-major. Lines sharing a `*-block` id are one cell; cells
+	 * sharing `data-row` are one row; `table-th*` marks a header cell. `table-col` lines are ignored.
+	 */
+	'table-temporary'?: { style?: string; 'data-borders'?: 'outer' | 'header' | 'none' }
+	'table-col'?: Record<string, unknown>
+	'table-cell'?: StoredTableCell
+	'table-cell-block'?: string
+	'table-th'?: StoredTableCell
+	'table-th-block'?: string
 }
+
+export interface StoredTableCell {
+	'data-row': string
+	colspan?: string
+	rowspan?: string
+}
+
+/** The line attr keys of a table line. */
+export const TABLE_KEYS = [
+	'table-temporary',
+	'table-col',
+	'table-cell',
+	'table-cell-block',
+	'table-th',
+	'table-th-block'
+] as const satisfies readonly (keyof StoredLineAttrs)[]
 
 /** Every inline mark key (`Marks`) and `'\n'` line attr key (`StoredLineAttrs`). */
 export const MARK_KEYS = [
@@ -192,7 +220,8 @@ export const LINE_KEYS = [
 	'list',
 	'indent',
 	'ph',
-	'nh'
+	'nh',
+	...TABLE_KEYS
 ] as const satisfies readonly (keyof StoredLineAttrs)[]
 
 export type StoredMarks = Marks

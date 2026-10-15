@@ -12,7 +12,7 @@ import { FX, type LineGeom, type PageDL, type Rot } from '@cloudillo/typeset'
 
 import type { YPagilloDocument } from '../crdt/stored-types'
 import { deltaOf, storyTextOf } from '../crdt/delta-cache'
-import { paragraphStarts } from '../crdt/type-converters'
+import { paragraphStarts, tableCells } from '../crdt/type-converters'
 
 /** Local selection: Y.Text offsets within one story (never across stories). */
 export interface EditorSelection {
@@ -31,6 +31,8 @@ export interface PlacedLine {
 	page: number
 	from: number
 	to: number
+	/** Table cell paragraphs: row and cell id (`tableCells`). */
+	cell?: { row: string; cell: string }
 }
 
 export interface GeomIndex {
@@ -80,22 +82,33 @@ export function indexGeom(
 ): GeomIndex {
 	const stories = new Map<string, PlacedLine[]>()
 	const byPage = new Map<number, PlacedLine[]>()
-	const starts = new Map<string, Map<string, number>>()
+	const starts = new Map<
+		string,
+		{ st: Map<string, number>; cells: Map<string, { row: string; cell: string }> }
+	>()
 	keys.forEach((key, page) => {
 		const dl = pages.get(key)
 		if (!dl) return
 		const list: PlacedLine[] = []
 		for (const line of dl.lines) {
-			let st = starts.get(line.story)
-			if (!st) {
+			let sm = starts.get(line.story)
+			if (!sm) {
 				const t = doc.tx.get(line.story)
-				st = t ? paragraphStarts(deltaOf(t)) : new Map<string, number>()
-				starts.set(line.story, st)
+				const ops = t ? deltaOf(t) : []
+				sm = { st: paragraphStarts(ops), cells: tableCells(ops) }
+				starts.set(line.story, sm)
 			}
 			// A bid missing from the story is a stale layout of a deleted paragraph: no offsets.
-			const s = st.get(line.bid)
+			const s = sm.st.get(line.bid)
 			if (s === undefined) continue
-			const pl = { line, page, from: s + line.from, to: s + line.to }
+			const cell = sm.cells.get(line.bid)
+			const pl: PlacedLine = {
+				line,
+				page,
+				from: s + line.from,
+				to: s + line.to,
+				...(cell && { cell })
+			}
 			list.push(pl)
 			let sl = stories.get(line.story)
 			if (!sl) {
@@ -166,11 +179,27 @@ export function lineMove(lines: PlacedLine[], off: number, dir: -1 | 1, goalX: n
 	if (!pl) return off
 	let i = lines.indexOf(pl)
 	while (lines[i] && sameRow(lines[i], pl)) i += dir
+	// Off the caret cell's edge into another cell of its table row: skip the whole row.
+	const row = pl.cell?.row
+	if (row && lines[i]?.cell?.row === row && lines[i].cell?.cell !== pl.cell?.cell)
+		while (lines[i]?.cell?.row === row) i += dir
 	const next = lines[i]
 	if (!next) return dir < 0 ? lines[0].from : lines[lines.length - 1].to
 	let best = next
-	for (let k = i; lines[k] && sameRow(lines[k], next); k += dir) {
-		if (xDist(lines[k], goalX) < xDist(best, goalX)) best = lines[k]
+	const nrow = next.cell?.row
+	if (nrow && nrow !== row) {
+		// Into a table row: each cell's first (down) / last (up) line, nearest goal x.
+		const seen = new Set<string>()
+		for (let k = i; lines[k]?.cell?.row === nrow; k += dir) {
+			const c = lines[k].cell?.cell ?? ''
+			if (seen.has(c)) continue
+			seen.add(c)
+			if (xDist(lines[k], goalX) < xDist(best, goalX)) best = lines[k]
+		}
+	} else {
+		for (let k = i; lines[k] && sameRow(lines[k], next); k += dir) {
+			if (xDist(lines[k], goalX) < xDist(best, goalX)) best = lines[k]
+		}
 	}
 	return nearestCaret(best, goalX)
 }
@@ -253,6 +282,18 @@ export function wordAt(txt: string, off: number): [number, number] {
 /** Paragraph around `off`, without its '\n' (triple click). */
 export function paragraphAt(txt: string, off: number): [number, number] {
 	return [paraStart(txt, off), paraEnd(txt, off)]
+}
+
+/** Drag after a double/triple click: grow the original unit `[a, b)` by whole units toward `off`. */
+export function extendByUnit(
+	txt: string,
+	a: number,
+	b: number,
+	off: number,
+	unit: 'word' | 'para'
+): [anchor: number, head: number] {
+	const [ua, ub] = unit === 'word' ? wordAt(txt, off) : paragraphAt(txt, off)
+	return off < a ? [b, ua] : [a, Math.max(b, ub)]
 }
 
 /** Ctrl+Up: this / previous paragraph start; Ctrl+Down: next paragraph start. */

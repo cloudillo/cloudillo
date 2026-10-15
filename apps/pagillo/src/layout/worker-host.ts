@@ -22,6 +22,10 @@ export interface LayoutHost {
 	/** Start a PDF job (cancels a running one); `on` gets its `pdf.*` messages until done or error. */
 	exportPdf(options: PdfExportOptions, on: (e: PdfEvent) => void): void
 	cancelPdf(): void
+	/** Spell checking on/off and the user's dictionary words (either may be absent). */
+	setSpell(on?: boolean, words?: string[]): void
+	/** Spelling suggestions for `word` in `lang` (`[]` when none or the worker stopped). */
+	suggest(word: string, lang: string): Promise<string[]>
 	dispose(): void
 }
 
@@ -37,6 +41,8 @@ export function startLayoutWorker(yDoc: Y.Doc, onMessage: (msg: WorkerToMain) =>
 	let pdf: ((e: PdfEvent) => void) | undefined
 	/** Id of the current PDF job: replies of an earlier (cancelled) job are dropped. */
 	let pdfId = 0
+	let suggestId = 0
+	const suggests = new Map<number, (words: string[]) => void>()
 	const post = (msg: MainToWorker, transfer: Transferable[] = []) =>
 		worker.postMessage(msg, transfer)
 	const fail = (message: string) => {
@@ -46,6 +52,8 @@ export function startLayoutWorker(yDoc: Y.Doc, onMessage: (msg: WorkerToMain) =>
 		onMessage({ type: 'error', message })
 		pdf?.({ type: 'pdf.error', id: pdfId, message })
 		pdf = undefined
+		for (const r of suggests.values()) r([])
+		suggests.clear()
 	}
 
 	worker.onmessage = (e: MessageEvent<WorkerToMain>) => {
@@ -55,6 +63,9 @@ export function startLayoutWorker(yDoc: Y.Doc, onMessage: (msg: WorkerToMain) =>
 			const on = pdf
 			if (m.type !== 'pdf.progress') pdf = undefined
 			on?.(m)
+		} else if (m.type === 'spell.suggestions') {
+			suggests.get(m.id)?.(m.words)
+			suggests.delete(m.id)
 		} else if (m.type === 'error') fail(m.message)
 		else if (!failed) onMessage(m)
 	}
@@ -98,11 +109,24 @@ export function startLayoutWorker(yDoc: Y.Doc, onMessage: (msg: WorkerToMain) =>
 			pdf = undefined
 			post({ type: 'pdf.cancel' })
 		},
+		setSpell(on, words) {
+			post({ type: 'spell.config', on, words })
+		},
+		suggest(word, lang) {
+			if (failed) return Promise.resolve([])
+			const id = ++suggestId
+			return new Promise((res) => {
+				suggests.set(id, res)
+				post({ type: 'spell.suggest', id, word, lang })
+			})
+		},
 		dispose() {
 			yDoc.off('update', onUpdate)
 			failed = true
 			worker.terminate()
 			pdf = undefined
+			for (const r of suggests.values()) r([])
+			suggests.clear()
 			if (hosts.get(yDoc) === host) hosts.delete(yDoc)
 		}
 	}

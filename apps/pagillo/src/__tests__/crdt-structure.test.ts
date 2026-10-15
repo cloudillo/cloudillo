@@ -11,14 +11,16 @@ import {
 	frameOf,
 	masterOf,
 	newFrameMap,
+	newSectionMap,
 	readFrame,
 	readMaster,
 	styleOf
 } from '../crdt/entities.js'
 import { addFrame, chainOf, linkFrame, updateFrame } from '../crdt/frame-ops.js'
 import { addMaster, updateMaster } from '../crdt/master-ops.js'
-import { sweepOrphanStories } from '../crdt/normalize.js'
-import type { StoredFrame, StoredMaster, StoredStyle } from '../crdt/stored-types.js'
+import { rootNotes, sweepOrphanStories } from '../crdt/normalize.js'
+import type { StoredFrame, StoredMaster, StoredSection, StoredStyle } from '../crdt/stored-types.js'
+import { copyStory } from '../crdt/story-ops.js'
 import { addStyle, updateStyle } from '../crdt/style-ops.js'
 import { masterItemIndex, readMeta } from '../crdt/type-converters.js'
 
@@ -200,6 +202,99 @@ describe('master fields', () => {
 		})
 		expect(da.f.has('t')).toBe(false)
 		expect(da.tx.has('st')).toBe(false)
+	})
+
+	it('keeps footnote bodies referenced from story text', () => {
+		const { a, da } = peers()
+		a.transact(() => {
+			da.s.set('s1', newSectionMap({ story: 'S' } as StoredSection))
+			const t = new Y.Text()
+			da.tx.set('S', t)
+			t.insert(0, 'a')
+			t.insertEmbed(1, { fn: 'n' })
+			t.insert(2, '\n')
+			da.tx.set('n', new Y.Text('note\n'))
+			da.tx.set('x', new Y.Text('orphan\n'))
+			sweepOrphanStories(da)
+		})
+		expect(da.tx.has('n')).toBe(true)
+		expect(da.tx.has('x')).toBe(false)
+	})
+
+	it('ignores footnote refs outside section stories', () => {
+		const { a, da } = peers()
+		a.transact(() => {
+			da.f.set(
+				't',
+				newFrameMap({
+					t: 'txt',
+					...box,
+					anchor: { sec: 's1', page: 0 },
+					data: { story: 'F' }
+				})
+			)
+			const t = new Y.Text()
+			da.tx.set('F', t)
+			t.insertEmbed(0, { fn: 'n' })
+			t.insert(1, '\n')
+			da.tx.set('n', new Y.Text('note\n'))
+			sweepOrphanStories(da)
+		})
+		expect(da.tx.has('F')).toBe(true)
+		expect(da.tx.has('n')).toBe(false)
+	})
+
+	it('roots footnote bodies in f, and sweeps the root with its body', () => {
+		const { a, da } = peers()
+		const t = new Y.Text()
+		a.transact(() => {
+			da.s.set('s1', newSectionMap({ story: 'S' } as StoredSection))
+			da.tx.set('S', t)
+			t.insert(0, 'a')
+			t.insertEmbed(1, { fn: 'n' })
+			t.insert(2, '\n')
+			da.tx.set('n', new Y.Text('note\n'))
+			rootNotes(da, t)
+		})
+		const root = da.f.get('n')
+		expect(root?.get('story')).toBe('n')
+		expect(readFrame(root)).toBeUndefined()
+		a.transact(() => sweepOrphanStories(da))
+		expect(da.tx.has('n')).toBe(true)
+
+		a.transact(() => {
+			t.delete(1, 1)
+			sweepOrphanStories(da)
+		})
+		expect(da.tx.has('n')).toBe(false)
+		expect(da.f.has('n')).toBe(false)
+	})
+
+	it('copyStory gives the copy its own footnote bodies', () => {
+		const { a, da } = peers()
+		let copy = ''
+		a.transact(() => {
+			const t = new Y.Text()
+			da.tx.set('S', t)
+			t.insertEmbed(0, { fn: 'n' })
+			t.insert(1, '\n', { bid: 'b1' })
+			const n = new Y.Text()
+			da.tx.set('n', n)
+			n.insert(0, 'note')
+			n.insert(4, '\n', { bid: 'b2' })
+			copy = copyStory(da, 'S')
+		})
+		const fn = (da.tx.get(copy)?.toDelta()[0]?.insert as { fn?: string } | undefined)?.fn ?? ''
+		expect(fn).not.toBe('n')
+		expect(da.tx.get(fn)?.toString()).toBe('note\n')
+		const bids = (id: string) =>
+			(da.tx.get(id)?.toDelta() ?? []).flatMap(
+				(op: { attributes?: { bid?: string } }) => op.attributes?.bid ?? []
+			)
+		expect(bids(copy)).toHaveLength(1)
+		expect(bids(copy)).not.toContain('b1')
+		expect(bids(fn)).toHaveLength(1)
+		expect(bids(fn)).not.toContain('b2')
 	})
 })
 

@@ -116,6 +116,7 @@ describe('PublicationAdapter', () => {
 			setSections: noop,
 			setFrames: noop,
 			setStyles: noop,
+			setFootnotes: noop,
 			patch: noop,
 			setMasters: () => {
 				masters++
@@ -139,6 +140,84 @@ describe('PublicationAdapter', () => {
 		expect(masters).toBe(1)
 		updateFrame(yDoc, doc, id, { anchor: { ms: 'm1' } })
 		expect(masters).toBe(2)
+	})
+
+	it('drops a footnote body once its ref is gone', () => {
+		const yDoc = new Y.Doc()
+		const doc = openPublication(yDoc)
+		const t = new Y.Text()
+		const fn = new Y.Text()
+		doc.tx.set('S', t)
+		doc.tx.set('F', fn)
+		t.insert(0, 'ab\n', { bid: 'A' })
+		t.insertEmbed(1, { fn: 'F' })
+		fn.insert(0, 'note\n', { bid: 'N' })
+		doc.s.set('s1', newSectionMap({ story: 'S' } as StoredSection))
+		doc.secs.push(['s1'])
+
+		const notes: string[][] = []
+		const patched: string[] = []
+		let rebuilt = 0
+		const engine = {
+			setPublication: (pub: Publication) => {
+				rebuilt++
+				notes.push(Object.keys(pub.footnotes ?? {}))
+			},
+			setFootnotes: (fs: Record<string, Story>) => {
+				notes.push(Object.keys(fs))
+			},
+			patch: (ps: ParagraphPatch[]) => {
+				for (const p of ps) patched.push(p.story)
+			}
+		}
+		const adapter = new PublicationAdapter(yDoc, engine as unknown as Engine)
+		expect(notes).toEqual([['F']])
+		t.delete(1, 1)
+		expect(notes).toEqual([['F'], []])
+		expect(adapter.storyMap().has('F')).toBe(false)
+		// An edit of the orphaned body neither patches the engine nor rebuilds.
+		fn.insert(0, 'x')
+		expect(patched).toEqual(['S'])
+		expect(rebuilt).toBe(1)
+	})
+
+	it('does not load a text frame story named by a { fn } as a footnote', () => {
+		const yDoc = new Y.Doc()
+		const doc = openPublication(yDoc)
+		const t = new Y.Text()
+		const b = new Y.Text()
+		doc.tx.set('S', t)
+		doc.tx.set('B', b)
+		t.insert(0, 'ab\n', { bid: 'A' })
+		t.insertEmbed(1, { fn: 'B' })
+		b.insert(0, 'frame\n', { bid: 'P' })
+		doc.s.set('s1', newSectionMap({ story: 'S' } as StoredSection))
+		doc.secs.push(['s1'])
+		doc.f.set(
+			'f1',
+			newFrameMap({
+				t: 'txt',
+				anchor: { sec: 's1', page: 0 },
+				x: 0,
+				y: 0,
+				w: 100,
+				h: 100,
+				rot: 0,
+				z: 0,
+				wrap: { mode: 'none', off: 0 },
+				data: { story: 'B' }
+			} as StoredFrame)
+		)
+
+		let pub: Publication | undefined
+		const engine = {
+			setPublication: (p: Publication) => {
+				pub = p
+			}
+		}
+		const adapter = new PublicationAdapter(yDoc, engine as unknown as Engine)
+		expect(Object.keys(pub?.footnotes ?? {})).toEqual([])
+		expect(adapter.storyMap().has('B')).toBe(true)
 	})
 })
 

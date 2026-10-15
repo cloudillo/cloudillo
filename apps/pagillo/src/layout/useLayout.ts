@@ -14,7 +14,8 @@ import type * as Y from 'yjs'
 
 import { openPublication, setMeta } from '../crdt/document'
 import { readMeta } from '../crdt/type-converters'
-import { type Composition, pageKey, type WorkerToMain } from '../worker/protocol'
+import type { YPagilloDocument } from '../crdt/stored-types'
+import { type Composition, pageKey, type SpellRange, type WorkerToMain } from '../worker/protocol'
 import { type LayoutHost, startLayoutWorker } from './worker-host'
 
 export { pageKey } from '../worker/protocol'
@@ -40,6 +41,12 @@ export interface LayoutState {
 	setViewport(pages: [number, number]): void
 	/** Show (`text: ''` clears) a local IME composition in the layout (worker `compose`). */
 	compose(c: Composition): void
+	/** Misspellings (worker `spell`): story → paragraph bid → paragraph-relative ranges. */
+	spell: Map<string, Map<string, SpellRange[]>>
+	/** Spell checking on/off and the user's dictionary words; re-sent to a restarted worker. */
+	setSpell(on?: boolean, words?: string[]): void
+	/** Suggestions for a misspelt word (`SpellRange.lang`). */
+	suggest(word: string, lang: string): Promise<string[]>
 }
 
 interface Snapshot {
@@ -69,6 +76,12 @@ function compareVersions(a: string, b: string): number {
 	return 0
 }
 
+/** A newer engine than ours wrote `m.engine`: this client must not write (read synchronously). */
+export function newerEngine(doc: YPagilloDocument): boolean {
+	const engine = doc.m.get('engine')
+	return typeof engine === 'string' && compareVersions(ENGINE_VERSION, engine) < 0
+}
+
 export function useLayout(
 	yDoc: Y.Doc | undefined,
 	{ synced, canWrite }: { synced: boolean; canWrite: boolean }
@@ -82,6 +95,9 @@ export function useLayout(
 	const usedFonts = React.useRef(new Map<string, string>())
 	const [fontsSeen, setFontsSeen] = React.useState(0)
 	const host = React.useRef<LayoutHost | undefined>(undefined)
+	const [spell, setSpellMap] = React.useState(() => new Map<string, Map<string, SpellRange[]>>())
+	/** Last spell config, sent to each new worker. */
+	const spellCfg = React.useRef<{ on: boolean; words: string[] }>({ on: false, words: [] })
 
 	React.useEffect(() => {
 		if (!yDoc) return
@@ -89,6 +105,9 @@ export function useLayout(
 		setPending(true)
 		setFailed(undefined)
 		usedFonts.current = new Map()
+		setSpellMap(new Map())
+		let spellMap = new Map<string, Map<string, SpellRange[]>>()
+		let spellFlush: ReturnType<typeof setTimeout> | undefined
 		let pages = EMPTY.pages
 		let glyphs = EMPTY.glyphDefs
 		let sections = EMPTY.sections
@@ -142,6 +161,19 @@ export function useLayout(
 					setPending(msg.seq < (host.current?.sent ?? 0))
 					break
 				}
+				case 'spell': {
+					spellMap = new Map(spellMap)
+					const m = new Map(spellMap.get(msg.story))
+					if (msg.ranges.length) m.set(msg.bid, msg.ranges)
+					else m.delete(msg.bid)
+					spellMap.set(msg.story, m)
+					// A first pass posts many paragraphs: one render per burst.
+					spellFlush ??= setTimeout(() => {
+						spellFlush = undefined
+						setSpellMap(spellMap)
+					}, 50)
+					break
+				}
 				case 'error':
 					setFailed(msg.message)
 					setPending(false)
@@ -150,10 +182,12 @@ export function useLayout(
 		}
 		const h = startLayoutWorker(yDoc, onMessage)
 		host.current = h
+		h.setSpell(spellCfg.current.on, spellCfg.current.words)
 		const onUpdate = () => setPending(true)
 		yDoc.on('update', onUpdate)
 		return () => {
 			yDoc.off('update', onUpdate)
+			clearTimeout(spellFlush)
 			h.dispose()
 			if (host.current === h) host.current = undefined
 		}
@@ -183,8 +217,7 @@ export function useLayout(
 		if (!yDoc || !synced || !canWrite || readOnlyReason) return
 		const doc = openPublication(yDoc)
 		// `readOnlyReason` is only queued on first sync, so re-check the skew synchronously.
-		const engine = doc.m.get('engine') as string | undefined
-		if (engine && compareVersions(ENGINE_VERSION, engine) < 0) return
+		if (newerEngine(doc)) return
 		const stored = readMeta(doc.m).fonts ?? {}
 		const add = [...usedFonts.current].filter(([file, sha]) => stored[file] !== sha)
 		// `setMeta` merges entries into the `fonts/<file>` keys.
@@ -198,7 +231,28 @@ export function useLayout(
 		host.current?.compose(c)
 	}, [])
 
-	return { ...snap, pending, failed, readOnlyReason, fontsChanged, setViewport, compose }
+	const setSpell = React.useCallback((on?: boolean, words?: string[]) => {
+		if (on !== undefined) spellCfg.current.on = on
+		if (words) spellCfg.current.words = words
+		host.current?.setSpell(on, words)
+	}, [])
+	const suggest = React.useCallback(
+		(word: string, lang: string) => host.current?.suggest(word, lang) ?? Promise.resolve([]),
+		[]
+	)
+
+	return {
+		...snap,
+		pending,
+		failed,
+		readOnlyReason,
+		fontsChanged,
+		setViewport,
+		compose,
+		spell,
+		setSpell,
+		suggest
+	}
 }
 
 // vim: ts=4

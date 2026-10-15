@@ -144,6 +144,11 @@ export function StatusBar({
 							onChange={(e) => setView({ rulers: e.target.checked })}
 						/>
 						<Toggle
+							label={t('Check spelling')}
+							checked={view.spell}
+							onChange={(e) => setView({ spell: e.target.checked })}
+						/>
+						<Toggle
 							label={t('Snap to margins, columns and frames')}
 							checked={view.snap}
 							onChange={(e) => setView({ snap: e.target.checked })}

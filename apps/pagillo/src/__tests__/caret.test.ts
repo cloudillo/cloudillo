@@ -7,6 +7,7 @@ import * as Y from 'yjs'
 import { openPublication } from '../crdt/document.js'
 import {
 	charMove,
+	extendByUnit,
 	indexGeom,
 	lineMove,
 	pageMove,
@@ -49,6 +50,14 @@ describe('wordAt / paragraphAt', () => {
 		expect(wordAt('a\n\nb', 2)).toEqual([2, 2])
 		expect(paragraphAt(txt, 2)).toEqual([0, 7])
 		expect(paragraphAt(txt, 10)).toEqual([8, 13])
+	})
+
+	it('extendByUnit grows the original word/paragraph by whole units', () => {
+		expect(extendByUnit(txt, 4, 7, 5, 'word')).toEqual([4, 7])
+		expect(extendByUnit(txt, 0, 3, 5, 'word')).toEqual([0, 7])
+		expect(extendByUnit(txt, 4, 7, 1, 'word')).toEqual([7, 0])
+		expect(extendByUnit(txt, 0, 7, 10, 'para')).toEqual([0, 13])
+		expect(extendByUnit(txt, 8, 13, 2, 'para')).toEqual([13, 0])
 	})
 })
 

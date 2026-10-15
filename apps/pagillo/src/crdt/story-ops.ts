@@ -9,6 +9,7 @@ import * as Y from 'yjs'
 import type { ParagraphProps } from '@cloudillo/typeset'
 
 import { newBlockId } from './block-ids'
+import { isObj } from './entities'
 import { newId, type StoryId } from './ids'
 import {
 	type StoredInlineEmbed,
@@ -47,13 +48,29 @@ export function createStory(doc: YPagilloDocument, paras: SeedParagraph[]): Stor
 	return id
 }
 
-/** Copy a story (content and bids — bids are unique per story). Call inside a transaction. */
-export function copyStory(doc: YPagilloDocument, storyId: StoryId): StoryId {
+/**
+ * Copy a story's content, each paragraph with a fresh bid; its footnote refs point to copies of
+ * their bodies. Call inside a transaction.
+ */
+export function copyStory(doc: YPagilloDocument, storyId: StoryId, notes = true): StoryId {
 	const id = newId()
 	const text = new Y.Text()
 	doc.tx.set(id, text)
 	const src = doc.tx.get(storyId)
-	if (src) text.applyDelta(src.toDelta())
+	if (src)
+		text.applyDelta(
+			src.toDelta().map((op: { insert: unknown; attributes?: Record<string, unknown> }) => {
+				const e = op.insert
+				if (typeof e === 'string')
+					return op.attributes?.bid
+						? { ...op, attributes: { ...op.attributes, bid: newBlockId() } }
+						: op
+				// Bodies hold no refs: copy them flat.
+				return notes && isObj(e) && typeof e.fn === 'string' && doc.tx.has(e.fn)
+					? { ...op, insert: { ...e, fn: copyStory(doc, e.fn, false) } }
+					: op
+			})
+		)
 	return id
 }
 

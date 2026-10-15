@@ -11,17 +11,34 @@
 
 import { safeHref } from '@cloudillo/core'
 import * as React from 'react'
-import type * as Y from 'yjs'
+import * as Y from 'yjs'
 
 import { newBlockId, stripBlockIds } from '../crdt/block-ids'
 import { deltaOf } from '../crdt/delta-cache'
-import { styleOf } from '../crdt/entities'
+import { sectionsOf, styleOf } from '../crdt/entities'
 import { sanitizeOverrides } from '../crdt/overrides'
-import { LINE_KEYS, MARK_KEYS, type StyleMapKey, type YPagilloDocument } from '../crdt/stored-types'
-import { type DeltaOp, readMeta } from '../crdt/type-converters'
+import { copyStory } from '../crdt/story-ops'
+import {
+	LINE_KEYS,
+	MARK_KEYS,
+	type StyleMapKey,
+	TABLE_KEYS,
+	type YPagilloDocument
+} from '../crdt/stored-types'
+import {
+	BORDERS,
+	cellOf,
+	cellSpan,
+	colSpanOf,
+	type DeltaOp,
+	newCellId,
+	newRowId,
+	readMeta,
+	rowOf
+} from '../crdt/type-converters'
 import * as C from './caret'
 import type { CommandCtx } from './commands'
-import { deleteRange, insertText } from './text-edit'
+import { breakBefore, deleteRange, insertText, paragraphEnd } from './text-edit'
 
 export const DELTA_MIME = 'application/x-cloudillo-delta'
 
@@ -111,20 +128,52 @@ export function deltaToHtml(doc: YPagilloDocument, ops: DeltaOp[]): string {
 	const root = document.createElement('div')
 	let inline: Node[] = []
 	let list: HTMLElement | undefined
+	let table:
+		| { el: HTMLElement; tr?: HTMLElement; row?: string; td?: HTMLElement; cell?: string }
+		| undefined
 	const endLine = (a: Record<string, unknown>) => {
+		const cell = cellOf(a)
+		let parent: HTMLElement = root
+		if (cell === undefined) table = undefined
+		else if (!cell) {
+			// The table's own line starts a new table; `table-col` lines carry nothing.
+			if (a['table-temporary'] != null) table = undefined
+			inline = []
+			return
+		} else {
+			if (!table) {
+				table = { el: document.createElement('table') }
+				root.append(table.el)
+			}
+			const row = rowOf(a) ?? ''
+			if (!table.tr || table.row !== row) {
+				table.tr = document.createElement('tr')
+				table.el.append(table.tr)
+				table.row = row
+				table.td = undefined
+			}
+			if (!table.td || table.cell !== cell) {
+				const td = document.createElement(a['table-th'] != null ? 'th' : 'td')
+				td.colSpan = colSpanOf(a)
+				table.td = td
+				table.tr.append(table.td)
+				table.cell = cell
+			}
+			parent = table.td
+		}
 		const kind = a.list === 'ordered' ? 'ol' : a.list === 'bullet' ? 'ul' : undefined
 		let block: HTMLElement
 		if (kind) {
-			if (list?.tagName.toLowerCase() !== kind) {
+			if (list?.tagName.toLowerCase() !== kind || list.parentElement !== parent) {
 				list = document.createElement(kind)
-				root.append(list)
+				parent.append(list)
 			}
 			block = document.createElement('li')
 			list.append(block)
 		} else {
 			list = undefined
 			block = document.createElement(BLOCK_TAG[keyOf.get(a.ps as string) ?? 'p'] ?? 'p')
-			root.append(block)
+			parent.append(block)
 		}
 		block.append(...(inline.length ? inline : [document.createElement('br')]))
 		inline = []
@@ -179,7 +228,9 @@ const BLOCK_KEY: Record<string, StyleMapKey> = {
 	P: 'p',
 	DIV: 'p',
 	LI: 'p',
-	TR: 'p',
+	/** Only a table nested in a cell: its cells become paragraphs of that cell. */
+	TD: 'p',
+	TH: 'p',
 	DT: 'p',
 	DD: 'p',
 	H1: 'h1',
@@ -198,24 +249,45 @@ interface Block {
 	key: StyleMapKey
 	list?: 'bullet' | 'ordered'
 	indent?: number
+	/** Inside a top-level `<tr>`: its row id. */
+	row?: string
+	/** Inside a top-level `<td>` / `<th>`: every line is a line of this cell. */
+	cell?: { row: string; id: string; th: boolean; colspan?: string; rowspan?: string }
+}
+
+/** A `colspan` / `rowspan` worth keeping (2–64), as stored. */
+const span = (v: unknown) => {
+	const n = cellSpan(v)
+	return n === undefined ? undefined : String(n)
 }
 
 /**
  * Sanitized HTML → story Delta. Keeps paragraph structure (headings/quote/code via `m.styleMap`,
- * lists with nesting), bold/italic/underline/strike, safe links and colours; tables become one
- * paragraph per row with tab-separated cells (pagillo has no tables). Fonts, sizes and images
- * are dropped; map them when the pasted look must survive (fonts must be bundled).
+ * lists with nesting), bold/italic/underline/strike, safe links and colours; tables become
+ * quill-table-better cell lines (fresh row / cell ids; a table nested in a cell flattens into
+ * that cell's paragraphs). Fonts, sizes and images are dropped; map them when the pasted look
+ * must survive (fonts must be bundled).
  */
 export function htmlToDelta(doc: YPagilloDocument, html: string): DeltaOp[] {
 	const map = styleMap(doc)
 	const parsed = new DOMParser().parseFromString(html, 'text/html')
 	const ops: DeltaOp[] = []
 	let open = false
+	/** A `<table>` opened: its first cell writes the `table-temporary` line first. */
+	let tableStart = false
 	const endLine = (b: Block) => {
 		const attrs: Record<string, unknown> = {}
 		if (map[b.key]) attrs.ps = map[b.key]
 		if (b.list) attrs.list = b.list
 		if (b.indent) attrs.indent = b.indent
+		const c = b.cell
+		if (c) {
+			const ca: Record<string, unknown> = { 'data-row': c.row }
+			if (c.colspan) ca.colspan = c.colspan
+			if (c.rowspan) ca.rowspan = c.rowspan
+			attrs[c.th ? 'table-th' : 'table-cell'] = ca
+			attrs[c.th ? 'table-th-block' : 'table-cell-block'] = c.id
+		}
 		ops.push({ insert: '\n', attributes: attrs })
 		open = false
 	}
@@ -244,7 +316,6 @@ export function htmlToDelta(doc: YPagilloDocument, html: string): DeltaOp[] {
 		const tag = el.tagName.toUpperCase()
 		if (SKIP.has(tag)) return
 		if (tag === 'BR') return void endLine(block)
-		if ((tag === 'TD' || tag === 'TH') && el.previousElementSibling) text('\t', marks)
 
 		const m = { ...marks }
 		if (tag === 'B' || tag === 'STRONG') m.bold = true
@@ -274,11 +345,35 @@ export function htmlToDelta(doc: YPagilloDocument, html: string): DeltaOp[] {
 			if (st.color && st.color !== 'inherit' && st.color !== 'initial') m.color = st.color
 		}
 
-		const key = BLOCK_KEY[tag]
+		let key: StyleMapKey | undefined = BLOCK_KEY[tag]
 		let inner = block
-		if (key) {
+		let n = -1
+		const top = !block.cell
+		if (top && tag === 'TABLE') {
 			if (open) endLine(block)
-			inner = { key }
+			tableStart = true
+		} else if (top && tag === 'TR') {
+			if (open) endLine(block)
+			inner = { key: 'p', row: newRowId() }
+		} else if (top && (tag === 'TD' || tag === 'TH')) {
+			if (open) endLine(block)
+			if (tableStart) ops.push({ insert: '\n', attributes: { 'table-temporary': {} } })
+			tableStart = false
+			n = ops.length
+			key = undefined
+			inner = {
+				key: 'p',
+				cell: {
+					row: block.row ?? newRowId(),
+					id: newCellId(),
+					th: tag === 'TH',
+					colspan: span(el.getAttribute('colspan')),
+					rowspan: span(el.getAttribute('rowspan'))
+				}
+			}
+		} else if (key) {
+			if (open) endLine(block)
+			inner = { key, cell: block.cell }
 			if (tag === 'LI') {
 				// Quill 2 exports every list as <ol> with `data-list`; indent = nesting or ql-indent-N.
 				const ql = el.getAttribute('data-list')
@@ -300,7 +395,8 @@ export function htmlToDelta(doc: YPagilloDocument, html: string): DeltaOp[] {
 		}
 		const isPre = pre || tag === 'PRE'
 		for (const child of el.childNodes) walk(child, m, inner, isPre)
-		if (key && open) endLine(inner)
+		// An empty cell still gets its line.
+		if (n >= 0 ? open || ops.length === n : key && open) endLine(inner)
 	}
 	walk(parsed.body, {}, { key: 'p' }, false)
 	return ops
@@ -327,22 +423,88 @@ export function readDelta(json: string): DeltaOp[] | undefined {
 /**
  * Insert a rich fragment at `at` (inside the caller's transaction); returns the offset after it.
  * Each `'\n'` takes its pasted line attrs with a fresh `bid` (Quill semantics: the paragraph the
- * paste lands in keeps its own attrs on its tail). Style / character-style ids and footnote
- * stories this publication lacks are dropped; links are re-checked.
+ * paste lands in keeps its own attrs on its tail). Style / character-style ids this publication
+ * lacks are dropped; footnote refs are kept (with a copied body) only for this publication's
+ * footnotes pasted into a section story's top-level text, where refs render; links are
+ * re-checked. Table lines get fresh row / cell ids (quillo's `normalizeTablePasteDelta`),
+ * `table-col` lines are dropped, and inside a cell every pasted line joins that cell.
  */
 export function pasteDelta(doc: YPagilloDocument, t: Y.Text, at: number, ops: DeltaOp[]): number {
-	let pos = at
 	const out: DeltaOp[] = []
-	for (const op of stripBlockIds(ops)) {
+	const target = paragraphEnd(t, at)?.attrs
+	const into = cellOf(target)
+		? Object.fromEntries(TABLE_KEYS.map((k) => [k, target?.[k] ?? null]))
+		: undefined
+	// A leading table starts a line: the text before the caret keeps a paragraph of its own.
+	if (!into) {
+		const nl = ops.find((op) => typeof op.insert === 'string' && op.insert.includes('\n'))
+		if (nl && cellOf(nl.attributes) !== undefined) at = breakBefore(t, at)
+	}
+	let pos = at
+	const rows = new Map<string, string>()
+	/** Keyed by (old row, old cell): pasted cell ids repeat across rows. */
+	const cells = new Map<string, string>()
+	const tableAttrs = (a: Record<string, unknown>): Record<string, unknown> | undefined => {
+		if (into) return into
+		const cell = cellOf(a)
+		if (cell === undefined) return
+		if (!cell) {
+			const tmp = a['table-temporary']
+			const b = isObj(tmp) ? tmp['data-borders'] : undefined
+			return {
+				'table-temporary':
+					typeof b === 'string' && BORDERS.has(b) ? { 'data-borders': b } : {}
+			}
+		}
+		const old = rowOf(a) ?? ''
+		const row = rows.get(old) ?? newRowId()
+		rows.set(old, row)
+		const key = `${old}\u0000${cell}`
+		const id = cells.get(key) ?? newCellId()
+		cells.set(key, id)
+		const th = a['table-th'] != null
+		const src = a[th ? 'table-th' : 'table-cell']
+		const ca: Record<string, unknown> = { 'data-row': row }
+		for (const k of ['colspan', 'rowspan']) {
+			const v = isObj(src) ? src[k] : undefined
+			const n = span(v)
+			if (n) ca[k] = n
+		}
+		return {
+			[th ? 'table-th' : 'table-cell']: ca,
+			[th ? 'table-th-block' : 'table-cell-block']: id
+		}
+	}
+	const notesOk = !into && sectionsOf(doc).some(([, s]) => doc.tx.get(s.story) === t)
+	const src = stripBlockIds(ops)
+	/** Per op: its line (ended by the next `'\n'`) is a table line. */
+	const cellLine: boolean[] = []
+	let inCell = false
+	for (let i = src.length - 1; i >= 0; i--) {
+		const op = src[i]
+		if (typeof op.insert === 'string' && op.insert.includes('\n'))
+			inCell = cellOf(op.attributes) !== undefined
+		cellLine[i] = inCell
+	}
+	for (const [i, op] of src.entries()) {
 		const a = op.attributes ?? {}
+		if (a['table-col'] != null) continue
+		// A pasted table's own end line would leave an empty line in the cell.
+		if (into && a['table-temporary'] != null && op.insert === '\n') continue
 		const marks: Record<string, unknown> = { ...NO_MARKS }
 		for (const k of MARK_KEYS) if (typeof a[k] === MARK_TYPES[k]) marks[k] = a[k]
 		if (marks.cs && !styleOf(doc, marks.cs as string)) marks.cs = null
 		if (marks.size != null && !(isNum(marks.size) && marks.size > 0)) marks.size = null
 		if (marks.link != null) marks.link = safeLink(marks.link) ?? null
 		if (typeof op.insert !== 'string') {
-			const e = op.insert as Record<string, unknown>
-			if (typeof e.fn === 'string' && !doc.tx.has(e.fn)) continue
+			let e = op.insert as Record<string, unknown>
+			if (typeof e.fn === 'string') {
+				const r = doc.f.get(e.fn)
+				if (!notesOk || cellLine[i] || !(r instanceof Y.Map && r.get('t') === 'fn'))
+					continue
+				// A pasted ref gets its own body: two refs to one story would share the note.
+				e = { ...e, fn: copyStory(doc, e.fn, false) }
+			}
 			out.push({ insert: e, attributes: { ...marks, ...NO_LINE } })
 			pos++
 			continue
@@ -363,7 +525,8 @@ export function pasteDelta(doc: YPagilloDocument, t: Y.Text, at: number, ops: De
 						indent:
 							isNum(a.indent) && a.indent > 0
 								? Math.min(8, Math.floor(a.indent))
-								: null
+								: null,
+						...tableAttrs(a)
 					}
 				})
 			}

@@ -139,11 +139,11 @@ export function hitText(
 	for (const pl of lines) {
 		const l = pl.line
 		const p = local(l, x, y)
-		// Column extent: lines of this story overlapping this one horizontally.
-		// O(n²) per click over one page's lines; index columns if pages get huge.
-		let cl = l.x
-		let cr = right(l)
-		for (const o of lines) {
+		// Column extent: a table cell's box, else lines of this story overlapping this one
+		// horizontally. O(n²) per click over one page's lines; index columns if pages get huge.
+		let cl = l.cell ? l.cell.x : l.x
+		let cr = l.cell ? l.cell.x + l.cell.w : right(l)
+		for (const o of l.cell ? [] : lines) {
 			const ol = o.line
 			if (ol.story !== l.story || ol.x > right(l) || right(ol) < l.x) continue
 			cl = Math.min(cl, ol.x)

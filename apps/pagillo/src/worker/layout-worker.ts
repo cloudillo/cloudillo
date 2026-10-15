@@ -36,6 +36,7 @@ import {
 	pageKey,
 	type WorkerToMain
 } from './protocol'
+import { spellCheck, spellConfig, spellSuggest } from './spell'
 
 const registry = new FontRegistry()
 const shape = createShapeCache()
@@ -58,6 +59,18 @@ const sent = new Map<string, Set<number>>()
 
 function post(msg: WorkerToMain, transfer: Transferable[] = []): void {
 	self.postMessage(msg, { transfer })
+}
+
+/** The adapter's stories and spelling meta for `spellCheck`. */
+function spellSrc() {
+	if (!adapter) return
+	const m = readMeta(adapter.doc.m)
+	return {
+		stories: adapter.storyMap(),
+		styles: adapter.styles,
+		lang: m.lang,
+		ignore: m.spellIgnore ?? []
+	}
 }
 
 async function fetchBytes(url: string): Promise<ArrayBuffer> {
@@ -140,6 +153,7 @@ async function run(): Promise<void> {
 				sections: r.sections,
 				overset: r.overset
 			})
+			spellCheck(spellSrc, post)
 			// Far pages are the previous pass's: reflow them once typing pauses (init: right away).
 			if (r.partial) {
 				clearTimeout(tail)
@@ -324,6 +338,15 @@ self.onmessage = (e: MessageEvent<MainToWorker>) => {
 			return
 		case 'pdf.cancel':
 			job?.abort()
+			return
+		case 'spell.config':
+			spellConfig(msg.on, msg.words)
+			spellCheck(spellSrc, post)
+			return
+		case 'spell.suggest':
+			void spellSuggest(msg.word, msg.lang).then((words) =>
+				post({ type: 'spell.suggestions', id: msg.id, words })
+			)
 			return
 		case 'init':
 			fontBase = msg.fontBase

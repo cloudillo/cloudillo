@@ -89,11 +89,17 @@ import {
 } from './frames'
 import { hitFrame, nearArea, textAreas } from './hit-test'
 import { IS_MAC } from './keymap'
-import { deleteRange, insertText } from './text-edit'
+import { breakBefore, deleteRange } from './text-edit'
 import type { Editor } from './useEditor'
 
 const PREFS_KEY = 'pagillo.view'
-const DEFAULT_PREFS: ViewPrefs = { rulers: false, snap: true, keyHints: true, guides: true }
+const DEFAULT_PREFS: ViewPrefs = {
+	rulers: false,
+	snap: true,
+	keyHints: true,
+	guides: true,
+	spell: true
+}
 /** Resize handles: id, x and y fraction of the box. */
 const HANDLES: [ResizeHandle, number, number][] = [
 	['nw', 0, 0],
@@ -120,6 +126,8 @@ export interface ViewPrefs {
 	keyHints: boolean
 	/** Edit layout: margin, column-grid and row-grid guides. */
 	guides: boolean
+	/** Spell-check squiggles and suggestions. */
+	spell: boolean
 }
 
 type Drag =
@@ -734,8 +742,7 @@ export function useFrames({
 			// Inline: its own paragraph; the engine scales it to the column width.
 			n.editor.run((tx, from, to) => {
 				deleteRange(tx, from, to)
-				let at = from
-				if (at > 0 && storyText(tx)[at - 1] !== '\n') at = insertText(tx, at, '\n')
+				const at = breakBefore(tx, from)
 				insertImageParagraph(tx, at, { fileId: r.fileId, w: pw * FX, h: ph * FX, alt: '' })
 				return at + 2
 			})

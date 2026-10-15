@@ -20,7 +20,8 @@ import type {
 	Region,
 	Run,
 	Section,
-	Story
+	Story,
+	TableBlock
 } from '@cloudillo/typeset'
 
 import {
@@ -33,15 +34,17 @@ import {
 	sectionOf,
 	stylesOf
 } from './entities'
+import { newBlockId } from './block-ids'
 import { sanitizeBox, sanitizeMarks, sanitizeOverrides } from './overrides'
-import type {
-	StoredFrame,
-	StoredLineAttrs,
-	StoredMaster,
-	StoredMeta,
-	StoredSection,
-	StoredTextFrameData,
-	YPagilloDocument
+import {
+	type StoredFrame,
+	type StoredLineAttrs,
+	TABLE_KEYS,
+	type StoredMaster,
+	type StoredMeta,
+	type StoredSection,
+	type StoredTextFrameData,
+	type YPagilloDocument
 } from './stored-types'
 import type { PageSize, PublicationMeta } from './runtime-types'
 
@@ -86,19 +89,68 @@ export interface DeltaOp {
 	attributes?: Record<string, unknown>
 }
 
+/** A line of a quill-table-better table (any `TABLE_KEYS` attr set). */
+export const isTableLine = (a: StoredLineAttrs | Record<string, unknown> | undefined): boolean =>
+	!!a && TABLE_KEYS.some((k) => (a as Record<string, unknown>)[k] != null)
+
+/** Cell id of a line: its `*-block` id; `''` on a table / col line; undefined outside tables. */
+export function cellOf(
+	a: StoredLineAttrs | Record<string, unknown> | undefined
+): string | undefined {
+	if (!a) return
+	const la = a as StoredLineAttrs
+	const b = la['table-cell-block'] ?? la['table-th-block']
+	if (b != null) return String(b)
+	return isTableLine(a) ? '' : undefined
+}
+
+/** Row id of a cell line (`data-row`; quill-table-better pastes may store it bare). */
+export function rowOf(
+	a: StoredLineAttrs | Record<string, unknown> | undefined
+): string | undefined {
+	const la = a as StoredLineAttrs | undefined
+	const c: unknown = la?.['table-cell'] ?? la?.['table-th']
+	if (c == null) return
+	return String(typeof c === 'object' ? (c as Record<string, unknown>)['data-row'] : c)
+}
+
+/** Stored `data-borders` values of a table. */
+export const BORDERS = new Set(['outer', 'header', 'none'])
+/** Widest table grid read (the engine's `MAX_SPAN`): a peer or paste could ask for any width. */
+const MAX_COLS = 64
+/** A `colspan` / `rowspan` worth keeping (2–64). */
+export const cellSpan = (v: unknown): number | undefined => {
+	const n = Number(v)
+	return Number.isInteger(n) && n > 1 ? Math.min(n, MAX_COLS) : undefined
+}
+/** Grid columns a cell line spans (`colspan`, 1 when missing). */
+export function colSpanOf(a: StoredLineAttrs | Record<string, unknown> | undefined): number {
+	const la = a as StoredLineAttrs | undefined
+	const c: unknown = la?.['table-cell'] ?? la?.['table-th']
+	return (typeof c === 'object' && cellSpan((c as Record<string, unknown> | null)?.colspan)) || 1
+}
+export const newRowId = (): string => `row-${newBlockId()}`
+export const newCellId = (): string => `cell-${newBlockId()}`
+
 /**
  * Story delta → engine paragraphs. Every `'\n'` ends a paragraph and carries its line attrs.
  * A missing or duplicate `bid` (not yet normalised — readers never normalise) gets a
- * placeholder `~<index>` so the engine's per-story bid uniqueness always holds. A paragraph
- * holding only an `img` embed becomes an `EmbedBlock` (full column width / centred).
+ * placeholder `~<line index>` so the engine's per-story bid uniqueness always holds. A paragraph
+ * holding only an `img` embed becomes an `EmbedBlock` (full column width / centred, or its
+ * `float` when set). Consecutive table lines become one `TableBlock` paragraph (bid: its
+ * `table-temporary` line's, else `<first cell bid>~t`) whose cell paragraphs keep their own bids.
  */
 export function deltaToParagraphs(ops: DeltaOp[], defaultStyle = ''): Paragraph[] {
 	const out: Paragraph[] = []
 	const seen = new Set<string>()
 	let runs: Run[] = []
+	/** '\n' index: the bid fallback counts lines, as `paragraphStarts` does. */
+	let line = 0
+	let tbl: { p: Paragraph; blk: TableBlock; row?: string; cell?: string } | undefined
+	const tables: Paragraph[] = []
 
-	const push = (attrs: StoredLineAttrs) => {
-		const bid = bidOf(attrs, seen, out.length)
+	const paragraph = (attrs: StoredLineAttrs): Paragraph => {
+		const bid = bidOf(attrs, seen, line++)
 		const overrides: Partial<ParagraphProps> = { ...sanitizeOverrides(attrs.po) }
 		if (attrs.list === 'bullet' || attrs.list === 'ordered') {
 			const level = Math.min(8, Math.max(0, attrs.indent ?? 0))
@@ -107,18 +159,74 @@ export function deltaToParagraphs(ops: DeltaOp[], defaultStyle = ''): Paragraph[
 		const p: Paragraph = { bid, style: attrs.ps || defaultStyle, overrides, runs }
 		const only = runs.length === 1 ? runs[0].embed : undefined
 		if (only && 'img' in only) {
-			const { fileId, w, h, alt } = only.img
+			const { fileId, w, h, alt, float } = only.img
 			p.runs = {
 				k: 'emb',
 				data: {},
 				img: { fileId, crop: FULL_CROP, fit: 'contain', alt },
 				w,
-				h
+				h,
+				...(float ? { float } : {})
 			}
 		}
 		if (attrs.ph) p.placeholder = attrs.ph
-		out.push(p)
 		runs = []
+		return p
+	}
+
+	const push = (attrs: StoredLineAttrs) => {
+		const p = paragraph(attrs)
+		if (!isTableLine(attrs)) {
+			tbl = undefined
+			out.push(p)
+			return
+		}
+		const tmp = attrs['table-temporary']
+		if (!tbl || (tmp && tbl.blk.rows.length)) {
+			const blk: TableBlock = { k: 'table', cols: [], rows: [] }
+			let bid = p.bid
+			if (!tmp) {
+				bid = `${p.bid}~t`
+				seen.add(bid)
+			}
+			const tp: Paragraph = tmp
+				? { bid, style: p.style, overrides: p.overrides, runs: blk }
+				: { bid, style: defaultStyle, overrides: {}, runs: blk }
+			const b = tmp?.['data-borders']
+			if (b && BORDERS.has(b)) blk.borders = b
+			tbl = { p: tp, blk }
+			tables.push(tp)
+			out.push(tp)
+		}
+		const cell = cellOf(attrs)
+		if (!cell) return // the table-temporary or a table-col line
+		const { blk } = tbl
+		const row = rowOf(attrs) ?? ''
+		let r = blk.rows[blk.rows.length - 1]
+		if (!r || row !== tbl.row) {
+			r = { cells: [] }
+			if (attrs['table-th'] != null) r.header = true
+			blk.rows.push(r)
+			tbl.row = row
+			tbl.cell = undefined
+		}
+		let c = r.cells[r.cells.length - 1]
+		// A full row's further cells join its last one: the text stays, the grid stays bounded.
+		if (
+			!c ||
+			(cell !== tbl.cell && r.cells.reduce((s, x) => s + (x.colSpan ?? 1), 0) < MAX_COLS)
+		) {
+			const ca: unknown = attrs['table-cell'] ?? attrs['table-th']
+			const o = ca && typeof ca === 'object' ? (ca as Record<string, unknown>) : {}
+			c = { paragraphs: [] }
+			const cs = colSpanOf(attrs)
+			const rs = cellSpan(o.rowspan)
+			if (cs > 1) c.colSpan = cs
+			if (rs) c.rowSpan = rs
+			r.cells.push(c)
+		}
+		tbl.cell = cell
+		c.paragraphs.push(p)
 	}
 
 	for (const op of ops) {
@@ -145,6 +253,18 @@ export function deltaToParagraphs(ops: DeltaOp[], defaultStyle = ''): Paragraph[
 	}
 	// Unterminated tail (the normaliser appends the '\n'; until then keep it visible).
 	if (runs.length) push({})
+	for (const tp of tables) {
+		const blk = tp.runs as TableBlock
+		let n = 0
+		for (const r of blk.rows)
+			n = Math.max(
+				n,
+				r.cells.reduce((s, c) => s + (c.colSpan ?? 1), 0)
+			)
+		// Equal widths (quill-table-better's colgroup widths are not read).
+		if (n) blk.cols = new Array<number>(Math.min(n, MAX_COLS)).fill(0)
+		else tp.runs = []
+	}
 	return out
 }
 
@@ -156,12 +276,11 @@ function bidOf(attrs: StoredLineAttrs, seen: Set<string>, index: number): string
 	return bid
 }
 
-/**
- * Y.Text start offset of each paragraph, keyed by the bid `deltaToParagraphs` gives it — maps the
- * engine's paragraph-relative `LineGeom.from/to` to story offsets.
- */
-export function paragraphStarts(ops: DeltaOp[]): Map<string, number> {
-	const out = new Map<string, number>()
+/** Each paragraph's bid (as `deltaToParagraphs` gives it), Y.Text start and line attrs. */
+function eachParagraph(
+	ops: DeltaOp[],
+	fn: (bid: string, start: number, attrs: StoredLineAttrs) => void
+): void {
 	const seen = new Set<string>()
 	let n = 0
 	let pos = 0
@@ -182,14 +301,34 @@ export function paragraphStarts(ops: DeltaOp[]): Map<string, number> {
 				if (ins.length > i) open = true
 				break
 			}
-			out.set(bidOf((op.attributes ?? {}) as StoredLineAttrs, seen, n++), start)
+			const a = (op.attributes ?? {}) as StoredLineAttrs
+			fn(bidOf(a, seen, n++), start, a)
 			start = pos + nl + 1
 			open = false
 			i = nl + 1
 		}
 		pos += ins.length
 	}
-	if (open) out.set(bidOf({}, seen, n), start)
+	if (open) fn(bidOf({}, seen, n), start, {})
+}
+
+/**
+ * Y.Text start offset of each paragraph, keyed by the bid `deltaToParagraphs` gives it — maps the
+ * engine's paragraph-relative `LineGeom.from/to` to story offsets.
+ */
+export function paragraphStarts(ops: DeltaOp[]): Map<string, number> {
+	const out = new Map<string, number>()
+	eachParagraph(ops, (bid, start) => out.set(bid, start))
+	return out
+}
+
+/** Table cell paragraphs keyed by their `deltaToParagraphs` bid: row and cell id. */
+export function tableCells(ops: DeltaOp[]): Map<string, { row: string; cell: string }> {
+	const out = new Map<string, { row: string; cell: string }>()
+	eachParagraph(ops, (bid, _s, a) => {
+		const cell = cellOf(a)
+		if (cell) out.set(bid, { row: rowOf(a) ?? '', cell })
+	})
 	return out
 }
 

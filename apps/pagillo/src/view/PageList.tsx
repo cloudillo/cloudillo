@@ -100,6 +100,8 @@ export interface PageListProps {
 	dragScroll?: boolean
 	/** Other scrollers a move drag auto-scrolls (the Pages rail). */
 	dragScrollEls?: React.RefObject<HTMLElement | null>[]
+	/** Right-click on a page; the callee decides whether to suppress the native menu. */
+	onPageContextMenu?(hit: PageHit, e: React.MouseEvent): void
 }
 
 /** Auto-scroll band (CSS px from the edge) and top speed (CSS px per frame). */
@@ -119,7 +121,8 @@ export function PageList({
 	pinned,
 	onPagePointer,
 	dragScroll,
-	dragScrollEls
+	dragScrollEls,
+	onPageContextMenu
 }: PageListProps) {
 	const ref = React.useRef<HTMLDivElement>(null)
 	/** Last captured pointer (client px + event): the scroll re-run of a move drag. */
@@ -293,6 +296,10 @@ export function PageList({
 			onPointerMove={pointer('move')}
 			onPointerUp={pointer('up')}
 			onPointerCancel={pointer('cancel')}
+			onContextMenu={(e) => {
+				const h = onPageContextMenu && hitAt(e.clientX, e.clientY)
+				if (h) onPageContextMenu?.(h, e)
+			}}
 		>
 			{list.length === 0 && skeleton && (
 				<Skeleton

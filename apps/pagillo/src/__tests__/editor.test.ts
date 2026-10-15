@@ -509,3 +509,33 @@ describe('hitText on a split row', () => {
 		expect(hitText(index, 0, 50, 50, undefined, areas)).toEqual({ story: 's', offset: 20 })
 	})
 })
+
+describe('hitText in table cells', () => {
+	/** A short cell line (text 4..24 past the cell's left edge) in a 100-wide cell at `cx`. */
+	const C = (cx: number, from: number): PlacedLine => ({
+		line: {
+			story: 's',
+			bid: 's',
+			row: 0,
+			x: cx + 4,
+			y: 30,
+			ascent: 8,
+			descent: 2,
+			carets: Array.from({ length: 11 }, (_, i) => cx + 4 + i * 2),
+			cell: { x: cx, w: 100 }
+		} as unknown as PlacedLine['line'],
+		page: 0,
+		from,
+		to: from + 10
+	})
+	const lines = [C(0, 0), C(100, 20)]
+	const index: GeomIndex = { stories: new Map([['s', lines]]), pages: new Map([[0, lines]]) }
+
+	it('a click in the right half of a cell stays in that cell', () => {
+		expect(hitText(index, 0, 75, 30)).toEqual({ story: 's', offset: 10 })
+	})
+
+	it('a click in the next cell’s left padding goes to that cell', () => {
+		expect(hitText(index, 0, 102, 30)).toEqual({ story: 's', offset: 20 })
+	})
+})

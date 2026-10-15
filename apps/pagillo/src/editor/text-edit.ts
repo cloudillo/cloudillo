@@ -10,9 +10,10 @@
 import type * as Y from 'yjs'
 
 import { newBlockId } from '../crdt/block-ids'
-import { deltaOf } from '../crdt/delta-cache'
+import { deltaOf, storyTextOf } from '../crdt/delta-cache'
 import { embedImgAt } from '../crdt/frame-ops'
 import { LINE_KEYS as LINE, MARK_KEYS as MARKS } from '../crdt/stored-types'
+import { cellOf, isTableLine } from '../crdt/type-converters'
 
 const pick = (src: Record<string, unknown> | undefined, keys: readonly string[]) =>
 	Object.fromEntries(keys.map((k) => [k, src?.[k] ?? null]))
@@ -32,7 +33,7 @@ function charAt(
 }
 
 /** The `'\n'` ending the paragraph that holds `offset`. */
-function paragraphEnd(
+export function paragraphEnd(
 	t: Y.Text,
 	offset: number
 ): { index: number; attrs?: Record<string, unknown> } | undefined {
@@ -44,6 +45,11 @@ function paragraphEnd(
 			pos += op.insert.length
 		} else pos++
 	}
+}
+
+/** `at`, or past a fresh paragraph break when `at` is mid-paragraph (a block starts a line). */
+export function breakBefore(t: Y.Text, at: number): number {
+	return at > 0 && storyTextOf(t)[at - 1] !== '\n' ? insertText(t, at, '\n') : at
 }
 
 /**
@@ -104,7 +110,8 @@ function imagePara(t: Y.Text, offset: number): number | undefined {
  * Delete `[from, to)`. When paragraphs merge, the merged one keeps the first paragraph's line
  * attrs and bid (not the last one's). Image paragraphs go whole or not at all, and text never
  * merges into one (it would render as a U+FFFC run): touching one deletes all of it; Delete at
- * the end of the paragraph before it deletes the image.
+ * the end of the paragraph before it deletes the image. Table lines never merge across cells, and
+ * a table goes only whole (`breaks` below); otherwise only its text is cleared.
  */
 export function deleteRange(t: Y.Text, from: number, to: number): void {
 	if (to <= from) return
@@ -128,8 +135,34 @@ export function deleteRange(t: Y.Text, from: number, to: number): void {
 	const first = paragraphEnd(t, from)
 	// Whole paragraphs deleted: nothing merges, the next paragraph keeps its own attrs.
 	const whole = (from === 0 || charAt(t, from - 1)?.ch === '\n') && charAt(t, to - 1)?.ch === '\n'
+	// Tables keep their shape: a merge across cells (or a cell and outside text), or a cut into
+	// a table that does not take it whole, clears the text and keeps every '\n'.
+	const merge = !!first && first.index < to && !whole
+	const txt = storyTextOf(t)
+	const inTable = [...txt.slice(from, to).matchAll(/\n/g)].some((m) =>
+		isTableLine(paragraphEnd(t, from + m.index)?.attrs)
+	)
+	// Both ends in one cell (e.g. a Tab-selected multi-paragraph cell): merge as plain text.
+	const cell = cellOf(paragraphEnd(t, to)?.attrs)
+	const oneCell = cell !== undefined && cellOf(first?.attrs) === cell
+	if (
+		!oneCell &&
+		((merge && cellOf(first?.attrs) !== cell) ||
+			(inTable &&
+				(!whole ||
+					isTableLine(from > 0 ? charAt(t, from - 1)?.attrs : undefined) ||
+					isTableLine(paragraphEnd(t, to)?.attrs))))
+	) {
+		for (let b = to; b > from; ) {
+			const nl = txt.lastIndexOf('\n', b - 1)
+			const a = Math.max(from, nl + 1)
+			if (b > a) t.delete(a, b - a)
+			b = nl
+		}
+		return
+	}
 	t.delete(from, to - from)
-	if (first && first.index < to && !whole) {
+	if (merge && first) {
 		const merged = paragraphEnd(t, from)
 		if (merged) t.format(merged.index, 1, pick(first.attrs, LINE))
 	}

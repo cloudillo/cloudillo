@@ -25,10 +25,19 @@ import {
 	type YPagilloDocument
 } from '../crdt/stored-types'
 import { updateStyle } from '../crdt/style-ops'
-import { type DeltaOp, readMeta } from '../crdt/type-converters'
+import {
+	cellOf,
+	colSpanOf,
+	type DeltaOp,
+	isTableLine,
+	newCellId,
+	newRowId,
+	readMeta,
+	rowOf
+} from '../crdt/type-converters'
 import * as C from './caret'
 import { sliceDelta } from './clipboard'
-import { deleteRange, insertText } from './text-edit'
+import { breakBefore, deleteRange, insertText } from './text-edit'
 import type { Editor } from './useEditor'
 
 export interface CommandCtx {
@@ -138,6 +147,15 @@ export interface TextState {
 	eff: Record<string, unknown>
 	/** "Body +": direct paragraph overrides or formatting marks. */
 	overrides: boolean
+	/** The caret's table (row/col of the caret cell, 0-based). */
+	table?: {
+		rows: number
+		cols: number
+		row: number
+		col: number
+		header: boolean
+		borders: TableBorders
+	}
 }
 
 export function textState(
@@ -151,6 +169,7 @@ export function textState(
 	const ps = paras.every((p) => p.attrs.ps === first.ps) ? first.ps : undefined
 	const po = first.po ?? {}
 	const marks = marksIn(t, C.selFrom(sel), C.selTo(sel))
+	const tb = tableAt(t, C.selFrom(sel))
 	return {
 		ps,
 		po,
@@ -158,7 +177,17 @@ export function textState(
 		indent: first.indent ?? 0,
 		marks,
 		eff: { ...inheritedProps(doc, first.ps), ...po },
-		overrides: Object.keys(po).length > 0 || FORMAT_MARKS.some((k) => k in marks)
+		overrides: Object.keys(po).length > 0 || FORMAT_MARKS.some((k) => k in marks),
+		...(tb && {
+			table: {
+				rows: tb.rows.length,
+				cols: colsOf(tb),
+				row: tb.row,
+				col: tb.col,
+				header: tb.rows[0].th,
+				borders: tb.temp?.attrs['table-temporary']?.['data-borders'] ?? 'all'
+			}
+		})
 	}
 }
 
@@ -265,9 +294,8 @@ export function insertSectionBreak({ doc, editor }: CommandCtx): void {
 	let next: string | undefined
 	editor.run((t, from, to) => {
 		deleteRange(t, from, to)
-		const txt = C.storyText(t)
 		// Split mid-paragraph first, so the tail starts at a paragraph start.
-		const at = from > 0 && txt[from - 1] !== '\n' ? insertText(t, from, '\n') : from
+		const at = breakBefore(t, from)
 		// Uncached on purpose: `applyDelta` writes nulls into the ops' attribute objects.
 		const tail = sliceDelta(t.toDelta() as DeltaOp[], at, t.length)
 		const body = styleMap(doc).p
@@ -395,6 +423,390 @@ export function deletePage({ editor }: CommandCtx, story: string, page: number):
 	editor.run((t, from, to) => {
 		deleteRange(t, from, to)
 		return from
+	})
+}
+
+// Tables: quill-table-better lines (`StoredLineAttrs`), grouped as `deltaToParagraphs` does.
+
+export type TableBorders = 'all' | 'outer' | 'header' | 'none'
+
+export interface TableCellRef {
+	id: string
+	/** Offset of the cell's first character. */
+	start: number
+	/** Offset of the cell's last `'\n'`. */
+	end: number
+	/** Grid column it starts at, and how many it spans. */
+	x: number
+	span: number
+}
+
+export interface TableRowRef {
+	id: string
+	th: boolean
+	cells: TableCellRef[]
+}
+
+export interface TableRef {
+	/** Offset of the table's first line (its `table-temporary` line, when it has one). */
+	from: number
+	/** Offset after its last `'\n'`. */
+	to: number
+	temp?: Line
+	rows: TableRowRef[]
+	/** Row and grid column (its cell's first) holding the queried offset; 0 / 0 on the table line. */
+	row: number
+	col: number
+}
+
+// Rowspan ignored for grid columns; build a full grid once rowspan editing exists.
+const isTemp = (l: Line) => !!l.attrs['table-temporary']
+const rowEnd = (r: TableRowRef) => {
+	const c = r.cells[r.cells.length - 1]
+	return c.x + c.span
+}
+const colsOf = (tb: TableRef) => Math.max(...tb.rows.map(rowEnd))
+/** The cell of `r` covering grid column `col`. */
+const cellAtCol = (r: TableRowRef, col: number) =>
+	r.cells.find((c) => c.x <= col && col < c.x + c.span)
+
+/** Set a cell's `colspan` on all its lines. */
+function setColSpan(t: Y.Text, c: TableCellRef, n: number): void {
+	for (const l of paragraphsIn(t, c.start, c.end)) {
+		const a = l.attrs as Record<string, Record<string, unknown> | undefined>
+		const k = a['table-th'] != null ? 'table-th' : 'table-cell'
+		const v = a[k]
+		const o = v && typeof v === 'object' ? v : { 'data-row': v }
+		t.format(l.index, 1, { [k]: { ...o, colspan: n > 1 ? String(n) : undefined } })
+	}
+}
+
+/** `'\n'` attrs of a fresh cell paragraph. */
+const cellLine = (row: string, cell: string, th: boolean, ps: string | null) => ({
+	...NO_LINE,
+	bid: newBlockId(),
+	ps,
+	[th ? 'table-th' : 'table-cell']: { 'data-row': row },
+	[th ? 'table-th-block' : 'table-cell-block']: cell
+})
+
+/** The table holding offset `off`. */
+export function tableAt(t: Y.Text, off: number): TableRef | undefined {
+	const lines = paragraphsIn(t, 0, Number.POSITIVE_INFINITY)
+	const i = lines.findIndex((l) => l.index >= off)
+	if (i < 0 || !isTableLine(lines[i].attrs)) return
+	// A `table-temporary` line starts a table.
+	let a = i
+	while (a > 0 && !isTemp(lines[a]) && isTableLine(lines[a - 1].attrs)) a--
+	let b = i
+	while (lines[b + 1] && isTableLine(lines[b + 1].attrs) && !isTemp(lines[b + 1])) b++
+	const from = a > 0 ? lines[a - 1].index + 1 : 0
+	const tb: TableRef = {
+		from,
+		to: lines[b].index + 1,
+		temp: isTemp(lines[a]) ? lines[a] : undefined,
+		rows: [],
+		row: 0,
+		col: 0
+	}
+	let start = from
+	for (let k = a; k <= b; k++) {
+		const l = lines[k]
+		const cell = cellOf(l.attrs)
+		if (cell) {
+			const id = rowOf(l.attrs) ?? ''
+			let r = tb.rows[tb.rows.length - 1]
+			if (r?.id !== id) {
+				r = { id, th: l.attrs['table-th'] != null, cells: [] }
+				tb.rows.push(r)
+			}
+			let c = r.cells[r.cells.length - 1]
+			if (c?.id !== cell) {
+				const x = c ? c.x + c.span : 0
+				c = { id: cell, start, end: l.index, x, span: colSpanOf(l.attrs) }
+				r.cells.push(c)
+			}
+			c.end = l.index
+			if (k === i) {
+				tb.row = tb.rows.length - 1
+				tb.col = c.x
+			}
+		}
+		start = l.index + 1
+	}
+	return tb.rows.length ? tb : undefined
+}
+
+/** Make sure a paragraph starts at `at` (inserting an empty Body one at the story end). */
+function paragraphAtEnd(doc: YPagilloDocument, t: Y.Text, at: number): number {
+	if (at >= t.length)
+		t.insert(at, '\n', { ...NO_LINE, bid: newBlockId(), ps: styleMap(doc).p ?? null })
+	return at
+}
+
+function deleteTable(doc: YPagilloDocument, t: Y.Text, tb: TableRef): number {
+	t.delete(tb.from, tb.to - tb.from)
+	return paragraphAtEnd(doc, t, tb.from)
+}
+
+/**
+ * Insert a `cols` × `rows` table before the caret's paragraph (split at the caret first); the
+ * caret moves into the first cell. Refused inside a table (no nested tables).
+ */
+export function insertTable(
+	{ doc, editor }: CommandCtx,
+	cols: number,
+	rows: number,
+	header = true
+): void {
+	editor.run((t, from, to) => {
+		if (tableAt(t, from) || tableAt(t, to)) return
+		deleteRange(t, from, to)
+		const at = breakBefore(t, from)
+		const ps = styleMap(doc).p ?? null
+		const ops: DeltaOp[] = [
+			{ insert: '\n', attributes: { ...NO_LINE, bid: newBlockId(), 'table-temporary': {} } }
+		]
+		for (let r = 0; r < rows; r++) {
+			const row = newRowId()
+			for (let c = 0; c < cols; c++) {
+				ops.push({
+					insert: '\n',
+					attributes: cellLine(row, newCellId(), header && r === 0, ps)
+				})
+			}
+		}
+		t.applyDelta([{ retain: at }, ...ops])
+		return at + 1
+	})
+}
+
+/** A row above / below the caret's (a header row stays on top); the caret moves into it. */
+export function tableInsertRow({ doc, editor }: CommandCtx, below: boolean): void {
+	editor.run((t, from) => {
+		const tb = tableAt(t, from)
+		if (!tb) return
+		const r = tb.rows[tb.row]
+		const at = below ? r.cells[r.cells.length - 1].end + 1 : r.cells[0].start
+		const row = newRowId()
+		const th = !below && r.th
+		const ps = styleMap(doc).p ?? null
+		const ops = Array.from({ length: colsOf(tb) }, () => ({
+			insert: '\n',
+			attributes: cellLine(row, newCellId(), th, ps)
+		}))
+		t.applyDelta([{ retain: at }, ...ops])
+		return at
+	})
+}
+
+/**
+ * A grid column left / right of the caret's cell; the caret moves into its new cell. A cell
+ * spanning the new column's edge grows instead.
+ */
+export function tableInsertCol({ doc, editor }: CommandCtx, right: boolean): void {
+	editor.run((t, from) => {
+		const tb = tableAt(t, from)
+		if (!tb) return
+		const ps = styleMap(doc).p ?? null
+		const own = cellAtCol(tb.rows[tb.row], tb.col)
+		const edge = right && own ? own.x + own.span : tb.col
+		// Edge at a cell start (or past a short row's end) inserts; reverse order keeps offsets.
+		const ats = tb.rows.map((r): number | undefined => {
+			const c = cellAtCol(r, edge)
+			if (c && c.x < edge) {
+				setColSpan(t, c, c.span + 1)
+				return undefined
+			}
+			return c ? c.start : r.cells[r.cells.length - 1].end + 1
+		})
+		for (let i = tb.rows.length - 1; i >= 0; i--) {
+			const at = ats[i]
+			if (at !== undefined)
+				t.insert(at, '\n', cellLine(tb.rows[i].id, newCellId(), tb.rows[i].th, ps))
+		}
+		const at = ats[tb.row]
+		if (at === undefined) return
+		// Each row above that got a cell shifts the caret's by one.
+		return at + ats.slice(0, tb.row).filter((a) => a !== undefined).length
+	})
+}
+
+/** Delete the caret's row (the last one: the whole table), lines and all. */
+export function tableDeleteRow({ doc, editor }: CommandCtx): void {
+	editor.run((t, from) => {
+		const tb = tableAt(t, from)
+		if (!tb) return
+		if (tb.rows.length === 1) return deleteTable(doc, t, tb)
+		const r = tb.rows[tb.row]
+		const a = r.cells[0].start
+		t.delete(a, r.cells[r.cells.length - 1].end + 1 - a)
+		return tb.row === tb.rows.length - 1 ? tb.rows[tb.row - 1].cells[0].start : a
+	})
+}
+
+/**
+ * Delete the caret's grid column (the last one: the whole table); a cell spanning it shrinks,
+ * single-cell rows keep their cell.
+ */
+export function tableDeleteCol({ doc, editor }: CommandCtx): void {
+	editor.run((t, from) => {
+		const tb = tableAt(t, from)
+		if (!tb) return
+		if (colsOf(tb) === 1) return deleteTable(doc, t, tb)
+		const cuts = tb.rows.flatMap((r, i) => {
+			const c = cellAtCol(r, tb.col)
+			if (c && c.span > 1) setColSpan(t, c, c.span - 1)
+			else if (c && r.cells.length > 1) return [{ i, a: c.start, n: c.end + 1 - c.start }]
+			return []
+		})
+		for (const { a, n } of [...cuts].reverse()) t.delete(a, n)
+		const r = tb.rows[tb.row]
+		const own = cellAtCol(r, tb.col)
+		const ci = own ? r.cells.indexOf(own) : 0
+		const keep = !cuts.some((c) => c.i === tb.row)
+			? from
+			: r.cells[ci + 1]
+				? r.cells[ci].start
+				: (r.cells[ci - 1] ?? r.cells[0]).start
+		return keep - cuts.filter((c) => c.i < tb.row).reduce((s, c) => s + c.n, 0)
+	})
+}
+
+/** Table borders (`data-borders` on the `table-temporary` line; one is added when missing). */
+export function setTableBorders({ editor }: CommandCtx, b: TableBorders): void {
+	editor.run((t, from) => {
+		const tb = tableAt(t, from)
+		if (!tb) return
+		const cur: NonNullable<StoredLineAttrs['table-temporary']> =
+			tb.temp?.attrs['table-temporary'] ?? {}
+		const { 'data-borders': _, ...rest } = cur
+		const v = b === 'all' ? rest : { ...rest, 'data-borders': b }
+		if (tb.temp) {
+			t.format(tb.temp.index, 1, { 'table-temporary': v })
+			return
+		}
+		t.insert(tb.from, '\n', { ...NO_LINE, bid: newBlockId(), 'table-temporary': v })
+		return from + 1
+	})
+}
+
+/** Toggle the first row between header (`table-th`) and body cells, ids kept. */
+export function toggleHeaderRow({ editor }: CommandCtx): void {
+	editor.run((t, from) => {
+		const tb = tableAt(t, from)
+		if (!tb) return
+		const r = tb.rows[0]
+		const [k, kb, nk, nkb] = r.th
+			? ['table-th', 'table-th-block', 'table-cell', 'table-cell-block']
+			: ['table-cell', 'table-cell-block', 'table-th', 'table-th-block']
+		for (const l of paragraphsIn(t, r.cells[0].start, r.cells[r.cells.length - 1].end)) {
+			const a = l.attrs as Record<string, unknown>
+			if (a[k] != null)
+				t.format(l.index, 1, { [k]: null, [kb]: null, [nk]: a[k], [nkb]: a[kb] })
+		}
+	})
+}
+
+/**
+ * Tab / Shift+Tab: select the next / previous cell's text; Tab in the last cell adds a row.
+ * False outside a table and on Shift+Tab in the first cell.
+ */
+export function tableCellMove(ctx: CommandCtx, dir: -1 | 1): boolean {
+	const sel = ctx.editor.sel
+	const t = sel && ctx.doc.tx.get(sel.story)
+	const tb = t && tableAt(t, C.selFrom(sel))
+	if (!sel || !tb) return false
+	const cells = tb.rows.flatMap((r) => r.cells)
+	const own = cellAtCol(tb.rows[tb.row], tb.col)
+	const i = (own ? cells.indexOf(own) : 0) + dir
+	if (i < 0) return false
+	if (i >= cells.length) {
+		tableInsertRow(ctx, true)
+		return true
+	}
+	ctx.editor.select({ story: sel.story, anchor: cells[i].start, head: cells[i].end })
+	return true
+}
+
+/** Esc in a table: caret to the paragraph after it (added at the story end). */
+export function leaveTable({ doc, editor }: CommandCtx): boolean {
+	const sel = editor.sel
+	const t = sel && doc.tx.get(sel.story)
+	const tb = t && tableAt(t, C.selFrom(sel))
+	if (!sel || !t || !tb) return false
+	if (tb.to < t.length) editor.select({ story: sel.story, anchor: tb.to, head: tb.to })
+	else if (!editor.run((tx) => paragraphAtEnd(doc, tx, tb.to))) return false
+	return true
+}
+
+/** Whether `story` is a section's story (footnotes and the TOC lay out in section flows only). */
+export function isSectionStory(doc: YPagilloDocument, story: string | undefined): boolean {
+	return !!story && sectionsOf(doc).some(([, s]) => s.story === story)
+}
+
+/**
+ * Story and offset of the `{ fn: story }` ref, i.e. whether `story` is a footnote body.
+ * Scans every story's delta (cached); index refs if books with many stories lag.
+ */
+export function footnoteRef(
+	doc: YPagilloDocument,
+	story: string | undefined
+): { story: string; offset: number } | undefined {
+	if (!story) return
+	for (const [id, t] of doc.tx.entries()) {
+		if (id === story) continue
+		let pos = 0
+		for (const op of deltaOf(t)) {
+			if (typeof op.insert === 'string') pos += op.insert.length
+			else if ((op.insert as { fn?: unknown }).fn === story) return { story: id, offset: pos }
+			else pos++
+		}
+	}
+}
+
+/**
+ * Insert a footnote ref at the caret of a section story: creates its body story (one Body
+ * paragraph) in the same transaction and moves the caret into it.
+ */
+export function insertFootnote({ doc, editor }: CommandCtx): void {
+	if (!isSectionStory(doc, editor.sel?.story)) return
+	let body: string | undefined
+	editor.run((t, from, to) => {
+		if (tableAt(t, from)) return
+		deleteRange(t, from, to)
+		const ps = styleMap(doc).p
+		body = createStory(doc, [ps ? { ps } : {}])
+		t.insertEmbed(from, { fn: body }, { ...marksIn(t, from, from), ...NO_LINE })
+	})
+	if (body) editor.select({ story: body, anchor: 0, head: 0 })
+}
+
+/** Esc in a footnote body: caret back after its ref. */
+export function leaveFootnote({ doc, editor }: CommandCtx): boolean {
+	const ref = footnoteRef(doc, editor.sel?.story)
+	if (!ref) return false
+	editor.select({ story: ref.story, anchor: ref.offset + 1, head: ref.offset + 1 })
+	return true
+}
+
+/**
+ * Insert a table of contents (headings of `tocLevel` 1..`levels`) as its own paragraph before
+ * the caret's (split at the caret first). Section stories only, never inside a table.
+ */
+export function insertToc({ doc, editor }: CommandCtx, levels: number): void {
+	if (!isSectionStory(doc, editor.sel?.story)) return
+	editor.run((t, from, to) => {
+		if (tableAt(t, from) || tableAt(t, to)) return
+		deleteRange(t, from, to)
+		const at = breakBefore(t, from)
+		const ps = styleMap(doc).p ?? null
+		t.applyDelta([
+			{ retain: at },
+			{ insert: { toc: { levels: Math.min(6, Math.max(1, levels)) } }, attributes: NO_LINE },
+			{ insert: '\n', attributes: { ...NO_LINE, bid: newBlockId(), ps } }
+		])
+		return at + 2
 	})
 }
 

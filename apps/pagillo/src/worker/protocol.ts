@@ -25,6 +25,10 @@ export type MainToWorker =
 	/** Write a PDF (one job at a time; a new one cancels the running one). `id` tags its replies. */
 	| { type: 'pdf.export'; id: number; options: PdfExportOptions }
 	| { type: 'pdf.cancel' }
+	/** Spell checking on/off and the user's dictionary words (either may be absent). */
+	| { type: 'spell.config'; on?: boolean; words?: string[] }
+	/** Suggestions for `word` in `lang`; `id` tags the `spell.suggestions` reply. */
+	| { type: 'spell.suggest'; id: number; word: string; lang: string }
 
 /** Key of a page in `LayoutState.pages`. */
 export function pageKey(sec: string, index: number): string {
@@ -58,6 +62,17 @@ export interface FaceGlyphs {
 	glyphs: Record<number, string>
 }
 
+/**
+ * A misspelt word: offsets within its paragraph (like `LineGeom.from/to`); `lang` of the check.
+ * `word` is the text checked, to tell a range gone stale by later edits.
+ */
+export interface SpellRange {
+	from: number
+	to: number
+	lang: string
+	word: string
+}
+
 export type WorkerToMain =
 	| { type: 'fonts'; faces: FaceGlyphs[] }
 	| { type: 'pages'; rev: number; pages: PageDL[] }
@@ -78,5 +93,8 @@ export type WorkerToMain =
 	| { type: 'pdf.done'; id: number; blob: Blob; missing: number }
 	/** The job failed (a cancelled job posts nothing). */
 	| { type: 'pdf.error'; id: number; message: string }
+	/** Misspellings of paragraph `bid` of `story`; `[]` clears it. */
+	| { type: 'spell'; story: string; bid: string; ranges: SpellRange[] }
+	| { type: 'spell.suggestions'; id: number; words: string[] }
 
 // vim: ts=4

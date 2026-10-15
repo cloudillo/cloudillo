@@ -25,7 +25,7 @@ import {
 import { FX } from '@cloudillo/typeset'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuTrash2, LuX } from 'react-icons/lu'
+import { LuMinus, LuPlus, LuTrash2, LuX } from 'react-icons/lu'
 import type * as Y from 'yjs'
 
 import {
@@ -44,7 +44,7 @@ import type {
 	StoredTextFrameData,
 	YPagilloDocument
 } from '../crdt/stored-types'
-import { frameOf, stylesOf } from '../crdt/entities'
+import { frameOf, mastersOf, stylesOf } from '../crdt/entities'
 import { masterItems } from '../crdt/type-converters'
 import * as Cmd from '../editor/commands'
 import { FRAME_LABELS, type FrameCtl } from '../editor/FrameOverlay'
@@ -487,6 +487,32 @@ function InlineImageSection({
 					<SegmentedItem value="text">{t('Moves with text')}</SegmentedItem>
 				</Segmented>
 			</PropertyField>
+			<PropertyField label={t('Wrap')}>
+				{/* Full width and Centred both store no float (the EmbedBlock centres a
+				    full-width box), so Centred reads back as Full width. */}
+				<NativeSelect
+					value={img.float ? `${img.float.side}${img.float.w < 0.4 ? 3 : 2}` : 'full'}
+					onChange={(e) => {
+						const v = e.target.value
+						const float =
+							v[0] === 'l' || v[0] === 'r'
+								? { side: v[0] as 'l' | 'r', w: v[1] === '3' ? 0.333 : 0.5 }
+								: undefined
+						editor.run((yt) => {
+							const { float: _old, ...rest } = img
+							setInlineImage(yt, at, float ? { ...rest, float } : rest)
+							return undefined
+						})
+					}}
+				>
+					<option value="full">{t('Full width')}</option>
+					<option value="center">{t('Centred')}</option>
+					<option value="l2">{t('Float left ½')}</option>
+					<option value="l3">{t('Float left ⅓')}</option>
+					<option value="r2">{t('Float right ½')}</option>
+					<option value="r3">{t('Float right ⅓')}</option>
+				</NativeSelect>
+			</PropertyField>
 		</PropertySection>
 	)
 }
@@ -497,6 +523,117 @@ const INDENTS = ['indentStart', 'indentEnd', 'indentFirst'] as const
 const NOT_DIRECT = [...SPACING, ...INDENTS, 'align', 'spanColumns', 'dropCap', 'tocLevel']
 const SPACING_FIELDS = PARA_FIELDS.filter(([k]) => SPACING.includes(k))
 const FLOW_FIELDS = PARA_FIELDS.filter(([k]) => !NOT_DIRECT.includes(k))
+
+const BORDERS: [Cmd.TableBorders, string][] = [
+	['all', 'All'],
+	['outer', 'Outer'],
+	['header', 'Header only'],
+	['none', 'None']
+]
+
+/** Format › Table, while the caret is in a table. */
+function TableSection({
+	ctx,
+	table
+}: {
+	ctx: Cmd.CommandCtx
+	table: NonNullable<Cmd.TextState['table']>
+}) {
+	const { t } = useTranslation()
+	const count = (
+		label: string,
+		n: number,
+		insLabel: string,
+		ins: [string, () => void][],
+		delLabel: string,
+		del: () => void
+	) => (
+		<PropertyField label={label}>
+			<div className="c-hbox g-1">
+				<span className="flex-fill">{n}</span>
+				<Menu
+					trigger={
+						<Button
+							variant="ghost"
+							size="sm"
+							icon={<LuPlus />}
+							aria-label={insLabel}
+							title={insLabel}
+						/>
+					}
+				>
+					{ins.map(([l, fn]) => (
+						<MenuItem key={l} label={l} onClick={fn} />
+					))}
+				</Menu>
+				<Button
+					variant="ghost"
+					size="sm"
+					icon={<LuMinus />}
+					aria-label={delLabel}
+					title={delLabel}
+					onClick={del}
+				/>
+			</div>
+		</PropertyField>
+	)
+	return (
+		<PropertySection title={t('Table')}>
+			{count(
+				t('Rows'),
+				table.rows,
+				t('Insert row'),
+				[
+					[t('Insert row above'), () => Cmd.tableInsertRow(ctx, false)],
+					[t('Insert row below'), () => Cmd.tableInsertRow(ctx, true)]
+				],
+				t('Delete row'),
+				() => Cmd.tableDeleteRow(ctx)
+			)}
+			{count(
+				t('Columns'),
+				table.cols,
+				t('Insert column'),
+				[
+					[t('Insert column left'), () => Cmd.tableInsertCol(ctx, false)],
+					[t('Insert column right'), () => Cmd.tableInsertCol(ctx, true)]
+				],
+				t('Delete column'),
+				() => Cmd.tableDeleteCol(ctx)
+			)}
+			<Toggle
+				label={t('Header row')}
+				checked={table.header}
+				onChange={() => Cmd.toggleHeaderRow(ctx)}
+			/>
+			<PropertyField label={t('Borders')}>
+				<NativeSelect
+					value={table.borders}
+					onChange={(e) => Cmd.setTableBorders(ctx, e.target.value as Cmd.TableBorders)}
+				>
+					{BORDERS.map(([v, l]) => (
+						<option key={v} value={v}>
+							{t(l)}
+						</option>
+					))}
+				</NativeSelect>
+			</PropertyField>
+		</PropertySection>
+	)
+}
+
+/**
+ * Whether any layout has more than one column (base, either side, or a text area).
+ * Not narrowed to the caret's page (FormatPanel has no page geometry); pass the
+ * caret page's `pageMaster` if the checkbox shows where it does nothing.
+ */
+function multiColumn(doc: YPagilloDocument): boolean {
+	return mastersOf(doc).some(([, m]) =>
+		[m, m.left, m.right].some(
+			(v) => !!v && ((v.cols ?? 1) > 1 || !!v.regions?.some((r) => r.cols > 1))
+		)
+	)
+}
 
 function TextSection({ yDoc, doc, editor }: PanelProps & { editor: Editor }) {
 	const { t } = useTranslation()
@@ -553,6 +690,7 @@ function TextSection({ yDoc, doc, editor }: PanelProps & { editor: Editor }) {
 					/>
 				</PropertyField>
 			</PropertySection>
+			{st.table && <TableSection ctx={ctx} table={st.table} />}
 			<PropertySection title={t('Paragraph')}>
 				<div className="pagillo-group-title">{t('Spacing')}</div>
 				{SPACING_FIELDS.map(row)}
@@ -577,6 +715,36 @@ function TextSection({ yDoc, doc, editor }: PanelProps & { editor: Editor }) {
 					</div>
 					<ResetSlot label={t('Reset to style')} onReset={reset(INDENTS)} />
 				</div>
+				<PropRow
+					label={t('Drop cap')}
+					resetLabel={t('Reset to style')}
+					onReset={reset(['dropCap'])}
+				>
+					<NativeSelect
+						value={String(Number(st.eff.dropCap) >= 2 ? st.eff.dropCap : 0)}
+						onChange={(e) => setProps({ dropCap: Number(e.target.value) })}
+					>
+						<option value="0">{t('None')}</option>
+						{[2, 3, 4].map((n) => (
+							<option key={n} value={n}>
+								{t('{{n}} lines', { n })}
+							</option>
+						))}
+					</NativeSelect>
+				</PropRow>
+				{(multiColumn(doc) || !!st.eff.spanColumns) && (
+					<PropRow
+						label={t('Span all columns')}
+						resetLabel={t('Reset to style')}
+						onReset={reset(['spanColumns'])}
+					>
+						<PropEditor
+							kind="bool"
+							value={st.eff.spanColumns}
+							onChange={(v) => setProps({ spanColumns: v })}
+						/>
+					</PropRow>
+				)}
 			</PropertySection>
 			<PropertySection title={t('Text flow')} defaultExpanded={false}>
 				{FLOW_FIELDS.map(row)}

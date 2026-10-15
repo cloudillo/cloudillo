@@ -1,13 +1,14 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import type { TableBlock } from '@cloudillo/typeset'
 import * as Y from 'yjs'
 
 import { computeBlockIdFixes, stripBlockIds } from '../crdt/block-ids.js'
 import { openPublication } from '../crdt/document.js'
 import { newFrameMap, newMasterMap, newSectionMap } from '../crdt/entities.js'
 import { registerNormalizer } from '../crdt/normalize.js'
-import { sanitizeBox, sanitizeMarks } from '../crdt/overrides.js'
+import { sanitizeBox, sanitizeMarks, sanitizeOverrides } from '../crdt/overrides.js'
 import type { StoredFrame, StoredMaster, StoredSection } from '../crdt/stored-types.js'
 import {
 	byIds,
@@ -139,6 +140,67 @@ describe('peer data reaching the layout worker', () => {
 		expect(ps[0].runs).toEqual([{ text: 'x', marks: {} }])
 	})
 
+	it('copies an image float onto its EmbedBlock', () => {
+		const img = { fileId: 'f', w: 10, h: 10, alt: '' }
+		const ps = deltaToParagraphs([
+			{ insert: { img: { ...img, float: { side: 'r', w: 0.5 } } } },
+			{ insert: '\n' },
+			{ insert: { img } },
+			{ insert: '\n' }
+		])
+		expect(ps.map((p) => (p.runs as { float?: unknown }).float)).toEqual([
+			{ side: 'r', w: 0.5 },
+			undefined
+		])
+	})
+
+	it('groups quill-table-better lines into one table paragraph', () => {
+		const th = (row: string, cell: string) => ({
+			'table-th': { 'data-row': row },
+			'table-th-block': cell
+		})
+		const td = (row: string, cell: string) => ({
+			'table-cell': { 'data-row': row },
+			'table-cell-block': cell
+		})
+		const ps = deltaToParagraphs([
+			{ insert: 'before\n', attributes: { bid: 'p0' } },
+			{
+				insert: '\n',
+				attributes: { bid: 't', 'table-temporary': { 'data-borders': 'outer' } }
+			},
+			{ insert: 'A\n', attributes: { bid: 'a', ...th('r1', 'c1') } },
+			{ insert: 'B\n', attributes: { bid: 'b', ...th('r1', 'c2') } },
+			{ insert: 'C\n', attributes: { ...td('r2', 'c3') } },
+			{ insert: 'C2\n', attributes: { bid: 'c2', ...td('r2', 'c3') } },
+			{ insert: 'D\n', attributes: { bid: 'd', ...td('r2', 'c4') } },
+			{ insert: 'after\n', attributes: { bid: 'p1' } }
+		])
+		expect(ps.map((p) => p.bid)).toEqual(['p0', 't', 'p1'])
+		const blk = ps[1].runs as TableBlock
+		expect(blk.borders).toBe('outer')
+		expect(blk.cols).toEqual([0, 0])
+		expect(blk.rows.map((r) => !!r.header)).toEqual([true, false])
+		// The bid-less cell line falls back to its '\n' index (4), as `paragraphStarts` does.
+		expect(blk.rows[1].cells.map((c) => c.paragraphs.map((p) => p.bid))).toEqual([
+			['~4', 'c2'],
+			['d']
+		])
+	})
+
+	it('caps a table at 64 columns without losing cells', () => {
+		const ps = deltaToParagraphs(
+			Array.from({ length: 100 }, (_, i) => ({
+				insert: `c${i}\n`,
+				attributes: { 'table-cell': { 'data-row': 'r1' }, 'table-cell-block': `c${i}` }
+			}))
+		)
+		const blk = ps[0].runs as TableBlock
+		expect(blk.cols).toHaveLength(64)
+		expect(blk.rows[0].cells).toHaveLength(64)
+		expect(blk.rows[0].cells.flatMap((c) => c.paragraphs)).toHaveLength(100)
+	})
+
 	it('coerces meta', () => {
 		const m = new Y.Doc().getMap('m')
 		m.set('lang', 5)
@@ -181,6 +243,21 @@ describe('peer data reaching the layout worker', () => {
 		})
 		expect(() => registerNormalizer(yDoc, doc, () => true)).not.toThrow()
 		expect(t.toString()).toBe('no newline\n')
+	})
+
+	it('roots footnote bodies when it normalises the referencing story', () => {
+		const yDoc = new Y.Doc()
+		const doc = openPublication(yDoc)
+		yDoc.transact(() => {
+			const t = new Y.Text()
+			doc.tx.set('S', t)
+			t.insertEmbed(0, { fn: 'n' })
+			doc.tx.set('n', new Y.Text('note\n'))
+			doc.s.set('s1', newSectionMap({ story: 'S' } as StoredSection))
+		})
+		registerNormalizer(yDoc, doc, () => true).dispose()
+		expect(doc.f.get('n')?.toJSON()).toEqual({ t: 'fn', story: 'n' })
+		expect(doc.tx.has('n')).toBe(true)
 	})
 
 	it('sweeps unreferenced stories once, at the first write', () => {
@@ -254,6 +331,10 @@ describe('peer data reaching the layout worker', () => {
 			expect(sanitizeMarks({ color: ok })).toEqual({ color: ok })
 		}
 		expect(sanitizeMarks({ color: 'url(x)' })).toEqual({})
+	})
+
+	it('keeps an explicit dropCap 0 (turns off a style drop cap)', () => {
+		expect(sanitizeOverrides({ dropCap: 0 })).toEqual({ dropCap: 0 })
 	})
 })
 

@@ -10,14 +10,14 @@
  */
 
 import { useDebouncedValue } from '@cloudillo/react'
-import type { PageDL, TagNode } from '@cloudillo/typeset'
+import type { PageDL, TableBlock, TagNode } from '@cloudillo/typeset'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import type * as Y from 'yjs'
 
 import { deltaOf, storyTextOf } from '../crdt/delta-cache'
 import type { YPagilloDocument } from '../crdt/stored-types'
-import { paragraphStarts } from '../crdt/type-converters'
+import { deltaToParagraphs, paragraphStarts } from '../crdt/type-converters'
 import * as C from '../editor/caret'
 import type { Editor } from '../editor/useEditor'
 import type { LayoutState } from '../layout/useLayout'
@@ -41,6 +41,8 @@ interface StoryInfo {
 	txt: string
 	/** bid → list kind of that paragraph (its '\n' attrs). */
 	lists: Map<string, string>
+	/** Table paragraph bid → its block (built on first use). */
+	tables?: Map<string, TableBlock>
 }
 
 function storyInfo(t: Y.Text): StoryInfo {
@@ -65,10 +67,18 @@ interface MirrorSpan {
 	text: string
 }
 
+/** A table cell: its paragraphs' spans. */
+interface MirrorCell {
+	th: boolean
+	paras: { bid: string; spans: MirrorSpan[] }[]
+}
+
 /** A tag node resolved to plain data. */
 interface MirrorBlock {
 	id: number
-	tag: 'p' | 'li' | 'img' | (typeof HEADINGS)[keyof typeof HEADINGS]
+	tag: 'p' | 'li' | 'img' | 'table' | 'aside' | (typeof HEADINGS)[keyof typeof HEADINGS]
+	/** Rows of a `table` with a line on this page. */
+	rows?: MirrorCell[][]
 	/** List kind (`li` only). */
 	list?: string
 	alt?: string
@@ -89,16 +99,41 @@ interface MirrorPageProps {
 
 function MirrorPageView({ pageKey, label, blocks }: MirrorPageProps) {
 	const out: React.ReactNode[] = []
+	const spanEls = (bid: string | undefined, spans: MirrorSpan[]) =>
+		spans.map((s) => (
+			<span key={s.from} data-story={s.story} data-bid={bid} data-from={s.from}>
+				{s.text}
+			</span>
+		))
 	const el = (b: MirrorBlock) => {
 		if (b.tag === 'img') return <div key={b.id} role="img" aria-label={b.alt} />
+		if (b.tag === 'table')
+			return (
+				<table key={b.id}>
+					<tbody>
+						{b.rows?.map((r, ri) => (
+							<tr key={ri}>
+								{r.map((c, ci) => {
+									const cell = c.paras.map((p) => (
+										<p key={p.bid}>{spanEls(p.bid, p.spans)}</p>
+									))
+									return c.th ? (
+										<th key={ci} scope="col">
+											{cell}
+										</th>
+									) : (
+										<td key={ci}>{cell}</td>
+									)
+								})}
+							</tr>
+						))}
+					</tbody>
+				</table>
+			)
 		const Tag = b.tag
 		return (
-			<Tag key={b.id}>
-				{b.spans.map((s) => (
-					<span key={s.from} data-story={s.story} data-bid={b.bid} data-from={s.from}>
-						{s.text}
-					</span>
-				))}
+			<Tag key={b.id} role={b.tag === 'aside' ? 'note' : undefined}>
+				{spanEls(b.bid, b.spans)}
 			</Tag>
 		)
 	}
@@ -172,6 +207,37 @@ export function Mirror({ doc, editor, layout, notices }: MirrorProps) {
 				const pl = placed.find((x) => x.line.bid === bid)
 				return pl && story(pl.line.story).lists.get(bid)
 			}
+			const onPage = new Set(placed.map((pl) => pl.line.bid))
+			const tableRows = (bid: string): MirrorCell[][] => {
+				for (const sid of new Set(placed.map((pl) => pl.line.story))) {
+					const s = story(sid)
+					if (!s.tables) {
+						const tx = doc.tx.get(sid)
+						s.tables = new Map()
+						for (const p of tx ? deltaToParagraphs(deltaOf(tx)) : []) {
+							if (!Array.isArray(p.runs) && p.runs.k === 'table')
+								s.tables.set(p.bid, p.runs)
+						}
+					}
+					const tb = s.tables.get(bid)
+					if (!tb) continue
+					// Rows never split: a row is on this page when one of its lines is.
+					return tb.rows
+						.filter((r) =>
+							r.cells.some((c) => c.paragraphs.some((p) => onPage.has(p.bid)))
+						)
+						.map((r) =>
+							r.cells.map((c) => ({
+								th: !!r.header,
+								paras: c.paragraphs.map((p) => ({
+									bid: p.bid,
+									spans: spans(p.bid)
+								}))
+							}))
+						)
+				}
+				return []
+			}
 			const blocks: MirrorBlock[] = []
 			const walk = (nodes: TagNode[]) => {
 				for (const n of nodes) {
@@ -179,11 +245,25 @@ export function Mirror({ doc, editor, layout, notices }: MirrorProps) {
 					if (n.role === 'Document') walk(n.children ?? [])
 					else if (n.role === 'Figure') {
 						if (n.alt) blocks.push({ id: n.id, tag: 'img', alt: n.alt, spans: [] })
+					} else if (n.role === 'Table') {
+						// Its TR / TH / TD children are rebuilt from the story (cells carry no bid).
+						const rows = n.bid ? tableRows(n.bid) : []
+						if (rows.length) blocks.push({ id: n.id, tag: 'table', rows, spans: [] })
+					} else if (n.role === 'Note') {
+						// Footnote body (no bid): its P children's text, one `aside role=note`.
+						const ps = (n.children ?? []).flatMap((c) => (c.bid ? spans(c.bid) : []))
+						if (ps.length) blocks.push({ id: n.id, tag: 'aside', spans: ps })
 					} else {
 						const list = n.role === 'P' && n.bid ? listOf(n.bid) : undefined
 						blocks.push({
 							id: n.id,
-							tag: n.role === 'P' ? (list ? 'li' : 'p') : HEADINGS[n.role],
+							tag:
+								n.role === 'P'
+									? list
+										? 'li'
+										: 'p'
+									: ((HEADINGS as Record<string, MirrorBlock['tag']>)[n.role] ??
+										'p'),
 							list,
 							bid: n.bid,
 							spans: n.bid ? spans(n.bid) : []

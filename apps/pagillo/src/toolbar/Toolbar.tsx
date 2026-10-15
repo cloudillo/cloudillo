@@ -144,6 +144,15 @@ export function Toolbar({
 	const off = !st
 	/** Title of the Insert items that need a caret. */
 	const needCaret = t('Place the caret in text first')
+	/** Footnotes and the TOC: section flows only (not text boxes, not a footnote body). */
+	const flowCaret = !off && Cmd.isSectionStory(doc, editor.sel?.story)
+	const flowTitle = off
+		? needCaret
+		: !flowCaret
+			? t('Only in the main text flow')
+			: st?.table
+				? t('Not inside a table')
+				: undefined
 	const nudge = React.useMemo(
 		() => (st ? Cmd.headingNudge(ctx) !== undefined : false),
 		[st, editor.index]
@@ -182,6 +191,15 @@ export function Toolbar({
 		})
 		if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d.trim())) return
 		Cmd.insertField(ctx, { field: 'date', src: 'fixed', d: d.trim() })
+		editor.focus()
+	}
+	// Header row on; toggled in Format › Table.
+	const askTable = async () => {
+		const v = await dialog.askText(t('Table'), t('Columns × rows'), { defaultValue: '3 × 3' })
+		const m = v && /^\s*(\d+)\s*[×x*,]\s*(\d+)\s*$/i.exec(v)
+		if (!m) return
+		const n = (s: string) => Math.min(64, Math.max(1, Number(s)))
+		Cmd.insertTable(ctx, n(m[1]), n(m[2]))
 		editor.focus()
 	}
 
@@ -355,6 +373,31 @@ export function Toolbar({
 					title={off ? needCaret : undefined}
 					onClick={askLink}
 				/>
+				<MenuItem
+					label={t('Table…')}
+					disabled={off || !!st?.table}
+					title={off ? needCaret : st?.table ? t('Tables cannot be nested') : undefined}
+					onClick={askTable}
+				/>
+				<MenuItem
+					label={t('Footnote')}
+					disabled={!flowCaret || !!st?.table}
+					title={flowTitle}
+					onClick={act(() => Cmd.insertFootnote(ctx))}
+				/>
+				<SubMenuItem
+					label={t('Table of contents')}
+					disabled={!flowCaret || !!st?.table}
+					title={flowTitle}
+				>
+					{[2, 3, 4].map((n) => (
+						<MenuItem
+							key={n}
+							label={t('Headings 1–{{n}}', { n })}
+							onClick={act(() => Cmd.insertToc(ctx, n))}
+						/>
+					))}
+				</SubMenuItem>
 				<MenuItem
 					label={t('Section break')}
 					disabled={off}

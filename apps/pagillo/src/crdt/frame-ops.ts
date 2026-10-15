@@ -28,6 +28,8 @@ export interface InlineImage {
 	w: number
 	h: number
 	alt: string
+	/** Line-start float; absent = full width / centred. */
+	float?: { side: 'l' | 'r'; w: number }
 }
 
 /**

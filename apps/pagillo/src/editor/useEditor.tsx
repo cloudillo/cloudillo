@@ -63,6 +63,13 @@ export interface Editor {
 	overlay(index: number, size: { w: number; h: number }): React.ReactNode
 	/** `PageList` pointer callback. */
 	onPointer(type: 'down' | 'move' | 'up' | 'cancel', hit: PageHit, e: React.PointerEvent): void
+	/**
+	 * Right-click at `hit`: on text, puts the caret there (unless inside the selection) and
+	 * returns true (the caller opens the text menu); elsewhere false.
+	 */
+	contextMenu(hit: PageHit): boolean
+	/** Last caret box in client px (keyboard-opened text menu). */
+	caretRect(): DOMRect | undefined
 }
 
 type Echo = C.CaretBox & { pages: Map<string, PageDL> }
@@ -82,8 +89,11 @@ export function useEditor({
 	const [reveal, setReveal] = React.useState(0)
 	const goalX = React.useRef<number | undefined>(undefined)
 	const adapter = React.useRef<InputAdapter | undefined>(undefined)
-	const drag = React.useRef<{ story: string; anchor: number } | undefined>(undefined)
+	const drag = React.useRef<
+		{ story: string; anchor: number; head: number; unit?: 'word' | 'para' } | undefined
+	>(undefined)
 	const clicks = React.useRef({ t: 0, x: 0, y: 0, n: 0 })
+	const caretRect = React.useRef<DOMRect | undefined>(undefined)
 
 	const keys = React.useMemo(
 		() => flattenPages(layout.sections).map((p) => p.key),
@@ -330,7 +340,17 @@ export function useEditor({
 		if (type === 'move') {
 			const d = drag.current
 			const h = d && hitText(index, hit.index, hit.x, hit.y, d.story)
-			if (d && h) select({ story: d.story, anchor: d.anchor, head: h.offset })
+			if (!d || !h) return
+			if (d.unit) {
+				const [anchor, head] = C.extendByUnit(
+					textOf(d.story),
+					d.anchor,
+					d.head,
+					h.offset,
+					d.unit
+				)
+				select({ story: d.story, anchor, head })
+			} else select({ story: d.story, anchor: d.anchor, head: h.offset })
 			return
 		}
 		if (e.button !== 0) return
@@ -368,10 +388,34 @@ export function useEditor({
 			const [a, b] = c.n === 2 ? C.wordAt(txt, h.offset) : C.paragraphAt(txt, h.offset)
 			next = { story: h.story, anchor: a, head: b }
 		}
-		// A drag after a double/triple click extends by characters, not words/paragraphs.
-		drag.current = { story: next.story, anchor: next.anchor }
+		// A drag after a double/triple click grows by whole words/paragraphs; shift-click by characters.
+		drag.current = {
+			story: next.story,
+			anchor: next.anchor,
+			head: next.head,
+			unit: !e.shiftKey && c.n > 1 ? (c.n === 2 ? 'word' : 'para') : undefined
+		}
 		select(next)
 		adapter.current?.focus()
+	}
+
+	const contextMenu = (hit: PageHit): boolean => {
+		const pg = layout.pages.get(keys[hit.index])?.page
+		const h = hitText(
+			index,
+			hit.index,
+			hit.x,
+			hit.y,
+			undefined,
+			pg && textAreas(doc, pg),
+			(8 / (hit.scale ?? 1)) * FX
+		)
+		if (!h) return false
+		const s = cur.current.sel
+		if (!s || s.story !== h.story || h.offset < C.selFrom(s) || h.offset > C.selTo(s))
+			select({ story: h.story, anchor: h.offset, head: h.offset })
+		adapter.current?.focus()
+		return true
 	}
 
 	const clear = () => {
@@ -407,7 +451,10 @@ export function useEditor({
 				caret={c}
 				blink={canInput}
 				reveal={reveal}
-				onCaretRect={(rect) => adapter.current?.setCaretRect(rect)}
+				onCaretRect={(rect) => {
+					caretRect.current = rect
+					adapter.current?.setCaretRect(rect)
+				}}
 			/>
 		)
 	}
@@ -422,7 +469,9 @@ export function useEditor({
 		canEdit,
 		focus: () => adapter.current?.focus(),
 		overlay,
-		onPointer
+		onPointer,
+		contextMenu,
+		caretRect: () => caretRect.current
 	}
 }
 

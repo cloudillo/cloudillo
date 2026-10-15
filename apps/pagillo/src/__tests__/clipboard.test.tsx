@@ -5,7 +5,9 @@ import { FX } from '@cloudillo/typeset'
 import * as Y from 'yjs'
 
 import { openPublication } from '../crdt/document.js'
+import { newSectionMap } from '../crdt/entities.js'
 import { sanitizeOverrides } from '../crdt/overrides.js'
+import type { StoredSection } from '../crdt/stored-types.js'
 import type { DeltaOp } from '../crdt/type-converters.js'
 import { deltaToHtml, deltaToPlain, pasteDelta, readDelta } from '../editor/clipboard.js'
 import { deleteRange } from '../editor/text-edit.js'
@@ -14,10 +16,21 @@ function setup() {
 	const yDoc = new Y.Doc()
 	const doc = openPublication(yDoc)
 	const t = new Y.Text()
+	doc.s.set('s1', newSectionMap({ story: 'S' } as StoredSection))
 	doc.tx.set('S', t)
 	doc.tx.set('fn1', new Y.Text())
+	doc.f.set(
+		'fn1',
+		new Y.Map<unknown>([
+			['t', 'fn'],
+			['story', 'fn1']
+		])
+	)
+	doc.tx.set('T', new Y.Text())
 	return { doc, t }
 }
+
+const CELL = { 'table-cell': { 'data-row': 'r1' }, 'table-cell-block': 'c1' }
 
 const paste = (ops: DeltaOp[]) => {
 	const { doc, t } = setup()
@@ -37,8 +50,43 @@ describe('pasteDelta', () => {
 		])
 		expect(out[0]).toEqual({ insert: 'abc' })
 		expect(out[1]).toEqual({ insert: 'd', attributes: { link: 'cl:abc' } })
-		expect(out[2]).toEqual({ insert: { fn: 'fn1' } })
+		// The ref gets a copy of the body (`copyStory`).
+		const fn = (out[2].insert as { fn: string }).fn
+		expect(fn).not.toBe('fn1')
 		expect(out).toHaveLength(3)
+	})
+
+	it('keeps footnote refs only for footnotes, outside tables', () => {
+		const embeds = (out: DeltaOp[]) => out.filter((o) => typeof o.insert !== 'string')
+		// A non-footnote story, and a ref on a pasted table line.
+		expect(embeds(paste([{ insert: { fn: 'T' } }]))).toEqual([])
+		expect(
+			embeds(paste([{ insert: { fn: 'fn1' } }, { insert: '\n', attributes: CELL }]))
+		).toEqual([])
+		// Pasted into a cell.
+		const { doc, t } = setup()
+		t.insert(0, 'x\n', CELL)
+		pasteDelta(doc, t, 0, [{ insert: { fn: 'fn1' } }])
+		expect(embeds(t.toDelta() as DeltaOp[])).toEqual([])
+	})
+
+	it('pastes a table into a cell without its end line', () => {
+		const { doc, t } = setup()
+		t.insert(0, 'x\n', CELL)
+		pasteDelta(doc, t, 0, [
+			{ insert: 'a' },
+			{
+				insert: '\n',
+				attributes: { 'table-cell': { 'data-row': 'r9' }, 'table-cell-block': 'c9' }
+			},
+			{ insert: 'b' },
+			{
+				insert: '\n',
+				attributes: { 'table-cell': { 'data-row': 'r9' }, 'table-cell-block': 'c8' }
+			},
+			{ insert: '\n', attributes: { 'table-temporary': {} } }
+		])
+		expect(t.toString()).toBe('a\nb\nx\n')
 	})
 
 	it('sanitizes po and clamps indent', () => {

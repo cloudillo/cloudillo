@@ -110,6 +110,12 @@ export class PublicationAdapter {
 	private composing?: Composition
 	/** Paragraphs handed to the engine since the last `drainFresh()`. */
 	private fresh: Paragraph[] = []
+	/** Section story id → its `{ fn }` ref ids, joined (to spot a ref added / removed). */
+	private notes = new Map<string, string>()
+	/** Story ids of sections and text frames: a `{ fn }` naming one is not a footnote. */
+	private owned = new Set<string>()
+	/** Footnote story ids loaded by the last `footnotes()`. */
+	private fnStories = new Set<string>()
 
 	constructor(
 		yDoc: Y.Doc,
@@ -125,6 +131,11 @@ export class PublicationAdapter {
 		const f = this.fresh
 		this.fresh = []
 		return f
+	}
+
+	/** Stories as the engine holds them (story id → story), for the spell checker. */
+	storyMap(): ReadonlyMap<string, Story> {
+		return this.stories
 	}
 
 	private all(): Paragraph[] {
@@ -143,12 +154,38 @@ export class PublicationAdapter {
 				if (st) this.stories.set(st.id, st)
 			}
 		}
+		this.owned = new Set(this.stories.keys())
 		// Keep a live IME composition: `pub`'s stories are the cached ones, so patch in place.
 		const c = this.composing
 		const cs = c && this.stories.get(c.story)
 		if (cs) cs.paragraphs = this.read(c.story)
+		pub.footnotes = this.footnotes(pub.sections.map((s) => s.story.id))
 		this.fresh = this.all()
 		this.engine.setPublication(pub)
+	}
+
+	/** `{ fn }` ref ids in a story's top-level runs (refs in table cells are not numbered). */
+	private fnIds(id: string): string {
+		const ids: string[] = []
+		for (const p of this.stories.get(id)?.paragraphs ?? [])
+			if (Array.isArray(p.runs))
+				for (const r of p.runs) if (r.embed && 'fn' in r.embed) ids.push(r.embed.fn)
+		return ids.join(' ')
+	}
+
+	/** Footnote stories referenced by the section stories `ids` (loaded into `stories`). */
+	private footnotes(ids: string[]): Record<string, Story> {
+		this.notes = new Map(ids.map((id) => [id, this.fnIds(id)]))
+		const fs: Record<string, Story> = {}
+		for (const refs of this.notes.values())
+			for (const f of refs.split(' '))
+				if (f && !this.owned.has(f) && this.doc.tx.get(f) instanceof Y.Text)
+					fs[f] = this.story(f)
+		// Drop bodies no longer referenced (their text edits must not reach `patch`).
+		for (const f of this.fnStories)
+			if (!Object.hasOwn(fs, f) && !this.owned.has(f)) this.stories.delete(f)
+		this.fnStories = new Set(Object.keys(fs))
+		return fs
 	}
 
 	private story(id: string): Story {
@@ -245,14 +282,21 @@ export class PublicationAdapter {
 				return this.story(sid)
 			}
 			const frames = framesToEngine(d, story)
+			this.owned = new Set(used)
+			const fs = this.footnotes(sections.map((s) => s.story.id))
+			for (const id of Object.keys(fs)) used.add(id)
 			// Drop stories nothing references any more (their text edits must not reach `patch`).
 			for (const id of [...this.stories.keys()]) if (!used.has(id)) this.stories.delete(id)
 			this.engine.setSections(sections)
 			this.engine.setFrames(frames)
+			this.engine.setFootnotes(fs)
 			return
 		}
 
 		this.patch(texts.filter((id) => this.stories.has(id)).flatMap((id) => this.diff(id)))
+		// A section edit added or removed a footnote ref (paste, delete, undo of a delete).
+		if (texts.some((id) => this.notes.has(id) && this.notes.get(id) !== this.fnIds(id)))
+			this.engine.setFootnotes(this.footnotes([...this.notes.keys()]))
 	}
 
 	private patch(patches: ParagraphPatch[]): void {

@@ -57,6 +57,7 @@ export function handleKey(e: KeyboardEvent, ctx: KeymapCtx): boolean {
 		return false
 	}
 	if (e.key === 'Tab' && !e.altKey && !e.ctrlKey && !e.metaKey) {
+		if (Cmd.tableCellMove(ctx, e.shiftKey ? -1 : 1)) return true
 		if (Cmd.indentList(ctx, e.shiftKey ? -1 : 1)) return true
 		// Shift+Tab outside a list keeps the browser's focus move (keyboard escape from text).
 		if (e.shiftKey) return false

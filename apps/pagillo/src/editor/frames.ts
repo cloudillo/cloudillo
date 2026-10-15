@@ -215,6 +215,10 @@ export function pageItems(
 
 export const boxOf = (it: Box): Box => ({ x: it.x, y: it.y, w: it.w, h: it.h, rot: it.rot })
 
+/** Same geometry (`x,y,w,h,rot`); a missing `b` never matches. */
+export const sameBox = (a: Box, b: Box | undefined): boolean =>
+	!!b && a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h && a.rot === b.rot
+
 /** Axis-aligned bounds of the box rotated `rot`° about the renderer's centre `(x + ⌊w/2⌋, y + ⌊h/2⌋)`. */
 export function rotatedBounds(b: Box): Box {
 	if (!b.rot || !Number.isFinite(b.rot)) return b
@@ -226,6 +230,103 @@ export function rotatedBounds(b: Box): Box {
 	const cx = b.x + Math.floor(b.w / 2)
 	const cy = b.y + Math.floor(b.h / 2)
 	return { x: cx - w / 2, y: cy - h / 2, w, h, rot: 0 }
+}
+
+/**
+ * Reachability shift of a group of boxes moved on a page: `0` unless some box's rotated bounds
+ * would be fully off the page, else the smallest group shift (per axis) leaving at least
+ * `min` × `min` of every box on the page. When no shift fits every box, that axis centres the
+ * group's bounding box on the page.
+ */
+export function reachShift(
+	boxes: Iterable<Box>,
+	page: { w: number; h: number },
+	min = 12 * FX
+): { dx: number; dy: number } {
+	const rs = [...boxes].map(rotatedBounds)
+	if (!rs.length) return { dx: 0, dy: 0 }
+	const off = rs.some((r) => r.x >= page.w || r.x + r.w <= 0 || r.y >= page.h || r.y + r.h <= 0)
+	if (!off) return { dx: 0, dy: 0 }
+	const axis = (pos: (r: Box) => number, len: (r: Box) => number, size: number) => {
+		let lo = Number.NEGATIVE_INFINITY
+		let hi = Number.POSITIVE_INFINITY
+		let a = Number.POSITIVE_INFINITY
+		let b = Number.NEGATIVE_INFINITY
+		for (const r of rs) {
+			// A box (or page) smaller than `min` needs only its own size in view.
+			const m = Math.min(min, len(r), size)
+			lo = Math.max(lo, m - pos(r) - len(r))
+			hi = Math.min(hi, size - m - pos(r))
+			a = Math.min(a, pos(r))
+			b = Math.max(b, pos(r) + len(r))
+		}
+		return lo <= hi ? clamp(0, lo, hi) : size / 2 - (a + b) / 2
+	}
+	return {
+		dx: axis(
+			(r) => r.x,
+			(r) => r.w,
+			page.w
+		),
+		dy: axis(
+			(r) => r.y,
+			(r) => r.h,
+			page.h
+		)
+	}
+}
+
+/**
+ * Keep the boxes `keep(id)` selects reachable on `page`: one group shift (`reachShift` of the
+ * kept boxes) moves every box, so a mixed group stays rigid; then a per-box shift for any kept
+ * box still fully off (group too spread out).
+ */
+export function reachBoxes(
+	boxes: Map<string, Box>,
+	page: { w: number; h: number },
+	keep: (id: string) => boolean
+): Map<string, Box> {
+	const out = new Map<string, Box>()
+	const ids = [...boxes.keys()].filter(keep)
+	const g = reachShift(
+		ids.map((id) => boxes.get(id) as Box),
+		page
+	)
+	for (const [id, b0] of boxes) {
+		const b = { ...b0, x: b0.x + g.dx, y: b0.y + g.dy }
+		const s = keep(id) ? reachShift([b], page) : { dx: 0, dy: 0 }
+		out.set(id, { ...b, x: b.x + s.dx, y: b.y + s.dy })
+	}
+	return out
+}
+
+/**
+ * Pointer-up outcome of a move drag (`src` / `target` / `rail` are page keys, `page` the source
+ * index): a rail drop onto another page, a cross-page drop, a same-page commit, an empty-image
+ * pick, or nothing (a gone page, a rail drop onto the source).
+ */
+export function moveDrop(
+	d: { src: string; target: string; rail?: string; moved: boolean; pick?: string },
+	pages: { key: string }[]
+):
+	| { k: 'rail' | 'cross'; to: number }
+	| { k: 'commit'; page: number }
+	| { k: 'pick' }
+	| { k: 'none' } {
+	const at = (key: string) => pages.findIndex((p) => p.key === key)
+	// Indexes resolve by key at drop time: a peer may have inserted or removed pages since.
+	const src = at(d.src)
+	if (src < 0) return { k: 'none' }
+	if (d.rail !== undefined) {
+		const to = at(d.rail)
+		return to >= 0 && to !== src ? { k: 'rail', to } : { k: 'none' }
+	}
+	if (d.moved) {
+		const to = at(d.target)
+		if (to < 0) return { k: 'none' }
+		return d.target === d.src ? { k: 'commit', page: src } : { k: 'cross', to }
+	}
+	return d.pick ? { k: 'pick' } : { k: 'none' }
 }
 
 /** Rotation arc radius in page units, as RotationHandle draws it in overlay units (page / FX). */

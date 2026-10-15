@@ -46,6 +46,10 @@ export interface PagesRailProps {
 	onEditLayout?(n: number): void
 	/** Edit layout: mark pages using this page layout (accent bar), dim the others. */
 	highlightMaster?: string
+	/** Page key of the thumbnail a frame move drag would drop on (accent outline + label). */
+	dropTarget?: string
+	/** The rail's scroller (the pages' drag auto-scroll). */
+	railRef: React.RefObject<HTMLElement | null>
 }
 
 export function PagesRail({
@@ -59,11 +63,12 @@ export function PagesRail({
 	onAddPage,
 	onDeletePage,
 	onEditLayout,
-	highlightMaster
+	highlightMaster,
+	dropTarget,
+	railRef
 }: PagesRailProps) {
 	const { t } = useTranslation()
 	const [menu, setMenu] = React.useState<{ n: number; x: number; y: number }>()
-	const nav = React.useRef<HTMLElement>(null)
 	// Keys of thumbnails within one screen of the rail's view: only those mount a `PageCanvas`.
 	const [near, setNear] = React.useState<ReadonlySet<string>>(() => new Set())
 	const sortable = !!(onSection && onMoveSection)
@@ -71,7 +76,7 @@ export function PagesRail({
 	const pages = useDebouncedValue(layout.pages, THUMB_DEBOUNCE_MS)
 	const laying = useDelayed(layout.pending, 500)
 	React.useEffect(() => {
-		const el = nav.current
+		const el = railRef.current
 		if (!el) return
 		const io = new IntersectionObserver(
 			(es) => {
@@ -139,7 +144,9 @@ export function PagesRail({
 					<Button
 						key={key}
 						variant="link"
-						className="pagillo-thumb"
+						className={
+							key === dropTarget ? 'pagillo-thumb drop-target' : 'pagillo-thumb'
+						}
 						data-key={key}
 						style={
 							uses === undefined
@@ -185,7 +192,9 @@ export function PagesRail({
 								/>
 							)}
 						</div>
-						<span className="small">{n + 1}</span>
+						<span className="small">
+							{key === dropTarget ? t('Move to page {{n}}', { n: n + 1 }) : n + 1}
+						</span>
 					</Button>
 				)
 			})}
@@ -193,7 +202,7 @@ export function PagesRail({
 	)
 
 	return (
-		<nav ref={nav} className="pagillo-rail" aria-label={t('Pages')}>
+		<nav ref={railRef} className="pagillo-rail" aria-label={t('Pages')}>
 			{onSection && onMoveSection ? (
 				<SortableList
 					className="pagillo-rail-list"

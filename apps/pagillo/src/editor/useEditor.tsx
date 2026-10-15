@@ -62,7 +62,7 @@ export interface Editor {
 	/** `PageList` overlay render prop. */
 	overlay(index: number, size: { w: number; h: number }): React.ReactNode
 	/** `PageList` pointer callback. */
-	onPointer(type: 'down' | 'move' | 'up', hit: PageHit, e: React.PointerEvent): void
+	onPointer(type: 'down' | 'move' | 'up' | 'cancel', hit: PageHit, e: React.PointerEvent): void
 }
 
 type Echo = C.CaretBox & { pages: Map<string, PageDL> }
@@ -318,8 +318,12 @@ export function useEditor({
 		}
 	}, [canInput, label])
 
-	const onPointer = (type: 'down' | 'move' | 'up', hit: PageHit, e: React.PointerEvent) => {
-		if (type === 'up') {
+	const onPointer = (
+		type: 'down' | 'move' | 'up' | 'cancel',
+		hit: PageHit,
+		e: React.PointerEvent
+	) => {
+		if (type === 'up' || type === 'cancel') {
 			drag.current = undefined
 			return
 		}

@@ -48,20 +48,22 @@ export function pageDomId(key: string): string {
 	return `pagillo-page-${key}`
 }
 
-/** Scroll to a page; with `frac` (0–1 down the page) centre that spot instead of the page top. */
-export function scrollToPage(key: string, frac?: number): void {
+/**
+ * Smooth-scroll to a page's top; with `frac` (0–1 down the page) centre that spot instead.
+ * `jumpFar`: instant beyond two screens (a moved frame's new page, not every page between).
+ */
+export function scrollToPage(key: string, frac?: number, jumpFar = false): void {
 	const el = document.getElementById(pageDomId(key))
 	if (!el) return
-	if (frac === undefined) {
+	const box = el.closest('.pagillo-pages')
+	if (!box || (frac === undefined && !jumpFar)) {
 		el.scrollIntoView({ block: 'start', behavior: 'smooth' })
 		return
 	}
-	const box = el.closest('.pagillo-pages')
-	if (!box) return
 	const r = el.getBoundingClientRect()
 	const b = box.getBoundingClientRect()
-	const y = r.top + r.height * frac - (b.top + b.height / 2)
-	box.scrollBy({ top: y, behavior: 'smooth' })
+	const y = frac === undefined ? r.top - b.top : r.top + r.height * frac - (b.top + b.height / 2)
+	box.scrollBy({ top: y, behavior: jumpFar && Math.abs(y) > 2 * b.height ? 'instant' : 'smooth' })
 }
 
 const PX_PER_PT = 96 / 72
@@ -86,8 +88,23 @@ export interface PageListProps {
 	/** Global index of a page whose overlay is drawn even off-screen (the caret page, for reveal). */
 	pinned?: number
 	/** Pointer down on a page; move / up while captured (drag); uncaptured mouse moves (hover). */
-	onPagePointer?(type: 'down' | 'move' | 'up', hit: PageHit, e: React.PointerEvent): void
+	onPagePointer?(
+		type: 'down' | 'move' | 'up' | 'cancel',
+		hit: PageHit,
+		e: React.PointerEvent
+	): void
+	/**
+	 * A move drag is on: the pages and `dragScrollEls` auto-scroll near their top / bottom edge,
+	 * and a scroll of any re-runs `onPagePointer('move')` from the last pointer position.
+	 */
+	dragScroll?: boolean
+	/** Other scrollers a move drag auto-scrolls (the Pages rail). */
+	dragScrollEls?: React.RefObject<HTMLElement | null>[]
 }
+
+/** Auto-scroll band (CSS px from the edge) and top speed (CSS px per frame). */
+const EDGE = 40
+const SPEED = 20
 
 export function PageList({
 	layout,
@@ -100,9 +117,13 @@ export function PageList({
 	onZoomPct,
 	overlay,
 	pinned,
-	onPagePointer
+	onPagePointer,
+	dragScroll,
+	dragScrollEls
 }: PageListProps) {
 	const ref = React.useRef<HTMLDivElement>(null)
+	/** Last captured pointer (client px + event): the scroll re-run of a move drag. */
+	const lastPtr = React.useRef<{ x: number; y: number; e: React.PointerEvent }>(undefined)
 	const [view, setView] = React.useState({ top: 0, w: 0, h: 0 })
 
 	React.useLayoutEffect(() => {
@@ -184,25 +205,85 @@ export function PageList({
 		}
 		return best
 	}
-	const pointer = (type: 'down' | 'move' | 'up') => (e: React.PointerEvent<HTMLDivElement>) => {
-		if (!onPagePointer) return
-		if (type === 'down') {
-			// Pages, or the pasteboard itself (a click there deselects).
-			if (e.target !== e.currentTarget && !(e.target as Element).closest('.pagillo-page'))
+	const pointer =
+		(type: 'down' | 'move' | 'up' | 'cancel') => (e: React.PointerEvent<HTMLDivElement>) => {
+			if (!onPagePointer) return
+			// The browser took the pointer (touch pan…): the drag ends, written nothing.
+			if (type === 'cancel') {
+				lastPtr.current = undefined
+				onPagePointer('cancel', hitAt(e.clientX, e.clientY) ?? { index: -1, x: 0, y: 0 }, e)
 				return
-			// Keep focus in the input adapter; touch keeps panning (no drag-select).
-			if (e.pointerType !== 'touch') {
-				e.preventDefault()
-				e.currentTarget.setPointerCapture(e.pointerId)
 			}
-		} else if (
-			!e.currentTarget.hasPointerCapture(e.pointerId) &&
-			(type === 'up' || e.pointerType !== 'mouse')
-		)
-			return
-		const hit = hitAt(e.clientX, e.clientY)
-		if (hit) onPagePointer(type, hit, e)
-	}
+			if (type === 'down') {
+				// Pages, or the pasteboard itself (a click there deselects).
+				if (e.target !== e.currentTarget && !(e.target as Element).closest('.pagillo-page'))
+					return
+				// Keep focus in the input adapter; touch keeps panning (no drag-select).
+				if (e.pointerType !== 'touch') {
+					e.preventDefault()
+					e.currentTarget.setPointerCapture(e.pointerId)
+				}
+			} else if (
+				!e.currentTarget.hasPointerCapture(e.pointerId) &&
+				(type === 'up' || e.pointerType !== 'mouse')
+			)
+				return
+			lastPtr.current = type === 'up' ? undefined : { x: e.clientX, y: e.clientY, e }
+			const hit = hitAt(e.clientX, e.clientY)
+			if (hit) onPagePointer(type, hit, e)
+		}
+	// Scroll handlers outlive this render: they read the current `hitAt` / callback from here.
+	const latest = React.useRef({ hitAt, onPagePointer, dragScrollEls })
+	latest.current = { hitAt, onPagePointer, dragScrollEls }
+
+	// Move drag: scrolling fires no pointermove, so re-run the move; edge bands auto-scroll.
+	React.useEffect(() => {
+		if (!dragScroll) return
+		const els = [
+			ref.current,
+			...(latest.current.dragScrollEls ?? []).map((r) => r.current)
+		].filter((el): el is HTMLElement => !!el)
+		const rerun = () => {
+			const l = lastPtr.current
+			const hit = l && latest.current.hitAt(l.x, l.y)
+			if (l && hit) latest.current.onPagePointer?.('move', hit, l.e)
+		}
+		// Alt toggles snapping live: re-run the last move with the new modifier state.
+		// Only `altKey` and `clientX/Y` are read on the drag path.
+		const onKey = (ev: KeyboardEvent) => {
+			const l = lastPtr.current
+			if (ev.key !== 'Alt' || !l) return
+			lastPtr.current = {
+				...l,
+				e: { ...l.e, altKey: ev.type === 'keydown' } as React.PointerEvent
+			}
+			rerun()
+		}
+		window.addEventListener('keydown', onKey)
+		window.addEventListener('keyup', onKey)
+		let raf = 0
+		const tick = () => {
+			const l = lastPtr.current
+			if (l)
+				for (const el of els) {
+					const r = el.getBoundingClientRect()
+					if (l.x < r.left || l.x > r.right) continue
+					// Faster the closer to (or the further past) the edge.
+					const v = (d: number) => SPEED * Math.min(1, (EDGE - d) / EDGE)
+					if (l.y < r.top + EDGE) el.scrollTop -= v(l.y - r.top)
+					else if (l.y > r.bottom - EDGE) el.scrollTop += v(r.bottom - l.y)
+				}
+			raf = requestAnimationFrame(tick)
+		}
+		raf = requestAnimationFrame(tick)
+		for (const el of els) el.addEventListener('scroll', rerun, { passive: true })
+		return () => {
+			cancelAnimationFrame(raf)
+			window.removeEventListener('keydown', onKey)
+			window.removeEventListener('keyup', onKey)
+			for (const el of els) el.removeEventListener('scroll', rerun)
+		}
+	}, [dragScroll])
 
 	return (
 		<div
@@ -211,6 +292,7 @@ export function PageList({
 			onPointerDown={pointer('down')}
 			onPointerMove={pointer('move')}
 			onPointerUp={pointer('up')}
+			onPointerCancel={pointer('cancel')}
 		>
 			{list.length === 0 && skeleton && (
 				<Skeleton

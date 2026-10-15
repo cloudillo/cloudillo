@@ -71,13 +71,16 @@ import {
 	gutterEdges,
 	IMPLICIT_REGION,
 	marginBox,
+	moveDrop,
 	type PageInfo,
 	type PageItem,
 	pageItems,
 	pageMaster,
+	reachBoxes,
 	readingOrder,
 	rotArcRadius,
 	rotateTo,
+	sameBox,
 	rotatedBounds,
 	type SnapLine,
 	snapAt,
@@ -123,11 +126,17 @@ type Drag =
 	| {
 			k: 'move'
 			page: number
+			/** Key of the page the preview is on; differs from `page`'s for a cross-page move. */
+			target: string
 			x0: number
 			y0: number
 			start: Map<string, Box>
 			moved: boolean
 			pick?: string
+			/** Key of the page the drag started on. */
+			src: string
+			/** All moved items are unlocked page frames: may leave the page. */
+			pageFrames: boolean
 	  }
 	| {
 			k: 'resize'
@@ -215,6 +224,10 @@ interface Live {
 	rotating?: boolean
 	snap?: boolean
 	guides?: boolean
+	/** A move drag's preview (drives `dragScroll`; may sit on another page than the selection). */
+	move?: boolean
+	/** Page key of the Pages-rail thumbnail a move drag hovers (drop target). */
+	rail?: string
 }
 
 export interface UseFramesOptions {
@@ -242,14 +255,14 @@ export interface FrameCtl {
 	sel?: FrameSelection
 	select(s?: FrameSelection): void
 	/** `PageList.onPagePointer`: frames first, then the editor. */
-	onPointer(type: 'down' | 'move' | 'up', hit: PageHit, e: React.PointerEvent): void
+	onPointer(type: 'down' | 'move' | 'up' | 'cancel', hit: PageHit, e: React.PointerEvent): void
 	/** `PageList.overlay` part of the frame layer. */
 	overlay(index: number, size: { w: number; h: number }, scale: number): React.ReactNode
 	/** Esc in text: select the text box holding the caret (editor `onKey`). */
 	fromText(e: KeyboardEvent): boolean
 	/** Hidden focus target receiving the frame keys; render once. */
 	keyTarget: React.ReactNode
-	insertImage(): Promise<void>
+	insertImage(inline: boolean): Promise<void>
 	insertTextBox(): void
 	/** Choose / replace the image of an `img` frame. */
 	pick(id: string): Promise<void>
@@ -263,6 +276,10 @@ export interface FrameCtl {
 	focusAlt: number
 	/** A move / resize / rotate is in progress (awareness `active`). */
 	active: boolean
+	/** A move drag is in progress: `PageList` auto-scrolls and re-runs the move on scroll. */
+	dragScroll: boolean
+	/** Page key of the Pages-rail thumbnail a move drag would drop on. */
+	railTarget?: string
 	/** On-canvas crop session of an image frame. */
 	crop?: { id: string; page: number }
 	startCrop(id: string): void
@@ -278,6 +295,16 @@ export interface FrameCtl {
 	newLinked(id: string): void
 	/** Global page index of a frame's anchor page (-1 when not laid out). */
 	pageOf(id: string): number
+	/**
+	 * Move the selected page frames to global page `target` (same x/y + `reachBoxes`), then
+	 * select them there and scroll to it. No-op in Edit layout or for master / locked items.
+	 */
+	moveToPage(target: number): void
+	/**
+	 * Page select: global page indices per `layout.sections` entry (`ready` once laid out);
+	 * undefined unless the selection can move (`movable`).
+	 */
+	pageSections?: { n: number; ready: boolean }[][]
 }
 
 /** Link refusal hints (English keys, translated at use). */
@@ -326,6 +353,8 @@ export function useFrames({
 	const [hover, setHover] = React.useState<{ page: number; id?: string; bid?: string }>()
 	const [, setVer] = React.useState(0)
 	const drag = React.useRef<Drag | undefined>(undefined)
+	/** Escape cancelled a drag: its remaining move / up events go nowhere. */
+	const swallowDrag = React.useRef(false)
 	const liveRef = React.useRef<Live | undefined>(undefined)
 	const keyEl = React.useRef<HTMLDivElement>(null)
 	const [crop, setCrop] = React.useState<CropState>()
@@ -333,6 +362,9 @@ export function useFrames({
 	const [linkRefusal, setLinkRefusal] = React.useState<LinkRefusal>()
 	/** Last frame press, for the double-click that enters crop mode. */
 	const lastDown = React.useRef({ t: 0, x: 0, y: 0, id: '' })
+	/** This render's values, for code resuming after an await (the image dialog). */
+	const now = React.useRef({ sel, layoutEdit, current, editor })
+	now.current = { sel, layoutEdit, current, editor }
 	const cf = crop ? frameOf(doc, crop.id) : undefined
 	const cd = cf?.t === 'img' ? (cf.data as StoredImageData) : undefined
 	// Variant sized for 2× the frame at 100% zoom; pass the page scale if it blurs.
@@ -377,6 +409,15 @@ export function useFrames({
 	}, [link])
 
 	const pages = React.useMemo(() => flattenPages(layout.sections), [layout.sections])
+	const pageSections = React.useMemo(() => {
+		let n = 0
+		return layout.sections.map((s) =>
+			Array.from({ length: s.pages }, () => {
+				const k = pages[n]?.key
+				return { n: n++, ready: !!(k && layout.pages.get(k)?.page) }
+			})
+		)
+	}, [layout.sections, layout.pages, pages])
 	const info = (i: number): PageInfo | undefined => {
 		const p = pages[i]
 		return p && layout.pages.get(p.key)?.page
@@ -406,6 +447,11 @@ export function useFrames({
 	const show = (l?: Live) => {
 		liveRef.current = l
 		setLive(l)
+	}
+	/** Drop the drag and its preview; nothing is written. */
+	const cancelDrag = () => {
+		drag.current = undefined
+		show(undefined)
 	}
 	const select = (s?: FrameSelection) => {
 		if (crop && !s?.ids.includes(crop.id)) endCrop()
@@ -446,6 +492,51 @@ export function useFrames({
 	const pageOf = (id: string): number => {
 		const f = frameOf(doc, id)
 		return f ? pageOfFrame(f) : -1
+	}
+
+	/** Page frames (not regions / master items): kept reachable, may move between pages. */
+	const isPageFrame = (id: string) => {
+		const f = frameOf(doc, id)
+		return !!f && 'sec' in f.anchor
+	}
+
+	/** Unlocked page frames: may move between pages. */
+	const canRelocate = (ids: Iterable<string>) =>
+		[...ids].every((id) => isPageFrame(id) && !locked?.has(id))
+
+	/** The selection is all unlocked page frames: it may move to another page. */
+	const movable = !!sel && canEdit && !layoutEdit && canRelocate(sel.ids)
+
+	/** Re-anchor page frames to global page `to` at `boxes`, and select them there. */
+	const relocate = (boxes: Map<string, Box>, to: number) => {
+		const p = pages[to]
+		// Re-checked at drop: a peer may have locked a frame, or deleted the page, mid-drag.
+		if (!p || !info(to) || !canRelocate(boxes.keys())) return
+		if (crop) endCrop()
+		const anchor = { sec: p.sec, page: p.index }
+		yDoc.transact(() => {
+			for (const [id, b] of boxes) {
+				const { x, y, w, h, rot } = round(b)
+				updateFrame(yDoc, doc, id, { anchor, x, y, w, h, rot })
+			}
+		}, yDoc.clientID)
+		select({ ids: [...boxes.keys()], page: to })
+	}
+
+	const moveToPage = (target: number) => {
+		const p = pages[target]
+		const pg = info(target)
+		if (!sel || !movable || target === pageOf(sel.ids[0]) || !p || !pg) return
+		const all = new Map<string, Box>()
+		for (const id of sel.ids) {
+			const f = frameOf(doc, id)
+			if (f) all.set(id, boxOf(f))
+		}
+		relocate(
+			reachBoxes(all, pg, () => true),
+			target
+		)
+		scrollToPage(p.key, undefined, true)
 	}
 
 	/** Link mode from text frame `id` (page frames only; not in Edit layout). */
@@ -546,13 +637,14 @@ export function useFrames({
 			)
 		})
 
-	/** One undoable write of new boxes for items of `page`. */
-	const commit = (page: number, boxes: Map<string, Box>) => {
+	/** One undoable write of new boxes for items of `page`; `reach` keeps page frames reachable. */
+	const commit = (page: number, boxes0: Map<string, Box>, reach = false) => {
 		const pg = info(page)
 		if (!pg) return
 		const its = items(page)
 		// Master items on a mirrored left page are shown flipped; store base coordinates.
 		const mirrored = !!layoutEdit && !!pageMaster(doc, pg)?.mirrored
+		const boxes = reach ? reachBoxes(boxes0, pg, isPageFrame) : boxes0
 		// The implicit area becomes real first; its sentinel box maps to the new id.
 		masterLayoutTx(yDoc, doc, layoutEdit ? pg.master : undefined, (nid) => {
 			const regs = new Map<string, Box>()
@@ -596,10 +688,11 @@ export function useFrames({
 		editor.focus()
 	}
 
-	/** Insert target page: the selection's, else the current one (Edit layout: a page using it). */
+	/** Insert target page: the one in view (Edit layout: a page using it). */
 	const targetPage = (): number => {
-		if (sel) return sel.page
+		const { current } = now.current
 		if (layoutEdit) {
+			if (layout.pages.get(pages[current]?.key)?.page.master === layoutEdit) return current
 			const i = pages.findIndex((p) => layout.pages.get(p.key)?.page.master === layoutEdit)
 			if (i >= 0) return i
 		}
@@ -625,16 +718,21 @@ export function useFrames({
 		setFocusAlt((n) => n + 1)
 	}
 
-	const insertImage = async () => {
-		const one = sel?.ids.length === 1 ? frameOf(doc, sel.ids[0]) : undefined
+	const insertImage = async (inline: boolean) => {
+		// Inline needs a visible caret: not in Edit layout, not while a frame is selected.
+		if (inline && (!editor.sel || layoutEdit || sel)) return
+		const one = !inline && sel?.ids.length === 1 ? frameOf(doc, sel.ids[0]) : undefined
 		if (sel && one?.t === 'img' && !(one.data as StoredImageData).fileId)
 			return pick(sel.ids[0])
 		const r = await pickImage()
 		if (!r) return
+		// The dialog awaited: the caret or selection may have changed meanwhile.
+		const n = now.current
+		if (inline && (!n.editor.sel || n.layoutEdit || n.sel)) return
 		const [pw, ph] = r.px ?? [400, 300]
-		if (editor.sel && !layoutEdit && !sel) {
+		if (inline) {
 			// Inline: its own paragraph; the engine scales it to the column width.
-			editor.run((tx, from, to) => {
+			n.editor.run((tx, from, to) => {
 				deleteRange(tx, from, to)
 				let at = from
 				if (at > 0 && storyText(tx)[at - 1] !== '\n') at = insertText(tx, at, '\n')
@@ -673,12 +771,13 @@ export function useFrames({
 	}
 
 	const insertTextBox = () => {
-		// With a caret: on its page, under its line; else centred on the target page.
-		const pl =
-			es && !sel && !layoutEdit
+		// On the page in view: under the caret's line if it is there, else centred.
+		const page = targetPage()
+		const at =
+			es && !layoutEdit
 				? lineAt(editor.index.stories.get(es.story) ?? [], es.head)
 				: undefined
-		const page = pl?.page ?? targetPage()
+		const pl = at?.page === page ? at : undefined
 		const pg = info(page)
 		if (!pg) return
 		const mb = marginBox(doc, pg)
@@ -820,7 +919,23 @@ export function useFrames({
 	/** A text box's outline grab band: 6 CSS px in page Fx. */
 	const grab = (hit: PageHit) => (6 / (hit.scale ?? 1)) * FX
 
-	const onPointer = (type: 'down' | 'move' | 'up', hit: PageHit, e: React.PointerEvent) => {
+	const onPointer = (
+		type: 'down' | 'move' | 'up' | 'cancel',
+		hit: PageHit,
+		e: React.PointerEvent
+	) => {
+		if (type === 'cancel') {
+			swallowDrag.current = false
+			cancelDrag()
+			editor.onPointer('cancel', hit, e)
+			return
+		}
+		// A move with no button held: the cancelled drag is over.
+		if (type === 'move' && !e.buttons) swallowDrag.current = false
+		if (swallowDrag.current) {
+			if (type !== 'move') swallowDrag.current = false
+			if (type !== 'down') return
+		}
 		const d = drag.current
 		// 4 CSS px in page Fx (snap threshold).
 		const thr = (4 / (hit.scale ?? 1)) * FX
@@ -932,11 +1047,14 @@ export function useFrames({
 				drag.current = {
 					k: 'move',
 					page: hit.index,
+					src: pages[hit.index].key,
+					target: pages[hit.index].key,
 					x0: hit.x,
 					y0: hit.y,
 					start,
 					moved: false,
-					pick: empty ? h.id : undefined
+					pick: empty ? h.id : undefined,
+					pageFrames: canRelocate(start.keys())
 				}
 				return
 			}
@@ -968,22 +1086,57 @@ export function useFrames({
 				if (!e.buttons) hoverAt(hit, e.currentTarget as HTMLElement, e.altKey, thr)
 				return
 			}
-			// A drag never moves a frame to another page (anchor stays).
-			if (hit.index !== d.page) return
+			// Only a move of page frames follows the pointer to another page (below).
+			if (hit.index !== d.page && d.k !== 'move') return
 			if (d.k === 'crop') {
 				const p = toLocal(d.b, hit.x, hit.y)
 				setCrop((s) => s && { ...s, c: cropDrag(d, p.x, p.y) })
 				return
 			}
 			if (d.k === 'move') {
+				const snapBack = (rail?: string) => {
+					d.target = d.src
+					show({ page: d.page, boxes: new Map(d.start), move: true, rail })
+				}
+				// Over a laid-out Pages-rail thumbnail: snap the preview back; the drop moves there.
+				// The pointer is captured by the pages, so the thumbnail is found by hit test.
+				const el = document.elementFromPoint(e.clientX, e.clientY)
+				const key = el?.closest('.pagillo-thumb[data-key]')?.getAttribute('data-key')
+				const rail = key ? pages.findIndex((p) => p.key === key) : -1
+				if (
+					key &&
+					rail >= 0 &&
+					rail !== d.page &&
+					d.pageFrames &&
+					!layoutEdit &&
+					info(rail)
+				) {
+					// Leaving the rail over the source commits in place.
+					d.moved = true
+					snapBack(key)
+					return
+				}
+				// Off the pages (rail gaps, panels): snap back; a drop there changes nothing.
+				if (!el?.closest('.pagillo-pages')) {
+					snapBack()
+					return
+				}
+				// The page under the pointer is the target; Edit layout and master items stay put.
+				const to = hit.index
+				if (to !== d.page && (layoutEdit || !d.pageFrames || !info(to))) {
+					snapBack()
+					return
+				}
+				// Keeps the grab offset: start + pointer delta, in the target page's coordinates.
 				let dx = hit.x - d.x0
 				let dy = hit.y - d.y0
-				if (!d.moved && Math.hypot(dx, dy) < thr) return
+				if (!d.moved && to === d.page && Math.hypot(dx, dy) < thr) return
 				d.moved = true
+				d.target = pages[to].key
 				const shift = (ox: number, oy: number) =>
 					new Map([...d.start].map(([id, b]) => [id, { ...b, x: b.x + ox, y: b.y + oy }]))
 				let lines: SnapLine[] = []
-				const pg = info(d.page)
+				const pg = info(to)
 				if (view.snap && !e.altKey && pg) {
 					const bs = [...shift(dx, dy).values()].map(rotatedBounds)
 					const x = Math.min(...bs.map((b) => b.x))
@@ -997,18 +1150,27 @@ export function useFrames({
 					}
 					const s = snapBox(
 						bb,
-						snapTargets(doc, pg, items(d.page), new Set(d.start.keys()), !!layoutEdit),
+						snapTargets(doc, pg, items(to), new Set(d.start.keys()), !!layoutEdit),
 						thr
 					)
 					dx += s.dx
 					dy += s.dy
 					lines = s.lines
 				}
+				// Page frames stay reachable; the drop saves this preview as is.
+				const free = shift(dx, dy)
+				const boxes = pg ? reachBoxes(free, pg, isPageFrame) : free
+				// Pulled back into reach: the snap guides no longer match.
+				if (
+					[...boxes].some(([id, b]) => b.x !== free.get(id)?.x || b.y !== free.get(id)?.y)
+				)
+					lines = []
 				show({
-					page: d.page,
-					boxes: shift(dx, dy),
+					page: to,
+					boxes,
 					lines,
-					guides: view.snap && !e.altKey
+					guides: view.snap && !e.altKey,
+					move: true
 				})
 			} else if (d.k === 'resize') {
 				// Only text areas snap while resizing (unrotated); frames resize freely.
@@ -1091,8 +1253,19 @@ export function useFrames({
 		// The crop is live in `crop`; it commits on leaving crop mode.
 		if (d.k === 'crop') return
 		if (d.k === 'move') {
-			if (d.moved && l?.boxes) commit(d.page, l.boxes)
-			else if (d.pick && canEdit) void pick(d.pick)
+			const r = moveDrop({ ...d, rail: l?.rail }, pages)
+			// Rail drop: same x/y + shift on that page.
+			if (r.k === 'rail') moveToPage(r.to)
+			// Cross-page drop: the preview is already shifted; re-anchor in one transaction.
+			else if (r.k === 'cross' && l?.boxes) relocate(l.boxes, r.to)
+			// A drop back at the start (snapped back) writes nothing: no empty undo step.
+			else if (
+				r.k === 'commit' &&
+				l?.boxes &&
+				[...l.boxes].some(([id, b]) => !sameBox(b, d.start.get(id)))
+			)
+				commit(r.page, l.boxes)
+			else if (r.k === 'pick' && d.pick && canEdit) void pick(d.pick)
 		} else if (d.k === 'resize') {
 			if (l?.boxes) commit(d.page, l.boxes)
 		} else if (d.k === 'link') {
@@ -1230,6 +1403,11 @@ export function useFrames({
 		switch (e.key) {
 			case 'Escape':
 				done()
+				// Cancels a move drag: nothing is written, the selection stays.
+				if (drag.current?.k === 'move') {
+					swallowDrag.current = true
+					return cancelDrag()
+				}
 				if (crop) return endCrop()
 				if (link) return endLink()
 				setSel(undefined)
@@ -1264,7 +1442,8 @@ export function useFrames({
 				const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0
 				commit(
 					sel.page,
-					new Map(cur.map((it) => [it.id, { ...boxOf(it), x: it.x + dx, y: it.y + dy }]))
+					new Map(cur.map((it) => [it.id, { ...boxOf(it), x: it.x + dx, y: it.y + dy }])),
+					true
 				)
 				return
 			}
@@ -1291,6 +1470,15 @@ export function useFrames({
 				done()
 				remove()
 				return
+			case 'PageUp':
+			case 'PageDown': {
+				const from = pageOf(sel.ids[0])
+				const to = from + (e.key === 'PageUp' ? -1 : 1)
+				if (!e.altKey || drag.current || !movable || from < 0 || to < 0 || !info(to)) break
+				done()
+				moveToPage(to)
+				return
+			}
 		}
 		if (onKey?.(e.nativeEvent)) done()
 	}
@@ -1412,11 +1600,17 @@ export function useFrames({
 	const overlay = (i: number, size: { w: number; h: number }, scale: number) => {
 		const pg = info(i)
 		if (!pg || !canEdit) return null
-		const its = items(i)
+		const pageIts = items(i)
 		const editable = !layoutEdit || pg.master === layoutEdit
 		const L = live?.page === i ? live : undefined
+		// A cross-page move previews (and selects) its frames on the target page.
+		const its =
+			L?.move && sel && sel.page !== i
+				? [...pageIts, ...items(sel.page).filter((it) => L.boxes?.has(it.id))]
+				: pageIts
+		const selPage = live?.move ? live.page : sel?.page
 		const bx = (it: PageItem): Box => L?.boxes?.get(it.id) ?? boxOf(it)
-		const selected = sel?.page === i ? its.filter((it) => sel.ids.includes(it.id)) : []
+		const selected = sel && selPage === i ? its.filter((it) => sel.ids.includes(it.id)) : []
 		const one = selected.length === 1 ? selected[0] : undefined
 		const ghost = layoutEdit ? undefined : ghostOf(i)
 		const rulers = editable && (view.rulers || !!layoutEdit || selected.length > 0 || !!L)
@@ -1491,7 +1685,7 @@ export function useFrames({
 		const pageLines = editor.index.pages.get(i) ?? []
 		const flowed = new Set<string>()
 		const ghosts: { id: string; b: Box; n: number; m: number; story: string }[] = []
-		for (const it of layoutEdit ? [] : its) {
+		for (const it of layoutEdit ? [] : pageIts) {
 			if (it.frame?.t !== 'txt' || it.master || (it.frame.data as StoredTextFrameData).story)
 				continue
 			const c = chainOf(doc, it.id, chains)
@@ -2020,6 +2214,8 @@ export function useFrames({
 		setView,
 		focusAlt,
 		active: !!live?.boxes || !!live?.rotating,
+		dragScroll: !!live?.move,
+		railTarget: live?.rail,
 		crop: crop && sel?.ids.includes(crop.id) ? { id: crop.id, page: crop.page } : undefined,
 		startCrop,
 		endCrop,
@@ -2028,7 +2224,9 @@ export function useFrames({
 		endLink,
 		linkRefusal: link ? linkRefusal : undefined,
 		newLinked,
-		pageOf
+		pageOf,
+		moveToPage,
+		pageSections: movable ? pageSections : undefined
 	}
 }
 

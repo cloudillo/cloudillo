@@ -98,6 +98,8 @@ export function PagilloApp() {
 	const framesRef = React.useRef<FrameCtl | undefined>(undefined)
 	/** Esc fallback: leave Edit layout (set while the mode is on and nothing is selected). */
 	const escRef = React.useRef<(() => void) | undefined>(undefined)
+	/** Pages rail scroller: auto-scrolls during a frame move drag. */
+	const railRef = React.useRef<HTMLElement>(null)
 	// Writers get the input adapter even under `readOnlyReason`: it refuses edits (onRefusedEdit).
 	const canInput = writer && (!touchOnly || touchEdit)
 	const editor = useEditor({
@@ -532,8 +534,11 @@ export function PagilloApp() {
 					<Toolbar
 						{...cmd}
 						undo={undo}
-						onInsertImage={canLayout ? () => void frames.insertImage() : undefined}
+						onInsertImage={
+							canLayout ? (inline) => void frames.insertImage(inline) : undefined
+						}
 						onInsertTextBox={canLayout ? frames.insertTextBox : undefined}
+						inlineImageOff={!!layoutEdit || !!frames.sel}
 					/>
 				</div>
 			)}
@@ -581,6 +586,8 @@ export function PagilloApp() {
 							onDeletePage={canEdit ? onDeletePage : undefined}
 							onEditLayout={canLayout ? editLayoutOf : undefined}
 							highlightMaster={canLayout ? layoutEdit : undefined}
+							dropTarget={frames.railTarget}
+							railRef={railRef}
 						/>
 					</div>
 					<div data-landmark="document" style={{ display: 'contents' }}>
@@ -603,6 +610,8 @@ export function PagilloApp() {
 							)}
 							pinned={editor.caretPage}
 							onPagePointer={frames.onPointer}
+							dragScroll={frames.dragScroll}
+							dragScrollEls={[railRef]}
 						/>
 					</div>
 					{canLayout && (

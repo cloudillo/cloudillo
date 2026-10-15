@@ -19,10 +19,14 @@ import {
 	containsPoint,
 	gutterEdges,
 	type PageInfo,
+	moveDrop,
 	type PageItem,
+	reachBoxes,
+	reachShift,
 	rotArcRadius,
 	rotatedBounds,
 	rotateTo,
+	sameBox,
 	snapTargets
 } from '../editor/frames.js'
 import { hitText, type TextArea } from '../editor/hit-test.js'
@@ -133,6 +137,131 @@ describe('gutterEdges', () => {
 	it('clamps peer-controlled track counts', () => {
 		expect(gutterEdges(0, 1000, 1e9, 0)).toHaveLength(2 * (MAX_COLS - 1))
 		expect(gutterEdges(0, 1000, Number.NaN, 0)).toEqual([])
+	})
+})
+
+describe('reachShift', () => {
+	const page = { w: 600, h: 800 }
+	const b = (x: number, y: number, w = 100, h = 50, rot = 0) => ({ x, y, w, h, rot })
+
+	it('does not shift boxes on the page, even partly off', () => {
+		expect(reachShift([b(10, 10), b(-90, 790)], page, 12)).toEqual({ dx: 0, dy: 0 })
+	})
+
+	it('pulls a box fully off each edge back by the minimum', () => {
+		expect(reachShift([b(700, 10)], page, 12)).toEqual({ dx: -112, dy: 0 })
+		expect(reachShift([b(-200, 10)], page, 12)).toEqual({ dx: 112, dy: 0 })
+		expect(reachShift([b(10, 900)], page, 12)).toEqual({ dx: 0, dy: -112 })
+		expect(reachShift([b(10, -80)], page, 12)).toEqual({ dx: 0, dy: 42 })
+	})
+
+	it('uses the rotated bounds', () => {
+		// Unrotated it overlaps x 0..35; rotated 90° its bounds are x -25..-5.
+		expect(reachShift([b(-65, 100, 100, 20)], page, 12)).toEqual({ dx: 0, dy: 0 })
+		const r = reachShift([b(-65, 100, 100, 20, 90)], page, 12)
+		expect(r.dx).toBeCloseTo(17)
+		expect(r.dy).toBeCloseTo(0)
+	})
+
+	it('shifts the group as one, keeping every box reachable', () => {
+		// The off box needs dx <= -32; the other allows it.
+		expect(reachShift([b(620, 10), b(100, 10)], page, 12)).toEqual({ dx: -32, dy: 0 })
+		// Two boxes off the left edge: the farther one sets the shift.
+		expect(reachShift([b(-200, 10), b(-150, 10)], page, 12)).toEqual({ dx: 112, dy: 0 })
+	})
+
+	it('centres a group too spread out to fit', () => {
+		// Bounds -1000..1100, centre 50 → 300.
+		expect(reachShift([b(-1000, 10), b(1000, 10)], page, 12)).toEqual({ dx: 250, dy: 0 })
+	})
+})
+
+describe('reachBoxes', () => {
+	const page = { w: 600 * FX, h: 800 * FX }
+	const b = (x: number, y: number) => ({ x: x * FX, y: y * FX, w: 100 * FX, h: 50 * FX, rot: 0 })
+	const onPage = (r: { x: number; y: number; w: number; h: number }) =>
+		r.x < page.w && r.x + r.w > 0 && r.y < page.h && r.y + r.h > 0
+
+	it('shifts the group as one', () => {
+		const out = reachBoxes(
+			new Map([
+				['a', b(620, 10)],
+				['b', b(100, 10)]
+			]),
+			page,
+			() => true
+		)
+		expect(out.get('a')?.x).toBe(588 * FX)
+		expect(out.get('b')?.x).toBe(68 * FX)
+	})
+
+	it('moves ids `keep` rejects with the group, never on their own', () => {
+		const out = reachBoxes(
+			new Map([
+				['a', b(700, 10)],
+				['m', b(-500, 10)]
+			]),
+			page,
+			(id) => id !== 'm'
+		)
+		// The group shift comes from `a` alone (-112) and applies to `m` too: the group stays rigid.
+		expect(out.get('a')?.x).toBe(588 * FX)
+		expect(out.get('m')?.x).toBe(-612 * FX)
+	})
+
+	it('keeps every box of a too-spread group reachable', () => {
+		const out = reachBoxes(
+			new Map([
+				['a', b(-1000, 10)],
+				['b', b(1000, 10)],
+				['c', b(-750, 10)]
+			]),
+			page,
+			() => true
+		)
+		for (const r of out.values()) expect(onPage(r)).toBe(true)
+	})
+})
+
+describe('moveDrop', () => {
+	const pages = [{ key: 'p0' }, { key: 'p1' }, { key: 'p2' }]
+	const d = { src: 'p0', target: 'p0', moved: true }
+
+	it('drops on another rail page, not on the source', () => {
+		expect(moveDrop({ ...d, rail: 'p2' }, pages)).toEqual({ k: 'rail', to: 2 })
+		expect(moveDrop({ ...d, rail: 'p0' }, pages)).toEqual({ k: 'none' })
+	})
+
+	it('drops nothing on a page a peer deleted', () => {
+		expect(moveDrop({ ...d, rail: 'gone' }, pages)).toEqual({ k: 'none' })
+		expect(moveDrop({ ...d, target: 'gone' }, pages)).toEqual({ k: 'none' })
+		expect(moveDrop({ ...d, src: 'gone', target: 'p1' }, pages)).toEqual({ k: 'none' })
+	})
+
+	it('moves to the target page, or commits on the source', () => {
+		expect(moveDrop({ ...d, target: 'p1' }, pages)).toEqual({ k: 'cross', to: 1 })
+		// Rail hover resets `target` to the source key: leaving the rail commits in place.
+		expect(moveDrop(d, pages)).toEqual({ k: 'commit', page: 0 })
+	})
+
+	it('resolves the source by key after a peer inserted a page before it', () => {
+		const shifted = [{ key: 'new' }, ...pages]
+		expect(moveDrop(d, shifted)).toEqual({ k: 'commit', page: 1 })
+		expect(moveDrop({ ...d, rail: 'p0' }, shifted)).toEqual({ k: 'none' })
+	})
+
+	it('picks an empty image on a click', () => {
+		expect(moveDrop({ ...d, moved: false, pick: 'i' }, pages)).toEqual({ k: 'pick' })
+		expect(moveDrop({ ...d, moved: false }, pages)).toEqual({ k: 'none' })
+	})
+})
+
+describe('sameBox', () => {
+	it('compares x, y, w, h, rot; a missing box never matches', () => {
+		const a = { x: 1, y: 2, w: 3, h: 4, rot: 5 }
+		expect(sameBox(a, { ...a })).toBe(true)
+		expect(sameBox(a, { ...a, rot: 0 })).toBe(false)
+		expect(sameBox(a, undefined)).toBe(false)
 	})
 })
 

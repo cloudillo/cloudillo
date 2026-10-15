@@ -122,6 +122,10 @@ body,
 	outline: 2px solid var(--col-primary);
 }
 
+.pagillo-thumb.drop-target .pagillo-thumb-page {
+	outline: 2px solid var(--col-accent);
+}
+
 .pagillo-rail-pending {
 	padding: 8px;
 }

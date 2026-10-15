@@ -109,10 +109,12 @@ function useRoving(ref: React.RefObject<HTMLDivElement | null>) {
 
 export interface ToolbarProps extends Cmd.CommandCtx {
 	undo: Undo
-	/** Insert an image (inline at the caret, else on the current page). Absent = no layout rights. */
-	onInsertImage?(): void
-	/** Insert a text box on the current page. Absent = no layout rights. */
+	/** Insert an image inline at the caret, or as a frame on the page in view. Absent = no layout rights. */
+	onInsertImage?(inline: boolean): void
+	/** Insert a text box on the page in view. Absent = no layout rights. */
 	onInsertTextBox?(): void
+	/** Inline image refused (Edit layout, a frame selected). */
+	inlineImageOff?: boolean
 }
 
 const ALIGNS = [
@@ -124,7 +126,15 @@ const ALIGNS = [
 
 const today = () => new Date().toISOString().slice(0, 10)
 
-export function Toolbar({ yDoc, doc, editor, undo, onInsertImage, onInsertTextBox }: ToolbarProps) {
+export function Toolbar({
+	yDoc,
+	doc,
+	editor,
+	undo,
+	onInsertImage,
+	onInsertTextBox,
+	inlineImageOff
+}: ToolbarProps) {
 	const { t } = useTranslation()
 	const dialog = useDialog()
 	const ref = React.useRef<HTMLDivElement>(null)
@@ -300,7 +310,20 @@ export function Toolbar({ yDoc, doc, editor, undo, onInsertImage, onInsertTextBo
 					</Button>
 				}
 			>
-				{onInsertImage && <MenuItem label={t('Image…')} onClick={onInsertImage} />}
+				{onInsertImage && (
+					<>
+						<MenuItem
+							label={t('Image on page…')}
+							onClick={() => onInsertImage(false)}
+						/>
+						<MenuItem
+							label={t('Image in text…')}
+							disabled={off || inlineImageOff}
+							title={off ? needCaret : undefined}
+							onClick={() => onInsertImage(true)}
+						/>
+					</>
+				)}
 				{onInsertTextBox && <MenuItem label={t('Text box')} onClick={onInsertTextBox} />}
 				{(onInsertImage || onInsertTextBox) && <MenuDivider />}
 				<SubMenuItem label={t('Field')} disabled={off} title={off ? needCaret : undefined}>

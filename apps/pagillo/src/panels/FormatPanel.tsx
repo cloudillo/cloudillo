@@ -157,6 +157,37 @@ function DeleteButton({ onClick }: { onClick(): void }) {
 	)
 }
 
+/** Page of the selection (global order, grouped per section); hidden unless it can move. */
+function PageSelect({ frames }: { frames: FrameCtl }) {
+	const { t } = useTranslation()
+	const groups = frames.pageSections
+	const sel = frames.sel
+	const at = sel ? frames.pageOf(sel.ids[0]) : -1
+	// Not laid out (yet): no option to show it as.
+	if (!groups || at < 0) return null
+	return (
+		<PropertyField label={t('Page')}>
+			<NativeSelect
+				value={String(at)}
+				onChange={(e) => frames.moveToPage(Number(e.target.value))}
+			>
+				{groups.map(
+					(g, si) =>
+						g.length > 0 && (
+							<optgroup key={si} label={t('Section {{n}}', { n: si + 1 })}>
+								{g.map(({ n, ready }) => (
+									<option key={n} value={String(n)} disabled={!ready}>
+										{t('Page {{n}}', { n: n + 1 })}
+									</option>
+								))}
+							</optgroup>
+						)
+				)}
+			</NativeSelect>
+		</PropertyField>
+	)
+}
+
 function FrameSection({ yDoc, doc, frames }: PanelProps & { frames: FrameCtl }) {
 	const { t } = useTranslation()
 	const altBox = React.useRef<HTMLDivElement>(null)
@@ -177,6 +208,7 @@ function FrameSection({ yDoc, doc, frames }: PanelProps & { frames: FrameCtl }) 
 						? t('{{n}} items selected', { n: ids.length })
 						: t('Text area of the page layout')}
 				</p>
+				{ids.length > 1 && <PageSelect frames={frames} />}
 			</PropertySection>
 		)
 	}
@@ -283,6 +315,7 @@ function FrameSection({ yDoc, doc, frames }: PanelProps & { frames: FrameCtl }) 
 				)}
 				{!master && (
 					<>
+						<PageSelect frames={frames} />
 						<PropertyField label={t('Text wrap')}>
 							<NativeSelect
 								value={f.wrap.mode}

@@ -13,6 +13,8 @@ module.exports = {
 			...shared,
 			displayName: 'dom',
 			testEnvironment: 'jsdom',
+			// TextEncoder for react-router, which `view/PageList.tsx` reaches through @cloudillo/react.
+			setupFiles: ['<rootDir>/../../libs/react/jest.setup.cjs'],
 			testMatch: ['**/__tests__/**/*.test.tsx']
 		})
 	]

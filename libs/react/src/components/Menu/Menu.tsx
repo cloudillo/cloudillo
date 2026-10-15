@@ -388,7 +388,8 @@ const FloatingSubMenu = React.forwardRef<HTMLDivElement, SubMenuItemProps>(funct
 		modifiers: [
 			{ name: 'flip', options: { fallbackPlacements: ['left-start'] } },
 			{ name: 'preventOverflow', options: { padding: 8 } },
-			{ name: 'offset', options: { offset: [-4, -4] } }
+			{ name: 'offset', options: { offset: [-4, -4] } },
+			{ name: 'computeStyles', options: { gpuAcceleration: false } }
 		]
 	})
 

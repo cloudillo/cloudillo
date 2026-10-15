@@ -50,7 +50,11 @@ export function useAnchoredPosition(
 		modifiers: [
 			{ name: 'offset', options: { offset: [0, offset] } },
 			// Keep a gap to the viewport edge when the surface is shifted back into view.
-			{ name: 'preventOverflow', options: { padding: 8 } }
+			{ name: 'preventOverflow', options: { padding: 8 } },
+			// top/left, not transform: a transform would make this surface the containing block
+			// popper measures nested popovers (submenus) against, while the top layer places them
+			// against the viewport.
+			{ name: 'computeStyles', options: { gpuAcceleration: false } }
 		]
 	})
 	return { style: styles.popper, attributes: attributes.popper }

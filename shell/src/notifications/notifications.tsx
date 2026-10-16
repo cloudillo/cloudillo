@@ -33,6 +33,7 @@ import {
 	LuFile as IcFiles,
 	LuMessageSquare as IcMessages,
 	LuBell as IcNotifications,
+	LuX as IcDismiss,
 	LuX as IcReject,
 	LuHeart as IcSocial,
 	LuMailOpen as IcUnread
@@ -193,7 +194,7 @@ function DismissAction({ onDismiss }: { onDismiss: () => void }) {
 	const { t } = useTranslation()
 	return (
 		<Button onClick={onDismiss}>
-			<IcReject /> {t('Dismiss')}
+			<IcDismiss /> {t('Dismiss')}
 		</Button>
 	)
 }

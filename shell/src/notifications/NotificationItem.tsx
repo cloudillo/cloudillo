@@ -16,7 +16,7 @@ import * as T from '@symbion/runtype'
 import type { TFunction } from 'i18next'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuCheck as IcAccept, LuX as IcDismiss } from 'react-icons/lu'
+import { LuCheck as IcAccept, LuX as IcDismiss, LuX as IcReject } from 'react-icons/lu'
 
 function getActionText(
 	type: string,
@@ -157,7 +157,7 @@ export function NotificationItem({
 						<Button
 							variant="ghost"
 							color="error"
-							icon={<IcDismiss />}
+							icon={<IcReject />}
 							aria-label={t('Reject')}
 							onClick={() => onReject(action)}
 						/>

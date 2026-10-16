@@ -14,10 +14,9 @@
  * body-scroll lock and one item per row, which is the wrong shape for a tool grid.
  */
 
-import { useEscapeKey } from '@cloudillo/react'
+import { IcLocked, useEscapeKey } from '@cloudillo/react'
 import * as React from 'react'
 import type { IconType } from 'react-icons'
-import { PiLockBold as IcLocked } from 'react-icons/pi'
 
 import { useEdgeClamp } from '../hooks/useEdgeClamp.js'
 

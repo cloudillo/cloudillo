@@ -9,6 +9,8 @@ import {
 	DialogContainer,
 	DocBarMenu,
 	EmptyState,
+	IcExport,
+	IcPagillo,
 	LoadingSpinner,
 	MenuItem,
 	PropertyPanel,
@@ -20,8 +22,6 @@ import {
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuFileText as IcPagillo } from 'react-icons/lu'
-import { PiExportBold as IcExport } from 'react-icons/pi'
 
 import '@symbion/opalui'
 import '@symbion/opalui/themes/glass.css'
@@ -60,14 +60,14 @@ import {
 } from './editor/commands'
 import { useFindReplace } from './editor/FindReplace'
 import { type FrameCtl, LINK_REFUSALS, useFrames } from './editor/FrameOverlay'
-import { SpellOverlay } from './editor/SpellOverlay'
-import { TextMenu } from './editor/TextMenu'
-import { userWords } from './editor/user-words'
 import { containsPoint, pageMaster } from './editor/frames'
 import { handleKey, type KeymapCtx, undoRedoKey } from './editor/keymap'
 import { usePublishPresence, useRemote } from './editor/RemoteOverlay'
+import { SpellOverlay } from './editor/SpellOverlay'
+import { TextMenu } from './editor/TextMenu'
 import { useUndo } from './editor/undo'
 import { useEditor } from './editor/useEditor'
+import { userWords } from './editor/user-words'
 import { appLabel } from './embeds/record'
 import { EmbedRendersContext, useEmbedRenders } from './embeds/useEmbedRenders'
 import { PdfExportDialog } from './export/PdfExportDialog'

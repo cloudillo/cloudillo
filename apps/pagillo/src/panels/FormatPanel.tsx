@@ -12,6 +12,10 @@ import { getAppBus } from '@cloudillo/core'
 import {
 	Button,
 	ColorInput,
+	IcAdd,
+	IcClose,
+	IcDelete,
+	IcRemove,
 	Input,
 	Menu,
 	MenuItem,
@@ -26,7 +30,6 @@ import {
 import { FX } from '@cloudillo/typeset'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuMinus, LuPlus, LuTrash2, LuX } from 'react-icons/lu'
 import type * as Y from 'yjs'
 
 import { frameOf, mastersOf, stylesOf } from '../crdt/entities'
@@ -136,7 +139,7 @@ function OptColor({ value, onChange }: { value?: string; onChange(c?: string): v
 				<Button
 					variant="ghost"
 					size="sm"
-					icon={<LuX />}
+					icon={<IcClose />}
 					aria-label={t('None')}
 					title={t('None')}
 					onClick={() => onChange(undefined)}
@@ -154,7 +157,7 @@ function DeleteButton({ onClick }: { onClick(): void }) {
 			<Button
 				variant="ghost"
 				size="sm"
-				icon={<LuTrash2 />}
+				icon={<IcDelete />}
 				aria-label={t('Delete')}
 				title={t('Delete')}
 				onClick={onClick}
@@ -662,7 +665,7 @@ function TableSection({
 						<Button
 							variant="ghost"
 							size="sm"
-							icon={<LuPlus />}
+							icon={<IcAdd />}
 							aria-label={insLabel}
 							title={insLabel}
 						/>
@@ -675,7 +678,7 @@ function TableSection({
 				<Button
 					variant="ghost"
 					size="sm"
-					icon={<LuMinus />}
+					icon={<IcRemove />}
 					aria-label={delLabel}
 					title={delLabel}
 					onClick={del}

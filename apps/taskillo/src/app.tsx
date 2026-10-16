@@ -4,6 +4,8 @@
 import {
 	AppDocBar,
 	EmptyState,
+	IcAdd,
+	IcDelete,
 	LoadingSpinner,
 	Panel,
 	PresenceProvider,
@@ -13,7 +15,6 @@ import {
 } from '@cloudillo/react'
 import { buildPresenceUser, type RtdbClient } from '@cloudillo/rtdb'
 import * as React from 'react'
-import { PiTrashBold as IcDelete, PiPlusBold as IcPlus } from 'react-icons/pi'
 
 import '@symbion/opalui'
 import '@symbion/opalui/themes/glass.css'
@@ -332,7 +333,7 @@ function TaskInput({
 					className="c-button primary"
 					style={{ padding: '0.5rem 1rem' }}
 				>
-					<IcPlus /> {loading ? 'Adding...' : 'Add'}
+					<IcAdd /> {loading ? 'Adding...' : 'Add'}
 				</button>
 			</form>
 		</Panel>

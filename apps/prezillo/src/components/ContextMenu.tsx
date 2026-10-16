@@ -5,14 +5,8 @@
  * Context menu component for object actions (Duplicate, Delete, Hide/Show, Detach)
  */
 
+import { IcDelete, IcDuplicate, IcHide, IcShow, IcUnlink } from '@cloudillo/react'
 import * as React from 'react'
-import {
-	PiTrashBold as IcDelete,
-	PiLinkBreakBold as IcDetach,
-	PiCopyBold as IcDuplicate,
-	PiEyeSlashBold as IcHide,
-	PiEyeBold as IcShow
-} from 'react-icons/pi'
 
 import { detachInstance, getObject, isInstance, toggleObjectHidden } from '../crdt'
 import type { UsePrezilloDocumentResult } from '../hooks/usePrezilloDocument'
@@ -92,7 +86,7 @@ export function ContextMenu({
 						onClose()
 					}}
 				>
-					<IcDetach /> Detach from template
+					<IcUnlink /> Detach from template
 				</button>
 			)}
 

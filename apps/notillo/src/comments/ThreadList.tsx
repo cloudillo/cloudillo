@@ -2,18 +2,11 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import type { Comment, CommentThread, UseCommentsReturn } from '@cloudillo/react'
-import { Button } from '@cloudillo/react'
+import { Button, IcAdd, IcComment, IcSend } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuChevronsUpDown as IcCollapse,
-	LuPlus as IcPlus,
-	LuCircle as IcReopen,
-	LuMessageCircle as IcReply,
-	LuCircleCheck as IcResolved,
-	LuSend as IcSend
-} from 'react-icons/lu'
 
+import { IcCollapseAll, IcReopen, IcResolve } from '../icons.js'
 import { CommentItem } from './CommentItem.js'
 import { anchorBlockId, shortTimeFormat } from './utils.js'
 
@@ -59,7 +52,7 @@ export function ThreadListHeader({ readOnly, onNewComment }: ThreadListHeaderPro
 					size="sm"
 					onClick={onNewComment}
 					title={t('New comment')}
-					icon={<IcPlus />}
+					icon={<IcAdd />}
 					aria-label={t('New comment')}
 				/>
 			)}
@@ -144,7 +137,7 @@ function ExpandedThread({
 					size="sm"
 					onClick={onCollapse}
 					title={t('Collapse')}
-					icon={<IcCollapse size={14} />}
+					icon={<IcCollapseAll size={14} />}
 					aria-label={t('Collapse')}
 				/>
 			</div>
@@ -183,7 +176,7 @@ function ExpandedThread({
 					<Button variant="link" size="sm" onClick={onToggleStatus}>
 						{thread.status === 'open' ? (
 							<>
-								<IcResolved size={12} /> {t('Resolve')}
+								<IcResolve size={12} /> {t('Resolve')}
 							</>
 						) : (
 							<>
@@ -472,7 +465,7 @@ export const ThreadList = React.forwardRef<ThreadListHandle, ThreadListProps>(fu
 								{shortTimeFormat(thread.createdAt)}
 							</span>
 							{thread.status === 'resolved' && (
-								<IcResolved size={12} className="comment-resolved-icon" />
+								<IcResolve size={12} className="comment-resolved-icon" />
 							)}
 						</div>
 						{thread.textPreview && (
@@ -480,7 +473,7 @@ export const ThreadList = React.forwardRef<ThreadListHandle, ThreadListProps>(fu
 						)}
 						{thread.commentCount > 1 && (
 							<div className="comment-thread-replies">
-								<IcReply size={12} />
+								<IcComment size={12} />
 								<span>
 									{t('{{count}} replies', { count: thread.commentCount - 1 })}
 								</span>

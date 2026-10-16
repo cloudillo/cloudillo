@@ -6,21 +6,22 @@
  * empty; it closes by itself when `secs` fills — locally or by a collaborator's apply.
  */
 
-import { Button, Segmented, SegmentedItem } from '@cloudillo/react'
+import {
+	Button,
+	IcBook,
+	IcColumns,
+	IcDocument,
+	IcFile,
+	IcImage,
+	Segmented,
+	SegmentedItem
+} from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuBookOpen,
-	LuColumns2,
-	LuFile,
-	LuFileText,
-	LuImage,
-	LuMegaphone,
-	LuNewspaper
-} from 'react-icons/lu'
 import type * as Y from 'yjs'
 
 import type { YPagilloDocument } from '../crdt/stored-types'
+import { IcAnnouncement, IcNewsletter } from '../icons.js'
 import {
 	applyTemplate,
 	type Orientation,
@@ -29,14 +30,14 @@ import {
 	type TemplateId
 } from '../templates'
 
-const ICONS: Record<TemplateId, typeof LuFile> = {
-	simple: LuFileText,
-	'two-col': LuColumns2,
-	hero: LuImage,
-	newsletter: LuNewspaper,
-	report: LuBookOpen,
-	flyer: LuMegaphone,
-	blank: LuFile
+const ICONS: Record<TemplateId, typeof IcFile> = {
+	simple: IcDocument,
+	'two-col': IcColumns,
+	hero: IcImage,
+	newsletter: IcNewsletter,
+	report: IcBook,
+	flyer: IcAnnouncement,
+	blank: IcFile
 }
 
 export interface TemplateGalleryProps {

@@ -30,7 +30,11 @@ jest.unstable_mockModule('react-i18next', () => ({
 
 const passthrough = ({ children }: { children?: React.ReactNode }) => <div>{children}</div>
 
+// the real generic icon concepts, so the mock never lacks an `Ic*` the app imports
+const icons = await import('@cloudillo/react/icons')
+
 jest.unstable_mockModule('@cloudillo/react', () => ({
+	...icons,
 	ActionSheet: passthrough,
 	ActionSheetItem: passthrough,
 	AvatarGroup: passthrough,

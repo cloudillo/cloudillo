@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { IcCheck, IcClose } from '@cloudillo/react'
 import * as React from 'react'
-import { LuCheck as IcCheck, LuX as IcClose, LuLayers as IcLayers } from 'react-icons/lu'
 
+import { IcLayers } from './icons.js'
 import { TILE_LAYERS } from './styles.js'
 import type { TileLayerId } from './types.js'
 

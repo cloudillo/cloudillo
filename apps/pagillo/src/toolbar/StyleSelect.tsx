@@ -8,11 +8,16 @@
  * actions (Update / Clear / heading nudge), so the toolbar never changes width.
  */
 
-import { mergeClasses, overlayContainer, useAnchoredPosition, useEscapeKey } from '@cloudillo/react'
+import {
+	IcDropdown,
+	mergeClasses,
+	overlayContainer,
+	useAnchoredPosition,
+	useEscapeKey
+} from '@cloudillo/react'
 import * as React from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
-import { PiCaretDownBold as IcCaret } from 'react-icons/pi'
 
 import type { StoredStyle } from '../crdt/stored-types'
 
@@ -163,7 +168,7 @@ export function StyleSelect({
 			>
 				<span className="pagillo-style-label">{label}</span>
 				{nudge && <span className="pagillo-style-dot" title={t('Make it Heading 2?')} />}
-				<IcCaret size={12} />
+				<IcDropdown size={12} />
 			</button>
 			{open &&
 				createPortal(

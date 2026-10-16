@@ -1,23 +1,23 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { TreeItem, type TreeItemDragData, TreeView } from '@cloudillo/react'
-import * as React from 'react'
-import { LuShapes as IcDefault } from 'react-icons/lu'
 import {
-	PiCircleBold as IcEllipse,
-	PiFolderBold as IcFolder,
-	PiFolderOpenBold as IcFolderOpen,
-	PiEyeSlashBold as IcHidden,
-	PiImageBold as IcImage,
-	PiMinusBold as IcLine,
-	PiLockBold as IcLocked,
-	PiFolderPlusBold as IcNewFolder,
-	PiRectangleBold as IcRect,
-	PiTextTBold as IcText,
-	PiLockOpenBold as IcUnlocked,
-	PiEyeBold as IcVisible
-} from 'react-icons/pi'
+	IcCreateFolder,
+	IcEllipse,
+	IcFolder,
+	IcHide,
+	IcImage,
+	IcLine,
+	IcLocked,
+	IcRectangle,
+	IcShow,
+	IcText,
+	IcUnlocked,
+	TreeItem,
+	type TreeItemDragData,
+	TreeView
+} from '@cloudillo/react'
+import * as React from 'react'
 import { useY } from 'react-yjs'
 import type * as Y from 'yjs'
 
@@ -33,6 +33,7 @@ import {
 	toggleObjectLock,
 	toggleObjectVisibility
 } from '../../crdt'
+import { IcFolderOpen, IcShape } from '../../icons.js'
 
 // Extended drag data with parent info
 interface DragData extends TreeItemDragData {
@@ -63,7 +64,7 @@ export interface LayerBrowserProps {
 function getObjectIcon(type: string) {
 	switch (type) {
 		case 'rect':
-			return <IcRect size={14} />
+			return <IcRectangle size={14} />
 		case 'ellipse':
 			return <IcEllipse size={14} />
 		case 'line':
@@ -73,7 +74,7 @@ function getObjectIcon(type: string) {
 		case 'image':
 			return <IcImage size={14} />
 		default:
-			return <IcDefault size={14} />
+			return <IcShape size={14} />
 	}
 }
 
@@ -408,7 +409,7 @@ export function LayerBrowser({
 							}
 							title={isVisible ? 'Hide' : 'Show'}
 						>
-							{isVisible ? <IcVisible size={12} /> : <IcHidden size={12} />}
+							{isVisible ? <IcShow size={12} /> : <IcHide size={12} />}
 						</button>
 						<button
 							type="button"
@@ -478,7 +479,7 @@ export function LayerBrowser({
 							onClick={(e) => handleToggleObjectVisibility(e, objectId as ObjectId)}
 							title={isVisible ? 'Hide' : 'Show'}
 						>
-							{isVisible ? <IcVisible size={12} /> : <IcHidden size={12} />}
+							{isVisible ? <IcShow size={12} /> : <IcHide size={12} />}
 						</button>
 						<button
 							type="button"
@@ -503,7 +504,7 @@ export function LayerBrowser({
 					onClick={handleCreateLayer}
 					title="New Layer"
 				>
-					<IcNewFolder size={14} />
+					<IcCreateFolder size={14} />
 				</button>
 			</div>
 			<TreeView>

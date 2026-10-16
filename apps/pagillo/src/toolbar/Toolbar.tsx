@@ -7,11 +7,23 @@
  * foot), then B/I/U/S, font, size, colour, alignment, lists, Insert menu and undo/redo.
  */
 
-import { FX } from '@cloudillo/typeset'
 import {
 	Button,
 	ColorInput,
 	FontPicker,
+	IcAdd,
+	IcAlignCenter,
+	IcAlignJustify,
+	IcAlignLeft,
+	IcAlignRight,
+	IcBold,
+	IcItalic,
+	IcList,
+	IcListNumbers,
+	IcRedo,
+	IcStrikethrough,
+	IcUnderline,
+	IcUndo,
 	Menu,
 	MenuDivider,
 	MenuItem,
@@ -20,31 +32,16 @@ import {
 	Toolbar as UiToolbar,
 	useDialog
 } from '@cloudillo/react'
+import { FX } from '@cloudillo/typeset'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuAlignCenter,
-	LuAlignJustify,
-	LuAlignLeft,
-	LuAlignRight,
-	LuBold,
-	LuIndentDecrease,
-	LuIndentIncrease,
-	LuItalic,
-	LuList,
-	LuListOrdered,
-	LuPlus,
-	LuRedo2,
-	LuStrikethrough,
-	LuUnderline,
-	LuUndo2
-} from 'react-icons/lu'
 
 import { stylesOf } from '../crdt/entities'
-import * as Cmd from '../editor/commands'
-import type { Editor } from '../editor/useEditor'
-import type { Undo } from '../editor/undo'
 import type { YPagilloDocument } from '../crdt/stored-types'
+import * as Cmd from '../editor/commands'
+import type { Undo } from '../editor/undo'
+import type { Editor } from '../editor/useEditor'
+import { IcIndent, IcOutdent } from '../icons.js'
 import { useDocVersion } from '../panels/useY'
 import { LengthInput } from '../ui/LengthInput'
 import { StyleSelect } from './StyleSelect'
@@ -120,10 +117,10 @@ export interface ToolbarProps extends Cmd.CommandCtx {
 }
 
 const ALIGNS = [
-	['left', LuAlignLeft, 'Left'],
-	['center', LuAlignCenter, 'Center'],
-	['right', LuAlignRight, 'Right'],
-	['justify', LuAlignJustify, 'Justify']
+	['left', IcAlignLeft, 'Left'],
+	['center', IcAlignCenter, 'Center'],
+	['right', IcAlignRight, 'Right'],
+	['justify', IcAlignJustify, 'Justify']
 ] as const
 
 const today = () => new Date().toISOString().slice(0, 10)
@@ -243,10 +240,10 @@ export function Toolbar({
 				onDismissNudge={act(() => Cmd.dismissHeadingNudge(ctx))}
 			/>
 			<ToolbarDivider />
-			{mark('bold', LuBold, t('Bold'))}
-			{mark('italic', LuItalic, t('Italic'))}
-			{mark('underline', LuUnderline, t('Underline'))}
-			{mark('strike', LuStrikethrough, t('Strikethrough'))}
+			{mark('bold', IcBold, t('Bold'))}
+			{mark('italic', IcItalic, t('Italic'))}
+			{mark('underline', IcUnderline, t('Underline'))}
+			{mark('strike', IcStrikethrough, t('Strikethrough'))}
 			<ToolbarDivider />
 			<FontPicker
 				value={st?.marks.font ?? (st?.eff.font as string | undefined) ?? ''}
@@ -288,7 +285,7 @@ export function Toolbar({
 			<Button
 				variant="ghost"
 				size="sm"
-				icon={<LuList />}
+				icon={<IcList />}
 				aria-label={t('Bulleted list')}
 				title={t('Bulleted list')}
 				pressed={st?.list === 'bullet'}
@@ -298,7 +295,7 @@ export function Toolbar({
 			<Button
 				variant="ghost"
 				size="sm"
-				icon={<LuListOrdered />}
+				icon={<IcListNumbers />}
 				aria-label={t('Numbered list')}
 				title={t('Numbered list')}
 				pressed={st?.list === 'ordered'}
@@ -308,7 +305,7 @@ export function Toolbar({
 			<Button
 				variant="ghost"
 				size="sm"
-				icon={<LuIndentDecrease />}
+				icon={<IcOutdent />}
 				aria-label={t('Decrease list level')}
 				title={t('Decrease list level')}
 				disabled={!st?.list}
@@ -317,7 +314,7 @@ export function Toolbar({
 			<Button
 				variant="ghost"
 				size="sm"
-				icon={<LuIndentIncrease />}
+				icon={<IcIndent />}
 				aria-label={t('Increase list level')}
 				title={t('Increase list level')}
 				disabled={!st?.list}
@@ -326,7 +323,7 @@ export function Toolbar({
 			<ToolbarDivider />
 			<Menu
 				trigger={
-					<Button variant="ghost" size="sm" icon={<LuPlus />}>
+					<Button variant="ghost" size="sm" icon={<IcAdd />}>
 						{t('Insert')}
 					</Button>
 				}
@@ -418,7 +415,7 @@ export function Toolbar({
 			<Button
 				variant="ghost"
 				size="sm"
-				icon={<LuUndo2 />}
+				icon={<IcUndo />}
 				aria-label={t('Undo')}
 				title={t('Undo')}
 				disabled={!undo.canUndo}
@@ -427,7 +424,7 @@ export function Toolbar({
 			<Button
 				variant="ghost"
 				size="sm"
-				icon={<LuRedo2 />}
+				icon={<IcRedo />}
 				aria-label={t('Redo')}
 				title={t('Redo')}
 				disabled={!undo.canRedo}

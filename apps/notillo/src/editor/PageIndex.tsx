@@ -46,8 +46,8 @@
 import { createReactBlockSpec } from '@blocknote/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { RiListUnordered } from 'react-icons/ri'
 
+import { IcTableOfContents } from '../icons.js'
 import { selectListing, siteListingQuery } from '../publish/listing.js'
 import { isoDatePart } from '../publish/render/archetypes.js'
 import { pageImageUrl } from '../utils/page-meta.js'
@@ -156,7 +156,7 @@ export const PageIndex = createReactBlockSpec(
 			// settings to relate it to, so it is editor-only.
 			const summary = isEditable ? (
 				<div className="notillo-index-summary" contentEditable={false}>
-					<RiListUnordered size={14} />
+					<IcTableOfContents size={14} />
 					<span>{listingSummary(query, t)}</span>
 				</div>
 			) : null

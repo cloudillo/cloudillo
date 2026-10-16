@@ -5,13 +5,9 @@ import * as maplibregl from 'maplibre-gl'
 import * as React from 'react'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import type { AppMessageBus } from '@cloudillo/core'
-import {
-	LuCompass as IcCompass,
-	LuLoader as IcLoading,
-	LuLocate as IcLocate,
-	LuNavigation as IcNorth
-} from 'react-icons/lu'
+import { IcLoading } from '@cloudillo/react'
 
+import { IcCompass, IcLocate, IcNorth } from './icons.js'
 import { LayerPanel } from './layers.js'
 import { queryOverpassPois } from './overpass.js'
 import { PoiPanel } from './poi.js'

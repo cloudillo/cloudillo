@@ -15,26 +15,25 @@
  * font, the align button shows the current alignment's icon - so nothing has to be opened to read.
  */
 
-import { ActionSheet, ActionSheetDivider, ActionSheetItem, useIsMobile } from '@cloudillo/react'
+import {
+	ActionSheet,
+	ActionSheetDivider,
+	ActionSheetItem,
+	IcBold,
+	IcCopyLink,
+	IcDelete,
+	IcDuplicate,
+	IcItalic,
+	IcList,
+	IcListNumbers,
+	IcLocked,
+	IcMore,
+	IcUnlocked,
+	useIsMobile
+} from '@cloudillo/react'
 import type Quill from 'quill'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	PiTextBBold as IcBold,
-	PiBezierCurveBold as IcCurved,
-	PiCopyBold as IcDuplicate,
-	PiFlowArrowBold as IcElbow,
-	PiTextItalicBold as IcItalic,
-	PiLinkBold as IcLink,
-	PiListBulletsBold as IcListBullets,
-	PiListNumbersBold as IcListNumbers,
-	PiLockBold as IcLocked,
-	PiDotsThreeBold as IcMore,
-	PiLineSegmentBold as IcStraight,
-	PiArrowsLeftRightBold as IcSwap,
-	PiTrashBold as IcTrash,
-	PiLockOpenBold as IcUnlocked
-} from 'react-icons/pi'
 import type * as Y from 'yjs'
 
 import { reverseConnector } from '../connectors/lifecycle.js'
@@ -71,6 +70,7 @@ import {
 import type { FrameObject } from '../crdt/runtime-types.js'
 import type { CurrentStyle } from '../hooks/useIdealloDocument.js'
 import { usePropertyBarPosition } from '../hooks/usePropertyBarPosition.js'
+import { IcConnectorCurved, IcConnectorElbow, IcConnectorStraight, IcReverse } from '../icons.js'
 import { defaultObjectFontSize } from '../utils/object-text.js'
 import { canClearFill, canClearStroke, isPaintSet } from '../utils/paint.js'
 import { colorToCss } from '../utils/palette.js'
@@ -825,7 +825,7 @@ export function PropertyBar({
 						aria-label="Bullet list"
 						aria-pressed={selectionFormat.list === 'bullet'}
 					>
-						<IcListBullets size={14} />
+						<IcList size={14} />
 					</button>
 					<button
 						type="button"
@@ -1018,9 +1018,9 @@ export function PropertyBar({
 				<div className="ideallo-property-group">
 					{(
 						[
-							['straight', 'Straight', IcStraight],
-							['curved', 'Curved', IcCurved],
-							['orthogonal', 'Elbow', IcElbow]
+							['straight', 'Straight', IcConnectorStraight],
+							['curved', 'Curved', IcConnectorCurved],
+							['orthogonal', 'Elbow', IcConnectorElbow]
 						] as const
 					).map(([value, title, Icon]) => (
 						<button
@@ -1107,7 +1107,7 @@ export function PropertyBar({
 							// Synchronous inside the click: the clipboard write needs user activation
 							onClick={() => onCopyFrameLink(selectedObjects[0] as FrameObject)}
 						>
-							<IcLink size={16} />
+							<IcCopyLink size={16} />
 						</button>
 					)}
 				</div>
@@ -1222,7 +1222,7 @@ export function PropertyBar({
 					/>
 					{caps.ends && (
 						<ActionSheetItem
-							icon={<IcSwap size={20} />}
+							icon={<IcReverse size={20} />}
 							label="Reverse direction"
 							disabled={!anyUnlocked}
 							onClick={() => {
@@ -1241,7 +1241,7 @@ export function PropertyBar({
 					/>
 					<ActionSheetDivider />
 					<ActionSheetItem
-						icon={<IcTrash size={20} />}
+						icon={<IcDelete size={20} />}
 						label="Delete"
 						disabled={!canDelete}
 						onClick={() => {

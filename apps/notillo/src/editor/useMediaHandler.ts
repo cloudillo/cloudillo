@@ -3,16 +3,11 @@
 
 import { type DefaultReactSuggestionItem, getDefaultReactSlashMenuItems } from '@blocknote/react'
 import { getAppBus, type MediaFileResolvedPush } from '@cloudillo/core'
+import { IcAudio, IcDocument, IcImage, IcVideo } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	RiFileLine,
-	RiFilmLine,
-	RiImage2Fill,
-	RiListUnordered,
-	RiVolumeUpFill
-} from 'react-icons/ri'
 
+import { IcTableOfContents } from '../icons.js'
 import type { NotilloEditor } from './schema.js'
 
 function updateBlockUnsafe(
@@ -144,7 +139,7 @@ export function useMediaHandler({
 			filtered.push(
 				makeMediaItem(
 					'Image',
-					React.createElement(RiImage2Fill, { size: 18 }),
+					React.createElement(IcImage, { size: 18 }),
 					'image',
 					'image/*',
 					'img',
@@ -153,7 +148,7 @@ export function useMediaHandler({
 				),
 				makeMediaItem(
 					'Video',
-					React.createElement(RiFilmLine, { size: 18 }),
+					React.createElement(IcVideo, { size: 18 }),
 					'video',
 					'video/*',
 					'vid',
@@ -162,7 +157,7 @@ export function useMediaHandler({
 				),
 				makeMediaItem(
 					'Audio',
-					React.createElement(RiVolumeUpFill, { size: 18 }),
+					React.createElement(IcAudio, { size: 18 }),
 					'audio',
 					'audio/*',
 					'aud',
@@ -176,7 +171,7 @@ export function useMediaHandler({
 			// the same as every item above.
 			filtered.push({
 				title: 'Index',
-				icon: React.createElement(RiListUnordered, { size: 18 }),
+				icon: React.createElement(IcTableOfContents, { size: 18 }),
 				aliases: ['list', 'children', 'toc'],
 				group: 'Basic blocks',
 				onItemClick: () => {
@@ -193,7 +188,7 @@ export function useMediaHandler({
 			// Document embed item
 			filtered.push({
 				title: 'Document',
-				icon: React.createElement(RiFileLine, { size: 18 }),
+				icon: React.createElement(IcDocument, { size: 18 }),
 				aliases: ['embed', 'doc'],
 				group: 'Media',
 				onItemClick: () => {

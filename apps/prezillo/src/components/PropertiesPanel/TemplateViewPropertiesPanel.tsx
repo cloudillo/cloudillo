@@ -10,6 +10,7 @@ import type { Gradient } from '@cloudillo/canvas-tools'
 import { GradientPicker } from '@cloudillo/canvas-tools'
 import {
 	ColorInput,
+	IcDelete,
 	Input,
 	NumberInput,
 	PropertyField,
@@ -18,11 +19,6 @@ import {
 	SegmentedItem
 } from '@cloudillo/react'
 import * as React from 'react'
-import {
-	PiArrowsHorizontalBold as IcArrowsHorizontal,
-	PiArrowsVerticalBold as IcArrowsVertical,
-	PiTrashBold as IcDelete
-} from 'react-icons/pi'
 import { useY } from 'react-yjs'
 import type * as Y from 'yjs'
 
@@ -34,6 +30,7 @@ import {
 	updateSnapGuide,
 	updateTemplate
 } from '../../crdt'
+import { IcHorizontalGuide, IcVerticalGuide } from '../../icons.js'
 import { mergeClasses } from '../../utils'
 
 export interface TemplateViewPropertiesPanelProps {
@@ -262,7 +259,7 @@ export function TemplateViewPropertiesPanel({
 							onClick={() => handleAddGuide('horizontal')}
 							title="Add horizontal guide"
 						>
-							<IcArrowsHorizontal />H
+							<IcHorizontalGuide />H
 						</button>
 						<button
 							type="button"
@@ -270,7 +267,7 @@ export function TemplateViewPropertiesPanel({
 							onClick={() => handleAddGuide('vertical')}
 							title="Add vertical guide"
 						>
-							<IcArrowsVertical />V
+							<IcVerticalGuide />V
 						</button>
 					</div>
 				</div>
@@ -329,7 +326,7 @@ function SnapGuideEditor({
 				onClick={handleDirectionToggle}
 				title={`${guide.direction === 'horizontal' ? 'Horizontal' : 'Vertical'} (click to toggle)`}
 			>
-				{guide.direction === 'horizontal' ? <IcArrowsHorizontal /> : <IcArrowsVertical />}
+				{guide.direction === 'horizontal' ? <IcHorizontalGuide /> : <IcVerticalGuide />}
 			</button>
 			<div className="c-snap-guide-editor__value">
 				<NumberInput

@@ -8,15 +8,8 @@
  * Shows template usage counts and provides quick preview of template styles.
  */
 
+import { IcAdd, IcDelete, IcDuplicate, IcEdit, IcMore } from '@cloudillo/react'
 import * as React from 'react'
-import {
-	PiPlusBold as IcAdd,
-	PiTrashBold as IcDelete,
-	PiCopyBold as IcDuplicate,
-	PiPencilBold as IcEdit,
-	PiDotsThreeVerticalBold as IcMenu,
-	PiFileBold as IcTemplate
-} from 'react-icons/pi'
 import { useY } from 'react-yjs'
 import type * as Y from 'yjs'
 
@@ -29,6 +22,7 @@ import {
 	getTemplatePrototypeObjects,
 	getViewsUsingTemplate
 } from '../crdt'
+import { IcTemplate } from '../icons.js'
 import { mergeClasses } from '../utils'
 
 export interface TemplatePanelProps {
@@ -252,7 +246,7 @@ export function TemplatePanel({
 										className="c-template-panel__item-menu"
 										onClick={(e) => handleMenuClick(e, template.id)}
 									>
-										<IcMenu />
+										<IcMore />
 									</button>
 								)}
 							</div>

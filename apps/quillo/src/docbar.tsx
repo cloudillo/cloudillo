@@ -25,13 +25,9 @@ import {
 	useLibTranslation,
 	useToast
 } from '@cloudillo/react/doc-bar'
+import { IcCopyLink, IcImport, IcSettings } from '@cloudillo/react/icons'
 import * as React from 'react'
 import { createRoot, type Root } from 'react-dom/client'
-import {
-	PiDownloadSimpleBold as IcImport,
-	PiLinkBold as IcLink,
-	PiGearBold as IcSettings
-} from 'react-icons/pi'
 import type { Awareness } from 'y-protocols/awareness'
 
 export interface DocBarActions {
@@ -88,7 +84,7 @@ function QuilloDocBar({ awareness, actions }: MountDocBarOptions) {
 					<DocBarMenu>
 						{getSectionLink && (
 							<MenuItem
-								icon={<IcLink />}
+								icon={<IcCopyLink />}
 								label={t('Copy embed link to this section')}
 								onClick={copySectionLink}
 							/>

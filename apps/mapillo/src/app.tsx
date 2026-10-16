@@ -4,13 +4,13 @@
 import { type AppMessageBus, getAppBus } from '@cloudillo/core'
 import { EmptyState, LoadingSpinner } from '@cloudillo/react'
 import * as React from 'react'
-import { LuMap as IcMap } from 'react-icons/lu'
 
 import '@symbion/opalui'
 import '@symbion/opalui/themes/glass.css'
 import '@cloudillo/fonts/fonts.css'
 import './style.css'
 
+import { IcMap } from './icons.js'
 import { MapView } from './map.js'
 import type { MapilloSettings } from './types.js'
 import { DEFAULT_SETTINGS } from './types.js'

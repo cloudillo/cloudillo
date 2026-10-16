@@ -11,15 +11,10 @@
  * run on every keystroke of a search whose results are covering it.
  */
 
-import { Button, LoadingSpinner } from '@cloudillo/react'
+import { Button, IcClear, IcSearch, IcTag, LoadingSpinner } from '@cloudillo/react'
 import type { RtdbClient } from '@cloudillo/rtdb'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	PiXBold as IcClose,
-	PiMagnifyingGlassBold as IcSearch,
-	PiHashBold as IcTag
-} from 'react-icons/pi'
 
 import { createPage } from '../rtdb/page-ops.js'
 import { ROOT_PARENT } from '../rtdb/types.js'
@@ -360,7 +355,7 @@ export function PageSearchPanel({
 							onClick={clearSearch}
 							title={t('Clear search')}
 						>
-							<IcClose />
+							<IcClear />
 						</button>
 					)}
 				</div>
@@ -378,7 +373,7 @@ export function PageSearchPanel({
 									title={t('Remove tag filter')}
 								>
 									# {tag}
-									<IcClose />
+									<IcClear />
 								</button>
 							))}
 							{activeTagList.length > 1 && (

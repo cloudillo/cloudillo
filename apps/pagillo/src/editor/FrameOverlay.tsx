@@ -25,7 +25,6 @@ import { Button, SvgViewEmbed, useFileImage, useToast } from '@cloudillo/react'
 import { cropGeom, FX, type Rect, type Region, trackCount } from '@cloudillo/typeset'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuPin } from 'react-icons/lu'
 import type * as Y from 'yjs'
 
 import { FULL_CROP, frameOf, framesOf, sectionOf } from '../crdt/entities'
@@ -66,6 +65,7 @@ import {
 	REFLOW_NOTICE
 } from '../embeds/record'
 import { type EmbedRenders, embedRecordOf } from '../embeds/useEmbedRenders'
+import { IcAnchor } from '../icons.js'
 import type { LayoutState } from '../layout/useLayout'
 import { flattenPages, type PageHit, scrollToPage } from '../view/PageList'
 import { type ImageSource, useImageAspect } from '../view/PageSvg'
@@ -2146,7 +2146,7 @@ export function useFrames({
 										transform={`translate(${(b.x + b.w) * k + 4 * px} ${b.y * k - 18 * px})`}
 									>
 										<title>{t('Anchored to this page')}</title>
-										<LuPin size={14 * px} color="var(--col-primary, #06f)" />
+										<IcAnchor size={14 * px} color="var(--col-primary, #06f)" />
 									</g>
 								)}
 							</g>

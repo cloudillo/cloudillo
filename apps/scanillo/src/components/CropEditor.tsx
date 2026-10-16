@@ -1,13 +1,8 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { LoadingSpinner } from '@cloudillo/react'
+import { IcCancel, IcConfirm, IcRetry, LoadingSpinner } from '@cloudillo/react'
 import * as React from 'react'
-import {
-	PiXBold as IcCancel,
-	PiCheckBold as IcCheck,
-	PiArrowCounterClockwiseBold as IcRetake
-} from 'react-icons/pi'
 
 import type { CornerSource, CropPoints } from '../types.js'
 import { base64ToCanvas, extractPerspective } from '../utils/image-processing.js'
@@ -416,7 +411,7 @@ export function CropEditor({
 				</button>
 				{onRetake && (
 					<button className="c-button icon" onClick={onRetake} title="Retake">
-						<IcRetake />
+						<IcRetry />
 					</button>
 				)}
 				<button
@@ -425,7 +420,7 @@ export function CropEditor({
 					disabled={processing}
 					title="Confirm crop"
 				>
-					{processing ? <LoadingSpinner size="sm" /> : <IcCheck />}
+					{processing ? <LoadingSpinner size="sm" /> : <IcConfirm />}
 				</button>
 			</div>
 		</div>

@@ -13,6 +13,12 @@ import {
 	Alert,
 	Button,
 	Dialog,
+	IcAdd,
+	IcDragHandle,
+	IcMore,
+	IcMoveDown,
+	IcMoveUp,
+	IcRemove,
 	Input,
 	Menu,
 	MenuItem,
@@ -24,14 +30,6 @@ import {
 import { marginRegion, ptToFx, type Region } from '@cloudillo/typeset'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuChevronDown,
-	LuChevronUp,
-	LuEllipsis,
-	LuGripVertical,
-	LuPlus,
-	LuTrash2
-} from 'react-icons/lu'
 
 import { frameOf, masterOf, mastersOf, sectionOf } from '../crdt/entities'
 import { deleteFrame } from '../crdt/frame-ops'
@@ -165,7 +163,7 @@ export function LayoutsPanel({ yDoc, doc, masterId, usage, page, onSwitch }: Lay
 										<Button
 											variant="ghost"
 											size="sm"
-											icon={<LuEllipsis />}
+											icon={<IcMore />}
 											aria-label={t('Actions for {{name}}', { name: x.name })}
 										/>
 									}
@@ -195,7 +193,7 @@ export function LayoutsPanel({ yDoc, doc, masterId, usage, page, onSwitch }: Lay
 					<div>
 						<Button
 							variant="link"
-							icon={<LuPlus />}
+							icon={<IcAdd />}
 							onClick={() => setReq({ mode: 'new', id: masterId })}
 						>
 							{t('New')}
@@ -306,7 +304,7 @@ export function LayoutsPanel({ yDoc, doc, masterId, usage, page, onSwitch }: Lay
 							<Button
 								variant="ghost"
 								size="sm"
-								icon={<LuTrash2 />}
+								icon={<IcRemove />}
 								aria-label={t('Remove item')}
 								onClick={() => deleteFrame(yDoc, doc, fid)}
 							/>
@@ -532,7 +530,7 @@ function TextAreas({ yDoc, doc, masterId, m, facing }: TextAreasProps) {
 													}}
 													onDragEnd={() => setDrag(undefined)}
 												>
-													<LuGripVertical aria-hidden="true" />
+													<IcDragHandle aria-hidden="true" />
 												</span>
 											)}
 											<span className="small text-muted">{i + 1}</span>
@@ -564,7 +562,7 @@ function TextAreas({ yDoc, doc, masterId, m, facing }: TextAreasProps) {
 													<Button
 														variant="ghost"
 														size="sm"
-														icon={<LuChevronUp />}
+														icon={<IcMoveUp />}
 														aria-label={t('Move {{area}} up', {
 															area: name || dflt
 														})}
@@ -574,7 +572,7 @@ function TextAreas({ yDoc, doc, masterId, m, facing }: TextAreasProps) {
 													<Button
 														variant="ghost"
 														size="sm"
-														icon={<LuChevronDown />}
+														icon={<IcMoveDown />}
 														aria-label={t('Move {{area}} down', {
 															area: name || dflt
 														})}
@@ -589,7 +587,7 @@ function TextAreas({ yDoc, doc, masterId, m, facing }: TextAreasProps) {
 														<Button
 															variant="ghost"
 															size="sm"
-															icon={<LuEllipsis />}
+															icon={<IcMore />}
 															aria-label={t('Actions for {{name}}', {
 																name: name || dflt
 															})}

@@ -6,9 +6,8 @@
  * Contains ThemePicker (presets) and PaletteEditor (custom colors/gradients)
  */
 
-import { useOutsideClick } from '@cloudillo/react'
+import { IcAppearance, useOutsideClick } from '@cloudillo/react'
 import * as React from 'react'
-import { PiPaletteBold as IcPalette } from 'react-icons/pi'
 import type * as Y from 'yjs'
 
 import type { YPrezilloDocument } from '../crdt'
@@ -39,7 +38,7 @@ export function ThemeDropdown({ doc, yDoc }: ThemeDropdownProps) {
 				onClick={() => setIsOpen(!isOpen)}
 				title="Theme"
 			>
-				<IcPalette />
+				<IcAppearance />
 			</button>
 
 			{isOpen && (

@@ -42,26 +42,28 @@ import {
 	usePortalElement
 } from '@blocknote/react'
 import type { SiteListingLayout, SiteListingQuery, SiteListingSort } from '@cloudillo/core'
+import {
+	IcAll,
+	IcFilter,
+	IcGridView,
+	IcListView,
+	IcRss,
+	IcSortAsc,
+	IcSortDesc,
+	IcTag
+} from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	RiExpandUpDownLine,
-	RiFileListLine,
-	RiFilterLine,
-	RiFontSize,
-	RiGalleryLine,
-	RiLayoutRowLine,
-	RiMenuLine,
-	RiNodeTree,
-	RiParentLine,
-	RiPriceTag3Line,
-	RiRssLine,
-	RiSortAsc,
-	RiSortDesc,
-	RiStackLine
-} from 'react-icons/ri'
 
 import { collectTags } from '../hooks/useTags.js'
+import {
+	IcChildPages,
+	IcCompactView,
+	IcDepth,
+	IcSiblingPages,
+	IcSortAlpha,
+	IcTree
+} from '../icons.js'
 import { siteListingQuery } from '../publish/listing.js'
 import {
 	LISTING_LAYOUTS,
@@ -90,25 +92,25 @@ const LIMITS: readonly number[] = [0, 5, 10, 20, 50]
 // wearing the first case's icon. `index-labels.ts` keeps its switches: a raw stored
 // prop reaches those.
 const SOURCE_ICONS: Record<SiteListingQuery['source'], React.ReactNode> = {
-	children: <RiParentLine size={ICON_SIZE} />,
-	subtree: <RiNodeTree size={ICON_SIZE} />,
-	siblings: <RiStackLine size={ICON_SIZE} />,
-	tag: <RiPriceTag3Line size={ICON_SIZE} />,
-	all: <RiFileListLine size={ICON_SIZE} />
+	children: <IcChildPages size={ICON_SIZE} />,
+	subtree: <IcTree size={ICON_SIZE} />,
+	siblings: <IcSiblingPages size={ICON_SIZE} />,
+	tag: <IcTag size={ICON_SIZE} />,
+	all: <IcAll size={ICON_SIZE} />
 }
 
 const SORT_ICONS: Record<SiteListingSort, React.ReactNode> = {
-	'date-desc': <RiSortDesc size={ICON_SIZE} />,
-	'date-asc': <RiSortAsc size={ICON_SIZE} />,
-	title: <RiFontSize size={ICON_SIZE} />,
-	order: <RiNodeTree size={ICON_SIZE} />
+	'date-desc': <IcSortDesc size={ICON_SIZE} />,
+	'date-asc': <IcSortAsc size={ICON_SIZE} />,
+	title: <IcSortAlpha size={ICON_SIZE} />,
+	order: <IcTree size={ICON_SIZE} />
 }
 
 const LAYOUT_ICONS: Record<SiteListingLayout, React.ReactNode> = {
-	list: <RiLayoutRowLine size={ICON_SIZE} />,
-	compact: <RiMenuLine size={ICON_SIZE} />,
-	tree: <RiNodeTree size={ICON_SIZE} />,
-	cards: <RiGalleryLine size={ICON_SIZE} />
+	list: <IcListView size={ICON_SIZE} />,
+	compact: <IcCompactView size={ICON_SIZE} />,
+	tree: <IcTree size={ICON_SIZE} />,
+	cards: <IcGridView size={ICON_SIZE} />
 }
 
 /**
@@ -176,7 +178,7 @@ export function IndexToolbarItems() {
 	 * editor state change, and the select is offered for `source: 'tag'` alone.
 	 */
 	const tagItemsFor = (currentTag: string): SelectItem[] => {
-		const tagIcon = <RiPriceTag3Line size={ICON_SIZE} />
+		const tagIcon = <IcTag size={ICON_SIZE} />
 		const tags = [...collectTags(pages).tags].sort()
 		const items: SelectItem[] = tags.map((tag) => ({
 			text: tag,
@@ -240,7 +242,7 @@ export function IndexToolbarItems() {
 						DEPTHS,
 						query.depth ?? 0,
 						(depth) => (depth ? String(depth) : t('All levels')),
-						<RiExpandUpDownLine size={ICON_SIZE} />,
+						<IcDepth size={ICON_SIZE} />,
 						(depth) => update({ depth })
 					)}
 				/>
@@ -274,7 +276,7 @@ export function IndexToolbarItems() {
 					LIMITS,
 					query.limit ?? 0,
 					(limit) => (limit ? String(limit) : t('No limit')),
-					<RiFilterLine size={ICON_SIZE} />,
+					<IcFilter size={ICON_SIZE} />,
 					(limit) => update({ limit })
 				)}
 			/>
@@ -282,7 +284,7 @@ export function IndexToolbarItems() {
 				className="bn-button"
 				label={t('Feed')}
 				mainTooltip={t('Feed')}
-				icon={<RiRssLine size={ICON_SIZE} />}
+				icon={<IcRss size={ICON_SIZE} />}
 				isSelected={query.feed === true}
 				onClick={() => update({ feed: !query.feed })}
 			/>

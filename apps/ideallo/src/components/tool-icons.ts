@@ -10,27 +10,24 @@
  * cannot be reused at another size.
  */
 
-import type { IconType } from 'react-icons'
 import {
-	PiArrowUpBold as IcBringForward,
-	PiArrowLineUpBold as IcBringToFront,
-	PiDiamondBold as IcDiamond,
-	PiFileBold as IcDocument,
-	PiCircleBold as IcEllipse,
-	PiEraserBold as IcEraser,
-	PiFrameCornersBold as IcFrame,
-	PiImageBold as IcImage,
-	PiLineSegmentBold as IcLine,
-	PiPencilSimpleBold as IcPen,
-	PiRectangleBold as IcRect,
-	PiCursorBold as IcSelect,
-	PiArrowDownBold as IcSendBackward,
-	PiArrowLineDownBold as IcSendToBack,
-	PiNoteBold as IcSticky,
-	PiTextTBold as IcText,
-	PiTriangleBold as IcTriangle
-} from 'react-icons/pi'
+	IcBringForward,
+	IcBringToFront,
+	IcDocument,
+	IcEllipse,
+	IcEraser,
+	IcImage,
+	IcLine,
+	IcPen,
+	IcRectangle,
+	IcSelect,
+	IcSendBackward,
+	IcSendToBack,
+	IcText
+} from '@cloudillo/react'
+import type { IconType } from 'react-icons'
 
+import { IcDiamond, IcFrame, IcStickyNote, IcTriangle } from '../icons.js'
 import type { ToolType } from '../tools/index.js'
 
 /** Exhaustive: a new ToolType with no icon is a compile error. */
@@ -38,14 +35,14 @@ export const TOOL_ICONS: Record<ToolType, IconType> = {
 	select: IcSelect,
 	pen: IcPen,
 	eraser: IcEraser,
-	rect: IcRect,
+	rect: IcRectangle,
 	ellipse: IcEllipse,
 	diamond: IcDiamond,
 	triangle: IcTriangle,
 	frame: IcFrame,
 	connector: IcLine,
 	text: IcText,
-	sticky: IcSticky,
+	sticky: IcStickyNote,
 	image: IcImage,
 	document: IcDocument
 }

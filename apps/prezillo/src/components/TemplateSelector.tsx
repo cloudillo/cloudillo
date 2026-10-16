@@ -8,14 +8,8 @@
  * Used in ViewPropertiesPanel.
  */
 
-import { useOutsideClick } from '@cloudillo/react'
+import { IcCheck, IcDropdown, IcRemove, useOutsideClick } from '@cloudillo/react'
 import * as React from 'react'
-import {
-	PiCaretDownBold as IcCaret,
-	PiCheckBold as IcCheck,
-	PiXBold as IcRemove,
-	PiFileBold as IcTemplate
-} from 'react-icons/pi'
 import { useY } from 'react-yjs'
 import type * as Y from 'yjs'
 
@@ -27,6 +21,7 @@ import {
 	getViewTemplate,
 	removeTemplateFromView
 } from '../crdt'
+import { IcTemplate } from '../icons.js'
 import { mergeClasses } from '../utils'
 
 export interface TemplateSelectorProps {
@@ -106,7 +101,7 @@ export function TemplateSelector({ doc, yDoc, viewId, disabled }: TemplateSelect
 						{currentTemplate ? currentTemplate.name : 'No template'}
 					</span>
 					{!currentTemplate && (
-						<IcCaret
+						<IcDropdown
 							className={mergeClasses('c-template-selector__caret', isOpen && 'open')}
 						/>
 					)}

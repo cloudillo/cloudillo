@@ -1,52 +1,42 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { IcClose, IcDisclosure, IcLoading, IcLocation } from '@cloudillo/react'
 import * as React from 'react'
-import {
-	// Finance
-	LuBanknote as IcAtm,
-	LuStar as IcAttraction,
-	LuCakeSlice as IcBakery,
-	LuBuilding as IcBank,
-	LuBeer as IcBar,
-	LuBus as IcBusStation,
-	LuCoffee as IcCafe,
-	LuChevronRight as IcChevron,
-	LuX as IcClose,
-	LuShirt as IcClothes,
-	LuStore as IcConvenience,
-	LuSmile as IcDentist,
-	LuStethoscope as IcDoctor,
-	LuDroplets as IcDrinkingWater,
-	LuPlugZap as IcEvCharging,
-	LuHam as IcFastFood,
-	// Transport
-	LuFuel as IcFuel,
-	LuHospital as IcHospital,
-	// Tourism & Leisure
-	LuHotel as IcHotel,
-	LuBookOpen as IcLibrary,
-	LuLoader as IcLoading,
-	LuShoppingBag as IcMarketplace,
-	LuLandmark as IcMuseum,
-	LuTrees as IcPark,
-	LuCircleParking as IcParking,
-	// Health
-	LuCross as IcPharmacy,
-	LuToyBrick as IcPlayground,
-	LuMapPin as IcPoi,
-	LuShield as IcPolice,
-	// Services
-	LuMail as IcPostOffice,
-	// Food & Drink
-	LuUtensilsCrossed as IcRestaurant,
-	// Shopping
-	LuShoppingCart as IcSupermarket,
-	LuDoorOpen as IcToilets,
-	LuTrainFront as IcTrainStation,
-	LuMountain as IcViewpoint
-} from 'react-icons/lu'
 
+import {
+	IcAtm,
+	IcAttraction,
+	IcBakery,
+	IcBank,
+	IcBar,
+	IcBusStation,
+	IcCafe,
+	IcClothes,
+	IcConvenience,
+	IcDentist,
+	IcDoctor,
+	IcDrinkingWater,
+	IcEvCharging,
+	IcFastFood,
+	IcFuel,
+	IcHospital,
+	IcHotel,
+	IcLibrary,
+	IcMarketplace,
+	IcMuseum,
+	IcPark,
+	IcParking,
+	IcPharmacy,
+	IcPlayground,
+	IcPolice,
+	IcPostOffice,
+	IcRestaurant,
+	IcSupermarket,
+	IcToilets,
+	IcTrainStation,
+	IcViewpoint
+} from './icons.js'
 import type { PoiCategory, PoiFeature, PoiGroupId } from './types.js'
 import { POI_CATEGORIES, POI_GROUPS } from './types.js'
 
@@ -166,7 +156,7 @@ export function PoiPanel({
 				onClick={() => onToggle(true)}
 				title="Explore nearby places"
 			>
-				<IcPoi />
+				<IcLocation />
 			</button>
 		)
 	}
@@ -190,7 +180,7 @@ export function PoiPanel({
 								onClick={() => toggleGroup(group.id)}
 							>
 								<span>{group.label}</span>
-								<IcChevron />
+								<IcDisclosure />
 							</button>
 							{expanded && (
 								<div className="mapillo-poi-categories">

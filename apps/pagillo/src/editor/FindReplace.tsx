@@ -9,11 +9,10 @@
  * `LineGeom` (`selectionRects`); the current one is also the editor selection.
  */
 
+import { Button, IcClose, IcNext, IcPrev, Input } from '@cloudillo/react'
 import { FX } from '@cloudillo/typeset'
-import { Button, Input } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuChevronDown, LuChevronUp, LuX } from 'react-icons/lu'
 import * as Y from 'yjs'
 
 import { framesOf, sectionOf } from '../crdt/entities'
@@ -313,7 +312,7 @@ export function useFindReplace({
 			<Button
 				variant="ghost"
 				size="sm"
-				icon={<LuChevronUp />}
+				icon={<IcPrev />}
 				aria-label={t('Previous match')}
 				disabled={!hits.length}
 				onClick={prev}
@@ -321,7 +320,7 @@ export function useFindReplace({
 			<Button
 				variant="ghost"
 				size="sm"
-				icon={<LuChevronDown />}
+				icon={<IcNext />}
 				aria-label={t('Next match')}
 				disabled={!hits.length}
 				onClick={next}
@@ -354,7 +353,7 @@ export function useFindReplace({
 			<Button
 				variant="ghost"
 				size="sm"
-				icon={<LuX />}
+				icon={<IcClose />}
 				aria-label={t('Close')}
 				onClick={close}
 			/>

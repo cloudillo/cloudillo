@@ -7,6 +7,12 @@ import {
 	ActionSheetItem,
 	AvatarGroup,
 	Button,
+	IcAdd,
+	IcClear,
+	IcDelete,
+	IcHome,
+	IcMore,
+	IcPin,
 	LoadingSpinner,
 	Menu,
 	MenuItem,
@@ -23,17 +29,8 @@ import {
 import type { RtdbClient } from '@cloudillo/rtdb'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuHouse as IcHome } from 'react-icons/lu'
-import {
-	PiFilePlusBold as IcAddSubpage,
-	PiXBold as IcClose,
-	PiTrashBold as IcDelete,
-	PiDotsThreeVerticalBold as IcMore,
-	PiFileBold as IcPage,
-	PiPushPinBold as IcPin,
-	PiPlusBold as IcPlus
-} from 'react-icons/pi'
 
+import { IcAddPage, IcPage } from '../icons.js'
 import {
 	buildChildIndex,
 	collectDescendants,
@@ -704,7 +701,7 @@ export function PageSidebar({
 								}
 								title={opts.add?.title ?? t('Add subpage')}
 							>
-								<IcAddSubpage />
+								<IcAddPage />
 							</button>
 							<button
 								className="page-tree-delete"
@@ -812,7 +809,7 @@ export function PageSidebar({
 							size="sm"
 							onClick={handleCreatePage}
 							title={t('New page')}
-							icon={<IcPlus />}
+							icon={<IcAdd />}
 							aria-label={t('New page')}
 						/>
 						<div ref={menuRef} style={{ position: 'relative' }}>
@@ -945,7 +942,7 @@ export function PageSidebar({
 								onClick={onClearTags}
 								title={t('Clear filter')}
 							>
-								<IcClose />
+								<IcClear />
 							</button>
 						)}
 					</div>

@@ -6,32 +6,31 @@
  */
 
 import { presenceColor } from '@cloudillo/core'
-import { monogramFor, useDarkMode, useOutsideClick } from '@cloudillo/react'
+import {
+	IcAdd,
+	IcCheck,
+	IcClose,
+	IcDelete,
+	IcDropdown,
+	IcDuplicate,
+	IcFullscreen,
+	IcLink,
+	IcNext,
+	IcPrev,
+	IcShare,
+	monogramFor,
+	useDarkMode,
+	useOutsideClick
+} from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	PiPlusBold as IcAdd,
-	PiCaretDownBold as IcCaret,
-	PiCheckBold as IcCheck,
-	PiXBold as IcClose,
-	PiTrashBold as IcDelete,
-	PiCopyBold as IcDuplicate,
-	PiArrowsOutBold as IcFullscreen,
-	PiLinkBold as IcLink,
-	PiCaretRightBold as IcNext,
-	PiCrownBold as IcOwner,
-	PiPlayBold as IcPlay,
-	PiCaretLeftBold as IcPrev,
-	PiShareNetworkBold as IcShare,
-	PiStopBold as IcStop,
-	PiUsersBold as IcUsers
-} from 'react-icons/pi'
 
 import type { PresenterInfo } from '../awareness'
 import { getFollowerCount } from '../awareness'
 import type { TemplateId, ViewId, ViewNode } from '../crdt'
 import type { UsePrezilloDocumentResult } from '../hooks/usePrezilloDocument'
 import type { TemplateWithUsage } from '../hooks/useTemplates'
+import { IcAudience, IcOwner, IcPlay, IcStop } from '../icons.js'
 import { mergeClasses } from '../utils'
 
 /** View navigation commands */
@@ -401,7 +400,7 @@ export function ViewPicker({
 						className="c-button icon c-present-split__caret"
 						disabled={views.length === 0}
 					>
-						<IcCaret />
+						<IcDropdown />
 					</button>
 					{showPresentDropdown && (
 						<div className="c-present-split__dropdown">
@@ -450,7 +449,7 @@ export function ViewPicker({
 												setShowPresentDropdown(false)
 											}}
 										>
-											<IcUsers />
+											<IcAudience />
 											<span>{t('Share for following')}</span>
 										</button>
 									)}
@@ -590,7 +589,7 @@ export function ViewPicker({
 						{followingClientId !== null && (
 							<IcLink className="c-presenter-indicator-btn__link" />
 						)}
-						<IcCaret
+						<IcDropdown
 							className={mergeClasses(
 								'c-presenter-indicator-btn__caret',
 								showPresenterDropdown && 'open'

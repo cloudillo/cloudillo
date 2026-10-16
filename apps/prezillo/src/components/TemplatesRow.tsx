@@ -6,8 +6,8 @@
  * Displays a horizontal row of template thumbnails above the slides.
  */
 
+import { IcAdd, IcDisclosure } from '@cloudillo/react'
 import * as React from 'react'
-import { IoAdd, IoChevronDown, IoChevronUp } from 'react-icons/io5'
 import type * as Y from 'yjs'
 
 import type { TemplateId, YPrezilloDocument } from '../crdt'
@@ -136,7 +136,7 @@ export function TemplatesRow({
 					style={{ cursor: 'pointer' }}
 					onClick={onToggleCollapse}
 				>
-					<IoChevronDown size={20} color="#6b7280" />
+					<IcDisclosure size={20} color="#6b7280" />
 				</g>
 			</g>
 		)
@@ -162,8 +162,8 @@ export function TemplatesRow({
 				<text x={ROW_PADDING} y={rowY} fontSize={13} fontWeight={500} fill="#6b7280">
 					TEMPLATES
 				</text>
-				<g transform={`translate(${100}, ${rowY - 12})`}>
-					<IoChevronUp size={16} color="#9ca3af" />
+				<g transform={`translate(${100}, ${rowY - 12}) rotate(90 8 8)`}>
+					<IcDisclosure size={16} color="#9ca3af" />
 				</g>
 			</g>
 
@@ -211,7 +211,7 @@ export function TemplatesRow({
 					<g
 						transform={`translate(${ROW_PADDING + templates.length * (THUMBNAIL_WIDTH + THUMBNAIL_GAP) + THUMBNAIL_WIDTH / 4}, ${rowY + 16 + THUMBNAIL_HEIGHT / 2})`}
 					>
-						<IoAdd
+						<IcAdd
 							size={32}
 							color="#9ca3af"
 							style={{ transform: 'translate(-16px, -16px)' }}

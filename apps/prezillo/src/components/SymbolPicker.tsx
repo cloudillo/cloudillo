@@ -10,7 +10,6 @@
 
 import { useEscapeKey, useOutsideClick } from '@cloudillo/react'
 import * as React from 'react'
-import { PiStarBold as IcSymbol } from 'react-icons/pi'
 
 import {
 	CATEGORY_NAMES,
@@ -19,6 +18,7 @@ import {
 	type SymbolCategory,
 	type SymbolDefinition
 } from '../data/symbol-library'
+import { IcSymbol } from '../icons.js'
 import { mergeClasses } from '../utils'
 
 export interface SymbolPickerProps {

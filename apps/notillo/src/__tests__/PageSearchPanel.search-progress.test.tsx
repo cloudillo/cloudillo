@@ -27,8 +27,12 @@ jest.unstable_mockModule('react-i18next', () => ({
 	useTranslation: () => ({ t: (key: string) => key })
 }))
 
+// the real generic icon concepts, so the mock never lacks an `Ic*` the app imports
+const icons = await import('@cloudillo/react/icons')
+
 // Exactly what `PageSearchPanel` and `SearchResultRow` import between them.
 jest.unstable_mockModule('@cloudillo/react', () => ({
+	...icons,
 	Button: ({ children }: { children?: React.ReactNode }) => (
 		<button type="button">{children}</button>
 	),

@@ -3,10 +3,9 @@
 
 /** Determinism banners and the engine-failure panel. */
 
-import { Alert, Button, EmptyState } from '@cloudillo/react'
+import { Alert, Button, EmptyState, IcError } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuTriangleAlert as IcFailed } from 'react-icons/lu'
 
 const reload = () => window.location.reload()
 
@@ -50,7 +49,7 @@ export function EngineStopped({ message }: { message: string }) {
 		<EmptyState
 			fill
 			color="error"
-			icon={<IcFailed />}
+			icon={<IcError />}
 			title={t('The layout engine stopped. Your work is saved. Reload.')}
 			action={<Button onClick={reload}>{t('Reload')}</Button>}
 		/>

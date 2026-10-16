@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { IcClose, IcSettings } from '@cloudillo/react'
 import * as React from 'react'
-import { LuX as IcClose, LuSettings as IcSettings } from 'react-icons/lu'
 
 import type { MapilloSettings, OverpassServer } from './types.js'
 import { OVERPASS_SERVERS } from './types.js'

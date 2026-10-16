@@ -7,14 +7,8 @@
 
 import { RichTextDisplay } from '@cloudillo/canvas-text'
 import { createLinearGradientDef, createRadialGradientDef } from '@cloudillo/canvas-tools'
-import { SvgViewEmbed } from '@cloudillo/react'
+import { IcClose, IcFullscreen, IcNext, IcPrev, SvgViewEmbed } from '@cloudillo/react'
 import * as React from 'react'
-import {
-	PiXBold as IcClose,
-	PiArrowsOutBold as IcFullscreen,
-	PiCaretRightBold as IcNext,
-	PiCaretLeftBold as IcPrev
-} from 'react-icons/pi'
 
 import {
 	clearVote,

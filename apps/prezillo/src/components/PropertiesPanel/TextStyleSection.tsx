@@ -3,6 +3,19 @@
 
 import {
 	FontPicker,
+	IcAlignBottom,
+	IcAlignCenter,
+	IcAlignJustify,
+	IcAlignLeft,
+	IcAlignMiddle,
+	IcAlignRight,
+	IcAlignTop,
+	IcBold,
+	IcItalic,
+	IcList,
+	IcListNumbers,
+	IcStrikethrough,
+	IcUnderline,
 	NativeSelect,
 	NumberInput,
 	PropertyField,
@@ -10,22 +23,6 @@ import {
 } from '@cloudillo/react'
 import type Quill from 'quill'
 import * as React from 'react'
-import {
-	PiAlignBottomBold as IcAlignBottom,
-	PiTextAlignCenterBold as IcAlignCenter,
-	PiTextAlignJustifyBold as IcAlignJustify,
-	PiTextAlignLeftBold as IcAlignLeft,
-	PiAlignCenterVerticalBold as IcAlignMiddle,
-	PiTextAlignRightBold as IcAlignRight,
-	PiAlignTopBold as IcAlignTop,
-	PiTextBBold as IcBold,
-	PiTextItalicBold as IcItalic,
-	PiListBulletsBold as IcListBullets,
-	PiListNumbersBold as IcListNumbers,
-	PiProhibitBold as IcNone,
-	PiTextStrikethroughBold as IcStrikethrough,
-	PiTextUnderlineBold as IcUnderline
-} from 'react-icons/pi'
 import type * as Y from 'yjs'
 
 import type { ObjectId, PrezilloObject, TextStyleField, YPrezilloDocument } from '../../crdt'
@@ -38,6 +35,7 @@ import {
 	updateObjectTextStyle
 } from '../../crdt'
 import { BULLET_ICONS, getBulletIcon, migrateBullet } from '../../data/bullet-icons'
+import { IcNone } from '../../icons.js'
 import { mergeClasses } from '../../utils'
 import { FONT_SIZES } from '../../utils/text-styles'
 import type { PropertyPreview } from './PrezilloPropertiesPanel'
@@ -354,7 +352,7 @@ export function TextStyleSection({
 							onClick={handleListBullet}
 							title="Bullet list"
 						>
-							<IcListBullets size={14} />
+							<IcList size={14} />
 						</button>
 						<button
 							className={mergeClasses(
@@ -513,7 +511,7 @@ export function TextStyleSection({
 							{currentBulletId ? (
 								<BulletIconPreview bulletId={currentBulletId} size={18} />
 							) : (
-								<IcListBullets size={18} />
+								<IcList size={18} />
 							)}
 						</button>
 						{showBulletPicker && !bulletLocked && (

@@ -18,6 +18,11 @@ import {
 	EmptyState,
 	ExportProgressDialog,
 	Fcd,
+	IcComment,
+	IcCopyLink,
+	IcPublish,
+	IcSettings,
+	IcSidebar,
 	isInDialog,
 	LoadingSpinner,
 	MenuDivider,
@@ -37,15 +42,6 @@ import {
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuSearchCheck as IcCheckRefs,
-	LuMessageCircle as IcComment,
-	LuLink as IcLink,
-	LuSettings2 as IcProperties,
-	LuGlobe as IcPublish,
-	LuSettings as IcSettings,
-	LuPanelLeft as IcSidebar
-} from 'react-icons/lu'
 
 import '@symbion/opalui'
 import '@symbion/opalui/themes/glass.css'
@@ -75,6 +71,7 @@ import { useHomePage } from './hooks/useHomePage.js'
 import { useNotillo } from './hooks/useNotillo.js'
 import { usePageBlocks } from './hooks/usePageBlocks.js'
 import { useTags } from './hooks/useTags.js'
+import { IcCheckReferences, IcProperties } from './icons.js'
 import { DocSettingsDialog } from './pages/DocSettingsDialog.js'
 import { PagePropertiesPanel } from './pages/PagePropertiesPanel.js'
 import { PageSidebar } from './pages/PageSidebar.js'
@@ -1306,7 +1303,7 @@ export function NotilloApp() {
 					<DocBarMenu>
 						<MenuHeader>{t('Document')}</MenuHeader>
 						<MenuItem
-							icon={<IcLink />}
+							icon={<IcCopyLink />}
 							label={t('Share document')}
 							disabled={!canWrite}
 							onClick={handleShareDocument}
@@ -1331,7 +1328,7 @@ export function NotilloApp() {
 						)}
 						{siteMode && (
 							<MenuItem
-								icon={<IcCheckRefs />}
+								icon={<IcCheckReferences />}
 								label={t('Check references…')}
 								disabled={!canWrite || publishing}
 								onClick={handleOpenCheckRefs}
@@ -1340,13 +1337,13 @@ export function NotilloApp() {
 						<MenuDivider />
 						<MenuHeader>{t('This page')}</MenuHeader>
 						<MenuItem
-							icon={<IcLink />}
+							icon={<IcCopyLink />}
 							label={t('Share this page')}
 							disabled={!canWrite || !activePage}
 							onClick={handleSharePage}
 						/>
 						<MenuItem
-							icon={<IcLink />}
+							icon={<IcCopyLink />}
 							label={t('Copy embed link to this page')}
 							disabled={!activePage}
 							onClick={handleCopyPageEmbedLink}

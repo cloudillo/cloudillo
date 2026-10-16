@@ -5,13 +5,13 @@ import type { Gradient } from '@cloudillo/canvas-tools'
 import { GradientPicker } from '@cloudillo/canvas-tools'
 import {
 	ColorInput,
+	IcReset,
 	PropertyField,
 	PropertySection,
 	Segmented,
 	SegmentedItem
 } from '@cloudillo/react'
 import * as React from 'react'
-import { PiArrowCounterClockwiseBold as IcReset } from 'react-icons/pi'
 import type * as Y from 'yjs'
 
 import type { ViewNode, YPrezilloDocument } from '../../crdt'

@@ -4,8 +4,8 @@
 import { Highlight } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { PiFileBold as IcPage } from 'react-icons/pi'
 
+import { IcPage } from '../icons.js'
 import type { SearchResult } from '../utils/search.js'
 
 export interface SearchResultRowProps {

@@ -9,26 +9,29 @@
  * rather than ~750-990px and fits a phone.
  */
 
-import { FontPicker, NativeSelect, NumberInput, useEscapeKey } from '@cloudillo/react'
-import * as React from 'react'
 import {
-	PiAlignBottomBold as IcAlignBottom,
-	PiTextAlignCenterBold as IcAlignCenter,
-	PiTextAlignJustifyBold as IcAlignJustify,
-	PiTextAlignLeftBold as IcAlignLeft,
-	PiAlignCenterVerticalBold as IcAlignMiddle,
-	PiTextAlignRightBold as IcAlignRight,
-	PiAlignTopBold as IcAlignTop,
-	PiCopyBold as IcDuplicate,
-	PiLockBold as IcLocked,
-	PiArrowsLeftRightBold as IcSwap,
-	PiTrashBold as IcTrash,
-	PiLockOpenBold as IcUnlocked
-} from 'react-icons/pi'
+	FontPicker,
+	IcAlignBottom,
+	IcAlignCenter,
+	IcAlignJustify,
+	IcAlignLeft,
+	IcAlignMiddle,
+	IcAlignRight,
+	IcAlignTop,
+	IcDelete,
+	IcDuplicate,
+	IcLocked,
+	IcUnlocked,
+	NativeSelect,
+	NumberInput,
+	useEscapeKey
+} from '@cloudillo/react'
+import * as React from 'react'
 
 import { arrowheadGeometry } from '../connectors/index.js'
 import type { ArrowheadType, ArrowStyle, TextAlign, VerticalAlign } from '../crdt/index.js'
 import { useEdgeClamp } from '../hooks/useEdgeClamp.js'
+import { IcReverse } from '../icons.js'
 import { CORNER_RADII, STROKE_WIDTHS } from '../utils/colors.js'
 import { FONT_SIZES } from '../utils/text-styles.js'
 import { ColorPalette } from './ColorPalette.js'
@@ -657,7 +660,7 @@ export function OverflowMenu({
 					disabled={!anyUnlocked}
 					onClick={onReverse}
 				>
-					<IcSwap size={16} />
+					<IcReverse size={16} />
 					<span>Reverse direction</span>
 				</button>
 			)}
@@ -672,7 +675,7 @@ export function OverflowMenu({
 				disabled={!canDelete}
 				onClick={onDelete}
 			>
-				<IcTrash size={16} />
+				<IcDelete size={16} />
 				<span>Delete</span>
 				<span className="ideallo-property-menu-shortcut">Del</span>
 			</button>

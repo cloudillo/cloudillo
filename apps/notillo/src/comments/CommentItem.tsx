@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import type { Comment } from '@cloudillo/react'
-import { Button } from '@cloudillo/react'
+import { Button, IcConfirm, IcDelete, IcEdit } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuCheck as IcCheck, LuTrash2 as IcDelete, LuPencil as IcEdit } from 'react-icons/lu'
 
 import { shortTimeFormat } from './utils.js'
 
@@ -126,7 +125,7 @@ export function CommentItem({ comment, isOwn, readOnly, onEdit, onDelete }: Comm
 					/>
 					<div className="comment-input-actions">
 						<Button size="sm" onClick={handleSave}>
-							<IcCheck size={14} /> {t('Save')}
+							<IcConfirm size={14} /> {t('Save')}
 						</Button>
 						<Button variant="link" size="sm" onClick={handleCancel}>
 							{t('Cancel')}

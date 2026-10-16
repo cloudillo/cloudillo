@@ -14,10 +14,9 @@
  * here would be a button that fails. The status line points at the place that can.
  */
 
-import { Button, Modal, Toggle } from '@cloudillo/react'
+import { Button, IcClose, IcHome, Modal, Toggle } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuX as IcClose, LuHouse as IcHome } from 'react-icons/lu'
 
 export interface DocSettingsDialogProps {
 	open: boolean

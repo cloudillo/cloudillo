@@ -5,48 +5,50 @@
  * Toolbar component - Main toolbar with drawing tools, formatting, and actions
  */
 
+import {
+	IcAlignBottom,
+	IcAlignCenter,
+	IcAlignJustify,
+	IcAlignLeft,
+	IcAlignMiddle,
+	IcAlignRight,
+	IcAlignTop,
+	IcBold,
+	IcBringForward,
+	IcBringToFront,
+	IcDelete,
+	IcDocument,
+	IcDuplicate,
+	IcEllipse,
+	IcImage,
+	IcItalic,
+	IcLine,
+	IcPoll,
+	IcQrCode,
+	IcRectangle,
+	IcRedo,
+	IcSelect,
+	IcSendBackward,
+	IcSendToBack,
+	IcSidebar,
+	IcText,
+	IcUnderline,
+	IcUndo
+} from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	PiAlignBottomBold as IcAlignBottom,
-	PiTextAlignCenterBold as IcAlignCenter,
-	PiTextAlignJustifyBold as IcAlignJustify,
-	PiTextAlignLeftBold as IcAlignLeft,
-	PiAlignCenterVerticalBold as IcAlignMiddle,
-	PiTextAlignRightBold as IcAlignRight,
-	PiAlignTopBold as IcAlignTop,
-	PiTextBBold as IcBold,
-	PiArrowUpBold as IcBringForward,
-	PiArrowLineUpBold as IcBringToFront,
-	PiTrashBold as IcDelete,
-	PiFileBold as IcDocument,
-	PiCopyBold as IcDuplicate,
-	PiCircleBold as IcEllipse,
-	PiGridFourBold as IcGrid,
-	PiImageBold as IcImage,
-	PiTextItalicBold as IcItalic,
-	PiTextTBold as IcLabel,
-	PiMinusBold as IcLine,
-	PiSidebarSimpleBold as IcPanel,
-	PiChartBarBold as IcPollFrame,
-	PiQrCodeBold as IcQrCode,
-	PiRectangleBold as IcRect,
-	PiArrowArcRightBold as IcRedo,
-	PiSelection as IcSelect,
-	PiArrowDownBold as IcSendBackward,
-	PiArrowLineDownBold as IcSendToBack,
-	PiEqualsBold as IcSnapDistribution,
-	PiMagnetBold as IcSnapObjects,
-	PiArrowsOutSimpleBold as IcSnapSizes,
-	PiUsersBold as IcStateVar,
-	PiTableBold as IcTable,
-	PiTextUnderlineBold as IcUnderline,
-	PiArrowArcLeftBold as IcUndo
-} from 'react-icons/pi'
 import type * as Y from 'yjs'
 
 import type { YPrezilloDocument } from '../crdt'
 import type { UseSnapSettingsResult } from '../hooks/useSnappingConfig'
+import {
+	IcAudience,
+	IcSnapGrid,
+	IcSnapObjects,
+	IcSnapSizes,
+	IcSnapSpacing,
+	IcTable
+} from '../icons.js'
 import { mergeClasses } from '../utils'
 import { FONT_SIZES } from '../utils/text-styles'
 import { SymbolPicker } from './SymbolPicker'
@@ -169,7 +171,7 @@ export function Toolbar({
 				className={mergeClasses('c-button icon', tool === 'rect' ? 'active' : '')}
 				title="Rectangle"
 			>
-				<IcRect />
+				<IcRectangle />
 			</button>
 			<button
 				onClick={() => setTool('ellipse')}
@@ -194,7 +196,7 @@ export function Toolbar({
 				className={mergeClasses('c-button icon', tool === 'text' ? 'active' : '')}
 				title="Text"
 			>
-				<IcLabel />
+				<IcText />
 			</button>
 
 			{/* Image tool */}
@@ -230,7 +232,7 @@ export function Toolbar({
 				className={mergeClasses('c-button icon', tool === 'pollframe' ? 'active' : '')}
 				title="Poll Frame"
 			>
-				<IcPollFrame />
+				<IcPoll />
 			</button>
 
 			{/* Table Grid tool */}
@@ -248,7 +250,7 @@ export function Toolbar({
 				className={mergeClasses('c-button icon', tool === 'statevar' ? 'active' : '')}
 				title="Live Users Count"
 			>
-				<IcStateVar />
+				<IcAudience />
 			</button>
 
 			{/* Symbol tool */}
@@ -272,7 +274,7 @@ export function Toolbar({
 				className={mergeClasses('c-button icon', snap.settings.snapToGrid ? 'active' : '')}
 				title="Snap to grid"
 			>
-				<IcGrid />
+				<IcSnapGrid />
 			</button>
 			<button
 				onClick={snap.toggleSnapToObjects}
@@ -299,7 +301,7 @@ export function Toolbar({
 				)}
 				title="Snap to equal spacing"
 			>
-				<IcSnapDistribution />
+				<IcSnapSpacing />
 			</button>
 
 			<div className="flex-fill" />
@@ -503,7 +505,7 @@ export function Toolbar({
 				className={mergeClasses('c-button icon', isPanelVisible ? 'active' : '')}
 				title="Toggle properties panel"
 			>
-				<IcPanel />
+				<IcSidebar />
 			</button>
 		</div>
 	)

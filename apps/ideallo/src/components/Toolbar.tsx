@@ -11,21 +11,22 @@
  * called or which key arms it.
  */
 
-import { ActionSheet, ActionSheetItem, useIsMobile } from '@cloudillo/react'
+import {
+	ActionSheet,
+	ActionSheetItem,
+	IcList,
+	IcLocked,
+	IcMore,
+	IcRedo,
+	IcUndo,
+	IcUnlocked,
+	useIsMobile
+} from '@cloudillo/react'
 import * as React from 'react'
 import type { IconType } from 'react-icons'
-import {
-	PiListBulletsBold as IcFrameList,
-	PiLockBold as IcLocked,
-	PiDotsThreeBold as IcMore,
-	PiArrowArcRightBold as IcRedo,
-	PiStackBold as IcStack,
-	PiToolboxBold as IcToolbox,
-	PiArrowArcLeftBold as IcUndo,
-	PiLockOpenBold as IcUnlocked
-} from 'react-icons/pi'
 
 import type { FrameObject } from '../crdt/runtime-types.js'
+import { IcArrange, IcTools } from '../icons.js'
 import type { ToolCategory, ToolType } from '../tools/index.js'
 import {
 	CATEGORY_LABELS,
@@ -380,7 +381,7 @@ export function Toolbar({
 				aria-label="Frame list"
 				onClick={() => toggleMenu('frames')}
 			>
-				<IcFrameList size={size} />
+				<IcList size={size} />
 			</button>
 			<FramesPopover
 				open={openMenu === 'frames'}
@@ -442,7 +443,7 @@ export function Toolbar({
 				{/* Everything else, one labelled row per category. The armed tool has no other home
 				    in this bar, so this trigger is where its lock state is legible. */}
 				<ToolGroupButton
-					Icon={IcToolbox}
+					Icon={IcTools}
 					size={22}
 					label="Tools"
 					open={openMenu === 'tools'}
@@ -690,7 +691,7 @@ export function Toolbar({
 
 					{/* No lockTool: z-order actions are commands, not tools */}
 					<ToolGroupButton
-						Icon={IcStack}
+						Icon={IcArrange}
 						size={24}
 						label="Arrange"
 						open={openMenu === 'layer'}

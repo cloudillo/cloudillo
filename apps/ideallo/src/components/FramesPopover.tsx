@@ -9,14 +9,9 @@
  * actions. It borrows that component's chrome (class, edge clamp, Escape, outside click) instead.
  */
 
-import { useEscapeKey } from '@cloudillo/react'
+import { IcCopyLink, IcList, IcRename, useEscapeKey } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	PiListBulletsBold as IcFrameList,
-	PiLinkBold as IcLink,
-	PiPencilSimpleBold as IcRename
-} from 'react-icons/pi'
 
 import type { FrameObject } from '../crdt/runtime-types.js'
 import { useEdgeClamp } from '../hooks/useEdgeClamp.js'
@@ -176,7 +171,7 @@ export function FramesPopover({
 							aria-label={t('Copy embed link to {{title}}', { title })}
 							onClick={() => onCopyFrameLink(frame)}
 						>
-							<IcLink size={16} />
+							<IcCopyLink size={16} />
 						</button>
 					</div>
 				)
@@ -214,7 +209,7 @@ export function ReaderFrameList({
 					aria-label={t('Frame list')}
 					onClick={() => setOpen((o) => !o)}
 				>
-					<IcFrameList size={22} />
+					<IcList size={22} />
 				</button>
 				<FramesPopover
 					open={open}

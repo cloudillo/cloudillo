@@ -4,18 +4,6 @@
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-	PiBugBold as IcDebug,
-	PiExportBold as IcExport,
-	PiArrowsOutBold as IcFullscreen,
-	PiLinkBold as IcLink,
-	PiFilePdfBold as IcPDF,
-	PiPlayBold as IcPlay,
-	PiFilePptBold as IcPPTX,
-	PiWrenchBold as IcRepair,
-	PiShareNetworkBold as IcShare,
-	PiUsersBold as IcUsers
-} from 'react-icons/pi'
-import {
 	type SnapSpatialObject,
 	SvgCanvas,
 	type SvgCanvasContext,
@@ -44,10 +32,15 @@ import { downloadYDocExport } from '@cloudillo/crdt'
 import {
 	AppDocBar,
 	type BottomSheetSnapPoint,
+	Button,
 	DialogContainer,
 	DocBarMenu,
-	Button,
 	ExportProgressDialog,
+	IcCopyLink,
+	IcExport,
+	IcFullscreen,
+	IcPdf,
+	IcShare,
 	MenuDivider,
 	MenuHeader,
 	MenuItem,
@@ -145,6 +138,7 @@ import {
 	updateObjectRotation
 } from './crdt'
 import { downloadPDF, downloadPPTX } from './export'
+import { IcAudience, IcDebug, IcPlay, IcPptx, IcRepair } from './icons.js'
 
 //////////////
 // Main App //
@@ -1073,13 +1067,13 @@ export function PrezilloApp() {
 						onClick={handleExportJSON}
 					/>
 					<MenuItem
-						icon={<IcPDF />}
+						icon={<IcPdf />}
 						label={t('Export to PDF')}
 						disabled={isExportingPDF}
 						onClick={handleExportPDF}
 					/>
 					<MenuItem
-						icon={<IcPPTX />}
+						icon={<IcPptx />}
 						label={t('Export to PowerPoint')}
 						disabled={isExportingPPTX}
 						onClick={handleExportPPTX}
@@ -1091,12 +1085,12 @@ export function PrezilloApp() {
 						onClick={handleSharePresent}
 					/>
 					<MenuItem
-						icon={<IcUsers />}
+						icon={<IcAudience />}
 						label={t('Share for following')}
 						onClick={handleShareFollow}
 					/>
 					<MenuItem
-						icon={<IcLink />}
+						icon={<IcCopyLink />}
 						label={t('Copy embed link to this slide')}
 						disabled={!prezillo.activeViewId}
 						onClick={() => {

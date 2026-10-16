@@ -2,16 +2,11 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import type { Comment, CommentThread, UseCommentsReturn } from '@cloudillo/react'
-import { Button, useEscapeKey, useIsMobile } from '@cloudillo/react'
+import { Button, IcClose, IcSend, useEscapeKey, useIsMobile } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuX as IcClose,
-	LuCircle as IcReopen,
-	LuCircleCheck as IcResolved,
-	LuSend as IcSend
-} from 'react-icons/lu'
 
+import { IcReopen, IcResolve } from '../icons.js'
 import { CommentItem } from './CommentItem.js'
 
 interface CommentPopupProps {
@@ -188,7 +183,7 @@ function PopupThread({
 					<Button variant="link" size="sm" onClick={handleToggleStatus}>
 						{thread.status === 'open' ? (
 							<>
-								<IcResolved size={12} /> {t('Resolve')}
+								<IcResolve size={12} /> {t('Resolve')}
 							</>
 						) : (
 							<>

@@ -5,19 +5,22 @@
  * Named ranges side panel: list, rename, redefine from selection, delete, copy embed link.
  */
 
-import { Button, Panel, useDialog, useToast } from '@cloudillo/react'
+import {
+	Button,
+	IcClose,
+	IcCopyLink,
+	IcDelete,
+	IcRename,
+	Panel,
+	useDialog,
+	useToast
+} from '@cloudillo/react'
 import type { TFunction } from 'i18next'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	PiXBold as IcClose,
-	PiTrashBold as IcDelete,
-	PiLinkBold as IcLink,
-	PiArrowsInSimpleBold as IcRedefine,
-	PiPencilBold as IcRename
-} from 'react-icons/pi'
 import type * as Y from 'yjs'
 
+import { IcRedefine } from './icons.js'
 import {
 	deleteNamedRange,
 	formatA1,
@@ -161,7 +164,7 @@ export function NamedRangesPanel({
 							<Button
 								variant="link"
 								immediate
-								icon={<IcLink />}
+								icon={<IcCopyLink />}
 								title={t('Copy embed link')}
 								aria-label={t('Copy embed link')}
 								onClick={() => onCopyLink(formatNameNav(r.id))}

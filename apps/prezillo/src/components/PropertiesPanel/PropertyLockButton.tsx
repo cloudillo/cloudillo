@@ -1,11 +1,8 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { IcLocked, IcReset } from '@cloudillo/react'
 import * as React from 'react'
-import {
-	PiLockSimpleFill as IcLocked,
-	PiArrowCounterClockwiseBold as IcReset
-} from 'react-icons/pi'
 
 export interface PropertyLockButtonProps {
 	/** Whether this object is an instance of a template */

@@ -22,17 +22,10 @@
  * findings and nothing else; what would go live is a publish question.
  */
 
-import { Button, Modal } from '@cloudillo/react'
+import { Button, IcClose, IcHide, IcHome, IcLocked, IcWarning, Modal } from '@cloudillo/react'
 import type { TFunction } from 'i18next'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuTriangleAlert as IcAlert,
-	LuX as IcClose,
-	LuEyeOff as IcHidden,
-	LuHouse as IcHome,
-	LuLock as IcLock
-} from 'react-icons/lu'
 
 import type { PublishRef, PublishReport, PublishReservedIssue, PublishSlugIssue } from './gate.js'
 
@@ -118,7 +111,7 @@ function BlockedRefRow({
 	return (
 		<li className="c-vbox g-1">
 			<div className="c-hbox g-2 align-items-center">
-				<IcLock />
+				<IcLocked />
 				<span className="fill">
 					{refItem.kind === 'embed'
 						? t('Embedded document {{name}}', {
@@ -210,7 +203,7 @@ function IssueRow({
 	return (
 		<li className="c-vbox g-1">
 			<div className="c-hbox g-2 align-items-center">
-				{icon ?? <IcAlert />}
+				{icon ?? <IcWarning />}
 				<span className="fill">{title}</span>
 				{onGoToPage && (
 					<Button size="sm" onClick={onGoToPage}>
@@ -419,7 +412,7 @@ export function PublishDialog({
 							<h3 className="c-settings-section-title m-0">{t('No home page')}</h3>
 							<ul className="c-vbox g-2 m-0">
 								<li className="c-hbox g-2 align-items-center">
-									<IcAlert />
+									<IcWarning />
 									<span className="fill">
 										{t('Visitors to {{path}} will see nothing.', {
 											path: mountPath ?? '/'
@@ -472,7 +465,7 @@ export function PublishDialog({
 							<ul className="c-vbox g-2 m-0">
 								{collateral.map((page) => (
 									<li key={page.pageId} className="c-hbox g-2 align-items-center">
-										<IcHidden />
+										<IcHide />
 										<span className="fill">{page.title || untitled}</span>
 										<span className="c-hint">
 											{page.draftedAncestor

@@ -9,6 +9,10 @@
 import {
 	Button,
 	Checkbox,
+	IcDelete,
+	IcDuplicate,
+	IcMoveDown,
+	IcMoveUp,
 	Input,
 	NativeSelect,
 	NumberInput,
@@ -18,7 +22,6 @@ import {
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuArrowDown, LuArrowUp, LuCopy, LuTrash2 } from 'react-icons/lu'
 
 import { mastersOf, sectionOf } from '../crdt/entities'
 import type { SectionId } from '../crdt/ids'
@@ -143,21 +146,21 @@ export function SectionPopover({
 				<div className="c-hbox g-1">
 					<Button
 						variant="ghost"
-						icon={<LuArrowUp />}
+						icon={<IcMoveUp />}
 						aria-label={t('Move section up')}
 						disabled={index <= 0}
 						onClick={() => moveSection(yDoc, doc, secId, index - 1)}
 					/>
 					<Button
 						variant="ghost"
-						icon={<LuArrowDown />}
+						icon={<IcMoveDown />}
 						aria-label={t('Move section down')}
 						disabled={index >= ids.length - 1}
 						onClick={() => moveSection(yDoc, doc, secId, index + 1)}
 					/>
 					<Button
 						variant="ghost"
-						icon={<LuCopy />}
+						icon={<IcDuplicate />}
 						onClick={() => {
 							duplicateSection(yDoc, doc, secId)
 							onClose()
@@ -168,7 +171,7 @@ export function SectionPopover({
 					<Button
 						variant="ghost"
 						color="error"
-						icon={<LuTrash2 />}
+						icon={<IcDelete />}
 						aria-label={t('Remove section')}
 						disabled={ids.length <= 1}
 						onClick={remove}

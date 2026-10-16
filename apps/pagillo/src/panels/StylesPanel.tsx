@@ -13,6 +13,13 @@ import {
 	Checkbox,
 	ColorInput,
 	FontPicker,
+	IcAdd,
+	IcAlignCenter,
+	IcAlignJustify,
+	IcAlignLeft,
+	IcAlignRight,
+	IcDelete,
+	IcUndo,
 	Input,
 	NativeSelect,
 	NumberInput,
@@ -25,15 +32,6 @@ import {
 import { FX } from '@cloudillo/typeset'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuAlignCenter,
-	LuAlignJustify,
-	LuAlignLeft,
-	LuAlignRight,
-	LuPlus,
-	LuTrash2,
-	LuUndo2
-} from 'react-icons/lu'
 
 import { styleOf, stylesOf } from '../crdt/entities'
 import type { StyleId } from '../crdt/ids'
@@ -138,7 +136,7 @@ export const StylesPanel = React.memo(function StylesPanel({ yDoc, doc }: PanelP
 						<Button
 							variant="link"
 							size="sm"
-							icon={<LuPlus />}
+							icon={<IcAdd />}
 							onClick={() =>
 								setSel(
 									addStyle(yDoc, doc, {
@@ -239,7 +237,7 @@ function StyleEditor({ yDoc, doc, id, style, onDeleted }: StyleEditorProps) {
 						variant="link"
 						size="sm"
 						color="error"
-						icon={<LuTrash2 />}
+						icon={<IcDelete />}
 						onClick={remove}
 					>
 						{t('Delete style')}
@@ -282,7 +280,7 @@ export function PropRow({
 /** The reset button, or an empty placeholder keeping its column */
 export function ResetSlot({ label, onReset }: { label: string; onReset?: () => void }) {
 	return onReset ? (
-		<Button variant="ghost" size="sm" icon={<LuUndo2 />} aria-label={label} onClick={onReset} />
+		<Button variant="ghost" size="sm" icon={<IcUndo />} aria-label={label} onClick={onReset} />
 	) : (
 		<span aria-hidden="true" />
 	)
@@ -353,10 +351,10 @@ export function PropEditor({
 		case 'align':
 			return (
 				<Segmented value={v as string | undefined} onChange={(a) => onChange(a)}>
-					<SegmentedItem value="left" icon={LuAlignLeft} label={t('Left')} />
-					<SegmentedItem value="center" icon={LuAlignCenter} label={t('Center')} />
-					<SegmentedItem value="right" icon={LuAlignRight} label={t('Right')} />
-					<SegmentedItem value="justify" icon={LuAlignJustify} label={t('Justify')} />
+					<SegmentedItem value="left" icon={IcAlignLeft} label={t('Left')} />
+					<SegmentedItem value="center" icon={IcAlignCenter} label={t('Center')} />
+					<SegmentedItem value="right" icon={IcAlignRight} label={t('Right')} />
+					<SegmentedItem value="justify" icon={IcAlignJustify} label={t('Justify')} />
 				</Segmented>
 			)
 		case 'break':

@@ -1,9 +1,8 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { useOutsideClick } from '@cloudillo/react'
+import { IcClear, IcSearch, useOutsideClick } from '@cloudillo/react'
 import * as React from 'react'
-import { LuX as IcClose, LuSearch as IcSearch } from 'react-icons/lu'
 
 import type { NominatimResult } from './types.js'
 
@@ -102,7 +101,7 @@ export function SearchBar({ onSelect, privacyAcknowledged, onPrivacyAcknowledge 
 				/>
 				{query && (
 					<button className="mapillo-search-clear" onClick={clearSearch} title="Clear">
-						<IcClose />
+						<IcClear />
 					</button>
 				)}
 				<button

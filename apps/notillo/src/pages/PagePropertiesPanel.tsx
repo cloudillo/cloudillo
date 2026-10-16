@@ -5,6 +5,7 @@ import type { ReservedReason } from '@cloudillo/core'
 import { reservedSlugReason } from '@cloudillo/core'
 import {
 	Button,
+	IcHome,
 	Input,
 	LoadingSpinner,
 	NativeSelect,
@@ -17,7 +18,6 @@ import type { RtdbClient } from '@cloudillo/rtdb'
 import * as T from '@symbion/runtype'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuHouse as IcHome } from 'react-icons/lu'
 
 import { usePageProperties } from '../hooks/usePageProperties.js'
 import { tSiteArchetypeName } from '../publish/render/index.js'

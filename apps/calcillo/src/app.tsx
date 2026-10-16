@@ -9,12 +9,6 @@ import type { Sheet as FortuneSheet, Op } from '@fortune-sheet/core'
 import { Workbook, type WorkbookInstance } from '@fortune-sheet/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	PiLinkBold as IcLink,
-	PiTagBold as IcName,
-	PiListBulletsBold as IcNames,
-	PiExportBold
-} from 'react-icons/pi'
 import type * as Y from 'yjs'
 
 import '@symbion/opalui'
@@ -29,6 +23,10 @@ import {
 	AppDocBar,
 	DialogContainer,
 	DocBarMenu,
+	IcCopyLink,
+	IcExport,
+	IcList,
+	IcTag,
 	MenuDivider,
 	MenuHeader,
 	MenuItem,
@@ -940,35 +938,35 @@ export function CalcilloApp() {
 				<AppDocBar awareness={cloudillo.provider?.awareness}>
 					<DocBarMenu>
 						<MenuItem
-							icon={<PiExportBold />}
+							icon={<IcExport />}
 							label={t('Export to JSON')}
 							onClick={() => downloadExport(cloudillo.yDoc)}
 						/>
 						<MenuItem
-							icon={<PiExportBold />}
+							icon={<IcExport />}
 							label={t('Export to XLSX')}
 							onClick={() => downloadXlsxExport(cloudillo.yDoc)}
 						/>
 						<MenuItem
-							icon={<PiExportBold />}
+							icon={<IcExport />}
 							label={t('Export to PDF')}
 							onClick={openPdfExport}
 						/>
 						<MenuDivider />
 						{!isReadOnly && (
 							<MenuItem
-								icon={<IcName />}
+								icon={<IcTag />}
 								label={t('Name selection…')}
 								onClick={nameSelection}
 							/>
 						)}
 						<MenuItem
-							icon={<IcLink />}
+							icon={<IcCopyLink />}
 							label={t('Copy embed link to selection')}
 							onClick={copySelectionLink}
 						/>
 						<MenuItem
-							icon={<IcNames />}
+							icon={<IcList />}
 							label={t('Named ranges')}
 							checked={showNames}
 							onClick={() => setShowNames((v) => !v)}

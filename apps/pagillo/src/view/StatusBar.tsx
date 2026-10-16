@@ -8,6 +8,9 @@
 
 import {
 	Button,
+	IcView,
+	IcZoomIn,
+	IcZoomOut,
 	Kbd,
 	NativeSelect,
 	Popover,
@@ -17,7 +20,6 @@ import {
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuEye as IcView, LuZoomIn as IcZoomIn, LuZoomOut as IcZoomOut } from 'react-icons/lu'
 
 import type { ViewPrefs } from '../editor/FrameOverlay'
 import type { LayoutState } from '../layout/useLayout'

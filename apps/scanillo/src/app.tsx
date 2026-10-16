@@ -6,6 +6,16 @@ import {
 	AppDocBar,
 	Dialog,
 	DocBarMenu,
+	IcBack,
+	IcCamera,
+	IcDelete,
+	IcEraser,
+	IcImage,
+	IcPdf,
+	IcPen,
+	IcRectangle,
+	IcScan,
+	IcUndo,
 	LoadingSpinner,
 	MenuItem,
 	Panel,
@@ -15,20 +25,6 @@ import {
 } from '@cloudillo/react'
 import type { RtdbClient } from '@cloudillo/rtdb'
 import * as React from 'react'
-import {
-	PiArrowLeftBold as IcBack,
-	PiCameraBold as IcCamera,
-	PiCropBold as IcCrop,
-	PiTrashBold as IcDelete,
-	PiEraserBold as IcEraser,
-	PiFunnelBold as IcFilter,
-	PiImageBold as IcImage,
-	PiFilePdfBold as IcPdf,
-	PiPencilSimpleBold as IcPen,
-	PiRectangleBold as IcRect,
-	PiScanBold as IcScan,
-	PiArrowCounterClockwiseBold as IcUndo
-} from 'react-icons/pi'
 
 import { FAB } from './components/FAB.js'
 
@@ -43,6 +39,7 @@ import { CropEditor } from './components/CropEditor.js'
 import { FilterSelect } from './components/FilterSelect.js'
 import type { MarginOption } from './export/pdf-export.js'
 import { useBackStack } from './hooks/use-back-stack.js'
+import { IcCrop, IcImageFilter } from './icons.js'
 import type {
 	Annotation,
 	AnnotationTool,
@@ -723,7 +720,7 @@ function PageDetail({
 					onClick={() => toggleTool('rect')}
 					title="Rectangle"
 				>
-					<IcRect />
+					<IcRectangle />
 				</button>
 				<button
 					className={`c-button icon${activeTool === 'eraser' ? ' primary' : ''}`}
@@ -755,7 +752,7 @@ function PageDetail({
 					onClick={() => onReEdit(page, 'filter')}
 					title="Change filter"
 				>
-					<IcFilter />
+					<IcImageFilter />
 				</button>
 				{confirming ? (
 					<button className="c-button error" onClick={handleDelete}>

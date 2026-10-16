@@ -1,15 +1,10 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { LoadingSpinner, ZoomableImage } from '@cloudillo/react'
+import { IcBack, IcConfirm, LoadingSpinner, ZoomableImage } from '@cloudillo/react'
 import * as React from 'react'
-import {
-	PiArrowLeftBold as IcBack,
-	PiCheckBold as IcCheck,
-	PiArrowCounterClockwiseBold as IcRotateLeft,
-	PiArrowClockwiseBold as IcRotateRight
-} from 'react-icons/pi'
 
+import { IcRotateLeft, IcRotateRight } from '../icons.js'
 import { FILTER_DEFAULTS, type PageFilter } from '../types.js'
 import { applyFilter, blendWithOriginal, rotateCanvas } from '../utils/image-processing.js'
 
@@ -219,7 +214,7 @@ export function FilterSelect({
 					disabled={processing}
 					title="Apply filter"
 				>
-					{processing ? <LoadingSpinner size="sm" /> : <IcCheck />}
+					{processing ? <LoadingSpinner size="sm" /> : <IcConfirm />}
 				</button>
 			</div>
 		</div>

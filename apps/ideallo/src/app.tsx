@@ -30,6 +30,7 @@ import { downloadYDocExport } from '@cloudillo/crdt'
 import {
 	AppDocBar,
 	DocBarMenu,
+	IcExport,
 	MenuItem,
 	Toasts,
 	useCopyEmbedLink,
@@ -41,7 +42,6 @@ import {
 } from '@cloudillo/react'
 import type Quill from 'quill'
 import { useTranslation } from 'react-i18next'
-import { PiExportBold as IcExport } from 'react-icons/pi'
 import {
 	type ResizeHandle,
 	type SvgCanvasContext,

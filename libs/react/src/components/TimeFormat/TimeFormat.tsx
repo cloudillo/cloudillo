@@ -3,9 +3,9 @@
 
 import dayjs from 'dayjs'
 import * as React from 'react'
-import { LuClock as IcClock } from 'react-icons/lu'
 
 import { useLibTranslation } from '../../i18n.js'
+import { IcTime } from '../../icons.js'
 import { IconText } from '../Text/IconText.js'
 
 export interface TimeFormatProps {
@@ -69,7 +69,7 @@ export function TimeFormat({ time }: TimeFormatProps) {
 		}
 	}
 
-	return <IconText icon={<IcClock />}>{timeFormat(time)}</IconText>
+	return <IconText icon={<IcTime />}>{timeFormat(time)}</IconText>
 }
 
 // vim: ts=4

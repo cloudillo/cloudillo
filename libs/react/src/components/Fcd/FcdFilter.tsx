@@ -3,8 +3,8 @@
 
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuX as IcClose } from 'react-icons/lu'
 
+import { IcClose } from '../../icons.js'
 import { Button } from '../Button/Button.js'
 import { mergeClasses } from '../utils.js'
 import { FcdFilterContext } from './FcdContainer.js'

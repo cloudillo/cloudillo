@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
-import { LuX as IcClose, LuSearch as IcSearch } from 'react-icons/lu'
 
 import { useLibTranslation } from '../../i18n.js'
+import { IcClear, IcSearch } from '../../icons.js'
 import { useMergedRefs } from '../hooks.js'
 import { Icon } from '../Icon/Icon.js'
 import { Kbd } from '../Kbd/Kbd.js'
@@ -76,7 +76,7 @@ export const SearchInput = createComponent<HTMLInputElement, SearchInputProps>(
 							onClick={clear}
 							disabled={props.disabled || props.readOnly}
 						>
-							<Icon as={IcClose} />
+							<Icon as={IcClear} />
 						</button>
 					) : shortcut != null ? (
 						<Kbd className="coarse-hide">{shortcut}</Kbd>

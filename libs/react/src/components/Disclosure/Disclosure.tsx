@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
-import { LuChevronRight as IcChevron } from 'react-icons/lu'
 
+import { IcDisclosure } from '../../icons.js'
 import { createComponent, mergeClasses } from '../utils.js'
 
 /** Set by `Accordion`: the shared native `name` that makes its Disclosures exclusive. */
@@ -58,7 +58,7 @@ export const Disclosure = createComponent<HTMLDetailsElement, DisclosureProps>(
 				<summary>
 					{icon && <span className="c-disclosure-icon">{icon}</span>}
 					<span className="flex-fill">{summary}</span>
-					<IcChevron className="c-disclosure-chevron" aria-hidden="true" />
+					<IcDisclosure className="c-disclosure-chevron" aria-hidden="true" />
 				</summary>
 				<div className="c-disclosure-content">{children}</div>
 			</details>

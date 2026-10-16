@@ -2,15 +2,9 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
-import {
-	LuX as IcClose,
-	LuCircleX as IcError,
-	LuInfo as IcInfo,
-	LuCircleCheck as IcSuccess,
-	LuTriangleAlert as IcWarning
-} from 'react-icons/lu'
 
 import { useLibTranslation } from '../../i18n.js'
+import { IcClose, IcError, IcInfo, IcSuccess, IcWarning } from '../../icons.js'
 import { createComponent, mergeClasses } from '../utils.js'
 
 export type AlertColor = 'info' | 'success' | 'warning' | 'error' | 'neutral'

@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
-import { LuSquareDashed as IcBoxSelect, LuCircleDashed as IcCircleSelect } from 'react-icons/lu'
 import ReactCrop, { type Crop } from 'react-image-crop'
 
 import { useLibTranslation } from '../../i18n.js'
+import { IcCropCircle, IcCropRect } from '../../icons.js'
 import { Segmented, SegmentedItem } from '../Segmented/index.js'
 import { Toolbar, ToolbarSpacer } from '../Toolbar/index.js'
 import { mergeClasses } from '../utils.js'
@@ -127,14 +127,14 @@ export function ImageCropper({
 									<SegmentedItem
 										key={asp}
 										value={asp}
-										icon={IcCircleSelect}
+										icon={IcCropCircle}
 										label={t('Circle')}
 									/>
 								) : asp === '' ? (
 									<SegmentedItem
 										key="free"
 										value=""
-										icon={IcBoxSelect}
+										icon={IcCropRect}
 										label={t('Free')}
 									/>
 								) : (

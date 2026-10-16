@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
-import { LuMenu as IcMenu } from 'react-icons/lu'
 
+import { IcMenu } from '../../icons.js'
 import { Button } from '../Button/Button.js'
 import { mergeClasses } from '../utils.js'
 import { FcdFilterContext } from './FcdContainer.js'

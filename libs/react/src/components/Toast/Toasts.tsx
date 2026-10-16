@@ -2,13 +2,8 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
-import {
-	LuCircleX as IcToastError,
-	LuInfo as IcToastInfo,
-	LuCircleCheck as IcToastSuccess,
-	LuTriangleAlert as IcToastWarning
-} from 'react-icons/lu'
 
+import { IcError, IcInfo, IcSuccess, IcWarning } from '../../icons.js'
 import type { Position } from '../types.js'
 import { Toast } from './Toast.js'
 import { ToastClose } from './ToastClose.js'
@@ -45,10 +40,10 @@ export function Toasts({ position = 'bottom-right' }: ToastsProps) {
 					withProgress
 				>
 					<ToastIcon>
-						{t.variant === 'success' && <IcToastSuccess />}
-						{t.variant === 'error' && <IcToastError />}
-						{t.variant === 'warning' && <IcToastWarning />}
-						{(!t.variant || t.variant === 'info') && <IcToastInfo />}
+						{t.variant === 'success' && <IcSuccess />}
+						{t.variant === 'error' && <IcError />}
+						{t.variant === 'warning' && <IcWarning />}
+						{(!t.variant || t.variant === 'info') && <IcInfo />}
 					</ToastIcon>
 					<ToastContent>
 						{t.title && <ToastTitle>{t.title}</ToastTitle>}

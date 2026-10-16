@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
-import { LuCheck as IcCheck, LuCopy as IcCopy } from 'react-icons/lu'
 
 import { useLibTranslation } from '../../i18n.js'
+import { IcCheck, IcCopy } from '../../icons.js'
 import { Button } from '../Button/index.js'
 
 export interface CopyButtonProps {

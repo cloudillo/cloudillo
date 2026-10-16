@@ -24,9 +24,9 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import * as React from 'react'
 import { createPortal } from 'react-dom'
-import { LuArrowDown, LuArrowUp, LuArrowUpToLine, LuGripVertical } from 'react-icons/lu'
 
 import { useLibTranslation } from '../../i18n.js'
+import { IcDragHandle, IcMoveDown, IcMoveToTop, IcMoveUp } from '../../icons.js'
 import { Button } from '../Button/index.js'
 import { Menu, MenuItem } from '../Menu/index.js'
 import { mergeClasses } from '../utils.js'
@@ -366,7 +366,7 @@ function SortableItem({
 					variant="ghost"
 					size="sm"
 					className="c-sortable-handle"
-					icon={<LuGripVertical />}
+					icon={<IcDragHandle />}
 					aria-label={t('Move {{name}}', { name: data.label })}
 					{...dragAttributes}
 					{...listeners}
@@ -374,19 +374,19 @@ function SortableItem({
 			}
 		>
 			<MenuItem
-				icon={<LuArrowUp />}
+				icon={<IcMoveUp />}
 				label={t('Move up')}
 				disabled={first}
 				onClick={() => onMove(data.index - 1)}
 			/>
 			<MenuItem
-				icon={<LuArrowDown />}
+				icon={<IcMoveDown />}
 				label={t('Move down')}
 				disabled={last}
 				onClick={() => onMove(data.index + 1)}
 			/>
 			<MenuItem
-				icon={<LuArrowUpToLine />}
+				icon={<IcMoveToTop />}
 				label={t('Move to top')}
 				disabled={first}
 				onClick={() => onMove(0)}

@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
-import { LuChevronDown, LuChevronRight } from 'react-icons/lu'
 
+import { IcDisclosure } from '../../icons.js'
 import { createComponent, mergeClasses } from '../utils.js'
 
 export interface PropertySectionProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -24,7 +24,10 @@ export const PropertySection = createComponent<HTMLDivElement, PropertySectionPr
 					className="c-property-section-header"
 					onClick={() => setExpanded(!expanded)}
 				>
-					{expanded ? <LuChevronDown size={14} /> : <LuChevronRight size={14} />}
+					<IcDisclosure
+						size={14}
+						style={expanded ? { transform: 'rotate(90deg)' } : undefined}
+					/>
 					<span className="c-property-section-title">{title}</span>
 				</button>
 				{expanded && <div className="c-property-section-content g-1">{children}</div>}

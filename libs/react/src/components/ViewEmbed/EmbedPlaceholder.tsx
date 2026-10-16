@@ -7,16 +7,9 @@
  */
 
 import * as React from 'react'
-import {
-	LuCircleAlert as IcError,
-	LuFileX as IcMissing,
-	LuLayers as IcNested,
-	LuLock as IcNoAccess,
-	LuWifiOff as IcOffline,
-	LuShieldAlert as IcUntrusted
-} from 'react-icons/lu'
 
 import { useLibTranslation } from '../../i18n.js'
+import { IcError, IcFileError, IcNested, IcNoAccess, IcOffline, IcUntrusted } from '../../icons.js'
 import { AppIcon, isAppId } from '../AppIcon/index.js'
 import { Button } from '../Button/index.js'
 import { EmptyState } from '../EmptyState/index.js'
@@ -68,7 +61,7 @@ const STATUS: Record<
 		actions: ['requestAccess', 'openSource', 'remove']
 	},
 	missing: {
-		icon: <IcMissing />,
+		icon: <IcFileError />,
 		color: 'neutral',
 		reason: 'This view no longer exists',
 		actions: ['openSource', 'remove']

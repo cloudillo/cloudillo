@@ -3,9 +3,9 @@
 
 import { getFileUrl } from '@cloudillo/core'
 import * as React from 'react'
-import { LuChevronRight as IcSep } from 'react-icons/lu'
 
 import { useLibTranslation } from '../../i18n.js'
+import { IcSeparator } from '../../icons.js'
 import { Avatar, InitialsAvatar, monogramFor } from '../Avatar/index.js'
 import { InlineEditForm } from '../InlineEdit/index.js'
 import { mergeClasses } from '../utils.js'
@@ -273,7 +273,7 @@ export function DocBarTitle({
 			{titleActions && <div className="c-docbar-actions">{titleActions}</div>}
 			{sub && (
 				<>
-					<IcSep className="c-docbar-sep" aria-hidden="true" />
+					<IcSeparator className="c-docbar-sep" aria-hidden="true" />
 					<span className="c-docbar-sub">
 						{sub.icon && <span className="c-docbar-sub-icon">{sub.icon}</span>}
 						<TitleSegment

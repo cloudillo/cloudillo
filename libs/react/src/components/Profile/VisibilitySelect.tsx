@@ -3,15 +3,9 @@
 
 import type { CommunityVisibility, PersonalVisibility } from '@cloudillo/types'
 import * as React from 'react'
-import {
-	LuChevronDown as IcCaret,
-	LuHandshake as IcConnected,
-	LuUsers as IcFollowers,
-	LuGlobe as IcGlobe,
-	LuShield as IcRole
-} from 'react-icons/lu'
 
 import { useLibTranslation } from '../../i18n.js'
+import { IcConnection, IcDropdown, IcFollowers, IcPublic, IcRole } from '../../icons.js'
 import { Button } from '../Button/Button.js'
 import { FieldContext, useFieldControl } from '../Form/Field.js'
 import { Menu, MenuItem } from '../Menu/Menu.js'
@@ -31,9 +25,9 @@ export const COMMUNITY_VISIBILITY: VisibilityCode[] = [
 ]
 
 const META: Record<VisibilityCode, { label: string; icon: React.ElementType; color: string }> = {
-	P: { label: 'Public', icon: IcGlobe, color: 'text-success' },
+	P: { label: 'Public', icon: IcPublic, color: 'text-success' },
 	F: { label: 'Followers', icon: IcFollowers, color: 'text-primary' },
-	C: { label: 'Connected', icon: IcConnected, color: 'text-warning' },
+	C: { label: 'Connected', icon: IcConnection, color: 'text-warning' },
 	follower: { label: 'Follower+', icon: IcFollowers, color: 'text-primary' },
 	supporter: { label: 'Supporter+', icon: IcRole, color: 'text-secondary' },
 	contributor: { label: 'Contributor+', icon: IcRole, color: 'text-secondary' },
@@ -85,7 +79,7 @@ export function VisibilitySelect({
 				>
 					<Icon className={current.color} aria-hidden="true" />
 					<span id={valueId}>{t(current.label)}</span>
-					<IcCaret aria-hidden="true" />
+					<IcDropdown aria-hidden="true" />
 				</Button>
 			}
 		>

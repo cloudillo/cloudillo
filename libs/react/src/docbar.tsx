@@ -12,15 +12,15 @@
 
 import { type DocInfo, docRef, getAppBus, type PresenceEntry, parseAppHash } from '@cloudillo/core'
 import * as React from 'react'
-import { LuLink as IcRef, LuShare2 as IcShare } from 'react-icons/lu'
 import type { Awareness } from 'y-protocols/awareness'
 import type { WebsocketProvider } from 'y-websocket'
 
 import { Button } from './components/Button/Button.js'
-import { DocBar, type DocBarSubItem } from './components/DocBar/index.js'
 import { DocBarUserClickContext } from './components/DocBar/DocBarPresence.js'
+import { DocBar, type DocBarSubItem } from './components/DocBar/index.js'
 import { useToast } from './components/Toast/index.js'
 import { useLibTranslation } from './i18n.js'
+import { IcLink, IcShare } from './icons.js'
 import { useDocPresence, usePresenceContext } from './presence.js'
 
 // Re-exported here so an app can type an `AppDocBar` `sub` object without
@@ -266,7 +266,7 @@ export function AppDocBar({
 						<Button
 							variant="link"
 							immediate
-							icon={<IcRef />}
+							icon={<IcLink />}
 							title={t('Copy reference')}
 							aria-label={t('Copy reference')}
 							onClick={() =>

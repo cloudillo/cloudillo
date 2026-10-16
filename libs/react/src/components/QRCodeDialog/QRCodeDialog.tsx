@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
-import { LuCheck as IcCheck, LuCopy as IcCopy, LuShare2 as IcShare } from 'react-icons/lu'
 
 import { useLibTranslation } from '../../i18n.js'
+import { IcCheck, IcCopy, IcShare } from '../../icons.js'
 import { Button } from '../Button/Button.js'
 import { Dialog } from '../Dialog/Dialog.js'
 import { QRCode } from '../QRCode/QRCode.js'

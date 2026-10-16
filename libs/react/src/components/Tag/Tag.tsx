@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
-import { LuChevronDown as IcCaret, LuX as IcClose } from 'react-icons/lu'
 import { Link as RouterLink } from 'react-router-dom'
 
 import { useLibTranslation } from '../../i18n.js'
+import { IcDropdown, IcRemove } from '../../icons.js'
 import type { ColorVariant, Size } from '../types.js'
 import { createComponent, isCrossOrigin, isInternal, mergeClasses } from '../utils.js'
 
@@ -102,7 +102,7 @@ export const Tag = createComponent<HTMLElement, TagProps>(
 				)}
 				{children}
 				{count !== undefined && <span className="c-tag-count">{count}</span>}
-				{caret && <IcCaret className="c-tag-caret" aria-hidden="true" />}
+				{caret && <IcDropdown className="c-tag-caret" aria-hidden="true" />}
 			</>
 		)
 
@@ -154,7 +154,7 @@ export const Tag = createComponent<HTMLElement, TagProps>(
 							removeLabel ?? (label ? t('Remove {{label}}', { label }) : t('Remove'))
 						}
 					>
-						<IcClose size="0.8em" />
+						<IcRemove size="0.8em" />
 					</button>
 				)}
 			</span>

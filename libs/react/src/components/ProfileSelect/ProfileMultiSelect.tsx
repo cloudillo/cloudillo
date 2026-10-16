@@ -3,9 +3,9 @@
 
 import type { Profile } from '@cloudillo/types'
 import * as React from 'react'
-import { LuX as IcClose } from 'react-icons/lu'
 
 import { useLibTranslation } from '../../i18n.js'
+import { IcRemove } from '../../icons.js'
 import { Button } from '../Button/index.js'
 import { Combobox } from '../Combobox/index.js'
 import { ProfileCard, ProfilePicture } from '../Profile/index.js'
@@ -143,7 +143,7 @@ export function ProfileMultiSelect({
 									<Button
 										variant="ghost"
 										size="sm"
-										icon={<IcClose />}
+										icon={<IcRemove />}
 										aria-label={t('Remove')}
 										onClick={() => onRemove(profile)}
 									/>

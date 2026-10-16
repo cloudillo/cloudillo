@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
-import { LuChevronRight as IcChevron } from 'react-icons/lu'
 import { Link as RouterLink } from 'react-router-dom'
 
+import { IcGoTo } from '../../icons.js'
 import { createComponent, isCrossOrigin, isInternal, mergeClasses } from '../utils.js'
 import { ListContext } from './List.js'
 
@@ -130,7 +130,7 @@ export const ListItem = createComponent<HTMLLIElement, ListItemProps>(
 				{meta && <span className="c-list-item-meta">{meta}</span>}
 				{actions && <span className="c-list-item-actions">{actions}</span>}
 				{trailing && <span className="c-list-item-trailing">{trailing}</span>}
-				{href && <IcChevron className="c-list-item-chevron" aria-hidden="true" />}
+				{href && <IcGoTo className="c-list-item-chevron" aria-hidden="true" />}
 			</li>
 		)
 	}

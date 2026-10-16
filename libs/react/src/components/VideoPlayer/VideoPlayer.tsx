@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
-import { LuVideoOff as IcVideoOff } from 'react-icons/lu'
 
 import { useLibTranslation } from '../../i18n.js'
+import { IcVideoError } from '../../icons.js'
 import { EmptyState } from '../EmptyState/index.js'
 import { LoadingSpinner } from '../Loading/index.js'
 import { createComponent, mergeClasses } from '../utils.js'
@@ -53,7 +53,7 @@ export const VideoPlayer = createComponent<HTMLVideoElement, VideoPlayerProps>(
 							size="sm"
 							color="error"
 							inverse={inverse}
-							icon={<IcVideoOff />}
+							icon={<IcVideoError />}
 							title={t('Video failed to load')}
 						/>
 					)}

@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
-import { LuX as IcClose } from 'react-icons/lu'
 
+import { IcClose } from '../../icons.js'
 import { Button } from '../Button/Button.js'
 import { mergeClasses } from '../utils.js'
 

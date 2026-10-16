@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
-import { LuChevronRight as IcChevron } from 'react-icons/lu'
 
 import { useLibTranslation } from '../../i18n.js'
+import { IcSeparator } from '../../icons.js'
 import { Button, Link } from '../Button/index.js'
 import { mergeClasses } from '../utils.js'
 
@@ -44,7 +44,7 @@ export function Breadcrumbs({ items, maxItems, label, className }: BreadcrumbsPr
 					return (
 						<li key={index}>
 							{index > 0 && (
-								<IcChevron className="c-breadcrumbs-sep" aria-hidden="true" />
+								<IcSeparator className="c-breadcrumbs-sep" aria-hidden="true" />
 							)}
 							{item === null ? (
 								<Button

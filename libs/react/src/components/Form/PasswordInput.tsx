@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
-import { LuEye as IcEye, LuEyeOff as IcEyeOff } from 'react-icons/lu'
 
 import { useLibTranslation } from '../../i18n.js'
+import { IcHide, IcShow } from '../../icons.js'
 import { Button } from '../Button/index.js'
 import { Progress } from '../Progress/index.js'
 import { Text } from '../Text/index.js'
@@ -29,7 +29,7 @@ export const PasswordInput = createComponent<HTMLInputElement, PasswordInputProp
 					<Button
 						variant="ghost"
 						size="sm"
-						icon={visible ? <IcEye /> : <IcEyeOff />}
+						icon={visible ? <IcShow /> : <IcHide />}
 						aria-label={visible ? t('Hide password') : t('Show password')}
 						aria-pressed={visible}
 						onClick={() => setVisible(!visible)}

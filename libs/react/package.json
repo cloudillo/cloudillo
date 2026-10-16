@@ -28,6 +28,7 @@
 		".": "./lib/index.js",
 		"./components.css": "./lib/components.css",
 		"./doc-bar": "./lib/doc-bar.js",
+		"./icons": "./lib/icons.js",
 		"./site/prose.css": "./lib/site/prose.css"
 	},
 	"files": [

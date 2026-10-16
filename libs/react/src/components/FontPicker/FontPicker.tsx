@@ -12,9 +12,9 @@ import {
 } from '@cloudillo/fonts'
 import * as React from 'react'
 import { createPortal } from 'react-dom'
-import { PiCaretDownBold as IcCaret } from 'react-icons/pi'
 import { usePopper } from 'react-popper'
 
+import { IcDropdown } from '../../icons.js'
 import { useFieldControl } from '../Form/Field.js'
 import { useEscapeKey, useOutsideClick } from '../hooks.js'
 import { mergeClasses } from '../utils.js'
@@ -257,7 +257,7 @@ export function FontPicker({
 				>
 					{currentFont?.displayName || value || 'Select font...'}
 				</span>
-				<IcCaret
+				<IcDropdown
 					size={12}
 					className={mergeClasses(
 						'c-font-picker__caret',

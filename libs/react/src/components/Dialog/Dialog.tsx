@@ -3,10 +3,10 @@
 
 import { atom, useAtom } from 'jotai'
 import * as React from 'react'
-import { LuX as IcClose } from 'react-icons/lu'
 import Markdown from 'react-markdown'
 
 import { useLibTranslation } from '../../i18n.js'
+import { IcClose } from '../../icons.js'
 import { ActionBar } from '../ActionBar/ActionBar.js'
 import { Button } from '../Button/Button.js'
 import { Field } from '../Form/Field.js'

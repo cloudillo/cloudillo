@@ -3,9 +3,9 @@
 
 import type { Profile } from '@cloudillo/types'
 import * as React from 'react'
-import { LuX as IcClear } from 'react-icons/lu'
 
 import { useLibTranslation } from '../../i18n.js'
+import { IcClear } from '../../icons.js'
 import { Button } from '../Button/index.js'
 import { Combobox } from '../Combobox/index.js'
 import { ProfileCard } from '../Profile/index.js'

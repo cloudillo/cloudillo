@@ -3,8 +3,8 @@
 
 import { useDraggable, useDroppable } from '@dnd-kit/core'
 import * as React from 'react'
-import { LuChevronDown, LuChevronRight } from 'react-icons/lu'
 
+import { IcDisclosure } from '../../icons.js'
 import { createComponent, mergeClasses } from '../utils.js'
 import { TreeDndContext, type TreeMoveData } from './TreeView.js'
 
@@ -305,7 +305,10 @@ export const TreeItem = createComponent<HTMLDivElement, TreeItemProps>(
 						onClick={handleToggleClick}
 						style={{ visibility: hasChildren ? 'visible' : 'hidden' }}
 					>
-						{expanded ? <LuChevronDown size={14} /> : <LuChevronRight size={14} />}
+						<IcDisclosure
+							size={14}
+							style={expanded ? { transform: 'rotate(90deg)' } : undefined}
+						/>
 					</span>
 
 					{/* Icon */}

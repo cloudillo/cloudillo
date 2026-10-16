@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
-import { LuArrowLeft as IcBack } from 'react-icons/lu'
 import { Link } from 'react-router-dom'
 
 import { useLibTranslation } from '../../i18n.js'
+import { IcBack } from '../../icons.js'
 import { HBox } from '../Box/HBox.js'
 import { VBox } from '../Box/VBox.js'
 import type { HeadingLevel } from '../Text/Heading.js'

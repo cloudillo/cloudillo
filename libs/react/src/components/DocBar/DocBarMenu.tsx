@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
-import { LuEllipsisVertical as IcMenu } from 'react-icons/lu'
 
 import { useLibTranslation } from '../../i18n.js'
+import { IcMore } from '../../icons.js'
 import { Dropdown, type DropdownProps } from '../Dropdown/index.js'
 import { mergeClasses } from '../utils.js'
 
@@ -56,7 +56,7 @@ export function DocBarMenu({
 			// `c-link`: the bar's action chrome (`.c-docbar-actions .c-link`) sizes it like its neighbours
 			triggerClassName={mergeClasses('c-link', triggerClassName)}
 			triggerProps={{ title: menuLabel, 'aria-label': menuLabel, ...triggerProps }}
-			trigger={trigger ?? icon ?? <IcMenu />}
+			trigger={trigger ?? icon ?? <IcMore />}
 			{...props}
 		>
 			{children}

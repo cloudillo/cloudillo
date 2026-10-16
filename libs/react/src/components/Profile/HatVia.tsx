@@ -3,9 +3,9 @@
 
 import type { ProfileInfo } from '@cloudillo/types'
 import * as React from 'react'
-import { LuUsers as IcCommunity } from 'react-icons/lu'
 
 import { LibTrans } from '../../i18n.js'
+import { IcCommunity } from '../../icons.js'
 import { mergeClasses } from '../utils.js'
 import { ProfilePicture } from './ProfilePicture.js'
 

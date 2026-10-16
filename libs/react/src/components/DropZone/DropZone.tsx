@@ -3,9 +3,9 @@
 
 import * as React from 'react'
 import { createPortal } from 'react-dom'
-import { LuUpload as IcUpload } from 'react-icons/lu'
 
 import { useLibTranslation } from '../../i18n.js'
+import { IcUpload } from '../../icons.js'
 import { Icon } from '../Icon/Icon.js'
 import { createComponent, mergeClasses } from '../utils.js'
 

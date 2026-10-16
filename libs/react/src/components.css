@@ -3034,6 +3034,11 @@ body.dark .c-id-color {
 .c-icon.xl {
 	font-size: 2rem;
 }
+/* An explicit size beats the global IconContext size (1.5rem) */
+.c-icon:is(.xs, .sm, .md, .lg, .xl) > svg {
+	width: 1em;
+	height: 1em;
+}
 
 /* Affix: full-width strip pinned to an edge; clicks pass through the strip */
 .c-affix {

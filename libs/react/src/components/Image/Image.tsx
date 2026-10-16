@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
-import { LuImageOff as IcBroken, LuRotateCw as IcRetry } from 'react-icons/lu'
 
 import { useLibTranslation } from '../../i18n.js'
+import { IcImageError, IcRetry } from '../../icons.js'
 import { Button } from '../Button/index.js'
 import { Skeleton } from '../Loading/index.js'
 import { mergeClasses } from '../utils.js'
@@ -126,7 +126,7 @@ export function Image({
 				className={mergeClasses('c-image-fallback', placeholderClass)}
 				style={placeholderStyle}
 			>
-				<IcBroken size={24} role="img" aria-label={alt || t('Image failed to load')} />
+				<IcImageError size={24} role="img" aria-label={alt || t('Image failed to load')} />
 				{/* Nothing to retry when there was never a URL. */}
 				{errored && (
 					<Button

@@ -9,25 +9,25 @@
 
 import type { EmbedViewKind } from '@cloudillo/core'
 import * as React from 'react'
-import {
-	LuAlignCenter as IcAlignCenter,
-	LuAlignLeft as IcAlignLeft,
-	LuAlignRight as IcAlignRight,
-	LuFocus as IcChangeView,
-	LuCheck as IcDone,
-	LuPencil as IcEdit,
-	LuMousePointerClick as IcInteract,
-	LuLink as IcLink,
-	LuEllipsis as IcMore,
-	LuExternalLink as IcOpen,
-	LuTrash2 as IcRemove,
-	LuRotateCcw as IcReset,
-	LuScaling as IcSizing,
-	LuUnlink as IcUnlink,
-	LuCrosshair as IcUseView
-} from 'react-icons/lu'
 
 import { useLibTranslation } from '../../i18n.js'
+import {
+	IcAlignCenter,
+	IcAlignLeft,
+	IcAlignRight,
+	IcChangeView,
+	IcConfirm,
+	IcCopyLink,
+	IcEdit,
+	IcEmbedSize,
+	IcInteract,
+	IcMore,
+	IcOpenExternal,
+	IcRemove,
+	IcResetView,
+	IcUnlink,
+	IcUseCurrentView
+} from '../../icons.js'
 import { AppIcon, isAppId } from '../AppIcon/index.js'
 import { Button } from '../Button/index.js'
 import { Menu, MenuDivider, MenuItem } from '../Menu/index.js'
@@ -129,7 +129,12 @@ export function EmbedChrome({
 			{drifted && (
 				<>
 					{onResetView && (
-						<Button size="sm" variant="ghost" icon={<IcReset />} onClick={onResetView}>
+						<Button
+							size="sm"
+							variant="ghost"
+							icon={<IcResetView />}
+							onClick={onResetView}
+						>
 							{t('Reset view')}
 						</Button>
 					)}
@@ -137,7 +142,7 @@ export function EmbedChrome({
 						<Button
 							size="sm"
 							variant="ghost"
-							icon={<IcUseView />}
+							icon={<IcUseCurrentView />}
 							onClick={() => onUseCurrentView(currentNav)}
 						>
 							{t('Use current view')}
@@ -148,7 +153,7 @@ export function EmbedChrome({
 			<span className="cl-embed-chrome-spacer" />
 			{active
 				? onDone && (
-						<Button size="sm" icon={<IcDone />} onClick={onDone}>
+						<Button size="sm" icon={<IcConfirm />} onClick={onDone}>
 							{t('Done')}
 						</Button>
 					)
@@ -183,7 +188,7 @@ export function EmbedChrome({
 						<Button
 							size="sm"
 							variant="ghost"
-							icon={<IcSizing />}
+							icon={<IcEmbedSize />}
 							aria-label={t('Embed size')}
 						/>
 					}
@@ -206,14 +211,14 @@ export function EmbedChrome({
 				>
 					{onOpenSource && (
 						<MenuItem
-							icon={<IcOpen />}
+							icon={<IcOpenExternal />}
 							label={t('Open source')}
 							onClick={onOpenSource}
 						/>
 					)}
 					{onCopyLink && (
 						<MenuItem
-							icon={<IcLink />}
+							icon={<IcCopyLink />}
 							label={t('Copy embed link')}
 							onClick={onCopyLink}
 						/>

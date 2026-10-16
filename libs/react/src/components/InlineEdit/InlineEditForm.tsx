@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
-import { LuX as IcCancel, LuCheck as IcSave } from 'react-icons/lu'
 
+import { IcCancel, IcConfirm } from '../../icons.js'
 import { createComponent, mergeClasses } from '../utils.js'
 
 export interface InlineEditFormProps
@@ -32,7 +32,7 @@ export const InlineEditForm = createComponent<HTMLFormElement, InlineEditFormPro
 			autoFocus = true,
 			selectOnFocus = true,
 			size,
-			saveIcon = <IcSave />,
+			saveIcon = <IcConfirm />,
 			cancelIcon = <IcCancel />,
 			inputClassName,
 			...props

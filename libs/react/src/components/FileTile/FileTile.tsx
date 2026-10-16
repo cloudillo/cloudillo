@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import * as React from 'react'
-import { LuCheck as IcCheck } from 'react-icons/lu'
 
 import { useLibTranslation } from '../../i18n.js'
+import { IcCheck } from '../../icons.js'
 import { FileTypeIcon } from '../AppIcon/index.js'
 import { ActionTarget, Image } from '../Image/index.js'
 import { mergeClasses } from '../utils.js'

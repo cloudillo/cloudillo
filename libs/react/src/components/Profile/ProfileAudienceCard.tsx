@@ -4,11 +4,11 @@
 import { getFileUrl } from '@cloudillo/core'
 import type { Profile, ProfileInfo } from '@cloudillo/types'
 import * as React from 'react'
-import { LuUsers as IcCommunity, LuUser as IcPerson } from 'react-icons/lu'
 import { Link } from 'react-router-dom'
 
 import { useAuth } from '../../hooks.js'
 import { useLibTranslation } from '../../i18n.js'
+import { IcCommunity, IcPerson } from '../../icons.js'
 import { mergeClasses } from '../utils.js'
 import { HatVia } from './HatVia.js'
 import { IdentityTag } from './IdentityTag.js'

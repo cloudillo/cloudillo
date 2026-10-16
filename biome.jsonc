@@ -30,6 +30,9 @@
 			// (biome_rowan: CSS_BOGUS cannot be cast as AnyCssRoot). Nothing to
 			// lint in an SVG anyway.
 			"!**/*.svg",
+			// Build template with a /*ATLAS_DATA*/ placeholder, not valid HTML until rendered.
+			"!scripts/**/*.html",
+			"!claude-docs/icons.html",
 			"!local/**"
 		],
 		"rules": {

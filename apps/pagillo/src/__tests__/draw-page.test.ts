@@ -78,7 +78,8 @@ const run = (glyphs: number[]): DLItem => ({
 const opts = (glyphs: Record<string, string>) => ({
 	scale: 2,
 	glyphs: new Map(Object.entries(glyphs)),
-	images: new Map<string, HTMLImageElement>()
+	images: new Map<string, HTMLImageElement>(),
+	embeds: new Map<string, HTMLImageElement>()
 })
 
 const expectMatrix = (got: unknown[], want: number[]) => {
@@ -128,6 +129,26 @@ describe('drawPage', () => {
 		expect(seq[1].slice(1)).toEqual([50, 40])
 		expect(seq[2][1] as number).toBeCloseTo(Math.PI / 2, 9)
 		expect(seq[3].slice(1)).toEqual([-50, -40])
+	})
+
+	it('contain-fits an embed render into its box, else draws the placeholder', () => {
+		const emb: DLItem = {
+			k: 'embed',
+			frameId: 'e1',
+			box: { x: 0, y: 0, w: 40 * FX, h: 20 * FX },
+			tag: 0
+		}
+		const { ctx, calls } = fakeCtx()
+		const o = opts({})
+		o.embeds.set('e1', { naturalWidth: 10, naturalHeight: 10 } as HTMLImageElement)
+		drawPage(ctx, page([emb]), o)
+		const draws = calls.filter((c) => c[0] === 'drawImage').map((c) => c.slice(2))
+		expect(draws).toEqual([[10, 0, 20, 20]])
+		expect(calls.some((c) => c[0] === 'fillRect')).toBe(false)
+		const bare = fakeCtx()
+		drawPage(bare.ctx, page([emb]), opts({}))
+		expect(bare.calls.some((c) => c[0] === 'fillRect')).toBe(true)
+		expect(bare.calls.some((c) => c[0] === 'drawImage')).toBe(false)
 	})
 
 	it('skips a missing outline and reports it', () => {

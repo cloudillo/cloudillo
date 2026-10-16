@@ -15,6 +15,7 @@ import { type DLItem, FX, type PageDL, type Rect } from '@cloudillo/typeset'
 import * as React from 'react'
 
 import { clamp } from '../editor/frames'
+import { EmbedRendersContext } from '../embeds/useEmbedRenders'
 import { drawPage } from './draw-page'
 import type { ImageSource } from './PageSvg'
 
@@ -27,6 +28,8 @@ const MAX_CANVAS_PX = 16_777_216
 const MAX_SIDE = 8192
 /** Region-mode margins, fractions of the viewport per side, tried until the canvas fits. */
 const MARGINS = [0.5, 0.25, 0.125, 0]
+/** No embed renders (no `EmbedRendersContext` provider). */
+const NO_EMBEDS = new Map<string, HTMLImageElement>()
 
 /** Whether a `w`×`h` CSS px canvas fits the caps at `ratio` device px per CSS px. */
 function fits(w: number, h: number, ratio: number): boolean {
@@ -118,6 +121,14 @@ export const PageCanvas = React.memo(function PageCanvas({
 	const onImage = React.useCallback((id: string, img: HTMLImageElement) => {
 		setImages((m) => (m.get(id) === img ? m : new Map(m).set(id, img)))
 	}, [])
+	// Embed renders: ask for each embed item of this page (cached by address + box).
+	const renders = React.useContext(EmbedRendersContext)
+	const want = renders?.want
+	const embeds = renders?.images ?? NO_EMBEDS
+	React.useEffect(() => {
+		if (!want) return
+		for (const it of dl.items) if (it.k === 'embed') want(it.frameId, it.box.w, it.box.h)
+	}, [dl, want])
 
 	// Region mode: track the page's visible part (pt) and move the drawn region when it leaves.
 	React.useLayoutEffect(() => {
@@ -195,9 +206,10 @@ export const PageCanvas = React.memo(function PageCanvas({
 			scale: scale * ratio,
 			region: regionMode ? r : undefined,
 			glyphs,
-			images
+			images,
+			embeds
 		}).missingGlyphs
-	}, [dl, scale, ratio, regionMode, region, images, glyphDep])
+	}, [dl, scale, ratio, regionMode, region, images, embeds, glyphDep])
 
 	const style: React.CSSProperties = regionMode
 		? {

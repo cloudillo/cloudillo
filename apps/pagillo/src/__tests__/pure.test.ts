@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import type { TableBlock } from '@cloudillo/typeset'
+import { ptToFx, type TableBlock } from '@cloudillo/typeset'
 import * as Y from 'yjs'
 
 import { computeBlockIdFixes, stripBlockIds } from '../crdt/block-ids.js'
@@ -152,6 +152,22 @@ describe('peer data reaching the layout worker', () => {
 			{ side: 'r', w: 0.5 },
 			undefined
 		])
+	})
+
+	it('does not make an embed block of a malformed emb', () => {
+		const ps = deltaToParagraphs([{ insert: { emb: null } }, { insert: '\n' }])
+		expect(Array.isArray(ps[0].runs)).toBe(true)
+		expect((ps[0].runs as { k?: string }).k).toBeUndefined()
+	})
+
+	it('makes an embed block of an emb record, 400×300 px when it has no natural size', () => {
+		const ps = deltaToParagraphs([{ insert: { emb: { address: 'x' } } }, { insert: '\n' }])
+		expect(ps[0].runs).toMatchObject({
+			k: 'emb',
+			data: { address: 'x' },
+			w: ptToFx(300),
+			h: ptToFx(225)
+		})
 	})
 
 	it('groups quill-table-better lines into one table paragraph', () => {

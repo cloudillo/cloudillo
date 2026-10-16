@@ -20,8 +20,8 @@ import {
 	RotationHandle,
 	rotatePointAroundCenter
 } from '@cloudillo/canvas-tools'
-import { getAppBus } from '@cloudillo/core'
-import { Button, useFileImage } from '@cloudillo/react'
+import { type DocLinkResult, docRef, type EmbedViewReportPayload, getAppBus } from '@cloudillo/core'
+import { Button, SvgViewEmbed, useFileImage, useToast } from '@cloudillo/react'
 import { cropGeom, FX, type Rect, type Region, trackCount } from '@cloudillo/typeset'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -35,14 +35,16 @@ import {
 	chainOf,
 	deleteFrame,
 	embedImgAt,
+	embedRecordAt,
 	findInlineImage,
 	frameToInline,
-	inlineImageBid,
 	inlineToFrame,
+	insertEmbedParagraph,
 	insertImageParagraph,
 	type LinkRefusal,
 	linkFrame,
-	soleInlineImage,
+	setInlineEmbed,
+	soleInlineObject,
 	updateFrame
 } from '../crdt/frame-ops'
 import { newId } from '../crdt/ids'
@@ -54,6 +56,16 @@ import type {
 	YPagilloDocument
 } from '../crdt/stored-types'
 import { flipRegion, isRtlLang, mirrorFrame, textChains } from '../crdt/type-converters'
+import {
+	appLabel,
+	DEFAULT_NATURAL,
+	type EmbedRecord,
+	embedTarget,
+	isReflowApp,
+	newEmbedRecord,
+	REFLOW_NOTICE
+} from '../embeds/record'
+import { type EmbedRenders, embedRecordOf } from '../embeds/useEmbedRenders'
 import type { LayoutState } from '../layout/useLayout'
 import { flattenPages, type PageHit, scrollToPage } from '../view/PageList'
 import { type ImageSource, useImageAspect } from '../view/PageSvg'
@@ -93,6 +105,8 @@ import { breakBefore, deleteRange } from './text-edit'
 import type { Editor } from './useEditor'
 
 const PREFS_KEY = 'pagillo.view'
+/** Set once the "undo inside an embed" hint has been shown. */
+const UNDO_HINT_KEY = 'pagillo.embedUndoHint'
 const DEFAULT_PREFS: ViewPrefs = {
 	rulers: false,
 	snap: true,
@@ -257,6 +271,8 @@ export interface UseFramesOptions {
 	locked?: Map<string, string>
 	/** Image owner/token: the crop ghost loads the frame's image. */
 	src?: ImageSource
+	/** Embed renders: deactivating a live embed re-renders it. */
+	embeds?: EmbedRenders
 }
 
 export interface FrameCtl {
@@ -271,6 +287,13 @@ export interface FrameCtl {
 	/** Hidden focus target receiving the frame keys; render once. */
 	keyTarget: React.ReactNode
 	insertImage(inline: boolean): Promise<void>
+	/**
+	 * Embed…: `pickDocument`, or a pasted ref's `link` (`owner` = its owner idTag, default this
+	 * document's). Inline with a caret, else on the page in view; Quillo / Notillo only notify.
+	 */
+	insertEmbed(inline: boolean, link?: DocLinkResult, owner?: string): Promise<void>
+	/** Whether an embed (of `appId`) may be inserted now; shows why not. Before any share. */
+	canInsertEmbed(inline: boolean, appId?: string): boolean
 	insertTextBox(): void
 	/** Choose / replace the image of an `img` frame. */
 	pick(id: string): Promise<void>
@@ -293,6 +316,19 @@ export interface FrameCtl {
 	startCrop(id: string): void
 	/** Leave crop mode, committing the crop as one undo step. */
 	endCrop(): void
+	/**
+	 * Live embed: DL embed `id` (an `emb` frame id, or an inline embed's paragraph bid), its
+	 * global page and source app id.
+	 */
+	activeEmbed?: { id: string; page: number; appId: string }
+	/** Swap in the live `SvgViewEmbed` for embed `id` (double-click / Enter); false = refused. */
+	activate(id: string): boolean
+	/** Patch the embed record behind DL embed `id` (frame data, or the inline `{ emb }` by bid). */
+	patchEmbed(id: string, patch: Partial<EmbedRecord>): void
+	/** Back to the render SVG (Esc, Done, click outside); re-renders it. */
+	deactivate(): void
+	/** Change view…: pick another view of the same source and store its address. */
+	changeView(id: string): Promise<void>
 	/** Armed link mode: the text frame whose thread a click / drag continues. */
 	link?: { id: string }
 	startLink(id: string): void
@@ -331,6 +367,25 @@ function readPrefs(): ViewPrefs {
 	}
 }
 
+/** Last frame / inline-image press, for double-click detection. */
+interface LastDown {
+	t: number
+	x: number
+	y: number
+	id: string
+}
+
+/** Whether this press on `id` completes a double-click (500 ms, 4 px); records it as the last. */
+function isDoubleClick(ld: LastDown, e: PointerEvent | React.PointerEvent, id: string): boolean {
+	const dbl =
+		ld.id === id &&
+		e.timeStamp - ld.t < 500 &&
+		Math.abs(e.clientX - ld.x) < 4 &&
+		Math.abs(e.clientY - ld.y) < 4
+	Object.assign(ld, { t: e.timeStamp, x: e.clientX, y: e.clientY, id })
+	return dbl
+}
+
 const round = (b: Box): Box => ({
 	x: Math.round(b.x),
 	y: Math.round(b.y),
@@ -350,7 +405,8 @@ export function useFrames({
 	current,
 	onKey,
 	locked,
-	src
+	src,
+	embeds
 }: UseFramesOptions): FrameCtl {
 	const { t } = useTranslation()
 	const [sel, setSel] = React.useState<FrameSelection>()
@@ -366,10 +422,14 @@ export function useFrames({
 	const liveRef = React.useRef<Live | undefined>(undefined)
 	const keyEl = React.useRef<HTMLDivElement>(null)
 	const [crop, setCrop] = React.useState<CropState>()
+	/** Live embed session: DL embed id (frame id or inline bid) and its global page. */
+	const [act, setAct] = React.useState<{ id: string; page: number }>()
+	/** The activation whose first `reportView` may still fill in the alt text. */
+	const firstReport = React.useRef<string | undefined>(undefined)
 	const [link, setLink] = React.useState<{ id: string }>()
 	const [linkRefusal, setLinkRefusal] = React.useState<LinkRefusal>()
 	/** Last frame press, for the double-click that enters crop mode. */
-	const lastDown = React.useRef({ t: 0, x: 0, y: 0, id: '' })
+	const lastDown = React.useRef<LastDown>({ t: 0, x: 0, y: 0, id: '' })
 	/** This render's values, for code resuming after an await (the image dialog). */
 	const now = React.useRef({ sel, layoutEdit, current, editor })
 	now.current = { sel, layoutEdit, current, editor }
@@ -400,6 +460,7 @@ export function useFrames({
 	React.useEffect(() => {
 		setSel(undefined)
 		setCrop(undefined)
+		setAct(undefined)
 		setLink(undefined)
 		setLinkRefusal(undefined)
 	}, [layoutEdit])
@@ -450,8 +511,7 @@ export function useFrames({
 	/** Paragraph bid of the inline image the text selection covers (outlined). */
 	const es = editor.sel
 	const esTx = es && !layoutEdit ? doc.tx.get(es.story) : undefined
-	const esImg = es && esTx ? soleInlineImage(esTx, selFrom(es), selTo(es)) : undefined
-	const selBid = esTx && esImg !== undefined ? inlineImageBid(esTx, esImg) : undefined
+	const selBid = es && esTx ? soleInlineObject(esTx, selFrom(es), selTo(es))?.bid : undefined
 	const show = (l?: Live) => {
 		liveRef.current = l
 		setLive(l)
@@ -463,8 +523,92 @@ export function useFrames({
 	}
 	const select = (s?: FrameSelection) => {
 		if (crop && !s?.ids.includes(crop.id)) endCrop()
+		if (act && !s?.ids.includes(act.id)) deactivate()
 		setSel(s)
 		if (s) keyEl.current?.focus({ preventScroll: true })
+	}
+
+	/** Live embed on DL embed `id`: a page `emb` frame (selected) or an inline embed. */
+	const activate = (id: string): boolean => {
+		if (layoutEdit || locked?.has(id) || !embedTarget(embedRecordOf(doc, id))) return false
+		if (crop) endCrop()
+		const f = frameOf(doc, id)
+		const page = f
+			? sel?.ids.includes(id)
+				? sel.page
+				: pageOfFrame(f)
+			: pages.findIndex((_, i) => inlineImages(i).some((m) => m.bid === id))
+		if (page < 0) return false
+		if (f) select({ ids: [id], page })
+		else if (act) deactivate()
+		firstReport.current = id
+		setAct({ id, page })
+		// Once per browser, say where undo for the embedded content lives.
+		try {
+			if (!localStorage.getItem(UNDO_HINT_KEY)) {
+				localStorage.setItem(UNDO_HINT_KEY, '1')
+				toast.info(
+					t('Undo inside the embed belongs to its source app, not to this publication.')
+				)
+			}
+		} catch {}
+		return true
+	}
+
+	const deactivate = () => {
+		if (!act) return
+		setAct(undefined)
+		embeds?.refresh(act.id)
+		if (frameOf(doc, act.id)) keyEl.current?.focus({ preventScroll: true })
+		else editor.focus()
+	}
+
+	/** Patch the embed record behind DL embed `id` (frame data, or the inline `{ emb }`). */
+	const patchEmbed = (id: string, patch: Partial<EmbedRecord>): void => {
+		if (frameOf(doc, id)?.t === 'emb') {
+			updateFrame(yDoc, doc, id, { data: patch })
+			return
+		}
+		const at = findInlineImage(doc, id, 'emb')
+		const yt = at && doc.tx.get(at.story)
+		const rec = at && yt && embedRecordAt(yt, at.offset)
+		if (!at || !yt || !rec) return
+		const ed = now.current.editor
+		const next = { ...rec, ...patch }
+		// Through the editor when its selection is in that story, so the selection survives;
+		// either way the editor's own guard decides (a refused edit writes nothing).
+		if (ed.sel?.story === at.story) {
+			ed.run((t2) => {
+				setInlineEmbed(t2, at.offset, next)
+				return undefined
+			})
+		} else if (ed.canEdit(at.story)) {
+			yDoc.transact(() => setInlineEmbed(yt, at.offset, next), yDoc.clientID)
+		}
+	}
+
+	const changeView = async (id: string) => {
+		const tg = embedTarget(embedRecordOf(doc, id))
+		if (!tg) return
+		const nav = await getAppBus().pickEmbedView({
+			fileId: tg.fileId,
+			contentType: tg.contentType,
+			nav: tg.nav,
+			sourceFileId: fileId
+		})
+		if (nav !== undefined)
+			patchEmbed(id, {
+				address: docRef(tg.appId, `${tg.owner}:${tg.fileId}`, nav || undefined)
+			})
+	}
+
+	/** First report of an activation: the source's a11yLabel replaces an alt still at the title. */
+	const onEmbedReport = (id: string, r: EmbedViewReportPayload) => {
+		if (firstReport.current !== id) return
+		firstReport.current = undefined
+		const rec = embedRecordOf(doc, id)
+		if (rec && r.a11yLabel && rec.alt === rec.lastTitle && r.a11yLabel !== rec.alt)
+			patchEmbed(id, { alt: r.a11yLabel })
 	}
 
 	/** Crop mode on an image frame with an image. */
@@ -696,6 +840,8 @@ export function useFrames({
 		editor.focus()
 	}
 
+	const toast = useToast()
+
 	/** Insert target page: the one in view (Edit layout: a page using it). */
 	const targetPage = (): number => {
 		const { current } = now.current
@@ -748,6 +894,22 @@ export function useFrames({
 			})
 			return
 		}
+		placeOnPage('img', pw, ph, {
+			fileId: r.fileId,
+			px: r.px,
+			crop: FULL_CROP,
+			fit: 'contain',
+			alt: ''
+		})
+	}
+
+	/** A new `kind` frame, `pw`×`ph` fitted and centred in the margins of the page in view; selected. */
+	const placeOnPage = (
+		kind: StoredFrame['t'],
+		pw: number,
+		ph: number,
+		data: StoredFrame['data']
+	) => {
 		const page = targetPage()
 		const pg = info(page)
 		if (!pg) return
@@ -763,18 +925,71 @@ export function useFrames({
 				yDoc,
 				doc,
 				{
-					t: 'img',
+					t: kind,
 					anchor: { sec: pg.sec, page: pg.index },
 					...round({ x: mb.x + (mb.w - w) / 2, y: mb.y + (mb.h - h) / 2, w, h, rot: 0 }),
 					z: 1,
 					wrap: { mode: 'box', off: 6 * FX },
-					data: { fileId: r.fileId, px: r.px, crop: FULL_CROP, fit: 'contain', alt: '' }
+					data
 				},
 				{ master: layoutEdit }
 			)
 		)
 		select({ ids: [id], page })
 		setFocusAlt((n) => n + 1)
+	}
+
+	const refuseEmbed = () => void toast.warning(t('The embed could not be inserted here.'))
+
+	/**
+	 * Whether an embed (of `appId`, when known) may be inserted now; shows the reason if not.
+	 * Checked before any pick or paste link, so a refusal grants no share.
+	 */
+	const canInsertEmbed = (inline: boolean, appId?: string): boolean => {
+		// Same placement rule as images: inline needs a visible caret.
+		// A pasted ref would otherwise vanish without a word; a toolbar insert can't get here.
+		if ((inline && (!editor.sel || layoutEdit || sel)) || !fileId) {
+			refuseEmbed()
+			return false
+		}
+		if (appId && isReflowApp(appId)) {
+			toast.info(t(REFLOW_NOTICE))
+			return false
+		}
+		return true
+	}
+
+	const insertEmbed = async (inline: boolean, link?: DocLinkResult, owner = src?.ownerTag) => {
+		if (!canInsertEmbed(inline) || !fileId) return
+		if (!owner) return refuseEmbed()
+		const r =
+			link ??
+			(await getAppBus().pickDocument({ sourceFileId: fileId, title: t('Insert embed') }))
+		if (!r) return
+		const rec = await newEmbedRecord(r, {
+			owner,
+			sourceFileId: fileId,
+			sizing: inline ? 'fit-width' : 'box'
+		})
+		if (rec === 'reflow') {
+			// share stays granted; needs a shell doc:unlink / share revoke message
+			toast.info(t(REFLOW_NOTICE))
+			return
+		}
+		// The picker and the size render awaited: the caret or selection may have changed.
+		const n = now.current
+		if (inline && (!n.editor.sel || n.layoutEdit || n.sel)) return refuseEmbed()
+		if (inline) {
+			n.editor.run((tx, from, to) => {
+				deleteRange(tx, from, to)
+				const at = breakBefore(tx, from)
+				insertEmbedParagraph(tx, at, rec)
+				return at + 2
+			})
+			return
+		}
+		// CSS px at 96 dpi → pt.
+		placeOnPage('emb', rec.lastNatural.w * 0.75, rec.lastNatural.h * 0.75, { ...rec })
 	}
 
 	const insertTextBox = () => {
@@ -870,6 +1085,17 @@ export function useFrames({
 	}
 
 	const fromText = (e: KeyboardEvent): boolean => {
+		if (e.key === 'Escape' && act) {
+			deactivate()
+			return true
+		}
+		// Enter on a selected inline embed activates it.
+		if (e.key === 'Enter' && editor.sel && canEdit && !layoutEdit) {
+			const s = editor.sel
+			const yt = doc.tx.get(s.story)
+			const o = yt && soleInlineObject(yt, selFrom(s), selTo(s))
+			if (o?.kind === 'emb' && o.bid && activate(o.bid)) return true
+		}
 		if (e.key !== 'Escape' || !editor.sel || !canEdit) return false
 		const story = editor.sel.story
 		for (const [id, f] of framesOf(doc)) {
@@ -952,6 +1178,8 @@ export function useFrames({
 			const handle = (e.target as Element)
 				.closest?.('[data-handle]')
 				?.getAttribute('data-handle')
+			// A live embed takes its own presses (its layer stops them): any page press leaves.
+			if (act && !handle) deactivate()
 			// Crop mode: a ghost corner zooms, inside the frame pans, outside leaves.
 			if (crop && !handle) {
 				const g = cropAt(hit.index)
@@ -997,7 +1225,8 @@ export function useFrames({
 					: undefined
 			if (handle && one) {
 				const d0 = one.frame?.t === 'img' ? (one.frame.data as StoredImageData) : undefined
-				const lock = !!d0?.fileId !== e.shiftKey
+				// Images and (fixed-view) embeds keep their aspect; Shift toggles.
+				const lock = (!!d0?.fileId || one.frame?.t === 'emb') !== e.shiftKey
 				drag.current = {
 					k: 'resize',
 					page: hit.index,
@@ -1025,16 +1254,15 @@ export function useFrames({
 			})
 			if (h?.kind === 'frame') {
 				// A double-click on an image frame enters crop mode.
-				const ld = lastDown.current
-				const dbl =
-					ld.id === h.id &&
-					e.timeStamp - ld.t < 500 &&
-					Math.abs(e.clientX - ld.x) < 4 &&
-					Math.abs(e.clientY - ld.y) < 4
-				Object.assign(ld, { t: e.timeStamp, x: e.clientX, y: e.clientY, id: h.id })
+				const dbl = isDoubleClick(lastDown.current, e, h.id)
 				const hf = frameOf(doc, h.id)
+				// Double-click: an image enters crop mode, an embed goes live.
 				if (dbl && !e.shiftKey && hf?.t === 'img' && (hf.data as StoredImageData).fileId) {
 					startCrop(h.id)
+					return
+				}
+				if (dbl && !e.shiftKey && hf?.t === 'emb') {
+					activate(h.id)
 					return
 				}
 				const same = sel?.page === hit.index
@@ -1070,8 +1298,13 @@ export function useFrames({
 				canEdit && !layoutEdit
 					? inlineImages(hit.index).find((m) => containsPoint(m.box, hit.x, hit.y))
 					: undefined
-			const at = im && findInlineImage(doc, im.bid)
-			if (at) {
+			const at = im && (findInlineImage(doc, im.bid) ?? findInlineImage(doc, im.bid, 'emb'))
+			if (im && at) {
+				const dbl = isDoubleClick(lastDown.current, e, im.bid)
+				if (dbl && embedRecordOf(doc, im.bid)) {
+					activate(im.bid)
+					return
+				}
 				setSel(undefined)
 				editor.select({ story: at.story, anchor: at.offset, head: at.offset + 1 })
 				editor.focus()
@@ -1415,6 +1648,7 @@ export function useFrames({
 					swallowDrag.current = true
 					return cancelDrag()
 				}
+				if (act) return deactivate()
 				if (crop) return endCrop()
 				if (link) return endLink()
 				setSel(undefined)
@@ -1457,7 +1691,9 @@ export function useFrames({
 			case 'Enter': {
 				done()
 				if (crop) return endCrop()
+				if (act) return deactivate()
 				const f = cur.length === 1 ? cur[0].frame : undefined
+				if (f?.t === 'emb') return activate(cur[0].id)
 				if (f?.t === 'img' && (f.data as StoredImageData).fileId) startCrop(cur[0].id)
 				else if (f?.t === 'txt') {
 					// A follower edits its head's story.
@@ -1627,7 +1863,21 @@ export function useFrames({
 			hv?.bid && hv.bid !== selBid
 				? inlineImages(i).find((m) => m.bid === hv.bid)?.box
 				: undefined
-		if (!its.length && !layoutEdit && !ghost && !rulers && !ibox && !hbox) return null
+		// The live embed of this page: its record, source and (live) box.
+		// An inline embed's page moves with reflow: find it, don't trust the activation's page.
+		const aRec =
+			act &&
+			(frameOf(doc, act.id) ? act.page === i : inlineImages(i).some((m) => m.bid === act.id))
+				? embedRecordOf(doc, act.id)
+				: undefined
+		const aTg = embedTarget(aRec)
+		const aIt = aTg ? its.find((it) => it.id === act?.id) : undefined
+		const ab = aTg
+			? aIt
+				? bx(aIt)
+				: inlineImages(i).find((m) => m.bid === act?.id)?.box
+			: undefined
+		if (!its.length && !layoutEdit && !ghost && !rulers && !ibox && !hbox && !ab) return null
 		const k = 1 / FX
 		const px = 1 / scale
 		const hs = 8 * px
@@ -2077,8 +2327,66 @@ export function useFrames({
 							</text>
 						</g>
 					))}
+					{ab && (
+						<>
+							{/* The rest of the page dimmed (even-odd hole for the rotated frame). */}
+							<path
+								d={`M0 0H${size.w * k}V${size.h * k}H0Z M${[
+									[ab.x, ab.y],
+									[ab.x + ab.w, ab.y],
+									[ab.x + ab.w, ab.y + ab.h],
+									[ab.x, ab.y + ab.h]
+								]
+									.map(([x, y]) => {
+										const p = rotatePointAroundCenter(
+											{ x, y },
+											{ x: ab.x + ab.w / 2, y: ab.y + ab.h / 2 },
+											ab.rot
+										)
+										return `${p.x * k} ${p.y * k}`
+									})
+									.join('L')}Z`}
+								fillRule="evenodd"
+								fill="#000"
+								opacity={0.3}
+							/>
+							<rect
+								x={ab.x * k}
+								y={ab.y * k}
+								width={ab.w * k}
+								height={ab.h * k}
+								transform={turn(ab)}
+								fill="none"
+								stroke="var(--col-accent)"
+								strokeWidth={2 * px}
+							/>
+						</>
+					)}
 				</svg>
 				{one && ob && !lockedBy && portsOf(one, ob, scale)}
+				{act && ab && aRec && aTg && (
+					<LiveEmbed
+						id={act.id}
+						ab={ab}
+						scale={scale}
+						aRec={aRec}
+						aTg={aTg}
+						fileId={fileId}
+						canEdit={canEdit}
+						deactivate={deactivate}
+						changeView={changeView}
+						patchEmbed={patchEmbed}
+						onEmbedReport={onEmbedReport}
+						onRemove={
+							aIt
+								? () => {
+										setAct(undefined)
+										remove()
+									}
+								: undefined
+						}
+					/>
+				)}
 				{jumps.map((j) => {
 					const label =
 						j.dir > 0
@@ -2203,6 +2511,7 @@ export function useFrames({
 		/>
 	)
 
+	const actTg = act && embedTarget(embedRecordOf(doc, act.id))
 	return {
 		sel,
 		select,
@@ -2211,6 +2520,8 @@ export function useFrames({
 		fromText,
 		keyTarget,
 		insertImage,
+		insertEmbed,
+		canInsertEmbed,
 		insertTextBox,
 		pick,
 		toInline,
@@ -2226,6 +2537,11 @@ export function useFrames({
 		crop: crop && sel?.ids.includes(crop.id) ? { id: crop.id, page: crop.page } : undefined,
 		startCrop,
 		endCrop,
+		activeEmbed: act && actTg ? { ...act, appId: actTg.appId } : undefined,
+		activate,
+		patchEmbed,
+		deactivate,
+		changeView,
 		link,
 		startLink,
 		endLink,
@@ -2239,6 +2555,115 @@ export function useFrames({
 
 /** Snap guides while moving: dashed region boxes and their column gutters. */
 /** A thread link: dashed line over a halo, `pts` in overlay px. */
+/** The live source of embed `id` in its box `ab` (CSS px at `scale`), with its "Done" chip. */
+function LiveEmbed({
+	id,
+	ab,
+	scale,
+	aRec,
+	aTg,
+	fileId,
+	canEdit,
+	deactivate,
+	changeView,
+	patchEmbed,
+	onEmbedReport,
+	onRemove
+}: {
+	id: string
+	ab: Box
+	scale: number
+	aRec: EmbedRecord
+	aTg: NonNullable<ReturnType<typeof embedTarget>>
+	fileId?: string
+	canEdit: boolean
+	deactivate: () => void
+	changeView: (id: string) => Promise<void>
+	patchEmbed: (id: string, patch: Partial<EmbedRecord>) => void
+	onEmbedReport: (id: string, r: EmbedViewReportPayload) => void
+	onRemove?: () => void
+}) {
+	const { t } = useTranslation()
+	// `editInPlace` is peer-writable: write access also needs this viewer's own edit right.
+	const write = aRec.editInPlace && canEdit
+	const left = (ab.x / FX) * scale
+	const top = (ab.y / FX) * scale
+	const w = (ab.w / FX) * scale
+	const h = (ab.h / FX) * scale
+	const natural = aRec.lastNatural ?? DEFAULT_NATURAL
+	return (
+		<>
+			<div
+				style={{
+					position: 'absolute',
+					left,
+					top,
+					transform: `rotate(${ab.rot}deg)`,
+					pointerEvents: 'auto'
+				}}
+				onPointerDown={(e) => e.stopPropagation()}
+			>
+				<svg width={w} height={h} style={{ display: 'block', overflow: 'visible' }}>
+					<SvgViewEmbed
+						x={0}
+						y={0}
+						width={w}
+						height={h}
+						fileId={aTg.fileId}
+						contentType={aTg.contentType}
+						appId={aTg.appId}
+						owner={aTg.owner}
+						sourceFileId={fileId ?? ''}
+						nav={aTg.nav}
+						title={aRec.lastTitle}
+						access={write ? 'write' : 'read'}
+						settings={{
+							sizing: 'box',
+							lastNatural: [natural.w, natural.h],
+							editInPlace: aRec.editInPlace
+						}}
+						canInteract
+						active
+						canEdit={canEdit}
+						selected
+						onReport={(r) => onEmbedReport(id, r)}
+						actions={{
+							onDeactivate: deactivate,
+							onChangeView: () => void changeView(id),
+							onUseCurrentView: (nav) =>
+								patchEmbed(id, {
+									address: docRef(
+										aTg.appId,
+										`${aTg.owner}:${aTg.fileId}`,
+										nav || undefined
+									)
+								}),
+							onRemove
+						}}
+					/>
+				</svg>
+			</div>
+			<div
+				style={{ position: 'absolute', left, top: top - 40, pointerEvents: 'auto' }}
+				onPointerDown={(e) => e.stopPropagation()}
+			>
+				<div className="c-panel">
+					<div className="c-hbox g-2 p-1">
+						<span>
+							{write
+								? t('Editing in {{app}}', { app: appLabel(aTg.appId) })
+								: t('Viewing {{app}}', { app: appLabel(aTg.appId) })}
+						</span>
+						<Button size="sm" onClick={deactivate}>
+							{t('Done')}
+						</Button>
+					</div>
+				</div>
+			</div>
+		</>
+	)
+}
+
 function ThreadStroke({ pts, px }: { pts: string; px: number }) {
 	return (
 		<g>

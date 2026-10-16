@@ -9,7 +9,7 @@
  * it never reaches the live DOM. Every pasted paragraph gets a fresh `bid`.
  */
 
-import { safeHref } from '@cloudillo/core'
+import { type DocLinkResult, getAppBus, safeHref } from '@cloudillo/core'
 import * as React from 'react'
 import * as Y from 'yjs'
 
@@ -36,6 +36,7 @@ import {
 	readMeta,
 	rowOf
 } from '../crdt/type-converters'
+import { embedTarget } from '../embeds/record'
 import * as C from './caret'
 import type { CommandCtx } from './commands'
 import { breakBefore, deleteRange, insertText, paragraphEnd } from './text-edit'
@@ -541,13 +542,25 @@ export function pasteDelta(doc: YPagilloDocument, t: Y.Text, at: number, ops: De
 	return pos
 }
 
+/** Pasting a `cl:` ref as an embed (`onLink` absent = it pastes as text). */
+export interface ClipboardEmbeds {
+	/** This document's file id (the embed's host). */
+	sourceFileId?: string
+	/** The linked target and the ref's owner idTag. */
+	onLink?(link: DocLinkResult, owner: string): void | Promise<void>
+	/** False refuses the paste before any share is granted (it shows its own notice). */
+	canLink?(appId: string): boolean
+}
+
 /**
  * Copy/cut/paste for the editor selection, as document listeners (the focus target varies).
  * Cut/paste go through `editor.run`, which refuses readers and `readOnlyReason` itself.
  */
-export function useClipboard(ctx: CommandCtx): void {
+export function useClipboard(ctx: CommandCtx, embeds?: ClipboardEmbeds): void {
 	const cur = React.useRef(ctx)
 	cur.current = ctx
+	const emb = React.useRef(embeds)
+	emb.current = embeds
 
 	React.useEffect(() => {
 		/**
@@ -585,6 +598,23 @@ export function useClipboard(ctx: CommandCtx): void {
 			const { editor, doc } = cur.current
 			const data = e.clipboardData
 			if (!ours(e) || !data) return
+			// A `cl:` ref becomes an embed (Insert › Embed…); `linkFromPaste` takes the event.
+			const ref = embedTarget({ address: data.getData('text/plain') })
+			const { sourceFileId, onLink, canLink } = emb.current ?? {}
+			if (ref && sourceFileId && onLink) {
+				if (canLink?.(ref.appId) === false) {
+					e.preventDefault()
+					return
+				}
+				const linking = getAppBus().linkFromPaste(e, sourceFileId)
+				if (linking) {
+					const { owner } = ref
+					void linking
+						.then((l) => l && onLink(l, owner))
+						.catch((err) => console.warn('[pagillo] embed paste failed:', err))
+					return
+				}
+			}
 			e.preventDefault()
 			const json = data.getData(DELTA_MIME)
 			let ops = json ? readDelta(json) : undefined

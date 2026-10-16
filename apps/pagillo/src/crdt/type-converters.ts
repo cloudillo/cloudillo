@@ -168,6 +168,17 @@ export function deltaToParagraphs(ops: DeltaOp[], defaultStyle = ''): Paragraph[
 				h,
 				...(float ? { float } : {})
 			}
+		} else if (only && 'emb' in only && only.emb && typeof only.emb === 'object') {
+			// Embed record (`embeds/record.ts`): natural size in CSS px at 96 dpi; peer data.
+			const n = only.emb.lastNatural as { w?: unknown; h?: unknown } | undefined
+			const px = (v: unknown, d: number) =>
+				typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : d
+			p.runs = {
+				k: 'emb',
+				data: only.emb,
+				w: ptToFx(px(n?.w, 400) * 0.75),
+				h: ptToFx(px(n?.h, 300) * 0.75)
+			}
 		}
 		if (attrs.ph) p.placeholder = attrs.ph
 		runs = []

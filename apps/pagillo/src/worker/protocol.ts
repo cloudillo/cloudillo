@@ -9,7 +9,7 @@
  */
 
 import type { EngineLayout, FontRef, PageDL } from '@cloudillo/typeset'
-import type { PdfDownsample } from '@cloudillo/typeset/pdf'
+import type { PdfDownsample, PdfEmbed } from '@cloudillo/typeset/pdf'
 
 export type MainToWorker =
 	/** `fontBase` prefixes `fontUrl(ref)` (`/fonts/<dir>/<File>.ttf`); harfbuzz.wasm is found beside the worker bundle. */
@@ -47,6 +47,11 @@ export interface PdfExportOptions {
 	 * sent as `Authorization: Bearer`.
 	 */
 	files: { api: string; token?: string }
+	/**
+	 * Render SVGs main collected with `renderEmbeds` (it owns the bus), by DL embed `frameId`;
+	 * an embed without an entry is written as a "Content unavailable" box.
+	 */
+	embeds?: Record<string, PdfEmbed>
 }
 
 export interface Composition {

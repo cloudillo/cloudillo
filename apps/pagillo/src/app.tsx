@@ -38,7 +38,7 @@ import { frameOf, framesOf, masterOf, sectionOf } from './crdt/entities'
 import {
 	chainOf,
 	chainOfStory,
-	soleInlineImage,
+	soleInlineObject,
 	type ThreadState,
 	threadAnnouncements,
 	threadStates
@@ -68,6 +68,8 @@ import { handleKey, type KeymapCtx, undoRedoKey } from './editor/keymap'
 import { usePublishPresence, useRemote } from './editor/RemoteOverlay'
 import { useUndo } from './editor/undo'
 import { useEditor } from './editor/useEditor'
+import { appLabel } from './embeds/record'
+import { EmbedRendersContext, useEmbedRenders } from './embeds/useEmbedRenders'
 import { PdfExportDialog } from './export/PdfExportDialog'
 import { oversetTarget, type PreflightRow } from './export/preflight'
 import { newerEngine, pageKey, useLayout } from './layout/useLayout'
@@ -133,7 +135,6 @@ export function PagilloApp() {
 	})
 	const cmd: CommandCtx = { yDoc, doc, editor }
 	keyCtx.current = { ...cmd, undo, canEdit }
-	useClipboard(cmd)
 	const find = useFindReplace({ yDoc, doc, editor, layout, canEdit })
 	const [textMenu, setTextMenu] = React.useState<{ x: number; y: number }>()
 	/** Shift+F10 / Menu key: the text menu at the caret. */
@@ -223,6 +224,7 @@ export function PagilloApp() {
 	const awareness = provider?.awareness
 	const remote = useRemote({ awareness, yDoc, doc, editor, layout })
 	const src = React.useMemo(() => ({ ownerTag, token }), [ownerTag, token])
+	const embeds = useEmbedRenders(doc, cl.fileId)
 	const frames = useFrames({
 		yDoc,
 		doc,
@@ -234,7 +236,14 @@ export function PagilloApp() {
 		current,
 		onKey: (e) => (keyCtx.current ? handleKey(e, keyCtx.current) : false),
 		locked: remote.locked,
-		src
+		src,
+		embeds
+	})
+	// A pasted `cl:` ref is an inline embed (needs layout rights, as Insert › Embed… does).
+	useClipboard(cmd, {
+		sourceFileId: cl.fileId,
+		onLink: canLayout ? (link, owner) => frames.insertEmbed(true, link, owner) : undefined,
+		canLink: (appId) => frames.canInsertEmbed(true, appId)
 	})
 	// Spell checking follows View › Check spelling (writers only); the user's words load once.
 	const spellOn = canEdit && frames.view.spell
@@ -375,11 +384,13 @@ export function PagilloApp() {
 		setLayoutBase(undefined)
 		editor.focus()
 	}
-	escRef.current = frames.link
-		? frames.endLink
-		: layoutEdit && !frames.sel
-			? leaveLayout
-			: undefined
+	escRef.current = frames.activeEmbed
+		? frames.deactivate
+		: frames.link
+			? frames.endLink
+			: layoutEdit && !frames.sel
+				? leaveLayout
+				: undefined
 	/** Enter (or switch) Edit layout; the Discard baseline is taken on entering only. */
 	const enterLayout = (m: string) => {
 		if (!layoutEdit) setLayoutBase({ depth: undo.mark(), master: m })
@@ -435,6 +446,15 @@ export function PagilloApp() {
 				)
 			}
 		}
+		const ae = frames.activeEmbed
+		if (ae) {
+			const app = appLabel(ae.appId)
+			return {
+				chip: t('Editing in {{app}}', { app }),
+				hints: [[t('Esc'), t('done')]],
+				spoken: t('Editing the embedded {{app}} content · Esc or Done returns', { app })
+			}
+		}
 		if (frames.crop)
 			return {
 				chip: t('Cropping'),
@@ -466,6 +486,16 @@ export function PagilloApp() {
 					spoken: t(
 						'Image on the page · drag to move · Delete removes · Esc returns to text'
 					)
+				}
+			if (kind === 'emb')
+				return {
+					chip: t('Embed · on page'),
+					hints: [
+						[t('Enter'), t('edit')],
+						[t('Drag'), t('move')],
+						[t('Del'), t('delete')]
+					],
+					spoken: t('Embed on the page · Enter edits it · drag to move · Delete removes')
 				}
 			if (kind === 'txt') {
 				const c = chainOf(doc, fs.ids[0])
@@ -501,11 +531,21 @@ export function PagilloApp() {
 				spoken: t('Click text to type, or an image or box to select it')
 			}
 		const tx = doc.tx.get(es.story)
-		if (tx && soleInlineImage(tx, selFrom(es), selTo(es)) !== undefined)
+		const obj = tx && soleInlineObject(tx, selFrom(es), selTo(es))
+		if (obj?.kind === 'img')
 			return {
 				chip: t('Image · in text'),
 				hints: [[t('Del'), t('delete')]],
 				spoken: t('Image in the text · Format › Position puts it on the page')
+			}
+		if (obj?.kind === 'emb')
+			return {
+				chip: t('Embed · in text'),
+				hints: [
+					[t('Enter'), t('edit')],
+					[t('Del'), t('delete')]
+				],
+				spoken: t('Embed in the text · Enter edits it · Delete removes it')
 			}
 		if (tx && tableAt(tx, selFrom(es)))
 			return {
@@ -611,6 +651,9 @@ export function PagilloApp() {
 							canLayout ? (inline) => void frames.insertImage(inline) : undefined
 						}
 						onInsertTextBox={canLayout ? frames.insertTextBox : undefined}
+						onInsertEmbed={
+							canLayout ? (inline) => void frames.insertEmbed(inline) : undefined
+						}
 						inlineImageOff={!!layoutEdit || !!frames.sel}
 					/>
 				</div>
@@ -642,103 +685,115 @@ export function PagilloApp() {
 					/>
 				)
 			) : (
-				<div className="c-hbox flex-fill pagillo-main">
-					<Mirror doc={doc} editor={editor} layout={layout} notices={notices} />
-					<div data-landmark="rail" style={{ display: 'contents' }}>
-						<PagesRail
-							layout={layout}
-							current={current}
-							defaultPage={defaultPage}
-							src={src}
-							onJump={scrollToPage}
-							onSection={canLayout ? (id, el) => setSecPop({ id, el }) : undefined}
-							onMoveSection={
-								canLayout ? (id, to) => moveSection(yDoc, doc, id, to) : undefined
-							}
-							onAddPage={canEdit ? onAddPage : undefined}
-							onDeletePage={canEdit ? onDeletePage : undefined}
-							onEditLayout={canLayout ? editLayoutOf : undefined}
-							highlightMaster={canLayout ? layoutEdit : undefined}
-							dropTarget={frames.railTarget}
-							railRef={railRef}
-						/>
-					</div>
-					<div data-landmark="document" style={{ display: 'contents' }}>
-						<PageList
-							layout={layout}
-							zoom={zoom}
-							defaultPage={defaultPage}
-							src={src}
-							canEdit={canEdit}
-							emptyImages={emptyImages}
-							onCurrent={setCurrent}
-							onZoomPct={setZoomPct}
-							overlay={(i, size, scale) => (
-								<>
-									{remote.overlay(i, size, scale)}
-									{find.overlay(i, size)}
-									{!frames.sel && !layoutEdit && editor.overlay(i, size)}
-									{spellOn && !frames.sel && !layoutEdit && (
-										<SpellOverlay
-											w={size.w}
-											h={size.h}
-											lines={editor.index.pages.get(i)}
-											spell={layout.spell}
-										/>
-									)}
-									{frames.overlay(i, size, scale)}
-								</>
-							)}
-							pinned={editor.caretPage}
-							onPagePointer={frames.onPointer}
-							onPageContextMenu={(hit, e) => {
-								if (frames.sel || layoutEdit || !editor.contextMenu(hit)) return
-								e.preventDefault()
-								setTextMenu({ x: e.clientX, y: e.clientY })
-							}}
-							dragScroll={frames.dragScroll}
-							dragScrollEls={[railRef]}
-						/>
-					</div>
-					{canLayout && (
-						<div data-landmark="panel" style={{ display: 'contents' }}>
-							<PropertyPanel width={300}>
-								{!layoutEdit && (
-									<Tabs value={tab} onTabChange={(v) => setTab(v as PanelTab)}>
-										<Tab value="format">{t('Format')}</Tab>
-										<Tab value="styles">{t('Styles')}</Tab>
-									</Tabs>
-								)}
-								<div className="flex-fill pagillo-panel-scroll">
-									{layoutEdit ? (
-										<LayoutsPanel
-											{...panels}
-											masterId={layoutEdit}
-											usage={layoutUsage}
-											page={
-												curPage && { sec: curPage.id, which: curPage.which }
-											}
-											onSwitch={setLayoutEdit}
-										/>
-									) : tab === 'format' ? (
-										<FormatPanel
-											{...panels}
-											editor={editor}
-											frames={frames}
-											page={curPage && { ...curPage, n: current + 1 }}
-											onEditLayout={() => editLayoutOf(current)}
-											onSectionSettings={(el) =>
-												curPage && setSecPop({ id: curPage.id, el })
-											}
-										/>
-									) : (
-										<StylesPanel {...panels} />
-									)}
-								</div>
-							</PropertyPanel>
+				<EmbedRendersContext.Provider value={embeds}>
+					<div className="c-hbox flex-fill pagillo-main">
+						<Mirror doc={doc} editor={editor} layout={layout} notices={notices} />
+						<div data-landmark="rail" style={{ display: 'contents' }}>
+							<PagesRail
+								layout={layout}
+								current={current}
+								defaultPage={defaultPage}
+								src={src}
+								onJump={scrollToPage}
+								onSection={
+									canLayout ? (id, el) => setSecPop({ id, el }) : undefined
+								}
+								onMoveSection={
+									canLayout
+										? (id, to) => moveSection(yDoc, doc, id, to)
+										: undefined
+								}
+								onAddPage={canEdit ? onAddPage : undefined}
+								onDeletePage={canEdit ? onDeletePage : undefined}
+								onEditLayout={canLayout ? editLayoutOf : undefined}
+								highlightMaster={canLayout ? layoutEdit : undefined}
+								dropTarget={frames.railTarget}
+								railRef={railRef}
+							/>
 						</div>
-					)}
-				</div>
+						<div data-landmark="document" style={{ display: 'contents' }}>
+							<PageList
+								layout={layout}
+								zoom={zoom}
+								defaultPage={defaultPage}
+								src={src}
+								canEdit={canEdit}
+								emptyImages={emptyImages}
+								onCurrent={setCurrent}
+								onZoomPct={setZoomPct}
+								overlay={(i, size, scale) => (
+									<>
+										{remote.overlay(i, size, scale)}
+										{find.overlay(i, size)}
+										{!frames.sel && !layoutEdit && editor.overlay(i, size)}
+										{spellOn && !frames.sel && !layoutEdit && (
+											<SpellOverlay
+												w={size.w}
+												h={size.h}
+												lines={editor.index.pages.get(i)}
+												spell={layout.spell}
+											/>
+										)}
+										{frames.overlay(i, size, scale)}
+									</>
+								)}
+								pinned={editor.caretPage}
+								onPagePointer={frames.onPointer}
+								onPageContextMenu={(hit, e) => {
+									if (frames.sel || layoutEdit || !editor.contextMenu(hit)) return
+									e.preventDefault()
+									setTextMenu({ x: e.clientX, y: e.clientY })
+								}}
+								dragScroll={frames.dragScroll}
+								dragScrollEls={[railRef]}
+							/>
+						</div>
+						{canLayout && (
+							<div data-landmark="panel" style={{ display: 'contents' }}>
+								<PropertyPanel width={300}>
+									{!layoutEdit && (
+										<Tabs
+											value={tab}
+											onTabChange={(v) => setTab(v as PanelTab)}
+										>
+											<Tab value="format">{t('Format')}</Tab>
+											<Tab value="styles">{t('Styles')}</Tab>
+										</Tabs>
+									)}
+									<div className="flex-fill pagillo-panel-scroll">
+										{layoutEdit ? (
+											<LayoutsPanel
+												{...panels}
+												masterId={layoutEdit}
+												usage={layoutUsage}
+												page={
+													curPage && {
+														sec: curPage.id,
+														which: curPage.which
+													}
+												}
+												onSwitch={setLayoutEdit}
+											/>
+										) : tab === 'format' ? (
+											<FormatPanel
+												{...panels}
+												editor={editor}
+												frames={frames}
+												page={curPage && { ...curPage, n: current + 1 }}
+												onEditLayout={() => editLayoutOf(current)}
+												onSectionSettings={(el) =>
+													curPage && setSecPop({ id: curPage.id, el })
+												}
+											/>
+										) : (
+											<StylesPanel {...panels} />
+										)}
+									</div>
+								</PropertyPanel>
+							</div>
+						)}
+					</div>
+				</EmbedRendersContext.Provider>
 			)}
 			{canLayout && secPop && (
 				<SectionPopover

@@ -3,12 +3,14 @@
 
 /**
  * Export PDF dialog: preflight rows (never blocking, each jumps to the spot), pages,
- * quality, Advanced › PDF/A-2, filename. The job runs in the layout worker; progress replaces
- * the form, success downloads and closes (stays open with a warning if images were left blank),
- * an error stays here with Retry.
+ * quality, Advanced › PDF/A-2, filename. Embeds of the exported pages are rendered here first
+ * (main owns the bus; `renderEmbeds`), then the job runs in the layout worker; progress replaces
+ * the form, success downloads and closes (stays open with a warning if images were left blank
+ * or embeds could not be rendered — those get a preflight row with Retry), an error stays here
+ * with Retry.
  */
 
-import { downloadBlob, sanitizeFilename } from '@cloudillo/core'
+import { downloadBlob, getAppBus, sanitizeFilename } from '@cloudillo/core'
 import {
 	ActionBar,
 	Alert,
@@ -29,7 +31,7 @@ import { useTranslation } from 'react-i18next'
 import type * as Y from 'yjs'
 
 import { setMeta } from '../crdt/document'
-import { framesOf } from '../crdt/entities'
+import { frameOf, framesOf } from '../crdt/entities'
 import type { YPagilloDocument } from '../crdt/stored-types'
 import { readMeta } from '../crdt/type-converters'
 import type { LayoutState } from '../layout/useLayout'
@@ -38,6 +40,7 @@ import { flattenPages } from '../view/PageList'
 import type { EmptyImage } from '../view/PageSvg'
 import type { PdfExportOptions } from '../worker/protocol'
 import { isEmptyRange, type PreflightRow, parsePageRange, preflightRows } from './preflight'
+import { type EmbedFailure, embedJobs, prepareEmbeds } from './prepare-embeds'
 
 export interface PdfExportDialogProps {
 	yDoc: Y.Doc
@@ -80,20 +83,43 @@ export function PdfExportDialog(props: PdfExportDialogProps) {
 	)
 	const [pdfa, setPdfa] = React.useState(saved.pdfa === true)
 	const [fileName, setFileName] = React.useState(`${title}.pdf`)
-	const [progress, setProgress] = React.useState<{ done: number; total: number }>()
+	const [progress, setProgress] = React.useState<{
+		done: number
+		total: number
+		/** Rendering embeds, before the worker writes pages. */
+		embeds?: true
+	}>()
 	const [error, setError] = React.useState<string>()
 	const [missing, setMissing] = React.useState(0)
+	const [failed, setFailed] = React.useState<EmbedFailure[]>([])
 	const total = layout.pageCount
 	const flat = flattenPages(layout.sections)
+	/** Successful renders by `jobKey`: Retry renders only what failed. */
+	const renders = React.useRef(new Map<string, { svg: string }>())
+	const prep = React.useRef<AbortController>(undefined)
 
 	// Closing mid-job cancels it.
 	const running = React.useRef(false)
 	React.useEffect(
 		() => () => {
+			prep.current?.abort()
 			if (running.current) layoutHostOf(yDoc)?.cancelPdf()
 		},
 		[yDoc]
 	)
+
+	const embedRow: PreflightRow | undefined = failed.length
+		? {
+				key: 'embeds',
+				label: t('{{count}} embeds could not be rendered: {{list}}', {
+					count: failed.length,
+					list: failed.map((f) => `${f.title} (${f.error})`).join(', ')
+				}),
+				page: failed[0].page,
+				frame: frameOf(doc, failed[0].frameId) ? failed[0].frameId : undefined
+			}
+		: undefined
+	const allRows = embedRow ? [...rows, embedRow] : rows
 
 	const checkRange = () => {
 		const r = parsePageRange(range, total)
@@ -107,7 +133,7 @@ export function PdfExportDialog(props: PdfExportDialogProps) {
 		return r
 	}
 
-	function start(evt?: React.FormEvent<HTMLFormElement>) {
+	async function start(evt?: React.FormEvent<HTMLFormElement>) {
 		evt?.preventDefault()
 		let pages: string[] | undefined
 		if (mode === 'current') pages = [flat[current].key]
@@ -121,11 +147,43 @@ export function PdfExportDialog(props: PdfExportDialogProps) {
 			setError(t('The layout engine stopped'))
 			return
 		}
+		const keys = pages ?? flat.map((p) => p.key)
+		// An embed on a page main has not laid out would silently print "Content unavailable".
+		if (layout.pending || keys.some((k) => !layout.pages.has(k))) {
+			setError(t('The layout is still updating. Try again in a moment.'))
+			return
+		}
 		setError(undefined)
 		setMissing(0)
-		setProgress({ done: 0, total: pages?.length ?? total })
 		running.current = true
-		host.exportPdf({ pages, pdfa, downsample, title, files }, (e: PdfEvent) => {
+		prep.current?.abort()
+		const ac = new AbortController()
+		prep.current = ac
+		let prepared: Awaited<ReturnType<typeof prepareEmbeds>>
+		try {
+			prepared = await prepareEmbeds(embedJobs(layout, doc, keys), {
+				sourceFileId: getAppBus().fileId,
+				renders: renders.current,
+				signal: ac.signal,
+				t,
+				onProgress: (done, n) => setProgress({ done, total: n, embeds: true })
+			})
+		} catch (err) {
+			if (ac.signal.aborted) return
+			running.current = false
+			setProgress(undefined)
+			setError(err instanceof Error ? err.message : String(err))
+			return
+		}
+		if (!prepared || ac.signal.aborted) {
+			running.current = false
+			return
+		}
+		setFailed(prepared.failed)
+		setProgress({ done: 0, total: pages?.length ?? total })
+		const { embeds } = prepared
+		const bad = prepared.failed.length
+		host.exportPdf({ pages, pdfa, downsample, title, files, embeds }, (e: PdfEvent) => {
 			if (e.type === 'pdf.progress') {
 				setProgress({ done: e.done, total: e.total })
 				return
@@ -144,11 +202,12 @@ export function PdfExportDialog(props: PdfExportDialogProps) {
 					exportedAt: new Date().toISOString()
 				})
 			if (e.missing > 0) setMissing(e.missing)
-			else onClose()
+			if (e.missing === 0 && bad === 0) onClose()
 		})
 	}
 
 	const cancel = () => {
+		prep.current?.abort()
 		running.current = false
 		layoutHostOf(yDoc)?.cancelPdf()
 		setProgress(undefined)
@@ -174,7 +233,7 @@ export function PdfExportDialog(props: PdfExportDialogProps) {
 							<Button
 								type="submit"
 								color="primary"
-								disabled={mode === 'range' && !!rangeErr}
+								disabled={(mode === 'range' && !!rangeErr) || layout.pending}
 							>
 								{error ? t('Retry') : t('Export')}
 							</Button>
@@ -186,12 +245,17 @@ export function PdfExportDialog(props: PdfExportDialogProps) {
 			{busy ? (
 				<div className="c-vbox g-2" aria-live="polite">
 					<p>
-						{progress.done < progress.total
-							? t('Writing page {{n}} of {{m}}', {
-									n: progress.done + 1,
+						{progress.embeds
+							? t('Preparing {{n}} of {{m}} embeds…', {
+									n: Math.min(progress.done + 1, progress.total),
 									m: progress.total
 								})
-							: t('Finishing…')}
+							: progress.done < progress.total
+								? t('Writing page {{n}} of {{m}}', {
+										n: progress.done + 1,
+										m: progress.total
+									})
+								: t('Finishing…')}
 					</p>
 					<Progress value={(progress.done / Math.max(1, progress.total)) * 100} />
 				</div>
@@ -209,23 +273,34 @@ export function PdfExportDialog(props: PdfExportDialogProps) {
 							})}
 						</Alert>
 					)}
-					{rows.length > 0 && (
+					{allRows.length > 0 && (
 						<List aria-label={t('Before you export')}>
-							{rows.map((r) => (
+							{allRows.map((r) => (
 								<ListItem
 									key={r.key}
 									size="sm"
 									title={r.label}
 									trailing={
-										(r.page || r.frame) && (
-											<Button
-												size="sm"
-												variant="link"
-												onClick={() => onJump(r)}
-											>
-												{t('Jump')}
-											</Button>
-										)
+										<>
+											{r === embedRow && (
+												<Button
+													size="sm"
+													variant="link"
+													onClick={() => void start()}
+												>
+													{t('Retry')}
+												</Button>
+											)}
+											{(r.page || r.frame) && (
+												<Button
+													size="sm"
+													variant="link"
+													onClick={() => onJump(r)}
+												>
+													{t('Jump')}
+												</Button>
+											)}
+										</>
 									}
 								/>
 							))}

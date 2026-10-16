@@ -9,6 +9,7 @@
 import { FX } from '@cloudillo/typeset'
 import type * as Y from 'yjs'
 
+import type { EmbedRecord } from '../embeds/record'
 import { newBlockId } from './block-ids'
 import { deltaOf } from './delta-cache'
 import { FULL_CROP, frameOf, framesOf, newFrameMap, patchFrame } from './entities'
@@ -252,6 +253,12 @@ export function insertImageParagraph(t: Y.Text, at: number, img: InlineImage): v
 	t.insert(at + 1, '\n', { bid: newBlockId() })
 }
 
+/** Insert an embed-only paragraph (`{ emb }` + `'\n'` with a fresh bid) at paragraph start `at`. */
+export function insertEmbedParagraph(t: Y.Text, at: number, emb: EmbedRecord): void {
+	t.insertEmbed(at, { emb })
+	t.insert(at + 1, '\n', { bid: newBlockId() })
+}
+
 /** The character at `offset` (`undefined` for an embed or past the end) and the embed there. */
 function opAt(t: Y.Text, offset: number): { ch?: string; embed?: unknown } {
 	let pos = 0
@@ -272,6 +279,11 @@ export function embedImgAt(t: Y.Text, offset: number): InlineImage | undefined {
 	return e?.img
 }
 
+/** The inline embed record (`{ emb }`) at `offset`, if there is one. */
+export function embedRecordAt(t: Y.Text, offset: number): EmbedRecord | undefined {
+	return (opAt(t, offset).embed as { emb?: EmbedRecord } | undefined)?.emb
+}
+
 /** The `bid` of the image paragraph whose embed sits at `offset` (its `'\n'` follows). */
 export function inlineImageBid(t: Y.Text, offset: number): string | undefined {
 	let pos = 0
@@ -285,10 +297,11 @@ export function inlineImageBid(t: Y.Text, offset: number): string | undefined {
 	}
 }
 
-/** Story and offset of the inline image embed in paragraph `bid`. */
+/** Story and offset of the inline image (`kind` `'emb'`: embed) in paragraph `bid`. */
 export function findInlineImage(
 	doc: YPagilloDocument,
-	bid: string
+	bid: string,
+	kind: 'img' | 'emb' = 'img'
 ): { story: string; offset: number } | undefined {
 	for (const [story, t] of doc.tx.entries()) {
 		let pos = 0
@@ -297,7 +310,8 @@ export function findInlineImage(
 			if (op.attributes?.bid === bid && typeof op.insert === 'string') {
 				const nl = op.insert.indexOf('\n')
 				const offset = pos + nl - 1
-				if (nl >= 0 && embedImgAt(t, offset)) return { story, offset }
+				const found = kind === 'img' ? embedImgAt(t, offset) : embedRecordAt(t, offset)
+				if (nl >= 0 && found) return { story, offset }
 			}
 			pos += len
 		}
@@ -307,8 +321,14 @@ export function findInlineImage(
 /**
  * Offset of the only inline image embed in `from..to` (a click selects the embed, Shift+→ the
  * `'\n'` before it too). Selections over 64 chars never count as an image selection.
+ * `kind` `'emb'`: the same for an inline embed.
  */
-export function soleInlineImage(t: Y.Text, from: number, to: number): number | undefined {
+export function soleInlineImage(
+	t: Y.Text,
+	from: number,
+	to: number,
+	kind: 'img' | 'emb' = 'img'
+): number | undefined {
 	if (to - from > 64) return
 	let pos = 0
 	let found: number | undefined
@@ -316,7 +336,7 @@ export function soleInlineImage(t: Y.Text, from: number, to: number): number | u
 		if (pos >= to) break
 		if (typeof op.insert === 'string') pos += op.insert.length
 		else {
-			if (pos >= from && (op.insert as { img?: unknown }).img) {
+			if (pos >= from && (op.insert as Record<string, unknown>)[kind]) {
 				if (found !== undefined) return
 				found = pos
 			}
@@ -326,10 +346,28 @@ export function soleInlineImage(t: Y.Text, from: number, to: number): number | u
 	return found
 }
 
+/** The sole inline image, else the sole inline embed, the selection covers. */
+export function soleInlineObject(
+	t: Y.Text,
+	from: number,
+	to: number
+): { offset: number; kind: 'img' | 'emb'; bid?: string } | undefined {
+	for (const kind of ['img', 'emb'] as const) {
+		const offset = soleInlineImage(t, from, to, kind)
+		if (offset !== undefined) return { offset, kind, bid: inlineImageBid(t, offset) }
+	}
+}
+
 /** Replace the inline image embed at `offset` (alt text edits). Inside the caller's transaction. */
 export function setInlineImage(t: Y.Text, offset: number, img: InlineImage): void {
 	t.delete(offset, 1)
 	t.insertEmbed(offset, { img })
+}
+
+/** Replace the inline embed record at `offset` (alt text edits). Inside the caller's transaction. */
+export function setInlineEmbed(t: Y.Text, offset: number, emb: EmbedRecord): void {
+	t.delete(offset, 1)
+	t.insertEmbed(offset, { emb })
 }
 
 /** "Moves with text": the `img` frame becomes an image paragraph at paragraph start `at`. */

@@ -32,6 +32,8 @@ export interface DrawOptions {
 	glyphs: Map<string, string>
 	/** Loaded images by `fileId`. */
 	images: Map<string, HTMLImageElement>
+	/** Embed renders by DL `frameId` (`useEmbedRenders`); missing → placeholder box. */
+	embeds: Map<string, HTMLImageElement>
 }
 
 // Unbounded; keys are content-addressed (font sha256 + gid), so it only grows with the
@@ -145,8 +147,20 @@ function drawItem(ctx: CanvasRenderingContext2D, it: DLItem, opts: DrawOptions):
 			return false
 		}
 		case 'embed': {
-			// Placeholder box; embed content is not rendered on canvas yet.
 			const b = it.box
+			const img = opts.embeds.get(it.frameId)
+			if (img) {
+				// Contain-fit: a resized frame shows its old render scaled until the new one lands.
+				const box = { x: pt(b.x), y: pt(b.y), w: pt(b.w), h: pt(b.h) }
+				const iw = img.naturalWidth || box.w
+				const ih = img.naturalHeight || box.h
+				const s = Math.min(box.w / iw, box.h / ih)
+				const w = iw * s
+				const h = ih * s
+				ctx.drawImage(img, box.x + (box.w - w) / 2, box.y + (box.h - h) / 2, w, h)
+				return false
+			}
+			// Placeholder box until the render arrives (or when it failed).
 			const p = EMBED_PLACEHOLDER
 			ctx.fillStyle = `rgb(0 0 0 / ${p.fill})`
 			ctx.fillRect(pt(b.x), pt(b.y), pt(b.w), pt(b.h))

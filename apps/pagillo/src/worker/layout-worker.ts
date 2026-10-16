@@ -304,6 +304,7 @@ async function exportPdf(o: PdfExportOptions, id: number): Promise<void> {
 				fonts: fetchBytes,
 				fetchImage,
 				onMissingImage: (fileId) => missing.add(fileId),
+				embeds: o.embeds,
 				signal,
 				onProgress: (done, total) => {
 					if (!signal.aborted) post({ type: 'pdf.progress', id, done, total })

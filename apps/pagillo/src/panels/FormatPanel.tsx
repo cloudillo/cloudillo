@@ -8,6 +8,7 @@
  * (`PublicationSettings.tsx`); view preferences sit in the status-bar View popover.
  */
 
+import { getAppBus } from '@cloudillo/core'
 import {
 	Button,
 	ColorInput,
@@ -28,14 +29,17 @@ import { useTranslation } from 'react-i18next'
 import { LuMinus, LuPlus, LuTrash2, LuX } from 'react-icons/lu'
 import type * as Y from 'yjs'
 
+import { frameOf, mastersOf, stylesOf } from '../crdt/entities'
 import {
 	breakThreadAfter,
 	chainOf,
 	embedImgAt,
+	embedRecordAt,
 	linkFrame,
 	linkTargets,
 	setInlineImage,
 	soleInlineImage,
+	soleInlineObject,
 	updateFrame
 } from '../crdt/frame-ops'
 import type {
@@ -44,14 +48,15 @@ import type {
 	StoredTextFrameData,
 	YPagilloDocument
 } from '../crdt/stored-types'
-import { frameOf, mastersOf, stylesOf } from '../crdt/entities'
 import { masterItems } from '../crdt/type-converters'
 import * as Cmd from '../editor/commands'
 import { FRAME_LABELS, type FrameCtl } from '../editor/FrameOverlay'
 import { effectiveDpi } from '../editor/frames'
 import type { Editor } from '../editor/useEditor'
-import { LengthInput } from '../ui/LengthInput'
+import { appLabel, type EmbedRecord, embedTarget } from '../embeds/record'
+import { EmbedRendersContext } from '../embeds/useEmbedRenders'
 import { useTextState } from '../toolbar/Toolbar'
+import { LengthInput } from '../ui/LengthInput'
 import { type FieldDef, PARA_FIELDS, PropEditor, PropRow, ResetSlot } from './StylesPanel'
 import { useDocVersion } from './useY'
 
@@ -90,6 +95,7 @@ export function FormatPanel({
 		return (
 			<>
 				{frames && <InlineImageSection doc={doc} editor={editor} frames={frames} />}
+				{frames && <InlineEmbedSection doc={doc} editor={editor} frames={frames} />}
 				<TextSection yDoc={yDoc} doc={doc} editor={editor} />
 			</>
 		)
@@ -218,6 +224,7 @@ function FrameSection({ yDoc, doc, frames }: PanelProps & { frames: FrameCtl }) 
 	const td = f.data as StoredTextFrameData
 	const master = masterItems(doc).has(id)
 	const img = f.t === 'img'
+	const emb = f.t === 'emb'
 	const thread = f.t === 'txt' && !master
 	const chain = thread ? chainOf(doc, id) : undefined
 	const ci = chain ? chain.frames.indexOf(id) : 0
@@ -227,6 +234,16 @@ function FrameSection({ yDoc, doc, frames }: PanelProps & { frames: FrameCtl }) 
 		<>
 			<PropertySection title={t(FRAME_LABELS[f.t])}>
 				<DeleteButton onClick={frames.remove} />
+				{emb && (
+					<div ref={altBox}>
+						<EmbedFields
+							id={id}
+							frames={frames}
+							rec={f.data as EmbedRecord}
+							onAlt={(alt) => set({ data: { alt } })}
+						/>
+					</div>
+				)}
 				{img && (
 					<>
 						<Button
@@ -513,6 +530,95 @@ function InlineImageSection({
 					<option value="r3">{t('Float right ⅓')}</option>
 				</NativeSelect>
 			</PropertyField>
+		</PropertySection>
+	)
+}
+
+/**
+ * Embed group (page and inline embeds alike; `id` = DL embed id): source title + app, Edit /
+ * Done, Change view…, Refresh, Open source, Alt text.
+ */
+function EmbedFields({
+	id,
+	frames,
+	rec,
+	onAlt
+}: {
+	id: string
+	frames: FrameCtl
+	rec: EmbedRecord
+	onAlt(alt: string): void
+}) {
+	const { t } = useTranslation()
+	const renders = React.useContext(EmbedRendersContext)
+	const app = embedTarget(rec)?.appId ?? ''
+	const live = frames.activeEmbed?.id === id
+	return (
+		<>
+			<p>
+				{rec.lastTitle}
+				{app && (
+					<span className="text-muted">
+						{' · '}
+						{appLabel(app)}
+					</span>
+				)}
+			</p>
+			<div className="c-hbox g-1" style={{ flexWrap: 'wrap' }}>
+				<Button
+					size="sm"
+					onClick={() => (live ? frames.deactivate() : frames.activate(id))}
+				>
+					{live ? t('Done') : t('Edit')}
+				</Button>
+				<Button size="sm" onClick={() => void frames.changeView(id)}>
+					{t('Change view…')}
+				</Button>
+				<Button size="sm" onClick={() => renders?.refresh(id)}>
+					{t('Refresh')}
+				</Button>
+				<Button size="sm" onClick={() => getAppBus().openDocument(rec.address)}>
+					{t('Open source')}
+				</Button>
+			</div>
+			<PropertyField label={t('Alt text')}>
+				<Input
+					key={`${rec.address}:${rec.alt}`}
+					defaultValue={rec.alt}
+					placeholder={t('Describe the embedded content')}
+					onBlur={(e) => {
+						const v = e.target.value.trim()
+						if (v !== rec.alt) onAlt(v)
+					}}
+				/>
+			</PropertyField>
+		</>
+	)
+}
+
+/** A selection holding one inline embed: its Embed group. */
+function InlineEmbedSection({
+	doc,
+	editor,
+	frames
+}: Pick<PanelProps, 'doc'> & { editor: Editor; frames: FrameCtl }) {
+	const { t } = useTranslation()
+	const s = editor.sel
+	if (!s) return null
+	const tx = doc.tx.get(s.story)
+	const from = Math.min(s.anchor, s.head)
+	const o = tx && soleInlineObject(tx, from, Math.max(s.anchor, s.head))
+	const rec = tx && o?.kind === 'emb' ? embedRecordAt(tx, o.offset) : undefined
+	const bid = o?.bid
+	if (!rec || !bid) return null
+	return (
+		<PropertySection title={t('Embed')}>
+			<EmbedFields
+				id={bid}
+				frames={frames}
+				rec={rec}
+				onAlt={(alt) => frames.patchEmbed(bid, { alt })}
+			/>
 		</PropertySection>
 	)
 }

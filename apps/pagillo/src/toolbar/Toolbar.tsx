@@ -113,6 +113,8 @@ export interface ToolbarProps extends Cmd.CommandCtx {
 	onInsertImage?(inline: boolean): void
 	/** Insert a text box on the page in view. Absent = no layout rights. */
 	onInsertTextBox?(): void
+	/** Embed… inline at the caret (`true`), else on the page in view. Absent = no layout rights. */
+	onInsertEmbed?(inline: boolean): void
 	/** Inline image refused (Edit layout, a frame selected). */
 	inlineImageOff?: boolean
 }
@@ -133,6 +135,7 @@ export function Toolbar({
 	undo,
 	onInsertImage,
 	onInsertTextBox,
+	onInsertEmbed,
 	inlineImageOff
 }: ToolbarProps) {
 	const { t } = useTranslation()
@@ -343,7 +346,13 @@ export function Toolbar({
 					</>
 				)}
 				{onInsertTextBox && <MenuItem label={t('Text box')} onClick={onInsertTextBox} />}
-				{(onInsertImage || onInsertTextBox) && <MenuDivider />}
+				{onInsertEmbed && (
+					<MenuItem
+						label={t('Embed…')}
+						onClick={() => onInsertEmbed(!off && !inlineImageOff)}
+					/>
+				)}
+				{(onInsertImage || onInsertTextBox || onInsertEmbed) && <MenuDivider />}
 				<SubMenuItem label={t('Field')} disabled={off} title={off ? needCaret : undefined}>
 					<MenuItem label={t('Date (fixed)…')} onClick={askDate} />
 					<MenuItem

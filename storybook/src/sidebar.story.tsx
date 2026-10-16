@@ -1,6 +1,13 @@
 import {
 	Button,
 	HBox,
+	IcClose,
+	IcFolder,
+	IcHome,
+	IcMenu,
+	IcPerson,
+	IcPin,
+	IcSettings,
 	NavItem,
 	Sidebar,
 	SidebarBackdrop,
@@ -12,15 +19,6 @@ import {
 	useSidebar
 } from '@cloudillo/react'
 import * as React from 'react'
-import {
-	LuFolder as IcFolder,
-	LuHouse as IcHome,
-	LuMenu as IcMenu,
-	LuPin as IcPin,
-	LuPinOff as IcPinOff,
-	LuSettings as IcSettings,
-	LuUser as IcUser
-} from 'react-icons/lu'
 
 import { Story, Variant } from './storybook.js'
 
@@ -43,7 +41,7 @@ function SidebarDemo() {
 								onClick={sidebar.togglePin}
 								title={sidebar.isPinned ? 'Unpin' : 'Pin'}
 							>
-								{sidebar.isPinned ? <IcPinOff /> : <IcPin />}
+								{sidebar.isPinned ? <IcClose /> : <IcPin />}
 							</Button>
 						</HBox>
 					</SidebarHeader>
@@ -52,7 +50,7 @@ function SidebarDemo() {
 							<IcHome /> Home
 						</NavItem>
 						<NavItem gap={2}>
-							<IcUser /> Profile
+							<IcPerson /> Profile
 						</NavItem>
 						<NavItem gap={2}>
 							<IcFolder /> Files

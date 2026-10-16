@@ -1,9 +1,8 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button, TreeItem, TreeView } from '@cloudillo/react'
+import { Button, IcAdd, IcFile, IcFolder, IcMore, TreeItem, TreeView } from '@cloudillo/react'
 import * as React from 'react'
-import { LuEllipsisVertical, LuFile, LuFolder, LuPlus } from 'react-icons/lu'
 
 import { Story, Variant } from './storybook.js'
 
@@ -18,30 +17,30 @@ const sampleTree: Node[] = [
 	{
 		id: 'docs',
 		label: 'Documents',
-		icon: <LuFolder />,
+		icon: <IcFolder />,
 		children: [
-			{ id: 'doc-1', label: 'Proposal.pdf', icon: <LuFile /> },
-			{ id: 'doc-2', label: 'Notes.md', icon: <LuFile /> }
+			{ id: 'doc-1', label: 'Proposal.pdf', icon: <IcFile /> },
+			{ id: 'doc-2', label: 'Notes.md', icon: <IcFile /> }
 		]
 	},
 	{
 		id: 'media',
 		label: 'Media',
-		icon: <LuFolder />,
+		icon: <IcFolder />,
 		children: [
 			{
 				id: 'photos',
 				label: 'Photos',
-				icon: <LuFolder />,
+				icon: <IcFolder />,
 				children: [
-					{ id: 'p-1', label: 'beach.jpg', icon: <LuFile /> },
-					{ id: 'p-2', label: 'sunset.jpg', icon: <LuFile /> }
+					{ id: 'p-1', label: 'beach.jpg', icon: <IcFile /> },
+					{ id: 'p-2', label: 'sunset.jpg', icon: <IcFile /> }
 				]
 			},
-			{ id: 'video', label: 'clip.mp4', icon: <LuFile /> }
+			{ id: 'video', label: 'clip.mp4', icon: <IcFile /> }
 		]
 	},
-	{ id: 'readme', label: 'README.md', icon: <LuFile /> }
+	{ id: 'readme', label: 'README.md', icon: <IcFile /> }
 ]
 
 function RecursiveItem({
@@ -77,7 +76,7 @@ function RecursiveItem({
 			actions={
 				withActions ? (
 					<Button color="secondary" size="sm" aria-label="More">
-						<LuEllipsisVertical />
+						<IcMore />
 					</Button>
 				) : undefined
 			}
@@ -231,10 +230,10 @@ export function TreeViewStory() {
 						textAlign: 'center'
 					}}
 				>
-					<LuFolder size={32} style={{ opacity: 0.4 }} />
+					<IcFolder size={32} style={{ opacity: 0.4 }} />
 					<p style={{ margin: '0.5rem 0' }}>No pages yet</p>
 					<Button color="primary" size="sm">
-						<LuPlus /> New page
+						<IcAdd /> New page
 					</Button>
 				</div>
 			</Variant>

@@ -5,27 +5,25 @@ import {
 	Button,
 	CodeBlock,
 	FAB,
+	IcAdd,
+	IcAlignCenter,
+	IcAlignLeft,
+	IcAlignRight,
+	IcBold,
+	IcDelete,
+	IcDownload,
+	IcExport,
+	IcItalic,
+	IcRedo,
+	IcSearch,
+	IcUnderline,
+	IcUndo,
 	Toolbar,
 	ToolbarDivider,
 	ToolbarGroup,
 	ToolbarSpacer
 } from '@cloudillo/react'
 import * as React from 'react'
-import {
-	LuAlignCenter,
-	LuAlignLeft,
-	LuAlignRight,
-	LuBold,
-	LuDownload,
-	LuItalic,
-	LuPlus,
-	LuRedo,
-	LuSave,
-	LuSearch,
-	LuTrash2,
-	LuUnderline,
-	LuUndo
-} from 'react-icons/lu'
 
 import { Story, Variant } from './storybook.js'
 
@@ -46,14 +44,14 @@ export function ToolbarStory() {
 			<Variant name="Basic Toolbar">
 				<Toolbar>
 					<Button color="secondary">
-						<LuSave /> Save
+						<IcDownload /> Save
 					</Button>
 					<Button color="secondary">
-						<LuDownload /> Export
+						<IcExport /> Export
 					</Button>
 					<ToolbarDivider />
 					<Button color="secondary">
-						<LuTrash2 /> Delete
+						<IcDelete /> Delete
 					</Button>
 				</Toolbar>
 			</Variant>
@@ -65,34 +63,34 @@ export function ToolbarStory() {
 				<Toolbar>
 					<ToolbarGroup>
 						<Button color="secondary" aria-label="Bold">
-							<LuBold />
+							<IcBold />
 						</Button>
 						<Button color="secondary" aria-label="Italic">
-							<LuItalic />
+							<IcItalic />
 						</Button>
 						<Button color="secondary" aria-label="Underline">
-							<LuUnderline />
+							<IcUnderline />
 						</Button>
 					</ToolbarGroup>
 					<ToolbarDivider />
 					<ToolbarGroup>
 						<Button color="secondary" aria-label="Align left">
-							<LuAlignLeft />
+							<IcAlignLeft />
 						</Button>
 						<Button color="secondary" aria-label="Align center">
-							<LuAlignCenter />
+							<IcAlignCenter />
 						</Button>
 						<Button color="secondary" aria-label="Align right">
-							<LuAlignRight />
+							<IcAlignRight />
 						</Button>
 					</ToolbarGroup>
 					<ToolbarSpacer />
 					<ToolbarGroup>
 						<Button color="secondary" aria-label="Undo">
-							<LuUndo />
+							<IcUndo />
 						</Button>
 						<Button color="secondary" aria-label="Redo">
-							<LuRedo />
+							<IcRedo />
 						</Button>
 					</ToolbarGroup>
 				</Toolbar>
@@ -104,17 +102,17 @@ export function ToolbarStory() {
 			>
 				<Toolbar compact>
 					<Button color="secondary" aria-label="Add">
-						<LuPlus />
+						<IcAdd />
 					</Button>
 					<Button color="secondary" aria-label="Search">
-						<LuSearch />
+						<IcSearch />
 					</Button>
 					<ToolbarDivider />
 					<Button color="secondary" aria-label="Undo">
-						<LuUndo />
+						<IcUndo />
 					</Button>
 					<Button color="secondary" aria-label="Redo">
-						<LuRedo />
+						<IcRedo />
 					</Button>
 				</Toolbar>
 			</Variant>
@@ -127,23 +125,23 @@ export function ToolbarStory() {
 					<strong style={{ padding: '0 0.5rem' }}>My Document</strong>
 					<ToolbarSpacer />
 					<Button color="primary">
-						<LuSave /> Save
+						<IcDownload /> Save
 					</Button>
 				</Toolbar>
 			</Variant>
 
 			<Variant name="Padding, soft and floating">
 				<Toolbar padding={0}>
-					<Button aria-label="Bold" icon={<LuBold />} />
-					<Button aria-label="Italic" icon={<LuItalic />} />
+					<Button aria-label="Bold" icon={<IcBold />} />
+					<Button aria-label="Italic" icon={<IcItalic />} />
 				</Toolbar>
 				<Toolbar variant="soft">
-					<Button aria-label="Undo" icon={<LuUndo />} />
-					<Button aria-label="Redo" icon={<LuRedo />} />
+					<Button aria-label="Undo" icon={<IcUndo />} />
+					<Button aria-label="Redo" icon={<IcRedo />} />
 				</Toolbar>
 				<Toolbar floating autoHide>
-					<Button aria-label="Search" icon={<LuSearch />} />
-					<Button aria-label="Delete" icon={<LuTrash2 />} />
+					<Button aria-label="Search" icon={<IcSearch />} />
+					<Button aria-label="Delete" icon={<IcDelete />} />
 				</Toolbar>
 			</Variant>
 
@@ -151,15 +149,15 @@ export function ToolbarStory() {
 				name="FAB"
 				description='`<FAB icon aria-label size color>` — pinned via Affix by default; affix={false} renders it in flow. Successor of Button mode="float".'
 			>
-				<FAB affix={false} icon={<LuPlus />} aria-label="Create" />
+				<FAB affix={false} icon={<IcAdd />} aria-label="Create" />
 				<FAB
 					affix={false}
 					size="sm"
 					color="secondary"
-					icon={<LuPlus />}
+					icon={<IcAdd />}
 					aria-label="Create"
 				/>
-				<FAB affix={false} size="lg" color="accent" icon={<LuPlus />} aria-label="Create" />
+				<FAB affix={false} size="lg" color="accent" icon={<IcAdd />} aria-label="Create" />
 			</Variant>
 
 			<Variant

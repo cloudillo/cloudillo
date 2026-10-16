@@ -1,6 +1,14 @@
-import { Avatar, Badge, BadgeAnchor, Button, HBox } from '@cloudillo/react'
+import {
+	Avatar,
+	Badge,
+	BadgeAnchor,
+	Button,
+	HBox,
+	IcCheck,
+	IcComment,
+	IcWarning
+} from '@cloudillo/react'
 import * as React from 'react'
-import { LuBell as IcBell, LuCheck as IcCheck, LuTriangleAlert as IcWarn } from 'react-icons/lu'
 
 import { Story, Variant } from './storybook.js'
 
@@ -81,7 +89,7 @@ export function BadgeStory() {
 					<Badge variant="soft" color="success" icon={<IcCheck />}>
 						Verified
 					</Badge>
-					<Badge variant="soft" color="warning" icon={<IcWarn />}>
+					<Badge variant="soft" color="warning" icon={<IcWarning />}>
 						Expiring
 					</Badge>
 				</HBox>
@@ -104,7 +112,7 @@ export function BadgeStory() {
 							</Badge>
 						}
 					>
-						<Button variant="ghost" icon={<IcBell />} aria-label="Notifications" />
+						<Button variant="ghost" icon={<IcComment />} aria-label="Notifications" />
 					</BadgeAnchor>
 					<BadgeAnchor
 						position="bottom-end"

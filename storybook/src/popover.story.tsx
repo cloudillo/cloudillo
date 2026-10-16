@@ -1,9 +1,8 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button, Popover } from '@cloudillo/react'
+import { Button, IcDropdown, IcFilter, Popover } from '@cloudillo/react'
 import * as React from 'react'
-import { LuChevronDown as IcChevron, LuFilter as IcFilter } from 'react-icons/lu'
 
 import { Story, Variant } from './storybook.js'
 
@@ -46,7 +45,7 @@ export function PopoverStory() {
 					aria-label="Filters"
 					trigger={
 						<Button>
-							<IcFilter /> Filters <IcChevron />
+							<IcFilter /> Filters <IcDropdown />
 						</Button>
 					}
 				>

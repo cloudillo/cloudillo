@@ -57,7 +57,22 @@
 				// Intentional: bare module specifiers used (bundled, not Node.js)
 				"useNodejsImportProtocol": "off",
 				// Intentional: CSS specificity order is managed manually
-				"noDescendingSpecificity": "off"
+				"noDescendingSpecificity": "off",
+				// Icons are Phosphor only, and only through a concept (`IcClose`) from
+				// @cloudillo/react or the package's src/icons.ts (scripts/icon-atlas/README.md).
+				// The root `react-icons` (IconType, IconContext) stays allowed; the override below
+				// re-allows react-icons/pi in the generated icons.ts files and tests.
+				"noRestrictedImports": {
+					"level": "error",
+					"options": {
+						"patterns": [
+							{
+								"group": ["react-icons/*"],
+								"message": "Phosphor only: import an Ic* concept (scripts/icon-atlas/README.md)"
+							}
+						]
+					}
+				}
 			},
 
 			"correctness": {
@@ -85,6 +100,27 @@
 	},
 
 	"overrides": [
+		{
+			// Generated concept files and test fixtures may use Phosphor directly.
+			"includes": ["**/src/icons.ts", "**/__tests__/**"],
+			"linter": {
+				"rules": {
+					"style": {
+						"noRestrictedImports": {
+							"level": "error",
+							"options": {
+								"patterns": [
+									{
+										"group": ["react-icons/*", "!react-icons/pi"],
+										"message": "Phosphor only: import an Ic* concept (scripts/icon-atlas/README.md)"
+									}
+								]
+							}
+						}
+					}
+				}
+			}
+		},
 		{
 			// The ServiceWorker handles every credential the app uses, and its
 			// console survives into production. Routine logging goes through

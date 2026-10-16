@@ -1,6 +1,5 @@
-import { Panel, Tab, Tabs } from '@cloudillo/react'
+import { IcFile, IcHome, IcPerson, Panel, Tab, Tabs } from '@cloudillo/react'
 import * as React from 'react'
-import { LuFile, LuHouse, LuUser } from 'react-icons/lu'
 
 import { Story, Variant } from './storybook.js'
 
@@ -66,13 +65,13 @@ export function TabStory() {
 
 			<Variant name="Icons and counts">
 				<Tabs value={activeTab} onTabChange={setActiveTab}>
-					<Tab value="tab1" icon={<LuHouse />}>
+					<Tab value="tab1" icon={<IcHome />}>
 						Home
 					</Tab>
-					<Tab value="tab2" icon={<LuFile />} count={12}>
+					<Tab value="tab2" icon={<IcFile />} count={12}>
 						Files
 					</Tab>
-					<Tab value="tab3" icon={<LuUser />} count={3}>
+					<Tab value="tab3" icon={<IcPerson />} count={3}>
 						People
 					</Tab>
 				</Tabs>

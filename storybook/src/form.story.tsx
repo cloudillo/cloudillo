@@ -4,6 +4,18 @@ import {
 	DateTimePicker,
 	Field,
 	Fieldset,
+	IcAlignCenter,
+	IcAlignLeft,
+	IcAlignRight,
+	IcBold,
+	IcCommunity,
+	IcItalic,
+	IcLocked,
+	IcPin,
+	IcPublic,
+	IcSearch,
+	IcSend,
+	IcUnderline,
 	Input,
 	InputGroup,
 	Kbd,
@@ -20,20 +32,6 @@ import {
 	VBox
 } from '@cloudillo/react'
 import * as React from 'react'
-import {
-	LuAlignCenter as IcAlignCenter,
-	LuAlignLeft as IcAlignLeft,
-	LuAlignRight as IcAlignRight,
-	LuBold as IcBold,
-	LuGlobe as IcGlobe,
-	LuItalic as IcItalic,
-	LuLock as IcLock,
-	LuMail as IcMail,
-	LuSearch as IcSearch,
-	LuStar as IcStar,
-	LuUnderline as IcUnderline,
-	LuUsers as IcUsers
-} from 'react-icons/lu'
 
 import { Story, Variant } from './storybook.js'
 
@@ -42,7 +40,7 @@ function PasswordDemo() {
 	return (
 		<Field label="Password">
 			<PasswordInput
-				leading={<IcLock />}
+				leading={<IcLocked />}
 				value={password}
 				onChange={(e) => setPassword(e.target.value)}
 			/>
@@ -210,7 +208,7 @@ export function FormStory() {
 				<VBox gap={2}>
 					<Input aria-label="Search" leading={<IcSearch />} placeholder="Search" />
 					<Input aria-label="Website" leading="https://" placeholder="example.com" />
-					<Input aria-label="Email" leading={<IcMail />} trailing="@cloudillo.org" />
+					<Input aria-label="Email" leading={<IcSend />} trailing="@cloudillo.org" />
 					<Input
 						aria-label="Invite code"
 						trailing={
@@ -320,7 +318,7 @@ export function FormStory() {
 						<Checkbox
 							key={name}
 							variant="card"
-							leading={<IcUsers />}
+							leading={<IcCommunity />}
 							label={name}
 							description="Community · 120 members"
 							checked={communities.includes(name)}
@@ -366,19 +364,19 @@ export function FormStory() {
 							value: 'P',
 							label: 'Public',
 							description: 'Anyone',
-							leading: <IcGlobe />
+							leading: <IcPublic />
 						},
 						{
 							value: 'C',
 							label: 'Connections',
 							description: 'Your network',
-							leading: <IcUsers />
+							leading: <IcCommunity />
 						},
 						{
 							value: 'F',
 							label: 'Followers',
 							description: 'Your audience',
-							leading: <IcMail />,
+							leading: <IcSend />,
 							disabled: true
 						}
 					]}
@@ -429,10 +427,10 @@ export function FormStory() {
 					style={{ maxWidth: '12rem' }}
 				>
 					{[
-						IcStar,
-						IcGlobe,
-						IcMail,
-						IcUsers,
+						IcPin,
+						IcPublic,
+						IcSend,
+						IcCommunity,
 						IcSearch,
 						IcBold,
 						IcItalic,

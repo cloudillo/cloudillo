@@ -1,6 +1,5 @@
-import { Button, Link, Popper, Tooltip } from '@cloudillo/react'
+import { Button, IcCheck, IcMore, IcShare, Link, Popper, Tooltip } from '@cloudillo/react'
 import * as React from 'react'
-import { LuHeart as IcHeart, LuSettings as IcMore, LuShare2 as IcShare } from 'react-icons/lu'
 
 import { Story, Variant } from './storybook.js'
 
@@ -55,7 +54,7 @@ export function ButtonStory() {
 			</Variant>
 
 			<Variant name="Primary Button with Icon">
-				<Button color="primary" icon={<IcHeart />} onClick={() => alert('Liked!')}>
+				<Button color="primary" icon={<IcCheck />} onClick={() => alert('Liked!')}>
 					Like
 				</Button>
 			</Variant>
@@ -210,7 +209,7 @@ export function TooltipStory() {
 
 			<Variant name="Icon-only Button (automatic)">
 				<div className="c-hbox g-2">
-					<Button variant="ghost" icon={<IcHeart />} aria-label="Like" />
+					<Button variant="ghost" icon={<IcCheck />} aria-label="Like" />
 					<Button variant="ghost" icon={<IcShare />} aria-label="Share" />
 				</div>
 			</Variant>

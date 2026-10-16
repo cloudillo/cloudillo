@@ -1,6 +1,5 @@
-import { Avatar, ColorDot, HBox, Tag } from '@cloudillo/react'
+import { Avatar, ColorDot, HBox, IcTag, Tag } from '@cloudillo/react'
 import * as React from 'react'
-import { LuHash as IcHash } from 'react-icons/lu'
 
 import { Story, Variant } from './storybook.js'
 
@@ -49,7 +48,7 @@ export function TagStory() {
 		>
 			<Variant name="Static">
 				<HBox gap={1} wrap>
-					<Tag icon={<IcHash />}>cloudillo</Tag>
+					<Tag icon={<IcTag />}>cloudillo</Tag>
 					<Tag color="primary">Primary</Tag>
 					<Tag color="success">Success</Tag>
 					<Tag color="error">Error</Tag>
@@ -84,7 +83,7 @@ export function TagStory() {
 
 			<Variant name="Link, Avatar, Caret">
 				<HBox gap={1} wrap>
-					<Tag href="#tag-cloud" icon={<IcHash />}>
+					<Tag href="#tag-cloud" icon={<IcTag />}>
 						design
 					</Tag>
 					<Tag avatar={<Avatar size="xs" alt="Alice" />} onClick={() => {}}>

@@ -5,6 +5,8 @@ import {
 	Breadcrumbs,
 	Button,
 	FileTile,
+	IcHome,
+	IcVideo,
 	Image,
 	ImageCropper,
 	type ImageCropRect,
@@ -12,7 +14,6 @@ import {
 	VideoPlayer
 } from '@cloudillo/react'
 import * as React from 'react'
-import { LuHouse as IcHome, LuPlay as IcPlay } from 'react-icons/lu'
 
 import { Story, Variant } from './storybook.js'
 
@@ -82,7 +83,13 @@ export function ThumbnailStory() {
 					<Thumbnail src={SQUARE} alt="" size="xs" />
 					<Thumbnail src={SQUARE} alt="" size="sm" />
 					<Thumbnail src={SQUARE} alt="Open photo" onClick={() => {}} />
-					<Thumbnail src={SQUARE} alt="Play video" size="lg" icon={<IcPlay />} href="#" />
+					<Thumbnail
+						src={SQUARE}
+						alt="Play video"
+						size="lg"
+						icon={<IcVideo />}
+						href="#"
+					/>
 				</div>
 			</Variant>
 		</Story>

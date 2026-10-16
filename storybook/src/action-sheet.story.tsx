@@ -6,19 +6,17 @@ import {
 	ActionSheetDivider,
 	ActionSheetItem,
 	ActionSheetSubItem,
-	Button
+	Button,
+	IcDelete,
+	IcDownload,
+	IcDuplicate,
+	IcEdit,
+	IcFolder,
+	IcPin,
+	IcShare,
+	IcWarning
 } from '@cloudillo/react'
 import * as React from 'react'
-import {
-	LuArchive,
-	LuCopy,
-	LuDownload,
-	LuFlag,
-	LuPencil,
-	LuShare2,
-	LuStar,
-	LuTrash2
-} from 'react-icons/lu'
 
 import { Story, Variant } from './storybook.js'
 
@@ -51,11 +49,11 @@ export function ActionSheetStory() {
 						onClose={() => setBasicOpen(false)}
 						title="document.pdf"
 					>
-						<ActionSheetItem icon={<LuShare2 />} label="Share" />
-						<ActionSheetItem icon={<LuCopy />} label="Duplicate" />
-						<ActionSheetItem icon={<LuDownload />} label="Download" />
+						<ActionSheetItem icon={<IcShare />} label="Share" />
+						<ActionSheetItem icon={<IcDuplicate />} label="Duplicate" />
+						<ActionSheetItem icon={<IcDownload />} label="Download" />
 						<ActionSheetDivider />
-						<ActionSheetItem icon={<LuTrash2 />} label="Delete" danger />
+						<ActionSheetItem icon={<IcDelete />} label="Delete" danger />
 					</ActionSheet>
 				</div>
 			</Variant>
@@ -73,16 +71,16 @@ export function ActionSheetStory() {
 						onClose={() => setFullOpen(false)}
 						title="Photo actions"
 					>
-						<ActionSheetItem icon={<LuPencil />} label="Edit" />
-						<ActionSheetItem icon={<LuStar />} label="Add to favorites" />
-						<ActionSheetSubItem icon={<LuShare2 />} label="Share" detail="5 apps">
+						<ActionSheetItem icon={<IcEdit />} label="Edit" />
+						<ActionSheetItem icon={<IcPin />} label="Pin" />
+						<ActionSheetSubItem icon={<IcShare />} label="Share" detail="5 apps">
 							<ActionSheetItem label="Copy link" />
 							<ActionSheetItem label="Message" />
 							<ActionSheetItem label="Email" />
 						</ActionSheetSubItem>
-						<ActionSheetItem icon={<LuArchive />} label="Archive" />
+						<ActionSheetItem icon={<IcFolder />} label="Move to folder" />
 						<ActionSheetDivider />
-						<ActionSheetItem icon={<LuFlag />} label="Report" danger />
+						<ActionSheetItem icon={<IcWarning />} label="Report" danger />
 					</ActionSheet>
 				</div>
 			</Variant>

@@ -1,9 +1,8 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { DropZone, FileButton } from '@cloudillo/react'
+import { DropZone, FileButton, IcImage, IcUpload } from '@cloudillo/react'
 import * as React from 'react'
-import { LuImage, LuUpload } from 'react-icons/lu'
 
 import { Story, Variant } from './storybook.js'
 
@@ -47,14 +46,14 @@ export function DropZoneStory() {
 			<Variant name="FileButton">
 				<div className="c-vbox g-2">
 					<div className="c-hbox g-2">
-						<FileButton icon={<LuUpload />} onFiles={(f) => setPicked(describe(f))}>
+						<FileButton icon={<IcUpload />} onFiles={(f) => setPicked(describe(f))}>
 							Upload file
 						</FileButton>
 						<FileButton
 							accept="image/*"
 							multiple
 							variant="soft"
-							icon={<LuImage />}
+							icon={<IcImage />}
 							aria-label="Upload images"
 							onFiles={(f) => setPicked(describe(f))}
 						/>

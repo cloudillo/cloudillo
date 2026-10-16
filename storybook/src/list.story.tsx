@@ -6,19 +6,17 @@ import {
 	Badge,
 	Button,
 	DescriptionList,
+	IcDelete,
+	IcEdit,
+	IcFile,
 	IconText,
+	IcTime,
 	List,
 	ListItem,
 	Meta,
 	Toggle
 } from '@cloudillo/react'
 import * as React from 'react'
-import {
-	LuCalendar as IcCalendar,
-	LuFileText as IcFile,
-	LuPencil as IcEdit,
-	LuTrash2 as IcDelete
-} from 'react-icons/lu'
 
 import { Story, Variant } from './storybook.js'
 
@@ -172,7 +170,7 @@ export function ListStory() {
 					<span>3 min ago</span>
 					<span>Public</span>
 				</Meta>
-				<IconText icon={<IcCalendar />}>Tomorrow, 10:00</IconText>
+				<IconText icon={<IcTime />}>Tomorrow, 10:00</IconText>
 			</Variant>
 		</Story>
 	)

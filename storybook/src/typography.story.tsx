@@ -1,6 +1,5 @@
-import { Heading, Icon, Text, VisuallyHidden } from '@cloudillo/react'
+import { Heading, IcError, IcInfo, Icon, IcWarning, Text, VisuallyHidden } from '@cloudillo/react'
 import * as React from 'react'
-import { LuBell as IcBell, LuHeart as IcHeart, LuStar as IcStar } from 'react-icons/lu'
 
 import { Story, Variant } from './storybook.js'
 
@@ -118,7 +117,7 @@ export function TypographyStory() {
 
 			<Variant name="VisuallyHidden">
 				<button type="button" className="c-button">
-					<Icon as={IcBell} />
+					<Icon as={IcInfo} />
 					<VisuallyHidden>Notifications</VisuallyHidden>
 				</button>
 			</Variant>
@@ -135,7 +134,7 @@ export function IconStory() {
 				{
 					name: 'as',
 					type: 'ComponentType<SVGAttributes>',
-					descr: 'Icon component, e.g. LuStar'
+					descr: 'Icon component, e.g. IcWarning'
 				},
 				{ name: 'size', type: 'Size', descr: 'xs–xl; omitted inherits font size' },
 				{ name: 'color', type: 'ColorVariant', descr: 'Tint' },
@@ -144,19 +143,19 @@ export function IconStory() {
 		>
 			<Variant name="Sizes">
 				<div className="c-hbox g-2 align-items-center">
-					<Icon as={IcStar} size="xs" />
-					<Icon as={IcStar} size="sm" />
-					<Icon as={IcStar} size="md" />
-					<Icon as={IcStar} size="lg" />
-					<Icon as={IcStar} size="xl" />
+					<Icon as={IcWarning} size="xs" />
+					<Icon as={IcWarning} size="sm" />
+					<Icon as={IcWarning} size="md" />
+					<Icon as={IcWarning} size="lg" />
+					<Icon as={IcWarning} size="xl" />
 				</div>
 			</Variant>
 
 			<Variant name="Colors and label">
 				<div className="c-hbox g-2 align-items-center">
-					<Icon as={IcHeart} size="lg" color="error" label="Favourite" />
-					<Icon as={IcStar} size="lg" color="warning" />
-					<Icon as={IcBell} size="lg" color="info" />
+					<Icon as={IcError} size="lg" color="error" label="Error" />
+					<Icon as={IcWarning} size="lg" color="warning" />
+					<Icon as={IcInfo} size="lg" color="info" />
 				</div>
 			</Variant>
 		</Story>

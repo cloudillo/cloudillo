@@ -1,9 +1,16 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Accordion, Clamp, Disclosure } from '@cloudillo/react'
+import {
+	Accordion,
+	Clamp,
+	Disclosure,
+	IcInfo,
+	IcLocked,
+	IcPerson,
+	IcSettings
+} from '@cloudillo/react'
 import * as React from 'react'
-import { LuBell, LuLock, LuSettings, LuUser } from 'react-icons/lu'
 
 import { Story, Variant } from './storybook.js'
 
@@ -51,7 +58,7 @@ export function AccordionStory() {
 					</Disclosure>
 				</Variant>
 				<Variant name="Panel">
-					<Disclosure summary="Security" icon={<LuLock />} variant="panel">
+					<Disclosure summary="Security" icon={<IcLocked />} variant="panel">
 						<p>Password, two-factor, active sessions.</p>
 					</Disclosure>
 				</Variant>
@@ -79,16 +86,16 @@ export function AccordionStory() {
 			>
 				<Variant name="Exclusive">
 					<Accordion exclusive>
-						<Disclosure summary="General" icon={<LuSettings />} defaultOpen>
+						<Disclosure summary="General" icon={<IcSettings />} defaultOpen>
 							<p>Locale, timezone, default view.</p>
 						</Disclosure>
-						<Disclosure summary="Account" icon={<LuUser />}>
+						<Disclosure summary="Account" icon={<IcPerson />}>
 							<p>Display name, email, profile picture.</p>
 						</Disclosure>
-						<Disclosure summary="Security" icon={<LuLock />}>
+						<Disclosure summary="Security" icon={<IcLocked />}>
 							<p>Password, two-factor, active sessions.</p>
 						</Disclosure>
-						<Disclosure summary="Notifications" icon={<LuBell />}>
+						<Disclosure summary="Notifications" icon={<IcInfo />}>
 							<p>Email digests, push notifications, channel preferences.</p>
 						</Disclosure>
 					</Accordion>

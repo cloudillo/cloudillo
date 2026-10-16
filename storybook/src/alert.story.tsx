@@ -1,9 +1,8 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Alert, Button } from '@cloudillo/react'
+import { Alert, Button, IcOffline } from '@cloudillo/react'
 import * as React from 'react'
-import { LuWifiOff } from 'react-icons/lu'
 
 import { Story, Variant } from './storybook.js'
 
@@ -73,7 +72,7 @@ export function AlertStory() {
 			</Variant>
 
 			<Variant name="Compact neutral (offline banner)">
-				<Alert color="neutral" compact icon={<LuWifiOff />}>
+				<Alert color="neutral" compact icon={<IcOffline />}>
 					You are offline.
 				</Alert>
 			</Variant>

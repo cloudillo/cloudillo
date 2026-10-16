@@ -1,13 +1,14 @@
-import { Badge, Nav } from '@cloudillo/react'
-import * as React from 'react'
 import {
-	LuBell as IcBell,
-	LuFolder as IcFolder,
-	LuHouse as IcHome,
-	LuSettings as IcSettings,
-	LuShield as IcShield,
-	LuUser as IcUser
-} from 'react-icons/lu'
+	Badge,
+	IcComment,
+	IcFolder,
+	IcHome,
+	IcPerson,
+	IcRole,
+	IcSettings,
+	Nav
+} from '@cloudillo/react'
+import * as React from 'react'
 
 import { Story, Variant } from './storybook.js'
 
@@ -46,14 +47,14 @@ export function NavStory() {
 				<Nav aria-label="Settings" elevation="low" style={{ width: 240 }}>
 					<Nav.Section label="Account">
 						<Nav.Item href="/" icon={<IcHome />} label="Home (active on /)" />
-						<Nav.Item href="/profile" icon={<IcUser />} label="Profile" />
-						<Nav.Item href="/security" icon={<IcShield />} label="Security" />
+						<Nav.Item href="/profile" icon={<IcPerson />} label="Profile" />
+						<Nav.Item href="/security" icon={<IcRole />} label="Security" />
 					</Nav.Section>
 					<Nav.Divider />
 					<Nav.Section label="Preferences">
 						<Nav.Item
 							href="/notifications"
-							icon={<IcBell />}
+							icon={<IcComment />}
 							label="Notifications"
 							badge={<Badge color="error">3</Badge>}
 						/>
@@ -80,7 +81,7 @@ export function NavStory() {
 			<Variant name="Horizontal">
 				<Nav aria-label="Sections" orientation="horizontal" size="sm">
 					<Nav.Item href="/" icon={<IcHome />} label="Home" />
-					<Nav.Item href="/profile" icon={<IcUser />} label="Profile" />
+					<Nav.Item href="/profile" icon={<IcPerson />} label="Profile" />
 					<Nav.Divider />
 					<Nav.Item href="/files" icon={<IcFolder />} label="Files" count={7} />
 				</Nav>

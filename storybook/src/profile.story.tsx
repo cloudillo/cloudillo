@@ -1,12 +1,12 @@
 import {
+	COMMUNITY_VISIBILITY,
+	Field,
 	IdentityTag,
 	ProfileAudienceCard,
 	ProfileCard,
 	ProfilePicture,
 	UnknownProfilePicture,
 	type VisibilityCode,
-	COMMUNITY_VISIBILITY,
-	Field,
 	VisibilitySelect
 } from '@cloudillo/react'
 import * as React from 'react'

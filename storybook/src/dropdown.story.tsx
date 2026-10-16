@@ -1,16 +1,17 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button, Dropdown } from '@cloudillo/react'
-import * as React from 'react'
 import {
-	LuChevronDown as IcChevron,
-	LuCopy as IcCopy,
-	LuTrash2 as IcDelete,
-	LuPencil as IcEdit,
-	LuEllipsisVertical as IcMore,
-	LuShare2 as IcShare
-} from 'react-icons/lu'
+	Button,
+	Dropdown,
+	IcCopy,
+	IcDelete,
+	IcDropdown,
+	IcEdit,
+	IcMore,
+	IcShare
+} from '@cloudillo/react'
+import * as React from 'react'
 
 import { Story, Variant } from './storybook.js'
 
@@ -48,7 +49,7 @@ export function DropdownStory() {
 					triggerClassName="c-button"
 					trigger={
 						<>
-							Options <IcChevron />
+							Options <IcDropdown />
 						</>
 					}
 				>

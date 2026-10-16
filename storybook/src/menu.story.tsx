@@ -1,18 +1,24 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button, Menu, MenuDivider, MenuHeader, MenuItem, SubMenuItem } from '@cloudillo/react'
-import * as React from 'react'
 import {
-	LuClipboard,
-	LuEllipsis,
-	LuCopy,
-	LuDownload,
-	LuPencil,
-	LuScissors,
-	LuShare2,
-	LuTrash2
-} from 'react-icons/lu'
+	Button,
+	IcCopy,
+	IcCut,
+	IcDelete,
+	IcDownload,
+	IcDuplicate,
+	IcMore,
+	IcPaste,
+	IcRename,
+	IcShare,
+	Menu,
+	MenuDivider,
+	MenuHeader,
+	MenuItem,
+	SubMenuItem
+} from '@cloudillo/react'
+import * as React from 'react'
 
 import { Story, Variant } from './storybook.js'
 
@@ -87,11 +93,11 @@ export function MenuStory() {
 					</Button>
 					{basicPos && (
 						<Menu position={basicPos} onClose={() => setBasicPos(null)}>
-							<MenuItem icon={<LuScissors />} label="Cut" shortcut="⌘X" />
-							<MenuItem icon={<LuCopy />} label="Copy" shortcut="⌘C" />
-							<MenuItem icon={<LuClipboard />} label="Paste" shortcut="⌘V" />
+							<MenuItem icon={<IcCut />} label="Cut" shortcut="⌘X" />
+							<MenuItem icon={<IcCopy />} label="Copy" shortcut="⌘C" />
+							<MenuItem icon={<IcPaste />} label="Paste" shortcut="⌘V" />
 							<MenuDivider />
-							<MenuItem icon={<LuTrash2 />} label="Delete" color="error" />
+							<MenuItem icon={<IcDelete />} label="Delete" color="error" />
 						</Menu>
 					)}
 				</div>
@@ -112,16 +118,16 @@ export function MenuStory() {
 					{fullPos && (
 						<Menu position={fullPos} onClose={() => setFullPos(null)}>
 							<MenuHeader>document.pdf</MenuHeader>
-							<MenuItem icon={<LuPencil />} label="Rename" shortcut="F2" />
-							<MenuItem icon={<LuCopy />} label="Duplicate" />
-							<SubMenuItem icon={<LuShare2 />} label="Share">
+							<MenuItem icon={<IcRename />} label="Rename" shortcut="F2" />
+							<MenuItem icon={<IcDuplicate />} label="Duplicate" />
+							<SubMenuItem icon={<IcShare />} label="Share">
 								<MenuItem label="Copy link" />
 								<MenuItem label="Share via email" />
 								<MenuItem label="Export to…" />
 							</SubMenuItem>
-							<MenuItem icon={<LuDownload />} label="Download" disabled />
+							<MenuItem icon={<IcDownload />} label="Download" disabled />
 							<MenuDivider />
-							<MenuItem icon={<LuTrash2 />} label="Move to trash" color="error" />
+							<MenuItem icon={<IcDelete />} label="Move to trash" color="error" />
 						</Menu>
 					)}
 				</div>
@@ -135,7 +141,7 @@ export function MenuStory() {
 					<Menu
 						trigger={
 							<Button variant="ghost" aria-label="View options">
-								<LuEllipsis />
+								<IcMore />
 							</Button>
 						}
 					>
@@ -183,8 +189,8 @@ export function MenuStory() {
 							placement="bottom-end"
 							onClose={() => setAnchorEl(null)}
 						>
-							<MenuItem icon={<LuPencil />} label="Rename" />
-							<MenuItem icon={<LuTrash2 />} label="Delete" color="error" />
+							<MenuItem icon={<IcRename />} label="Rename" />
+							<MenuItem icon={<IcDelete />} label="Delete" color="error" />
 						</Menu>
 					)}
 				</div>

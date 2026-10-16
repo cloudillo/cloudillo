@@ -1,6 +1,10 @@
 import {
 	Button,
 	HBox,
+	IcError,
+	IcInfo,
+	IcSuccess,
+	IcWarning,
 	Toast,
 	ToastClose,
 	ToastContainer,
@@ -14,12 +18,6 @@ import {
 	VBox
 } from '@cloudillo/react'
 import * as React from 'react'
-import {
-	LuCircleX as IcError,
-	LuInfo as IcInfo,
-	LuCircleCheck as IcSuccess,
-	LuTriangleAlert as IcWarning
-} from 'react-icons/lu'
 
 import { Story, Variant } from './storybook.js'
 

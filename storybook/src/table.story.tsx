@@ -1,9 +1,8 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button, Table, TableCell, TableRow } from '@cloudillo/react'
+import { Button, IcDelete, Table, TableCell, TableRow } from '@cloudillo/react'
 import * as React from 'react'
-import { LuTrash2 as IcDelete } from 'react-icons/lu'
 
 import { Story, Variant } from './storybook.js'
 

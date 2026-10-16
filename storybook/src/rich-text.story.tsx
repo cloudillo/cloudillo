@@ -1,9 +1,8 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button, ChatBubble, RichText, RichTextInput, VBox } from '@cloudillo/react'
+import { Button, ChatBubble, IcSend, RichText, RichTextInput, VBox } from '@cloudillo/react'
 import * as React from 'react'
-import { LuSend as IcSend } from 'react-icons/lu'
 
 import { Story, Variant } from './storybook.js'
 

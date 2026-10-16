@@ -1,9 +1,8 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Combobox, SkipLink } from '@cloudillo/react'
+import { Combobox, IcPerson, SkipLink } from '@cloudillo/react'
 import * as React from 'react'
-import { LuUser as IcUser } from 'react-icons/lu'
 
 import { Story, Variant } from './storybook.js'
 
@@ -109,7 +108,7 @@ export function ComboboxStory() {
 					{...common}
 					placeholder="Search by team..."
 					sections={(item) => item.team}
-					leading={() => <IcUser />}
+					leading={() => <IcPerson />}
 					shortcut={(item) => (item.id === '1' ? 'Ctrl+1' : undefined)}
 					onSelect={(item) => setPicked([item])}
 				/>

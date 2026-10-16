@@ -4,12 +4,17 @@
 // Display list → PDF. pdfkit is imported dynamically so it never lands in a bundle that only
 // imports `@cloudillo/typeset` for layout; this module and its imports reference it by type only.
 
-import type { PageDL, TagNode } from '../display-list.js'
+import type { DLItem, PageDL, TagNode } from '../display-list.js'
 import { fxToPt } from '../fixed.js'
-import type { FetchBytes } from '../fonts/loader.js'
-import { embedFonts } from './fonts.js'
-import { writeGlyphRun, xmpSafeInfo } from './glyph-ops.js'
+import { type FetchBytes, loadFace } from '../fonts/loader.js'
+import { FontRegistry } from '../fonts/registry.js'
+import { EMBED_PLACEHOLDER, safeDocRef } from '../geometry.js'
+import type { Box } from '../model.js'
+import { initHarfBuzz } from '../shape/hb.js'
+import { embedFonts, embedOneFace } from './fonts.js'
+import { type PdfFace, writeGlyphRun, xmpSafeInfo } from './glyph-ops.js'
 import {
+	linkRect,
 	type PdfGfx,
 	type PdfOutline,
 	pdfColor,
@@ -20,6 +25,7 @@ import {
 	writeRect
 } from './graphics.js'
 import { type ImageCache, writeImage } from './images.js'
+import { type SvgPdfEnv, svgToPdf } from './svg-to-pdf.js'
 import { PDFUA_XMP, Tagger } from './tagging.js'
 
 export type PdfDownsample = 'none' | '300' | '150'
@@ -36,6 +42,16 @@ export interface PdfOptions {
 	downsample: PdfDownsample
 }
 
+/** A pre-rendered embed, for the DL `embed` item with this `frameId`. */
+export interface PdfEmbed {
+	/** Sanitized render SVG; absent = the render failed. */
+	svg?: string
+	/** Source title, printed on the "Content unavailable" box. */
+	title?: string
+	/** `cl:` address: the "Content unavailable" box's link annotation, never printed. */
+	address?: string
+}
+
 export interface PdfEnv {
 	/** TTF source, as for `loadFace`: called with `fontUrl(ref)`, bytes checked against `sha256`. */
 	fonts: FetchBytes
@@ -46,6 +62,11 @@ export interface PdfEnv {
 	fetchImage: (fileId: string, downsample: PdfDownsample) => Promise<ArrayBuffer>
 	/** Called once per image written as a placeholder (fetch or decode failed). */
 	onMissingImage?: (fileId: string) => void
+	/**
+	 * Render SVGs by DL embed `frameId`, drawn as vectors (`svgToPdf`); an embed without one is a
+	 * "Content unavailable" box. Absent: every embed is a plain placeholder box.
+	 */
+	embeds?: Record<string, PdfEmbed>
 	signal?: AbortSignal
 	/** Called after each page is written. */
 	onProgress?: (done: number, total: number) => void
@@ -93,6 +114,8 @@ export async function writePdf(
 	})
 
 	const faces = await embedFonts(doc, pages, env.fonts)
+	// Built on the first embed: exports without embeds never init HarfBuzz.
+	let svgEnv: SvgPdfEnv | undefined
 	const images: ImageCache = new Map()
 	const fetchImage = (fileId: string) => env.fetchImage(fileId, opts.downsample)
 	const outline: Outline = { stack: [], seen: new Set() }
@@ -113,6 +136,7 @@ export async function writePdf(
 			// Every item in its own marked content and q/Q: rotation, clip and opacity never leak
 			// into the next, and no marking stays open across a page.
 			tags.open(it)
+			let link: LinkItem | undefined
 			doc.save()
 			if (it.rot) doc.rotate(it.rot.deg, { origin: [fxToPt(it.rot.cx), fxToPt(it.rot.cy)] })
 			switch (it.k) {
@@ -136,11 +160,16 @@ export async function writePdf(
 					await writeImage(doc, it, images, fetchImage, env.signal, env.onMissingImage)
 					break
 				case 'embed':
-					writeEmbed(doc, it)
+					if (env.embeds) {
+						svgEnv ??= await svgEnvOf(doc, faces, env.fonts)
+						link = await writeSvgEmbed(doc, it, env.embeds[it.frameId], svgEnv)
+					} else writeEmbed(doc, it)
 					break
 			}
 			doc.restore()
 			doc.endMarkedContent()
+			// The `cl:` address is checked by `safeDocRef` (`writeLink` would drop it).
+			if (link) tags.link(p, link, (fn) => fn(...linkRect(link), link.href))
 		}
 		addBookmarks(doc, p, i, outline)
 		env.onProgress?.(i + 1, pages.length)
@@ -156,6 +185,90 @@ export async function writePdf(
 		at += c.length
 	}
 	return out
+}
+
+type LinkItem = Extract<DLItem, { k: 'link' }>
+
+const UNAVAILABLE = 'Content unavailable'
+
+/** Shaping + face embedding for `svgToPdf`: faces join `faces` (shared with the glyph runs) on first use. */
+async function svgEnvOf(
+	doc: PdfGfx,
+	faces: Map<string, PdfFace>,
+	fonts: FetchBytes
+): Promise<SvgPdfEnv> {
+	await initHarfBuzz()
+	return {
+		registry: new FontRegistry(),
+		async face(ref) {
+			await loadFace(ref, fonts)
+			let f = faces.get(ref.sha256)
+			if (!f) {
+				f = await embedOneFace(doc, ref, fonts)
+				faces.set(ref.sha256, f)
+			}
+			return f
+		}
+	}
+}
+
+const xml = (s: string) =>
+	s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+
+/** A neutral box with the source title and "Content unavailable" (the address is not printed). */
+function unavailableSvg(b: Box, title?: string, opaque = false): string {
+	const w = fxToPt(b.w)
+	const h = fxToPt(b.h)
+	const p = EMBED_PLACEHOLDER
+	const line = (y: number, s: string, size: number) =>
+		`<text x="${w / 2}" y="${y}" text-anchor="middle" font-size="${size}" fill="#555555">${xml(s)}</text>`
+	return (
+		`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}">` +
+		(opaque ? `<rect width="${w}" height="${h}" fill="#ffffff"/>` : '') +
+		`<rect width="${w}" height="${h}" fill="#000000" fill-opacity="${p.fill}" stroke="#000000" stroke-opacity="${p.stroke}" stroke-width="${p.width}"/>` +
+		(title ? line(h / 2 - 2, title, 10) : '') +
+		line(title ? h / 2 + 11 : h / 2 + 3, UNAVAILABLE, 9) +
+		'</svg>'
+	)
+}
+
+/**
+ * An embed from its render SVG. A missing or unusable one is the "Content unavailable" box; its
+ * address link annotation is returned, to be written outside the item's marked content.
+ */
+async function writeSvgEmbed(
+	doc: PdfGfx,
+	it: Extract<DLItem, { k: 'embed' }>,
+	e: PdfEmbed | undefined,
+	env: SvgPdfEnv
+): Promise<LinkItem | undefined> {
+	let failed = false
+	if (e?.svg) {
+		doc.save()
+		try {
+			if (await svgToPdf(doc, e.svg, it.box, env)) return
+		} catch (err) {
+			// what painted before the throw stays in the content stream, hidden under an
+			// opaque fallback (white, so it assumes a white page); dropping it needs content rollback.
+			failed = true
+			console.warn(`PDF: embed ${it.frameId} could not be converted`, err)
+		} finally {
+			doc.restore()
+		}
+	}
+	doc.save()
+	try {
+		const title = typeof e?.title === 'string' ? e.title : undefined
+		await svgToPdf(doc, unavailableSvg(it.box, title, failed), it.box, env)
+	} catch (err) {
+		// No usable face for the label: the plain placeholder box, no text.
+		console.warn(`PDF: embed ${it.frameId} fallback could not be drawn`, err)
+		writeEmbed(doc, it)
+	} finally {
+		doc.restore()
+	}
+	const href = safeDocRef(e?.address)
+	return href ? { k: 'link', box: it.box, href, rot: it.rot } : undefined
 }
 
 interface Outline {

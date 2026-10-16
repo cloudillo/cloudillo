@@ -11,6 +11,10 @@ import { type FnMark, type FnNote, FootnoteArea } from './footnotes.js'
 import { emitRows, rowsH, tableAt, tableTagCount } from './table.js'
 import type { TocBlock, TocSlot } from './toc.js'
 
+/** An embed record's alt text (`alt`), when set and not blank. */
+export const embedAlt = (d: Record<string, unknown>): string | undefined =>
+	typeof d.alt === 'string' && d.alt.trim() ? d.alt : undefined
+
 /** One column to fill: the page it lies on and its rectangle in page space. */
 export interface FlowSlot {
 	pg: PageDL
@@ -308,6 +312,7 @@ export function fillFlow(
 				}
 				const box = { x: sp.x + Math.floor((sp.w - bw) / 2), y: top, w: bw, h: bh }
 				const img = blk.img
+				const alt = img ? img.alt : embedAlt(blk.data)
 				pg.tags.push(
 					img?.deco
 						? { id: tag, role: 'Artifact', bid: p.bid }
@@ -315,7 +320,7 @@ export function fillFlow(
 								id: tag,
 								role: 'Figure',
 								bid: p.bid,
-								...(img?.alt ? { alt: img.alt } : {})
+								...(alt ? { alt } : {})
 							}
 				)
 				if (!img) pg.items.push({ k: 'embed', frameId: p.bid, box, tag })

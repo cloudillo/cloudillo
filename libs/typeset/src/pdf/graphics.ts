@@ -139,6 +139,11 @@ export function writeLink(doc: PdfGfx, it: Item<'link'>): void {
 	// `#fragment` targets have no meaning in the PDF.
 	const url = safeHref(it.href)
 	if (!url || url.startsWith('#')) return
+	doc.link(...linkRect(it), url)
+}
+
+/** A link's annotation rect, pt: the bounding box of its (rotated) box. */
+export function linkRect(it: Item<'link'>): [number, number, number, number] {
 	const b = it.box
 	let [x0, y0, x1, y1] = [b.x, b.y, b.x + b.w, b.y + b.h]
 	if (it.rot) {
@@ -160,7 +165,7 @@ export function writeLink(doc: PdfGfx, it: Item<'link'>): void {
 		}
 		;[x0, y0, x1, y1] = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]
 	}
-	doc.link(fxToPt(x0), fxToPt(y0), fxToPt(x1 - x0), fxToPt(y1 - y0), url)
+	return [fxToPt(x0), fxToPt(y0), fxToPt(x1 - x0), fxToPt(y1 - y0)]
 }
 
 // vim: ts=4

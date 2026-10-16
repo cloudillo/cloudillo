@@ -14,6 +14,15 @@ async function faceBytes(ref: FontRef, fetchBytes: FetchBytes): Promise<Uint8Arr
 	return new Uint8Array(bytes)
 }
 
+/** One face, sha256-checked (as `embedFonts`). */
+export async function embedOneFace(
+	doc: PdfDoc,
+	ref: FontRef,
+	fetchBytes: FetchBytes
+): Promise<PdfFace> {
+	return embedFace(doc, await faceBytes(ref, fetchBytes))
+}
+
 /**
  * Embed every face the pages' glyph runs use, keyed by `FontRef.sha256`. Faces are registered in
  * order of first use, so `/F<n>` names are deterministic.

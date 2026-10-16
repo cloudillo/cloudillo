@@ -198,3 +198,92 @@ describe('pdf parity rotated', () => {
 		expectParity(pages, await pdfPositions(bytes))
 	})
 })
+
+describe('pdf parity embed', () => {
+	// Embed text is shaped by the engine and written as glyph runs after the page's own: the DL
+	// glyphs keep their positions, the SVG's land at their x/y mapped through the viewBox. A
+	// transparent fill is render mode 3; a failed render prints its title + "Content unavailable".
+	it('writes embed render SVG text as selectable glyph runs', async () => {
+		const [first] = await layoutCase(CORPUS[0])
+		const box = (y: number) => ({ x: 100 * FX, y: y * FX, w: 200 * FX, h: 100 * FX })
+		const page: PageDL = {
+			...first,
+			items: [
+				...first.items,
+				{ k: 'embed', frameId: 'e1', box: box(200), tag: 0 },
+				{ k: 'embed', frameId: 'e2', box: box(400), tag: 0 }
+			]
+		}
+		const svg =
+			'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200">' +
+			'<defs><linearGradient id="g"><stop offset="0" stop-color="red"/>' +
+			'<stop offset="1" stop-color="blue"/></linearGradient></defs>' +
+			'<rect x="10" y="10" width="100" height="50" fill="url(#g)"/>' +
+			'<g transform="translate(20 0)"><text x="0" y="100" font-size="24">Hello</text>' +
+			'<text x="0" y="150" font-size="24" fill="transparent">World</text></g></svg>'
+		const bytes = await writePdf(
+			[page],
+			{ pdfa: false, downsample: 'none' },
+			{
+				...env,
+				embeds: { e1: { svg }, e2: { title: 'Sheet', address: 'cl:calcillo/a.b:f1' } }
+			}
+		)
+		const [pdf] = await pdfPositions(bytes)
+		const [dl] = dlPositions([page])
+		expectParity([page], [pdf.slice(0, dl.length)])
+		expect(pdf.length).toBe(dl.length + 'HelloWorldSheetContent unavailable'.length)
+		// viewBox 400×200 in 200×100 pt: scale ½.
+		const [hx, hy] = pdf[dl.length]
+		const [wx, wy] = pdf[dl.length + 5]
+		expect([hx, hy, wx, wy].map((v) => Math.round(v * 1000) / 1000)).toEqual([
+			110, 250, 110, 275
+		])
+
+		const task = pdfjs.getDocument({ data: bytes.slice() })
+		try {
+			const p1 = await (await task.promise).getPage(1)
+			const ops = await p1.getOperatorList()
+			const modes = ops.fnArray.flatMap((fn, i) =>
+				fn === pdfjs.OPS.setTextRenderingMode ? [(ops.argsArray[i] as number[])[0]] : []
+			)
+			expect(modes).toContain(3)
+			const annots = (await p1.getAnnotations()) as { url?: string; unsafeUrl?: string }[]
+			expect(annots.some((a) => (a.unsafeUrl ?? a.url) === 'cl:calcillo/a.b:f1')).toBe(true)
+		} finally {
+			await task.destroy()
+		}
+	})
+
+	it('writes the plain placeholder when no embeds are given', async () => {
+		const [first] = await layoutCase(CORPUS[0])
+		const page: PageDL = {
+			...first,
+			items: [
+				...first.items,
+				{ k: 'embed', frameId: 'e1', box: { x: 0, y: 0, w: 100 * FX, h: 50 * FX }, tag: 0 }
+			]
+		}
+		const bytes = await writePdf([page], { pdfa: false, downsample: 'none' }, env)
+		const [pdf] = await pdfPositions(bytes)
+		const [dl] = dlPositions([page])
+		// No "Content unavailable" glyphs.
+		expect(pdf.length).toBe(dl.length)
+	})
+
+	it('links no embed address that is not a cl: document ref', async () => {
+		const [first] = await layoutCase(CORPUS[0])
+		const page: PageDL = {
+			...first,
+			items: [
+				{ k: 'embed', frameId: 'e1', box: { x: 0, y: 0, w: 100 * FX, h: 50 * FX }, tag: 0 }
+			]
+		}
+		const bytes = await writePdf(
+			[page],
+			{ pdfa: false, downsample: 'none' },
+			{ ...env, embeds: { e1: { title: 'X', address: 'javascript:alert(1)' } } }
+		)
+		expect(Buffer.from(bytes).includes('/URI')).toBe(false)
+	})
+})

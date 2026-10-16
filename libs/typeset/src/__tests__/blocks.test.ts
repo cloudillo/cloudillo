@@ -237,6 +237,38 @@ describe('floats', () => {
 
 // vim: ts=4
 
+describe('embed alt', () => {
+	it('puts an embed record alt on its Figure tag, page frame and inline', async () => {
+		const base = pub('advanced-text')
+		const sec = base.sections[0]
+		const emb: Paragraph = {
+			...p('left', ''),
+			runs: { k: 'emb', data: { alt: 'Inline chart' }, w: ptToFx(160), h: ptToFx(100) }
+		}
+		const r = await layout({
+			...base,
+			sections: [{ ...sec, story: { id: 'st', paragraphs: [emb, p('body', EN)] } }],
+			frames: {
+				e1: {
+					id: 'e1',
+					t: 'emb',
+					anchor: { sec: sec.id, page: 0 },
+					x: ptToFx(10),
+					y: ptToFx(10),
+					w: ptToFx(100),
+					h: ptToFx(80),
+					rot: 0,
+					z: 0,
+					wrap: { mode: 'none', off: 0 },
+					data: { alt: 'Page map' }
+				}
+			}
+		})
+		const figs = flat(r.pages[0].tags).filter((t) => t.role === 'Figure')
+		expect(figs.map((t) => t.alt).sort()).toEqual(['Inline chart', 'Page map'])
+	})
+})
+
 describe('drop caps', () => {
 	it('keeps the cap exclusion out of the next column', async () => {
 		const base = pub('advanced-text')

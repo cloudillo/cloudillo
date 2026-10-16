@@ -18,7 +18,7 @@ import type {
 import { type ItemizedParagraph, type ItemizeEnv, itemizeParagraph } from '../text/itemize.js'
 import { type Exclusion, wrapExclusions } from './exclusions.js'
 import { type FieldCtx, type FieldEmbed, patchFields, sectionTitle, sizeFields } from './fields.js'
-import { type FlowSlot, fillFlow, type NextSlot } from './fill.js'
+import { embedAlt, type FlowSlot, fillFlow, type NextSlot } from './fill.js'
 import { collectRefs, type FnNote, type FnRef, numberRefs } from './footnotes.js'
 import { placeMarkers, withListIndent } from './lists.js'
 import { formatNumber } from './locale.js'
@@ -589,7 +589,10 @@ export function layoutPublication(
 			}
 		} else if (f.t === 'emb') {
 			out.push({ k: 'embed', frameId: f.id, box, tag })
-			if (!art) pg.tags.push({ id: tag, role: 'Figure', frame: f.id })
+			if (!art) {
+				const alt = embedAlt(f.data as Record<string, unknown>)
+				pg.tags.push({ id: tag, role: 'Figure', ...(alt ? { alt } : {}), frame: f.id })
+			}
 		} else if (f.t === 'shp') {
 			const { kind, fill, stroke, strokeW } = f.data as ShapeFrameData
 			const t = art ? { tag } : {}

@@ -30,6 +30,18 @@ export function safeHref(href: string): string | undefined {
 	}
 }
 
+/**
+ * An embed's `cl:<appId>/<owner>:<fileId>[?nav=…]` address, or undefined (mirrors
+ * `parseDocRef` in `@cloudillo/core`, which typeset does not depend on). `safeHref` rejects
+ * `cl:`, so the PDF writer hands `writeLink` a stand-in href and the tagger this real one.
+ */
+export function safeDocRef(address: unknown): string | undefined {
+	return typeof address === 'string' &&
+		/^cl:[^/?\s]+\/[^/?\s:]+:[^/?\s]+(?:\?[^\s]*)?$/.test(address)
+		? address
+		: undefined
+}
+
 export interface Rect {
 	x: number
 	y: number

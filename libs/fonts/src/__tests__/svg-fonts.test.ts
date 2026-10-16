@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { collectSvgFonts, firstFamily, loadFontFaces } from '../svg-fonts'
+import { collectSvgFonts, firstFamily, inlineSvgFonts, loadFontFaces } from '../svg-fonts'
 
 const svg = (body: string) =>
 	new DOMParser().parseFromString(
@@ -72,6 +72,31 @@ describe('loadFontFaces', () => {
 		await expect(loadFontFaces([{ ...face, family: 'Broken' }])).resolves.toBe(false)
 		await loadFontFaces([{ ...face, family: 'Ro"bo\\to' }])
 		expect(loaded).toEqual(['normal normal 16px "Roboto"'])
+	})
+})
+
+describe('inlineSvgFonts', () => {
+	const realFetch = globalThis.fetch
+	beforeAll(() => {
+		globalThis.fetch = (async () => ({
+			ok: true,
+			arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer
+		})) as unknown as typeof fetch
+	})
+	afterAll(() => {
+		globalThis.fetch = realFetch
+	})
+
+	it('inlines used faces as data URIs and leaves text-free SVGs alone', async () => {
+		const ns = 'xmlns="http://www.w3.org/2000/svg"'
+		const out = await inlineSvgFonts(
+			`<svg ${ns}><text font-family="Lato" font-weight="bold">a</text></svg>`
+		)
+		expect(out).toContain('<style>@font-face{font-family:"Lato";font-weight:700')
+		expect(out).toContain('data:font/ttf;base64,')
+
+		const plain = `<svg ${ns}><rect width="1" height="1"/></svg>`
+		expect(await inlineSvgFonts(plain)).toBe(plain)
 	})
 })
 

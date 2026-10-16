@@ -5,7 +5,7 @@
  * SVG font helpers: find the faces an SVG's text uses, and load them.
  */
 
-import type { FontFaceRef } from './font-files.js'
+import { type FontFaceRef, fetchFontBase64, getFontFileUrl } from './font-files.js'
 
 interface FontProps {
 	family?: string
@@ -85,6 +85,38 @@ export async function loadFontFaces(faces: FontFaceRef[], timeoutMs = 3000): Pro
 		new Promise((resolve) => setTimeout(resolve, timeoutMs))
 	])
 	return true
+}
+
+/**
+ * `svg` with a `<style>` of `@font-face` data URIs for every face its text uses (an SVG drawn
+ * as an `<img>` loads nothing external). Unknown families and failed fetches are skipped;
+ * returns `svg` unchanged if nothing was inlined.
+ */
+export async function inlineSvgFonts(svg: string): Promise<string> {
+	const doc = new DOMParser().parseFromString(svg, 'image/svg+xml')
+	const root = doc.documentElement
+	// A parse error yields a <parsererror> root
+	if (root.localName !== 'svg') return svg
+	const rules = await Promise.all(
+		collectSvgFonts(root).map(async (f) => {
+			const url = getFontFileUrl(f.family, f.weight, f.style)
+			const b64 = url && (await fetchFontBase64(url))
+			if (!b64) return ''
+			// Named as written in the SVG so the rule matches the text's font-family
+			const name = f.family.replace(/["\\]/g, '')
+			const weight = f.weight === 'bold' ? 700 : 400
+			return (
+				`@font-face{font-family:"${name}";font-weight:${weight};font-style:${f.style};` +
+				`src:url(data:font/ttf;base64,${b64}) format("truetype")}`
+			)
+		})
+	)
+	const css = rules.join('')
+	if (!css) return svg
+	const style = doc.createElementNS('http://www.w3.org/2000/svg', 'style')
+	style.textContent = css
+	root.insertBefore(style, root.firstChild)
+	return new XMLSerializer().serializeToString(doc)
 }
 
 // vim: ts=4

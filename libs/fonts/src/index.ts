@@ -28,7 +28,7 @@ export {
 // PDF (jsPDF) font registration
 export { fontFaceSources, type PdfFontTarget, registerPdfFonts } from './pdf-fonts.js'
 // SVG font collection
-export { collectSvgFonts, firstFamily, loadFontFaces } from './svg-fonts.js'
+export { collectSvgFonts, firstFamily, inlineSvgFonts, loadFontFaces } from './svg-fonts.js'
 // Types
 export type {
 	FontCategory,

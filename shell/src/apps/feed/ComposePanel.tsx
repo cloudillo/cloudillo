@@ -10,12 +10,19 @@ import {
 	Divider,
 	HatVia,
 	HBox,
+	IcCamera,
+	IcClose,
+	IcDocument,
+	IcImage,
 	IconText,
+	IcPoll,
+	IcSend,
+	IcVideo,
 	makeChannel,
 	Panel,
-	parseChannel,
 	Popover,
 	Progress,
+	parseChannel,
 	RichTextInput,
 	type RichTextInputHandle,
 	Spacer,
@@ -35,27 +42,13 @@ import { useAtomValue } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
-import {
-	LuCamera as IcCamera,
-	LuX as IcClose,
-	LuFileText as IcDocument,
-	LuCalendarDays as IcEvent,
-	LuHand as IcHand,
-	LuImage as IcImage,
-	LuListChecks as IcPoll,
-	LuRepeat2 as IcRepost,
-	LuSave as IcSave,
-	LuCalendarClock as IcSchedule,
-	LuSendHorizontal as IcSend,
-	LuSmile as IcSmile,
-	LuVideo as IcVideo
-} from 'react-icons/lu'
 
 import { AttachmentPreview } from '../../components/AttachmentPreview.js'
 import { useDocumentPicker } from '../../components/DocumentPicker/index.js'
-import { activeContextAtom, contextRolesAtom, useApiContext } from '../../context/index.js'
 import { useHatEntry } from '../../context/hat-entry.js'
+import { activeContextAtom, contextRolesAtom, useApiContext } from '../../context/index.js'
 import { type AttachmentType, useImageUpload } from '../../hooks/useImageUpload.js'
+import { IcEmoji, IcEvent, IcHand, IcRepost, IcSave, IcSchedule } from '../../icons.js'
 import { ImageUpload } from '../../image.js'
 import { roleLabels } from '../../profile/role-labels.js'
 import { handAtom } from '../../state/hand.js'
@@ -1138,7 +1131,7 @@ export function ComposePanel({
 										aria-label={t('Emoji')}
 										onPointerDown={captureEditorSelection}
 									>
-										<IcSmile />
+										<IcEmoji />
 									</Button>
 								}
 							>

@@ -5,6 +5,8 @@ import {
 	Alert,
 	Button,
 	HBox,
+	IcAdd,
+	IcDelete,
 	Input,
 	List,
 	ListItem,
@@ -15,7 +17,6 @@ import {
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuPlus as IcAdd, LuTrash2 as IcDelete } from 'react-icons/lu'
 
 // Domain validation regex
 const DOMAIN_REGEX = /^[a-z0-9]+([-.]{1}[a-z0-9]+)*\.[a-z]{2,}$/i

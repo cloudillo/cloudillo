@@ -8,6 +8,7 @@ import {
 	Button,
 	EmptyState,
 	HBox,
+	IcNoAccess,
 	IconText,
 	Link,
 	LoadingSpinner,
@@ -24,7 +25,6 @@ import type { SiteConfig, SiteNavItem } from '@cloudillo/types'
 import { useAtomValue } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuGlobe as IcGlobe, LuLock as IcLock } from 'react-icons/lu'
 
 import {
 	activeContextAtom,
@@ -33,6 +33,7 @@ import {
 	useCtx,
 	useCurrentContextIdTag
 } from '../context/index.js'
+import { IcSite } from '../icons.js'
 import { appPath } from '../routes.js'
 import { SiteMountsPanel } from './site-mounts.js'
 import { SiteNavPanel } from './site-nav.js'
@@ -299,7 +300,7 @@ export function SiteSettings() {
 			{!isLeader && (
 				<Panel>
 					<Text as="p" emphasis="muted">
-						<IconText icon={<IcLock />}>
+						<IconText icon={<IcNoAccess />}>
 							{t('Only the owner or a community leader can change these settings.')}
 						</IconText>
 					</Text>
@@ -311,7 +312,7 @@ export function SiteSettings() {
 				description={t('Publishing happens in the notes app that holds the document.')}
 			>
 				<HBox gap={2} align="center" wrap>
-					<IcGlobe className="flex-shrink-0 text-muted" />
+					<IcSite className="flex-shrink-0 text-muted" />
 					{siteUrl ? (
 						<Link
 							className="flex-fill w-min-0 text-truncate"

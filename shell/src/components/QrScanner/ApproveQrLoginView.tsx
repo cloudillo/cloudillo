@@ -1,10 +1,11 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button, EmptyState, LoadingSpinner, useApi } from '@cloudillo/react'
+import { Button, EmptyState, IcSuccess, LoadingSpinner, useApi } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuX as IcDeny, LuMonitor as IcDesktop, LuCheck as IcOk } from 'react-icons/lu'
+
+import { IcDevice, IcReject } from '../../icons.js'
 
 interface ApproveQrLoginViewProps {
 	loginCode: string
@@ -79,14 +80,14 @@ export function ApproveQrLoginView({ loginCode, onDone }: ApproveQrLoginViewProp
 			{state === 'confirm' && (
 				<EmptyState
 					inverse
-					icon={<IcDesktop />}
+					icon={<IcDevice />}
 					title={t('Allow login from this device?')}
 					description={`${parseBrowser(userAgent)}${ipAddress ? ` — ${ipAddress}` : ''}`}
 					actions={
 						<>
 							<Button
 								size="lg"
-								icon={<IcDeny />}
+								icon={<IcReject />}
 								onClick={() => handleRespond(false)}
 							>
 								{t('Deny')}
@@ -94,7 +95,7 @@ export function ApproveQrLoginView({ loginCode, onDone }: ApproveQrLoginViewProp
 							<Button
 								size="lg"
 								color="primary"
-								icon={<IcOk />}
+								icon={<IcSuccess />}
 								onClick={() => handleRespond(true)}
 							>
 								{t('Allow')}
@@ -105,14 +106,19 @@ export function ApproveQrLoginView({ loginCode, onDone }: ApproveQrLoginViewProp
 			)}
 
 			{state === 'success' && (
-				<EmptyState inverse color="success" icon={<IcOk />} title={t('Login approved')} />
+				<EmptyState
+					inverse
+					color="success"
+					icon={<IcSuccess />}
+					title={t('Login approved')}
+				/>
 			)}
 
 			{state === 'error' && (
 				<EmptyState
 					inverse
 					color="error"
-					icon={<IcDeny />}
+					icon={<IcReject />}
 					title={error}
 					actions={<Button onClick={onDone}>{t('Close')}</Button>}
 				/>

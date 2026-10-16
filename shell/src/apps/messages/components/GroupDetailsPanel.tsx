@@ -5,8 +5,9 @@ import {
 	Badge,
 	Button,
 	EmptyState,
-	Heading,
 	HBox,
+	Heading,
+	IcClose,
 	Icon,
 	List,
 	ListItem,
@@ -20,15 +21,10 @@ import {
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuX as IcClose,
-	LuUsers as IcGroup,
-	LuUserPlus as IcInvite,
-	LuLogOut as IcLeave
-} from 'react-icons/lu'
 import { useNavigate } from 'react-router-dom'
 
 import { useCtx } from '../../../context/index.js'
+import { IcGroup, IcInvite, IcLeave } from '../../../icons.js'
 import { messagesPath } from '../../../routes.js'
 import type { Conversation, ConversationMember, MemberRole } from '../types.js'
 

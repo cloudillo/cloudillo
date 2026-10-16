@@ -24,6 +24,11 @@ import {
 	EmptyState,
 	Field,
 	HBox,
+	IcAdd,
+	IcDelete,
+	IcEdit,
+	IcRefresh,
+	IcSearch,
 	Input,
 	List,
 	LoadingSpinner,
@@ -39,16 +44,8 @@ import {
 	useDialog,
 	VBox
 } from '@cloudillo/react'
-import {
-	LuShieldCheck as IcCert,
-	LuTrash as IcDelete,
-	LuPencil as IcEdit,
-	LuPlus as IcPlus,
-	LuNetwork as IcProxy,
-	LuRefreshCw as IcRenew,
-	LuSearch as IcSearch
-} from 'react-icons/lu'
 
+import { IcCertificate, IcProxy } from '../icons.js'
 import { SwitchRow } from '../settings/settings.js'
 
 type ProxyType = 'basic' | 'advanced'
@@ -97,7 +94,7 @@ function CertInfo({ certExpiresAt }: { certExpiresAt?: string }) {
 
 	return (
 		<Text size="sm" color={color}>
-			<IcCert /> {t('Expires {{date}}', { date: expires.format('MMM D, YYYY') })}
+			<IcCertificate /> {t('Expires {{date}}', { date: expires.format('MMM D, YYYY') })}
 		</Text>
 	)
 }
@@ -536,7 +533,7 @@ function EditProxySiteModal({
 				<Panel title={t('TLS Certificate')} padding={3}>
 					<HBox gap={2} align="center" justify="between">
 						<CertInfo certExpiresAt={site.certExpiresAt} />
-						<Button icon={<IcRenew />} onClick={() => onRenewCert(site)}>
+						<Button icon={<IcRefresh />} onClick={() => onRenewCert(site)}>
 							{t('Renew')}
 						</Button>
 					</HBox>
@@ -702,7 +699,7 @@ export function ProxySites() {
 						/>
 						<Button
 							color="primary"
-							icon={<IcPlus />}
+							icon={<IcAdd />}
 							onClick={() => setShowCreateModal(true)}
 						>
 							{t('Create')}
@@ -760,7 +757,7 @@ export function ProxySites() {
 						actions={
 							<Button
 								color="primary"
-								icon={<IcPlus />}
+								icon={<IcAdd />}
 								onClick={() => setShowCreateModal(true)}
 							>
 								{t('Create Proxy Site')}

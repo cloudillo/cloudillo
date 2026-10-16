@@ -8,6 +8,11 @@ import {
 	Button,
 	EmptyState,
 	HBox,
+	IcCommunity,
+	IcDelete,
+	IcMore,
+	IcPerson,
+	IcSettings,
 	Link,
 	Menu,
 	MenuDivider,
@@ -26,16 +31,8 @@ import {
 import debounce from 'debounce'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuShield as IcAdmin,
-	LuUsers as IcCommunity,
-	LuKey as IcKey,
-	LuEllipsisVertical as IcMore,
-	LuUser as IcPerson,
-	LuSettings as IcSettings,
-	LuTrash2 as IcTrash
-} from 'react-icons/lu'
 
+import { IcAdmin, IcApiKey } from '../icons.js'
 import { siteAdminPath } from '../routes.js'
 
 function TenantRow({
@@ -108,7 +105,7 @@ function TenantRow({
 						href={siteAdminPath(['tenants', tenant.idTag])}
 					/>
 					<MenuItem
-						icon={<IcKey />}
+						icon={<IcApiKey />}
 						label={t('Reset Password')}
 						disabled={!tenant.email}
 						description={tenant.email ? undefined : t('No email address set')}
@@ -118,7 +115,7 @@ function TenantRow({
 						<>
 							<MenuDivider />
 							<MenuItem
-								icon={<IcTrash />}
+								icon={<IcDelete />}
 								label={t('Delete tenant')}
 								color="error"
 								onClick={() => onDelete(tenant.idTag)}

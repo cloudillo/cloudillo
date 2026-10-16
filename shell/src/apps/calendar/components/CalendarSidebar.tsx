@@ -8,6 +8,10 @@ import {
 	ColorDot,
 	HBox,
 	Heading,
+	IcAdd,
+	IcDelete,
+	IcEdit,
+	IcMore,
 	List,
 	ListItem,
 	Menu,
@@ -20,12 +24,6 @@ import {
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuPlus as IcAdd,
-	LuTrash as IcDelete,
-	LuPencil as IcEdit,
-	LuEllipsisVertical as IcMore
-} from 'react-icons/lu'
 
 export interface CalendarSidebarProps {
 	calendars: CalendarOutput[]

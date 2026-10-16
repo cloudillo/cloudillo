@@ -11,8 +11,15 @@ import {
 	EmptyState,
 	Field,
 	FileTypeIcon,
-	Heading,
 	HBox,
+	Heading,
+	IcAdd,
+	IcCopy,
+	IcDelete,
+	IcEdit,
+	IcLink,
+	IcMore,
+	IcQrCode,
 	Input,
 	List,
 	ListItem,
@@ -21,9 +28,9 @@ import {
 	MenuItem,
 	NativeSelect,
 	Panel,
-	parseChannel,
 	ProfileCard,
 	ProfileMultiSelect,
+	parseChannel,
 	QRCodeDialog,
 	Text,
 	Toggle,
@@ -36,15 +43,6 @@ import type { Profile } from '@cloudillo/types'
 import dayjs from 'dayjs'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuCopy as IcCopy,
-	LuLink as IcLink,
-	LuEllipsisVertical as IcMore,
-	LuPencil as IcPencil,
-	LuPlus as IcPlus,
-	LuQrCode as IcQrCode,
-	LuTrash2 as IcTrash
-} from 'react-icons/lu'
 
 import { useShareOrigin } from '../../../utils/appOrigin.js'
 import { dateInputToExpiryIso, formatRefDate, parseRefDate } from '../../../utils/parseRefDate.js'
@@ -948,7 +946,7 @@ export function ShareDialog({
 																}
 															>
 																<MenuItem
-																	icon={<IcPencil />}
+																	icon={<IcEdit />}
 																	label={t('Edit link details')}
 																	onClick={() =>
 																		isEditing
@@ -957,7 +955,7 @@ export function ShareDialog({
 																	}
 																/>
 																<MenuItem
-																	icon={<IcTrash />}
+																	icon={<IcDelete />}
 																	color="error"
 																	label={t('Delete link')}
 																	onClick={() =>
@@ -1082,7 +1080,7 @@ export function ShareDialog({
 							{canShare && (
 								<Disclosure
 									variant="panel"
-									icon={<IcPlus />}
+									icon={<IcAdd />}
 									summary={t('Create share link')}
 									open={createLinkOpen}
 									onToggle={setCreateLinkOpen}
@@ -1200,7 +1198,7 @@ export function ShareDialog({
 														<Button
 															variant="ghost"
 															size="sm"
-															icon={<IcTrash />}
+															icon={<IcDelete />}
 															aria-label={t('Remove link')}
 															onClick={() =>
 																requestDeleteEntry(entry.id)

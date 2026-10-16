@@ -8,6 +8,7 @@ import {
 	EmptyState,
 	FAB,
 	Fcd,
+	IcInfo,
 	Icon,
 	IdentityTag,
 	LoadMoreTrigger,
@@ -20,12 +21,6 @@ import {
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuMessagesSquare as IcConvList,
-	LuUsers as IcGroup,
-	LuInfo as IcInfo,
-	LuArrowDownToLine as IcScrollBottom
-} from 'react-icons/lu'
 import { useNavigate, useParams } from 'react-router-dom'
 
 import { useCtx } from '../../context/index.js'
@@ -35,10 +30,11 @@ import {
 	useReadPositionTracker,
 	useScrollEngaged
 } from '../../read-position.js'
-import { DrawerToggle } from '../../ui/DrawerToggle.js'
 import { messagesPath } from '../../routes.js'
+import { DrawerToggle } from '../../ui/DrawerToggle.js'
 import '@cloudillo/react/components.css'
 
+import { IcGroup, IcMessages, IcScrollToBottom } from '../../icons.js'
 import { ContactPickerDialog } from './components/ContactPickerDialog.js'
 import { ConversationBar, type ConversationFilter } from './components/ConversationBar.js'
 import { CreateGroupDialog } from './components/CreateGroupDialog.js'
@@ -357,7 +353,7 @@ export function MessagesApp() {
 								<FAB
 									size="sm"
 									color="secondary"
-									icon={<IcScrollBottom />}
+									icon={<IcScrollToBottom />}
 									aria-label={t('Scroll to bottom')}
 									onClick={onConvScrollBottomClick}
 								/>
@@ -371,7 +367,7 @@ export function MessagesApp() {
 									<EmptyState
 										fill
 										className="sm-hide"
-										icon={<IcConvList />}
+										icon={<IcMessages />}
 										title={t('Select a conversation')}
 										description={t(
 											'Choose a contact from the list to start messaging'
@@ -383,7 +379,7 @@ export function MessagesApp() {
 							) : msg.length === 0 ? (
 								<EmptyState
 									fill
-									icon={isGroup ? <IcGroup /> : <IcConvList />}
+									icon={isGroup ? <IcGroup /> : <IcMessages />}
 									title={t('No messages yet')}
 									description={t('Start the conversation by sending a message!')}
 								/>

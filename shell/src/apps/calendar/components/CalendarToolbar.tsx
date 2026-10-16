@@ -1,12 +1,21 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button, HBox, SearchInput, Segmented, SegmentedItem, Spacer, Text } from '@cloudillo/react'
+import {
+	Button,
+	HBox,
+	IcNext,
+	IcPrev,
+	SearchInput,
+	Segmented,
+	SegmentedItem,
+	Spacer,
+	Text
+} from '@cloudillo/react'
 import dayjs from 'dayjs'
 import type { TFunction } from 'i18next'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuChevronRight as IcNext, LuChevronLeft as IcPrev } from 'react-icons/lu'
 
 import type { CalendarView } from '../types.js'
 

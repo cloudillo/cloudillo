@@ -7,6 +7,8 @@ import {
 	Fcd,
 	HBox,
 	Heading,
+	IcClose,
+	IcConnection,
 	Link,
 	List,
 	ListItem,
@@ -27,23 +29,21 @@ import { type ActionView, tFileShareAction } from '@cloudillo/types'
 import * as T from '@symbion/runtype'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuCheck as IcAccept,
-	LuUsers as IcConnections,
-	LuFile as IcFiles,
-	LuMessageSquare as IcMessages,
-	LuBell as IcNotifications,
-	LuX as IcDismiss,
-	LuX as IcReject,
-	LuHeart as IcSocial,
-	LuMailOpen as IcUnread
-} from 'react-icons/lu'
 import { useLocation, useNavigate } from 'react-router-dom'
 
 import { useContextSwitch, useCtx } from '../context/index.js'
+import {
+	IcAccept,
+	IcFiles,
+	IcHeart,
+	IcMessages,
+	IcNotifications,
+	IcReject,
+	IcUnread
+} from '../icons.js'
+import { communityCreatePath, messagesPath, profilePath } from '../routes.js'
 import { DrawerToggle } from '../ui/DrawerToggle.js'
 import { inviteMessage } from './NotificationItem.js'
-import { communityCreatePath, messagesPath, profilePath } from '../routes.js'
 import { useNotifications } from './state'
 
 type NotificationFilter = 'all' | 'unread' | 'connections' | 'messages' | 'social' | 'files'
@@ -59,9 +59,9 @@ function FilterBar({
 
 	const filters: { key: NotificationFilter; label: string; icon: React.ReactNode }[] = [
 		{ key: 'unread', label: t('Unread'), icon: <IcUnread /> },
-		{ key: 'connections', label: t('Connections'), icon: <IcConnections /> },
+		{ key: 'connections', label: t('Connections'), icon: <IcConnection /> },
 		{ key: 'messages', label: t('Messages'), icon: <IcMessages /> },
-		{ key: 'social', label: t('Social'), icon: <IcSocial /> },
+		{ key: 'social', label: t('Social'), icon: <IcHeart /> },
 		{ key: 'files', label: t('Files'), icon: <IcFiles /> },
 		{ key: 'all', label: t('All'), icon: <IcNotifications /> }
 	]
@@ -194,7 +194,7 @@ function DismissAction({ onDismiss }: { onDismiss: () => void }) {
 	const { t } = useTranslation()
 	return (
 		<Button onClick={onDismiss}>
-			<IcDismiss /> {t('Dismiss')}
+			<IcClose /> {t('Dismiss')}
 		</Button>
 	)
 }

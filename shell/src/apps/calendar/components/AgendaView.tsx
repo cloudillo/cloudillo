@@ -6,6 +6,7 @@ import {
 	ColorDot,
 	EmptyState,
 	Heading,
+	IcLocation,
 	IconText,
 	List,
 	ListItem,
@@ -17,8 +18,8 @@ import dayjs from 'dayjs'
 import { useAtom } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuMapPin as IcPin, LuRepeat as IcRecur } from 'react-icons/lu'
 
+import { IcRecurring } from '../../../icons.js'
 import { selectedObjectAtom } from '../atoms.js'
 import type { EventOccurrence } from '../types.js'
 
@@ -77,7 +78,7 @@ export function AgendaView({ occurrences, isLoading }: AgendaViewProps) {
 										<>
 											{occ.title}
 											{occ.recurring && (
-												<IcRecur
+												<IcRecurring
 													className="ms-1"
 													aria-label={t('Recurring')}
 												/>
@@ -90,7 +91,7 @@ export function AgendaView({ occurrences, isLoading }: AgendaViewProps) {
 												? t('All day')
 												: `${fmtTime.format(dayjs(occ.start).toDate())} – ${fmtTime.format(dayjs(occ.end).toDate())}`}
 											{occ.location && (
-												<IconText className="ms-2" icon={<IcPin />}>
+												<IconText className="ms-2" icon={<IcLocation />}>
 													{occ.location}
 												</IconText>
 											)}

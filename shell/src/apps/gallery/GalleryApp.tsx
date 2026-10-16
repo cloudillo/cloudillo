@@ -5,6 +5,7 @@ import { getFileUrl } from '@cloudillo/core'
 import {
 	EmptyState,
 	Fcd,
+	IcImage,
 	LoadingSpinner,
 	LoadMoreTrigger,
 	PageHeader,
@@ -14,7 +15,6 @@ import {
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuImage as IcImage } from 'react-icons/lu'
 
 import { useCurrentContextIdTag } from '../../context/index.js'
 import { DrawerToggle } from '../../ui/DrawerToggle.js'

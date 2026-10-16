@@ -16,6 +16,9 @@ import {
 	EmptyState,
 	FileTile,
 	Grid,
+	IcDocument,
+	IcHome,
+	IcNoAccess,
 	IconText,
 	LoadingSpinner,
 	LoadMoreTrigger,
@@ -27,7 +30,6 @@ import {
 import { useAtomValue } from 'jotai'
 import React, { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuFileText as IcDocument, LuHouse as IcHome, LuLock as IcLock } from 'react-icons/lu'
 
 import { resolveAppId } from '../../app-name.js'
 import { canManageFile, canWrite, resolveAccessLevel } from '../../apps/files/utils.js'
@@ -314,7 +316,7 @@ export function DocumentPickerBrowseTab({
 										onClick={() => handleFileClick(file)}
 										meta={
 											blocked && (
-												<IconText icon={<IcLock />}>
+												<IconText icon={<IcNoAccess />}>
 													{t(
 														'Only public documents can be embedded in a site page.'
 													)}

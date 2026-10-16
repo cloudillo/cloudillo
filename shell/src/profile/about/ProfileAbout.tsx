@@ -6,6 +6,9 @@ import {
 	EmptyState,
 	Grid,
 	HBox,
+	IcCancel,
+	IcConfirm,
+	IcEdit,
 	Panel,
 	SortableGroup,
 	SortableList,
@@ -16,7 +19,6 @@ import {
 import type { SectionType } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuX as IcCancel, LuCheck as IcDone, LuPencil as IcEdit } from 'react-icons/lu'
 
 import { htmlToMd } from '../../lib/markdown.js'
 import { AddSectionPicker } from './AddSectionPicker.js'
@@ -371,7 +373,7 @@ function AboutEditMode({
 					<Button size="sm" icon={<IcCancel />} onClick={handleCancel}>
 						{t('Cancel')}
 					</Button>
-					<Button color="primary" size="sm" icon={<IcDone />} onClick={handleSave}>
+					<Button color="primary" size="sm" icon={<IcConfirm />} onClick={handleSave}>
 						{t('Done')}
 					</Button>
 				</HBox>

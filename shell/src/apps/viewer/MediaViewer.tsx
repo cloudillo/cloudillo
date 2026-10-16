@@ -9,17 +9,15 @@ import { type FileView, getFileUrl } from '@cloudillo/core'
 import {
 	Button,
 	EmptyState,
+	IcBack,
+	IcDownload,
+	IcFullscreen,
 	ImmersiveOverlay,
 	Text,
 	Toolbar,
 	ToolbarDivider,
 	VideoPlayer
 } from '@cloudillo/react'
-import {
-	LuArrowLeft as IcBack,
-	LuDownload as IcDownload,
-	LuMaximize as IcFullscreen
-} from 'react-icons/lu'
 import { getDefaultStore } from 'jotai'
 import Fullscreen from 'yet-another-react-lightbox/plugins/fullscreen'
 import Zoom from 'yet-another-react-lightbox/plugins/zoom'

@@ -1,10 +1,9 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { HBox, Icon, Input, Text, VBox } from '@cloudillo/react'
+import { HBox, IcLocation, Icon, Input, Text, VBox } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuMapPin as IcMapPin } from 'react-icons/lu'
 
 import type { LocationContent, SectionWithContent } from '../types.js'
 import { parseContent, stringifyContent } from '../types.js'
@@ -23,7 +22,7 @@ export function LocationSectionView({ section }: LocationSectionViewProps) {
 
 	return (
 		<HBox gap={2} align="center">
-			<Icon as={IcMapPin} className="text-muted" />
+			<Icon as={IcLocation} className="text-muted" />
 			<Text>{parts.join(', ')}</Text>
 		</HBox>
 	)

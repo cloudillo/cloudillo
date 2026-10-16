@@ -1,11 +1,10 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Alert, Button } from '@cloudillo/react'
+import { Alert, Button, IcWarning } from '@cloudillo/react'
 import { useAtom } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuCircleAlert as IcWarning } from 'react-icons/lu'
 import { useNavigate } from 'react-router-dom'
 
 import { feedPath, HOME_BASE } from '../routes.js'

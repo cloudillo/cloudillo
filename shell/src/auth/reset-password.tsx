@@ -10,16 +10,16 @@ import {
 	Form,
 	LoadingSpinner,
 	Logo,
-	Text,
-	useApi,
 	PasswordInput,
-	PasswordStrengthBar
+	PasswordStrengthBar,
+	Text,
+	useApi
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuLock as IcLock } from 'react-icons/lu'
 import { useNavigate, useParams } from 'react-router-dom'
 
+import { IcPassword } from '../icons.js'
 import { AuthLayout } from './AuthLayout.js'
 import { rateLimitMessage } from './utils.js'
 
@@ -137,7 +137,7 @@ export function ResetPassword() {
 			<Form onSubmit={handleSubmit}>
 				<Field label={t('New Password')}>
 					<PasswordInput
-						leading={<IcLock />}
+						leading={<IcPassword />}
 						name="password"
 						autoFocus
 						onChange={(evt) => {
@@ -161,7 +161,7 @@ export function ResetPassword() {
 					}
 				>
 					<PasswordInput
-						leading={<IcLock />}
+						leading={<IcPassword />}
 						name="confirmPassword"
 						onChange={(evt) => {
 							setConfirmPassword(evt.target.value)

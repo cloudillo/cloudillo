@@ -5,6 +5,8 @@ import {
 	Button,
 	FileButton,
 	HBox,
+	IcImage,
+	IcSend,
 	Panel,
 	Progress,
 	RichTextInput,
@@ -14,7 +16,6 @@ import {
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuImage as IcImage, LuSendHorizontal as IcSend } from 'react-icons/lu'
 
 import { AttachmentPreview } from '../../../components/AttachmentPreview.js'
 import { useImageUpload } from '../../../hooks/useImageUpload.js'

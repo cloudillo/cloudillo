@@ -40,14 +40,14 @@ export const allManifests: AppManifest[] = [...shellManifests, ...bundledManifes
 export const CONTEXT_MENU: MenuItem[] = [
 	{
 		id: 'communities',
-		icon: getIcon('users'),
+		icon: getIcon('community'),
 		label: 'Communities',
 		trans: { hu: 'Közösségek' },
 		path: 'communities'
 	},
 	{
 		id: 'users',
-		icon: getIcon('user'),
+		icon: getIcon('people'),
 		label: 'People',
 		trans: { hu: 'Emberek' },
 		path: 'users'
@@ -61,14 +61,14 @@ export const CONTEXT_MENU: MenuItem[] = [
 	},
 	{
 		id: 'idp',
-		icon: getIcon('fingerprint'),
+		icon: getIcon('idp'),
 		label: 'IDP',
 		trans: { hu: 'IDP' },
 		path: 'idp'
 	},
 	{
 		id: 'site-admin',
-		icon: getIcon('server-cog'),
+		icon: getIcon('server'),
 		label: 'Server',
 		trans: { hu: 'Szerver' },
 		// Absolute on purpose: it administers the node, so it is pinned to home whatever

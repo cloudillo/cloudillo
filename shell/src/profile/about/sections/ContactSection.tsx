@@ -4,8 +4,8 @@
 import { HBox, Icon, Input, Link, VBox } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuGlobe as IcGlobe, LuMail as IcMail, LuPhone as IcPhone } from 'react-icons/lu'
 
+import { IcMail, IcPhone, IcWebsite } from '../../../icons.js'
 import type { ContactContent, SectionWithContent } from '../types.js'
 import { ensureUrlProtocol, parseContent, stringifyContent } from '../types.js'
 
@@ -37,7 +37,7 @@ export function ContactSectionView({ section }: ContactSectionViewProps) {
 			)}
 			{data.website && (
 				<HBox gap={2} align="center">
-					<Icon as={IcGlobe} className="text-muted" />
+					<Icon as={IcWebsite} className="text-muted" />
 					<Link
 						href={ensureUrlProtocol(data.website)}
 						target="_blank"
@@ -93,7 +93,7 @@ export function ContactSectionEdit({ section, onChange }: ContactSectionEditProp
 				/>
 			</HBox>
 			<HBox gap={2} align="center">
-				<Icon as={IcGlobe} className="text-muted" />
+				<Icon as={IcWebsite} className="text-muted" />
 				<Input
 					className="flex-fill"
 					type="url"

@@ -5,7 +5,14 @@ import {
 	Button,
 	Card,
 	HBox,
+	IcDelete,
+	IcDocument,
+	IcEdit,
+	IcImage,
+	IcMore,
 	IconText,
+	IcPublish,
+	IcVideo,
 	Menu,
 	MenuItem,
 	Spacer,
@@ -18,19 +25,8 @@ import {
 import type { ActionView } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuTrash2 as IcDelete,
-	LuFileText as IcDocument,
-	LuPencilLine as IcDraft,
-	LuPencil as IcEdit,
-	LuImage as IcImage,
-	LuEllipsis as IcMore,
-	LuSendHorizontal as IcPublish,
-	LuCalendarClock as IcSchedule,
-	LuCalendarX2 as IcUnschedule,
-	LuVideo as IcVideo
-} from 'react-icons/lu'
 
+import { IcDraft, IcSchedule, IcUnschedule } from '../../icons.js'
 import { parseLiveDocContent } from './live-doc.js'
 
 export interface DraftCardProps {

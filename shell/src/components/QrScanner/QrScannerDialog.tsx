@@ -1,11 +1,10 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Alert, Button, HBox, ImmersiveOverlay, Text, VBox } from '@cloudillo/react'
+import { Alert, Button, HBox, IcClose, ImmersiveOverlay, Text, VBox } from '@cloudillo/react'
 import QrScanner from 'qr-scanner'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuX as IcClose } from 'react-icons/lu'
 
 import { parseCloudilloUri } from '../../utils/cloudillo-uri.js'
 import { ApproveQrLoginView } from './ApproveQrLoginView.js'

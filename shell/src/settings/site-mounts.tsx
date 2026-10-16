@@ -8,7 +8,11 @@ import {
 	Button,
 	EmptyState,
 	HBox,
+	IcEdit,
+	IcOpenExternal,
 	IconText,
+	IcRemove,
+	IcWarning,
 	Input,
 	Panel,
 	Table,
@@ -20,15 +24,9 @@ import {
 import type { SiteDoc } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuTriangleAlert as IcAlert,
-	LuExternalLink as IcExternal,
-	LuGlobe as IcGlobe,
-	LuPencil as IcPencil,
-	LuTrash2 as IcTrash
-} from 'react-icons/lu'
 
 import { useDocumentPicker } from '../components/DocumentPicker/index.js'
+import { IcSite } from '../icons.js'
 import { appPath, type CtxBase } from '../routes.js'
 
 /** The MIME a Notillo document registers, and the only thing a site can mount. */
@@ -116,7 +114,7 @@ function MountPathInput({ value, label, focus, disabled, onCommit }: MountPathIn
 function ErrorText({ children }: { children: React.ReactNode }) {
 	return (
 		<Text as="div" size="sm" color="error" role="alert">
-			<IconText icon={<IcAlert />}>{children}</IconText>
+			<IconText icon={<IcWarning />}>{children}</IconText>
 		</Text>
 	)
 }
@@ -503,14 +501,14 @@ export function SiteMountsPanel({
 							href={href}
 							disabled={!href}
 							aria-label={t('Open in the notes app')}
-							icon={<IcExternal />}
+							icon={<IcOpenExternal />}
 						/>
 						{options.isRoot && (
 							<Button
 								disabled={disabled}
 								aria-label={t('Change the root document')}
 								onClick={onChooseRoot}
-								icon={<IcPencil />}
+								icon={<IcEdit />}
 							/>
 						)}
 						{/* Every row can be removed, the root included: taking the `/` row
@@ -528,7 +526,7 @@ export function SiteMountsPanel({
 									? onRemove(docFileId, options.isRoot)
 									: setPending(undefined)
 							}
-							icon={<IcTrash />}
+							icon={<IcRemove />}
 						/>
 					</HBox>
 				</TableCell>
@@ -554,7 +552,7 @@ export function SiteMountsPanel({
 		>
 			{!rows.length && !pending ? (
 				<EmptyState
-					icon={<IcGlobe size={32} />}
+					icon={<IcSite size={32} />}
 					title={t('No site yet')}
 					description={t(
 						'A site serves the pages of your documents at your own address.'

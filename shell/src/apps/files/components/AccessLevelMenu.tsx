@@ -1,10 +1,9 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { Button, IcDropdown, IcRemove, Menu, MenuDivider, MenuItem } from '@cloudillo/react'
 import * as React from 'react'
-import { Button, Menu, MenuDivider, MenuItem } from '@cloudillo/react'
 import { useTranslation } from 'react-i18next'
-import { LuChevronDown as IcChevron, LuTrash2 as IcTrash } from 'react-icons/lu'
 
 export type AccessLevelUpper = 'READ' | 'COMMENT' | 'WRITE'
 export type AccessLevelLower = 'read' | 'comment' | 'write'
@@ -80,7 +79,7 @@ export function AccessLevelMenu<L extends AccessLevel>({
 					aria-haspopup="menu"
 				>
 					{label}
-					<IcChevron />
+					<IcDropdown />
 				</Button>
 			}
 		>
@@ -92,7 +91,7 @@ export function AccessLevelMenu<L extends AccessLevel>({
 					<MenuDivider />
 					<MenuItem
 						color="error"
-						icon={<IcTrash />}
+						icon={<IcRemove />}
 						label={t('Remove access')}
 						onClick={onRemove}
 					/>

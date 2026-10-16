@@ -21,9 +21,9 @@ import { HBox, SortableGroup, Tag, useAuth, useIsDesktop } from '@cloudillo/reac
 import { useAtomValue } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuLayoutGrid as IcGrid } from 'react-icons/lu'
 
 import { getFileIcon } from '../apps/files/icons.js'
+import { useHatEntry } from '../context/hat-entry.js'
 import {
 	activeContextAtom,
 	type CommunityRef,
@@ -32,8 +32,8 @@ import {
 	useContextSwitchNav,
 	useGuestDocument
 } from '../context/index.js'
-import { useHatEntry } from '../context/hat-entry.js'
 import { ProfileContextMenu, useProfileContextMenu } from '../context/profile-context-menu.js'
+import { IcApps } from '../icons.js'
 import { unreadCountAtom } from '../read-position.js'
 import { appPath, ctxBase } from '../routes.js'
 import { ContextChip } from '../ui/ContextChip.js'
@@ -240,7 +240,7 @@ export function ContextBar() {
 								/>
 							)}
 							<CommunityPopup
-								icon={<IcGrid />}
+								icon={<IcApps />}
 								overflowCount={hidden.length}
 								overflowUnread={hiddenUnread}
 								draggable

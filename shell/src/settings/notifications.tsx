@@ -18,10 +18,9 @@ import {
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuDoorOpen as IcRoom } from 'react-icons/lu'
 
+import { IcRoom } from '../icons.js'
 import { useMutedRooms } from '../lib/room-mute.js'
-
 import {
 	clearPushSubscriptionId,
 	loadPushSubscriptionId,

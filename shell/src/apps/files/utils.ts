@@ -2,17 +2,12 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import type { ShareEntry } from '@cloudillo/core'
+import { IcConnection, IcFollowers, IcPublic } from '@cloudillo/react'
 import dayjs from 'dayjs'
 import type { TFunction } from 'i18next'
 import type { IconType } from 'react-icons'
-import {
-	LuHandshake as IcConnected,
-	LuLock as IcDirect,
-	LuUsers as IcFollowers,
-	LuGlobe as IcPublic,
-	LuShieldCheck as IcVerified
-} from 'react-icons/lu'
 
+import { IcDirect, IcVerified } from '../../icons.js'
 import type { File, FileVisibility } from './types.js'
 
 /**
@@ -107,7 +102,7 @@ export interface VisibilityOption {
 export const getVisibilityOptions = (t: TFunction): VisibilityOption[] => [
 	{ value: null, label: t('Direct'), icon: IcDirect },
 	{ value: 'D', label: t('Direct'), icon: IcDirect },
-	{ value: 'C', label: t('Connected'), icon: IcConnected },
+	{ value: 'C', label: t('Connected'), icon: IcConnection },
 	{ value: 'F', label: t('Followers'), icon: IcFollowers },
 	{ value: 'V', label: t('Verified'), icon: IcVerified },
 	{ value: 'P', label: t('Public'), icon: IcPublic }
@@ -154,7 +149,7 @@ export function getVisibilityLabel(t: TFunction, visibility: FileVisibility): st
 const VISIBILITY_ICONS: Record<string, IconType> = {
 	null: IcDirect,
 	D: IcDirect,
-	C: IcConnected,
+	C: IcConnection,
 	F: IcFollowers,
 	V: IcVerified,
 	P: IcPublic

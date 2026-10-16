@@ -2,11 +2,17 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import type { FileView } from '@cloudillo/core'
-import { Button, EmptyState, ImmersiveOverlay, LoadingSpinner, useAuth } from '@cloudillo/react'
+import {
+	Button,
+	EmptyState,
+	IcFileError,
+	ImmersiveOverlay,
+	LoadingSpinner,
+	useAuth
+} from '@cloudillo/react'
 import { useSetAtom } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuFileWarning as IcError } from 'react-icons/lu'
 import { useNavigate, useParams } from 'react-router-dom'
 
 import { useApiContext, useCtx } from '../../context/index.js'
@@ -126,7 +132,7 @@ export function FileViewerApp() {
 				<EmptyState
 					inverse
 					color="error"
-					icon={<IcError />}
+					icon={<IcFileError />}
 					title={t('Error')}
 					description={state.message}
 					actions={<Button onClick={handleBack}>{t('Go back')}</Button>}

@@ -5,6 +5,10 @@ import {
 	ActionSheet,
 	ActionSheetDivider,
 	ActionSheetItem,
+	IcCheck,
+	IcHome,
+	IcOpenExternal,
+	IcPin,
 	Menu,
 	MenuDivider,
 	MenuItem,
@@ -18,22 +22,18 @@ import type { TFunction } from 'i18next'
 import { useAtomValue } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuCircleOff as IcBlock,
-	LuCheck as IcCheck,
-	LuAtSign as IcCopyTag,
-	LuArrowLeft as IcMoveLeft,
-	LuArrowRight as IcMoveRight,
-	LuHouse as IcHome,
-	LuUserCog as IcIdentity,
-	LuBellOff as IcMute,
-	LuPin as IcPin,
-	LuPinOff as IcPinOff,
-	LuRotateCcw as IcRestore,
-	LuExternalLink as IcVisitProfile
-} from 'react-icons/lu'
 import { useNavigate } from 'react-router-dom'
 
+import {
+	IcBlock,
+	IcIdTag,
+	IcMoveLeft,
+	IcMoveRight,
+	IcMute,
+	IcRestore,
+	IcSwitchIdentity,
+	IcUnpin
+} from '../icons.js'
 import { profilePath } from '../routes.js'
 import { previewCommunityAtom } from './atoms'
 import { useCtx } from './ctx'
@@ -164,18 +164,18 @@ export function ProfileContextMenu({
 	const menuContent = (
 		<>
 			<Item
-				icon={<IcVisitProfile />}
+				icon={<IcOpenExternal />}
 				label={t('Visit profile')}
 				onClick={handleAction(handleVisit)}
 			/>
 			<Item
-				icon={<IcCopyTag />}
+				icon={<IcIdTag />}
 				label={t('Copy identity tag')}
 				onClick={handleAction(handleCopyTag)}
 			/>
 			{onChangeIdentity && (
 				<Item
-					icon={<IcIdentity />}
+					icon={<IcSwitchIdentity />}
 					label={t('Change identity')}
 					onClick={handleAction(onChangeIdentity)}
 				/>
@@ -185,7 +185,7 @@ export function ProfileContextMenu({
 					<Divider />
 					{isPinned ? (
 						<Item
-							icon={<IcPinOff />}
+							icon={<IcUnpin />}
 							label={t('Unpin')}
 							onClick={handleAction(handleTogglePin)}
 						/>

@@ -12,10 +12,9 @@
  * - Respects reduced motion preferences
  */
 
-import { Button, EmptyState, LoadingSpinner, mergeClasses, VBox } from '@cloudillo/react'
+import { Button, EmptyState, IcError, LoadingSpinner, mergeClasses, VBox } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuCircleAlert as IcError } from 'react-icons/lu'
 
 export type LoadingStage = 'connecting' | 'syncing' | 'ready' | 'error'
 

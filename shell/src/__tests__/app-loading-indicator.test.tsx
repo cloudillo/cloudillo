@@ -19,7 +19,11 @@ jest.unstable_mockModule('react-i18next', () => ({
 	useTranslation: () => ({ t: (key: string, fallback?: string) => fallback ?? key })
 }))
 
+// the real generic icon concepts, so the mock never lacks an `Ic*` the shell imports
+const icons = await import('../../../libs/react/src/icons.js')
+
 jest.unstable_mockModule('@cloudillo/react', () => ({
+	...icons,
 	Button: ({ children }: { children?: React.ReactNode }) => (
 		<button type="button">{children}</button>
 	),

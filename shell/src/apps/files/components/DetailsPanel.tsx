@@ -14,7 +14,16 @@ import {
 	FileTypeIcon,
 	HBox,
 	Heading,
+	IcCopy,
+	IcDropdown,
+	IcEdit,
+	IcLink,
+	IcMore,
 	IconText,
+	IcPin,
+	IcQrCode,
+	IcShare,
+	IcView,
 	List,
 	ListItem,
 	Menu,
@@ -32,20 +41,9 @@ import type { Profile } from '@cloudillo/types'
 import type { TFunction } from 'i18next'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { FiMoreVertical as IcMore } from 'react-icons/fi'
-import {
-	LuChevronDown as IcChevronDown,
-	LuCopy as IcCopy,
-	LuPencil as IcEdit,
-	LuLink as IcLink,
-	LuPin as IcPin,
-	LuQrCode as IcQrCode,
-	LuShare2 as IcShare,
-	LuStar as IcStar,
-	LuEye as IcView
-} from 'react-icons/lu'
 
 import { useCurrentContextIdTag } from '../../../context/index.js'
+import { IcStar } from '../../../icons.js'
 import { useShareOrigin } from '../../../utils/appOrigin.js'
 import { formatRefDate } from '../../../utils/parseRefDate.js'
 import { getCachedProfile, getCachedProfiles } from '../../../utils/profileCache.js'
@@ -427,7 +425,7 @@ export function DetailsPanel({
 						trigger={
 							<Button variant="soft" icon={<VisibilityIcon />}>
 								{getVisibilityLabel(t, file.visibility ?? null)}
-								<IcChevronDown />
+								<IcDropdown />
 							</Button>
 						}
 					>

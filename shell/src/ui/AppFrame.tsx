@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import { appSandbox } from '@cloudillo/core'
-import { EmptyState, mergeClasses, VisuallyHidden } from '@cloudillo/react'
+import { EmptyState, IcUntrusted, mergeClasses, VisuallyHidden } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuShieldAlert as IcTrust } from 'react-icons/lu'
 
 import type { TrustLevel } from '../utils.js'
 import './app-frame.css'
@@ -54,7 +53,7 @@ export const AppFrame = React.forwardRef<HTMLIFrameElement, AppFrameProps>(funct
 				fill
 				className={className}
 				color="warning"
-				icon={<IcTrust />}
+				icon={<IcUntrusted />}
 				title={t('This app needs trusted mode')}
 				description={t('It can only run when its trust level is set to trusted.')}
 			/>

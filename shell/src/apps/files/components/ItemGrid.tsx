@@ -2,21 +2,22 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import { getFileUrl } from '@cloudillo/core'
-import { Button, FileTile, HBox, Icon, InlineEditForm, Text, VBox } from '@cloudillo/react'
+import {
+	Button,
+	FileTile,
+	HBox,
+	IcInfo,
+	IcNoAccess,
+	Icon,
+	InlineEditForm,
+	Text,
+	VBox
+} from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuInfo as IcInfo,
-	LuRadio as IcLive,
-	LuLock as IcLock,
-	LuPin as IcPin,
-	LuLoaderCircle as IcProcessing,
-	LuPencilOff as IcReadOnly,
-	LuStar as IcStar,
-	LuCloudOff as IcUnsyncedEdit
-} from 'react-icons/lu'
 
 import { useCurrentContextIdTag } from '../../../context/index.js'
+import { IcLive, IcPinned, IcProcessing, IcReadOnly, IcStar, IcUnsynced } from '../../../icons.js'
 import {
 	type File,
 	type FileOps,
@@ -134,20 +135,16 @@ export const ItemGrid = React.memo(function ItemGrid({
 				{isProcessing && (
 					<Icon as={IcProcessing} label={t('Still processing — available shortly')} />
 				)}
-				{isPinned && <Icon as={IcPin} label={t('Pinned')} />}
+				{isPinned && <Icon as={IcPinned} label={t('Pinned')} />}
 				{isLive && <Icon as={IcLive} color="success" label={t('Live document')} />}
 				{isDirty && (
-					<Icon
-						as={IcUnsyncedEdit}
-						color="warning"
-						label={t('Has unsynced local edits')}
-					/>
+					<Icon as={IcUnsynced} color="warning" label={t('Has unsynced local edits')} />
 				)}
 				{!isFolder &&
 					file.accessLevel &&
 					!canWrite(file.accessLevel) &&
 					(file.accessLevel === 'none' ? (
-						<Icon as={IcLock} label={t('No access')} />
+						<Icon as={IcNoAccess} label={t('No access')} />
 					) : (
 						<Icon as={IcReadOnly} label={t('Read only')} />
 					))}

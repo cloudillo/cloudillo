@@ -5,6 +5,7 @@ import {
 	Button,
 	Card,
 	HBox,
+	IcReset,
 	Panel,
 	SortableGroup,
 	SortableList,
@@ -14,7 +15,6 @@ import {
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuRotateCcw as IcReset } from 'react-icons/lu'
 
 import {
 	applyMenuConfig,

@@ -5,6 +5,7 @@ import {
 	Button,
 	Dialog,
 	Field,
+	IcAdd,
 	Input,
 	ProfileMultiSelect,
 	TextArea,
@@ -16,7 +17,6 @@ import {
 import type { Profile } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuPlus as IcNew } from 'react-icons/lu'
 
 export function CreateGroupDialog({
 	open,
@@ -105,7 +105,7 @@ export function CreateGroupDialog({
 					<Button onClick={onClose}>{t('Cancel')}</Button>
 					<Button
 						color="primary"
-						icon={<IcNew />}
+						icon={<IcAdd />}
 						disabled={!groupName.trim()}
 						loading={isCreatingGroup}
 						onClick={handleCreateGroup}

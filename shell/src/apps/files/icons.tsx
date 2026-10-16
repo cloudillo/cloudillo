@@ -1,25 +1,19 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { IcFile, IcFolder, IcImage, IcPagillo, IcPdf, IcVideo } from '@cloudillo/react'
 import * as React from 'react'
+
 import {
-	FiFileText as IcDocument,
-	FiFolder as IcFolder,
-	FiImage as IcImage,
-	FiFile as IcUnknown,
-	FiFilm as IcVideo
-} from 'react-icons/fi'
-import {
-	LuSheet as IcCalcillo,
-	LuListTodo as IcFormillo,
-	LuShapes as IcIdeallo,
-	LuNotebook as IcNotillo,
-	LuNewspaper as IcPagillo,
-	LuPresentation as IcPrezillo,
-	LuBookOpen as IcQuillo,
-	LuScanLine as IcScanillo,
-	LuListChecks as IcTaskillo
-} from 'react-icons/lu'
+	IcCalcillo,
+	IcFormillo,
+	IcIdeallo,
+	IcNotillo,
+	IcPrezillo,
+	IcQuillo,
+	IcScanillo,
+	IcTaskillo
+} from '../../icons.js'
 
 export const fileIcons: Record<string, React.ComponentType<React.SVGProps<SVGSVGElement>>> = {
 	'image/jpeg': (props) => <IcImage {...props} style={{ color: 'lch(50 50 0)' }} />,
@@ -29,7 +23,7 @@ export const fileIcons: Record<string, React.ComponentType<React.SVGProps<SVGSVG
 	'image/gif': (props) => <IcImage {...props} style={{ color: 'lch(50 50 0)' }} />,
 	'image/svg+xml': (props) => <IcImage {...props} style={{ color: 'lch(50 50 0)' }} />,
 	'video/mp4': (props) => <IcVideo {...props} style={{ color: 'lch(50 50 0)' }} />,
-	'application/pdf': (props) => <IcDocument {...props} style={{ color: 'lch(50 50 0)' }} />,
+	'application/pdf': (props) => <IcPdf {...props} style={{ color: 'lch(50 50 0)' }} />,
 	'cloudillo/quillo': (props) => <IcQuillo {...props} style={{ color: 'lch(50 50 250)' }} />,
 	'cloudillo/calcillo': (props) => <IcCalcillo {...props} style={{ color: 'lch(50 50 150)' }} />,
 	'cloudillo/ideallo': (props) => <IcIdeallo {...props} style={{ color: 'lch(50 50 60)' }} />,
@@ -62,24 +56,7 @@ export function getFileIcon(
 	if (contentType.startsWith('video/')) {
 		return (props) => <IcVideo {...props} style={{ color: 'lch(50 50 0)' }} />
 	}
-	return IcUnknown
-}
-
-export {
-	IcCalcillo,
-	IcDocument,
-	IcFolder,
-	IcFormillo,
-	IcIdeallo,
-	IcImage,
-	IcNotillo,
-	IcPagillo,
-	IcPrezillo,
-	IcQuillo,
-	IcScanillo,
-	IcTaskillo,
-	IcUnknown,
-	IcVideo
+	return IcFile
 }
 
 // vim: ts=4

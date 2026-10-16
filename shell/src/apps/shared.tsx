@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import { createApiClient, type FileView, type RefAccessTokenResult } from '@cloudillo/core'
-import { Button, EmptyState, LoadingSpinner, useApi } from '@cloudillo/react'
+import { Button, EmptyState, IcFileError, LoadingSpinner, useApi } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuFileWarning as IcError } from 'react-icons/lu'
 import { useLocation, useParams } from 'react-router-dom'
 
 import { GuestNameDialog } from '../components/GuestNameDialog.js'
@@ -183,7 +182,7 @@ export function SharedResourceView() {
 				fill
 				className="auto-bg"
 				color="error"
-				icon={<IcError />}
+				icon={<IcFileError />}
 				title={t('Link Error')}
 				description={state.message}
 				actions={
@@ -245,7 +244,7 @@ export function SharedResourceView() {
 				fill
 				className="auto-bg"
 				color="warning"
-				icon={<IcError />}
+				icon={<IcFileError />}
 				title={t('Unsupported file type')}
 				description={contentType}
 			/>

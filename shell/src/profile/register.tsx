@@ -12,6 +12,8 @@ import {
 	EmptyState,
 	Field,
 	Form,
+	IcBack,
+	IcSuccess,
 	Input,
 	List,
 	ListItem,
@@ -26,14 +28,10 @@ import {
 import debounce from 'debounce'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuChevronsLeft as IcGoBack,
-	LuDoorOpen as IcSignUp,
-	LuCircleCheck as IcSuccess
-} from 'react-icons/lu'
 import { useNavigate, useParams } from 'react-router-dom'
 
 import { AuthLayout } from '../auth/AuthLayout.js'
+import { IcSignUp } from '../icons.js'
 import {
 	AppDomainErrorPanel,
 	AppDomainInput,
@@ -146,7 +144,7 @@ function IdpRegistrationForm({
 			{providerInfo && <Alert color="info">{providerInfo.info}</Alert>}
 
 			<ActionBar>
-				<Button icon={<IcGoBack />} onClick={onGoBack}>
+				<Button icon={<IcBack />} onClick={onGoBack}>
 					{t('Back')}
 				</Button>
 				<Button
@@ -261,7 +259,7 @@ function DomainRegistrationForm({
 			{showEmailField && <EmailField email={email} setEmail={setEmail} />}
 
 			<ActionBar>
-				<Button icon={<IcGoBack />} onClick={onGoBack}>
+				<Button icon={<IcBack />} onClick={onGoBack}>
 					{t('Back')}
 				</Button>
 				<Button

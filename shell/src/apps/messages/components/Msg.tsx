@@ -6,7 +6,9 @@ import {
 	Button,
 	ChatBubble,
 	HBox,
+	IcError,
 	Icon,
+	IcRetry,
 	Image,
 	Link,
 	LoadingSpinner,
@@ -20,13 +22,9 @@ import {
 import dayjs from 'dayjs'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuTriangleAlert as IcFailed,
-	LuRotateCw as IcRetry,
-	LuCheck as IcSent
-} from 'react-icons/lu'
 
 import { useCtx } from '../../../context/index.js'
+import { IcSent } from '../../../icons.js'
 import { createdAtToSeconds } from '../../../read-position.js'
 import { profilePath } from '../../../routes.js'
 import type { ActionEvt } from '../types.js'
@@ -113,7 +111,7 @@ function MsgComponent({
 				{action.sendStatus === 'sending' && <LoadingSpinner size="sm" />}
 				{action.sendStatus === 'sent' && <Icon as={IcSent} size="sm" label={t('Sent')} />}
 				{action.sendStatus === 'failed' && (
-					<Icon as={IcFailed} size="sm" color="error" label={t('Failed to send')} />
+					<Icon as={IcError} size="sm" color="error" label={t('Failed to send')} />
 				)}
 			</HBox>
 		</ChatBubble>

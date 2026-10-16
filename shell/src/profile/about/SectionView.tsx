@@ -1,15 +1,9 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { HBox, Panel, Tag } from '@cloudillo/react'
+import { HBox, IcConnection, IcFollowers, IcPublic, IcRole, Panel, Tag } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuHandshake as IcConnected,
-	LuUsers as IcFollowers,
-	LuGlobe as IcGlobe,
-	LuShield as IcRole
-} from 'react-icons/lu'
 
 import { AboutSectionView } from './sections/AboutSection.js'
 import { ContactSectionView } from './sections/ContactSection.js'
@@ -63,7 +57,7 @@ function VisibilityBadge({ visibility }: { visibility: string }) {
 	switch (visibility) {
 		case 'P':
 			return (
-				<Tag size="xs" color="success" icon={<IcGlobe />}>
+				<Tag size="xs" color="success" icon={<IcPublic />}>
 					{t('Public')}
 				</Tag>
 			)
@@ -75,7 +69,7 @@ function VisibilityBadge({ visibility }: { visibility: string }) {
 			)
 		case 'C':
 			return (
-				<Tag size="xs" color="warning" icon={<IcConnected />}>
+				<Tag size="xs" color="warning" icon={<IcConnection />}>
 					{t('Connected')}
 				</Tag>
 			)

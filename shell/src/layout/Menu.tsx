@@ -9,8 +9,8 @@
 
 import {
 	APP_IDS,
-	type AppId,
 	AppIcon,
+	type AppId,
 	Badge,
 	BottomSheet,
 	Popover,
@@ -19,7 +19,6 @@ import {
 import { useAtomValue, useSetAtom } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuGrip as IcApps } from 'react-icons/lu'
 import { useLocation } from 'react-router-dom'
 
 import { getFileIcon } from '../apps/files/icons.js'
@@ -35,6 +34,7 @@ import {
 	useCurrentContextIdTag,
 	useSidebar
 } from '../context/hooks.js'
+import { IcApps } from '../icons.js'
 import { unreadCountAtom } from '../read-position.js'
 import { appPath, ctxBase, scopePath } from '../routes.js'
 import { lastAppAtom } from '../state/last-app.js'

@@ -11,9 +11,14 @@ import {
 	DescriptionList,
 	Disclosure,
 	EmptyState,
-	Heading,
 	HBox,
+	Heading,
+	IcDelete,
+	IcEdit,
+	IcLocation,
 	Icon,
+	IcReset,
+	IcTime,
 	LoadingSpinner,
 	Text,
 	useDialog,
@@ -22,17 +27,8 @@ import {
 import dayjs from 'dayjs'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuBell as IcAlarm,
-	LuUsers as IcAttendees,
-	LuClock as IcClock,
-	LuTrash as IcDelete,
-	LuPencil as IcEdit,
-	LuMapPin as IcPin,
-	LuRepeat as IcRecur,
-	LuRotateCcw as IcReset
-} from 'react-icons/lu'
 
+import { IcAttendees, IcRecurring, IcReminder } from '../../../icons.js'
 import { rruleToHuman } from '../utils.js'
 
 type PriorityBucket = { key: 'high' | 'normal' | 'low'; label: string; color: string }
@@ -113,7 +109,7 @@ export function ObjectDetailsHeader({ object, calendars }: ObjectDetailsHeaderPr
 			<Heading level={3} className="flex-fill m-0">
 				{object.summary || t('(untitled)')}
 			</Heading>
-			{object.rrule && <Icon as={IcRecur} label={t('Recurring')} />}
+			{object.rrule && <Icon as={IcRecurring} label={t('Recurring')} />}
 		</>
 	)
 }
@@ -210,7 +206,7 @@ export function ObjectDetails({
 				items={[
 					{
 						key: 'when',
-						term: <Term icon={IcClock}>{isTask ? t('Due') : t('When')}</Term>,
+						term: <Term icon={IcTime}>{isTask ? t('Due') : t('When')}</Term>,
 						description: formatRange() || (
 							<Text emphasis="muted">{t('No time set')}</Text>
 						)
@@ -219,7 +215,7 @@ export function ObjectDetails({
 						? [
 								{
 									key: 'location',
-									term: <Term icon={IcPin}>{t('Location')}</Term>,
+									term: <Term icon={IcLocation}>{t('Location')}</Term>,
 									description: object.location
 								}
 							]
@@ -246,7 +242,7 @@ export function ObjectDetails({
 						? [
 								{
 									key: 'priority',
-									term: <Term icon={IcAlarm}>{t('Priority')}</Term>,
+									term: <Term icon={IcReminder}>{t('Priority')}</Term>,
 									description: (
 										<HBox gap={2} align="center">
 											<ColorDot color={priority.color} />
@@ -260,7 +256,7 @@ export function ObjectDetails({
 						? [
 								{
 									key: 'rrule',
-									term: <Term icon={IcRecur}>{t('Recurrence')}</Term>,
+									term: <Term icon={IcRecurring}>{t('Recurrence')}</Term>,
 									description: rruleHuman || (
 										<Disclosure summary={t('Custom rule')}>
 											<Text as="div" mono size="sm">

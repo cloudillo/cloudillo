@@ -85,7 +85,11 @@ jest.unstable_mockModule('../message-bus/index.js', () => ({
 	clearDocInfoResolver: () => {}
 }))
 
+// the real generic icon concepts, so the mock never lacks an `Ic*` the shell imports
+const icons = await import('../../../libs/react/src/icons.js')
+
 jest.unstable_mockModule('@cloudillo/react', () => ({
+	...icons,
 	useAuth: () => [{ idTag: ME }]
 }))
 

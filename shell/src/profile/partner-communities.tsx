@@ -25,10 +25,10 @@ import type { Profile } from '@cloudillo/types'
 import { useAtomValue } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuLogIn as IcEnter } from 'react-icons/lu'
 
 import { enterViaLabel, useEnterContext } from '../context/hat-entry.js'
 import { communitiesAtom, useApiContext } from '../context/index.js'
+import { IcEnter } from '../icons.js'
 
 export function PartnerCommunities({ community }: { community: Profile }) {
 	const { t } = useTranslation()

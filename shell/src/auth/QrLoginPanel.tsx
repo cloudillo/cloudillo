@@ -2,10 +2,20 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import { setApiToken } from '@cloudillo/core'
-import { Alert, Button, Center, Panel, QRCode, Text, useApi, useAuth } from '@cloudillo/react'
+import {
+	Alert,
+	Button,
+	Center,
+	IcQrCode,
+	IcRefresh,
+	Panel,
+	QRCode,
+	Text,
+	useApi,
+	useAuth
+} from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuQrCode as IcQr, LuRefreshCw as IcRefresh } from 'react-icons/lu'
 
 import { installToken } from '../pwa.js'
 import { useLoginInit } from './auth.js'
@@ -154,7 +164,7 @@ export function QrLoginPanel({ className }: { className?: string }) {
 			className={className}
 			title={
 				<>
-					<IcQr /> {t('Scan QR code to log in')}
+					<IcQrCode /> {t('Scan QR code to log in')}
 				</>
 			}
 		>

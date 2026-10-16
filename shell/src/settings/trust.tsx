@@ -13,6 +13,7 @@
 
 import {
 	EmptyState,
+	IcUntrusted,
 	List,
 	ListItem,
 	LoadingSpinner,
@@ -26,13 +27,9 @@ import type { Profile, ProfileTrust } from '@cloudillo/types'
 import { useAtomValue } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuShield as IcShield,
-	LuShieldCheck as IcShieldCheck,
-	LuShieldOff as IcShieldOff
-} from 'react-icons/lu'
 
 import { storedTrustAtom, useProfileTrust } from '../context/index.js'
+import { IcTrust, IcTrusted } from '../icons.js'
 
 export function TrustSettings(): React.ReactElement {
 	const { t } = useTranslation()
@@ -129,11 +126,7 @@ export function TrustSettings(): React.ReactElement {
 				{rows.map((profile) => {
 					const trust = profile.trust ?? null
 					const Icon =
-						trust === 'always'
-							? IcShieldCheck
-							: trust === 'never'
-								? IcShieldOff
-								: IcShield
+						trust === 'always' ? IcTrusted : trust === 'never' ? IcUntrusted : IcTrust
 					const iconClass =
 						trust === 'always'
 							? 'flex-shrink-0 text-success'

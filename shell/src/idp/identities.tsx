@@ -27,6 +27,10 @@ import {
 	EmptyState,
 	Field,
 	HBox,
+	IcAdd,
+	IcConfirm,
+	IcDelete,
+	IcSearch,
 	Input,
 	List,
 	ListItem,
@@ -41,25 +45,15 @@ import {
 	useDialog,
 	VBox
 } from '@cloudillo/react'
-import {
-	LuBan as IcBan,
-	LuCheck as IcCheck,
-	LuCircle as IcCircle,
-	LuCircleDot as IcCircleDot,
-	LuTrash as IcDelete,
-	LuKey as IcKey,
-	LuPlus as IcPlus,
-	LuSearch as IcSearch,
-	LuUsers as IcUsers
-} from 'react-icons/lu'
 
 import { contextRolesAtom, useApiContext, useCtx } from '../context'
+import { IcActive, IcApiKey, IcPending, IcPeople, IcSuspended } from '../icons.js'
 
 // Status badge configuration
 const STATUS_CONFIG = {
-	active: { color: 'success', icon: IcCircleDot, label: 'Active' },
-	pending: { color: 'warning', icon: IcCircle, label: 'Pending' },
-	suspended: { color: 'error', icon: IcBan, label: 'Suspended' }
+	active: { color: 'success', icon: IcActive, label: 'Active' },
+	pending: { color: 'warning', icon: IcPending, label: 'Pending' },
+	suspended: { color: 'error', icon: IcSuspended, label: 'Suspended' }
 } as const
 
 // Helper to format dates
@@ -342,7 +336,7 @@ function ApiKeyDialog({
 			onClose={onClose}
 			dismissable={false}
 			size="md"
-			icon={identityCreated ? <IcCheck /> : <IcKey />}
+			icon={identityCreated ? <IcConfirm /> : <IcApiKey />}
 			title={identityCreated ? t('Identity Created Successfully') : t('API Key Created')}
 			footer={
 				<ActionBar>
@@ -575,7 +569,7 @@ function IdentityDetailsModal({
 						!showCreateKeyForm && (
 							<Button
 								size="sm"
-								icon={<IcPlus />}
+								icon={<IcAdd />}
 								onClick={() => setShowCreateKeyForm(true)}
 							>
 								{t('Create Key')}
@@ -620,7 +614,7 @@ function IdentityDetailsModal({
 								{apiKeys.map((key) => (
 									<ListItem
 										key={key.id}
-										leading={<IcKey />}
+										leading={<IcApiKey />}
 										title={key.name || t('Unnamed key')}
 										subtitle={
 											<>
@@ -858,7 +852,7 @@ export function IdentitiesSettings() {
 						/>
 						<Button
 							color="primary"
-							icon={<IcPlus />}
+							icon={<IcAdd />}
 							onClick={() => setShowCreateModal(true)}
 						>
 							{t('Create')}
@@ -916,13 +910,13 @@ export function IdentitiesSettings() {
 				) : (
 					<EmptyState
 						className="auto-bg"
-						icon={<IcUsers />}
+						icon={<IcPeople />}
 						title={t('No identities yet')}
 						description={t('Create your first identity to get started.')}
 						actions={
 							<Button
 								color="primary"
-								icon={<IcPlus />}
+								icon={<IcAdd />}
 								onClick={() => setShowCreateModal(true)}
 							>
 								{t('Create Identity')}

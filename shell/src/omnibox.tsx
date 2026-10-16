@@ -20,6 +20,9 @@ import type { Profile } from '@cloudillo/core'
 import {
 	Button,
 	HBox,
+	IcClose,
+	IcLink,
+	IcSearch,
 	Kbd,
 	List,
 	ListItem,
@@ -42,12 +45,6 @@ import QuickLRU from 'quick-lru'
 import * as React from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
-import {
-	LuX as IcClose,
-	LuHistory as IcHistory,
-	LuLink as IcRef,
-	LuSearch as IcSearch
-} from 'react-icons/lu'
 import { useMatch, useNavigate } from 'react-router-dom'
 
 import {
@@ -61,6 +58,7 @@ import {
 	useCtx,
 	useCurrentContextIdTag
 } from './context/index.js'
+import { IcHistory } from './icons.js'
 import { COMMAND_ONLY_MENU, getPartAddressing } from './manifest-registry.js'
 import { deriveMode } from './omnibox-mode.js'
 import { resolveRef } from './refs.js'
@@ -857,7 +855,7 @@ export function Omnibox() {
 		return (
 			<ListItem
 				{...row}
-				leading={<IcRef />}
+				leading={<IcLink />}
 				title={t('Open reference')}
 				subtitle={target || undefined}
 			/>

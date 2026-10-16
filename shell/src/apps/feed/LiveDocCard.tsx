@@ -16,6 +16,7 @@ import {
 	Card,
 	FileTypeIcon,
 	HBox,
+	IcOpenExternal,
 	Meta,
 	Text,
 	useApi,
@@ -25,7 +26,6 @@ import {
 import { useAtomValue } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuExternalLink as IcExternal } from 'react-icons/lu'
 import { useNavigate } from 'react-router-dom'
 
 import { shellEmbedAppName } from '../../app-name.js'
@@ -198,7 +198,7 @@ export function LiveDocCard({ docRef, width, collapsedOnly, className }: LiveDoc
 										})
 							}
 							aria-label={t('Open on its own page')}
-							icon={<IcExternal />}
+							icon={<IcOpenExternal />}
 						/>
 					)}
 				</HBox>

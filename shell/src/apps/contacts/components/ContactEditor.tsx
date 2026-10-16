@@ -16,6 +16,9 @@ import {
 	Field,
 	Fieldset,
 	HBox,
+	IcAdd,
+	IcDelete,
+	IcLink,
 	Input,
 	NativeSelect,
 	TextArea,
@@ -23,7 +26,6 @@ import {
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuPlus as IcAdd, LuTrash as IcDelete, LuLink as IcLinked } from 'react-icons/lu'
 
 export interface ContactEditorProps {
 	open: boolean
@@ -377,7 +379,7 @@ export function ContactEditor({
 					)}
 				>
 					<Input
-						leading={<IcLinked />}
+						leading={<IcLink />}
 						placeholder="alice.example.com"
 						value={profileIdTag}
 						onChange={(e) => setProfileIdTag(e.target.value)}

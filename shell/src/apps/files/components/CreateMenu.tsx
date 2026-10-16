@@ -6,6 +6,9 @@ import {
 	type AppId,
 	Button,
 	FAB,
+	IcAdd,
+	IcCreateFolder,
+	IcUpload,
 	Menu,
 	MenuDivider,
 	MenuItem,
@@ -14,10 +17,9 @@ import {
 	useFilePicker,
 	useToast
 } from '@cloudillo/react'
-import * as React from 'react'
 import type { TFunction } from 'i18next'
+import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuPlus as IcAdd, LuFolderPlus as IcNewFolder, LuUpload as IcUpload } from 'react-icons/lu'
 import { useNavigate } from 'react-router-dom'
 
 import { useContextAwareApi, useCtx } from '../../../context/index.js'
@@ -123,7 +125,7 @@ export function CreateMenu({
 			>
 				{onCreateFolder && (
 					<MenuItem
-						icon={<IcNewFolder />}
+						icon={<IcCreateFolder />}
 						label={t('New folder')}
 						onClick={onCreateFolder}
 					/>

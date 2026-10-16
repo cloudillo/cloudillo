@@ -5,6 +5,7 @@ import {
 	Button,
 	HatVia,
 	HBox,
+	IcClose,
 	ListItem,
 	ProfilePicture,
 	parseChannel,
@@ -16,7 +17,8 @@ import * as T from '@symbion/runtype'
 import type { TFunction } from 'i18next'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuCheck as IcAccept, LuX as IcDismiss, LuX as IcReject } from 'react-icons/lu'
+
+import { IcAccept, IcReject } from '../icons.js'
 
 function getActionText(
 	type: string,
@@ -165,7 +167,7 @@ export function NotificationItem({
 					{onDismiss && (
 						<Button
 							variant="ghost"
-							icon={<IcDismiss />}
+							icon={<IcClose />}
 							aria-label={t('Dismiss')}
 							onClick={() => onDismiss(action)}
 						/>

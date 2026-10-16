@@ -8,7 +8,15 @@ import {
 	Button,
 	FAB,
 	Fcd,
+	IcAdd,
+	IcAll,
+	IcCommunity,
+	IcConnection,
+	IcFollowers,
+	IcOpenExternal,
 	Icon,
+	IcPerson,
+	IcScan,
 	IdentityTag,
 	List,
 	ListItem,
@@ -23,28 +31,13 @@ import type { Profile } from '@cloudillo/types'
 import type { TFunction } from 'i18next'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuExternalLink as IcExternalLink,
-	LuUserCheck as IcFollowsYou,
-	LuUsers as IcMutual,
-	LuPlus as IcPlus,
-	LuScanLine as IcScan,
-	LuUser as IcUser,
-	LuUsers as IcUserAll,
-	LuUsersRound as IcCommunities,
-	LuCircleOff as IcUserBlocked,
-	LuHandshake as IcUserConnected,
-	LuUserPlus as IcUserFollowed,
-	LuUserPlus as IcUserFollowing,
-	LuBellOff as IcUserMuted,
-	LuOctagonPause as IcUserSuspended
-} from 'react-icons/lu'
 import { useLocation, useNavigate } from 'react-router-dom'
 
 import { useQrScanner } from '../components/QrScanner/index.js'
 import { useEnterContext } from '../context/hat-entry.js'
 import { useCtx } from '../context/index.js'
 import { ProfileContextMenu, useProfileContextMenu } from '../context/profile-context-menu.js'
+import { IcBlock, IcFollowing, IcMute, IcMutual, IcPeople, IcSuspended } from '../icons.js'
 import { communityCreatePath, profilePath } from '../routes.js'
 import { DrawerToggle } from '../ui/DrawerToggle.js'
 import { describeRelationship } from './relationship.js'
@@ -69,13 +62,13 @@ function ProfileConnectionIcon({ profile }: { profile: Profile }) {
 	const rel = describeRelationship(profile)
 	// Check for exactly true (connected) vs 'R' (pending request)
 	if (profile.connected === true)
-		return <Icon as={IcUserConnected} color="success" label={t('Connected')} />
+		return <Icon as={IcConnection} color="success" label={t('Connected')} />
 	if (profile.connected === 'R')
-		return <Icon as={IcUserConnected} color="warning" label={t('Connection requested')} />
+		return <Icon as={IcConnection} color="warning" label={t('Connection requested')} />
 	if (rel.mutual) return <Icon as={IcMutual} color="success" label={t('Mutual')} />
-	if (rel.following) return <Icon as={IcUserFollowing} color="success" label={t('Following')} />
-	if (rel.followsYou) return <Icon as={IcFollowsYou} color="secondary" label={t('Follows you')} />
-	return <Icon as={IcUser} />
+	if (rel.following) return <Icon as={IcFollowing} color="success" label={t('Following')} />
+	if (rel.followsYou) return <Icon as={IcFollowers} color="secondary" label={t('Follows you')} />
+	return <Icon as={IcPerson} />
 }
 
 export function ProfileStatusBadge({ profile }: { profile: Profile }) {
@@ -103,11 +96,11 @@ export function ProfileStatusBadge({ profile }: { profile: Profile }) {
 
 const getStatusFilters = (t: TFunction) =>
 	[
-		{ value: 'A', label: t('Active'), icon: IcUser },
-		{ value: 'M', label: t('Muted'), icon: IcUserMuted },
-		{ value: 'S', label: t('Suspended'), icon: IcUserSuspended },
-		{ value: 'B', label: t('Blocked'), icon: IcUserBlocked },
-		{ value: 'all', label: t('All statuses'), icon: IcUserAll }
+		{ value: 'A', label: t('Active'), icon: IcPerson },
+		{ value: 'M', label: t('Muted'), icon: IcMute },
+		{ value: 'S', label: t('Suspended'), icon: IcSuspended },
+		{ value: 'B', label: t('Blocked'), icon: IcBlock },
+		{ value: 'all', label: t('All statuses'), icon: IcAll }
 	] as const
 
 function FilterBar() {
@@ -162,25 +155,25 @@ function FilterBar() {
 		<Nav orientation="vertical" aria-label={t('Filter')}>
 			<Nav.Section label={t('Relationship')}>
 				<Nav.Item
-					icon={<IcUserConnected />}
+					icon={<IcConnection />}
 					label={t('Connected')}
 					href={relHref('connected')}
 					active={relFilter === 'connected'}
 				/>
 				<Nav.Item
-					icon={<IcUserFollowed />}
+					icon={<IcFollowing />}
 					label={t('Following')}
 					href={relHref('followed')}
 					active={relFilter === 'followed'}
 				/>
 				<Nav.Item
-					icon={<IcFollowsYou />}
+					icon={<IcFollowers />}
 					label={t('Followers')}
 					href={relHref('followers')}
 					active={relFilter === 'followers'}
 				/>
 				<Nav.Item
-					icon={<IcUserAll />}
+					icon={<IcAll />}
 					label={t('All')}
 					href={relHref('all')}
 					active={relFilter === 'all'}
@@ -300,7 +293,7 @@ export function CommunityListCard({
 			actions={
 				<Button
 					variant="ghost"
-					icon={<IcExternalLink />}
+					icon={<IcOpenExternal />}
 					aria-label={t('View profile')}
 					onClick={handleViewProfile}
 				/>
@@ -343,7 +336,7 @@ export function PeopleHeader({
 				variant === 'community' ? (
 					<ProfilePicture profile={{ profilePic }} srcTag={srcTag} size="sm" />
 				) : (
-					<Avatar size="sm" fallback={<IcUserAll />} />
+					<Avatar size="sm" fallback={<IcPeople />} />
 				)
 			}
 		/>
@@ -506,7 +499,7 @@ export function CommunityListPage() {
 					width="reading"
 					header={
 						<PageHeader
-							leading={<Avatar size="sm" fallback={<IcCommunities />} />}
+							leading={<Avatar size="sm" fallback={<IcCommunity />} />}
 							title={t('Communities')}
 							subtitle={`${t('Your communities')} · ${profiles.length}`}
 							actions={
@@ -515,7 +508,7 @@ export function CommunityListPage() {
 									<Button
 										className="sm-hide"
 										color="primary"
-										icon={<IcPlus />}
+										icon={<IcAdd />}
 										onClick={() => navigate(communityCreatePath(ctx.base))}
 									>
 										{t('Create new community')}
@@ -545,7 +538,7 @@ export function CommunityListPage() {
 
 			<FAB
 				className="md-hide lg-hide"
-				icon={<IcPlus />}
+				icon={<IcAdd />}
 				aria-label={t('Create new community')}
 				onClick={() => navigate(communityCreatePath(ctx.base))}
 			/>

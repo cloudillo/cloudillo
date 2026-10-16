@@ -15,6 +15,7 @@ import {
 	Button,
 	EmptyState,
 	HBox,
+	IcSearch,
 	List,
 	LoadMoreTrigger,
 	PageHeader,
@@ -31,7 +32,6 @@ import {
 import type { SearchHit } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuSearch as IcSearch } from 'react-icons/lu'
 import { useSearchParams } from 'react-router-dom'
 
 import { useContextAwareApi, useCtx, useCurrentContextIdTag } from './context/index.js'

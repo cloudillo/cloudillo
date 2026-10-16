@@ -4,6 +4,12 @@
 import {
 	Button,
 	EmptyState,
+	IcBack,
+	IcDownload,
+	IcNext,
+	IcPrev,
+	IcZoomIn,
+	IcZoomOut,
 	ImmersiveOverlay,
 	LoadingSpinner,
 	Text,
@@ -14,14 +20,6 @@ import {
 import * as pdfjsLib from 'pdfjs-dist'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuArrowLeft as IcBack,
-	LuDownload as IcDownload,
-	LuChevronRight as IcNext,
-	LuChevronLeft as IcPrev,
-	LuZoomIn as IcZoomIn,
-	LuZoomOut as IcZoomOut
-} from 'react-icons/lu'
 
 declare const process: { env: { CLOUDILLO_VERSION: string } }
 

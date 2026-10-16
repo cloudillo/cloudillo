@@ -3,9 +3,9 @@
 
 import type { ApiClient, PorchEntry } from '@cloudillo/core'
 import {
+	Alert,
 	absChannel,
 	actionContextTag,
-	Alert,
 	Badge,
 	Button,
 	Card,
@@ -13,9 +13,19 @@ import {
 	EmptyState,
 	Fcd,
 	HatVia,
-	hatRingClass,
 	HBox,
+	hatRingClass,
+	IcAll,
+	IcCamera,
+	IcCommunity,
+	IcImage,
+	IcOffline,
 	IconText,
+	IcPerson,
+	IcPublic,
+	IcSend,
+	IcTag,
+	IcVideo,
 	LoadMoreTrigger,
 	Menu,
 	MenuItem,
@@ -45,25 +55,6 @@ import type { TFunction } from 'i18next'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import * as React from 'react'
 import { Trans, useTranslation } from 'react-i18next'
-import {
-	LuCloud as IcAll,
-	LuCamera as IcCamera,
-	LuUsersRound as IcCommunities,
-	LuLock as IcDirect,
-	LuSave as IcDraft,
-	LuBookmark as IcFollowing,
-	LuImage as IcImage,
-	LuUser as IcMine,
-	LuUsers as IcPeople,
-	LuGlobe as IcPublic,
-	LuRepeat2 as IcRepost,
-	LuSendHorizontal as IcSend,
-	LuTag as IcTag,
-	LuDoorOpen as IcRoom,
-	LuInbox as IcUnread,
-	LuVideo as IcVideo,
-	LuCloudOff as IcOffline
-} from 'react-icons/lu'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import '@cloudillo/react/components.css'
 
@@ -76,6 +67,8 @@ import {
 	useCurrentContextIdTag,
 	useProfileTrust
 } from '../context/index.js'
+import { IcDirect, IcDraft, IcFollowing, IcPeople, IcRepost, IcRoom, IcUnread } from '../icons.js'
+import { useMutedRooms } from '../lib/room-mute.js'
 import {
 	createdAtToSeconds,
 	feedReadTs,
@@ -88,12 +81,11 @@ import {
 	useReadPositionTracker,
 	useScrollEngaged
 } from '../read-position.js'
-import { useMutedRooms } from '../lib/room-mute.js'
-import { DrawerToggle } from '../ui/DrawerToggle.js'
 import { ctxBase, feedPath, filesPath, profilePath } from '../routes.js'
+import { DrawerToggle } from '../ui/DrawerToggle.js'
 import { useWsBus } from '../ws-bus.js'
+import { HatComposeStrip, useHatFor } from './feed/ComposePanel.js'
 import { type DocPostIntent, pendingDocPostAtom } from './feed/doc-post-intent.js'
-import { useEnterableRooms } from './shared/RoomPicker.js'
 import {
 	type AudienceTarget,
 	CommentBadge,
@@ -113,12 +105,12 @@ import {
 	useFeedPosts,
 	useUnreadPosts
 } from './feed/index.js'
-import { HatComposeStrip, useHatFor } from './feed/ComposePanel.js'
 import { LiveDocCard } from './feed/LiveDocCard.js'
 import { parseLiveDocContent } from './feed/live-doc.js'
 import { Document, hasPlayableVariant, Images, Video } from './feed/PostMedia.js'
 import { pendingQuoteAtom } from './feed/quote-intent.js'
 import { getVisibilityMeta } from './feed/VisibilitySelector.js'
+import { useEnterableRooms } from './shared/RoomPicker.js'
 
 //////////////////////
 // Action datatypes //
@@ -1096,17 +1088,17 @@ function getSourceFilters(t: TFunction, isOwnContext: boolean): SourceOption[] {
 	if (isOwnContext) {
 		return [
 			{ value: 'all', label: t('All'), icon: IcAll },
-			{ value: 'mine', label: t('Mine'), icon: IcMine },
+			{ value: 'mine', label: t('Mine'), icon: IcPerson },
 			{ value: 'direct', label: t('Direct'), icon: IcDirect },
 			{ value: 'people', label: t('People'), icon: IcPeople },
-			{ value: 'communities', label: t('Communities'), icon: IcCommunities },
+			{ value: 'communities', label: t('Communities'), icon: IcCommunity },
 			{ value: 'public', label: t('Public'), icon: IcPublic },
 			{ value: 'following', label: t('Following'), icon: IcFollowing }
 		]
 	}
 	return [
 		{ value: 'all', label: t('All'), icon: IcAll },
-		{ value: 'mine', label: t('Mine'), icon: IcMine },
+		{ value: 'mine', label: t('Mine'), icon: IcPerson },
 		{ value: 'following', label: t('Following'), icon: IcFollowing }
 	]
 }

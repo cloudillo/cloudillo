@@ -7,6 +7,7 @@ import {
 	Disclosure,
 	EmptyState,
 	HBox,
+	IcAdd,
 	Icon,
 	Link,
 	List,
@@ -24,17 +25,9 @@ import {
 import type { ActionView } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuCheck as IcCheck,
-	LuX as IcClose,
-	LuMessagesSquare as IcConvList,
-	LuUser as IcDirect,
-	LuUsers as IcGroup,
-	LuPlus as IcNew,
-	LuSquarePen as IcNewMsg
-} from 'react-icons/lu'
 
 import { useCtx } from '../../../context/index.js'
+import { IcAccept, IcCompose, IcDirectChat, IcGroup, IcMessages, IcReject } from '../../../icons.js'
 import { profilePath } from '../../../routes.js'
 import type { Conversation, ConversationTab } from '../types.js'
 import { ConversationCard } from './ConversationCard.js'
@@ -106,10 +99,10 @@ export function ConversationBar({
 					onTabChange={(value) => onTabChange(value as ConversationTab)}
 					className="mb-2"
 				>
-					<Tab value="all" icon={<IcConvList />}>
+					<Tab value="all" icon={<IcMessages />}>
 						{t('All')}
 					</Tab>
-					<Tab value="direct" icon={<IcDirect />}>
+					<Tab value="direct" icon={<IcDirectChat />}>
 						{t('Direct')}
 					</Tab>
 					<Tab value="groups" icon={<IcGroup />}>
@@ -130,13 +123,13 @@ export function ConversationBar({
 						trigger={
 							<Button
 								color="primary"
-								icon={<IcNew />}
+								icon={<IcAdd />}
 								aria-label={t('New conversation')}
 							/>
 						}
 					>
 						<MenuItem
-							icon={<IcNewMsg />}
+							icon={<IcCompose />}
 							label={t('New message')}
 							onClick={onNewMessage}
 						/>
@@ -203,14 +196,14 @@ export function ConversationBar({
 												variant="ghost"
 												color="primary"
 												size="sm"
-												icon={<IcCheck />}
+												icon={<IcAccept />}
 												aria-label={t('Accept')}
 												onClick={() => onAcceptInvite?.(invite)}
 											/>
 											<Button
 												variant="ghost"
 												size="sm"
-												icon={<IcClose />}
+												icon={<IcReject />}
 												aria-label={t('Reject')}
 												onClick={() => onRejectInvite?.(invite)}
 											/>
@@ -233,9 +226,9 @@ export function ConversationBar({
 							filter.tab === 'groups' ? (
 								<IcGroup />
 							) : filter.tab === 'direct' ? (
-								<IcDirect />
+								<IcDirectChat />
 							) : (
-								<IcConvList />
+								<IcMessages />
 							)
 						}
 						title={
@@ -254,7 +247,7 @@ export function ConversationBar({
 						}
 						actions={
 							filter.tab === 'groups' ? (
-								<Button color="primary" icon={<IcNew />} onClick={onCreateGroup}>
+								<Button color="primary" icon={<IcAdd />} onClick={onCreateGroup}>
 									{t('Create Group')}
 								</Button>
 							) : undefined

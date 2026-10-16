@@ -5,7 +5,9 @@ import type { ApiKeyListItem, WebAuthnCredential } from '@cloudillo/core'
 import {
 	Button,
 	HBox,
+	IcGoTo,
 	IconText,
+	IcRefresh,
 	Link,
 	List,
 	ListItem,
@@ -20,19 +22,17 @@ import { browserSupportsWebAuthn } from '@simplewebauthn/browser'
 import { useAtomValue } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuChevronRight as IcArrow,
-	LuDatabase as IcDatabase,
-	LuMonitor as IcDevice,
-	LuDownload as IcInstall,
-	LuBell as IcNotifications,
-	LuFingerprint as IcPasskey,
-	LuRefreshCw as IcRefresh,
-	LuDatabaseZap as IcReindex,
-	LuServerCog as IcServer
-} from 'react-icons/lu'
 
 import { activeContextAtom, isContextLeader, useContextAwareApi, useCtx } from '../context/index.js'
+import {
+	IcDatabase,
+	IcDevice,
+	IcInstall,
+	IcNotifications,
+	IcPasskey,
+	IcReindex,
+	IcServer
+} from '../icons.js'
 import { resetAppCache, type UsePWA } from '../pwa.js'
 import { settingsPath, siteAdminPath } from '../routes.js'
 import { subscribeNotifications } from './notifications.js'
@@ -263,7 +263,7 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 					</HBox>
 					<Link href={`${basePath}/security`} className="mt-2">
 						{t('Security Settings')}
-						<IcArrow />
+						<IcGoTo />
 					</Link>
 				</Panel>
 			)}

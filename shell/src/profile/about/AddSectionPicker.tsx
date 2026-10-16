@@ -1,36 +1,34 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button, Menu, MenuDivider, MenuItem } from '@cloudillo/react'
+import {
+	Button,
+	IcAdd,
+	IcColumns,
+	IcLink,
+	IcLocation,
+	IcText,
+	Menu,
+	MenuDivider,
+	MenuItem
+} from '@cloudillo/react'
 import type { SectionType } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuColumns2 as IcColumns,
-	LuMail as IcContact,
-	LuFileText as IcCustom,
-	LuGraduationCap as IcEducation,
-	LuLink as IcLinks,
-	LuMapPin as IcLocation,
-	LuPlus as IcPlus,
-	LuScrollText as IcRules,
-	LuTags as IcSkills,
-	LuType as IcText,
-	LuBriefcase as IcWork
-} from 'react-icons/lu'
 
+import { IcCustomSection, IcEducation, IcMail, IcRules, IcSkills, IcWork } from '../../icons.js'
 import { getSectionTypes, type SectionWithContent } from './types.js'
 
 const SECTION_ICONS: Record<SectionType, React.ComponentType> = {
 	about: IcText,
-	contact: IcContact,
+	contact: IcMail,
 	location: IcLocation,
-	links: IcLinks,
+	links: IcLink,
 	work: IcWork,
 	education: IcEducation,
 	skills: IcSkills,
 	rules: IcRules,
-	custom: IcCustom
+	custom: IcCustomSection
 }
 
 interface AddSectionPickerProps {
@@ -65,7 +63,7 @@ export function AddSectionPicker({
 		<Menu
 			placement="top-start"
 			trigger={
-				<Button variant="ghost" className="w-100" icon={<IcPlus />}>
+				<Button variant="ghost" className="w-100" icon={<IcAdd />}>
 					{t('Add Section')}
 				</Button>
 			}

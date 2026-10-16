@@ -8,11 +8,17 @@
  */
 
 import { getFileUrl, getOptimalVideoVariant } from '@cloudillo/core'
-import { Badge, BadgeAnchor, Image, useRetriedImageUrl, VideoPlayer } from '@cloudillo/react'
+import {
+	Badge,
+	BadgeAnchor,
+	IcDocument,
+	Image,
+	useRetriedImageUrl,
+	VideoPlayer
+} from '@cloudillo/react'
 import type { ActionView } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuFileText as IcDocument } from 'react-icons/lu'
 import { Link } from 'react-router-dom'
 
 import { ctxBase, viewPath } from '../../routes.js'

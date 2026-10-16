@@ -12,7 +12,12 @@ import {
 	Field,
 	Grid,
 	Heading,
+	IcBack,
+	IcCommunity,
+	IcError,
+	IcLoading,
 	IconText,
+	IcSuccess,
 	Input,
 	Logo,
 	Panel,
@@ -24,14 +29,8 @@ import {
 import debounce from 'debounce'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuAtSign as IcAt,
-	LuUsers as IcCommunity,
-	LuTriangleAlert as IcError,
-	LuChevronsLeft as IcGoBack,
-	LuRefreshCw as IcLoading,
-	LuCheck as IcOk
-} from 'react-icons/lu'
+
+import { IcIdTag } from '../icons.js'
 
 ////////////////////
 // Step headings //
@@ -63,7 +62,7 @@ function VerifyIcon({ state }: { state?: 'checking' | 'valid' | 'warning' | 'inv
 		case 'checking':
 			return <IcLoading className="animate-rotate-cw" />
 		case 'valid':
-			return <IcOk className="text-success" />
+			return <IcSuccess className="text-success" />
 		case 'warning':
 			return <IcError className="text-warning" />
 		case 'invalid':
@@ -359,7 +358,7 @@ export function ProviderSelectorStep({
 			)}
 
 			<ActionBar>
-				<Button icon={<IcGoBack />} onClick={onGoBack}>
+				<Button icon={<IcBack />} onClick={onGoBack}>
 					{t('Back')}
 				</Button>
 				<Button color="primary" onClick={onContinue} disabled={!isValid}>
@@ -424,7 +423,7 @@ export function IdTagInput({
 				value={value}
 				placeholder={placeholder}
 				autoFocus
-				leading={<IcAt />}
+				leading={<IcIdTag />}
 				trailing={
 					<>
 						<VerifyIcon state={state} />

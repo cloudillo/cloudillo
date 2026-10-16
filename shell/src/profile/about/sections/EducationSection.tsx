@@ -1,12 +1,12 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button, Grid, Input, Panel, VBox } from '@cloudillo/react'
+import { Button, Grid, IcAdd, IcRemove, Input, Panel, VBox } from '@cloudillo/react'
 import type { EducationEntry } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuGraduationCap as IcEducation, LuPlus as IcPlus, LuX as IcRemove } from 'react-icons/lu'
 
+import { IcEducation } from '../../../icons.js'
 import type { EducationContent, SectionWithContent } from '../types.js'
 import { parseContent, stringifyContent } from '../types.js'
 import { EntryDates, EntryView } from './WorkSection.js'
@@ -107,7 +107,7 @@ export function EducationSectionEdit({ section, onChange }: EducationSectionEdit
 					</VBox>
 				</Panel>
 			))}
-			<Button variant="ghost" icon={<IcPlus />} onClick={addEntry}>
+			<Button variant="ghost" icon={<IcAdd />} onClick={addEntry}>
 				{t('Add entry')}
 			</Button>
 		</VBox>

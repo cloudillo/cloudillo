@@ -5,6 +5,8 @@ import type { TagInfo } from '@cloudillo/core'
 import {
 	Badge,
 	Button,
+	IcCheck,
+	IcTag,
 	List,
 	ListItem,
 	Popover,
@@ -16,16 +18,8 @@ import {
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuFolderOpen as IcBrowse,
-	LuCheck as IcCheck,
-	LuLink as IcConnected,
-	LuPaperclip as IcManaged,
-	LuClock as IcRecent,
-	LuStar as IcStarred,
-	LuTag as IcTag
-} from 'react-icons/lu'
 
+import { IcAttached, IcBrowse, IcManaged, IcRecent, IcStar } from '../../icons.js'
 import { PickerFilterChips } from './PickerFilterChips.js'
 import type { PickerViewMode } from './types.js'
 
@@ -79,7 +73,7 @@ export function PickerFilterBar({
 					{contextFileId && (
 						<SegmentedItem
 							value="connected"
-							icon={IcConnected}
+							icon={IcAttached}
 							label={t('This document')}
 						/>
 					)}
@@ -91,7 +85,7 @@ export function PickerFilterBar({
 						/>
 					)}
 					<SegmentedItem value="recent" icon={IcRecent} label={t('Recent files')} />
-					<SegmentedItem value="starred" icon={IcStarred} label={t('Starred files')} />
+					<SegmentedItem value="starred" icon={IcStar} label={t('Starred files')} />
 				</Segmented>
 
 				<SearchInput

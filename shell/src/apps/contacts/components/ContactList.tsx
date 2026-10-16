@@ -5,7 +5,9 @@ import {
 	Avatar,
 	EmptyState,
 	HBox,
+	IcLink,
 	Icon,
+	IcPerson,
 	List,
 	ListItem,
 	LoadingSpinner,
@@ -14,14 +16,8 @@ import {
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuLink as IcLinked,
-	LuMail as IcMail,
-	LuBuilding as IcOrg,
-	LuPhone as IcPhone,
-	LuUser as IcUser
-} from 'react-icons/lu'
 
+import { IcMail, IcOrganization, IcPhone } from '../../../icons.js'
 import type { ListedContact } from '../hooks/useContactList.js'
 import type { SelectedContactRef } from '../types.js'
 import { isAbsoluteUrl, withVariant } from '../utils.js'
@@ -53,21 +49,23 @@ function ContactRow({
 		<ListItem
 			selected={isSelected}
 			onClick={onSelect}
-			leading={<Avatar size="md" src={photoUrl} fallback={<Icon as={IcUser} />} />}
+			leading={<Avatar size="md" src={photoUrl} fallback={<Icon as={IcPerson} />} />}
 			title={
 				<HBox gap={1} align="center">
 					<Text truncate weight="medium">
 						{displayName}
 					</Text>
 					{contact.profileIdTag && (
-						<Icon as={IcLinked} color="primary" label={t('Linked Cloudillo profile')} />
+						<Icon as={IcLink} color="primary" label={t('Linked Cloudillo profile')} />
 					)}
 				</HBox>
 			}
 			subtitle={
 				subtitle && (
 					<HBox gap={1} align="center">
-						<Icon as={contact.email ? IcMail : contact.tel ? IcPhone : IcOrg} />
+						<Icon
+							as={contact.email ? IcMail : contact.tel ? IcPhone : IcOrganization}
+						/>
 						<Text truncate>{subtitle}</Text>
 					</HBox>
 				)

@@ -1,29 +1,38 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button, HBox, Icon, Input, Link, Menu, MenuItem, VBox } from '@cloudillo/react'
+import {
+	Button,
+	HBox,
+	IcAdd,
+	IcBook,
+	IcFile,
+	IcLocation,
+	Icon,
+	IcRemove,
+	IcRss,
+	IcVideo,
+	Input,
+	Link,
+	Menu,
+	MenuItem,
+	VBox
+} from '@cloudillo/react'
 import type { LinkEntry, LinkIcon } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuBookOpen as IcBook,
-	LuBriefcase as IcBriefcase,
-	LuCode as IcCode,
-	LuFile as IcFile,
-	LuGlobe as IcGlobe,
-	LuHeart as IcHeart,
-	LuMail as IcMail,
-	LuMapPin as IcMapPin,
-	LuMessageCircle as IcMessage,
-	LuMusic as IcMusic,
-	LuPhone as IcPhone,
-	LuPlus as IcPlus,
-	LuX as IcRemove,
-	LuRss as IcRss,
-	LuStar as IcStar,
-	LuVideo as IcVideo
-} from 'react-icons/lu'
 
+import {
+	IcCode,
+	IcHeart,
+	IcMail,
+	IcMessage,
+	IcMusic,
+	IcPhone,
+	IcStar,
+	IcWebsite,
+	IcWork
+} from '../../../icons.js'
 import type { LinksContent, SectionWithContent } from '../types.js'
 import { ensureUrlProtocol, parseContent, stringifyContent } from '../types.js'
 
@@ -35,15 +44,15 @@ const LINK_ICONS: {
 	label: string
 	icon: React.ComponentType<React.SVGAttributes<SVGElement>>
 }[] = [
-	{ value: 'globe', label: 'Website', icon: IcGlobe },
+	{ value: 'globe', label: 'Website', icon: IcWebsite },
 	{ value: 'mail', label: 'Email', icon: IcMail },
 	{ value: 'phone', label: 'Phone', icon: IcPhone },
-	{ value: 'map-pin', label: 'Location', icon: IcMapPin },
+	{ value: 'map-pin', label: 'Location', icon: IcLocation },
 	{ value: 'code', label: 'Code', icon: IcCode },
 	{ value: 'video', label: 'Video', icon: IcVideo },
 	{ value: 'music', label: 'Music', icon: IcMusic },
 	{ value: 'book', label: 'Book', icon: IcBook },
-	{ value: 'briefcase', label: 'Work', icon: IcBriefcase },
+	{ value: 'briefcase', label: 'Work', icon: IcWork },
 	{ value: 'heart', label: 'Heart', icon: IcHeart },
 	{ value: 'star', label: 'Star', icon: IcStar },
 	{ value: 'message', label: 'Message', icon: IcMessage },
@@ -54,7 +63,7 @@ const LINK_ICONS: {
 export function getLinkIconComponent(
 	icon?: LinkIcon
 ): React.ComponentType<React.SVGAttributes<SVGElement>> {
-	return LINK_ICONS.find((i) => i.value === icon)?.icon ?? IcGlobe
+	return LINK_ICONS.find((i) => i.value === icon)?.icon ?? IcWebsite
 }
 
 // ============================================================================
@@ -188,7 +197,7 @@ export function LinksSectionEdit({ section, onChange }: LinksSectionEditProps) {
 					/>
 				</HBox>
 			))}
-			<Button variant="ghost" icon={<IcPlus />} onClick={addLink}>
+			<Button variant="ghost" icon={<IcAdd />} onClick={addLink}>
 				{t('Add link')}
 			</Button>
 		</VBox>

@@ -10,8 +10,11 @@ import {
 	EmptyState,
 	Field,
 	Form,
-	Heading,
 	HBox,
+	Heading,
+	IcAdd,
+	IcBack,
+	IcGoTo,
 	Input,
 	LoadingSpinner,
 	Logo,
@@ -28,11 +31,6 @@ import debounce from 'debounce'
 import { useAtom } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuPlus as IcCreate,
-	LuChevronsLeft as IcGoBack,
-	LuArrowRight as IcUseInvite
-} from 'react-icons/lu'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import {
@@ -153,13 +151,13 @@ function IdpNameStep({
 			</Text>
 
 			<ActionBar>
-				<Button icon={<IcGoBack />} onClick={onGoBack}>
+				<Button icon={<IcBack />} onClick={onGoBack}>
 					{t('Back')}
 				</Button>
 				<Button
 					color="primary"
 					type="submit"
-					icon={<IcCreate />}
+					icon={<IcAdd />}
 					disabled={verifyState?.idTagError !== '' || !idTagInput}
 				>
 					{t('Create Community')}
@@ -274,13 +272,13 @@ function DomainSetupStep({
 			)}
 
 			<ActionBar>
-				<Button icon={<IcGoBack />} onClick={onGoBack}>
+				<Button icon={<IcBack />} onClick={onGoBack}>
 					{t('Back')}
 				</Button>
 				<Button
 					color="primary"
 					type="submit"
-					icon={<IcCreate />}
+					icon={<IcAdd />}
 					disabled={verifyState?.idTagError !== '' || verifyState?.appDomainError !== ''}
 				>
 					{t('Create Community')}
@@ -476,7 +474,7 @@ function InviteChooserStep({ onSelectInvite }: InviteChooserStepProps) {
 								<ActionBar>
 									<Button
 										color="primary"
-										icon={<IcUseInvite />}
+										icon={<IcGoTo />}
 										onClick={() =>
 											content?.refId && onSelectInvite(content.refId)
 										}

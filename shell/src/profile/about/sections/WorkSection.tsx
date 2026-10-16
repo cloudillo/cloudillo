@@ -7,7 +7,9 @@ import {
 	DateTimePicker,
 	Grid,
 	HBox,
+	IcAdd,
 	Icon,
+	IcRemove,
 	Input,
 	Panel,
 	Text,
@@ -16,8 +18,8 @@ import {
 import type { WorkEntry } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuPlus as IcPlus, LuX as IcRemove, LuBriefcase as IcWork } from 'react-icons/lu'
 
+import { IcWork } from '../../../icons.js'
 import type { SectionWithContent, WorkContent } from '../types.js'
 import { parseContent, stringifyContent } from '../types.js'
 
@@ -201,7 +203,7 @@ export function WorkSectionEdit({ section, onChange }: WorkSectionEditProps) {
 					</VBox>
 				</Panel>
 			))}
-			<Button variant="ghost" icon={<IcPlus />} onClick={addEntry}>
+			<Button variant="ghost" icon={<IcAdd />} onClick={addEntry}>
 				{t('Add entry')}
 			</Button>
 		</VBox>

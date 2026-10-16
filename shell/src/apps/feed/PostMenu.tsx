@@ -1,17 +1,22 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button, Menu, MenuDivider, MenuItem, useApi, useAuth, useDialog } from '@cloudillo/react'
+import {
+	Button,
+	IcDelete,
+	IcMore,
+	Menu,
+	MenuDivider,
+	MenuItem,
+	useApi,
+	useAuth,
+	useDialog
+} from '@cloudillo/react'
 import type { ActionView } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuBell as IcBell,
-	LuTrash2 as IcDelete,
-	LuEllipsis as IcMore,
-	LuBellOff as IcMute,
-	LuBookmark as IcTrack
-} from 'react-icons/lu'
+
+import { IcMute, IcTrack, IcWatch } from '../../icons.js'
 
 type SubLevel = 'W' | 'T' | 'M'
 
@@ -79,7 +84,7 @@ export function PostMenu({ action, onDelete }: PostMenuProps) {
 			trigger={<Button variant="ghost" icon={<IcMore />} aria-label={t('More actions')} />}
 		>
 			<MenuItem
-				icon={<IcBell />}
+				icon={<IcWatch />}
 				label={t('Watching')}
 				selected={subLevel === 'W'}
 				onClick={() => handleSubscribe('W')}

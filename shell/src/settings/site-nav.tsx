@@ -6,7 +6,13 @@ import {
 	Badge,
 	Button,
 	HBox,
+	IcAdd,
+	IcLink,
+	IcMoveDown,
+	IcMoveUp,
 	IconText,
+	IcRemove,
+	IcWarning,
 	Input,
 	InputGroup,
 	List,
@@ -17,25 +23,17 @@ import {
 	SegmentedItem,
 	Table,
 	TableCell,
+	TableRow,
+	Text,
 	type TreeDropPosition,
 	TreeItem,
 	TreeView,
-	TableRow,
-	Text,
 	useDialog,
 	VBox
 } from '@cloudillo/react'
 import type { SiteDoc, SiteNavItem, SitePage } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuTriangleAlert as IcAlert,
-	LuChevronDown as IcDown,
-	LuLink as IcLink,
-	LuPlus as IcPlus,
-	LuTrash2 as IcTrash,
-	LuChevronUp as IcUp
-} from 'react-icons/lu'
 
 /** The server's own ceiling per level — `validate_nav`'s `MAX_NAV_ITEMS`. */
 const MAX_NAV_ITEMS = 64
@@ -579,7 +577,7 @@ export function SiteNavPanel({
 								focusAfterMoveRef.current = moveId(pos.index - 1, 'up')
 								moveEntry(pos, pos.index - 1)
 							}}
-							icon={<IcUp />}
+							icon={<IcMoveUp />}
 						/>
 						<Button
 							variant="link"
@@ -593,7 +591,7 @@ export function SiteNavPanel({
 								focusAfterMoveRef.current = moveId(pos.index + 1, 'down')
 								moveEntry(pos, pos.index + 2)
 							}}
-							icon={<IcDown />}
+							icon={<IcMoveDown />}
 						/>
 						{pos.parent === null &&
 							renderPicker(
@@ -605,14 +603,14 @@ export function SiteNavPanel({
 										(entry.children?.length ?? 0) >= MAX_NAV_ITEMS
 									}
 									aria-label={t('Add sub-item')}
-									icon={<IcPlus />}
+									icon={<IcAdd />}
 								/>
 							)}
 						<Button
 							disabled={disabled}
 							aria-label={t('Remove')}
 							onClick={() => removeEntry(pos)}
-							icon={<IcTrash />}
+							icon={<IcRemove />}
 						/>
 					</>
 				}
@@ -749,7 +747,7 @@ export function SiteNavPanel({
 
 			{error && (
 				<Text as="div" color="error" role="alert">
-					<IconText icon={<IcAlert />}>{error}</IconText>
+					<IconText icon={<IcWarning />}>{error}</IconText>
 				</Text>
 			)}
 		</Panel>

@@ -30,10 +30,10 @@ import {
 } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuDoorOpen as IcRoom, LuUserPlus as IcInvite } from 'react-icons/lu'
 import { useNavigate, useParams } from 'react-router-dom'
 
 import { useCtx } from '../context/index.js'
+import { IcInvite, IcRoom } from '../icons.js'
 import { filesPath, settingsPath } from '../routes.js'
 import { RoomForm } from './room-form.js'
 import { useRooms, useRoomsClient, useRoomsTenant } from './rooms.js'

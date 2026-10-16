@@ -6,6 +6,7 @@ import {
 	Button,
 	EmptyState,
 	HBox,
+	IcAdd,
 	List,
 	ListItem,
 	LoadingSpinner,
@@ -21,14 +22,9 @@ import { type NewAction, ROLE_LEVELS, roleLevel } from '@cloudillo/types'
 import { useAtom } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuBellOff as IcMuted,
-	LuBell as IcUnmuted,
-	LuDoorOpen as IcRoom,
-	LuPlus as IcAdd
-} from 'react-icons/lu'
 
 import { activeContextAtom, canAdminContext } from '../context/index.js'
+import { IcMute, IcRoom, IcUnmute } from '../icons.js'
 import { useMutedRooms } from '../lib/room-mute.js'
 import { ctxBase, feedPath, filesPath, settingsPath } from '../routes.js'
 import { floorText } from './role-labels.js'
@@ -177,7 +173,7 @@ export function RoomsTab({ idTag, rooms, error, canCreate, reload }: RoomsTabPro
 							size="sm"
 							variant="ghost"
 							pressed={isMuted}
-							icon={isMuted ? <IcMuted /> : <IcUnmuted />}
+							icon={isMuted ? <IcMute /> : <IcUnmute />}
 							onClick={() => onToggleMute(channel)}
 						>
 							{isMuted ? t('Unmute') : t('Mute')}

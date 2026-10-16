@@ -14,10 +14,10 @@ import {
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuBell as IcNotifications } from 'react-icons/lu'
 import { useNavigate } from 'react-router-dom'
 
 import { useContextSwitch, useCtx } from '../context/index.js'
+import { IcNotifications } from '../icons.js'
 import { communityCreatePath, contextPath } from '../routes.js'
 import { AppHeaderItem } from '../ui/AppHeader.js'
 import { NotificationItem } from './NotificationItem.js'

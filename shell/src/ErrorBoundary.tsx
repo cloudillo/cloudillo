@@ -1,14 +1,18 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { ActionBar, Button, Dialog, Disclosure, Text } from '@cloudillo/react'
+import {
+	ActionBar,
+	Button,
+	Dialog,
+	Disclosure,
+	IcBack,
+	IcError,
+	IcRefresh,
+	Text
+} from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuArrowLeft as IcBack,
-	LuCircleAlert as IcError,
-	LuRefreshCw as IcReload
-} from 'react-icons/lu'
 
 interface ErrorBoundaryState {
 	hasError: boolean
@@ -64,7 +68,7 @@ function ErrorFallback({ error, onReset }: { error: Error | null; onReset: () =>
 					<Button onClick={onReset}>{t('Try again')}</Button>
 					<Button
 						color="primary"
-						icon={<IcReload />}
+						icon={<IcRefresh />}
 						onClick={() => window.location.reload()}
 					>
 						{t('Reload page')}

@@ -10,6 +10,10 @@
 import {
 	Button,
 	HBox,
+	IcOpenExternal,
+	IcResetView,
+	IcZoomIn,
+	IcZoomOut,
 	MenuItem,
 	PopoverSurface,
 	ProfilePicture,
@@ -19,17 +23,11 @@ import {
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuLogIn as IcEnter,
-	LuSquareArrowOutUpRight as IcOpen,
-	LuUser as IcProfile,
-	LuScan as IcReset,
-	LuZoomIn as IcZoomIn,
-	LuZoomOut as IcZoomOut
-} from 'react-icons/lu'
 
 import { enterViaLabel } from '../context/hat-entry.js'
 import '../ui/community-map.css'
+
+import { IcEnter, IcProfile } from '../icons.js'
 import type { MapActions } from './CommunityMap.js'
 import { displayName, type MapLayout, type MapNode, RING2_RADIUS } from './map-layout.js'
 
@@ -369,7 +367,7 @@ export function MapGraph({ layout, actions, onShowList }: MapGraphProps) {
 				/>
 				<Button
 					size="sm"
-					icon={<IcReset />}
+					icon={<IcResetView />}
 					aria-label={t('Reset view')}
 					onClick={() => setView(INITIAL_VIEW)}
 				/>
@@ -392,7 +390,7 @@ export function MapGraph({ layout, actions, onShowList }: MapGraphProps) {
 				>
 					{menuNode.ring === 1 && (
 						<MenuItem
-							icon={<IcOpen />}
+							icon={<IcOpenExternal />}
 							label={t('Open')}
 							onClick={() => {
 								setMenu(undefined)

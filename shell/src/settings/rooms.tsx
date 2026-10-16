@@ -7,6 +7,7 @@ import {
 	Button,
 	Dialog,
 	EmptyState,
+	IcAdd,
 	List,
 	ListItem,
 	LoadingSpinner,
@@ -20,9 +21,9 @@ import {
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuDoorOpen as IcRoom, LuPlus as IcAdd } from 'react-icons/lu'
 
 import { canAdminContext, useActiveCommunity, useApiContext, useCtx } from '../context/index.js'
+import { IcRoom } from '../icons.js'
 import { settingsPath } from '../routes.js'
 import { describeRoom, RoomForm } from './room-form.js'
 

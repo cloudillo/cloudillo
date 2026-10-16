@@ -4,7 +4,11 @@
 import type { AddressBookOutput } from '@cloudillo/core'
 import {
 	Button,
+	IcAll,
+	IcDelete,
+	IcMore,
 	Icon,
+	IcRename,
 	List,
 	ListItem,
 	Menu,
@@ -16,14 +20,8 @@ import {
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuUsers as IcAll,
-	LuBookOpen as IcBook,
-	LuTrash as IcDelete,
-	LuPencil as IcEdit,
-	LuEllipsisVertical as IcMore
-} from 'react-icons/lu'
 
+import { IcAddressBook } from '../../../icons.js'
 import type { AddressBookSelection } from '../types.js'
 
 export interface AddressBookSidebarProps {
@@ -96,7 +94,7 @@ export function AddressBookSidebar({
 				{addressBooks.map((book) => (
 					<ListItem
 						key={book.abId}
-						leading={<Icon as={IcBook} />}
+						leading={<Icon as={IcAddressBook} />}
 						title={<Text truncate>{book.name}</Text>}
 						selected={selection === book.abId}
 						onClick={() => onSelect(book.abId)}
@@ -119,7 +117,7 @@ export function AddressBookSidebar({
 			{bookMenu && (
 				<Menu position={{ x: bookMenu.x, y: bookMenu.y }} onClose={() => setBookMenu(null)}>
 					<MenuItem
-						icon={<IcEdit />}
+						icon={<IcRename />}
 						label={t('Rename')}
 						onClick={() => {
 							const book = bookMenu.book

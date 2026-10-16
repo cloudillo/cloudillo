@@ -6,11 +6,17 @@ import { getJwtTimes } from '@cloudillo/core/jwt'
 import {
 	Button,
 	DropZone,
+	EmptyState,
 	FileButton,
 	FileTile,
 	Grid,
 	HBox,
-	EmptyState,
+	IcBack,
+	IcDelete,
+	IcDownload,
+	IcFileError,
+	IcFolder,
+	IcUpload,
 	LoadingSpinner,
 	Progress,
 	Text,
@@ -21,14 +27,6 @@ import {
 import { useAtom } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuArrowLeft as IcBack,
-	LuDownload as IcDownload,
-	LuFileWarning as IcError,
-	LuFolder as IcFolder,
-	LuTrash2 as IcTrash,
-	LuUpload as IcUpload
-} from 'react-icons/lu'
 import { useSearchParams } from 'react-router-dom'
 
 import { GuestNameDialog } from '../../components/GuestNameDialog.js'
@@ -497,7 +495,7 @@ export function SharedFolderView({
 								fill
 								className="auto-bg"
 								color="warning"
-								icon={<IcError />}
+								icon={<IcFileError />}
 								title={t('Unsupported file type')}
 								description={openFile.contentType}
 							/>
@@ -572,7 +570,7 @@ export function SharedFolderView({
 				<EmptyState
 					fill
 					color="error"
-					icon={<IcError />}
+					icon={<IcFileError />}
 					title={t('Could not load this folder')}
 					description={t('Failed to load folder contents')}
 					actions={
@@ -680,7 +678,7 @@ function FolderItem({
 							color="error"
 							aria-label={t('Delete {{name}}', { name: file.fileName })}
 							onClick={() => onDelete()}
-							icon={<IcTrash />}
+							icon={<IcDelete />}
 						/>
 					)}
 				</>

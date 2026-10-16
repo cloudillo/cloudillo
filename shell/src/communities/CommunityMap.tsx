@@ -25,15 +25,10 @@ import {
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuLogIn as IcEnter,
-	LuNetwork as IcMap,
-	LuRefreshCw as IcSync,
-	LuUser as IcProfile
-} from 'react-icons/lu'
 import { useNavigate } from 'react-router-dom'
 
 import { enterViaLabel, useEnterContext } from '../context/hat-entry.js'
+import { IcCommunityMap, IcEnter, IcProfile, IcSync } from '../icons.js'
 import { HOME_BASE, profilePath } from '../routes.js'
 import { MapGraph } from './MapGraph.js'
 import { displayName, layoutPartnerMap, partnersByCommunity } from './map-layout.js'
@@ -250,7 +245,7 @@ export function CommunityMap() {
 		body = (
 			<EmptyState
 				color="error"
-				icon={<IcMap />}
+				icon={<IcCommunityMap />}
 				title={t('Could not load the community map')}
 				actions={<Button onClick={() => void load()}>{t('Retry')}</Button>}
 			/>
@@ -258,7 +253,7 @@ export function CommunityMap() {
 	} else if (isEmpty) {
 		body = (
 			<EmptyState
-				icon={<IcMap />}
+				icon={<IcCommunityMap />}
 				title={t('Community map')}
 				description={t(
 					'The map shows the communities you are a member of, and the communities they are partners with. Sync to fetch the latest partner lists.'
@@ -281,7 +276,7 @@ export function CommunityMap() {
 				width="reading"
 				header={
 					<PageHeader
-						leading={<Avatar size="sm" fallback={<IcMap />} />}
+						leading={<Avatar size="sm" fallback={<IcCommunityMap />} />}
 						title={t('Community map')}
 						subtitle={subtitle}
 						actions={

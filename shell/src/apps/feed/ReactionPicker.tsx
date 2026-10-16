@@ -1,11 +1,11 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button, HBox, Popover } from '@cloudillo/react'
+import { Button, HBox, IcRemove, Popover } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuX as IcRemove, LuThumbsUp as IcThumbsUp } from 'react-icons/lu'
 
+import { IcLike } from '../../icons.js'
 import {
 	getReactionEmoji,
 	getReactionLabel,
@@ -155,7 +155,7 @@ export function ReactionPicker({ className, ownReaction, onReact }: ReactionPick
 					color={ownReaction ? 'primary' : undefined}
 					size="sm"
 					aria-label={ownReaction ? t('Change reaction') : t('Like')}
-					icon={ownReaction ? getReactionEmoji(ownReaction) : <IcThumbsUp />}
+					icon={ownReaction ? getReactionEmoji(ownReaction) : <IcLike />}
 					onClick={handleClick}
 					onTouchStart={handleTouchStart}
 					onTouchEnd={handleTouchEnd}

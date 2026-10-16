@@ -6,9 +6,9 @@ import { ActionBar, Alert, Button, HBox, LoadingSpinner, Logo, Text } from '@clo
 import type { TFunction } from 'i18next'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuMail as IcMail } from 'react-icons/lu'
 
 import { AuthLayout } from '../auth/AuthLayout.js'
+import { IcMail } from '../icons.js'
 
 export type ResendState = 'idle' | 'sending' | 'cooldown' | 'expired'
 

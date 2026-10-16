@@ -10,7 +10,13 @@ import {
 	type DescriptionListItem,
 	EmptyState,
 	HBox,
+	IcDelete,
+	IcEdit,
+	IcHome,
+	IcLink,
 	Icon,
+	IcPerson,
+	IcTag,
 	Link,
 	LoadingSpinner,
 	PageHeader,
@@ -20,21 +26,8 @@ import {
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuSmartphone as IcCell,
-	LuTrash as IcDelete,
-	LuPencil as IcEdit,
-	LuPrinter as IcFax,
-	LuHouse as IcHome,
-	LuLink as IcLinked,
-	LuMail as IcMail,
-	LuNotebookPen as IcNote,
-	LuTag as IcOther,
-	LuPhone as IcPhone,
-	LuUser as IcUser,
-	LuBriefcase as IcWork
-} from 'react-icons/lu'
 
+import { IcFax, IcMail, IcMobilePhone, IcNote, IcPhone, IcWork } from '../../../icons.js'
 import { isAbsoluteUrl, withVariant } from '../utils.js'
 
 export interface ContactDetailsProps {
@@ -64,7 +57,7 @@ function emailTypeIcon(type: string | undefined): React.ComponentType {
 		case 'WORK':
 			return IcWork
 		default:
-			return IcOther
+			return IcTag
 	}
 }
 
@@ -72,7 +65,7 @@ function phoneTypeIcon(type: string | undefined): React.ComponentType {
 	switch (type?.toUpperCase()) {
 		case 'CELL':
 		case 'MOBILE':
-			return IcCell
+			return IcMobilePhone
 		case 'HOME':
 			return IcHome
 		case 'WORK':
@@ -80,7 +73,7 @@ function phoneTypeIcon(type: string | undefined): React.ComponentType {
 		case 'FAX':
 			return IcFax
 		default:
-			return IcOther
+			return IcTag
 	}
 }
 
@@ -166,7 +159,7 @@ export function ContactDetails({ contact, loading, onEdit, onDelete }: ContactDe
 	if (contact.profile) {
 		items.push({
 			key: 'profile',
-			term: <Term icon={IcLinked}>{t('Linked Cloudillo profile')}</Term>,
+			term: <Term icon={IcLink}>{t('Linked Cloudillo profile')}</Term>,
 			description: (
 				<VBox>
 					<Text weight="medium">{contact.profile.idTag}</Text>
@@ -207,7 +200,7 @@ export function ContactDetails({ contact, loading, onEdit, onDelete }: ContactDe
 		<VBox gap={3} padding={3} autoBg>
 			<PageHeader
 				level={2}
-				leading={<Avatar size="2xl" src={heroUrl} fallback={<Icon as={IcUser} />} />}
+				leading={<Avatar size="2xl" src={heroUrl} fallback={<Icon as={IcPerson} />} />}
 				title={displayName}
 				subtitle={
 					contact.title || contact.org

@@ -1,12 +1,12 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button, HBox, List, ListItem, Popover, Tag, Text, VBox } from '@cloudillo/react'
+import { Button, HBox, IcClose, List, ListItem, Popover, Tag, Text, VBox } from '@cloudillo/react'
 import { useAtomValue, useSetAtom, useStore } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuHand as IcHand, LuX as IcX } from 'react-icons/lu'
 
+import { IcHand } from '../icons.js'
 import { drop, empty, forget, handAtom, pickUpAgain } from '../state/hand.js'
 import { handTargetElAtom } from '../state/hand-fly.js'
 
@@ -78,7 +78,7 @@ export function HandChip() {
 					<Button
 						variant="ghost"
 						size="xs"
-						icon={<IcX />}
+						icon={<IcClose />}
 						aria-label={t('Forget')}
 						onClick={() => forget(store.get, store.set)}
 					/>
@@ -121,7 +121,7 @@ export function HandChip() {
 									<Button
 										variant="ghost"
 										size="sm"
-										icon={<IcX />}
+										icon={<IcClose />}
 										aria-label={t('Drop')}
 										onClick={() =>
 											drop(store.get, store.set, it.id, it.sourceContext)

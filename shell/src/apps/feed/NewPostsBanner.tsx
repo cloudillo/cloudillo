@@ -4,7 +4,8 @@
 import { Affix, Button, Center } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuChevronUp as IcUp } from 'react-icons/lu'
+
+import { IcScrollToTop } from '../../icons.js'
 
 export interface NewPostsBannerProps {
 	count: number
@@ -26,7 +27,7 @@ export function NewPostsBanner({ count, onClick, className }: NewPostsBannerProp
 					shape="pill"
 					size="sm"
 					onClick={onClick}
-					icon={<IcUp />}
+					icon={<IcScrollToTop />}
 					aria-live="polite"
 				>
 					{t('{{count}} new posts', { count })}

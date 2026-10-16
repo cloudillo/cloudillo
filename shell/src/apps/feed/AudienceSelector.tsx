@@ -3,6 +3,8 @@
 
 import {
 	Button,
+	IcCheck,
+	IcDropdown,
 	Menu,
 	MenuDivider,
 	MenuItem,
@@ -12,7 +14,6 @@ import {
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuCheck as IcCheck, LuChevronDown as IcChevron } from 'react-icons/lu'
 
 import { useCommunitiesList } from '../../context/index.js'
 
@@ -134,7 +135,7 @@ export function AudienceSelector({ target, ownRepostIds, onChange }: AudienceSel
 				<Button variant="ghost" color="secondary" size="sm" aria-label={t('Post to')}>
 					<ProfilePicture profile={resolved} srcTag={resolved.idTag} size="xs" />
 					{resolved.name || resolved.idTag}
-					<IcChevron />
+					<IcDropdown />
 				</Button>
 			}
 		>

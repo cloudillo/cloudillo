@@ -17,19 +17,22 @@ import {
 	Dialog,
 	Field,
 	HBox,
+	IcAdd,
+	IcDelete,
+	IcEdit,
 	Input,
 	InputGroup,
 	List,
 	ListItem,
 	LoadingSpinner,
 	Panel,
+	PasswordInput,
+	PasswordStrengthBar,
 	Text,
 	useApi,
 	useAuth,
 	useDialog,
-	VBox,
-	PasswordInput,
-	PasswordStrengthBar
+	VBox
 } from '@cloudillo/react'
 import { browserSupportsWebAuthn } from '@simplewebauthn/browser'
 import type { TFunction } from 'i18next'
@@ -40,14 +43,8 @@ interface NavigatorUA {
 }
 
 import { useTranslation } from 'react-i18next'
-import {
-	LuPlus as IcAdd,
-	LuKey as IcApiKey,
-	LuTrash as IcDelete,
-	LuPencil as IcEdit,
-	LuFingerprint as IcPasskey
-} from 'react-icons/lu'
 
+import { IcApiKey, IcPasskey } from '../icons.js'
 import {
 	deleteApiKey as swDeleteApiKey,
 	getApiKey as swGetApiKey,

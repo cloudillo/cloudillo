@@ -13,7 +13,8 @@
 import { Button, EmptyState } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuMapPinOff as IcNotFound } from 'react-icons/lu'
+
+import { IcNotFound } from '../icons.js'
 
 export function SiteNotFound() {
 	const { t } = useTranslation()

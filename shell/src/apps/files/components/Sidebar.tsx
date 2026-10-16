@@ -6,6 +6,7 @@ import {
 	Button,
 	HBox,
 	IconText,
+	IcTag,
 	Nav,
 	Panel,
 	SearchInput,
@@ -16,20 +17,12 @@ import {
 	useAuth,
 	VBox
 } from '@cloudillo/react'
-import * as React from 'react'
 import type { TFunction } from 'i18next'
+import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuFolderOpen as IcBrowse,
-	LuStar as IcFavorites,
-	LuDoorOpen as IcRoom,
-	LuShieldCheck as IcManaged,
-	LuClock as IcRecent,
-	LuTag as IcTag,
-	LuTrash2 as IcTrash
-} from 'react-icons/lu'
 
 import { useContextAwareApi, useCtx, useCurrentContextIdTag } from '../../../context/index.js'
+import { IcBrowse, IcManaged, IcRecent, IcRoom, IcStar, IcTrash } from '../../../icons.js'
 import { profilePath } from '../../../routes.js'
 import type { FileTypeFilter, OwnerFilter, ViewMode } from '../types.js'
 
@@ -37,7 +30,7 @@ export const viewItems = (
 	t: TFunction
 ): { mode: ViewMode; icon: React.ComponentType; label: string }[] => [
 	{ mode: 'browse', icon: IcBrowse, label: t('Browse') },
-	{ mode: 'starred', icon: IcFavorites, label: t('Starred') },
+	{ mode: 'starred', icon: IcStar, label: t('Starred') },
 	{ mode: 'recent', icon: IcRecent, label: t('Recent') },
 	{ mode: 'trash', icon: IcTrash, label: t('Trash') },
 	{ mode: 'managed', icon: IcManaged, label: t('Managed') }

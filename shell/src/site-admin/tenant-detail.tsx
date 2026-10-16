@@ -7,6 +7,8 @@ import {
 	Button,
 	Field,
 	HBox,
+	IcCommunity,
+	IcPerson,
 	Input,
 	Panel,
 	ProfilePicture,
@@ -17,8 +19,9 @@ import {
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuShield as IcAdmin, LuUsers as IcCommunity, LuUser as IcPerson } from 'react-icons/lu'
 import { useParams } from 'react-router-dom'
+
+import { IcAdmin } from '../icons.js'
 
 const STORAGE_KEY = 'limits.max_storage_gb'
 

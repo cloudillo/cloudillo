@@ -10,7 +10,10 @@ import {
 	Fcd,
 	FileButton,
 	Grid,
+	IcLocked,
+	IcOffline,
 	Icon,
+	IcUpload,
 	List,
 	LoadingSpinner,
 	LoadMoreTrigger,
@@ -28,12 +31,6 @@ import { ROLE_LEVELS, roleLevel } from '@cloudillo/types'
 import { useAtom, useSetAtom } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuCloud as IcCloud,
-	LuLock as IcLock,
-	LuCloudOff as IcOffline,
-	LuUpload as IcUpload
-} from 'react-icons/lu'
 import { useLocation, useNavigate } from 'react-router-dom'
 
 import {
@@ -43,6 +40,7 @@ import {
 	useCtx,
 	useCurrentContextIdTag
 } from '../../context/index.js'
+import { IcCloud } from '../../icons.js'
 import { usePorch } from '../../lib/porch.js'
 import { getDirtyDocIds } from '../../message-bus/handlers/crdt.js'
 import { useCanCreateRooms } from '../../profile/rooms-tab.js'
@@ -1045,7 +1043,7 @@ export function FilesApp() {
 																)
 															}
 														>
-															{currentRoom?.closed && <IcLock />}
+															{currentRoom?.closed && <IcLocked />}
 															{audience}
 														</Button>
 													)

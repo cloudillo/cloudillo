@@ -1,24 +1,17 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Fcd, LoadingSpinner, Nav, PageHeader, ProfilePicture, useAuth } from '@cloudillo/react'
+import {
+	Fcd,
+	IcAppearance,
+	LoadingSpinner,
+	Nav,
+	PageHeader,
+	ProfilePicture,
+	useAuth
+} from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuPalette as IcAppearance,
-	LuLayoutGrid as IcApps,
-	LuCalendar as IcCalendar,
-	LuHardDrive as IcFiles,
-	LuSlidersHorizontal as IcGeneral,
-	LuBell as IcNotifications,
-	LuShield as IcPrivacy,
-	LuUser as IcProfile,
-	LuKeyRound as IcSecurity,
-	LuGlobe as IcSite,
-	LuShieldCheck as IcTrust,
-	LuDoorOpen as IcRooms,
-	LuHandshake as IcPartners
-} from 'react-icons/lu'
 import { Navigate, Outlet, Route, useLocation, useMatch } from 'react-router-dom'
 
 import {
@@ -36,12 +29,26 @@ import { SecuritySettings } from './security.js'
 
 export { applyTheme, readStoredTheme, setTheme } from './appearance.js'
 
+import {
+	IcApps,
+	IcCalendar,
+	IcFilesApp,
+	IcGeneral,
+	IcNotifications,
+	IcPartner,
+	IcPrivacy,
+	IcProfile,
+	IcRoom,
+	IcSecurity,
+	IcSite,
+	IcTrust
+} from '../icons.js'
 import { AppMenuSettings } from './apps.js'
 import { CalendarSettings } from './calendar.js'
 import { CommunityGeneralSettings } from './community-general.js'
 import { FilesSettings } from './files.js'
-import { PartnersSettings } from './partners.js'
 import { SettingsOverview } from './overview.js'
+import { PartnersSettings } from './partners.js'
 import { PrivacySettings } from './privacy.js'
 import { ProfileTabSettings } from './profile-tabs.js'
 import { RoomDetailSettings } from './room-detail.js'
@@ -88,10 +95,10 @@ const PAGE_ICONS: Record<string, React.ReactNode> = {
 	appearance: <IcAppearance />,
 	calendar: <IcCalendar />,
 	apps: <IcApps />,
-	files: <IcFiles />,
+	files: <IcFilesApp />,
 	site: <IcSite />,
-	rooms: <IcRooms />,
-	partners: <IcPartners />
+	rooms: <IcRoom />,
+	partners: <IcPartner />
 }
 
 interface SettingsProps {

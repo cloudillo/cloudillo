@@ -17,6 +17,8 @@ import {
 	Button,
 	HBox,
 	Heading,
+	IcMore,
+	IcPin,
 	IdentityTag,
 	Menu,
 	MenuItem,
@@ -30,12 +32,6 @@ import {
 import { useAtomValue } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuEllipsisVertical as IcMore,
-	LuPin as IcPin,
-	LuPinOff as IcPinOff,
-	LuUserRound as IcProfile
-} from 'react-icons/lu'
 import { useNavigate } from 'react-router-dom'
 
 import {
@@ -49,6 +45,7 @@ import {
 	useCtx
 } from '../context/index.js'
 import { ProfileContextMenu, useProfileContextMenu } from '../context/profile-context-menu.js'
+import { IcProfile, IcUnpin } from '../icons.js'
 import { unreadCountAtom } from '../read-position.js'
 import { communityMapPath, HOME_BASE, profilePath, scopePath } from '../routes.js'
 import { ContextAvatar, ContextChip } from '../ui/ContextChip.js'
@@ -111,7 +108,7 @@ function CommunityCard({
 				}
 			>
 				<MenuItem
-					icon={isPinned ? <IcPinOff /> : <IcPin />}
+					icon={isPinned ? <IcUnpin /> : <IcPin />}
 					label={isPinned ? t('Unpin from strip') : t('Pin to strip')}
 					onClick={onTogglePin}
 				/>

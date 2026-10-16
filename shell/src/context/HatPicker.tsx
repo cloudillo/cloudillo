@@ -11,6 +11,7 @@ import {
 	Button,
 	Dialog,
 	hatRingClass,
+	IcRemove,
 	List,
 	ListItem,
 	ProfilePicture,
@@ -20,7 +21,6 @@ import {
 import { useAtomValue } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuX as IcClose } from 'react-icons/lu'
 
 import { communitiesAtom } from './atoms'
 import { hatPickerAtom } from './hat-entry.js'
@@ -77,7 +77,7 @@ export function HatPicker() {
 						<Button
 							variant="ghost"
 							size="sm"
-							icon={<IcClose />}
+							icon={<IcRemove />}
 							aria-label={t('Forget {{name}}', { name: profile.name })}
 							onClick={() => forget(hat)}
 						/>

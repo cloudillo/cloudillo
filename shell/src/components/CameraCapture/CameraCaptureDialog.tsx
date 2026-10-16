@@ -2,18 +2,11 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import type { OverlayItem } from '@cloudillo/core'
-import { Button, EmptyState, HBox, ImmersiveOverlay } from '@cloudillo/react'
+import { Button, EmptyState, HBox, IcCamera, IcClose, ImmersiveOverlay } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuCamera as IcCamera,
-	LuCameraOff as IcCameraOff,
-	LuX as IcClose,
-	LuZap as IcFlash,
-	LuZapOff as IcFlashOff,
-	LuSwitchCamera as IcSwitch
-} from 'react-icons/lu'
 
+import { IcCameraOff, IcFlash, IcFlashOff, IcSwitchCamera } from '../../icons.js'
 import {
 	type CameraCaptureOpenOptions,
 	type CameraCaptureResultData,
@@ -382,7 +375,7 @@ export function CameraCaptureDialog() {
 					<HBox gap={2}>
 						<Button
 							onClick={handleSwitchCamera}
-							icon={<IcSwitch />}
+							icon={<IcSwitchCamera />}
 							aria-label={t('Switch camera')}
 						/>
 						{torchAvailable && (

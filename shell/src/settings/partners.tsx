@@ -16,6 +16,7 @@ import {
 	EmptyState,
 	Field,
 	Heading,
+	IcAdd,
 	List,
 	ListItem,
 	LoadingSpinner,
@@ -35,9 +36,9 @@ import type { ActionView, CommunityRole, Profile } from '@cloudillo/types'
 import type { TFunction } from 'i18next'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuPlus as IcAdd, LuHandshake as IcPartner } from 'react-icons/lu'
 
 import { canAdminContext, useActiveCommunity, useApiContext } from '../context/index.js'
+import { IcPartner } from '../icons.js'
 import { PendingRequestsList } from '../profile/community-requests.js'
 import { roleLabels } from '../profile/role-labels.js'
 import {

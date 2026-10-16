@@ -14,9 +14,9 @@ import {
 	Button,
 	Dialog,
 	EmptyState,
-	hatRingClass,
 	HatVia,
 	HBox,
+	hatRingClass,
 	Icon,
 	List,
 	ListItem,
@@ -33,15 +33,15 @@ import {
 import type { ActionView } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuUsers as IcEmpty,
-	LuShieldX as IcInvalid,
-	LuShieldQuestion as IcNoKey,
-	LuShieldOff as IcUnavailable,
-	LuShieldCheck as IcVerified
-} from 'react-icons/lu'
 
 import { useApiContext, useCtx } from '../../context/index.js'
+import {
+	IcInvalid,
+	IcPeople,
+	IcSignatureUnavailable,
+	IcUnverified,
+	IcVerified
+} from '../../icons.js'
 import { profilePath } from '../../routes.js'
 import { getReactionEmoji, getReactionLabel } from './reactions.js'
 import { useAutoVerifySet, useEngagement } from './useEngagement.js'
@@ -229,7 +229,7 @@ export function EngagementDialog({
 				/>
 			) : rows.length === 0 ? (
 				<EmptyState
-					icon={<IcEmpty />}
+					icon={<IcPeople />}
 					title={activeTab === 'reposts' ? t('No reposts yet') : t('No reactions yet')}
 				/>
 			) : (
@@ -342,9 +342,9 @@ function VerifyBadge({ status, onVerify }: { status: RowStatus; onVerify: () => 
 				</Badge>
 			)
 		case 'no-key':
-			return <StatusIcon icon={IcNoKey} label={t('No matching key published')} />
+			return <StatusIcon icon={IcUnverified} label={t('No matching key published')} />
 		case 'unavailable':
-			return <StatusIcon icon={IcUnavailable} label={t('Signature unavailable')} />
+			return <StatusIcon icon={IcSignatureUnavailable} label={t('Signature unavailable')} />
 		default:
 			// 'unchecked' or 'error' — offer an explicit Verify action.
 			return (

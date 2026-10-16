@@ -1,14 +1,14 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Fcd, LoadingSpinner, Nav } from '@cloudillo/react'
+import { Fcd, IcSettings, LoadingSpinner, Nav } from '@cloudillo/react'
 import { useAtomValue } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuFingerprint as IcIdp, LuSettings as IcSettings } from 'react-icons/lu'
 import { Navigate, Outlet, Route, useLocation } from 'react-router-dom'
 
 import { contextIdpEnabledAtom, useCtx } from '../context/index.js'
+import { IcIdp } from '../icons.js'
 import { feedPath, idpPath } from '../routes.js'
 import { IdentitiesSettings } from './identities.js'
 import { ProviderSettings } from './settings.js'

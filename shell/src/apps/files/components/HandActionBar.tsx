@@ -8,7 +8,12 @@ import {
 	Button,
 	Dialog,
 	HBox,
+	IcComment,
+	IcEdit,
+	IcGoTo,
 	Icon,
+	IcPin,
+	IcView,
 	parseChannel,
 	RadioGroup,
 	type RadioOption,
@@ -23,19 +28,9 @@ import {
 import { useAtom, useAtomValue, useStore } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuChevronRight as IcChevron,
-	LuMessageSquare as IcComment,
-	LuHand as IcHand,
-	LuFolderInput as IcMove,
-	LuPin as IcPin,
-	LuShare2 as IcPlace,
-	LuEye as IcRead,
-	LuRotateCcw as IcRestore,
-	LuPencil as IcWrite
-} from 'react-icons/lu'
 
 import { activeContextAtom, useApiContext } from '../../../context/index.js'
+import { IcHand, IcMove, IcPlace, IcRestore } from '../../../icons.js'
 import { aggregateVerbStates, type FileHandItem, handAtom, setDown } from '../../../state/hand.js'
 import { fly, handTargetElAtom, prefersReducedMotion, waveHand } from '../../../state/hand-fly.js'
 import {
@@ -448,7 +443,7 @@ export function HandActionBar({
 	const allOptions: Array<RadioOption<AccessLevel>> = [
 		{
 			value: 'read',
-			leading: <IcRead />,
+			leading: <IcView />,
 			label: t('Read only'),
 			description: t('Recipients can view the files.')
 		},
@@ -460,7 +455,7 @@ export function HandActionBar({
 		},
 		{
 			value: 'write',
-			leading: <IcWrite />,
+			leading: <IcEdit />,
 			label: t('Can edit'),
 			description: t('Recipients can edit the content.')
 		}
@@ -598,7 +593,7 @@ export function HandActionBar({
 							</Button>
 							<Button type="submit" color="primary">
 								{placeCount === 1 ? t('Place') : t('Place files')}
-								<IcChevron />
+								<IcGoTo />
 							</Button>
 						</HBox>
 					</HBox>

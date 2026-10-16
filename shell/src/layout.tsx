@@ -8,6 +8,11 @@ import {
 	Button,
 	DialogContainer,
 	Heading,
+	IcClose,
+	IcMenu,
+	IcQrCode,
+	IcSearch,
+	IcSettings,
 	isInDialog,
 	Logo,
 	Menu,
@@ -25,19 +30,6 @@ import type { ActionView } from '@cloudillo/types'
 import { useAtomValue, useSetAtom } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuX as IcClose,
-	// Menu icons
-	LuLogIn as IcLogin,
-	LuLogOut as IcLogout,
-	LuMenu as IcMenu,
-	LuMessagesSquare as IcMessages,
-	LuQrCode as IcQrCode,
-	LuSearch as IcSearch,
-	LuSettings as IcSettings,
-	LuCircleHelp as IcTour,
-	LuUser as IcUser
-} from 'react-icons/lu'
 import { Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 
 import { lastFilesUrlAtom } from './apps/files/atoms.js'
@@ -124,6 +116,7 @@ import { useWsBus, WsBusRoot } from './ws-bus.js'
 
 // Library CSS is imported first thing in `index.tsx` so shell CSS overrides it.
 import './style.css'
+import { IcHelp, IcLogin, IcLogout, IcMessages, IcProfile } from './icons.js'
 
 declare global {
 	interface Window {
@@ -407,7 +400,7 @@ function Header({ inert }: { inert?: boolean }) {
 									}
 								>
 									<MenuItem
-										icon={<IcUser />}
+										icon={<IcProfile />}
 										label={t('Profile')}
 										href={profilePath(urlContext, 'me')}
 									/>
@@ -424,7 +417,7 @@ function Header({ inert }: { inert?: boolean }) {
 										href={settingsPath(ctxBase(auth.idTag, auth.idTag))}
 									/>
 									<MenuItem
-										icon={<IcTour />}
+										icon={<IcHelp />}
 										label={t('Take the tour')}
 										onClick={startTour}
 									/>

@@ -10,17 +10,21 @@
  * - Internal shell components via useMediaPicker hook
  */
 
-import { ActionBar, Button, Dialog, Tab, Tabs, VBox } from '@cloudillo/react'
+import {
+	ActionBar,
+	Button,
+	Dialog,
+	IcAudio,
+	IcImage,
+	IcPdf,
+	IcVideo,
+	Tab,
+	Tabs,
+	VBox
+} from '@cloudillo/react'
 import { useAtom, useSetAtom } from 'jotai'
 import React, { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuMusic as IcAudio,
-	LuFileText as IcDocument,
-	LuFiles as IcFiles,
-	LuImage as IcImage,
-	LuVideo as IcVideo
-} from 'react-icons/lu'
 
 import {
 	closeMediaPickerAtom,
@@ -28,6 +32,7 @@ import {
 	mediaPickerAtom,
 	openMediaPickerAtom
 } from '../../context/media-picker-atom.js'
+import { IcFiles } from '../../icons.js'
 import { setMediaPickerCallback } from '../../message-bus/handlers/media.js'
 import { MediaPickerBrowseTab } from './MediaPickerBrowseTab.js'
 import { MediaPickerUploadTab } from './MediaPickerUploadTab.js'
@@ -42,7 +47,7 @@ function getMediaTypeIcon(mediaType?: string): React.ReactNode {
 	if (mediaType.startsWith('image/')) return <IcImage />
 	if (mediaType.startsWith('video/')) return <IcVideo />
 	if (mediaType.startsWith('audio/')) return <IcAudio />
-	if (mediaType === 'application/pdf') return <IcDocument />
+	if (mediaType === 'application/pdf') return <IcPdf />
 	return <IcFiles />
 }
 

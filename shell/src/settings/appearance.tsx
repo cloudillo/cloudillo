@@ -4,14 +4,8 @@
 import { Field, LoadingSpinner, Panel, RadioGroup, useApi } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuLayers as IcGlass,
-	LuMonitor as IcSystem,
-	LuMoon as IcDark,
-	LuSquare as IcOpaque,
-	LuSun as IcLight
-} from 'react-icons/lu'
 
+import { IcDarkMode, IcGlass, IcLightMode, IcOpaque, IcSystemTheme } from '../icons.js'
 import { getShellBus } from '../message-bus/index.js'
 import { useSettings } from './settings.js'
 
@@ -192,10 +186,10 @@ export function AppearanceSettings() {
 						{
 							value: 'default',
 							label: t('Use browser settings'),
-							leading: <IcSystem />
+							leading: <IcSystemTheme />
 						},
-						{ value: 'light', label: t('Light'), leading: <IcLight /> },
-						{ value: 'dark', label: t('Dark'), leading: <IcDark /> }
+						{ value: 'light', label: t('Light'), leading: <IcLightMode /> },
+						{ value: 'dark', label: t('Dark'), leading: <IcDarkMode /> }
 					]}
 				/>
 			</Field>

@@ -9,18 +9,13 @@
  * The chip is not rendered for the user's own profile.
  */
 
-import { Menu, MenuItem, Tag, useToast } from '@cloudillo/react'
+import { IcUntrusted, Menu, MenuItem, Tag, useToast } from '@cloudillo/react'
 import type { ProfileTrust } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuEyeOff as IcAnonymous,
-	LuShield as IcShield,
-	LuShieldCheck as IcShieldCheck,
-	LuShieldOff as IcShieldOff
-} from 'react-icons/lu'
 
 import { useProfileTrust } from '../context/index.js'
+import { IcAnonymous, IcTrust, IcTrusted } from '../icons.js'
 
 interface TrustChipProps {
 	idTag: string
@@ -46,11 +41,11 @@ export function TrustChip({ idTag, onChanged }: TrustChipProps): React.ReactElem
 	const { label, color, Icon } = (() => {
 		switch (trust) {
 			case 'always':
-				return { label: t('Trusted'), color: 'success' as const, Icon: IcShieldCheck }
+				return { label: t('Trusted'), color: 'success' as const, Icon: IcTrusted }
 			case 'never':
-				return { label: t('Never'), color: 'warning' as const, Icon: IcShieldOff }
+				return { label: t('Never'), color: 'warning' as const, Icon: IcUntrusted }
 			case 'S':
-				return { label: t('Session auth'), color: 'primary' as const, Icon: IcShield }
+				return { label: t('Session auth'), color: 'primary' as const, Icon: IcTrust }
 			case 'X':
 				return {
 					label: t('Anonymous (session)'),

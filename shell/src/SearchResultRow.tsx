@@ -23,9 +23,9 @@ import {
 import type { SearchHit } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuMessageSquare as IcAction } from 'react-icons/lu'
 
 import { getFileIcon } from './apps/files/icons.js'
+import { IcPost } from './icons.js'
 
 export interface SearchResultRowProps extends Omit<ListItemProps, 'title'> {
 	hit: SearchHit
@@ -72,7 +72,7 @@ export const SearchResultRow = React.forwardRef<HTMLLIElement, SearchResultRowPr
 		if (isProfile) {
 			icon = <ProfilePicture profile={{ profilePic: hit.profilePic }} srcTag={hit.objId} />
 		} else if (hit.objTp === 'A') {
-			icon = <IcAction width={24} height={24} />
+			icon = <IcPost width={24} height={24} />
 		} else {
 			const Icon = getFileIcon(hit.contentType ?? '', undefined)
 			const typeIcon = <Icon width={24} height={24} />

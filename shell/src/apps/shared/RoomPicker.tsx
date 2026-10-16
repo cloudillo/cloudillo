@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import type { PorchEntry } from '@cloudillo/core'
-import { Button, makeChannel, Menu, MenuItem, Text, VBox } from '@cloudillo/react'
+import { Button, IcDropdown, Menu, MenuItem, makeChannel, Text, VBox } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuChevronDown as IcDown, LuDoorOpen as IcRoom } from 'react-icons/lu'
 
 import { useContextRolesFor } from '../../context/index.js'
-import { floorText } from '../../profile/role-labels.js'
+import { IcRoom } from '../../icons.js'
 import { usePorch } from '../../lib/porch.js'
+import { floorText } from '../../profile/role-labels.js'
 
 /** Rooms of `tenant` the viewer is already in — the only ones new content may go into. */
 export function useEnterableRooms(tenant: string | undefined): PorchEntry[] {
@@ -48,7 +48,7 @@ export function RoomPicker({ tenant, value, onChange, rooms: roomsProp }: RoomPi
 					<Button variant="link" aria-label={t('Room')}>
 						<IcRoom />
 						{current ? `~${current.title || current.name}` : t('~ Open floor')}
-						<IcDown />
+						<IcDropdown />
 					</Button>
 				}
 			>

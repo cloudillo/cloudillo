@@ -5,8 +5,8 @@ import { EmptyState, SkeletonCard, useApi, VBox } from '@cloudillo/react'
 import type { ActionView } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuSave as IcDraft } from 'react-icons/lu'
 
+import { IcDraft } from '../../icons.js'
 import { DraftCard } from './DraftCard.js'
 
 export interface DraftsPanelProps {

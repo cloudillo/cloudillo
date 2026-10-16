@@ -1,10 +1,16 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Badge, Breadcrumbs as BreadcrumbTrail, HBox, Text } from '@cloudillo/react'
+import {
+	Badge,
+	Breadcrumbs as BreadcrumbTrail,
+	HBox,
+	IcHome,
+	IcShare,
+	Text
+} from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuFolder as IcHome, LuShare2 as IcShare } from 'react-icons/lu'
 
 import type { BreadcrumbItem } from '../hooks/useFileNavigation.js'
 import { canWrite, type FileAccessLevel } from '../utils.js'

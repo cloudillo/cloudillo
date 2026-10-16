@@ -1,14 +1,18 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
 import {
 	Affix,
 	Badge,
 	Button,
 	Disclosure,
 	HBox,
+	IcError,
+	IcFile,
+	IcLink,
 	Icon,
+	IcRemove,
+	IcSuccess,
 	List,
 	ListItem,
 	LoadingSpinner,
@@ -16,14 +20,8 @@ import {
 	Progress,
 	Text
 } from '@cloudillo/react'
+import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuCheck as IcCheck,
-	LuX as IcClose,
-	LuCircleAlert as IcError,
-	LuFile as IcFile,
-	LuLink2 as IcLink
-} from 'react-icons/lu'
 
 import type { UploadItem } from '../hooks/useUploadQueue.js'
 
@@ -53,7 +51,7 @@ function UploadItemRow({ item, onRemove }: { item: UploadItem; onRemove?: (id: s
 		<ListItem
 			leading={
 				item.status === 'complete' ? (
-					<Icon as={IcCheck} color="success" />
+					<Icon as={IcSuccess} color="success" />
 				) : item.status === 'error' ? (
 					<Icon as={IcError} color="error" />
 				) : item.status === 'uploading' ? (
@@ -85,7 +83,7 @@ function UploadItemRow({ item, onRemove }: { item: UploadItem; onRemove?: (id: s
 					<Button
 						variant="ghost"
 						size="xs"
-						icon={<IcClose />}
+						icon={<IcRemove />}
 						onClick={() => onRemove(item.id)}
 						aria-label={t('Remove')}
 					/>
@@ -134,7 +132,7 @@ export function UploadProgress({
 							</>
 						) : (
 							<>
-								<Icon as={IcCheck} color="success" />
+								<Icon as={IcSuccess} color="success" />
 								{t('{{completed}} files uploaded', { completed: stats.completed })}
 							</>
 						)}

@@ -13,7 +13,10 @@ import {
 	Fieldset,
 	FileButton,
 	HBox,
+	IcFile,
 	Icon,
+	IcRemove,
+	IcUpload,
 	List,
 	ListItem,
 	NativeSelect,
@@ -23,7 +26,6 @@ import {
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuX as IcClose, LuFileText as IcFile, LuFileUp as IcUpload } from 'react-icons/lu'
 
 import { useContextAwareApi } from '../../../context/index.js'
 
@@ -217,7 +219,7 @@ export function ImportVcfModal({
 												size="sm"
 												onClick={clearFile}
 												aria-label={t('Remove file')}
-												icon={<IcClose />}
+												icon={<IcRemove />}
 											/>
 										</HBox>
 									}

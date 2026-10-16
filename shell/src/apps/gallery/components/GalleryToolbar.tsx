@@ -3,6 +3,9 @@
 
 import {
 	Button,
+	IcDropdown,
+	IcSortAsc,
+	IcSortDesc,
 	Popper,
 	Toolbar as ToolbarContainer,
 	ToolbarDivider,
@@ -12,14 +15,8 @@ import {
 import type { TFunction } from 'i18next'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuArrowUp as IcAsc,
-	LuChevronDown as IcChevron,
-	LuArrowDown as IcDesc,
-	LuLayoutList as IcMasonry,
-	LuLayoutGrid as IcRows
-} from 'react-icons/lu'
 
+import { IcMasonry, IcRows } from '../../../icons.js'
 import type { GalleryLayout, SortDir, SortOption } from '../types.js'
 
 interface GalleryToolbarProps {
@@ -60,7 +57,7 @@ export function GalleryToolbar({
 				menuClassName="c-button g-2"
 				label={
 					<>
-						{sortLabels[sort]} <IcChevron />
+						{sortLabels[sort]} <IcDropdown />
 					</>
 				}
 				contentClassName="c-nav vertical emph"
@@ -81,7 +78,7 @@ export function GalleryToolbar({
 			<Button
 				onClick={toggleSortDir}
 				aria-label={sortDir === 'asc' ? t('Sort ascending') : t('Sort descending')}
-				icon={sortDir === 'asc' ? <IcAsc /> : <IcDesc />}
+				icon={sortDir === 'asc' ? <IcSortAsc /> : <IcSortDesc />}
 			/>
 
 			<ToolbarDivider />

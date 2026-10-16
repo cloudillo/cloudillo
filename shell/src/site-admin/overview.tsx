@@ -8,6 +8,10 @@ import {
 	Card,
 	Grid,
 	HBox,
+	IcCommunity,
+	IcGoTo,
+	IcPerson,
+	IcSettings,
 	Panel,
 	Text,
 	useApi,
@@ -16,18 +20,8 @@ import {
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuChevronRight as IcArrow,
-	LuCheck as IcCheck,
-	LuUsersRound as IcCommunity,
-	LuX as IcError,
-	LuAtSign as IcInvitations,
-	LuMail as IcMail,
-	LuSettings as IcSettings,
-	LuUser as IcUser,
-	LuUsers as IcUsers
-} from 'react-icons/lu'
 
+import { IcAvailable, IcInvitation, IcMail, IcPeople, IcUnavailable } from '../icons.js'
 import { HOME_BASE, settingsPath, siteAdminPath } from '../routes.js'
 import { useSettings } from '../settings/settings.js'
 
@@ -120,12 +114,12 @@ export function AdminOverview() {
 					<StatCard
 						value={loading ? '...' : tenants.length}
 						label={t('Profiles')}
-						icon={<IcUsers size={20} />}
+						icon={<IcPeople size={20} />}
 					>
 						{!loading && (
 							<HBox gap={3} justify="center" className="mt-2">
 								<Text size="sm" emphasis="muted">
-									<IcUser size={14} /> {personalProfiles.length}
+									<IcPerson size={14} /> {personalProfiles.length}
 								</Text>
 								<Text size="sm" emphasis="muted">
 									<IcCommunity size={14} /> {communityProfiles.length}
@@ -136,16 +130,16 @@ export function AdminOverview() {
 					<StatCard
 						value={loading ? '...' : pendingInvitations.length}
 						label={t('Pending Invitations')}
-						icon={<IcInvitations size={20} />}
+						icon={<IcInvitation size={20} />}
 					/>
 					<StatCard
 						value={
 							!emailSettingsLoaded ? (
 								'...'
 							) : emailConfigured ? (
-								<IcCheck size={24} className="text-success" />
+								<IcAvailable size={24} className="text-success" />
 							) : (
-								<IcError size={24} className="text-warning" />
+								<IcUnavailable size={24} className="text-warning" />
 							)
 						}
 						label={t('Email')}
@@ -169,7 +163,7 @@ export function AdminOverview() {
 							{t('Configure your personal account settings')}
 						</Text>
 					</VBox>
-					<IcArrow className="text-muted" />
+					<IcGoTo className="text-muted" />
 				</HBox>
 			</Card>
 		</>

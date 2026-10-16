@@ -1,11 +1,21 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { ActionBar, Button, Dialog, Field, Input, List, ListItem, Text } from '@cloudillo/react'
+import {
+	ActionBar,
+	Button,
+	Dialog,
+	Field,
+	IcWarning,
+	Input,
+	List,
+	ListItem,
+	Text
+} from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuLogOut as IcLogout, LuCircleAlert as IcWarning } from 'react-icons/lu'
 
+import { IcLogout } from '../icons.js'
 import type { DirtyDocSummary } from './wipe-local-data.js'
 
 const CONFIRM_PHRASE = 'LOGOUT'

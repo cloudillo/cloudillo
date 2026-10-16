@@ -14,9 +14,9 @@
 import { Button, EmptyState } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuMapPinOff as IcNotFound } from 'react-icons/lu'
 
 import { useCtx } from './context/index.js'
+import { IcNotFound } from './icons.js'
 import { feedPath } from './routes.js'
 
 export function NotFound() {

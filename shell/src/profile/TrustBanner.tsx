@@ -16,9 +16,9 @@
 import { Alert, Button, useToast } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuShield as IcShield } from 'react-icons/lu'
 
 import { useProfileTrust } from '../context/index.js'
+import { IcTrust } from '../icons.js'
 
 interface TrustBannerProps {
 	idTag: string
@@ -81,7 +81,7 @@ export function TrustBanner({ idTag, onDecision }: TrustBannerProps): React.Reac
 			color="info"
 			className="m-2"
 			role="status"
-			icon={<IcShield />}
+			icon={<IcTrust />}
 			title={t('Authenticate to {{idTag}}?', { idTag })}
 			actions={
 				<>

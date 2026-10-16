@@ -7,7 +7,14 @@ import {
 	Button,
 	FileTypeIcon,
 	HBox,
+	IcDownload,
+	IcEdit,
+	IcFileError,
+	IcGoTo,
+	IcInfo,
+	IcNoAccess,
 	Icon,
+	IcView,
 	InlineEditForm,
 	ListItem,
 	ProfilePicture,
@@ -19,22 +26,9 @@ import {
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuTriangleAlert as IcBroken,
-	LuDownload as IcDownload,
-	LuPencil as IcEdit,
-	LuInfo as IcInfo,
-	LuLock as IcLock,
-	LuChevronRight as IcOpenFolder,
-	LuLoaderCircle as IcProcessing,
-	LuPencilOff as IcReadOnly,
-	LuStar as IcStar,
-	LuCloudOff as IcUnsyncedEdit,
-	LuEye as IcView
-} from 'react-icons/lu'
-import { TbPinnedFilled as IcPin } from 'react-icons/tb'
 
 import { useCurrentContextIdTag } from '../../../context/index.js'
+import { IcPinned, IcProcessing, IcReadOnly, IcStar, IcUnsynced } from '../../../icons.js'
 import { useAppConfig } from '../../../utils.js'
 import { isViewerSupported, triggerFileDownload } from '../../viewer/MediaViewer.js'
 import type { File, FileOps, ViewMode } from '../types.js'
@@ -221,7 +215,7 @@ export const ItemCard = React.memo(function ItemCard({
 					position="top-start"
 					badge={
 						isPinned ? (
-							<Icon as={IcPin} size="xs" color="primary" label={t('Pinned')} />
+							<Icon as={IcPinned} size="sm" color="primary" label={t('Pinned')} />
 						) : undefined
 					}
 				>
@@ -309,7 +303,7 @@ export const ItemCard = React.memo(function ItemCard({
 			meta={
 				<HBox gap={1} align="center">
 					{isBroken && (
-						<Icon as={IcBroken} color="warning" label={brokenSubtitle ?? ''} />
+						<Icon as={IcFileError} color="warning" label={brokenSubtitle ?? ''} />
 					)}
 					{!isBroken && isProcessing && (
 						<Icon as={IcProcessing} label={t('Still processing — available shortly')} />
@@ -323,7 +317,7 @@ export const ItemCard = React.memo(function ItemCard({
 						)}
 					{isDirty && (
 						<Icon
-							as={IcUnsyncedEdit}
+							as={IcUnsynced}
 							color="warning"
 							label={t('Has unsynced local edits')}
 						/>
@@ -365,9 +359,9 @@ export const ItemCard = React.memo(function ItemCard({
 							onTouchCancel={handleOpenTouchEnd}
 							icon={
 								isFolder ? (
-									<IcOpenFolder />
+									<IcGoTo />
 								) : file.accessLevel === 'none' ? (
-									<IcLock />
+									<IcNoAccess />
 								) : editable ? (
 									<IcEdit />
 								) : downloadOnly ? (

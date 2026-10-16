@@ -11,18 +11,18 @@ import {
 	Form,
 	LoadingSpinner,
 	Logo,
+	PasswordInput,
+	PasswordStrengthBar,
 	Text,
 	useApi,
-	useAuth,
-	PasswordInput,
-	PasswordStrengthBar
+	useAuth
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuLock as IcLock } from 'react-icons/lu'
 import { useNavigate, useParams } from 'react-router-dom'
 
 import { AuthLayout } from '../auth/AuthLayout.js'
+import { IcPassword } from '../icons.js'
 import { installToken } from '../pwa.js'
 import { type ResendState, VerifyIdpContent } from './verify-idp-content.js'
 
@@ -303,7 +303,7 @@ export function Welcome() {
 			<Form onSubmit={handleSubmit}>
 				<Field label={t('Password')}>
 					<PasswordInput
-						leading={<IcLock />}
+						leading={<IcPassword />}
 						name="password"
 						autoFocus
 						onChange={(evt) => {
@@ -327,7 +327,7 @@ export function Welcome() {
 					}
 				>
 					<PasswordInput
-						leading={<IcLock />}
+						leading={<IcPassword />}
 						name="confirmPassword"
 						onChange={(evt) => {
 							setConfirmPassword(evt.target.value)

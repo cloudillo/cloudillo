@@ -5,12 +5,15 @@ import {
 	Button,
 	COMMUNITY_VISIBILITY,
 	HBox,
+	IcDelete,
+	IcMore,
+	IcRename,
 	Input,
 	Menu,
 	MenuDivider,
 	MenuItem,
-	PERSONAL_VISIBILITY,
 	Panel,
+	PERSONAL_VISIBILITY,
 	Text,
 	useDialog,
 	type VisibilityCode,
@@ -18,11 +21,6 @@ import {
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuTrash2 as IcDelete,
-	LuEllipsisVertical as IcMore,
-	LuPencil as IcRename
-} from 'react-icons/lu'
 
 import { AboutSectionEdit } from './sections/AboutSection.js'
 import { ContactSectionEdit } from './sections/ContactSection.js'

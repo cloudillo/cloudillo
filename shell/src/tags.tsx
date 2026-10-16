@@ -1,10 +1,9 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Button, Combobox, HBox, Tag } from '@cloudillo/react'
+import { Button, Combobox, HBox, IcAdd, IcCancel, IcTag, Tag } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuHash as IcHash, LuMinus as IcMinus, LuPlus as IcPlus } from 'react-icons/lu'
 
 export function Tags({ tags }: { tags?: string[] }) {
 	return (
@@ -73,7 +72,7 @@ export function EditTags({ tags, listTags, addTag, removeTag }: EditTagsProps) {
 					<Button
 						variant="ghost"
 						size="sm"
-						icon={add ? <IcMinus /> : <IcPlus />}
+						icon={add ? <IcCancel /> : <IcAdd />}
 						aria-label={add ? t('Cancel') : t('Add tag')}
 						aria-expanded={add}
 						onClick={() => setAdd(!add)}
@@ -82,7 +81,7 @@ export function EditTags({ tags, listTags, addTag, removeTag }: EditTagsProps) {
 			</HBox>
 			{add && (
 				<HBox gap={1} align="center">
-					<IcHash aria-hidden="true" />
+					<IcTag aria-hidden="true" />
 					<Combobox
 						className="flex-fill"
 						placeholder={t('Add tag...')}
@@ -91,7 +90,7 @@ export function EditTags({ tags, listTags, addTag, removeTag }: EditTagsProps) {
 						itemToId={(i) => i.tag}
 						itemToString={(i) => i?.tag || ''}
 						renderItem={renderItem}
-						leading={(i) => (i.new ? <IcPlus /> : undefined)}
+						leading={(i) => (i.new ? <IcAdd /> : undefined)}
 						onSelect={onAdd}
 					/>
 				</HBox>

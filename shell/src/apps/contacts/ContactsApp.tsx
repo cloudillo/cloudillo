@@ -6,6 +6,9 @@ import {
 	EmptyState,
 	FAB,
 	Fcd,
+	IcAdd,
+	IcImport,
+	IcMore,
 	Menu,
 	MenuDivider,
 	MenuItem,
@@ -15,17 +18,11 @@ import {
 import { useAtom } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuPlus as IcAdd,
-	LuUsers as IcAddNetwork,
-	LuFileUp as IcImport,
-	LuEllipsisVertical as IcMore,
-	LuBookOpen as IcNewBook
-} from 'react-icons/lu'
 import '@cloudillo/react/components.css'
 import type { ContactInput, ContactOutput } from '@cloudillo/core'
 
 import { useContextAwareApi } from '../../context/index.js'
+import { IcAddPerson, IcAddressBook } from '../../icons.js'
 import { DrawerToggle } from '../../ui/DrawerToggle.js'
 import { isPermissionError } from '../../utils.js'
 import { searchQueryAtom, selectedAddressBookAtom, selectedContactRefAtom } from './atoms.js'
@@ -314,7 +311,7 @@ export function ContactsApp() {
 								<Button
 									color="primary"
 									onClick={openCreateBook}
-									icon={<IcNewBook />}
+									icon={<IcAddressBook />}
 								>
 									{t('New address book')}
 								</Button>
@@ -382,7 +379,7 @@ export function ContactsApp() {
 			{toolbarMenu && (
 				<Menu position={toolbarMenu} onClose={() => setToolbarMenu(null)}>
 					<MenuItem
-						icon={<IcAddNetwork />}
+						icon={<IcAddPerson />}
 						label={t('Add from Cloudillo network')}
 						disabled={noBooks || !!booksError}
 						onClick={() => {
@@ -401,7 +398,7 @@ export function ContactsApp() {
 					/>
 					<MenuDivider />
 					<MenuItem
-						icon={<IcNewBook />}
+						icon={<IcAddressBook />}
 						label={t('New address book')}
 						disabled={!!booksError}
 						onClick={() => {

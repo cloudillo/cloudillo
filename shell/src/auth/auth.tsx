@@ -9,33 +9,29 @@ import {
 	Button,
 	Field,
 	Form,
+	IcBack,
 	Input,
 	Logo,
+	PasswordInput,
 	Switcher,
 	Text,
 	Toggle,
 	useApi,
 	useAuth,
-	useToast,
-	PasswordInput
+	useToast
 } from '@cloudillo/react'
 import { browserSupportsWebAuthn, startAuthentication } from '@simplewebauthn/browser'
 import type { TFunction } from 'i18next'
 import { atom, useAtom } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuArrowLeft as IcBack,
-	LuLogIn as IcLogin,
-	LuMail as IcMail,
-	LuFingerprint as IcWebAuthn
-} from 'react-icons/lu'
 import { Navigate, Route, useNavigate } from 'react-router-dom'
 
 interface NavigatorUA {
 	userAgentData?: { platform: string }
 }
 
+import { IcLogin, IcMail, IcPasskey } from '../icons.js'
 import { RegisterForm } from '../profile/register.js'
 import { installToken, setApiKey } from '../pwa.js'
 import { feedPath, HOME_BASE, scopePath } from '../routes.js'
@@ -487,7 +483,7 @@ export function WebAuth({ remember }: WebAuthProps) {
 
 	return (
 		<Button onClick={handleWebAuthnLogin}>
-			<IcWebAuthn className="me-1" />
+			<IcPasskey className="me-1" />
 			{t('Login with passkey')}
 		</Button>
 	)

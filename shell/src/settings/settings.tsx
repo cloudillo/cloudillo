@@ -1,10 +1,9 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { EmptyState, ListItem, Toggle, useApi, useToast } from '@cloudillo/react'
+import { EmptyState, IcNoAccess, ListItem, Toggle, useApi, useToast } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuLock as IcDenied } from 'react-icons/lu'
 
 import { coerceSettingValue, isPermissionError } from '../utils.js'
 
@@ -13,7 +12,7 @@ export function SettingsDenied() {
 	const { t } = useTranslation()
 	return (
 		<EmptyState
-			icon={<IcDenied />}
+			icon={<IcNoAccess />}
 			title={t('No access to these settings')}
 			description={t('Your account is not allowed to view or change these settings.')}
 		/>

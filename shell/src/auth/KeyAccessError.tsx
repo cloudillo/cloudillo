@@ -6,6 +6,9 @@ import {
 	Button,
 	Dialog,
 	DialogContainer,
+	IcDelete,
+	IcRefresh,
+	IcWarning,
 	List,
 	ListItem,
 	Text,
@@ -13,11 +16,6 @@ import {
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuTrash2 as IcClear,
-	LuRefreshCw as IcRefresh,
-	LuCircleAlert as IcWarning
-} from 'react-icons/lu'
 
 import { recoverFromKeyLoss } from './key-loss.js'
 import type { DirtyDocSummary } from './wipe-local-data.js'
@@ -70,7 +68,7 @@ export function KeyAccessError({
 					<ActionBar>
 						<Button
 							color="error"
-							icon={<IcClear />}
+							icon={<IcDelete />}
 							onClick={handleReset}
 							loading={resetting}
 							disabled={resetting}

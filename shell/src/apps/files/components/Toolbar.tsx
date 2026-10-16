@@ -1,23 +1,21 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import * as React from 'react'
 import {
 	Button,
+	IcBack,
+	IcGridView,
+	IcListView,
 	Segmented,
 	SegmentedItem,
 	Toolbar as ToolbarContainer,
 	ToolbarDivider,
 	ToolbarSpacer
 } from '@cloudillo/react'
+import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuArrowLeft as IcArrowLeft,
-	LuArrowUp as IcArrowUp,
-	LuTrash2 as IcEmptyTrash,
-	LuLayoutGrid as IcGrid,
-	LuList as IcList
-} from 'react-icons/lu'
+
+import { IcEmptyTrash, IcParentFolder } from '../../../icons.js'
 
 export type DisplayMode = 'grid' | 'list'
 
@@ -48,7 +46,7 @@ export function Toolbar({
 		<ToolbarContainer className={className}>
 			{onGoBack && (
 				<Button
-					icon={<IcArrowLeft />}
+					icon={<IcBack />}
 					aria-label={t('Go back')}
 					disabled={!canGoBack}
 					onClick={onGoBack}
@@ -56,7 +54,7 @@ export function Toolbar({
 			)}
 			{onGoUp && (
 				<Button
-					icon={<IcArrowUp />}
+					icon={<IcParentFolder />}
 					aria-label={t('Go to parent folder')}
 					disabled={!canGoUp}
 					onClick={onGoUp}
@@ -80,8 +78,8 @@ export function Toolbar({
 				value={displayMode}
 				onChange={(mode) => onDisplayModeChange(mode as DisplayMode)}
 			>
-				<SegmentedItem value="list" icon={IcList} label={t('List view')} />
-				<SegmentedItem value="grid" icon={IcGrid} label={t('Grid view')} />
+				<SegmentedItem value="list" icon={IcListView} label={t('List view')} />
+				<SegmentedItem value="grid" icon={IcGridView} label={t('Grid view')} />
 			</Segmented>
 		</ToolbarContainer>
 	)

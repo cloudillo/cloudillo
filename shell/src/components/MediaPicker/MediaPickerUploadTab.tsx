@@ -16,6 +16,8 @@ import {
 	DropZone,
 	EmptyState,
 	Field,
+	IcError,
+	IcSuccess,
 	PERSONAL_VISIBILITY,
 	Progress,
 	Text,
@@ -25,7 +27,6 @@ import {
 } from '@cloudillo/react'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuCheck as IcCheck, LuX as IcClose } from 'react-icons/lu'
 
 import { useApiContext } from '../../context/index.js'
 import type { MediaPickerResult } from '../../context/media-picker-atom.js'
@@ -336,7 +337,7 @@ export function MediaPickerUploadTab({
 			{uploadState === 'complete' && (
 				<EmptyState
 					color="success"
-					icon={<IcCheck />}
+					icon={<IcSuccess />}
 					title={t('Upload complete')}
 					description={t('Click Select to use this file')}
 					actions={<Button onClick={handleReset}>{t('Upload another')}</Button>}
@@ -346,7 +347,7 @@ export function MediaPickerUploadTab({
 			{uploadState === 'error' && (
 				<EmptyState
 					color="error"
-					icon={<IcClose />}
+					icon={<IcError />}
 					title={error || t('Upload failed')}
 					actions={
 						<>

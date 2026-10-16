@@ -2,11 +2,18 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import {
-	absChannel,
 	ActionSheet,
 	ActionSheetDivider,
 	ActionSheetItem,
 	ActionSheetSubItem,
+	absChannel,
+	IcDownload,
+	IcDuplicate,
+	IcPin,
+	IcRefresh,
+	IcRename,
+	IcShare,
+	IcView,
 	Menu,
 	MenuDivider,
 	MenuItem,
@@ -18,27 +25,20 @@ import {
 import { useAtom, useStore } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuDownload as IcDownload,
-	LuCopyPlus as IcDuplicate,
-	LuHand as IcHand,
-	LuFolderOpen as IcOpen,
-	LuAppWindow as IcOpenWith,
-	LuTrash as IcPermanentDelete,
-	LuPin as IcPin,
-	LuPinOff as IcPinOff,
-	LuRefreshCw as IcRefresh,
-	LuPencil as IcRename,
-	LuRotateCcw as IcRestore,
-	LuShare2 as IcShare,
-	LuStar as IcStar,
-	LuStarOff as IcStarOff,
-	LuTrash2 as IcTrash,
-	LuEye as IcView
-} from 'react-icons/lu'
 
 import { activeContextAtom, useCurrentContextIdTag } from '../../../context/index.js'
 import { getIcon } from '../../../icon-registry.js'
+import {
+	IcDeleteForever,
+	IcHand,
+	IcOpen,
+	IcOpenWith,
+	IcRestore,
+	IcStar,
+	IcTrash,
+	IcUnpin,
+	IcUnstar
+} from '../../../icons.js'
 import { getHandlersForContentType } from '../../../manifest-registry.js'
 import { type FileHandItem, HandTypeConflictError, pickUp } from '../../../state/hand.js'
 import { fly, handTargetElAtom, prefersReducedMotion } from '../../../state/hand-fly.js'
@@ -280,7 +280,7 @@ export function ContextMenu({
 			{renderPickUpItem(true)}
 			<Divider />
 			<Item
-				icon={<IcPermanentDelete />}
+				icon={<IcDeleteForever />}
 				label={
 					isSingleSelect
 						? t('Delete permanently')
@@ -435,7 +435,7 @@ export function ContextMenu({
 			{/* Star toggle — hidden in remote browsing */}
 			{!isRemoteBrowsing && !isManagedView && (
 				<Item
-					icon={isStarred ? <IcStarOff /> : <IcStar />}
+					icon={isStarred ? <IcUnstar /> : <IcStar />}
 					label={
 						isSingleSelect
 							? isStarred
@@ -456,7 +456,7 @@ export function ContextMenu({
 			{/* Pin toggle — hidden in remote browsing */}
 			{!isRemoteBrowsing && !isManagedView && (
 				<Item
-					icon={isPinned ? <IcPinOff /> : <IcPin />}
+					icon={isPinned ? <IcUnpin /> : <IcPin />}
 					label={
 						isSingleSelect
 							? isPinned

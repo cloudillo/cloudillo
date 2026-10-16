@@ -4,19 +4,19 @@
 import { Fcd, Nav } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuShieldCheck as IcIdps,
-	LuAtSign as IcInvitations,
-	LuMail as IcMail,
-	LuNetwork as IcProxy,
-	LuServer as IcServer,
-	LuHardDrive as IcStorage,
-	LuUser as IcTenant,
-	LuUsers as IcTenants
-} from 'react-icons/lu'
 import { Navigate, Outlet, Route, useLocation, useMatch } from 'react-router-dom'
 
 import { useCtx } from '../context/index.js'
+import {
+	IcIdp,
+	IcInvitation,
+	IcMail,
+	IcPeople,
+	IcPolicy,
+	IcProxy,
+	IcServer,
+	IcStorage
+} from '../icons.js'
 import { HOME_BASE, rebase, sectionMatch, siteAdminPath } from '../routes.js'
 import { EmailSettings } from './email.js'
 import { SuggestedProvidersSettings } from './idps.js'
@@ -42,12 +42,12 @@ export function SiteAdmin({ title, children }: { title: string; children?: React
 					<Nav.Section label={t('User Management')}>
 						<Nav.Item
 							href={siteAdminPath('invitations')}
-							icon={<IcInvitations />}
+							icon={<IcInvitation />}
 							label={t('Invitations')}
 						/>
 						<Nav.Item
 							href={siteAdminPath('tenants')}
-							icon={<IcTenants />}
+							icon={<IcPeople />}
 							label={t('Users & Communities')}
 						/>
 					</Nav.Section>
@@ -55,7 +55,7 @@ export function SiteAdmin({ title, children }: { title: string; children?: React
 					<Nav.Section label={t('Registration')}>
 						<Nav.Item
 							href={siteAdminPath('idps')}
-							icon={<IcIdps />}
+							icon={<IcIdp />}
 							label={t('Suggested Providers')}
 						/>
 					</Nav.Section>
@@ -83,7 +83,7 @@ export function SiteAdmin({ title, children }: { title: string; children?: React
 						/>
 						<Nav.Item
 							href={siteAdminPath('tenant')}
-							icon={<IcTenant />}
+							icon={<IcPolicy />}
 							label={t('Default Policies')}
 						/>
 					</Nav.Section>

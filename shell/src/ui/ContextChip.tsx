@@ -14,9 +14,9 @@
 import { Badge, BadgeAnchor, mergeClasses, ProfilePicture, Tag } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuClock3 as IcPending } from 'react-icons/lu'
 
 import './context-strip.css'
+import { IcPending } from '../icons.js'
 
 export interface ContextAvatarProps {
 	idTag: string

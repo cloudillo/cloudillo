@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import { getFileUrl } from '@cloudillo/core'
-import { Button, FileTile, HBox } from '@cloudillo/react'
+import { Button, FileTile, HBox, IcRemove } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuX as IcClose } from 'react-icons/lu'
 
 export interface AttachmentPreviewProps {
 	attachmentIds: string[]
@@ -38,7 +37,7 @@ export function AttachmentPreview({
 							<Button
 								variant="ghost"
 								size="xs"
-								icon={<IcClose />}
+								icon={<IcRemove />}
 								aria-label={t('Remove {{name}}', { name })}
 								onClick={() => onRemove(id)}
 							/>

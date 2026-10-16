@@ -9,11 +9,11 @@
  * or converting.
  */
 
+import { Button, Dialog, IcUpload, Text, VBox } from '@cloudillo/react'
 import * as React from 'react'
-import { Button, Dialog, Text, VBox } from '@cloudillo/react'
 import { useTranslation } from 'react-i18next'
-import { LuFileSpreadsheet as IcConvert, LuUpload as IcUpload } from 'react-icons/lu'
 
+import { IcConvert } from '../../../icons.js'
 import type { ImportHandler } from '../../../manifest-registry.js'
 import type { PendingConversion } from '../hooks/useSmartUpload.js'
 

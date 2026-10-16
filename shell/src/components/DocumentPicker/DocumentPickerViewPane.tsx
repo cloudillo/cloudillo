@@ -9,10 +9,18 @@
  */
 
 import type { EmbedViewReportPayload } from '@cloudillo/core'
-import { ActionBar, Button, Dialog, Text, useApi, VBox, ViewEmbed } from '@cloudillo/react'
+import {
+	ActionBar,
+	Button,
+	Dialog,
+	IcDocument,
+	Text,
+	useApi,
+	VBox,
+	ViewEmbed
+} from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuFileText as IcDocument } from 'react-icons/lu'
 
 import { shellEmbedAppName } from '../../app-name.js'
 import { AppLoadingIndicator } from '../../apps/AppLoadingIndicator.js'

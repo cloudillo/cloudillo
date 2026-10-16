@@ -1,10 +1,9 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { ActionBar, Button, Dialog, Field, Input } from '@cloudillo/react'
+import { ActionBar, Button, Dialog, Field, IcPerson, Input } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuUser as IcUser } from 'react-icons/lu'
 
 import {
 	generateRandomGuestName,
@@ -48,7 +47,7 @@ export function GuestNameDialog({ open, onConfirm, onCancel }: GuestNameDialogPr
 		<Dialog
 			open
 			size="sm"
-			icon={<IcUser />}
+			icon={<IcPerson />}
 			title={t('Join as Guest')}
 			description={t('Enter a name that other collaborators will see')}
 			dismissable={!!onCancel}

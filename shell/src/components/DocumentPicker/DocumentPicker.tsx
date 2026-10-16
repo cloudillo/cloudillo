@@ -10,11 +10,10 @@
  * - Internal shell components via useDocumentPicker hook
  */
 
-import { ActionBar, Button, Dialog, Text, useToast } from '@cloudillo/react'
+import { ActionBar, Button, Dialog, IcDocument, Text, useToast } from '@cloudillo/react'
 import { useAtom, useSetAtom } from 'jotai'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuFileText as IcDocument } from 'react-icons/lu'
 import { useNavigate } from 'react-router-dom'
 
 import {

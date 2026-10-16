@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import { FetchError } from '@cloudillo/core'
-import { Alert, Button } from '@cloudillo/react'
+import { Alert, Button, IcLoading, IcWarning } from '@cloudillo/react'
 import type { TFunction } from 'i18next'
 import { useAtom, useAtomValue } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuRefreshCw as IcLoading, LuCircleAlert as IcWarning } from 'react-icons/lu'
 
 import { activeContextAtom, contextOnboardingAtom, contextRolesAtom } from './atoms'
 import { useApiContext } from './hooks'

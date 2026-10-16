@@ -5,7 +5,9 @@ import type { TagInfo } from '@cloudillo/core'
 import {
 	Button,
 	HBox,
+	IcAll,
 	IconText,
+	IcTag,
 	Nav,
 	Panel,
 	SearchInput,
@@ -15,14 +17,8 @@ import {
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuImage as IcAll,
-	LuClock as IcRecent,
-	LuStar as IcStarred,
-	LuTag as IcTag,
-	LuCalendar as IcTime
-} from 'react-icons/lu'
 
+import { IcDate, IcRecent, IcStar } from '../../../icons.js'
 import type { GalleryViewMode, TimeFilter } from '../types.js'
 
 interface GallerySidebarProps {
@@ -76,7 +72,7 @@ export const GallerySidebar = React.memo(function GallerySidebar({
 
 	const viewItems: { mode: GalleryViewMode; icon: React.ReactNode; label: string }[] = [
 		{ mode: 'all', icon: <IcAll />, label: t('All photos') },
-		{ mode: 'starred', icon: <IcStarred />, label: t('Starred') },
+		{ mode: 'starred', icon: <IcStar />, label: t('Starred') },
 		{ mode: 'recent', icon: <IcRecent />, label: t('Recent') }
 	]
 	const timeItems: { filter: TimeFilter; label: string }[] = [
@@ -106,7 +102,7 @@ export const GallerySidebar = React.memo(function GallerySidebar({
 					/>
 				))}
 				<Nav.Divider />
-				<Nav.Section label={<IconText icon={<IcTime />}>{t('Time')}</IconText>}>
+				<Nav.Section label={<IconText icon={<IcDate />}>{t('Time')}</IconText>}>
 					{timeItems.map(({ filter, label }) => (
 						<Nav.Item
 							key={filter}

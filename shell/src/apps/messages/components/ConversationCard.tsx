@@ -5,9 +5,9 @@ import { Avatar, Badge, BadgeAnchor, HBox, Icon, ListItem, ProfileCard } from '@
 import { useAtomValue } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuUsers as IcGroup } from 'react-icons/lu'
 
 import { useCtx } from '../../../context/index.js'
+import { IcGroup } from '../../../icons.js'
 import { unreadCountAtom } from '../../../read-position.js'
 import { messagesPath } from '../../../routes.js'
 import type { Conversation } from '../types.js'

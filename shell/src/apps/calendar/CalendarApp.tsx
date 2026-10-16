@@ -6,6 +6,10 @@ import {
 	EmptyState,
 	FAB,
 	Fcd,
+	IcAdd,
+	IcCheck,
+	IcMore,
+	IcSidebar,
 	Menu,
 	MenuDivider,
 	MenuItem,
@@ -17,15 +21,6 @@ import dayjs from 'dayjs'
 import { useAtom } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuPlus as IcAdd,
-	LuCheck as IcCheck,
-	LuGhost as IcGhost,
-	LuEllipsisVertical as IcMore,
-	LuCalendarPlus as IcNewCal,
-	LuPanelLeft as IcSidebar,
-	LuCalendarCheck as IcToday
-} from 'react-icons/lu'
 import '@cloudillo/react/components.css'
 import type {
 	CalendarCreate,
@@ -36,6 +31,7 @@ import type {
 } from '@cloudillo/core'
 
 import { useContextAwareApi } from '../../context/index.js'
+import { IcCalendar, IcGhost, IcToday } from '../../icons.js'
 import { useSettings } from '../../settings/settings.js'
 import { isPermissionError } from '../../utils.js'
 import {
@@ -45,6 +41,7 @@ import {
 	viewModeAtom,
 	visibleCalendarsAtom
 } from './atoms.js'
+import { getViews } from './components/CalendarToolbar.js'
 import {
 	AgendaView,
 	CalendarEditor,
@@ -58,7 +55,6 @@ import {
 	TaskEditor,
 	TaskList
 } from './components/index.js'
-import { getViews } from './components/CalendarToolbar.js'
 import { useCalendars, useEventRange, useRecurringScopeOps, useTaskList } from './hooks/index.js'
 import type { CalendarView } from './types.js'
 import { calendarSupports } from './utils.js'
@@ -628,7 +624,7 @@ export function CalendarApp() {
 								<Button
 									color="primary"
 									onClick={openCreateCalendar}
-									icon={<IcNewCal />}
+									icon={<IcCalendar />}
 								>
 									{t('New calendar')}
 								</Button>
@@ -814,7 +810,7 @@ export function CalendarApp() {
 					/>
 					<MenuDivider />
 					<MenuItem
-						icon={<IcNewCal />}
+						icon={<IcCalendar />}
 						label={t('New calendar')}
 						disabled={!!calsError}
 						onClick={() => {

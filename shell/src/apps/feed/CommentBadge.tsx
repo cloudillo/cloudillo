@@ -1,10 +1,9 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { Badge, BadgeAnchor, HBox, Icon, Text } from '@cloudillo/react'
+import { Badge, BadgeAnchor, HBox, IcComment, Icon, Text } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuMessageSquare } from 'react-icons/lu'
 
 interface CommentBadgeProps {
 	count: number
@@ -19,7 +18,7 @@ export function CommentBadge({ count, unread }: CommentBadgeProps) {
 			<BadgeAnchor
 				badge={unread ? <Badge dot color="accent" aria-label={t('Unread')} /> : undefined}
 			>
-				<Icon as={LuMessageSquare} size="lg" />
+				<Icon as={IcComment} size="lg" />
 			</BadgeAnchor>
 			{count > 0 && <Text size="sm">{countLabel}</Text>}
 		</HBox>

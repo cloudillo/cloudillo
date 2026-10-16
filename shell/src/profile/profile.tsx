@@ -11,6 +11,18 @@ import {
 	Fcd,
 	FileButton,
 	HBox,
+	IcAdd,
+	IcCamera,
+	IcCancel,
+	IcConfirm,
+	IcCopy,
+	IcDropdown,
+	IcEdit,
+	IcFollowers,
+	IcLink,
+	IcMore,
+	IdentityTag,
+	Image,
 	Input,
 	List,
 	ListItem,
@@ -27,40 +39,22 @@ import {
 	SkeletonText,
 	Tab,
 	Tabs,
+	useApi,
+	useAuth,
 	useDialog,
 	useToast,
-	VBox,
-	Image
+	VBox
 } from '@cloudillo/react'
 import { type ActionView, type CommunityRole, type NewAction, ROLE_LEVELS } from '@cloudillo/types'
 import type { TFunction } from 'i18next'
 import { useAtom, useSetAtom } from 'jotai'
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuCircleOff as IcBlock,
-	LuCamera as IcCamera,
-	LuCheck as IcCheck,
-	LuChevronDown as IcChevronDown,
-	LuX as IcClose,
-	LuHandshake as IcConnect,
-	LuCopy as IcCopy,
-	LuPencil as IcEdit,
-	LuLink as IcRef,
-	LuUserPlus as IcFollow,
-	LuUserCheck as IcFollowsYou,
-	LuMessageCircle as IcMessage,
-	LuEllipsisVertical as IcMore,
-	LuUsers as IcMutual,
-	LuPlus as IcPlus,
-	LuUserMinus as IcRemoveMember
-} from 'react-icons/lu'
 import { Route, Routes, useLocation, useParams } from 'react-router-dom'
 
 import 'quill/dist/quill.core.css'
 import 'quill/dist/quill.bubble.css'
 
-import { IdentityTag, useApi, useAuth } from '@cloudillo/react'
 import type { Profile } from '@cloudillo/types'
 
 import { ComposePanel } from '../apps/feed/index.js'
@@ -77,11 +71,14 @@ import {
 	useCurrentContextIdTag,
 	useProfileTrust
 } from '../context/index.js'
+import { IcBlock, IcConnect, IcFollow, IcMessage, IcMutual, IcRemovePerson } from '../icons.js'
 import { ImageUpload } from '../image.js'
-import { PartnerCommunities } from './partner-communities.js'
+import { usePorch } from '../lib/porch.js'
 import { buildRef } from '../refs.js'
 import type { CtxBase } from '../routes.js'
 import { messagesPath, profilePath } from '../routes.js'
+import { useConnectCommunity } from '../settings/partners.js'
+import { DrawerToggle } from '../ui/DrawerToggle.js'
 import { useWsBus } from '../ws-bus.js'
 import { ProfileAbout } from './about/ProfileAbout.js'
 import { getEffectiveTabs, parseTabConfig, type TabEntry } from './about/types.js'
@@ -95,14 +92,12 @@ import {
 	ProfileListCard,
 	ProfileStatusBadge
 } from './identities.js'
-import { DrawerToggle } from '../ui/DrawerToggle.js'
 import { InviteMembersDialog } from './invite-members-dialog.js'
 import { ProfileHero } from './ProfileHero.js'
-import { roleLabels } from './role-labels.js'
-import { useConnectCommunity } from '../settings/partners.js'
-import { usePorch } from '../lib/porch.js'
-import { RoomsTab, useCanCreateRooms } from './rooms-tab.js'
+import { PartnerCommunities } from './partner-communities.js'
 import { describeRelationship } from './relationship.js'
+import { roleLabels } from './role-labels.js'
+import { RoomsTab, useCanCreateRooms } from './rooms-tab.js'
 import { TrustBanner } from './TrustBanner.js'
 import { TrustChip } from './TrustChip.js'
 
@@ -190,7 +185,7 @@ function RelationshipBadge({
 					: rel.mutual
 						? [t('Mutual'), <IcMutual key="i" />, 'secondary' as const]
 						: rel.followsYou
-							? [t('Follows you'), <IcFollowsYou key="i" />, 'secondary' as const]
+							? [t('Follows you'), <IcFollowers key="i" />, 'secondary' as const]
 							: []
 	if (!label) return null
 	return (
@@ -230,7 +225,7 @@ function ProfileFollowButton({
 	}
 
 	return rel.following ? (
-		<Button icon={<IcFollowsYou />} onClick={onUnfollow}>
+		<Button icon={<IcFollowers />} onClick={onUnfollow}>
 			{t('Following')}
 		</Button>
 	) : (
@@ -812,14 +807,14 @@ export function ProfilePage({
 											<>
 												<Button
 													variant="ghost"
-													icon={<IcClose />}
+													icon={<IcCancel />}
 													onClick={cancelEditMode}
 												>
 													{t('Cancel')}
 												</Button>
 												<Button
 													color="primary"
-													icon={<IcCheck />}
+													icon={<IcConfirm />}
 													onClick={exitEditMode}
 												>
 													{t('Done')}
@@ -862,7 +857,7 @@ export function ProfilePage({
 										}
 									>
 										<MenuItem
-											icon={<IcRef />}
+											icon={<IcLink />}
 											label={t('Copy reference')}
 											onClick={copyRef}
 										/>
@@ -1136,7 +1131,7 @@ function MemberCard({
 
 	const removeItem = onRemove && (
 		<MenuItem
-			icon={<IcRemoveMember />}
+			icon={<IcRemovePerson />}
 			label={t('Remove member')}
 			color="error"
 			onClick={handleRemove}
@@ -1163,7 +1158,7 @@ function MemberCard({
 									aria-label={roleHint && `${roleHint}: ${roleLabel}`}
 								>
 									{roleLabel}
-									<IcChevronDown />
+									<IcDropdown />
 								</Button>
 							}
 						>
@@ -1468,7 +1463,7 @@ export function ProfileConnections({
 					{!showPageHeader && (
 						<Button
 							color="primary"
-							icon={<IcPlus />}
+							icon={<IcAdd />}
 							onClick={() => setInviteOpen(true)}
 						>
 							{t('Invite members')}
@@ -1528,7 +1523,7 @@ export function ProfileConnections({
 								<Button
 									className="sm-hide"
 									color="primary"
-									icon={<IcPlus />}
+									icon={<IcAdd />}
 									onClick={() => setInviteOpen(true)}
 								>
 									{t('Invite members')}
@@ -1541,7 +1536,7 @@ export function ProfileConnections({
 				</Fcd.Container>
 				<FAB
 					className="md-hide lg-hide"
-					icon={<IcPlus />}
+					icon={<IcAdd />}
 					aria-label={t('Invite members')}
 					onClick={() => setInviteOpen(true)}
 				/>

@@ -17,6 +17,11 @@ import {
 	EmptyState,
 	FileTile,
 	Grid,
+	IcConnection,
+	IcFile,
+	IcFollowers,
+	IcHome,
+	IcNoAccess,
 	IconText,
 	LoadingSpinner,
 	LoadMoreTrigger,
@@ -29,13 +34,6 @@ import {
 import { useAtomValue } from 'jotai'
 import React, { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuHandshake as IcConnected,
-	LuFile as IcFile,
-	LuUsers as IcFollowers,
-	LuHouse as IcHome,
-	LuLock as IcLock
-} from 'react-icons/lu'
 
 import { canManageFile, canManageShares } from '../../apps/files/utils.js'
 import { activeContextAtom, contextRolesAtom, useApiContext } from '../../context/index.js'
@@ -53,11 +51,11 @@ function getVisibilityIcon(visibility: FileVisibility): React.ReactNode | null {
 	switch (visibility) {
 		case 'D':
 		case null:
-			return <IcLock size={12} />
+			return <IcNoAccess size={12} />
 		case 'F':
 			return <IcFollowers size={12} />
 		case 'C':
-			return <IcConnected size={12} />
+			return <IcConnection size={12} />
 		default:
 			return null // No badge for public files
 	}
@@ -600,7 +598,7 @@ export function MediaPickerBrowseTab({
 										onClick={() => handleFileClick(file)}
 										meta={
 											isFileDisabled ? (
-												<IconText icon={<IcLock />}>
+												<IconText icon={<IcNoAccess />}>
 													{unlockable ? t('Not shared') : t('No access')}
 												</IconText>
 											) : (
@@ -620,7 +618,7 @@ export function MediaPickerBrowseTab({
 											isFileDisabled && (
 												<Button
 													size="sm"
-													icon={<IcLock />}
+													icon={<IcNoAccess />}
 													loading={updatingFileId === file.fileId}
 													disabled={!unlockable}
 													disabledReason={t(

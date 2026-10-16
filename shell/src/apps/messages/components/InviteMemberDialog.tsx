@@ -5,8 +5,8 @@ import { Button, Dialog, Field, ProfileMultiSelect, useApi, useAuth } from '@clo
 import type { Profile } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { LuUserPlus as IcInvite } from 'react-icons/lu'
 
+import { IcInvite } from '../../../icons.js'
 import type { Conversation, ConversationMember } from '../types.js'
 
 export function InviteMemberDialog({

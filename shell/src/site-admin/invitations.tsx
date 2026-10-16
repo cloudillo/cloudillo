@@ -14,6 +14,11 @@ import {
 	Field,
 	Fieldset,
 	HBox,
+	IcAdd,
+	IcDelete,
+	IcEdit,
+	IcQrCode,
+	IcSend,
 	IdentityTag,
 	Input,
 	List,
@@ -37,18 +42,10 @@ import type { Profile } from '@cloudillo/types'
 import dayjs from 'dayjs'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-	LuPlus as IcAdd,
-	LuCheck as IcAvailable,
-	LuTrash as IcDelete,
-	LuPencil as IcEdit,
-	LuQrCode as IcQrCode,
-	LuSend as IcSend,
-	LuX as IcUnavailable
-} from 'react-icons/lu'
 
 import { useCommunitiesList } from '../context/hooks.js'
 import type { CommunityRef } from '../context/types.js'
+import { IcAvailable, IcUnavailable } from '../icons.js'
 import { SwitchRow } from '../settings/settings.js'
 import { dateInputToExpiryIso, formatRefDate, parseRefDate } from '../utils/parseRefDate.js'
 

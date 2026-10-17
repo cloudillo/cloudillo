@@ -46,7 +46,7 @@ export function initialsFor(name?: string): string {
 export const Avatar = createComponent<HTMLDivElement, AvatarProps>(
 	'Avatar',
 	({ className, size, shape, ring, src, alt, fallback, children, ...props }, ref) => {
-		const [imgError, setImgError] = React.useState(false)
+		const [failedSrc, setFailedSrc] = React.useState<string>()
 
 		const ringClass =
 			ring === true
@@ -67,8 +67,8 @@ export const Avatar = createComponent<HTMLDivElement, AvatarProps>(
 				className={mergeClasses('c-avatar', size, shape, ringClass, className)}
 				{...props}
 			>
-				{src && !imgError ? (
-					<img src={src} alt={alt || ''} onError={() => setImgError(true)} />
+				{src && src !== failedSrc ? (
+					<img src={src} alt={alt || ''} onError={() => setFailedSrc(src)} />
 				) : fallbackContent ? (
 					<span className="c-avatar-fallback">{fallbackContent}</span>
 				) : null}

@@ -141,6 +141,7 @@ interface FullProfile {
 		connectionMode?: 'M' | 'A' | 'I'
 		allowFollowers?: boolean
 	}
+	partners?: unknown
 }
 
 /* Old x shape for reference:

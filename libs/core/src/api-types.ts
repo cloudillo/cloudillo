@@ -976,6 +976,15 @@ export const tPartnerProfile = T.struct({
 })
 export type PartnerProfile = T.TypeOf<typeof tPartnerProfile>
 
+/** Decode a partner list per entry, dropping malformed or unknown-shaped ones */
+export function decodePartners(v: unknown): PartnerProfile[] {
+	if (!Array.isArray(v)) return []
+	return v.flatMap((p) => {
+		const r = T.decode(tPartnerProfile, p)
+		return T.isOk(r) ? [r.ok] : []
+	})
+}
+
 export const tPartnerEdge = T.struct({
 	community: T.string,
 	partner: T.string
@@ -1024,7 +1033,9 @@ export const tProfileKeys = T.struct({
 			allowFollowers: T.optional(T.boolean)
 		})
 	),
-	x: T.optional(T.record(T.string))
+	x: T.optional(T.record(T.string)),
+	// A community's contracted (public) partners; decode per entry with `decodePartners`
+	partners: T.optional(T.array(T.nullable(T.unknown)))
 })
 export type ProfileKeys = T.TypeOf<typeof tProfileKeys>
 

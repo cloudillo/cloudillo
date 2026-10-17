@@ -6,12 +6,11 @@
  * points. Viewing A (I'm a member): every partner B gets "Enter as <A> member". Viewing any
  * other community B: partners I'm a member of get "Enter with this hat".
  *
- * Listed with `GET /api/partners` on the viewed community's node: public by default, but a
- * community with `profile.partners_public = false` answers non-members with an empty list,
- * so the section then simply does not render.
+ * The list is the viewed community's `/me/full` `partners`: its public contracted partners,
+ * not governed by `connection_visibility`. Malformed entries are dropped by `decodePartners`.
  */
 
-import type { PublicProfile } from '@cloudillo/core'
+import { decodePartners } from '@cloudillo/core'
 import {
 	Button,
 	Heading,
@@ -21,53 +20,31 @@ import {
 	ProfilePicture,
 	useAuth
 } from '@cloudillo/react'
-import type { Profile } from '@cloudillo/types'
 import { useAtomValue } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { enterViaLabel, useEnterContext } from '../context/hat-entry.js'
-import { communitiesAtom, useApiContext } from '../context/index.js'
+import { communitiesAtom } from '../context/index.js'
 import { IcEnter } from '../icons.js'
 
-export function PartnerCommunities({ community }: { community: Profile }) {
+export function PartnerCommunities({
+	community
+}: {
+	community: { idTag: string; name?: string; partners?: unknown }
+}) {
 	const { t } = useTranslation()
 	const [auth] = useAuth()
-	const { getClientFor } = useApiContext()
 	const communities = useAtomValue(communitiesAtom)
 	const enterContext = useEnterContext()
-	const [loaded, setLoaded] = React.useState<{ idTag: string; list: PublicProfile[] }>()
-	// Keyed by community, so another community's list never shows here
-	const partners = loaded?.idTag === community.idTag ? loaded.list : []
+	const partners = React.useMemo(
+		() => decodePartners(community.partners).filter((p) => p.type === 'community'),
+		[community.partners]
+	)
 
 	const mine = React.useMemo(() => new Set(communities.map((c) => c.idTag)), [communities])
 	const memberOfViewed = mine.has(community.idTag)
 	const viewedName = community.name || community.idTag
-
-	React.useEffect(
-		function loadPartners() {
-			if (!auth) return
-			const client = getClientFor(community.idTag, { auth: 'preferred' })
-			if (!client) return
-			let cancelled = false
-			client.partners
-				.list()
-				.then((list) => {
-					if (cancelled) return
-					setLoaded({
-						idTag: community.idTag,
-						list: list.filter((p) => p.type === 'community')
-					})
-				})
-				.catch((err) => {
-					console.error('Failed to load partner communities', err)
-				})
-			return () => {
-				cancelled = true
-			}
-		},
-		[auth, community.idTag, getClientFor]
-	)
 
 	if (!auth || !partners.length) return null
 

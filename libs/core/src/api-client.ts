@@ -1601,9 +1601,6 @@ export class ApiClient {
 
 	/** Partner communities and the connection map */
 	partners = {
-		/** GET /partners - This community's connected partner communities */
-		list: () => this.request('GET', '/partners', T.array(Types.tPartnerProfile)),
-
 		/** GET /partners/map - Own tenant's stored partner graph (owner only) */
 		map: () => this.request('GET', '/partners/map', Types.tPartnerMap),
 

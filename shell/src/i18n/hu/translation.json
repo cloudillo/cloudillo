@@ -2370,7 +2370,6 @@
 	"List": "Lista",
 	"Last synced {{time}}": "Utoljára szinkronizálva: {{time}}",
 	"Never synced": "Még nem volt szinkronizálva",
-	"Partner of {{name}}": "{{name}} partnere",
 	"Could not load the community map": "Nem sikerült betölteni a közösségi térképet",
 	"The map shows the communities you are a member of, and the communities they are partners with. Sync to fetch the latest partner lists.": "A térkép azokat a közösségeket mutatja, amelyeknek tagja vagy, és azok partnerközösségeit. Szinkronizálj a legfrissebb partnerlisták lekéréséhez.",
 	"{{name}}, member community": "{{name}}, tagközösség",
@@ -2466,5 +2465,11 @@
 	"Choose a view…": "Nézet kiválasztása…",
 	"Embed all of \"{{name}}\", or only a part of it?": "A teljes „{{name}}” dokumentumot ágyazod be, vagy csak egy részét?",
 	"Use this view": "Ez a nézet",
-	"Select the part you want to embed": "Jelöld ki a beágyazandó részt"
+	"Select the part you want to embed": "Jelöld ki a beágyazandó részt",
+	"Preparing embeds {{n}} of {{m}}…": "Beágyazások előkészítése: {{n}} / {{m}}…",
+	"Offline · changes saved on this device": "Offline · a változások ezen az eszközön mentve",
+	"Reconnecting…": "Újracsatlakozás…",
+	"Synced": "Szinkronizálva",
+	"Partner communities ({{count}})_one": "Partnerközösségek ({{count}})",
+	"Partner communities ({{count}})_other": "Partnerközösségek ({{count}})"
 }

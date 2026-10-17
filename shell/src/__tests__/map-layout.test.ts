@@ -3,7 +3,12 @@
 
 import type { PartnerMap, PartnerProfile } from '@cloudillo/core'
 
-import { layoutPartnerMap, partnersByCommunity } from '../communities/map-layout.js'
+import {
+	keepPolling,
+	layoutPartnerMap,
+	MAX_REFETCHES,
+	partnersByCommunity
+} from '../communities/map-layout.js'
 
 function c(idTag: string): PartnerProfile {
 	return { idTag, name: idTag, type: 'community' }
@@ -141,6 +146,33 @@ describe('partnersByCommunity', () => {
 		const byC = partnersByCommunity(m)
 		expect(byC.get('a')!.map((p) => p.idTag)).toEqual(['b', 'x'])
 		expect(byC.get('b')!.map((p) => p.idTag)).toEqual(['x'])
+	})
+})
+
+describe('keepPolling', () => {
+	it('keeps polling while syncing', () => {
+		expect(keepPolling({ syncing: true, syncedAt: 1 }, 1, 5)).toBe(true)
+	})
+
+	it('stops once syncedAt moved and the sync is done', () => {
+		expect(keepPolling({ syncing: false, syncedAt: 2 }, 1, 1)).toBe(false)
+	})
+
+	it('keeps polling an unchanged syncedAt until MAX_REFETCHES', () => {
+		expect(keepPolling({ syncing: false, syncedAt: 1 }, 1, 3)).toBe(true)
+		expect(keepPolling({ syncing: false, syncedAt: 1 }, 1, MAX_REFETCHES)).toBe(false)
+	})
+
+	it('treats an undefined baseline as a never-synced null', () => {
+		expect(keepPolling({ syncing: false, syncedAt: null }, undefined, 1)).toBe(true)
+	})
+
+	it('gives up on failed loads after the grace period', () => {
+		expect(keepPolling(undefined, undefined, 3)).toBe(false)
+	})
+
+	it('stops at MAX_REFETCHES even while syncing', () => {
+		expect(keepPolling({ syncing: true, syncedAt: 1 }, 1, MAX_REFETCHES)).toBe(false)
 	})
 })
 

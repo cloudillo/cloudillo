@@ -29,9 +29,30 @@
 	transition: stroke 0.15s;
 }
 
-.c-community-map-edge.active {
+.c-community-map-edge.path {
 	stroke: var(--col-primary);
 	stroke-width: 3;
+}
+
+/* Other routes to the hovered community: as thick as the path, but dashed so it isn't color alone. */
+.c-community-map-edge.echo {
+	stroke: var(--col-primary);
+	stroke-opacity: 0.8;
+	stroke-width: 3;
+	stroke-dasharray: 6 4;
+}
+
+.c-community-map-glow stop {
+	stop-color: var(--col-primary);
+}
+
+/* Ring guides: inner = my communities, outer = their partners. */
+.c-community-map-ring {
+	fill: none;
+	stroke: var(--col-outline);
+	stroke-opacity: 0.35;
+	stroke-dasharray: 2 6;
+	vector-effect: non-scaling-stroke;
 }
 
 .c-community-map-node {
@@ -46,9 +67,15 @@
 	vector-effect: non-scaling-stroke;
 }
 
-.c-community-map-node[data-active] .c-community-map-halo {
+.c-community-map-node[data-active='path'] .c-community-map-halo {
 	stroke: var(--col-primary);
 	stroke-width: 3;
+}
+
+.c-community-map-node[data-active='echo'] .c-community-map-halo {
+	stroke: var(--col-primary);
+	stroke-width: 3;
+	stroke-dasharray: 4 3;
 }
 
 .c-community-map-node:focus-visible .c-community-map-halo {
@@ -69,6 +96,29 @@
 
 .c-community-map-node[data-ring='2'] .c-community-map-label {
 	font-size: 11px;
+}
+
+.c-community-map-me-label {
+	font-size: 13px;
+	font-weight: 600;
+}
+
+/* ── List view ── */
+
+.c-community-map-member .c-list-item-title {
+	font-weight: 600;
+	font-size: 1.0625rem;
+}
+
+/* Partners hang off their membership with a tree connector. */
+.c-community-map-partners-label {
+	margin-inline-start: 1.25rem;
+}
+
+.c-community-map-partners {
+	margin-inline-start: 1.25rem;
+	padding-inline-start: 0.75rem;
+	border-inline-start: 2px solid var(--col-outline);
 }
 
 .c-community-map svg foreignObject > .c-profile-card {

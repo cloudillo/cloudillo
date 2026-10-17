@@ -200,4 +200,22 @@ export function partnersByCommunity(map: PartnerMap): Map<string, PartnerProfile
 	return out
 }
 
+// ~60s cap; a longer sync shows up on the next visit.
+export const MAX_REFETCHES = 12
+/** Tries a failed load gets before polling gives up. */
+const SYNC_START_GRACE = 2
+
+/** Whether to poll /partners/map again after attempt `attempt` (1-based). */
+export function keepPolling(
+	m: Pick<PartnerMap, 'syncing' | 'syncedAt'> | undefined,
+	baseline: PartnerMap['syncedAt'],
+	attempt: number
+): boolean {
+	if (attempt >= MAX_REFETCHES) return false
+	if (!m) return attempt <= SYNC_START_GRACE // failed loads: brief grace, then give up
+	if (m.syncing) return true
+	// A manual sync never reports `syncing`, so poll until syncedAt moves
+	return (m.syncedAt ?? null) === (baseline ?? null)
+}
+
 // vim: ts=4

@@ -14,8 +14,10 @@ import {
 	IcResetView,
 	IcZoomIn,
 	IcZoomOut,
+	MenuDivider,
 	MenuItem,
 	PopoverSurface,
+	ProfileCard,
 	ProfilePicture,
 	useAuth,
 	VBox,
@@ -29,11 +31,18 @@ import '../ui/community-map.css'
 
 import { IcEnter, IcProfile } from '../icons.js'
 import type { MapActions } from './CommunityMap.js'
-import { displayName, type MapLayout, type MapNode, RING2_RADIUS } from './map-layout.js'
+import {
+	displayName,
+	type MapLayout,
+	type MapNode,
+	RING1_RADIUS,
+	RING2_RADIUS
+} from './map-layout.js'
 
 /** Half the side of the unzoomed viewBox: ring 2 plus room for a node and its label. */
 const EXTENT = RING2_RADIUS + 70
 const AVATAR = 40
+const ME_AVATAR = 56
 const MIN_SCALE = 0.5
 const MAX_SCALE = 4
 const MORE_KEY = '\u0000more'
@@ -45,6 +54,9 @@ interface View {
 }
 
 const INITIAL_VIEW: View = { cx: 0, cy: 0, scale: 1 }
+
+/** `path`: the hovered route itself; `echo`: other copies of the same community and their routes. */
+type Emph = 'path' | 'echo' | undefined
 
 function clampScale(s: number) {
 	return Math.min(MAX_SCALE, Math.max(MIN_SCALE, s))
@@ -77,6 +89,7 @@ export function MapGraph({ layout, actions, onShowList }: MapGraphProps) {
 	const svgRef = React.useRef<SVGSVGElement>(null)
 	const nodeRefs = React.useRef(new Map<string, SVGGElement>())
 	const pointers = React.useRef(new Map<number, { x: number; y: number }>())
+	const glowId = React.useId()
 
 	const ring1ByTag = React.useMemo(() => new Map(layout.ring1.map((n) => [n.idTag, n])), [layout])
 	/** Every node by its key; ring-1 keys are idTags, so chords resolve here too. */
@@ -84,8 +97,13 @@ export function MapGraph({ layout, actions, onShowList }: MapGraphProps) {
 		() => new Map([...layout.ring1, ...layout.ring2].map((n) => [n.key, n])),
 		[layout]
 	)
-	/** The community under the pointer/focus: all its copies light up together. */
-	const activeTag = active ? nodeByKey.get(active)?.idTag : undefined
+	const activeNode = active ? nodeByKey.get(active) : undefined
+	/** The community under the pointer/focus: its other copies echo it. */
+	const activeTag = activeNode?.idTag
+	/** Ring-1 tags on the hovered route itself (vs. `pathVia`: every route to `activeTag`). */
+	const pathParents = new Set(
+		activeNode ? (activeNode.ring === 1 ? [activeNode.idTag] : activeNode.parents) : []
+	)
 	/** Ring-1 nodes on a path from me to `activeTag`: itself on ring 1, the parents of its copies on ring 2. */
 	const pathVia = React.useMemo(() => {
 		if (!activeTag) return new Set<string>()
@@ -211,16 +229,16 @@ export function MapGraph({ layout, actions, onShowList }: MapGraphProps) {
 		nodeRefs.current.get(order[next])?.focus()
 	}
 
+	function parentName(hat: string) {
+		const parent = ring1ByTag.get(hat)
+		return parent ? displayName(parent.profile) : hat
+	}
+
 	function nodeLabel(n: MapNode) {
 		if (n.ring === 1) return t('{{name}}, member community', { name: displayName(n.profile) })
 		return t('{{name}}, partner of {{parents}}', {
 			name: displayName(n.profile),
-			parents: n.parents
-				.map((p) => {
-					const parent = ring1ByTag.get(p)
-					return parent ? displayName(parent.profile) : p
-				})
-				.join(', ')
+			parents: n.parents.map(parentName).join(', ')
 		})
 	}
 
@@ -244,16 +262,33 @@ export function MapGraph({ layout, actions, onShowList }: MapGraphProps) {
 		}
 	}
 
-	function line(from: { x: number; y: number }, to: { x: number; y: number }, lit: boolean) {
+	function line(from: { x: number; y: number }, to: { x: number; y: number }, emph?: Emph) {
 		return (
 			<line
 				x1={from.x}
 				y1={from.y}
 				x2={to.x}
 				y2={to.y}
-				className={lit ? 'c-community-map-edge active' : 'c-community-map-edge'}
+				className={emph ? `c-community-map-edge ${emph}` : 'c-community-map-edge'}
 			/>
 		)
+	}
+
+	function nodeEmph(n: MapNode): Emph {
+		if (n.key === active || (n.ring === 1 && pathParents.has(n.idTag))) return 'path'
+		if (n.idTag === activeTag) return 'echo'
+	}
+
+	/** Center → ring-1 spoke: on the hovered route, or on any route to `activeTag`. */
+	function spokeEmph(n: MapNode): Emph {
+		if (pathParents.has(n.idTag)) return 'path'
+		if (pathVia.has(n.idTag)) return 'echo'
+	}
+
+	/** Ring-1 → ring-2 edge, by its ring-2 end. */
+	function edgeEmph(to: MapNode): Emph {
+		if (to.key === active) return 'path'
+		if (to.idTag === activeTag) return 'echo'
 	}
 
 	function renderNode(n: MapNode) {
@@ -264,7 +299,7 @@ export function MapGraph({ layout, actions, onShowList }: MapGraphProps) {
 				transform={`translate(${n.x} ${n.y})`}
 				{...nodeProps(n.key, nodeLabel(n))}
 				data-ring={n.ring}
-				data-active={n.idTag === activeTag || undefined}
+				data-active={nodeEmph(n)}
 			>
 				<circle r={AVATAR / 2 + 4} className="c-community-map-halo" />
 				<foreignObject x={-AVATAR / 2} y={-AVATAR / 2} width={AVATAR} height={AVATAR}>
@@ -294,44 +329,69 @@ export function MapGraph({ layout, actions, onShowList }: MapGraphProps) {
 				onPointerUp={onPointerUp}
 				onPointerCancel={onPointerUp}
 			>
+				<defs>
+					<radialGradient id={glowId} className="c-community-map-glow">
+						<stop offset="0" stopOpacity={0.28} />
+						<stop offset="0.55" stopOpacity={0.1} />
+						<stop offset="1" stopOpacity={0} />
+					</radialGradient>
+				</defs>
+				<g aria-hidden="true">
+					<circle r={RING1_RADIUS + 50} fill={`url(#${glowId})`} />
+					<circle r={RING1_RADIUS} className="c-community-map-ring" />
+					{!!layout.ring2.length && (
+						<circle r={RING2_RADIUS} className="c-community-map-ring" />
+					)}
+				</g>
+
 				<g aria-hidden="true">
 					{layout.ring1.map((n) => (
 						<React.Fragment key={`c:${n.idTag}`}>
-							{line(center, n, pathVia.has(n.idTag))}
+							{line(center, n, spokeEmph(n))}
 						</React.Fragment>
 					))}
 					{layout.chords.map((c) => (
 						<React.Fragment key={`h:${c.from}:${c.to}`}>
 							{nodeByKey.get(c.from) &&
 								nodeByKey.get(c.to) &&
-								line(nodeByKey.get(c.from)!, nodeByKey.get(c.to)!, false)}
+								line(nodeByKey.get(c.from)!, nodeByKey.get(c.to)!)}
 						</React.Fragment>
 					))}
-					{layout.edges.map((e) => (
-						<React.Fragment key={`e:${e.from}:${e.to}`}>
-							{nodeByKey.get(e.from) &&
-								nodeByKey.get(e.to) &&
-								line(
-									nodeByKey.get(e.from)!,
-									nodeByKey.get(e.to)!,
-									nodeByKey.get(e.to)!.idTag === activeTag
-								)}
-						</React.Fragment>
-					))}
+					{layout.edges.map((e) => {
+						const from = nodeByKey.get(e.from)
+						const to = nodeByKey.get(e.to)
+						return (
+							<React.Fragment key={`e:${e.from}:${e.to}`}>
+								{from && to && line(from, to, edgeEmph(to))}
+							</React.Fragment>
+						)
+					})}
 				</g>
 
 				<g className="c-community-map-me" aria-hidden="true">
-					<circle r={AVATAR / 2 + 6} className="c-community-map-halo" />
-					<foreignObject x={-AVATAR / 2} y={-AVATAR / 2} width={AVATAR} height={AVATAR}>
+					<circle r={ME_AVATAR / 2 + 4} className="c-community-map-halo" />
+					<foreignObject
+						x={-ME_AVATAR / 2}
+						y={-ME_AVATAR / 2}
+						width={ME_AVATAR}
+						height={ME_AVATAR}
+					>
 						<ProfilePicture
 							profile={{
 								idTag: auth?.idTag,
 								name: auth?.name,
 								profilePic: auth?.profilePic
 							}}
-							size="sm"
+							size="lg"
 						/>
 					</foreignObject>
+					<text
+						y={ME_AVATAR / 2 + 18}
+						textAnchor="middle"
+						className="c-community-map-label c-community-map-me-label"
+					>
+						{t('You')}
+					</text>
 				</g>
 
 				{layout.ring1.map(renderNode)}
@@ -341,7 +401,7 @@ export function MapGraph({ layout, actions, onShowList }: MapGraphProps) {
 					<g
 						transform={`translate(${EXTENT - 50} ${EXTENT - 24})`}
 						{...nodeProps(MORE_KEY, t('+{{count}} more', { count: layout.more }))}
-						data-active={active === MORE_KEY || undefined}
+						data-active={active === MORE_KEY ? 'path' : undefined}
 					>
 						<rect
 							x={-44}
@@ -388,6 +448,11 @@ export function MapGraph({ layout, actions, onShowList }: MapGraphProps) {
 					aria-label={displayName(menuNode.profile)}
 					onClose={() => setMenu(undefined)}
 				>
+					<ProfileCard
+						className="p-2"
+						profile={{ ...menuNode.profile, name: displayName(menuNode.profile) }}
+					/>
+					<MenuDivider />
 					{menuNode.ring === 1 && (
 						<MenuItem
 							icon={<IcOpenExternal />}
@@ -406,24 +471,17 @@ export function MapGraph({ layout, actions, onShowList }: MapGraphProps) {
 							actions.profile(menuNode.idTag)
 						}}
 					/>
-					{menuNode.parents.map((hat) => {
-						const parent = ring1ByTag.get(hat)
-						return (
-							<MenuItem
-								key={hat}
-								icon={<IcEnter />}
-								label={enterViaLabel(
-									t,
-									displayName(menuNode.profile),
-									parent ? displayName(parent.profile) : hat
-								)}
-								onClick={() => {
-									setMenu(undefined)
-									actions.enterVia(menuNode.idTag, hat)
-								}}
-							/>
-						)
-					})}
+					{menuNode.parents.map((hat) => (
+						<MenuItem
+							key={hat}
+							icon={<IcEnter />}
+							label={enterViaLabel(t, displayName(menuNode.profile), parentName(hat))}
+							onClick={() => {
+								setMenu(undefined)
+								actions.enterVia(menuNode.idTag, hat)
+							}}
+						/>
+					))}
 				</PopoverSurface>
 			)}
 		</VBox>

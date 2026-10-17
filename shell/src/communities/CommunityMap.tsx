@@ -12,13 +12,16 @@ import {
 	Button,
 	EmptyState,
 	Fcd,
+	Heading,
 	IdentityTag,
 	List,
 	ListItem,
 	PageHeader,
+	Panel,
 	ProfilePicture,
 	Segmented,
 	SegmentedItem,
+	Text,
 	useApi,
 	useAuth,
 	useIsMobile
@@ -31,12 +34,10 @@ import { enterViaLabel, useEnterContext } from '../context/hat-entry.js'
 import { IcCommunityMap, IcEnter, IcProfile, IcSync } from '../icons.js'
 import { HOME_BASE, profilePath } from '../routes.js'
 import { MapGraph } from './MapGraph.js'
-import { displayName, layoutPartnerMap, partnersByCommunity } from './map-layout.js'
+import { displayName, keepPolling, layoutPartnerMap, partnersByCommunity } from './map-layout.js'
 
 /** How long after a sync request (or a `syncing` map) the page re-fetches. */
 const REFETCH_DELAY_MS = 5000
-// ponytail: ~30s cap; a longer sync leaves "Syncing…" to the next visit.
-const MAX_REFETCHES = 6
 
 /** Node actions, shared by the List rows and the Map popover. */
 export function useMapActions() {
@@ -87,67 +88,112 @@ function MapList({ map, actions }: { map: PartnerMap; actions: MapActions }) {
 		<>
 			{[...map.communities]
 				.sort((a, b) => displayName(a).localeCompare(displayName(b)))
-				.map((community) => (
-					<List
-						key={community.idTag}
-						variant="divided"
-						className="mb-3"
-						aria-label={displayName(community)}
-					>
-						<ListItem
-							leading={<ProfilePicture profile={community} />}
-							title={displayName(community)}
-							subtitle={
-								<IdentityTag
-									className="c-list-item-handle"
-									idTag={community.idTag}
-								/>
-							}
-							trailing={
-								<>
-									<Button size="sm" onClick={() => actions.open(community.idTag)}>
-										{t('Open')}
-									</Button>
-									{profileButton(community)}
-								</>
-							}
-						/>
-						{(byCommunity.get(community.idTag) ?? []).map((p) => {
-							const label = enterViaLabel(t, displayName(p), displayName(community))
-							return (
+				.map((community) => {
+					const partners = byCommunity.get(community.idTag) ?? []
+					return (
+						<Panel
+							key={community.idTag}
+							variant="outline"
+							className="mb-3"
+							aria-label={displayName(community)}
+						>
+							<List>
 								<ListItem
-									key={p.idTag}
-									leading={<ProfilePicture profile={p} size="sm" />}
-									title={displayName(p)}
-									subtitle={t('Partner of {{name}}', {
-										name: displayName(community)
-									})}
+									className="c-community-map-member"
+									leading={<ProfilePicture profile={community} size="lg" />}
+									title={displayName(community)}
+									subtitle={
+										<IdentityTag
+											className="c-list-item-handle"
+											idTag={community.idTag}
+										/>
+									}
 									trailing={
 										<>
-											{mine.has(p.idTag) && (
-												<Button
-													size="sm"
-													onClick={() => actions.open(p.idTag)}
-												>
-													{t('Open')}
-												</Button>
-											)}
 											<Button
 												size="sm"
-												icon={<IcEnter />}
-												aria-label={label}
-												onClick={() =>
-													actions.enterVia(p.idTag, community.idTag)
-												}
-											/>
-											{profileButton(p)}
+												variant="filled"
+												color="primary"
+												onClick={() => actions.open(community.idTag)}
+											>
+												{t('Open')}
+											</Button>
+											{profileButton(community)}
 										</>
 									}
 								/>
-							)
-						})}
-					</List>
-				))}
+							</List>
+							{partners.length ? (
+								<>
+									<Heading
+										level={3}
+										overline
+										className="c-community-map-partners-label"
+									>
+										{t('Partner communities ({{count}})', {
+											count: partners.length
+										})}
+									</Heading>
+									<List variant="divided" className="c-community-map-partners">
+										{partners.map((p) => {
+											const label = enterViaLabel(
+												t,
+												displayName(p),
+												displayName(community)
+											)
+											return (
+												<ListItem
+													key={p.idTag}
+													size="sm"
+													leading={
+														<ProfilePicture profile={p} size="sm" />
+													}
+													title={displayName(p)}
+													subtitle={
+														<IdentityTag
+															className="c-list-item-handle"
+															idTag={p.idTag}
+														/>
+													}
+													trailing={
+														<>
+															{mine.has(p.idTag) && (
+																<Button
+																	size="sm"
+																	onClick={() =>
+																		actions.open(p.idTag)
+																	}
+																>
+																	{t('Open')}
+																</Button>
+															)}
+															<Button
+																size="sm"
+																icon={<IcEnter />}
+																aria-label={label}
+																onClick={() =>
+																	actions.enterVia(
+																		p.idTag,
+																		community.idTag
+																	)
+																}
+															/>
+															{profileButton(p)}
+														</>
+													}
+												/>
+											)
+										})}
+									</List>
+								</>
+							) : (
+								<Text as="p" emphasis="muted">
+									{t('No partner communities yet')}
+								</Text>
+							)}
+						</Panel>
+					)
+				})}
 		</>
 	)
 }
@@ -165,6 +211,7 @@ export function CommunityMap() {
 	const actions = useMapActions()
 	const refetchTimer = React.useRef<ReturnType<typeof setTimeout>>(undefined)
 	const mounted = React.useRef(true)
+	const pollGen = React.useRef(0)
 
 	const load = React.useCallback(async () => {
 		if (!api) return
@@ -180,15 +227,19 @@ export function CommunityMap() {
 		}
 	}, [api])
 
-	/** Re-fetch after a delay, again while the server still reports `syncing`. */
+	/**
+	 * Re-fetch after a delay, again until the sync landed: `syncing` only says this GET
+	 * scheduled one, so also wait for `syncedAt` to move past `baseline`. A fresh start bumps
+	 * `pollGen`, so a chain whose `load()` was already in flight stops instead of clobbering it.
+	 */
 	const refetchLater = React.useCallback(
-		(tries = MAX_REFETCHES) => {
+		(baseline: PartnerMap['syncedAt'], attempt = 1, gen = ++pollGen.current) => {
 			clearTimeout(refetchTimer.current)
 			refetchTimer.current = setTimeout(async () => {
 				if (!mounted.current) return
 				const m = await load()
-				if (!mounted.current) return
-				if (m?.syncing && tries > 1) refetchLater(tries - 1)
+				if (!mounted.current || gen !== pollGen.current) return
+				if (keepPolling(m, baseline, attempt)) refetchLater(baseline, attempt + 1, gen)
 				else setSyncRequested(false)
 			}, REFETCH_DELAY_MS)
 		},
@@ -200,7 +251,7 @@ export function CommunityMap() {
 			mounted.current = true
 			// The backend schedules a sync itself when the map is stale: follow it.
 			load().then((m) => {
-				if (m?.syncing) refetchLater()
+				if (m?.syncing) refetchLater(m.syncedAt)
 			})
 			return () => {
 				mounted.current = false
@@ -214,20 +265,23 @@ export function CommunityMap() {
 		if (!api) return
 		setSyncRequested(true)
 		try {
-			await api.partners.sync()
-			if (mounted.current) refetchLater()
+			// `scheduled: false` = cooldown: nothing to wait for.
+			const { scheduled } = await api.partners.sync()
+			if (!mounted.current) return
+			if (scheduled) refetchLater(map?.syncedAt)
+			else setSyncRequested(false)
 		} catch (err) {
 			console.error('Failed to sync community map', err)
 			setSyncRequested(false)
 		}
-	}, [api, refetchLater])
+	}, [api, refetchLater, map?.syncedAt])
 
 	const layout = React.useMemo(() => (map ? layoutPartnerMap(map) : undefined), [map])
 	const syncing = syncRequested || !!map?.syncing
 	const isEmpty = !!map && (!map.communities.length || (!map.syncedAt && !map.edges.length))
 
 	const syncButton = (
-		<Button icon={<IcSync />} disabled={syncRequested} onClick={() => void sync()}>
+		<Button icon={<IcSync />} loading={syncing} onClick={() => void sync()}>
 			{t('Sync')}
 		</Button>
 	)

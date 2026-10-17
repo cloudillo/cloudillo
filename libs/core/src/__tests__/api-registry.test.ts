@@ -5,6 +5,7 @@ import {
 	contextKey,
 	getApiClient,
 	hasApiToken,
+	isContextKey,
 	resetApiRegistry,
 	setApiToken,
 	splitContextKey
@@ -157,5 +158,16 @@ describe('contextKey', () => {
 	it('rejects "|" in either part', () => {
 		expect(() => contextKey('b|x')).toThrow('reserved')
 		expect(() => contextKey('b.tld', 'a|x')).toThrow('reserved')
+	})
+})
+
+describe('isContextKey', () => {
+	it('accepts idTag and idTag|hat', () => {
+		expect(isContextKey('b.tld')).toBe(true)
+		expect(isContextKey('b.tld|a.tld')).toBe(true)
+	})
+
+	it('rejects empty parts, extra bars and non-strings', () => {
+		for (const k of ['', '|a', 'b|', 'a|b|c', 42]) expect(isContextKey(k)).toBe(false)
 	})
 })

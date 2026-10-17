@@ -37,18 +37,18 @@ export function buildCommunitySections(
 }
 
 /**
- * Index for `pinCommunityAt` (remove-then-insert) that places `idTag` before `favorites[index]`
+ * Index for `pinCommunityAt` (remove-then-insert) that places pin `key` before `favorites[index]`
  * (or at the end when `index >= favorites.length`). Drop indices count `favorites` (loaded
- * communities only); `pinned` is the raw id list, which can hold ones not loaded yet.
+ * communities only); `pinned` is the raw key list, which can hold ones not loaded yet.
  */
 export function pinDropIndex(
 	pinned: string[],
-	favorites: { idTag: string }[],
-	idTag: string,
+	favorites: { pinKey: string }[],
+	key: string,
 	index: number
 ): number {
-	let raw = index < favorites.length ? pinned.indexOf(favorites[index].idTag) : pinned.length
-	const from = pinned.indexOf(idTag)
+	let raw = index < favorites.length ? pinned.indexOf(favorites[index].pinKey) : pinned.length
+	const from = pinned.indexOf(key)
 	// The dragged chip is removed first, so every slot after it shifts left by one.
 	if (from !== -1 && from < raw) raw--
 	return raw

@@ -38,12 +38,16 @@ import {
 	activeContextAtom,
 	type CommunityRef,
 	ContextTools,
+	activePinKey,
 	communitiesAtom,
+	partnerCommunitiesAtom,
+	pinKeyFor,
 	recentCommunitiesAtom,
 	useCommunitiesList,
 	useContextSwitchNav,
 	useCtx
 } from '../context/index.js'
+import { useEnterPin } from '../context/hat-entry.js'
 import { ProfileContextMenu, useProfileContextMenu } from '../context/profile-context-menu.js'
 import { IcProfile, IcUnpin } from '../icons.js'
 import { unreadCountAtom } from '../read-position.js'
@@ -123,13 +127,16 @@ function PinnedRow({ onDone }: { onDone: () => void }) {
 	const { t } = useTranslation()
 	const [auth] = useAuth()
 	const activeContext = useAtomValue(activeContextAtom)
+	const partners = useAtomValue(partnerCommunitiesAtom)
 	const unreadCounts = useAtomValue(unreadCountAtom)
-	const { favorites } = useCommunitiesList()
+	const { pinnedEntries, pinnedKeys } = useCommunitiesList()
 	const handleSwitch = useContextSwitchNav()
+	const enterPin = useEnterPin()
 	const { menuState, closeMenu, getTriggerProps, wrapClick } = useProfileContextMenu()
 
 	if (!auth?.idTag) return null
 
+	const activeKey = activePinKey(pinnedKeys, activeContext, partners)
 	const entries = [
 		{
 			idTag: auth.idTag,
@@ -137,9 +144,15 @@ function PinnedRow({ onDone }: { onDone: () => void }) {
 			profilePic: auth.profilePic,
 			isPending: false,
 			unreadCount: 0,
+			pinKey: auth.idTag,
+			hat: undefined,
 			type: 'me' as const
 		},
-		...favorites.map((c) => ({ ...c, isPending: !!c.isPending, type: 'community' as const }))
+		...pinnedEntries.map((c) => ({
+			...c,
+			isPending: !!c.isPending,
+			type: 'community' as const
+		}))
 	]
 
 	return (
@@ -152,9 +165,13 @@ function PinnedRow({ onDone }: { onDone: () => void }) {
 		>
 			{entries.map((entry) => {
 				const label = entry.type === 'me' ? t('My profile') : entry.name
+				const active =
+					entry.type === 'me'
+						? activeContext?.idTag === entry.idTag
+						: entry.pinKey === activeKey
 				return (
 					<ContextChip
-						key={entry.idTag}
+						key={entry.pinKey}
 						orientation="vertical"
 						idTag={entry.idTag}
 						profilePic={entry.profilePic}
@@ -162,26 +179,22 @@ function PinnedRow({ onDone }: { onDone: () => void }) {
 						unread={!!unreadCounts[entry.idTag]}
 						count={entry.unreadCount || undefined}
 						name={entry.name}
-						hat={
-							activeContext?.idTag === entry.idTag
-								? activeContext.hat
-								: entry.type === 'community'
-									? entry.hat
-									: undefined
-						}
-						active={activeContext?.idTag === entry.idTag}
+						hat={active ? activeContext?.hat : entry.hat}
+						active={active}
 						aria-label={
 							entry.isPending ? t('{{name}} (setting up)', { name: label }) : label
 						}
 						title={entry.name}
 						onClick={wrapClick(() => {
-							handleSwitch(entry.idTag)
+							if (entry.type === 'me') handleSwitch(entry.idTag)
+							else enterPin(entry.pinKey)
 							onDone()
 						})}
 						{...getTriggerProps({
 							idTag: entry.idTag,
 							name: entry.name,
-							type: entry.type
+							type: entry.type,
+							pinKey: entry.type === 'community' ? entry.pinKey : undefined
 						})}
 					/>
 				)
@@ -215,31 +228,33 @@ export function CommunityFinder({ variant, onDone, draggable }: CommunityFinderP
 	const activeContext = useAtomValue(activeContextAtom)
 	const communities = useAtomValue(communitiesAtom)
 	const recentCommunities = useAtomValue(recentCommunitiesAtom)
-	const { favorites, toggleFavorite } = useCommunitiesList()
+	const { pinnedKeys, togglePinCommunity } = useCommunitiesList()
 	const handleSwitch = useContextSwitchNav()
 	const [query, setQuery] = React.useState('')
 
-	const pinnedTags = new Set(favorites.map((c) => c.idTag))
 	const sections = buildCommunitySections(communities, recentCommunities, query)
 	const titles = { recent: t('Recent'), all: t('All'), results: t('Results') }
 
-	const renderCard = (community: CommunityRef) => (
-		<CommunityCard
-			key={community.idTag}
-			community={community}
-			isActive={activeContext?.idTag === community.idTag}
-			isPinned={pinnedTags.has(community.idTag)}
-			onSwitch={() => {
-				handleSwitch(community.idTag)
-				onDone()
-			}}
-			onTogglePin={() => toggleFavorite(community.idTag)}
-			onProfile={() => {
-				navigate(profilePath(ctx.base, community.idTag))
-				onDone()
-			}}
-		/>
-	)
+	const renderCard = (community: CommunityRef) => {
+		const pinKey = pinKeyFor(community.idTag, pinnedKeys)
+		return (
+			<CommunityCard
+				key={community.idTag}
+				community={community}
+				isActive={activeContext?.idTag === community.idTag}
+				isPinned={!!pinKey}
+				onSwitch={() => {
+					handleSwitch(community.idTag)
+					onDone()
+				}}
+				onTogglePin={() => togglePinCommunity(community.idTag)}
+				onProfile={() => {
+					navigate(profilePath(ctx.base, community.idTag))
+					onDone()
+				}}
+			/>
+		)
+	}
 
 	return (
 		<VBox className={mergeClasses('c-community-finder', variant)}>

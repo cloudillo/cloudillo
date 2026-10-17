@@ -46,7 +46,7 @@ export interface AudienceSelectorProps {
 export function AudienceSelector({ target, ownRepostIds, onChange }: AudienceSelectorProps) {
 	const { t } = useTranslation()
 	const [auth] = useAuth()
-	const { communities, favorites, pinnedIdTags } = useCommunitiesList()
+	const { communities, pinnedCommunities } = useCommunitiesList()
 
 	const { me, pinned, others, currentUnknown, resolved } = React.useMemo(() => {
 		const withRepost = (tgt: AudienceTarget): AudienceTarget => ({
@@ -59,7 +59,7 @@ export function AudienceSelector({ target, ownRepostIds, onChange }: AudienceSel
 			profilePic: auth?.profilePic,
 			kind: 'me'
 		})
-		const pinned = favorites
+		const pinned = pinnedCommunities
 			.filter((c) => !c.isPending)
 			.map((c) =>
 				withRepost({
@@ -70,7 +70,7 @@ export function AudienceSelector({ target, ownRepostIds, onChange }: AudienceSel
 				})
 			)
 		const others = communities
-			.filter((c) => !c.isPending && !pinnedIdTags.includes(c.idTag))
+			.filter((c) => !c.isPending && !pinnedCommunities.some((f) => f.idTag === c.idTag))
 			.map((c) =>
 				withRepost({
 					idTag: c.idTag,
@@ -93,8 +93,7 @@ export function AudienceSelector({ target, ownRepostIds, onChange }: AudienceSel
 		auth?.name,
 		auth?.profilePic,
 		communities,
-		favorites,
-		pinnedIdTags,
+		pinnedCommunities,
 		ownRepostIds,
 		target.idTag
 	])

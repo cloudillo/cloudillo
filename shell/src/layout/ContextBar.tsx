@@ -23,10 +23,12 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { getFileIcon } from '../apps/files/icons.js'
-import { useHatEntry } from '../context/hat-entry.js'
+import { useEnterPin, useHatEntry } from '../context/hat-entry.js'
 import {
 	activeContextAtom,
-	type CommunityRef,
+	activePinKey,
+	type PinnedCommunity,
+	partnerCommunitiesAtom,
 	previewCommunityAtom,
 	useCommunitiesList,
 	useContextSwitchNav,
@@ -43,13 +45,13 @@ import { pinDropIndex } from './community-sections.js'
 import { truncateFileName } from './Menu.js'
 
 interface StripEntry {
-	community: CommunityRef
-	/** Index into `favorites` — what `pinDropIndex` counts */
+	community: PinnedCommunity
+	/** Index into `pinnedEntries` — what `pinDropIndex` counts */
 	index: number
 }
 
 /** Strip keys are prefixed: a pinned community is also a card in the popup's finder. */
-const stripKey = (e: StripEntry) => `strip:${e.community.idTag}`
+const stripKey = (e: StripEntry) => `strip:${e.community.pinKey}`
 
 export function ContextBar() {
 	const { t } = useTranslation()
@@ -57,33 +59,35 @@ export function ContextBar() {
 	const [guestDocument] = useGuestDocument()
 	const activeContext = useAtomValue(activeContextAtom)
 	const previewCommunity = useAtomValue(previewCommunityAtom)
+	const partners = useAtomValue(partnerCommunitiesAtom)
 	const unreadCounts = useAtomValue(unreadCountAtom)
-	const { favorites, pinnedIdTags, pinCommunityAt } = useCommunitiesList()
+	const { pinnedEntries, pinnedKeys, pinCommunityAt } = useCommunitiesList()
 	const handleSwitch = useContextSwitchNav()
+	const enterPin = useEnterPin()
 	const { menuState, closeMenu, getTriggerProps, wrapClick } = useProfileContextMenu()
 	const { changeHat } = useHatEntry()
 	const isWide = useIsDesktop('xl')
 
 	const cap = isWide ? 6 : 4
-	const entries: StripEntry[] = favorites.map((community, index) => ({ community, index }))
+	const entries: StripEntry[] = pinnedEntries.map((community, index) => ({ community, index }))
 	let visible = entries.slice(0, cap)
 	// The active context is always on the strip, even past the cap: it is the one chip
 	// whose absence would leave the bar lying about where the user is.
-	const activeHidden = activeContext
-		? entries.slice(cap).find((e) => e.community.idTag === activeContext.idTag)
-		: undefined
+	const activeKey = activePinKey(pinnedKeys, activeContext, partners)
+	const isActive = (c: PinnedCommunity) => c.pinKey === activeKey
+	const activeHidden = entries.slice(cap).find((e) => isActive(e.community))
 	if (activeHidden) visible = [...visible.slice(0, cap - 1), activeHidden]
-	const visibleTags = new Set(visible.map((e) => e.community.idTag))
-	const hidden = entries.filter((e) => !visibleTags.has(e.community.idTag))
+	const visibleKeys = new Set(visible.map((e) => e.community.pinKey))
+	const hidden = entries.filter((e) => !visibleKeys.has(e.community.pinKey))
 	const hiddenUnread = hidden.some((e) => !!unreadCounts[e.community.idTag])
 
-	/** Pin `idTag` before `favorites[favIndex]` (at the end past the last). */
-	function pinBefore(idTag: string, favIndex: number) {
-		pinCommunityAt(idTag, pinDropIndex(pinnedIdTags, favorites, idTag, favIndex))
+	/** Pin `key` before `pinnedEntries[favIndex]` (at the end past the last). */
+	function pinBefore(key: string, favIndex: number) {
+		pinCommunityAt(key, pinDropIndex(pinnedKeys, pinnedEntries, key, favIndex))
 	}
 
 	// `to` counts strip slots: within the strip it is arrayMove semantics; from the popup
-	// (`group` set) it is the insertion slot and `key` is the card's idTag.
+	// (`group` set) it is the insertion slot and `key` is the card's idTag (a bare pin).
 	function onStripReorder(from: number, to: number, group?: string, key?: string) {
 		if (group) {
 			if (!key) return
@@ -96,7 +100,7 @@ export function ContextBar() {
 		const moved = visible[from]
 		const target = visible[to]
 		if (!moved || !target) return
-		pinBefore(moved.community.idTag, to > from ? target.index + 1 : target.index)
+		pinBefore(moved.community.pinKey, to > from ? target.index + 1 : target.index)
 	}
 
 	// Guests: no communities, no rail — the strip carries the document they followed a
@@ -138,8 +142,9 @@ export function ContextBar() {
 	const meActive = activeContext?.idTag === auth.idTag
 
 	/** The worn hat (active) or remembered one (inactive partner): badge + "B · via A" label. */
-	function hatLabel({ idTag, name, hat: remembered }: CommunityRef) {
-		const hat = activeContext?.idTag === idTag ? activeContext.hat : remembered
+	function hatLabel(community: PinnedCommunity, active: boolean) {
+		const { name, hat: remembered } = community
+		const hat = active ? activeContext?.hat : remembered
 		return hat
 			? {
 					hat,
@@ -152,7 +157,8 @@ export function ContextBar() {
 	}
 
 	function renderChip({ community }: StripEntry) {
-		const worn = hatLabel(community)
+		const active = isActive(community)
+		const worn = hatLabel(community, active)
 		return (
 			<ContextChip
 				idTag={community.idTag}
@@ -161,7 +167,7 @@ export function ContextBar() {
 				unread={!!unreadCounts[community.idTag]}
 				name={community.name}
 				hat={worn?.hat}
-				active={activeContext?.idTag === community.idTag}
+				active={active}
 				aria-label={
 					community.isPending
 						? t('{{name}} (setting up)', { name: community.name })
@@ -172,22 +178,26 @@ export function ContextBar() {
 						? t('DNS propagation in progress...')
 						: (worn?.label ?? community.name)
 				}
-				onClick={wrapClick(() => handleSwitch(community.idTag))}
+				onClick={wrapClick(() => enterPin(community.pinKey))}
 				{...getTriggerProps({
 					idTag: community.idTag,
 					name: community.name,
-					type: 'community'
+					type: 'community',
+					pinKey: community.pinKey
 				})}
 			/>
 		)
 	}
 
 	// WCAG 2.5.7: chips have no drag handle, so the menu of a pinned chip moves it too.
-	const menuFav = menuState ? favorites.findIndex((c) => c.idTag === menuState.target.idTag) : -1
-	const moveTo = (favIndex: number) => () => pinBefore(favorites[menuFav].idTag, favIndex)
+	const menuFav = menuState
+		? pinnedEntries.findIndex((c) => c.pinKey === menuState.target.pinKey)
+		: -1
+	const moveTo = (favIndex: number) => () => pinBefore(pinnedEntries[menuFav].pinKey, favIndex)
 	const menuOnActive =
-		menuState?.target.type === 'community' && menuState.target.idTag === activeContext?.idTag
-	const previewWorn = previewCommunity && hatLabel(previewCommunity)
+		menuState?.target.type === 'community' &&
+		menuState.target.pinKey === (activeKey ?? previewCommunity?.pinKey)
+	const previewWorn = previewCommunity && hatLabel(previewCommunity, true)
 
 	return (
 		<>
@@ -231,11 +241,12 @@ export function ContextBar() {
 										name: previewWorn?.label ?? previewCommunity.name
 									})}
 									title={previewWorn?.label ?? previewCommunity.name}
-									onClick={wrapClick(() => handleSwitch(previewCommunity.idTag))}
+									onClick={wrapClick(() => enterPin(previewCommunity.pinKey))}
 									{...getTriggerProps({
 										idTag: previewCommunity.idTag,
 										name: previewCommunity.name,
-										type: 'community'
+										type: 'community',
+										pinKey: previewCommunity.pinKey
 									})}
 								/>
 							)}
@@ -257,7 +268,7 @@ export function ContextBar() {
 					onClose={closeMenu}
 					onMoveLeft={menuFav > 0 ? moveTo(menuFav - 1) : undefined}
 					onMoveRight={
-						menuFav !== -1 && menuFav < favorites.length - 1
+						menuFav !== -1 && menuFav < pinnedEntries.length - 1
 							? moveTo(menuFav + 2)
 							: undefined
 					}

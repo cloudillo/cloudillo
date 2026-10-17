@@ -305,8 +305,7 @@ function RegistrationInvites() {
 	const dialog = useDialog()
 	const {
 		communities: memberCommunities,
-		favorites: pinned,
-		pinnedIdTags,
+		pinnedCommunities,
 		loadCommunities
 	} = useCommunitiesList()
 	const [refs, setRefs] = React.useState<Ref[] | undefined>()
@@ -330,9 +329,13 @@ function RegistrationInvites() {
 		// load only on first mount; deps intentionally omitted
 	}, [])
 
+	const pinned = React.useMemo(
+		() => pinnedCommunities.filter((c) => memberCommunities.some((m) => m.idTag === c.idTag)),
+		[pinnedCommunities, memberCommunities]
+	)
 	const more = React.useMemo(
-		() => memberCommunities.filter((c) => !pinnedIdTags.includes(c.idTag)),
-		[pinnedIdTags, memberCommunities]
+		() => memberCommunities.filter((c) => !pinned.some((p) => p.idTag === c.idTag)),
+		[pinned, memberCommunities]
 	)
 
 	React.useEffect(

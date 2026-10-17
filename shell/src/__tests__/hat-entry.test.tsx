@@ -25,7 +25,11 @@ class FetchError extends Error {
 
 jest.unstable_mockModule('@cloudillo/core', () => ({
 	FetchError,
-	contextKey: (idTag: string, hat?: string) => (hat ? `${idTag}|${hat}` : idTag)
+	contextKey: (idTag: string, hat?: string) => (hat ? `${idTag}|${hat}` : idTag),
+	splitContextKey: (key: string) => {
+		const [idTag, hat] = key.split('|')
+		return { idTag, hat }
+	}
 }))
 
 const getProfile = jest.fn<(idTag: string) => Promise<{ hats?: string[] }>>()
@@ -58,17 +62,20 @@ jest.unstable_mockModule('../context/hooks', () => ({
 const activeContextAtom = atom<{ idTag: string; hat?: { idTag: string } } | undefined>(undefined)
 const communitiesAtom = atom<{ idTag: string; name?: string }[]>([])
 const partnerCommunitiesAtom = atom<{ idTag: string; hat?: { idTag: string } }[]>([])
+const favoritesAtom = atom<string[]>([])
+const activePinKeyMock = jest.fn((): string | undefined => undefined)
 
 jest.unstable_mockModule('../context/atoms', () => ({
 	activeContextAtom,
+	activePinKey: activePinKeyMock,
 	communitiesAtom,
+	favoritesAtom,
 	partnerCommunitiesAtom,
 	refFromActive: ({ idTag }: { idTag: string }) => ({ idTag })
 }))
 
-const { hatPickerAtom, pendingHatEntryAtom, toFront, useEnterContext, useHatEntry } = await import(
-	'../context/hat-entry.js'
-)
+const { hatPickerAtom, pendingHatEntryAtom, toFront, useEnterContext, useEnterPin, useHatEntry } =
+	await import('../context/hat-entry.js')
 
 const store = getDefaultStore()
 
@@ -105,6 +112,9 @@ beforeEach(() => {
 	store.set(hatPickerAtom, undefined)
 	store.set(pendingHatEntryAtom, undefined)
 	store.set(activeContextAtom, undefined)
+	store.set(favoritesAtom, [])
+	activePinKeyMock.mockReset()
+	activePinKeyMock.mockReturnValue(undefined)
 })
 
 describe('toFront', () => {
@@ -334,6 +344,45 @@ describe('useEnterContext', () => {
 		await act(() => result.current(B, { hat: 'a' }))
 		expect(setActiveContext).not.toHaveBeenCalled()
 		expect(store.get(pendingHatEntryAtom)).toEqual({ idTag: B, hat: 'a' })
+		expect(switchNav).toHaveBeenCalledWith(B)
+	})
+})
+
+describe('useEnterPin', () => {
+	it('only navigates to the active pin', async () => {
+		activePinKeyMock.mockReturnValue(`${B}|a`)
+		store.set(activeContextAtom, { idTag: B, hat: { idTag: 'a' } })
+		const { result } = renderHook(() => useEnterPin())
+		act(() => result.current(`${B}|a`))
+		await flush()
+		expect(store.get(pendingHatEntryAtom)).toBeUndefined()
+		expect(getProfile).not.toHaveBeenCalled()
+		expect(setActiveContext).not.toHaveBeenCalled()
+		expect(switchNav).toHaveBeenCalledWith(B)
+	})
+
+	it('parks the pinned hat when B is another context', async () => {
+		const { result } = renderHook(() => useEnterPin())
+		act(() => result.current(`${B}|a`))
+		await flush()
+		expect(store.get(pendingHatEntryAtom)).toEqual({ idTag: B, hat: 'a' })
+		expect(switchNav).toHaveBeenCalledWith(B)
+	})
+
+	it('enters a bare member pin as yourself', async () => {
+		store.set(communitiesAtom, [{ idTag: B }])
+		const { result } = renderHook(() => useEnterPin())
+		act(() => result.current(B))
+		await flush()
+		expect(store.get(pendingHatEntryAtom)).toEqual({ idTag: B, hat: '' })
+		expect(switchNav).toHaveBeenCalledWith(B)
+	})
+
+	it('enters a bare non-member pin plainly', async () => {
+		const { result } = renderHook(() => useEnterPin())
+		act(() => result.current(B))
+		await flush()
+		expect(store.get(pendingHatEntryAtom)).toBeUndefined()
 		expect(switchNav).toHaveBeenCalledWith(B)
 	})
 })

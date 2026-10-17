@@ -18,13 +18,21 @@
  * `pendingHatEntryAtom` and navigates, and the route effect picks it up.
  */
 
+import { splitContextKey } from '@cloudillo/core'
 import { useApi, useToast } from '@cloudillo/react'
 import { atom, useSetAtom, useStore } from 'jotai'
 import type { TFunction } from 'i18next'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { activeContextAtom, communitiesAtom, partnerCommunitiesAtom, refFromActive } from './atoms'
+import {
+	activeContextAtom,
+	activePinKey,
+	communitiesAtom,
+	favoritesAtom,
+	partnerCommunitiesAtom,
+	refFromActive
+} from './atoms'
 import { hatRefusedText, isRefusal } from './hat-recovery.js'
 import { useApiContext, useContextSwitch, useContextSwitchNav } from './hooks'
 
@@ -225,6 +233,40 @@ export function useEnterContext(): (
 			else switchNav(idTag)
 		},
 		[enter, switchNav, switchTo, setPending, store]
+	)
+}
+
+/**
+ * Enter a pinned context key: `B|A` wears A; a bare pin of a member goes in as yourself (so
+ * leaving `B|A` for `B` re-activates); a bare non-member pin is a plain entry. The active pin
+ * only navigates.
+ */
+export function useEnterPin(): (pinKey: string) => void {
+	const enterContext = useEnterContext()
+	const store = useStore()
+
+	return React.useCallback(
+		(pinKey: string) => {
+			const { idTag, hat } = splitContextKey(pinKey)
+			const communities = store.get(communitiesAtom)
+			const activeKey = activePinKey(
+				store.get(favoritesAtom),
+				store.get(activeContextAtom),
+				store.get(partnerCommunitiesAtom)
+			)
+			const opts =
+				activeKey === pinKey
+					? undefined
+					: hat
+						? { hat }
+						: communities.some((c) => c.idTag === idTag)
+							? { hat: '' }
+							: undefined
+			enterContext(idTag, opts).catch((err) => {
+				console.error('[HatEntry] Pin entry failed:', err)
+			})
+		},
+		[enterContext, store]
 	)
 }
 

@@ -20,7 +20,13 @@
  *      an ambient SW-injected header; see its comment.
  */
 
-import { type ApiClient, createApiClient, FetchError, setApiToken } from '@cloudillo/core'
+import {
+	type ApiClient,
+	createApiClient,
+	FetchError,
+	isContextKey,
+	setApiToken
+} from '@cloudillo/core'
 import type { AuthState } from '@cloudillo/react'
 import type { TFunction } from 'i18next'
 import type { NavigateFunction } from 'react-router-dom'
@@ -174,7 +180,7 @@ export async function runBootSequence(deps: BootDeps): Promise<void> {
 
 			const pinnedVal = uiSettings.find((s) => s.key === 'ui.pinned_communities')?.value
 			if (Array.isArray(pinnedVal)) {
-				setFavorites(pinnedVal as string[])
+				setFavorites([...new Set(pinnedVal.filter(isContextKey))])
 			}
 
 			setTheme(theme as string | undefined, colors as string | undefined)

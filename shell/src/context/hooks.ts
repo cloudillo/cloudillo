@@ -37,12 +37,14 @@ import {
 	favoritesAtom,
 	lastContextSwitchAtom,
 	partnerCommunitiesAtom,
+	pinKeyFor,
 	recentCommunitiesAtom,
 	recentContextsAtom,
 	refFromActive,
 	sidebarAtom,
 	sidebarOpenAtom,
-	totalUnreadCountAtom
+	totalUnreadCountAtom,
+	withoutPins
 } from './atoms'
 import {
 	activeKeyFor,
@@ -526,15 +528,21 @@ export function useApiContext() {
 /**
  * Hook for managing communities list
  *
- * Provides access to communities, favorites, and methods to manage them.
+ * Provides access to communities, pins, and methods to manage them. Pins come in three views:
+ * `pinnedEntries` (one per key, strip order), `pinnedKeys` (the raw context keys) and
+ * `pinnedCommunities` (one per community).
  *
  * @example
  * ```typescript
  * const {
  *   communities,
- *   favorites,
+ *   pinnedEntries,
+ *   pinnedKeys,
+ *   pinnedCommunities,
  *   recent,
- *   toggleFavorite
+ *   toggleFavorite,
+ *   unpinCommunity,
+ *   togglePinCommunity
  * } = useCommunitiesList()
  * ```
  */
@@ -742,9 +750,9 @@ export function useCommunitiesList() {
 	// the `favorites` binding.
 	/** A pinned partner with no row yet keeps the active context's ref, so it outlives the switch. */
 	const rememberPartner = React.useCallback(
-		(idTags: string[]) => {
+		(keys: string[]) => {
 			const active = store.get(activeContextAtom)
-			if (!active || !idTags.includes(active.idTag)) return
+			if (!active || !pinKeyFor(active.idTag, keys)) return
 			if (store.get(communitiesAtom).some((c) => c.idTag === active.idTag)) return
 			store.set(partnerCommunitiesAtom, (prev) => [
 				...prev.filter((c) => c.idTag !== active.idTag),
@@ -755,11 +763,11 @@ export function useCommunitiesList() {
 	)
 
 	const toggleFavorite = React.useCallback(
-		(idTag: string) => {
+		(key: string) => {
 			const prev = store.get(favoritesAtom)
-			const pinning = !prev.includes(idTag)
-			const newFavorites = pinning ? [...prev, idTag] : prev.filter((id) => id !== idTag)
-			if (pinning) rememberPartner([idTag])
+			const pinning = !prev.includes(key)
+			const newFavorites = pinning ? [...prev, key] : prev.filter((k) => k !== key)
+			if (pinning) rememberPartner([key])
 			setFavorites(newFavorites)
 			// Save to backend (async, non-blocking)
 			savePinnedCommunities(newFavorites)
@@ -767,13 +775,34 @@ export function useCommunitiesList() {
 		[store, setFavorites, savePinnedCommunities, rememberPartner]
 	)
 
+	/** Drop every pin (bare and hatted) of community `idTag` */
+	const unpinCommunity = React.useCallback(
+		(idTag: string) => {
+			const prev = store.get(favoritesAtom)
+			const next = withoutPins(prev, idTag)
+			if (next.length === prev.length) return
+			setFavorites(next)
+			savePinnedCommunities(next)
+		},
+		[store, setFavorites, savePinnedCommunities]
+	)
+
+	/** Pin `idTag` bare, or drop every pin of it when it has any */
+	const togglePinCommunity = React.useCallback(
+		(idTag: string) => {
+			if (pinKeyFor(idTag, store.get(favoritesAtom))) unpinCommunity(idTag)
+			else toggleFavorite(idTag)
+		},
+		[store, unpinCommunity, toggleFavorite]
+	)
+
 	/**
 	 * Pin communities, appending the not-yet-pinned ones (one backend write for the batch)
 	 */
 	const pinCommunities = React.useCallback(
-		(idTags: string[]) => {
+		(keys: string[]) => {
 			const prev = store.get(favoritesAtom)
-			const added = idTags.filter((id) => id && !prev.includes(id))
+			const added = keys.filter((k) => k && !prev.includes(k))
 			if (!added.length) return
 			const newFavorites = [...prev, ...new Set(added)]
 			rememberPartner(added)
@@ -784,17 +813,17 @@ export function useCommunitiesList() {
 	)
 
 	/**
-	 * Pin `idTag` at `index` in the pinned strip — what a drag from the community
+	 * Pin context `key` at `index` in the pinned strip — what a drag from the community
 	 * popup onto a chosen slot does. Filtering first makes the same call correct for
 	 * both "pin a new one" and "move one that is already pinned".
 	 */
 	const pinCommunityAt = React.useCallback(
-		(idTag: string, index: number) => {
+		(key: string, index: number) => {
 			const prev = store.get(favoritesAtom)
-			const without = prev.filter((id) => id !== idTag)
+			const without = prev.filter((k) => k !== key)
 			const at = Math.max(0, Math.min(index, without.length))
-			const next = [...without.slice(0, at), idTag, ...without.slice(at)]
-			rememberPartner([idTag])
+			const next = [...without.slice(0, at), key, ...without.slice(at)]
+			rememberPartner([key])
 			setFavorites(next)
 			savePinnedCommunities(next)
 		},
@@ -823,7 +852,8 @@ export function useCommunitiesList() {
 	const removeCommunity = React.useCallback(
 		(idTag: string) => {
 			setCommunities((prev) => prev.filter((c) => c.idTag !== idTag))
-			setFavorites((prev) => prev.filter((id) => id !== idTag))
+			// Every pinned variant (bare and hatted) goes with it, and so do pins worn under it.
+			setFavorites((prev) => withoutPins(prev, idTag, true))
 		},
 		[setCommunities, setFavorites]
 	)
@@ -859,10 +889,20 @@ export function useCommunitiesList() {
 		[setCommunities]
 	)
 
+	const pinnedCommunities = React.useMemo(
+		() =>
+			favoriteCommunities.filter((c, i, a) => a.findIndex((x) => x.idTag === c.idTag) === i),
+		[favoriteCommunities]
+	)
+
 	return {
 		communities,
-		favorites: favoriteCommunities,
-		pinnedIdTags: favorites,
+		/** One PinnedCommunity per pin key, in strip order */
+		pinnedEntries: favoriteCommunities,
+		/** The raw pinned context keys (`B` or `B|A`) */
+		pinnedKeys: favorites,
+		/** One entry per community (a community pinned under several hats appears once) */
+		pinnedCommunities,
 		recent: recentCommunities,
 		totalUnread,
 		isLoading,
@@ -870,6 +910,8 @@ export function useCommunitiesList() {
 		refresh,
 		loadCommunities,
 		toggleFavorite,
+		unpinCommunity,
+		togglePinCommunity,
 		pinCommunities,
 		pinCommunityAt,
 		setShowInHome,

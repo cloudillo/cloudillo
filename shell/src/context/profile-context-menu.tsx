@@ -35,7 +35,7 @@ import {
 	IcUnpin
 } from '../icons.js'
 import { profilePath } from '../routes.js'
-import { previewCommunityAtom } from './atoms'
+import { pinKeyFor, previewCommunityAtom } from './atoms'
 import { useCtx } from './ctx'
 import { useCommunitiesList } from './hooks'
 
@@ -44,6 +44,8 @@ export interface ProfileMenuTarget {
 	name: string
 	type: 'person' | 'community' | 'me'
 	status?: ProfileStatus
+	/** The pin context key (`B` or `B|A`) a strip chip stands for; default: the bare idTag */
+	pinKey?: string
 }
 
 interface MenuState {
@@ -95,7 +97,8 @@ export function ProfileContextMenu({
 	const [auth] = useAuth()
 	const toast = useToast()
 	const ctx = useCtx()
-	const { communities, favorites, toggleFavorite, setShowInHome } = useCommunitiesList()
+	const { communities, pinnedKeys, toggleFavorite, togglePinCommunity, setShowInHome } =
+		useCommunitiesList()
 	const previewCommunity = useAtomValue(previewCommunityAtom)
 
 	const isMobile = useIsMobile()
@@ -108,9 +111,12 @@ export function ProfileContextMenu({
 	const isOwnProfile = target.type === 'me' || target.idTag === auth?.idTag
 	const isCommunity = target.type === 'community'
 	const isMember = isCommunity && communities.some((c) => c.idTag === target.idTag)
-	const isPinned = isCommunity && favorites.some((c) => c.idTag === target.idTag)
-	// The preview chip (active but unpinned) is pinned from here too.
+	// The preview chip (active but unpinned) is pinned from here too; it passes its own pinKey.
 	const isPreview = isCommunity && previewCommunity?.idTag === target.idTag
+	// A strip chip acts on its own key; other entry points act on the community as a whole.
+	const isPinned =
+		isCommunity &&
+		(target.pinKey ? pinnedKeys.includes(target.pinKey) : !!pinKeyFor(target.idTag, pinnedKeys))
 	const showPinEntry = isCommunity && !isOwnProfile && (isPinned || isMember || isPreview)
 	// Composition: members can opt a community in/out of the merged home feed.
 	const memberCommunity = isMember ? communities.find((c) => c.idTag === target.idTag) : undefined
@@ -136,7 +142,8 @@ export function ProfileContextMenu({
 	}
 
 	const handleTogglePin = () => {
-		toggleFavorite(target.idTag)
+		if (target.pinKey) toggleFavorite(target.pinKey)
+		else togglePinCommunity(target.idTag)
 	}
 
 	const applyStatus = async (next: StatusChange, successMsg: string, failureMsg: string) => {

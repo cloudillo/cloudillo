@@ -48,7 +48,7 @@ describe('buildCommunitySections', () => {
 
 describe('pinDropIndex', () => {
 	const pinned = ['a', 'b', 'c', 'd']
-	const favs = (ids: string[]) => ids.map((idTag) => ({ idTag }))
+	const favs = (ids: string[]) => ids.map((pinKey) => ({ pinKey }))
 
 	/** Mirrors `pinCommunityAt` in `context/hooks.ts`: remove, then insert at the index. */
 	function apply(list: string[], idTag: string, at: number): string[] {

@@ -7,7 +7,7 @@
  * State management atoms for multi-context architecture.
  */
 
-import type { FileView } from '@cloudillo/core'
+import { contextKey, type FileView, splitContextKey } from '@cloudillo/core'
 import { authAtom } from '@cloudillo/react'
 import type { ProfileTrust } from '@cloudillo/types'
 import { atom } from 'jotai'
@@ -106,7 +106,8 @@ export const storageOwnerAtom = atomWithStorage<string | null>(
 
 /**
  * Pinned communities
- * Array of idTags that are pinned to sidebar
+ * Array of context keys (`contextKey(idTag, hat)`: `B` or `B|A`) pinned to the strip; the
+ * same community may be pinned several times, bare and/or under different hats.
  *
  * Backend sync handled in hooks - stored via settings API as 'ui.pinned_communities'
  */
@@ -198,6 +199,9 @@ export interface FileViewUpdate {
 }
 export const fileViewUpdateAtom = atom<FileViewUpdate | null>(null)
 
+/** A pinned strip entry: the resolved community ref plus the context key it was pinned as. */
+export type PinnedCommunity = CommunityRef & { pinKey: string }
+
 /**
  * Derived atom: Pinned communities
  * Returns communities that are pinned, preserving user's custom order
@@ -210,14 +214,59 @@ export const favoriteCommunitiesAtom = atom((get) => {
 	// Map favorites array to communities, preserving order from favorites. A pinned
 	// non-member (a partner entered via a hat) resolves from its partner row, or the active context.
 	return favorites
-		.map(
-			(idTag) =>
+		.map((pinKey): PinnedCommunity | undefined => {
+			const { idTag, hat } = splitContextKey(pinKey)
+			const ref =
 				communities.find((c) => c.idTag === idTag) ??
 				partners.find((c) => c.idTag === idTag) ??
 				(active?.idTag === idTag ? refFromActive(active) : undefined)
-		)
-		.filter((c): c is CommunityRef => c !== undefined)
+			if (!ref) return undefined
+			if (!hat) return { ...ref, pinKey }
+			const h = communities.find((c) => c.idTag === hat)
+			return {
+				...ref,
+				pinKey,
+				hat: h ? { idTag: hat, name: h.name, profilePic: h.profilePic } : { idTag: hat }
+			}
+		})
+		.filter((c): c is PinnedCommunity => c !== undefined)
 })
+
+/** Whether pin `key` matches the active context: exact key, or a legacy bare pin of a partner worn under any hat. */
+export function isActivePin(
+	key: string,
+	active: ActiveContext | null,
+	partners: CommunityRef[]
+): boolean {
+	const { idTag, hat } = splitContextKey(key)
+	if (!active || idTag !== active.idTag) return false
+	if (hat) return hat === active.hat?.idTag
+	return !active.hat || partners.some((c) => c.idTag === idTag)
+}
+
+/** The one pin key that lights for the active context: the exact key wins over a legacy bare pin. */
+export function activePinKey(
+	keys: string[],
+	active: ActiveContext | null,
+	partners: CommunityRef[]
+): string | undefined {
+	if (!active) return undefined
+	const exact = contextKey(active.idTag, active.hat?.idTag)
+	return keys.includes(exact) ? exact : keys.find((k) => isActivePin(k, active, partners))
+}
+
+/** First pin key (bare or hatted) for this community, if any. */
+export function pinKeyFor(idTag: string, keys: string[]): string | undefined {
+	return keys.find((k) => splitContextKey(k).idTag === idTag)
+}
+
+/** Drop every pin of `idTag` (bare and hatted); `asHat` also drops pins worn under it. */
+export function withoutPins(keys: string[], idTag: string, asHat = false): string[] {
+	return keys.filter((k) => {
+		const s = splitContextKey(k)
+		return s.idTag !== idTag && !(asHat && s.hat === idTag)
+	})
+}
 
 /** A minimal CommunityRef synthesized from the active context, for a community with no row. */
 export function refFromActive(active: ActiveContext): CommunityRef {
@@ -235,20 +284,19 @@ export function refFromActive(active: ActiveContext): CommunityRef {
 /**
  * Derived atom: Preview community
  *
- * Returns a CommunityRef when the active context is a community NOT in
- * favorites, otherwise null. Avoids duplicating the logic in the sidebar
+ * Returns a PinnedCommunity when the active context (idTag + hat) is a community with no
+ * matching pin, otherwise null. Avoids duplicating the logic in the sidebar
  * component.
  */
-export const previewCommunityAtom = atom((get) => {
+export const previewCommunityAtom = atom((get): PinnedCommunity | null => {
 	const active = get(activeContextAtom)
 	if (active?.type !== 'community') return null
-	const favorites = get(favoritesAtom)
-	if (favorites.includes(active.idTag)) return null
+	if (activePinKey(get(favoritesAtom), active, get(partnerCommunitiesAtom))) return null
 	const communities = get(communitiesAtom)
+	const pinKey = contextKey(active.idTag, active.hat?.idTag)
 	const found = communities.find((c) => c.idTag === active.idTag)
-	if (found) return found
 	// Fallback so the slot still renders before communitiesAtom is populated on a cold load.
-	return refFromActive(active)
+	return { ...(found ?? refFromActive(active)), pinKey }
 })
 
 /**

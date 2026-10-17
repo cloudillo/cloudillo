@@ -13,6 +13,7 @@
 export {
 	activeContextAtom,
 	activeContextDisplayAtom,
+	activePinKey,
 	communitiesAtom,
 	contextIdpEnabledAtom,
 	contextOnboardingAtom,
@@ -20,11 +21,14 @@ export {
 	favoriteCommunitiesAtom,
 	favoritesAtom,
 	fileViewUpdateAtom,
+	type PinnedCommunity,
+	pinKeyFor,
 	partnerCommunitiesAtom,
 	previewCommunityAtom,
 	recentCommunitiesAtom,
 	sessionTrustAtom,
-	storedTrustAtom
+	storedTrustAtom,
+	withoutPins
 } from './atoms'
 // Constants
 export { HOME_CONTEXT } from './constants'

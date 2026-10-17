@@ -52,6 +52,11 @@ export function splitContextKey(key: string): { idTag: string; hat?: string } {
 	return bar < 0 ? { idTag: key } : { idTag: key.slice(0, bar), hat: key.slice(bar + 1) }
 }
 
+/** Whether `key` has `contextKey` shape: `idTag` or `idTag|hat`. */
+export function isContextKey(key: unknown): key is string {
+	return typeof key === 'string' && /^[^|]+(\|[^|]+)?$/.test(key)
+}
+
 /** The client for this context key, created on first use. */
 export function getApiClient(key: string): ApiClient {
 	let client = registry.get(key)

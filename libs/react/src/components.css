@@ -380,7 +380,7 @@ body.theme-glass.dark {
 	cursor: pointer;
 }
 
-.c-list-item.interactive:hover {
+.c-list-item.interactive:not(.selected):hover {
 	background: var(--col-frost);
 }
 
@@ -443,7 +443,7 @@ body.theme-glass.dark {
 .c-list-item-subtitle,
 .c-list-item-meta {
 	font-size: var(--text-sm);
-	color: color-mix(in srgb, var(--col-on-container) 70%, transparent);
+	color: color-mix(in srgb, var(--col-on-container) 80%, transparent);
 }
 
 /* SETTINGS-6: idTags and key names wrap to two lines instead of a hard ellipsis */
@@ -1326,13 +1326,57 @@ body.theme-glass.dark {
 /* ==========================================================================
    Fcd layout tokens
 
-   The container's own width cap is not set here — it comes from
-   --container-max-width, declared by OpalUI on :root and overridable per
-   embedder (the shell does, in shell/src/style.css).
+   The container is always `fluid` (no --container-max-width cap). At md+ the
+   `.row` is a 3-track grid — rail | content | right slack (hosts details) —
+   and these tokens size it. `--fcd-content-max` follows Fcd.Content `width`.
    ========================================================================== */
 
 .c-fcd {
-	--fcd-details-width: 22.25rem; /* 356px — md overlay panel + adaptive dock */
+	--fcd-rail-w: 17.5rem; /* fixed filter rail width */
+	--fcd-details-width: 22.25rem; /* 356px — docked / overlay details panel */
+	--fcd-content-floor: 36rem; /* below this, details overlays instead of docking */
+	--fcd-content-max: 48rem; /* width="form", the default */
+	--fcd-plate-col: lch(from var(--col-inset) calc(l - 5) c h); /* one step below inset */
+
+	&:has(> .row > .c-fcd-content.width-reading) {
+		--fcd-content-max: 42rem;
+	}
+
+	&:has(> .row > .c-fcd-content.width-wide) {
+		--fcd-content-max: 64rem;
+	}
+
+	/* No cap: the content track may take the whole width, so the slack tracks
+	   shrink to their minimums (rail width on the left, 0 on the right) */
+	&:has(> .row > .c-fcd-content.width-fluid) {
+		--fcd-content-max: 100%;
+	}
+}
+
+/* The bar sits flush on the grid: g-* utilities on the container (1 class,
+   !important) set --gap for the grid but must not gap bar and grid apart */
+.c-fcd.c-container {
+	gap: 0 !important;
+}
+
+.c-fcd-bar {
+	flex-shrink: 0;
+}
+
+/* The grid wrapper takes the height the bar leaves. OpalUI's row margin was
+   undone by the col-* margins Fcd no longer emits, so drop it. 3 classes
+   outrank opalui's `.c-container > .row`. */
+.c-fcd > .row.c-fcd-grid {
+	flex: 1 1 0;
+	min-height: 0;
+	margin: 0;
+}
+
+/* Below md the row stays OpalUI's flex row: content is the only in-flow child
+   (the filter drawer and the details sheet are absolute) */
+.c-fcd > .row > .c-fcd-content {
+	flex: 1 1 0;
+	min-width: 0;
 }
 
 /* ==========================================================================
@@ -1355,41 +1399,6 @@ body.theme-glass.dark {
 	overflow-x: clip;
 }
 
-/* Filter rail continuity across the md → lg boundary.
-
-   The rail is col-md-4 (33.3%) below lg and col-lg-3 (25%) above it, so
-   crossing 72rem used to make it *shrink* as the window got *wider* — 376px
-   back to 280px at a 1152px-wide layout box. Inside an app iframe that box is
-   the browser width minus the shell chrome (the 5rem context sidebar; the
-   trust frame is an overlay and takes no width), which is why the jump shows
-   up at a browser width around 1232px rather than at 1152px.
-
-   Fix: in the md band cap the rail at exactly the width col-lg-3 gives it at
-   the start of the lg band, and let content absorb the slack. The rail then
-   grows, plateaus, and resumes growing at 25% — continuous and monotonic,
-   with lg+ geometry untouched.
-
-   The cap is col-lg-3 evaluated at width: 72rem. Column bases resolve against
-   the row, which is `--gap` wider than the container (it carries a
-   `0 calc(var(--gap) / -2)` margin), so `25% * (72rem + gap) - gap` reduces to
-   `72rem / 4 - gap * 0.75`. The 4-class selectors outrank OpalUI's
-   `.c-container > .row > .col-md-*` (3 classes) regardless of stylesheet
-   order — do not reduce them. */
-@media (48rem <= width < 72rem) {
-	.c-fcd > .row > .c-fcd-filter.col-md-4 {
-		max-width: calc(72rem / 4 - var(--gap) * 0.75);
-	}
-
-	/* Take whatever the capped rail gave up. `flex-basis: 0` (not `auto`)
-	   keeps the width purely space-driven, so long unbreakable content can't
-	   push the column past its share. */
-	.c-fcd > .row > .c-fcd-content.col-md-8 {
-		flex: 1 1 0;
-		max-width: none;
-		min-width: 0;
-	}
-}
-
 @media (width < 72rem) {
 	.c-fcd-content-scroll {
 		/* Extra padding on mobile for browser bottom bars */
@@ -1409,57 +1418,85 @@ body.theme-glass.dark {
 	padding: 0.25rem 0;
 }
 
-/* Collapsed filter (md+): the rail disappears and content takes its span.
+/* md+ grid: rail | content | right slack. The content track grows to its cap
+   before the 1fr tracks get any space, so content sits centred between two
+   equal slacks; once the left slack reaches the rail width, content slides
+   toward the rail, then narrows. The right track hosts docked details
+   (which raises --fcd-details-min and takes track 3, see "FCD Details").
    Below md the filter is the slide-in drawer and `collapsed` has no effect. */
 @media (width >= 48rem) {
+	.c-fcd > .row.c-fcd-grid {
+		--fcd-rail-min: var(--fcd-rail-w);
+		--fcd-details-min: 0px;
+
+		display: grid;
+		grid-template-columns:
+			minmax(var(--fcd-rail-min), 1fr)
+			minmax(0, var(--fcd-content-max))
+			minmax(var(--fcd-details-min), 1fr);
+		grid-template-rows: minmax(0, 1fr);
+		/* opalui forces `gap: 0 !important` on rows; 3 classes win */
+		gap: var(--gap) !important;
+		padding: var(--gap);
+		/* Stacking context for the plate below */
+		isolation: isolate;
+
+		/* No rail (absent or collapsed): the left track is plain slack */
+		&:not(:has(> .c-fcd-filter:not(.collapsed))) {
+			--fcd-rail-min: 0px;
+		}
+	}
+
+	/* The quiet inset plate behind the whole grid area (not the bar). A
+	   pseudo-element, because backdrop-filter on the grid itself would make it
+	   the containing block of every position: fixed descendant. */
+	.c-fcd > .row.c-fcd-grid::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		z-index: -1;
+		pointer-events: none;
+		background-color: lch(from var(--fcd-plate-col) l c h / var(--op-panel));
+		backdrop-filter: blur(var(--blur-radius));
+	}
+
+	.c-fcd > .row > .c-fcd-filter {
+		grid-row: 1;
+		grid-column: 1;
+		justify-self: start;
+		width: var(--fcd-rail-w);
+		max-width: 100%;
+	}
+
 	.c-fcd > .row > .c-fcd-filter.collapsed {
 		display: none;
 	}
 
-	.c-fcd > .row:has(> .c-fcd-filter.collapsed) > .c-fcd-content.c-fcd-content {
-		flex: 1 1 0;
-		max-width: none;
-		min-width: 0;
+	.c-fcd > .row > .c-fcd-content {
+		grid-row: 1;
+		grid-column: 2;
 	}
 
-	/* S7 width modes: the column fills what filter/details leave */
-	.c-fcd > .row > .c-fcd-content[class*='width-'] {
-		flex: 1 1 0;
-		max-width: none;
-		min-width: 0;
+	/* surface="raised": the column is one L1 surface; the scroller inside it
+	   keeps the scrollbar within the border. No backdrop-filter, for the same
+	   containing-block reason as the plate (the plate already blurs). */
+	.c-fcd > .row > .c-fcd-content.surface-raised {
+		background-color: lch(from var(--col-raised) l c h / var(--op-panel));
+		border: 1px solid var(--col-outline);
+		box-shadow: 0 1px 3px var(--col-shadow);
+		border-radius: var(--border-radius-lg);
+		color: var(--col-on-container-low);
+
+		/* Nested surfaces fall to inset: auto-bg painters (lists, cards) via
+		   --auto-bg-col; panels below, as inside a dialog */
+		--auto-bg-col: var(--col-inset);
 	}
 
-	/* Cap via inline padding so the scrollbar stays at the column edge */
-	.c-fcd-content.width-reading > .c-fcd-content-scroll {
-		padding-inline: max(0px, (100% - 42rem) / 2);
-	}
-
-	.c-fcd-content.width-form > .c-fcd-content-scroll {
-		padding-inline: max(0px, (100% - 48rem) / 2);
-	}
-
-	/* The header sits outside the scroller; give it the same capped, centred width */
-	.c-fcd-content.width-reading > :not(.c-fcd-content-scroll) {
-		margin-inline: max(0px, (100% - 42rem) / 2);
-	}
-
-	.c-fcd-content.width-form > :not(.c-fcd-content-scroll) {
-		margin-inline: max(0px, (100% - 48rem) / 2);
-	}
-}
-
-/* PAGES-2: inline details at lg+ collapses while nothing is shown; content fills */
-@media (width >= 72rem) {
-	.c-fcd:not(.details-overlay):not(.details-adaptive) > .row > .c-fcd-details:not(.show) {
-		display: none;
-	}
-
-	.c-fcd:not(.details-overlay):not(.details-adaptive)
-		> .row:has(> .c-fcd-details:not(.show))
-		> .c-fcd-content.c-fcd-content {
-		flex: 1 1 0;
-		max-width: none;
-		min-width: 0;
+	/* Same weight as `.c-dialog :where(.c-panel)`: panel variants still win */
+	:where(.c-fcd > .row > .c-fcd-content.surface-raised) .c-panel {
+		--col-bg: var(--col-inset);
+		box-shadow: none;
+		border-color: transparent;
 	}
 }
 
@@ -1492,16 +1529,6 @@ body.theme-glass.dark {
 	& > .fill {
 		flex: 1;
 		min-height: 0;
-	}
-}
-
-/* Surface model: the rail is one quiet inset plate — visible on the canvas but a
-   step below raised content; nothing inside it paints. Below md it is the drawer. */
-@media (width >= 48rem) {
-	.c-fcd-filter-body {
-		background-color: lch(from var(--col-inset) l c h / var(--op-panel));
-		backdrop-filter: blur(var(--blur-radius));
-		border-radius: var(--border-radius-lg);
 	}
 }
 
@@ -1629,36 +1656,56 @@ body.theme-glass.dark {
 }
 
 /* ==========================================================================
-   FCD Details modes (overlay / adaptive)
+   FCD Details: slide → shrink → overlay
 
-   Default mode ('inline', no container class): FcdDetails is a col-lg-3 flex
-   column at lg+ and an overlay below that, via sm-hide-dyn / md-hide-dyn.
+   One behaviour at md+, in two states keyed off the Fcd's own width:
 
-   .c-container.details-overlay  — details is an absolute-positioned slide-in
-     overlay at every breakpoint; content never reflows.
-   .c-container.details-adaptive — identical to overlay below xl; at xl+ the
-     panel docks in the viewport's right gutter, outside the container, so
-     content position stays fixed. A capped container expands while the dock
-     is open below 132.5rem; a .fluid one has no gutter to grow into, so its
-     row yields --fcd-details-width back to the dock at every xl width.
+   - Docked: the Fcd is at least 79.75rem wide and not .details-overlay.
+     Details is a raised L1 column in grid track 3. While shown it raises that
+     track's minimum to --fcd-details-width, so content keeps its width and
+     slides left into the left slack, then narrows once the rail track is at
+     its minimum. Hidden, it is display: none and reserves nothing. No ✕: the
+     page's own toggle closes it.
+   - Overlay: a narrower Fcd, or .details-overlay at any width. Details is an
+     L2 panel on the grid's right padding edge that slides in over content,
+     with the ✕.
 
-   Mode selection is descendant-scoped from .c-container; only the xl dock's
-   width bookkeeping needs :has(), to react to the panel's .show state.
+   Below md it is OpalUI's full-bleed phone sheet (sm-hide-dyn) with the dim
+   backdrop and body surface below.
+
+   The threshold is a container query because inside the shell the Fcd is
+   narrower than the viewport (app rail). @container can't read var(), so it
+   is a literal: rail 17.5 + content floor 36 + details 22.25 + 4 gutters at
+   the largest --gap Fcd pages use (g-3, 1rem) = 79.75rem. Keep it in step
+   with "Fcd layout tokens".
    ========================================================================== */
 
-/* FcdDetails header row: optional title + action buttons slot at the top
-   of the panel. Reserves right-padding so apps' right-aligned icons don't
-   flow under the absolute close button. Padding collapses to the default
-   whenever the close button is hidden (inline mode at lg+; adaptive-docked
-   at xl). */
+/* inline-size containment brings style containment, not layout or paint
+   containment, so .c-fcd is no containing block for position: fixed
+   descendants (FAB, ImmersiveOverlay) and its h-100 height is unaffected */
+.c-fcd {
+	container: fcd / inline-size;
+}
+
+/* Registered so the docked track grows and shrinks smoothly: an unregistered
+   custom property swaps discretely */
+@property --fcd-details-min {
+	syntax: '<length-percentage>';
+	inherits: false;
+	initial-value: 0px;
+}
+
+/* Details header row: optional title + actions at the top of the panel. The
+   right padding reserves room for the absolute ✕; docked details has no ✕
+   and drops it. */
 .c-fcd-details-header {
 	flex-shrink: 0;
 	min-height: 2.5rem;
-	padding: 0.5rem 2.5rem 0.5rem 0.5rem; /* right padding reserves the absolute close button */
+	padding: 0.5rem 2.5rem 0.5rem 0.5rem;
 	border-bottom: 1px solid lch(from var(--col-outline) l c h / 0.5);
 }
 
-/* Phone-only dim+blur backdrop for the details panel (sm).
+/* Phone-only dim+blur backdrop for the details sheet (sm).
    Implemented as a pseudo-element at z-index -1 inside the panel's own
    stacking context so the in-flow header, body, and close button paint
    above it without stacking-context fights.
@@ -1678,190 +1725,82 @@ body.theme-glass.dark {
 
 	/* APPS-2: the whole body gets the panel surface (not just the header),
 	   otherwise its text sits directly on the dim and is unreadable. Matches
-	   the md+ overlay/adaptive panel look. */
+	   the md+ overlay panel look. */
 	.c-container > .row > .c-fcd-details > .c-fcd-details-body {
 		background-color: var(--col-overlay);
 		color: var(--col-on-container-low);
 	}
 }
 
-/* Inline mode at lg+: close is hidden, no reservation needed. */
-@media (width >= 72rem) {
-	.c-container:not(.details-overlay):not(.details-adaptive) .c-fcd-details-header {
-		padding: 0.5rem;
-	}
-}
-
-/* xl adaptive docked: close is also hidden. */
-@media (width >= 96rem) {
-	.c-container.details-adaptive .c-fcd-details-header {
-		padding: 0.5rem;
-	}
-}
-
-/* Details overlay behavior at md+ (sm keeps the full-bleed phone sheet), for
-   both 'overlay' and 'adaptive': the panel is a right-anchored
-   --fcd-details-width surface that slides over content instead of covering the
-   whole row. The 4-class selector outranks opalui's
-   `.c-container > .row .md-hide-dyn` full-bleed geometry in the md band. */
+/* Overlay, the md+ baseline (docked overrides it below). 4 classes outrank
+   opalui's `.c-container > .row .md-hide-dyn` full-bleed geometry in the md
+   band. grid-area: auto makes the grid's padding box the containing block
+   (not track 3), so the panel is flush right and full height under the bar. */
 @media (width >= 48rem) {
-	.c-container.details-overlay > .row > .c-fcd-details,
-	.c-container.details-adaptive > .row > .c-fcd-details {
+	.c-fcd > .row.c-fcd-grid > .c-fcd-details {
+		grid-area: auto;
 		position: absolute;
 		top: 0;
 		bottom: 0;
 		right: 0;
 		left: auto;
-		width: var(--fcd-details-width, 20rem);
+		width: var(--fcd-details-width);
 		max-width: 100%;
-		flex: none;
 		z-index: 10;
 		transform: translateX(100%);
 		transition: transform 0.2s ease-in-out;
-		/* Panel slides over content (or sits in the viewport gutter in
-		   adaptive-dock mode) — give it its own surface so the editor
-		   underneath isn't visible through it. */
+		/* L2: opaque, the content underneath must not show through */
 		background-color: var(--col-overlay);
 		color: var(--col-on-container-low);
 		border-left: 1px solid var(--col-outline);
 	}
 
-	.c-container.details-overlay > .row > .c-fcd-details.show,
-	.c-container.details-adaptive > .row > .c-fcd-details.show {
-		transform: translateX(0);
-	}
-
-	/* In overlay/adaptive at md+, the panel slides over content — users
-	   need a way to dismiss it (the app's own toggle button may be
-	   covered by the panel itself). Re-enable the built-in close.
-	   The backdrop stays hidden: it would only darken the narrow panel
-	   instead of dimming content, which would be misleading. */
-	.c-container.details-overlay .c-fcd-details-close,
-	.c-container.details-adaptive .c-fcd-details-close {
-		display: flex !important;
-	}
-}
-
-/* Same panel surface for the default 'inline' mode, but only in the md band:
-   at lg the details rail becomes a real col-lg-3 column and must not be
-   absolutely positioned; below md it is the full-bleed phone sheet.
-   The 5-class selector beats opalui's `.c-container > .row .md-hide-dyn` (3),
-   so `left: auto` + `width` win regardless of stylesheet order — do not
-   reduce it. No close-button rule: below lg `lg-hide` doesn't apply, so the
-   built-in close is already visible. */
-@media (48rem <= width < 72rem) {
-	.c-fcd:not(.details-overlay):not(.details-adaptive) > .row > .c-fcd-details {
-		position: absolute;
-		top: 0;
-		bottom: 0;
-		right: 0;
-		left: auto;
-		width: var(--fcd-details-width, 20rem);
-		max-width: 100%;
-		flex: none;
-		z-index: 10;
-		transform: translateX(100%);
-		transition: transform 0.2s ease-in-out;
-		background-color: var(--col-overlay);
-		color: var(--col-on-container-low);
-		border-left: 1px solid var(--col-outline);
-	}
-
-	.c-fcd:not(.details-overlay):not(.details-adaptive) > .row > .c-fcd-details.show {
-		transform: translateX(0);
-	}
-}
-
-/* At lg+ the details panel is a real column in inline mode, so overlay and
-   adaptive (where it stays absolute) must widen content to take the span
-   details would have occupied. Matches `.col-lg-6` specifically to outrank
-   layout.css's `.c-container > .row > .col-lg-6` (equal specificity otherwise
-   → cascade order would decide unpredictably). `.col-lg-9` (fluid) is already
-   75%. Below lg details overlays in every mode, so content keeps its normal
-   col-md-8 span. */
-@media (width >= 72rem) {
-	.c-container.details-overlay > .row > .c-fcd-content.col-lg-6,
-	.c-container.details-adaptive > .row > .c-fcd-content.col-lg-6 {
-		flex: 0 0 calc(900% / 12 - var(--gap));
-		max-width: calc(900% / 12 - var(--gap));
-	}
-}
-
-/* xl: in adaptive mode the details panel docks at the right edge instead of
-   overlaying content. For a capped container it docks in the right viewport
-   gutter — outside the container — so content and filter stay put and only
-   the details panel appears/disappears. A fluid container has no gutter, so
-   the row gives the dock its width back instead.
-
-   The dock only fits in the *natural* gutter beside a centered container from
-   1408 + 2 × 356 = 2120px (132.5rem) up. Below that the gutter is narrower
-   than the dock, so a :has() rule expands the container's max-width — but
-   only *while the details panel is actually visible*. */
-@media (width >= 96rem) {
-	.c-container.details-adaptive:not(.fluid) {
-		/* Let the docked panel protrude past the container's right edge */
-		overflow: visible;
-	}
-
-	/* Cap the row at the normal container width so filter+content keep their
-	   col-lg-* widths even when the container grows — the expansion is
-	   strictly extra room on the right for the dock. */
-	.c-container.details-adaptive:not(.fluid) > .row {
-		max-width: var(--container-max-width);
-	}
-
-	.c-container.details-adaptive > .row > .c-fcd-details {
-		left: 100%;
-		right: auto;
-		/* No slide — the dock is a real panel. Fade in/out on toggle. */
+	.c-fcd > .row.c-fcd-grid > .c-fcd-details.show {
 		transform: none;
-		box-shadow: none;
-		transition: opacity 0.2s ease-in-out;
-	}
-
-	.c-container.details-adaptive > .row > .c-fcd-details:not(.show) {
-		opacity: 0;
-		pointer-events: none;
-	}
-
-	.c-container.details-adaptive > .row > .c-fcd-details.show {
-		opacity: 1;
-	}
-
-	/* Docked details is a real sidebar, not a modal — the app's own
-	   toggle button closes it (and the dock doesn't cover the toggle
-	   the way an overlay does). */
-	.c-container.details-adaptive .c-fcd-details-close {
-		display: none !important;
-	}
-
-	/* Fluid adaptive: the container always equals the available width, so
-	   there is never a natural side gutter to dock into — the row hands the
-	   dock its width back at every xl width, not only below 132.5rem the way
-	   a capped container does. */
-	.c-container.details-adaptive.fluid:has(> .row > .c-fcd-details.show) > .row {
-		max-width: calc(100% - var(--fcd-details-width));
-		transition: max-width 0.2s ease-in-out;
 	}
 }
 
-/* Narrow xl range (1536–2119px): expand the container only when the dock
-   is open, so it fits on-screen. Uses :has() — well-supported in modern
-   browsers (Safari 15.4+, Chrome 105+, Firefox 121+). */
-@media (96rem <= width < 132.5rem) {
-	.c-container.details-adaptive:not(.fluid):has(> .row > .c-fcd-details.show) {
-		max-width: calc(var(--container-max-width) + var(--fcd-details-width));
-		transition: max-width 0.2s ease-in-out;
-	}
+/* Docked. The Fcd can only reach the threshold above md, so no media query. */
+@container fcd (width >= 79.75rem) {
+	.c-fcd:not(.details-overlay) > .row.c-fcd-grid {
+		transition: --fcd-details-min 0.2s ease-in-out;
 
-	/* The container is also `width: 100%`, so the expansion above is clipped to
-	   the width actually available. The dock sits at `left: 100%` of the row
-	   and protrudes past the container, so the row has to give the dock its
-	   width back — otherwise the dock renders off-screen. Above ~1844px the
-	   min() picks the full --container-max-width and filter/content sit at
-	   their designed widths. */
-	.c-container.details-adaptive:not(.fluid):has(> .row > .c-fcd-details.show) > .row {
-		max-width: min(var(--container-max-width), calc(100% - var(--fcd-details-width)));
+		&:has(> .c-fcd-details.show) {
+			--fcd-details-min: var(--fcd-details-width);
+		}
+
+		/* Raised L1 like a surface="raised" content column, full track height,
+		   pinned to the outer edge like the rail. max-width (from the overlay
+		   rule) lets it follow the track while that animates open. */
+		& > .c-fcd-details {
+			grid-row: 1;
+			grid-column: 3;
+			justify-self: end;
+			position: static;
+			z-index: auto;
+			transform: none;
+			transition: none;
+			background-color: lch(from var(--col-raised) l c h / var(--op-panel));
+			border: 1px solid var(--col-outline);
+			box-shadow: 0 1px 3px var(--col-shadow);
+			border-radius: var(--border-radius-lg);
+
+			/* Undo the overlay's transparent reset ("Auto background"):
+			   nested painters fall to inset, as in a raised column */
+			--auto-bg: initial;
+			--auto-bg-blur: initial;
+			--auto-bg-fg: initial;
+			--auto-bg-col: var(--col-inset);
+		}
+
+		& > .c-fcd-details:not(.show),
+		& > .c-fcd-details > .c-fcd-details-close {
+			display: none;
+		}
+
+		& > .c-fcd-details .c-fcd-details-header {
+			padding-right: 0.5rem;
+		}
 	}
 }
 
@@ -3851,17 +3790,25 @@ dialog.c-modal.c-spotlight {
 	--auto-bg-fg: currentcolor;
 }
 
-@media (width >= 48rem) {
-	.c-container.details-overlay > .row > .c-fcd-details,
-	.c-container.details-adaptive > .row > .c-fcd-details {
-		--auto-bg: transparent;
-		--auto-bg-blur: none;
-		--auto-bg-fg: currentcolor;
+/* Surface model: rail and details are one surface each, so panels inside
+   them are flat sections divided by a hairline. 3 classes outrank opalui's
+   panel variants (.c-panel.mid, .soft, ...) */
+.c-fcd :is(.c-fcd-filter, .c-fcd-details) .c-panel {
+	background-color: transparent;
+	backdrop-filter: none;
+	box-shadow: none;
+	border-color: transparent;
+	border-radius: 0;
+
+	& + .c-panel {
+		border-top-color: lch(from var(--col-outline) l c h / 0.5);
 	}
 }
 
-@media (48rem <= width < 72rem) {
-	.c-fcd:not(.details-overlay):not(.details-adaptive) > .row > .c-fcd-details {
+/* Overlay details paints its own L2 surface. Docked details is raised and
+   restores these with a higher-specificity rule ("FCD Details") */
+@media (width >= 48rem) {
+	.c-fcd > .row.c-fcd-grid > .c-fcd-details {
 		--auto-bg: transparent;
 		--auto-bg-blur: none;
 		--auto-bg-fg: currentcolor;
@@ -4010,6 +3957,68 @@ a:is(.c-menu-item, .c-action-sheet-item):is(.danger, .error):is(:link, :visited)
 	padding-bottom: 0;
 	border-radius: var(--border-radius-lg);
 	transform: none;
+}
+
+/* ==========================================================================
+   Person Card — PersonHover's card (inside `.c-popper` on hover devices,
+   inside `.c-action-sheet` on touch)
+   ========================================================================== */
+
+.c-person-card {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+	padding: var(--space-3);
+	width: min(18rem, calc(100vw - 1rem));
+	max-width: 100%;
+}
+
+.c-person-card__head {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	min-width: 0;
+}
+
+.c-person-card__id {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: var(--space-1);
+	min-width: 0;
+}
+
+.c-person-card__name {
+	font-weight: 600;
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.c-person-card__tag {
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 0.875em;
+	color: color-mix(in lch, currentColor, transparent 35%);
+}
+
+.c-person-card__extra {
+	font-size: 0.875em;
+	color: color-mix(in lch, currentColor, transparent 20%);
+}
+
+.c-person-card__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+}
+
+/* In the sheet the card spans the width; its actions are the sheet's items */
+.c-action-sheet-content > .c-person-card {
+	width: auto;
 }
 
 /*

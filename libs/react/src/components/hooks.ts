@@ -363,6 +363,14 @@ export function usePrefersReducedMotion(): boolean {
 }
 
 /**
+ * Whether the primary pointer can hover (mouse, trackpad) — input capability,
+ * never width: a narrow window with a mouse still hovers, a tablet does not.
+ */
+export function useCanHover(): boolean {
+	return useMediaQuery('(hover: hover)')
+}
+
+/**
  * Debounce a value by delaying updates until a specified period of inactivity
  *
  * @param value - The value to debounce

@@ -16,7 +16,8 @@ export interface FcdDetailsProps {
 	 * a title and action buttons (e.g. "+") that would otherwise collide with
 	 * the absolute-positioned close button. The close button is rendered
 	 * on top of this row at the right; the row reserves the right padding
-	 * for it automatically.
+	 * for it while the button is visible (phone sheet and overlay — docked
+	 * details has no close button, the page's own toggle closes it).
 	 */
 	header?: React.ReactNode
 	children?: React.ReactNode
@@ -26,7 +27,7 @@ export function FcdDetails({ isVisible, className, hide, header, children }: Fcd
 	return (
 		<div
 			className={mergeClasses(
-				'c-fcd-details c-vbox sm-hide-dyn md-hide-dyn hide-right col-lg-3 h-100',
+				'c-fcd-details c-vbox sm-hide-dyn md-hide-dyn hide-right h-100',
 				className,
 				isVisible && 'show'
 			)}
@@ -34,7 +35,7 @@ export function FcdDetails({ isVisible, className, hide, header, children }: Fcd
 		>
 			<Button
 				variant="link"
-				className="c-fcd-details-close pos-absolute top-0 right-0 m-1 p-2 z-4 lg-hide"
+				className="c-fcd-details-close pos-absolute top-0 right-0 m-1 p-2 z-4"
 				onClick={hide}
 			>
 				<IcClose />

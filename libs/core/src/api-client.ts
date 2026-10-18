@@ -893,6 +893,10 @@ export class ApiClient {
 				Types.tListShareEntriesResult
 			),
 
+		/** GET /files/:entryId/access - Effective access (audience, people incl. inherited, links) */
+		access: (entryId: string) =>
+			this.request('GET', `/files/${encodeURIComponent(entryId)}/access`, Types.tFileAccess),
+
 		/** POST /files/:entryId/shares - Create share entry */
 		createShare: (entryId: string, data: Types.CreateShareEntryRequest) =>
 			this.request(

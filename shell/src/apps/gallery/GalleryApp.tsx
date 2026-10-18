@@ -137,7 +137,7 @@ export function GalleryApp() {
 	}
 
 	return (
-		<Fcd.Container className="fluid overflow-hidden">
+		<Fcd.Container className="overflow-hidden">
 			<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
 				<GallerySidebar
 					searchQuery={searchQuery}
@@ -154,6 +154,7 @@ export function GalleryApp() {
 
 			<Fcd.Content
 				width="fluid"
+				surface="raised"
 				header={
 					<VBox gap={2} autoBg>
 						<PageHeader

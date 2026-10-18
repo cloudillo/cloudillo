@@ -327,7 +327,7 @@ export function CommunityMap() {
 	return (
 		<Fcd.Container className="g-1">
 			<Fcd.Content
-				width="reading"
+				width="wide"
 				header={
 					<PageHeader
 						leading={<Avatar size="sm" fallback={<IcCommunityMap />} />}

@@ -30,6 +30,8 @@ export interface DocBarProps extends React.HTMLAttributes<HTMLElement> {
 	/** Actions on the document's identity, rendered with its name rather than in the
 	 *  trailing cluster — see `DocBarTitleProps.titleActions`. */
 	titleActions?: React.ReactNode
+	/** Path segments between the title and `sub` — see `DocBarTitleProps.crumbs`. */
+	crumbs?: React.ReactNode
 	/** Rendered before the title — e.g. notillo's mobile sidebar toggle. */
 	start?: React.ReactNode
 	/**
@@ -72,6 +74,7 @@ export function DocBar({
 	renaming,
 	sub,
 	titleActions,
+	crumbs,
 	start,
 	subActions,
 	presence,
@@ -98,6 +101,7 @@ export function DocBar({
 					renaming={renaming}
 					sub={sub}
 					titleActions={titleActions}
+					crumbs={crumbs}
 					compact={isCompact}
 				/>
 				{subActions && <div className="c-docbar-actions">{subActions}</div>}

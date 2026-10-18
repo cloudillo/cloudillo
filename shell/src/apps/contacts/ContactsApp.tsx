@@ -251,7 +251,8 @@ export function ContactsApp() {
 				</Fcd.Filter>
 
 				<Fcd.Content
-					width="fluid"
+					width="wide"
+					surface="raised"
 					header={
 						<PageHeader
 							title={t('Contacts')}

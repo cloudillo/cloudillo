@@ -12,10 +12,10 @@ import {
 	Image,
 	Link,
 	LoadingSpinner,
+	PersonHover,
 	ProfilePicture,
 	RichText,
 	Text,
-	Tooltip,
 	useAuth,
 	VBox
 } from '@cloudillo/react'
@@ -72,7 +72,8 @@ function MsgComponent({
 			className={[showSender ? 'mt-2 mb-1' : 'mb-1', className].filter(Boolean).join(' ')}
 		>
 			{showSender && (
-				<Tooltip content={`@${action.issuer.idTag}`}>
+				// One Link holds avatar and name, so the card hangs off both here
+				<PersonHover idTag={action.issuer.idTag}>
 					<Link href={profilePath(urlContext, action.issuer.idTag)} className="mb-1">
 						<HBox align="center" gap={1}>
 							<ProfilePicture profile={action.issuer} size="xs" />
@@ -81,7 +82,7 @@ function MsgComponent({
 							</Text>
 						</HBox>
 					</Link>
-				</Tooltip>
+				</PersonHover>
 			)}
 			<VBox>
 				{imgSrc && (

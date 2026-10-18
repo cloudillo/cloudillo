@@ -6,7 +6,8 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
 /**
- * Mobile (<md) drawer toggle for a page's `Fcd.Filter`, placed in `PageHeader actions`.
+ * Mobile (<md) drawer toggle for a page's `Fcd.Filter`, placed in `PageHeader` actions or the
+ * `DocBar` `start`.
  * Set `nav` when the drawer holds navigation (views, rooms, sections); the funnel icon is
  * reserved for filter-only drawers.
  */

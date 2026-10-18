@@ -3,58 +3,52 @@
 
 import type { PorchEntry } from '@cloudillo/core'
 import {
+	Badge,
 	Button,
 	EmptyState,
+	Fcd,
 	HBox,
-	IcAdd,
-	List,
-	ListItem,
 	LoadingSpinner,
 	makeChannel,
-	Panel,
+	Tab,
+	Tabs,
 	Text,
 	useApi,
 	useAuth,
 	useDialog,
 	useToast
 } from '@cloudillo/react'
-import { type NewAction, ROLE_LEVELS, roleLevel } from '@cloudillo/types'
+import type { NewAction } from '@cloudillo/types'
 import { useAtom } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
+import { useParams } from 'react-router-dom'
 
-import { activeContextAtom, canAdminContext } from '../context/index.js'
+import { activeContextAtom } from '../context/index.js'
 import { IcMute, IcRoom, IcUnmute } from '../icons.js'
 import { useMutedRooms } from '../lib/room-mute.js'
-import { ctxBase, feedPath, filesPath, settingsPath } from '../routes.js'
-import { floorText } from './role-labels.js'
+import { floorText } from '../profile/role-labels.js'
+import { type RoomTab, roomsPath } from '../routes.js'
+import { describeRoom } from '../settings/room-form.js'
+import { useRoomsClient, useRoomsOutlet, useRoomsTenant } from './layout.js'
+import { RoomMembers } from './room-members.js'
+import { RoomSettingsTab } from './room-settings.js'
 
-/** Whether the viewer may create rooms on `idTag`: their own tenant, or a community they moderate. */
-export function useCanCreateRooms(idTag: string | undefined, communityRoles?: string[]): boolean {
-	const [auth] = useAuth()
-	const [activeContext] = useAtom(activeContextAtom)
-	if (!auth?.idTag || !idTag) return false
-	if (auth.idTag === idTag) return true
-	if (activeContext?.idTag === idTag) return canAdminContext(activeContext, auth.idTag, 'rooms')
-	return roleLevel(communityRoles) >= ROLE_LEVELS.moderator
-}
-
-interface RoomsTabProps {
-	idTag: string
-	rooms?: PorchEntry[]
-	/** The porch failed to load (with no earlier list to show) */
-	error?: boolean
-	canCreate: boolean
+/**
+ * Join / leave / mute for the rooms of `idTag`: the controls for one porch entry, shared by
+ * `RoomsDirectory`'s rows and the room home.
+ */
+export function useRoomActions(
+	idTag: string | undefined,
+	rooms: PorchEntry[] | undefined,
 	reload: () => void
-}
-
-/** Profile → Rooms: the tenant's porch, with open / mute / leave / ask-to-join per row. */
-export function RoomsTab({ idTag, rooms, error, canCreate, reload }: RoomsTabProps) {
+): (room: PorchEntry) => React.ReactNode {
 	const { t } = useTranslation()
 	const { api } = useApi()
 	const [auth] = useAuth()
 	const dialog = useDialog()
 	const toast = useToast()
+	const me = auth?.idTag
 	const { muted, mute, unmute } = useMutedRooms()
 	// Subjects of my live outgoing SUBS: "Requested" on a closed door, "joined by knock" once in
 	const [knocked, setKnocked] = React.useState<Set<string>>(new Set())
@@ -63,23 +57,21 @@ export function RoomsTab({ idTag, rooms, error, canCreate, reload }: RoomsTabPro
 		setKnockedOf(idTag)
 		setKnocked(new Set())
 	}
-	const me = auth?.idTag
 	const [activeContext] = useAtom(activeContextAtom)
 	// Wearing a partner hat here: closed rooms admit members only, so no knocking
-	const hatted = activeContext?.idTag === idTag && !!activeContext.hat
-	const base = ctxBase(idTag, me)
-	const channelOf = (name: string) => makeChannel(idTag, name)
+	const hatted = activeContext?.idTag === idTag && !!activeContext?.hat
+	const channelOf = (name: string) => makeChannel(idTag ?? '', name)
 	const subjectsKey = rooms?.map((r) => r.name).join(',')
 
 	React.useEffect(
 		function loadMyKnocks() {
-			if (!api || !me || !subjectsKey) return
+			if (!api || !me || !idTag || !subjectsKey) return
 			let cancelled = false
 			api.actions
 				.list({
 					type: 'SUBS',
 					issuer: me,
-					subject: subjectsKey.split(',').map(channelOf)
+					subject: subjectsKey.split(',').map((name) => makeChannel(idTag, name))
 				})
 				.then((list) => {
 					if (cancelled) return
@@ -100,7 +92,7 @@ export function RoomsTab({ idTag, rooms, error, canCreate, reload }: RoomsTabPro
 	)
 
 	async function onKnock(room: PorchEntry) {
-		if (!api) return
+		if (!api || !idTag) return
 		const channel = channelOf(room.name)
 		try {
 			const action: NewAction = { type: 'SUBS', audienceTag: idTag, subject: channel }
@@ -113,7 +105,7 @@ export function RoomsTab({ idTag, rooms, error, canCreate, reload }: RoomsTabPro
 	}
 
 	async function onLeave(room: PorchEntry) {
-		if (!api) return
+		if (!api || !idTag) return
 		const title = room.title || `~${room.name}`
 		if (
 			!(await dialog.confirm(
@@ -154,20 +146,14 @@ export function RoomsTab({ idTag, rooms, error, canCreate, reload }: RoomsTabPro
 		}
 	}
 
-	function rowActions(room: PorchEntry) {
+	return function membershipActions(room: PorchEntry) {
 		const channel = channelOf(room.name)
 		if (room.status === 'in') {
 			const isMuted = muted.has(channel)
 			// Members see no `closed` flag; a knock of mine that let me in means a closed room too
 			const canLeave = !!me && me !== idTag && (room.closed || knocked.has(channel))
 			return (
-				<HBox gap={1}>
-					<Button size="sm" href={feedPath(base, undefined, { room: room.name })}>
-						{t('Open')}
-					</Button>
-					<Button size="sm" variant="ghost" href={filesPath(base, { drive: room.name })}>
-						{t('Files')}
-					</Button>
+				<>
 					{me && (
 						<Button
 							size="sm"
@@ -184,11 +170,18 @@ export function RoomsTab({ idTag, rooms, error, canCreate, reload }: RoomsTabPro
 							{t('Leave')}
 						</Button>
 					)}
-				</HBox>
+				</>
 			)
 		}
 		if (room.status === 'invitation-only') {
-			if (!me) return undefined
+			// plain /login like RequireAuth; no return URL until login supports one
+			if (!me) {
+				return (
+					<Button size="sm" href="/login">
+						{t('Sign in to join')}
+					</Button>
+				)
+			}
 			if (hatted) {
 				return (
 					<Text size="sm" emphasis="muted">
@@ -212,54 +205,108 @@ export function RoomsTab({ idTag, rooms, error, canCreate, reload }: RoomsTabPro
 			</Text>
 		)
 	}
+}
 
-	if (!rooms && error)
+/** `/<ctx>/rooms/:name/:tab?`: one room's summary, membership controls, and its members. */
+export function RoomHome() {
+	const { t } = useTranslation()
+	const { name = '', tab } = useParams()
+	const { idTag, base, rooms, error, reload } = useRoomsOutlet()
+	const membershipActions = useRoomActions(idTag, rooms, reload)
+	const client = useRoomsClient()
+	const tenant = useRoomsTenant()
+	// `useRoomsClient` follows the active context; it administers this page only for that tenant
+	const adminClient = idTag && tenant === idTag ? client : null
+
+	if (!rooms && error) {
 		return (
-			<Panel padding={3}>
+			<Fcd.Content width="wide">
 				<EmptyState
 					icon={<IcRoom />}
 					title={t('Could not load rooms')}
 					actions={<Button onClick={reload}>{t('Retry')}</Button>}
 				/>
-			</Panel>
+			</Fcd.Content>
 		)
-	if (!rooms) return <LoadingSpinner />
-
-	return (
-		<Panel padding={3}>
-			{rooms.length === 0 ? (
+	}
+	if (!rooms) {
+		return (
+			<Fcd.Content width="wide">
+				<LoadingSpinner />
+			</Fcd.Content>
+		)
+	}
+	const room = rooms.find((r) => r.name === name)
+	if (!idTag || !room) {
+		return (
+			<Fcd.Content width="wide">
 				<EmptyState
 					icon={<IcRoom />}
-					title={t('No rooms yet')}
-					description={t('Rooms group posts and files for a subset of people.')}
-					actions={
-						canCreate && (
-							<Button
-								color="primary"
-								icon={<IcAdd />}
-								href={settingsPath(base, 'rooms')}
-							>
-								{t('Create a room')}
-							</Button>
-						)
-					}
+					title={t('Room not found')}
+					actions={<Button href={roomsPath(base)}>{t('All rooms')}</Button>}
+				/>
+			</Fcd.Content>
+		)
+	}
+
+	const tabs: [RoomTab, string][] = [
+		[
+			'members',
+			room.memberCount !== undefined
+				? t('Members · {{count}}', { count: room.memberCount })
+				: t('Members')
+		]
+	]
+	if (adminClient) tabs.push(['settings', t('Settings')])
+	// Unknown or retired tabs (`overview`) land on the default, the member list
+	const current: RoomTab = tab === 'settings' && adminClient ? 'settings' : 'members'
+	const inRoom = room.status === 'in'
+
+	return (
+		<Fcd.Content width="wide">
+			<Text as="p" color="secondary" className="mb-1">
+				{
+					// `visibility` reaches admins only; without it describeRoom would guess
+					room.visibility !== undefined
+						? `~${room.name} · ${describeRoom(room, t)}`
+						: `~${room.name}`
+				}
+			</Text>
+			{room.descr && (
+				<Text as="p" className="mb-2">
+					{room.descr}
+				</Text>
+			)}
+			<HBox gap={1} className="mb-3">
+				{inRoom && <Badge variant="soft">{t('Member')}</Badge>}
+				{membershipActions(room)}
+			</HBox>
+			{tabs.length > 1 && (
+				<Tabs className="mb-3">
+					{tabs.map(([id, label]) => (
+						<Tab key={id} href={roomsPath(base, room.name, id)} active={id === current}>
+							{label}
+						</Tab>
+					))}
+				</Tabs>
+			)}
+			{current === 'settings' && adminClient ? (
+				<RoomSettingsTab
+					client={adminClient}
+					tenant={idTag}
+					room={room}
+					base={base}
+					onChanged={reload}
 				/>
 			) : (
-				<List>
-					{rooms.map((room) => (
-						<ListItem
-							key={room.name}
-							leading={<IcRoom />}
-							title={room.title || `~${room.name}`}
-							subtitle={
-								room.descr ? `~${room.name} · ${room.descr}` : `~${room.name}`
-							}
-							trailing={rowActions(room)}
-						/>
-					))}
-				</List>
+				<RoomMembers
+					room={room}
+					client={adminClient}
+					tenant={idTag}
+					channel={makeChannel(idTag, room.name)}
+				/>
 			)}
-		</Panel>
+		</Fcd.Content>
 	)
 }
 

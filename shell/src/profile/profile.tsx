@@ -50,7 +50,7 @@ import type { TFunction } from 'i18next'
 import { useAtom, useSetAtom } from 'jotai'
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { Route, Routes, useLocation, useParams } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom'
 
 import 'quill/dist/quill.core.css'
 import 'quill/dist/quill.bubble.css'
@@ -76,7 +76,7 @@ import { ImageUpload } from '../image.js'
 import { usePorch } from '../lib/porch.js'
 import { buildRef } from '../refs.js'
 import type { CtxBase } from '../routes.js'
-import { messagesPath, profilePath } from '../routes.js'
+import { ctxBase, messagesPath, profilePath, roomsPath } from '../routes.js'
 import { useConnectCommunity } from '../settings/partners.js'
 import { DrawerToggle } from '../ui/DrawerToggle.js'
 import { useWsBus } from '../ws-bus.js'
@@ -97,7 +97,6 @@ import { ProfileHero } from './ProfileHero.js'
 import { PartnerCommunities } from './partner-communities.js'
 import { describeRelationship } from './relationship.js'
 import { roleLabels } from './role-labels.js'
-import { RoomsTab, useCanCreateRooms } from './rooms-tab.js'
 import { TrustBanner } from './TrustBanner.js'
 import { TrustChip } from './TrustChip.js'
 
@@ -284,8 +283,7 @@ const getTabLabels = (t: TFunction): Record<string, string> => ({
 	about: t('About'),
 	connections: t('Connections'),
 	gallery: t('Gallery'),
-	files: t('Files'),
-	rooms: t('Rooms')
+	files: t('Files')
 })
 
 const TAB_ROUTES: Record<string, string> = {
@@ -293,8 +291,7 @@ const TAB_ROUTES: Record<string, string> = {
 	about: 'about',
 	connections: 'connections',
 	gallery: 'gallery',
-	files: 'files',
-	rooms: 'rooms'
+	files: 'files'
 }
 
 function ProfileTabs({
@@ -302,22 +299,19 @@ function ProfileTabs({
 	base,
 	own,
 	isCommunity,
-	showRooms
+	roomCount
 }: {
 	profile: FullProfile
 	base: CtxBase
 	own: boolean
 	isCommunity: boolean
-	showRooms?: boolean
+	roomCount?: number
 }) {
 	const { t } = useTranslation()
+	const [auth] = useAuth()
 	const tabLabels = React.useMemo(() => getTabLabels(t), [t])
 	const tabConfig = parseTabConfig(profile.x)
-	// Rooms is not part of the owner's tab config: it shows whenever there is a porch to show
-	const tabs: TabEntry[] = [
-		...getEffectiveTabs(tabConfig),
-		...(showRooms ? [{ id: 'rooms', visible: true, order: Number.POSITIVE_INFINITY }] : [])
-	]
+	const tabs: TabEntry[] = getEffectiveTabs(tabConfig)
 	const pathname = useLocation().pathname.replace(/\/$/, '')
 	// The own profile is reachable as both `/me` and `/<idTag>`: link within the one in use,
 	// or no tab ever matches the URL
@@ -329,8 +323,8 @@ function ProfileTabs({
 	// The bare profile URL renders About, but route matching is exact
 	const atIndex = pathname === basePath
 
-	return (
-		<Tabs>
+	const tabBar = (
+		<Tabs className="flex-fill">
 			{tabs
 				.filter((tab) => tab.visible)
 				.map((tab) => {
@@ -358,6 +352,15 @@ function ProfileTabs({
 				})}
 		</Tabs>
 	)
+	if (!roomCount) return tabBar
+	return (
+		<HBox gap={2}>
+			{tabBar}
+			<Button variant="ghost" size="sm" href={roomsPath(ctxBase(profile.idTag, auth?.idTag))}>
+				{t('Rooms ({{count}}) →', { count: roomCount })}
+			</Button>
+		</HBox>
+	)
 }
 
 interface ProfilePageProps {
@@ -381,8 +384,8 @@ interface ProfilePageProps {
 	 * cached proxy-token-gated data can refresh.
 	 */
 	onTrustDecision?: () => void
-	/** Show the Rooms tab */
-	showRooms?: boolean
+	/** Porch entry count: links to the rooms section when non-zero */
+	roomCount?: number
 }
 
 /**
@@ -415,7 +418,6 @@ function ProfileSkeleton() {
 					<SkeletonText lines={4} />
 				</Panel>
 			</Fcd.Content>
-			<Fcd.Details></Fcd.Details>
 		</Fcd.Container>
 	)
 }
@@ -430,7 +432,7 @@ export function ProfilePage({
 	communityRoles = [],
 	getTokenFor,
 	onTrustDecision,
-	showRooms
+	roomCount
 }: ProfilePageProps) {
 	const { t } = useTranslation()
 	const [auth, setAuth] = useAuth()
@@ -899,7 +901,7 @@ export function ProfilePage({
 							base={ctx.base}
 							own={own}
 							isCommunity={isCommunity}
-							showRooms={showRooms}
+							roomCount={roomCount}
 						/>
 					}
 				/>
@@ -921,7 +923,6 @@ export function ProfilePage({
 					/>
 				)}
 			</Fcd.Content>
-			<Fcd.Details></Fcd.Details>
 		</Fcd.Container>
 	)
 }
@@ -1624,7 +1625,6 @@ function ProfileView() {
 	// User's roles in the viewed community (fetched via proxy token)
 	const [communityRoles, setCommunityRoles] = React.useState<string[]>([])
 	const porch = usePorch(idTag, communityRoles)
-	const canCreateRooms = useCanCreateRooms(idTag, communityRoles)
 	//console.log('Profile', idTag, profile, 'contextIdTag', contextIdTag)
 
 	// Fetch user's roles when viewing a community profile
@@ -1893,7 +1893,7 @@ function ProfileView() {
 			communityRoles={communityRoles}
 			getTokenFor={getTokenFor}
 			onTrustDecision={() => setTrustTick((n) => n + 1)}
-			showRooms={!!porch.rooms?.length || canCreateRooms}
+			roomCount={porch.rooms?.length}
 		>
 			<Routes>
 				<Route
@@ -1922,13 +1922,7 @@ function ProfileView() {
 				<Route
 					path="/rooms"
 					element={
-						<RoomsTab
-							idTag={profile.idTag}
-							rooms={porch.rooms}
-							error={porch.error}
-							canCreate={canCreateRooms}
-							reload={porch.reload}
-						/>
+						<Navigate replace to={roomsPath(ctxBase(profile.idTag, auth?.idTag))} />
 					}
 				/>
 				<Route path="/*" element={null} />

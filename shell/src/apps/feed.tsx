@@ -10,6 +10,7 @@ import {
 	Button,
 	Card,
 	Divider,
+	DocBar,
 	EmptyState,
 	Fcd,
 	HatVia,
@@ -17,6 +18,7 @@ import {
 	hatRingClass,
 	IcAll,
 	IcCamera,
+	IcClose,
 	IcCommunity,
 	IcImage,
 	IcOffline,
@@ -31,8 +33,8 @@ import {
 	MenuItem,
 	Meta,
 	Nav,
-	PageHeader,
 	Panel,
+	PersonHover,
 	ProfilePicture,
 	parseChannel,
 	RichText,
@@ -44,7 +46,6 @@ import {
 	Tag,
 	Text,
 	TimeFormat,
-	Tooltip,
 	useApi,
 	useAuth,
 	VBox
@@ -81,7 +82,7 @@ import {
 	useReadPositionTracker,
 	useScrollEngaged
 } from '../read-position.js'
-import { ctxBase, feedPath, filesPath, profilePath } from '../routes.js'
+import { ctxBase, feedPath, filesPath, profilePath, roomsPath } from '../routes.js'
 import { DrawerToggle } from '../ui/DrawerToggle.js'
 import { useWsBus } from '../ws-bus.js'
 import { HatComposeStrip, useHatFor } from './feed/ComposePanel.js'
@@ -143,7 +144,7 @@ function Comment({ className, action, srcTag }: CommentProps) {
 
 	return (
 		<HBox gap={2} className={className}>
-			<Tooltip content={`@${action.issuer.idTag}`}>
+			<PersonHover idTag={action.issuer.idTag}>
 				<Link to={to}>
 					<ProfilePicture
 						className={hatRingClass(action.hat)}
@@ -152,7 +153,7 @@ function Comment({ className, action, srcTag }: CommentProps) {
 						size="sm"
 					/>
 				</Link>
-			</Tooltip>
+			</PersonHover>
 			<VBox className="flex-fill w-min-0">
 				<Text as="div" size="sm">
 					<HatVia
@@ -753,7 +754,7 @@ function Post({
 			>
 				<VBox gap={2}>
 					<HBox align="start" gap={2}>
-						<Tooltip content={`@${(communityAudience ?? action.issuer).idTag}`}>
+						<PersonHover idTag={(communityAudience ?? action.issuer).idTag}>
 							<Link
 								to={
 									communityAudience
@@ -781,7 +782,7 @@ function Post({
 									/>
 								)}
 							</Link>
-						</Tooltip>
+						</PersonHover>
 						<VBox className="flex-fill w-min-0">
 							<Text as="div">
 								{communityAudience ? (
@@ -1053,6 +1054,7 @@ function RoomMenuItems({
 				label={t('Show only ~{{room}}', { room })}
 				onClick={() => onShowOnly(channel)}
 			/>
+			<MenuItem label={t('Room home')} onClick={() => navigate(roomsPath(base, room))} />
 			<MenuItem
 				label={t('Files')}
 				onClick={() => navigate(filesPath(base, { drive: room }))}
@@ -2046,8 +2048,57 @@ export function FeedApp() {
 		setViewMode('feed')
 	}
 
+	// The bar's `sub` is the active narrowing: the room (rail title, else `~name`, or the absolute
+	// `@tenant~name` as given), else the tag.
+	const feedSub = channel
+		? {
+				label:
+					inRooms.find((r) => r.name === room)?.title ||
+					(room?.startsWith('@') ? room : `~${room}`),
+				icon: <IcRoom />
+			}
+		: tagFilter
+			? { label: `#${tagFilter}`, icon: <IcTag /> }
+			: undefined
+
 	return (
-		<Fcd.Container className="g-1">
+		<Fcd.Container
+			className="g-1"
+			bar={
+				<DocBar
+					title={t('Feed')}
+					state="ready"
+					start={
+						<>
+							{contextCommunity && (
+								<ProfilePicture
+									profile={contextCommunity}
+									srcTag={contextCommunity.idTag}
+									size="sm"
+								/>
+							)}
+							<DrawerToggle nav onClick={() => setShowFilter(true)} />
+						</>
+					}
+					sub={feedSub}
+					subActions={
+						feedSub && (
+							<Button
+								variant="ghost"
+								size="sm"
+								icon={<IcClose />}
+								aria-label={
+									channel ? t('Remove room filter') : t('Remove tag filter')
+								}
+								onClick={() =>
+									channel ? setRoom(undefined) : setTagFilter(undefined)
+								}
+							/>
+						)
+					}
+				/>
+			}
+		>
 			<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
 				{!!auth && (
 					<FilterBar
@@ -2077,61 +2128,28 @@ export function FeedApp() {
 					/>
 				)}
 			</Fcd.Filter>
-			<Fcd.Content
-				ref={setScrollEl}
-				width="reading"
-				header={
-					<PageHeader
-						title={t('Feed')}
-						subtitle={contextCommunity?.name}
-						leading={
-							contextCommunity && (
-								<ProfilePicture
-									profile={contextCommunity}
-									srcTag={contextCommunity.idTag}
-									size="sm"
-								/>
-							)
-						}
-						actions={<DrawerToggle nav onClick={() => setShowFilter(true)} />}
-					/>
-				}
-			>
-				{channel && viewMode === 'feed' && !focusedId && (
-					<VBox gap={1} className="px-2">
+			<Fcd.Content ref={setScrollEl} width="reading">
+				{channel && viewMode === 'feed' && !focusedId && mutedRooms.has(channel) && (
+					<Alert color="info" compact className="mx-2">
 						<HBox gap={1} wrap align="center">
-							<Text size="sm" emphasis="muted">
-								{t('Room')}
+							<Text className="flex-fill">
+								{t(
+									"You muted this room. Its posts don't show in your unfiltered feed."
+								)}
 							</Text>
-							<RoomChip
-								channel={channel}
-								contextTag={contextIdTag}
-								onRemove={() => setRoom(undefined)}
-							/>
+							<Button
+								size="sm"
+								variant="ghost"
+								onClick={() => {
+									unmuteRoom(channel).catch((err) =>
+										console.error('Failed to unmute room:', err)
+									)
+								}}
+							>
+								{t('Unmute')}
+							</Button>
 						</HBox>
-						{mutedRooms.has(channel) && (
-							<Alert color="info" compact>
-								<HBox gap={1} wrap align="center">
-									<Text className="flex-fill">
-										{t(
-											"You muted this room. Its posts don't show in your unfiltered feed."
-										)}
-									</Text>
-									<Button
-										size="sm"
-										variant="ghost"
-										onClick={() => {
-											unmuteRoom(channel).catch((err) =>
-												console.error('Failed to unmute room:', err)
-											)
-										}}
-									>
-										{t('Unmute')}
-									</Button>
-								</HBox>
-							</Alert>
-						)}
-					</VBox>
+					</Alert>
 				)}
 				{!!auth && !composeOpen && <ComposeTrigger onOpen={handleComposeOpen} />}
 				{!!auth && (

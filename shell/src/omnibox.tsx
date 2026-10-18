@@ -45,7 +45,7 @@ import QuickLRU from 'quick-lru'
 import * as React from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
-import { useMatch, useNavigate } from 'react-router-dom'
+import { useLocation, useMatch, useNavigate } from 'react-router-dom'
 
 import {
 	activeContextAtom,
@@ -62,7 +62,7 @@ import { IcHistory } from './icons.js'
 import { COMMAND_ONLY_MENU, getPartAddressing } from './manifest-registry.js'
 import { deriveMode } from './omnibox-mode.js'
 import { resolveRef } from './refs.js'
-import { contextPath, profilePath, scopePath, sectionMatch } from './routes.js'
+import { contextPath, filesPath, profilePath, scopePath, sectionMatch } from './routes.js'
 import { SearchResultRow } from './SearchResultRow.js'
 import { lastQueryAtom, pushRecentAtom, recentSearchesAtom, useSearch } from './search.js'
 import {
@@ -183,6 +183,8 @@ type OmniItem =
 	| { kind: 'reference'; raw: string }
 	| { kind: 'hit'; hit: SearchHit }
 	| { kind: 'see-all'; query: string; total?: number }
+	// In the Files app: hand the query to its name search
+	| { kind: 'files-search'; query: string; place: string; drive?: string }
 	| { kind: 'recent'; query: string }
 	| { kind: 'recent-clear' }
 	// Not selectable: status rows so the dropdown says what it is doing instead of
@@ -217,6 +219,13 @@ export function Omnibox() {
 	const activeContext = useAtomValue(activeContextAtom)
 	const contextIdpEnabled = useAtomValue(contextIdpEnabledAtom)
 	const commandMenu = useCommandMenu()
+	// `useMatch`, not the pathname: the Files route offers a name-search handoff row
+	const inFiles = !!useMatch(sectionMatch('app', 'files/*'))
+	const location = useLocation()
+	const filesDrive = inFiles
+		? (new URLSearchParams(location.search).get('drive') ?? undefined)
+		: undefined
+	const filesPlace = filesDrive ? `~${filesDrive}` : (activeContext?.name ?? contextIdTag ?? '')
 
 	const query = search.query ?? ''
 	// A guest has no profile surface: the `@` hotkey is disabled in `layout.tsx` and
@@ -431,13 +440,24 @@ export function Omnibox() {
 		if (mode === 'full-text') {
 			// Gated on `showSpinner`: for the first moments of a request the menu stays
 			// empty and therefore shut, rather than flashing a spinner row.
-			if (ftsLoading) return showSpinner ? [{ kind: 'fts-loading' }] : []
+			const handoff: OmniItem[] = inFiles
+				? [
+						{
+							kind: 'files-search',
+							query: query.trim(),
+							place: filesPlace,
+							drive: filesDrive
+						}
+					]
+				: []
+			if (ftsLoading)
+				return [...handoff, ...(showSpinner ? [{ kind: 'fts-loading' } as OmniItem] : [])]
 			const rows: OmniItem[] = hits.map((hit) => ({ kind: 'hit', hit }) as OmniItem)
 			if (hitTotal !== undefined && hitTotal > rows.length) {
 				rows.push({ kind: 'see-all', query: query.trim(), total: hitTotal })
 			}
 			// An empty list hides the whole menu, which reads as "still working".
-			return rows.length ? rows : [{ kind: 'fts-empty' }]
+			return [...handoff, ...(rows.length ? rows : [{ kind: 'fts-empty' } as OmniItem])]
 		}
 		return []
 	}, [
@@ -454,7 +474,10 @@ export function Omnibox() {
 		hits,
 		hitTotal,
 		ftsLoading,
-		showSpinner
+		showSpinner,
+		inFiles,
+		filesDrive,
+		filesPlace
 	])
 
 	function itemToString(item: OmniItem | null): string {
@@ -463,7 +486,8 @@ export function Omnibox() {
 			return item.menuItem.trans?.[i18n.language] || item.menuItem.label
 		if (item.kind === 'profile') return item.profile.idTag
 		if (item.kind === 'hit') return item.hit.title ?? ''
-		if (item.kind === 'see-all' || item.kind === 'recent') return item.query
+		if (item.kind === 'see-all' || item.kind === 'recent' || item.kind === 'files-search')
+			return item.query
 		if (
 			item.kind === 'fts-loading' ||
 			item.kind === 'fts-empty' ||
@@ -539,6 +563,10 @@ export function Omnibox() {
 				setSearch({})
 			} else if (item.kind === 'see-all') {
 				openResults(item.query)
+			} else if (item.kind === 'files-search') {
+				// No `scope`: a `q` alone derives drive scope
+				navigate(filesPath(ctx.base, { drive: item.drive, q: item.query }))
+				setSearch({})
 			} else {
 				const target = resolveRef(item.raw)
 				if (target) {
@@ -791,6 +819,18 @@ export function Omnibox() {
 					{...row}
 					leading={<IcSearch />}
 					title={t('See all {{count}} results', { count: item.total ?? 0 })}
+				/>
+			)
+		}
+		if (item.kind === 'files-search') {
+			return (
+				<ListItem
+					{...row}
+					leading={<IcSearch />}
+					title={t('Search file names for “{{q}}” in {{place}}', {
+						q: item.query,
+						place: item.place
+					})}
 				/>
 			)
 		}

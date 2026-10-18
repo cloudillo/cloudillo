@@ -5,7 +5,7 @@ import { atom } from 'jotai'
 import { atomWithStorage } from 'jotai/utils'
 
 import type { DisplayMode } from './components/index.js'
-import type { FileTypeFilter, OwnerFilter, ViewMode } from './types.js'
+import type { ViewMode } from './types.js'
 
 export interface NavigationEntry {
 	parentId: string | null
@@ -14,9 +14,12 @@ export interface NavigationEntry {
 	/** Bare room name; absent/null = main drive */
 	drive?: string | null
 	view?: ViewMode
+	/** Filter params as a query string (`useFilesFilters` keys); absent = none */
+	filters?: string
 }
 
-/** The Files query string for a location; `remoteOwner`/`shareRoot` only count inside a folder. */
+/** The Files query string for a location; `remoteOwner`/`shareRoot` only count inside a folder.
+ *  `filters` passes filter params through; omitted, the location opens unfiltered. */
 export function navSearch(entry: Partial<NavigationEntry>): string {
 	const params = new URLSearchParams()
 	if (entry.drive) params.set('drive', entry.drive)
@@ -28,6 +31,9 @@ export function navSearch(entry: Partial<NavigationEntry>): string {
 			if (entry.shareRoot) params.set('shareRoot', entry.shareRoot)
 		}
 	}
+	new URLSearchParams(entry.filters).forEach((value, key) => {
+		params.set(key, value)
+	})
 	return params.toString()
 }
 
@@ -36,10 +42,17 @@ export const fileNavStackAtom = atom<NavigationEntry[]>([])
 /** Last Files URL seen (pathname + search), so a doc's Close can return to it. */
 export const lastFilesUrlAtom = atom({ pathname: '', search: '' })
 
-export const selectedTagsAtom = atom<string[]>([])
-export const fileTypeFilterAtom = atom<FileTypeFilter>('all')
-export const ownerFilterAtom = atom<OwnerFilter>('anyone')
-export const searchQueryAtom = atom<string>('')
 export const displayModeAtom = atomWithStorage<DisplayMode>('cloudillo:files-display-mode', 'list')
+
+export type FilesSortField = 'name' | 'modified' | 'created'
+export interface FilesSort {
+	field: FilesSortField
+	dir: 'asc' | 'desc'
+}
+/** Per-user list sort; the Recent finder overrides it with `recent`/`desc` */
+export const sortAtom = atomWithStorage<FilesSort>('cloudillo:files-sort', {
+	field: 'name',
+	dir: 'asc'
+})
 
 // vim: ts=4

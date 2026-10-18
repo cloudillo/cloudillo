@@ -19,6 +19,7 @@ import {
 	messagesPath,
 	profilePath,
 	rebase,
+	roomsPath,
 	scopePath,
 	sectionMatch,
 	settingsPath,
@@ -65,6 +66,15 @@ describe('builders', () => {
 		expect(communityCreatePath(HOME_BASE, ['idp', 'select'])).toBe(
 			'/~/communities/create/idp/select'
 		)
+	})
+
+	// `members` is the room home's default tab, so it never gets a segment.
+	it('builds the rooms routes', () => {
+		expect(roomsPath(HOME_BASE)).toBe('/~/rooms')
+		expect(roomsPath(COMM, 'x')).toBe('/@comm.tld/rooms/x')
+		expect(roomsPath(COMM, 'x', 'members')).toBe('/@comm.tld/rooms/x')
+		expect(roomsPath(COMM, 'x', 'settings')).toBe('/@comm.tld/rooms/x/settings')
+		expect(roomsPath(COMM, 'a b')).toBe('/@comm.tld/rooms/a%20b')
 	})
 
 	// site-admin administers the node, not a community, so it is pinned to `~`

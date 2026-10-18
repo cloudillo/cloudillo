@@ -324,8 +324,8 @@ describe('deriveFileOwnerScope: grantCeiling', () => {
 
 	/*
 	 * A mirrored row has had `accessLevel` stripped, so nothing here knows the real ceiling.
-	 * Guessing low would grey out the menu for a legitimate manager - `getMetadata` is what refines
-	 * it in ShareDialog, and the server is the enforcer either way.
+	 * Guessing low would grey out the menu for a legitimate manager - the access endpoint is what
+	 * refines it in ShareDialog, and the server is the enforcer either way.
 	 */
 	it('is unrestricted on a mirrored row, where the level has been stripped', () => {
 		const scope = derive({

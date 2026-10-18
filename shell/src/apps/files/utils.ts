@@ -246,11 +246,11 @@ export function isAdminPerm(perm: unknown): boolean {
 /**
  * Whether the signed-in user holds an explicit `'A'` (admin) share grant on this file.
  *
- * A partial recovery of the grant on a CROSS-OWNER row, where {@link deriveFileOwnerScope} strips
- * `accessLevel`. It costs nothing extra — it reads entries the ShareDialog has already fetched — but
- * it scans only THIS file's own `'U'` entries, so an `'A'` inherited from a parent folder is
- * invisible to it. `api.files.getMetadata` is the complete answer: the serving node computes
- * `accessLevel` itself and folds in inherited grants.
+ * ShareDialog's fallback when `GET /files/:id/access` is unavailable (loading, error, older node):
+ * on a CROSS-OWNER row {@link deriveFileOwnerScope} strips `accessLevel`, and this recovers a direct
+ * grant from entries the dialog has already fetched. It scans only THIS file's own `'U'` entries,
+ * so an `'A'` inherited from a parent folder is invisible to it — the access endpoint's `canManage`
+ * is the complete answer.
  */
 export function hasAdminGrant(
 	entries: Pick<ShareEntry, 'subjectType' | 'subjectId' | 'permission'>[] | undefined,
@@ -370,8 +370,8 @@ export function canManageFile(
  * The `'A'` (admin) grant reaches us as `accessLevel === 'admin'` on same-node rows only; on
  * cross-owner ones {@link deriveFileOwnerScope} strips `accessLevel`. Two things recover it:
  * {@link hasAdminGrant}, which sees only this file's OWN `'U'` entries and is therefore blind to a
- * grant inherited from a parent folder, and `api.files.getMetadata`, which asks the serving node for
- * its own computed `accessLevel` and sees both. Entry points before the ShareDialog read a
+ * grant inherited from a parent folder, and `GET /files/:id/access`, whose `canManage` the serving
+ * node computes itself and which sees both. Entry points before the ShareDialog read a
  * cross-owner admin grant as a false negative rather than pay a probe per selection.
  */
 export function canManageShares(

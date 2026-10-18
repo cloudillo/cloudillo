@@ -13,34 +13,37 @@ export interface FcdContentProps {
 	onScroll?: () => void
 	header?: React.ReactNode
 	children?: React.ReactNode
-	/** @deprecated use `width="fluid"` */
-	fluid?: boolean
 	/**
 	 * `'scroll'` (default): children scroll, with extra bottom padding for mobile browser chrome.
 	 * `'column'`: a plain flex column for children that handle their own scrolling.
 	 */
 	layout?: 'scroll' | 'column'
 	/**
-	 * md+: the column takes all space the filter/details leave, and caps its children:
-	 * `'reading'` 42rem centred (streams), `'form'` 48rem centred (settings), `'fluid'` uncapped.
+	 * md+: caps the content grid track (`--fcd-content-max`), centred in the slack beside it:
+	 * `'reading'` 42rem (streams), `'form'` 48rem (settings, the default), `'wide'` 64rem
+	 * (lists, tables), `'fluid'` uncapped (takes all space the filter/details leave).
 	 */
-	width?: 'reading' | 'form' | 'fluid'
+	width?: 'reading' | 'form' | 'wide' | 'fluid'
+	/**
+	 * md+: `'raised'` paints the column as one L1 surface (nested panels fall to inset);
+	 * `'none'` (default) paints nothing, so children sit on the Fcd plate.
+	 */
+	surface?: 'raised' | 'none'
 }
 
 export const FcdContent = React.forwardRef<HTMLDivElement, FcdContentProps>(
 	function FcdContentInside(
-		{ className, onScroll, header, children, fluid, layout, width },
+		{ className, onScroll, header, children, layout, width = 'form', surface },
 		ref
 	) {
 		const ctx = React.useContext(FcdFilterContext)
-		const w = width ?? (fluid ? 'fluid' : undefined)
 
 		return (
 			<div
 				className={mergeClasses(
-					'c-fcd-content col h-100',
-					w === 'fluid' ? 'col-md-8 col-lg-9' : 'col-md-8 col-lg-6',
-					w && `width-${w}`,
+					'c-fcd-content h-100',
+					`width-${width}`,
+					surface === 'raised' && 'surface-raised',
 					className
 				)}
 			>

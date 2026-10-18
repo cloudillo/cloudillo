@@ -104,17 +104,8 @@ export interface FileOps {
 	doRefreshFile?: (entryId: string) => void
 }
 
-export interface FileFiltState {
-	fileName?: string
-	preset?: string
-	tags?: string[]
-	parentId?: string | null
-}
-
-export const VIEW_MODES = ['browse', 'recent', 'trash', 'starred', 'managed'] as const
+export const VIEW_MODES = ['browse', 'trash', 'managed'] as const
 export type ViewMode = (typeof VIEW_MODES)[number]
-export type FileTypeFilter = 'all' | 'live' | 'static'
-export type OwnerFilter = 'anyone' | 'me' | 'others'
 
 export const TRASH_FOLDER_ID = '__trash__'
 export const MANAGED_FOLDER_ID = '__managed__'

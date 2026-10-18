@@ -36,6 +36,7 @@ import {
 	Toggle,
 	useAuth,
 	useDialog,
+	useProfiles,
 	useToast,
 	VBox
 } from '@cloudillo/react'
@@ -46,13 +47,12 @@ import { useTranslation } from 'react-i18next'
 
 import { useShareOrigin } from '../../../utils/appOrigin.js'
 import { dateInputToExpiryIso, formatRefDate, parseRefDate } from '../../../utils/parseRefDate.js'
-import { getCachedProfile, getCachedProfiles } from '../../../utils/profileCache.js'
 import { canUseRefCredential, refLifecycle, shareLinkErrorMessage } from '../../../utils/refs.js'
 import { isMissingError, isPermissionError } from '../../../utils.js'
+import { useFileAccess } from '../hooks/useFileAccess.js'
 import { type FileOwnerScopeOverride, useFileOwnerScope } from '../hooks/useFileOwnerScope.js'
 import type { File } from '../types.js'
 import {
-	type FileAccessLevel,
 	hasAdminGrant,
 	isAdminPerm,
 	levelsAboveCeiling,
@@ -66,6 +66,7 @@ import {
 	toSharePermChar
 } from '../utils.js'
 import { AccessLevelMenu } from './AccessLevelMenu.js'
+import { useProfileNode } from './AccessList.js'
 
 type PermLevel = SharePermLevel
 /** A share link's level. Never 'admin' — the backend rejects it on refs. */
@@ -102,7 +103,6 @@ export function ShareDialog({
 	const {
 		api,
 		canManageShares: scopeCanManageShares,
-		isCrossOwner,
 		profileSrcTag,
 		resolving,
 		scopedFile,
@@ -129,14 +129,11 @@ export function ShareDialog({
 		'loading'
 	)
 	/*
-	 * The serving node's own `accessLevel` for this file, fetched only when the row is cross-owner —
-	 * where `deriveFileOwnerScope` has stripped the active context's answer. It is the only thing
-	 * that sees an `'A'` grant INHERITED from a parent folder, which `hasAdminGrant` (own entries
-	 * only) cannot. A refinement, never a gate: failures are swallowed.
+	 * Effective access from the node that holds the file: `canManage` and `callerLevel` see every
+	 * grant, including an `'A'` inherited from a parent folder, which no predicate here can. Only
+	 * fetched while open.
 	 */
-	const [authoritativeLevel, setAuthoritativeLevel] = React.useState<
-		FileAccessLevel | undefined
-	>()
+	const { access, refresh: refreshAccess } = useFileAccess(open ? file : undefined, ownerScope)
 
 	/*
 	 * Share URLs must point at the tenant that holds the ref — its app/web domain, not the API host.
@@ -151,10 +148,6 @@ export function ShareDialog({
 
 	// People state
 	const [defaultAddLevel, setDefaultAddLevel] = React.useState<PermLevel>('READ')
-	// Profile lookup for share-entry subjectIds. Populated lazily after share
-	// entries load; missing entries render with a minimal {idTag} fallback.
-	const [peopleProfiles, setPeopleProfiles] = React.useState<Record<string, Profile>>({})
-	const [ownerProfile, setOwnerProfile] = React.useState<Profile | null>(null)
 
 	// Link state
 	const [shareRefs, setShareRefs] = React.useState<Types.Ref[]>([])
@@ -180,13 +173,32 @@ export function ShareDialog({
 	const [fileShareEntries, setFileShareEntries] = React.useState<Types.ShareEntry[]>([])
 	const [loadingEntries, setLoadingEntries] = React.useState(false)
 
-	// The predicate is the optimistic answer; what the server told us is the authoritative one. An
-	// explicit 'A' grant confers share management server-side and is only visible from here — from
-	// the metadata probe when inherited, from the entries when granted on this file directly.
-	const canShare =
-		scopeCanManageShares ||
-		authoritativeLevel === 'admin' ||
-		hasAdminGrant(userShareEntries, auth?.idTag)
+	// The owner profile the dialog labels "Owner". The backend back-fills `owner` to the serving
+	// tenant, so the fallbacks only cover rows the shell built itself.
+	const ownerIdTag = file.owner?.idTag ?? scopeIdTag ?? auth?.idTag
+	// Profiles for the people list and a foreign owner; missing ones fall back to {idTag}
+	const profileNode = useProfileNode(undefined)
+	const peopleIdTags = React.useMemo(() => {
+		if (!open) return []
+		const tags = new Set(userShareEntries.map((e) => e.subjectId.toString()))
+		if (ownerIdTag && !file.owner && ownerIdTag !== auth?.idTag) tags.add(ownerIdTag)
+		return [...tags]
+	}, [open, userShareEntries, ownerIdTag, file.owner, auth?.idTag])
+	const profiles = useProfiles(peopleIdTags, profileNode)
+
+	// The server's `canManage` is authoritative, inherited admin grants included. Until (or unless)
+	// the access endpoint answers — loading, error, an older node — the predicate plus a direct 'A'
+	// grant in this file's own entries decide. `resetShareStateOnFileChange` clears the entries, so
+	// a previous file's grant cannot leak.
+	const canShare = access
+		? access.canManage
+		: scopeCanManageShares || hasAdminGrant(userShareEntries, auth?.idTag)
+
+	/** After every share change: re-fetch every mounted access view, then tell the caller. */
+	function permissionsChanged() {
+		refreshAccess()
+		onPermissionsChanged?.()
+	}
 
 	// Backend convention: missing fileTp defaults to BLOB (immutable)
 	const isImmutable = file.fileTp === 'BLOB' || file.fileTp == null
@@ -196,7 +208,7 @@ export function ShareDialog({
 	 * Offering the level anyway produces a menu entry that 403s.
 	 */
 	const ceiling = linkGrantCeiling(
-		authoritativeLevel ? { ...scopedFile, accessLevel: authoritativeLevel } : scopedFile,
+		access ? { ...scopedFile, accessLevel: access.callerLevel } : scopedFile,
 		auth?.idTag,
 		scopeRoles
 	)
@@ -227,10 +239,10 @@ export function ShareDialog({
 	const allPeople = React.useMemo(() => {
 		function key(e: Types.ShareEntry) {
 			const idTag = e.subjectId.toString()
-			return (peopleProfiles[idTag]?.name ?? idTag).toLowerCase()
+			return (profiles[idTag]?.name ?? idTag).toLowerCase()
 		}
 		return [...userShareEntries].sort((a, b) => key(a).localeCompare(key(b)))
-	}, [userShareEntries, peopleProfiles])
+	}, [userShareEntries, profiles])
 
 	// Profile objects for the people list; falls back to a minimal {idTag}
 	// profile while the real one is still loading.
@@ -238,9 +250,9 @@ export function ShareDialog({
 		() =>
 			allPeople.map((entry) => {
 				const idTag = entry.subjectId.toString()
-				return peopleProfiles[idTag] ?? { idTag, name: idTag }
+				return profiles[idTag] ?? { idTag, name: idTag }
 			}),
-		[allPeople, peopleProfiles]
+		[allPeople, profiles]
 	)
 
 	// Load data when dialog opens
@@ -279,26 +291,11 @@ export function ShareDialog({
 					if (!cancelled) setLoadingRefs(false)
 				}
 
-				// Cross-owner only: same-owner rows already carry the resolved level from
-				// `GET /api/files`, and `deriveFileOwnerScope` keeps it there.
-				if (isCrossOwner) {
-					try {
-						const meta = await api.files.getMetadata(scopedId)
-						if (!cancelled) setAuthoritativeLevel(meta.accessLevel)
-					} catch (err) {
-						// A refinement, not a gate: without it we simply fall back to the
-						// predicate and to hasAdminGrant.
-						console.error('Failed to load file metadata', err)
-					}
-				}
-
-				let userEntries: Types.ShareEntry[] = []
 				try {
 					if (!cancelled) setLoadingEntries(true)
 					const allEntries = await api.files.listShares(scopedId)
 					if (!cancelled) {
-						userEntries = allEntries.filter((e) => e.subjectType === 'U')
-						setUserShareEntries(userEntries)
+						setUserShareEntries(allEntries.filter((e) => e.subjectType === 'U'))
 						setFileShareEntries(allEntries.filter((e) => e.subjectType === 'F'))
 						setShareAccess('granted')
 					}
@@ -314,39 +311,24 @@ export function ShareDialog({
 				} finally {
 					if (!cancelled) setLoadingEntries(false)
 				}
-
-				// Enrich the people list with profile data (name, profile pic).
-				// Missing or unreachable profiles fall back to {idTag} at render.
-				if (!cancelled && userEntries.length > 0) {
-					const idTags = Array.from(
-						new Set(userEntries.map((e) => e.subjectId.toString()))
-					)
-					const profiles = await getCachedProfiles(api, idTags)
-					if (!cancelled) setPeopleProfiles(profiles)
-				}
 			})()
 
 			return () => {
 				cancelled = true
 			}
 		},
-		[api, open, scopedId, isCrossOwner]
+		[api, open, scopedId]
 	)
 
 	React.useEffect(
 		function resetShareStateOnFileChange() {
 			// A previous file's verdict must not decide this one's body while its own listing is
-			// still in flight — and neither may its ENTRIES: `canShare` folds in
-			// hasAdminGrant(userShareEntries, auth?.idTag), so an 'A' grant on the previous file
-			// would render the full mutating share UI for one this user cannot manage.
-			// No id to ask with: nothing will load, so settle as a refusal
+			// still in flight. No id to ask with: nothing will load, so settle as a refusal
 			setShareAccess(scopedId ? 'loading' : 'denied')
 			setRefsAccess(scopedId ? 'loading' : 'denied')
-			setAuthoritativeLevel(undefined)
 			setUserShareEntries([])
 			setFileShareEntries([])
 			setShareRefs([])
-			setPeopleProfiles({})
 		},
 		[scopedId]
 	)
@@ -372,9 +354,8 @@ export function ShareDialog({
 				...prev.filter((e) => e.subjectId.toString() !== profile.idTag),
 				entry
 			])
-			setPeopleProfiles((prev) => ({ ...prev, [profile.idTag]: profile }))
 			toast.success(t('Permission granted'))
-			onPermissionsChanged?.()
+			permissionsChanged()
 		} catch (err) {
 			console.error('Failed to add permission', err)
 			toast.error(t('Failed to grant permission'))
@@ -399,7 +380,7 @@ export function ShareDialog({
 			})
 			setUserShareEntries((prev) => prev.map((e) => (e.id === entry.id ? updated : e)))
 			toast.success(t('Permission updated'))
-			onPermissionsChanged?.()
+			permissionsChanged()
 		} catch (err) {
 			console.error('Failed to update permission', err)
 			toast.error(t('Failed to update permission'))
@@ -439,7 +420,7 @@ export function ShareDialog({
 			await api.files.deleteShare(scopedId, entry.id)
 			setUserShareEntries((prev) => prev.filter((e) => e.id !== entry.id))
 			toast.success(t('Permission revoked'))
-			onPermissionsChanged?.()
+			permissionsChanged()
 		} catch (err) {
 			console.error('Failed to remove permission', err)
 			toast.error(t('Failed to revoke permission'))
@@ -466,7 +447,7 @@ export function ShareDialog({
 			setNewLinkExpires('')
 			setNeverExpires(true)
 			setCreateLinkOpen(false)
-			onPermissionsChanged?.()
+			permissionsChanged()
 		} catch (err) {
 			console.error('Failed to create share link', err)
 			const message = shareLinkErrorMessage(err, t)
@@ -493,7 +474,7 @@ export function ShareDialog({
 			setShareRefs((refs) => refs.filter((r) => r.refId !== refId))
 			if (editingRefId === refId) cancelEditLink()
 			toast.success(t('Share link deleted'))
-			onPermissionsChanged?.()
+			permissionsChanged()
 		} catch (err) {
 			console.error('Failed to delete share link', err)
 			toast.error(t('Failed to delete share link'))
@@ -512,7 +493,7 @@ export function ShareDialog({
 		try {
 			const updated = await api.refs.update(ref.refId, { accessLevel: newLevel })
 			setShareRefs((refs) => refs.map((r) => (r.refId === ref.refId ? updated : r)))
-			onPermissionsChanged?.()
+			permissionsChanged()
 		} catch (err) {
 			console.error('Failed to update link access', err)
 			// Widening a link is capped by the same grant ceiling creating one is, so the refusal
@@ -570,7 +551,7 @@ export function ShareDialog({
 			toast.success(t('Link updated'))
 			setEditingRefId(null)
 			setEditDraft({ description: '', expiresAt: '', neverExpires: true })
-			onPermissionsChanged?.()
+			permissionsChanged()
 		} catch (err) {
 			console.error('Failed to update link', err)
 			toast.error(shareLinkErrorMessage(err, t))
@@ -592,50 +573,23 @@ export function ShareDialog({
 			await api.files.deleteShare(scopedId, shareId)
 			setFileShareEntries((entries) => entries.filter((e) => e.id !== shareId))
 			toast.success(t('Link removed'))
-			onPermissionsChanged?.()
+			permissionsChanged()
 		} catch (err) {
 			console.error('Failed to delete share entry', err)
 			toast.error(t('Failed to remove link'))
 		}
 	}
 
-	// The owner profile the dialog labels "Owner". The backend back-fills `owner` to the serving
-	// tenant, so the fallbacks only cover rows the shell built itself.
-	const ownerIdTag = file.owner?.idTag ?? scopeIdTag ?? auth?.idTag
-
-	React.useEffect(
-		function loadOwnerProfile() {
-			if (!open || !ownerIdTag) return
-			// file.owner is a structural subset of Profile (idTag, name?, profilePic?).
-			if (file.owner) {
-				setOwnerProfile({
-					idTag: file.owner.idTag,
-					name: file.owner.name,
-					profilePic: file.owner.profilePic
-				})
-				return
-			}
-			if (ownerIdTag === auth?.idTag) {
-				setOwnerProfile({
-					idTag: auth.idTag,
-					name: auth.name,
-					profilePic: auth.profilePic
-				})
-				return
-			}
-			if (!api) return
-			let cancelled = false
-			getCachedProfile(api, ownerIdTag).then((p) => {
-				if (!cancelled) setOwnerProfile(p)
-			})
-			return () => {
-				cancelled = true
-			}
-		},
-		[open, ownerIdTag, file.owner, auth, api]
-	)
-
 	if (!open) return null
+
+	// file.owner is a structural subset of Profile (idTag, name?, profilePic?).
+	const ownerProfile: Profile | null = file.owner
+		? { idTag: file.owner.idTag, name: file.owner.name, profilePic: file.owner.profilePic }
+		: !ownerIdTag
+			? null
+			: ownerIdTag === auth?.idTag
+				? { idTag: ownerIdTag, name: auth.name, profilePic: auth.profilePic }
+				: profiles[ownerIdTag]
 
 	// Shared by the editable and the read-only people list below, so the two cannot drift
 	const ownerRow = ownerIdTag ? (

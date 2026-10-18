@@ -7,6 +7,7 @@ import {
 	HBox,
 	IcClose,
 	ListItem,
+	PersonHover,
 	ProfilePicture,
 	parseChannel,
 	Text,
@@ -113,7 +114,16 @@ export function NotificationItem({
 			className={action.status === 'C' ? 'c-notification-item-actionable' : undefined}
 			onClick={onClick ? () => onClick(action) : undefined}
 			leading={
-				<ProfilePicture profile={action.issuer} srcTag={action.issuer?.idTag} size="xs" />
+				// ProfilePicture forwards no ref, so the HBox is the trigger
+				<PersonHover idTag={action.issuer?.idTag ?? ''} disabled={!action.issuer?.idTag}>
+					<HBox>
+						<ProfilePicture
+							profile={action.issuer}
+							srcTag={action.issuer?.idTag}
+							size="xs"
+						/>
+					</HBox>
+				</PersonHover>
 			}
 			title={
 				<Text size="sm">

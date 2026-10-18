@@ -582,6 +582,19 @@ export const tDocOpenPush = msg('doc:open.push', {
 })
 export type DocOpenPush = T.TypeOf<typeof tDocOpenPush>
 
+/**
+ * App asks the shell to open a person's profile or a DM with them (person card
+ * actions). Fire-and-forget; gated by the shell like `doc:open.push`.
+ * Direction: app -> shell
+ */
+export const tPersonOpenPush = msg('person:open.push', {
+	payload: T.struct({
+		idTag: T.string,
+		target: T.literal('profile', 'messages')
+	})
+})
+export type PersonOpenPush = T.TypeOf<typeof tPersonOpenPush>
+
 // ============================================
 // DOCUMENT INFO MESSAGES
 // ============================================
@@ -1530,6 +1543,7 @@ export const tCloudilloMessage = T.taggedUnion('type')({
 	'doc:grant.req': tDocGrantReq,
 	'doc:grant.res': tDocGrantRes,
 	'doc:open.push': tDocOpenPush,
+	'person:open.push': tPersonOpenPush,
 
 	// Document info messages
 	'doc:info.req': tDocInfoReq,

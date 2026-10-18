@@ -13,7 +13,6 @@ import {
 	widensAudience
 } from '../apps/files/audience.js'
 import { locationText } from '../apps/files/components/LocationChip.js'
-import { buildFileFilterParams } from '../apps/files/hooks/useFileList.js'
 
 // Interpolates like i18next with the key as the English string
 const t = ((key: string, opts?: Record<string, unknown>) =>
@@ -80,18 +79,6 @@ describe('leavesRoom', () => {
 		expect(leavesRoom('@a~x', '@a~x')).toBe(false)
 		expect(leavesRoom('@a~x', '@a~y')).toBe(true)
 		expect(leavesRoom('@a~x', null)).toBe(true)
-	})
-})
-
-describe('buildFileFilterParams channel', () => {
-	it('applies the drive at the root only', () => {
-		expect(buildFileFilterParams({ channel: '@a~x', parentId: null })).toEqual({
-			channel: '@a~x'
-		})
-		expect(buildFileFilterParams({ channel: '', parentId: null })).toEqual({ channel: '' })
-		expect(buildFileFilterParams({ channel: '@a~x', parentId: 'f1' })).toEqual({})
-		expect(buildFileFilterParams({ channel: '@a~x' })).toEqual({})
-		expect(buildFileFilterParams({ parentId: null })).toEqual({})
 	})
 })
 

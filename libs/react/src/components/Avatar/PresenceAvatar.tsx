@@ -14,7 +14,8 @@ export function displayName(user: PresenceEntry, guestLabel: string): string {
 	return user.name || user.idTag || guestLabel
 }
 
-export interface PresenceAvatarProps {
+export interface PresenceAvatarProps
+	extends Omit<React.HTMLAttributes<HTMLDivElement>, 'children'> {
 	/** One entry of a roster from `useDocPresence`. */
 	user: PresenceEntry
 	size?: Size
@@ -23,6 +24,8 @@ export interface PresenceAvatarProps {
 	/** Tooltip. Omit when the surrounding group is labelled instead. */
 	title?: string
 	className?: string
+	/** Forwarded to the avatar element, so a `PersonHover` can wrap the face directly. */
+	ref?: React.Ref<HTMLDivElement>
 }
 
 /**
@@ -38,7 +41,14 @@ export interface PresenceAvatarProps {
  * definition has no idTag (`buildPresenceUser` omits it unless authenticated, and
  * the relay strips it), so the face carries no verified identity.
  */
-export function PresenceAvatar({ user, size, guestLabel, title, className }: PresenceAvatarProps) {
+export function PresenceAvatar({
+	user,
+	size,
+	guestLabel,
+	title,
+	className,
+	...props
+}: PresenceAvatarProps) {
 	const name = displayName(user, guestLabel)
 	const ringClass = mergeClasses('id-ring', !user.idTag && 'guest', className)
 
@@ -56,6 +66,7 @@ export function PresenceAvatar({ user, size, guestLabel, title, className }: Pre
 			alt={name}
 			fallback={monogramFor(user.idTag, name)}
 			title={title}
+			{...props}
 		/>
 	) : (
 		<InitialsAvatar
@@ -65,6 +76,7 @@ export function PresenceAvatar({ user, size, guestLabel, title, className }: Pre
 			idTag={user.idTag}
 			seed={user.idTag ?? user.connId}
 			title={title}
+			{...props}
 		/>
 	)
 }

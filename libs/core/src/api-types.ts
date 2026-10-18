@@ -586,6 +586,10 @@ export interface ListFilesQuery {
 	rootId?: string // Filter by document tree root
 	preset?: string
 	tag?: string
+	tags?: string[] // Every listed tag must be present (AND). Comma-joined on the wire: safe, the backend forbids ',' in tag names
+	recursive?: boolean // With parentId: list the whole subtree; without: the whole drive/room
+	/** Exposure filter, OR'ed */
+	access?: ('private' | 'audience' | 'network' | 'people' | 'link' | 'public')[]
 	status?: ('P' | 'A')[]
 	fileTp?: string // File type: 'BLOB', 'CRDT', 'RTDB', 'FLDR'
 	contentType?: string
@@ -594,8 +598,9 @@ export interface ListFilesQuery {
 	ownerIdTag?: string // Filter by owner idTag
 	notOwnerIdTag?: string // Exclude files by this owner idTag
 	localOnly?: boolean // Only locally originating files (upstream_tag IS NULL); excludes remote/federated copies
-	createdAfter?: string | number
-	createdBefore?: string | number
+	openedSince?: string | number // Caller's own last access (unix seconds or ISO)
+	modifiedAfter?: string | number // Inclusive (unix seconds or ISO)
+	modifiedBefore?: string | number // Exclusive (unix seconds or ISO)
 	pinned?: boolean // Filter by pinned status (user-specific)
 	starred?: boolean // Filter by starred status (user-specific)
 	sort?: 'name' | 'created' | 'modified' | 'recent' // Sort field
@@ -836,6 +841,73 @@ export type ShareEntry = T.TypeOf<typeof tShareEntry>
 
 export const tListShareEntriesResult = T.array(tShareEntry)
 export type ListShareEntriesResult = T.TypeOf<typeof tListShareEntriesResult>
+
+// GET /files/:entryId/access — effective access, shaped by the caller's level
+/** Ancestor a grant is inherited from. Absent `inheritedFrom` = direct grant; grants are listed only
+ *  up to the first ancestor the caller cannot read. */
+export const tFileAccessSource = T.struct({
+	entryId: T.string,
+	fileName: T.string
+})
+export type FileAccessSource = T.TypeOf<typeof tFileAccessSource>
+
+export const tFileAccessPerson = T.struct({
+	idTag: T.string,
+	// T.string like `tShareEntry.permission` ('R'|'C'|'W'|'A'): one bad row must not fail the decode.
+	// Always sent: readers get `people: []` rather than people without a permission.
+	permission: T.optional(T.string),
+	expiresAt: T.optional(T.union(T.string, T.date)),
+	inherited: T.boolean,
+	inheritedFrom: T.optional(tFileAccessSource) // absent = direct
+})
+export type FileAccessPerson = T.TypeOf<typeof tFileAccessPerson>
+
+export const tFileAccessLink = T.struct({
+	refId: T.string,
+	redacted: T.optional(T.literal(true)), // refId is a surrogate, not the bearer credential
+	accessLevel: T.literal('read', 'comment', 'write'),
+	expiresAt: T.optional(T.union(T.string, T.date)),
+	inheritedFrom: T.optional(tFileAccessSource)
+})
+export type FileAccessLink = T.TypeOf<typeof tFileAccessLink>
+
+export const tFileAccess = T.struct({
+	owner: T.struct({ idTag: T.string }),
+	audience: T.struct({
+		kind: T.literal(
+			'owner',
+			'members',
+			'room',
+			'shared',
+			// The file's visibility level, when it has one
+			'public',
+			'verified',
+			'secondDegree',
+			'followers',
+			'connections',
+			'subscribers'
+		),
+		channel: T.optional(
+			T.struct({
+				name: T.string,
+				title: T.optional(T.string),
+				minRole: T.optional(T.string),
+				closed: T.boolean,
+				memberCount: T.optional(T.number)
+			})
+		)
+	}),
+	people: T.array(tFileAccessPerson),
+	links: T.optional(
+		T.struct({
+			count: T.number,
+			items: T.optional(T.array(tFileAccessLink)) // writers and up
+		})
+	), // absent for link guests
+	callerLevel: T.literal('read', 'comment', 'write', 'admin'),
+	canManage: T.boolean
+})
+export type FileAccess = T.TypeOf<typeof tFileAccess>
 
 // ============================================================================
 // TAG ENDPOINTS

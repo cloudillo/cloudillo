@@ -66,9 +66,12 @@ jest.unstable_mockModule('@cloudillo/core', async () => {
 			titlesSet.push(title)
 		}
 	}
+	// `getApiClient`/`hasApiToken` for `hooks.tsx`, which `PersonHover`'s `ProfilePicture` pulls in.
+	const apiRegistry = await import('../../../core/lib/api-registry.js')
 	return {
 		...presence,
 		...fileUtils,
+		...apiRegistry,
 		delay,
 		docRef,
 		getCrdtUrl,

@@ -12,47 +12,19 @@
  */
 
 import {
-	createApiClient,
 	dedupePresenceUsers,
 	getAppBus,
 	getFileUrl,
 	PRESENCE_THROTTLE_MS,
 	type PresenceEntry,
-	type PresenceFeed,
-	type PublicProfile
+	type PresenceFeed
 } from '@cloudillo/core'
 import { awarenessPresenceFeed } from '@cloudillo/crdt'
 import * as React from 'react'
 import type { Awareness } from 'y-protocols/awareness'
 
+import { profileNode, useProfiles } from './profile-cache.js'
 import { useThrottledCallback } from './useThrottledCallback.js'
-
-/**
- * `GET /profiles/batch` rejects (400) beyond this many distinct tags rather than
- * truncating, so chunk instead of slicing — a dropped tag would be asked for
- * again on every roster change.
- */
-const PROFILE_BATCH_MAX = 64
-
-/** Back-off before a failed profile lookup is attempted again. */
-const PROFILE_RETRY_MS = 30_000
-
-/**
- * The node to resolve collaborator profiles against, and the token to use there.
- *
- * The DOCUMENT's node, not the viewer's: a collaborator on a foreign-hosted
- * document is routinely someone the viewer's own node has never synced. With no
- * owner tag to aim at (a legacy '#_embed:<nonce>' hash, a standalone mount) we
- * fall back to the viewer's node, but WITHOUT the token — it was minted for a
- * different node and must not be handed to this one.
- */
-function profileNode(bus: ReturnType<typeof getAppBus>): {
-	tag?: string
-	token?: string
-} {
-	if (bus.ownerTag) return { tag: bus.ownerTag, token: bus.accessToken }
-	return { tag: bus.idTag, token: undefined }
-}
 
 export interface DocPresence {
 	/** One per person: two tabs of one user collapse into one entry. */
@@ -81,34 +53,16 @@ const EMPTY_PRESENCE: DocPresence = { users: EMPTY, entries: EMPTY, count: 0 }
  */
 export function useDocPresence(source?: Awareness | PresenceFeed | null): DocPresence {
 	const [entries, setEntries] = React.useState<PresenceEntry[]>(EMPTY)
-	// idTag -> the profile, or null when the node answered and had nothing for
-	// that tag — a real negative answer, cached so it is asked once.
-	const [profiles, setProfiles] = React.useState<Record<string, PublicProfile | null>>({})
-	const profilesRef = React.useRef(profiles)
-	profilesRef.current = profiles
-	// Tags with a request in the air. Without this, a roster change during the
-	// round trip re-asks for everything that is already being asked about.
-	const inFlightRef = React.useRef(new Set<string>())
-	// Tag -> earliest time we may ask again after a FAILED lookup. A failure is
-	// not an answer, so it must not be cached like one — nor retried on every tick.
-	const retryAtRef = React.useRef(new Map<string, number>())
-	// The back-off map only says "not yet"; without a timer nothing ever asks again
-	// on a quiet feed. A Yjs roster churns on every cursor move and re-runs the
-	// effect by accident, but RTDB presence changes only on a page or block event —
-	// one blip would leave a collaborator a monogram for the rest of the session.
-	const [retryTick, setRetryTick] = React.useState(0)
-	const retryTimerRef = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-	// Only unmount discards a resolved profile. The resolution effect re-runs on
-	// every roster change, so a per-run `cancelled` flag would throw away an answer
-	// that is still good — and the in-flight gate would stop the re-run re-asking.
-	const mountedRef = React.useRef(true)
-	React.useEffect(() => {
-		mountedRef.current = true
-		return () => {
-			mountedRef.current = false
-			if (retryTimerRef.current) clearTimeout(retryTimerRef.current)
-		}
-	}, [])
+	// Nothing about a face travels over presence: it is looked up from the idTag,
+	// and the idTag is the one field the relay stamps from the sender's own token.
+	// That pair is what stops a peer wearing someone else's face. The lookup —
+	// batching, in-flight, back-off — lives in the shared profile cache.
+	const node = profileNode(getAppBus())
+	const idTags = React.useMemo(
+		() => [...new Set(entries.map((u) => u.idTag).filter((t): t is string => !!t))],
+		[entries]
+	)
+	const profiles = useProfiles(idTags, node)
 
 	const [onPresenceChange, flushPresence] = useThrottledCallback(
 		(next: PresenceEntry[]) => setEntries(next),
@@ -140,95 +94,6 @@ export function useDocPresence(source?: Awareness | PresenceFeed | null): DocPre
 			setEntries(EMPTY)
 		}
 	}, [feed, onPresenceChange, flushPresence])
-
-	// Nothing about a face travels over presence: it is looked up here from the
-	// idTag, and the idTag is the one field the relay stamps from the sender's own
-	// token. That pair is what stops a peer wearing someone else's face.
-	//
-	// Only the node's own omission is cached (as `null`) — that is an answer, and
-	// asking again would change nothing. A transport failure is not, so those tags
-	// stay absent and are retried after `PROFILE_RETRY_MS`; a blip must not blank a
-	// face for the rest of the session.
-	React.useEffect(() => {
-		const now = Date.now()
-		const unknown = [
-			...new Set(
-				entries
-					.map((u) => u.idTag)
-					.filter(
-						(idTag): idTag is string =>
-							!!idTag &&
-							!(idTag in profilesRef.current) &&
-							!inFlightRef.current.has(idTag) &&
-							(retryAtRef.current.get(idTag) ?? 0) <= now
-					)
-			)
-		]
-		if (!unknown.length) return
-		for (const idTag of unknown) inFlightRef.current.add(idTag)
-
-		void (async function () {
-			const resolved: Record<string, PublicProfile> = {}
-			const answered = new Set<string>() // tags whose chunk got a reply
-			const failed: string[] = [] // tags whose chunk did not
-			try {
-				const bus = getAppBus()
-				const { tag: targetTag, token } = profileNode(bus)
-				if (!targetTag) throw new Error('no node to resolve profiles against')
-				// A fresh client per call: the shell rotates the scoped token, so
-				// reading it at call time keeps a long-lived document working
-				// across a rotation.
-				const api = createApiClient({ idTag: targetTag, authToken: token })
-				const chunks: string[][] = []
-				for (let i = 0; i < unknown.length; i += PROFILE_BATCH_MAX) {
-					chunks.push(unknown.slice(i, i + PROFILE_BATCH_MAX))
-				}
-				// Per chunk, not all-or-nothing: one rejected chunk must not discard
-				// every chunk that succeeded alongside it.
-				const settled = await Promise.allSettled(
-					chunks.map((c) => api.profiles.getBatch(c))
-				)
-				settled.forEach((res, i) => {
-					if (res.status === 'fulfilled') {
-						for (const idTag of chunks[i]) answered.add(idTag)
-						// Tags the node has not mirrored are omitted, so key by
-						// idTag rather than by position.
-						for (const profile of res.value) resolved[profile.idTag] = profile
-					} else {
-						failed.push(...chunks[i])
-						console.warn('[presence] profile batch failed', chunks[i], res.reason)
-					}
-				})
-			} catch (err) {
-				// Nothing went out at all — no node to aim at, no client. Warn
-				// rather than swallow: a bare `catch {}` hides even "AppBus not
-				// initialized", making a missing-avatar report undiagnosable.
-				console.warn('[presence] could not resolve profiles', unknown, err)
-				failed.push(...unknown)
-			} finally {
-				for (const idTag of unknown) inFlightRef.current.delete(idTag)
-			}
-			if (!mountedRef.current) return
-			for (const idTag of failed) retryAtRef.current.set(idTag, Date.now() + PROFILE_RETRY_MS)
-			// One timer for the whole back-off, not one per failure: a second
-			// failure while the first is pending must not stack another wake-up.
-			if (failed.length && !retryTimerRef.current) {
-				retryTimerRef.current = setTimeout(() => {
-					retryTimerRef.current = undefined
-					if (mountedRef.current) setRetryTick((t) => t + 1)
-				}, PROFILE_RETRY_MS)
-			}
-			// `setProfiles` re-renders, so the effect re-runs for anything still
-			// unknown; the back-off map is what stops that becoming a loop.
-			if (answered.size) {
-				setProfiles((prev) => {
-					const next = { ...prev }
-					for (const idTag of answered) next[idTag] = resolved[idTag] ?? null
-					return next
-				})
-			}
-		})()
-	}, [entries, retryTick])
 
 	return React.useMemo(() => {
 		const bus = getAppBus()

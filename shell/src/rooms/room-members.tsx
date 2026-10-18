@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { type ApiClient, FetchError, type PorchEntry } from '@cloudillo/core'
+import type { ApiClient, PorchEntry } from '@cloudillo/core'
 import {
 	ActionBar,
 	Badge,
@@ -11,8 +11,8 @@ import {
 	List,
 	ListItem,
 	LoadingSpinner,
-	makeChannel,
 	Panel,
+	PersonHover,
 	ProfileMultiSelect,
 	ProfilePicture,
 	Text,
@@ -30,13 +30,10 @@ import {
 } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate, useParams } from 'react-router-dom'
 
-import { useCtx } from '../context/index.js'
-import { IcInvite, IcRoom } from '../icons.js'
-import { filesPath, settingsPath } from '../routes.js'
-import { RoomForm } from './room-form.js'
-import { useRooms, useRoomsClient, useRoomsTenant } from './rooms.js'
+import { useApiContext } from '../context/index.js'
+import { IcInvite } from '../icons.js'
+import { floorText } from '../profile/role-labels.js'
 
 /** Whether a tenant member's role lets them into the room; a follower or connection is at least a follower. */
 function clearsFloor(profile: Profile, minRole: string | null | undefined): boolean {
@@ -196,7 +193,8 @@ interface RoomRosterProps {
 	channel: string
 }
 
-function RoomRoster({ client, room, channel }: RoomRosterProps) {
+/** A closed room's roster for its admins: accept/decline knocks, invite, remove, revoke. */
+export function RoomRoster({ client, room, channel }: RoomRosterProps) {
 	const { t } = useTranslation()
 	const dialog = useDialog()
 	const toast = useToast()
@@ -219,7 +217,7 @@ function RoomRoster({ client, room, channel }: RoomRosterProps) {
 			await fn()
 			reload()
 		} catch (err) {
-			console.error('[RoomDetail]', err)
+			console.error('[RoomMembers]', err)
 			toast.error(failMsg)
 		} finally {
 			setBusy(undefined)
@@ -251,7 +249,7 @@ function RoomRoster({ client, room, channel }: RoomRosterProps) {
 	if (!requests || !members || !invited) return <LoadingSpinner />
 
 	return (
-		<>
+		<VBox gap={3}>
 			<Panel
 				padding={3}
 				headingLevel={4}
@@ -269,7 +267,13 @@ function RoomRoster({ client, room, channel }: RoomRosterProps) {
 						{requests.map((a) => (
 							<ListItem
 								key={a.actionId}
-								leading={a.issuer && <ProfilePicture profile={a.issuer} />}
+								leading={
+									a.issuer && (
+										<PersonHover idTag={a.issuer.idTag}>
+											<ProfilePicture profile={a.issuer} />
+										</PersonHover>
+									)
+								}
 								title={a.issuer?.name || a.issuer?.idTag}
 								meta={<TimeFormat time={a.createdAt} />}
 								trailing={
@@ -329,7 +333,11 @@ function RoomRoster({ client, room, channel }: RoomRosterProps) {
 							return (
 								<ListItem
 									key={idTag}
-									leading={<ProfilePicture profile={p ?? { idTag }} />}
+									leading={
+										<PersonHover idTag={idTag}>
+											<ProfilePicture profile={p ?? { idTag }} />
+										</PersonHover>
+									}
 									title={p?.name || idTag}
 									subtitle={p?.name ? idTag : undefined}
 									trailing={
@@ -358,7 +366,13 @@ function RoomRoster({ client, room, channel }: RoomRosterProps) {
 							return (
 								<ListItem
 									key={a.actionId}
-									leading={invitee && <ProfilePicture profile={invitee} />}
+									leading={
+										invitee && (
+											<PersonHover idTag={invitee.idTag}>
+												<ProfilePicture profile={invitee} />
+											</PersonHover>
+										)
+									}
 									title={invitee ? invitee.name || invitee.idTag : t('(unknown)')}
 									meta={<TimeFormat time={a.createdAt} />}
 									trailing={
@@ -395,99 +409,86 @@ function RoomRoster({ client, room, channel }: RoomRosterProps) {
 				candidates={candidates}
 				onSent={reload}
 			/>
-		</>
+		</VBox>
 	)
 }
 
-/** `settings/rooms/:name`: edit a room, manage a closed room's roster, delete it. */
-export function RoomDetailSettings() {
+/** Read-only roster of a closed room, for its members (the backend lets room members list it). */
+function RoomMemberList({ tenant, name }: { tenant: string; name: string }) {
 	const { t } = useTranslation()
-	const navigate = useNavigate()
-	const dialog = useDialog()
-	const toast = useToast()
-	const { name } = useParams()
-	const base = useCtx().base
-	const listPath = settingsPath(base, 'rooms')
-	const client = useRoomsClient()
-	const tenant = useRoomsTenant()
-	const { rooms } = useRooms(client, tenant)
-	const room = rooms?.find((r) => r.name === name)
+	const { getClientFor } = useApiContext()
+	// null: the load failed
+	const [members, setMembers] = React.useState<string[] | null>()
 
-	if (!client || !tenant) return null
-	if (!rooms) return <LoadingSpinner />
-	if (!room) {
-		return <EmptyState icon={<IcRoom />} title={t('Room not found')} />
-	}
-	const channel = makeChannel(tenant, room.name)
-
-	async function handleDelete() {
-		if (!client || !room) return
-		const confirmed = await dialog.confirm(
-			t('Delete room'),
-			t('Content stays but becomes readable only by {{tenant}}.', { tenant }),
-			{ color: 'error', confirmLabel: t('Delete') }
-		)
-		if (!confirmed) return
-		try {
-			await client.channels.delete(room.name)
-			navigate(listPath)
-		} catch (err) {
-			const fileCount =
-				err instanceof FetchError && err.apiErrorCode === 'E-CORE-CONFLICT'
-					? (err.details as { fileCount?: number } | undefined)?.fileCount
-					: undefined
-			if (fileCount === undefined) {
-				console.error('Failed to delete room:', err)
-				toast.error(t('Failed to delete room'))
-				return
+	React.useEffect(
+		function loadMembers() {
+			const client = getClientFor(tenant, { auth: 'preferred' })
+			if (!client) return
+			let cancelled = false
+			client.channels
+				.members(name)
+				.then((list) => {
+					if (!cancelled) setMembers(list)
+				})
+				.catch((err) => {
+					console.error('Failed to load room members:', err)
+					if (!cancelled) setMembers(null)
+				})
+			return () => {
+				cancelled = true
 			}
-			const name = room.name
-			toast.error(
-				t('~{{room}} still has {{count}} files. Move or delete them first.', {
-					room: name,
-					count: fileCount
-				}),
-				{
-					actions: (
-						<Button
-							size="sm"
-							onClick={() => navigate(filesPath(base, { drive: name }))}
-						>
-							{t('Open files')}
-						</Button>
-					)
-				}
-			)
-		}
-	}
-
-	return (
-		<VBox gap={3}>
-			<Panel padding={3} title={room.title || `~${room.name}`} headingLevel={4}>
-				<RoomForm
-					key={room.name}
-					client={client}
-					room={room}
-					onCancel={() => navigate(listPath)}
-					onSaved={() => {
-						toast.success(t('Room saved'))
-						navigate(listPath)
-					}}
-				/>
-			</Panel>
-
-			{room.closed && <RoomRoster client={client} room={room} channel={channel} />}
-
-			<Panel padding={3} title={t('Danger zone')} headingLevel={4}>
-				<Text as="p" emphasis="muted" className="mb-2">
-					{t('Content stays but becomes readable only by {{tenant}}.', { tenant })}
-				</Text>
-				<Button color="error" onClick={handleDelete}>
-					{t('Delete room')}
-				</Button>
-			</Panel>
-		</VBox>
+		},
+		[tenant, name, getClientFor]
 	)
+
+	if (members === null) return <EmptyState size="sm" title={t('Failed to load room members')} />
+	if (!members) return <LoadingSpinner />
+	if (members.length === 0) return <EmptyState size="sm" title={t('No members yet')} />
+	return (
+		<List variant="divided">
+			{members.map((idTag) => (
+				<ListItem
+					key={idTag}
+					leading={
+						<PersonHover idTag={idTag}>
+							<ProfilePicture profile={{ idTag }} />
+						</PersonHover>
+					}
+					title={idTag}
+				/>
+			))}
+		</List>
+	)
+}
+
+interface RoomMembersProps {
+	room: PorchEntry
+	/** The room tenant's admin client (`useRoomsClient`), null when the viewer is no room admin */
+	client: ApiClient | null
+	/** The room's tenant idTag */
+	tenant: string
+	/** `@tenant~name` */
+	channel: string
+}
+
+/** The room home's Members tab. */
+export function RoomMembers({ room, client, tenant, channel }: RoomMembersProps) {
+	const { t } = useTranslation()
+
+	// Members see `closed`; a visitor at a closed door only sees `invitation-only`
+	if (room.closed || room.status === 'invitation-only') {
+		if (client && room.closed)
+			return <RoomRoster client={client} room={room} channel={channel} />
+		if (room.closed && room.status === 'in') {
+			return <RoomMemberList tenant={tenant} name={room.name} />
+		}
+		return (
+			<Text as="p" emphasis="muted">
+				{t('Only room members can see the member list.')}
+			</Text>
+		)
+	}
+	return <Text as="p">{room.minRole ? floorText(t, room.minRole) : t('Anyone can enter')}</Text>
 }
 
 // vim: ts=4

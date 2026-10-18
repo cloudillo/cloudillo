@@ -526,7 +526,7 @@ export function CalendarApp() {
 
 	return (
 		<>
-			<Fcd.Container fluid detailsMode="overlay" detailsWidth="22rem">
+			<Fcd.Container detailsMode="overlay" detailsWidth="22rem">
 				<Fcd.Filter
 					collapsed={!sidebarOpen}
 					isVisible={sidebarOpen}
@@ -550,6 +550,7 @@ export function CalendarApp() {
 				<Fcd.Content
 					layout="column"
 					width="fluid"
+					surface="raised"
 					header={
 						<>
 							<PageHeader

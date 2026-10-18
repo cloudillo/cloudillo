@@ -250,9 +250,7 @@ export const ItemCard = React.memo(function ItemCard({
 					{/* Meta line: smart timestamp, parent chip, owner, visibility */}
 					<HBox gap={2} align="center">
 						<Text>
-							{smartTimestamp.label && (
-								<Text emphasis="muted">{t(smartTimestamp.label)} </Text>
-							)}
+							{smartTimestamp.label && <Text>{t(smartTimestamp.label)} </Text>}
 							{smartTimestamp.time}
 						</Text>
 						{showParentChip && (

@@ -15,6 +15,7 @@ import {
 	Menu,
 	MenuItem,
 	Panel,
+	PersonHover,
 	ProfileCard,
 	SearchInput,
 	SkeletonList,
@@ -173,17 +174,19 @@ export function ConversationBar({
 									leading={<Icon as={IcGroup} />}
 									title={
 										invite.subjectProfile ? (
-											<Link
-												href={profilePath(
-													urlContext,
-													invite.subjectProfile.idTag
-												)}
-											>
-												<ProfileCard
-													profile={invite.subjectProfile}
-													className="small"
-												/>
-											</Link>
+											<PersonHover idTag={invite.subjectProfile.idTag}>
+												<Link
+													href={profilePath(
+														urlContext,
+														invite.subjectProfile.idTag
+													)}
+												>
+													<ProfileCard
+														profile={invite.subjectProfile}
+														className="small"
+													/>
+												</Link>
+											</PersonHover>
 										) : (
 											inviteGroupName || t('Group invitation')
 										)

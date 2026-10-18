@@ -295,7 +295,8 @@ export function MessagesApp() {
 						<Fcd.Content
 							ref={setConvEl}
 							onScroll={onConvScroll}
-							width="fluid"
+							width="wide"
+							surface="raised"
 							header={
 								<PageHeader
 									title={

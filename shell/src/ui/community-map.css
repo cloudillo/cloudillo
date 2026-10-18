@@ -15,7 +15,8 @@
 	cursor: grab;
 	user-select: none;
 	border-radius: var(--radius-md);
-	background: var(--col-container-low);
+	border: 1px solid var(--col-outline);
+	background: var(--col-container-high);
 }
 
 .c-community-map-svg:active {

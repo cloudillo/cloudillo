@@ -1,12 +1,15 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-export { Breadcrumbs } from './Breadcrumbs.js'
 export type { ContextMenuPosition, ContextMenuProps } from './ContextMenu.js'
 export { ContextMenu } from './ContextMenu.js'
 export { CreateMenu } from './CreateMenu.js'
 export { DetailsPanel } from './DetailsPanel.js'
-export { FilterChips } from './FilterChips.js'
+export type { DisplayMode, FilesBarProps } from './FilesBar.js'
+export { FilesBar } from './FilesBar.js'
+export { FilterBar } from './FilterBar.js'
+export type { TagFilterProps } from './TagFilter.js'
+export { TagFilter } from './TagFilter.js'
 export type { HandActionBarProps } from './HandActionBar.js'
 export { HandActionBar } from './HandActionBar.js'
 export type { ImportChoiceDialogProps } from './ImportChoiceDialog.js'
@@ -17,7 +20,5 @@ export type { ShareDialogProps } from './ShareDialog.js'
 export { ShareDialog } from './ShareDialog.js'
 export { Sidebar } from './Sidebar.js'
 export { TagsCell } from './TagsCell.js'
-export type { DisplayMode } from './Toolbar.js'
-export { Toolbar } from './Toolbar.js'
 export { UploadProgress } from './UploadProgress.js'
 // vim: ts=4

@@ -12,7 +12,7 @@ import {
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { Navigate, Outlet, Route, useLocation, useMatch } from 'react-router-dom'
+import { Navigate, Outlet, Route, useLocation, useMatch, useParams } from 'react-router-dom'
 
 import {
 	type ActiveContext,
@@ -22,7 +22,7 @@ import {
 	useCurrentContextIdTag
 } from '../context/index.js'
 import type { UsePWA } from '../pwa.js'
-import { feedPath, sectionMatch, settingsPath } from '../routes.js'
+import { feedPath, roomsPath, sectionMatch, settingsPath } from '../routes.js'
 import { AppearanceSettings } from './appearance.js'
 import { NotificationSettings } from './notifications.js'
 import { SecuritySettings } from './security.js'
@@ -51,7 +51,6 @@ import { SettingsOverview } from './overview.js'
 import { PartnersSettings } from './partners.js'
 import { PrivacySettings } from './privacy.js'
 import { ProfileTabSettings } from './profile-tabs.js'
-import { RoomDetailSettings } from './room-detail.js'
 import { RoomsSettings } from './rooms.js'
 import { SiteSettings } from './site.js'
 import { TrustSettings } from './trust.js'
@@ -220,7 +219,8 @@ function SettingsLayout() {
 
 /**
  * `settings/` itself: the overview at home; in a community, the first admin page the user may
- * open (General for leaders, Rooms for moderators).
+ * open (General for leaders, Rooms for moderators — their only page; they reach the rooms
+ * themselves through the drawer).
  */
 function SettingsIndex({ pwa }: { pwa: UsePWA }) {
 	const [auth] = useAuth()
@@ -230,6 +230,12 @@ function SettingsIndex({ pwa }: { pwa: UsePWA }) {
 	// No admin page at all: back to the community rather than into the guard's loop
 	const first = allowedPages(community, auth?.idTag)[0]
 	return <Navigate to={first ? settingsPath(base, first) : feedPath(base)} replace />
+}
+
+/** Old `settings/rooms/:name` → the room home's Settings tab. */
+function OldRoomRedirect() {
+	const { name = '' } = useParams()
+	return <Navigate to={roomsPath(useCtx().base, name, 'settings')} replace />
 }
 
 /**
@@ -252,7 +258,7 @@ export function settingsRoutes(pwa: UsePWA) {
 			<Route path="files" element={<FilesSettings />} />
 			<Route path="site" element={<SiteSettings />} />
 			<Route path="rooms" element={<RoomsSettings />} />
-			<Route path="rooms/:name" element={<RoomDetailSettings />} />
+			<Route path="rooms/:name" element={<OldRoomRedirect />} />
 			<Route path="partners" element={<PartnersSettings />} />
 		</Route>
 	)

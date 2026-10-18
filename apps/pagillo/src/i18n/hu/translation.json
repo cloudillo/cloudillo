@@ -494,5 +494,9 @@
 	"{{count}} embeds could not be rendered: {{list}}": "{{count}} beágyazást nem sikerült megjeleníteni: {{list}}",
 	"not a document link": "nem dokumentumhivatkozás",
 	"no host document": "nincs befogadó dokumentum",
-	"empty render": "üres megjelenítés"
+	"empty render": "üres megjelenítés",
+	"Open profile": "Profil megnyitása",
+	"Message": "Üzenet",
+	"More": "Továbbiak",
+	"Community": "Közösség"
 }

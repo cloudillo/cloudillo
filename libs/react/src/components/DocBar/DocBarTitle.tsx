@@ -48,6 +48,12 @@ export interface DocBarTitleProps {
 	 * after it they would read as scoped to the page rather than to the document.
 	 */
 	titleActions?: React.ReactNode
+	/**
+	 * Intermediate path segments between the title and `sub` — e.g. the Files app's
+	 * `› … › Parent` — so the trail reads `title › … › sub`. The caller renders the
+	 * separators. Like `titleActions`, it yields to `sub` on narrow viewports.
+	 */
+	crumbs?: React.ReactNode
 	/** Hide the owner's name, keeping the picture. Set on narrow viewports. */
 	compact?: boolean
 }
@@ -192,6 +198,7 @@ export function DocBarTitle({
 	renaming,
 	sub,
 	titleActions,
+	crumbs,
 	compact
 }: DocBarTitleProps) {
 	const { t } = useLibTranslation()
@@ -271,6 +278,9 @@ export function DocBarTitle({
 			{/* `.c-docbar-actions` for the chrome: one look for every action in the bar,
 			    wherever it sits. */}
 			{titleActions && <div className="c-docbar-actions">{titleActions}</div>}
+			{/* `.c-docbar-actions` again on purpose: the narrow-viewport `.has-sub` rule hides
+			    it together with the title it continues, leaving `sub` on its own. */}
+			{crumbs && <div className="c-docbar-actions">{crumbs}</div>}
 			{sub && (
 				<>
 					<IcSeparator className="c-docbar-sep" aria-hidden="true" />

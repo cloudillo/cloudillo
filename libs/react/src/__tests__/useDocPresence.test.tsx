@@ -72,6 +72,8 @@ jest.unstable_mockModule('@cloudillo/core', async () => {
 })
 
 const { useDocPresence } = await import('../presence.js')
+// The profile store is module-level: without a reset, one test's answers leak into the next.
+const { resetProfileCache } = await import('../profile-cache.js')
 
 /**
  * A minimal stand-in for `y-protocols`' Awareness.
@@ -143,6 +145,7 @@ function entry(connId: string, name: string, extra: Partial<PresenceEntry> = {})
 
 describe('useDocPresence', () => {
 	beforeEach(() => {
+		resetProfileCache()
 		nodeProfiles.clear()
 		batchCalls.length = 0
 		getBatchImpl = answerFromNode

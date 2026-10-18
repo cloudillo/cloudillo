@@ -1643,6 +1643,19 @@ export class AppMessageBus extends MessageBusBase {
 		})
 	}
 
+	/**
+	 * Ask the shell to open a person's profile or a DM with them.
+	 * Only honoured during a user gesture while this frame is focused.
+	 */
+	openPerson(idTag: string, target: 'profile' | 'messages'): void {
+		this.sendToShell({
+			cloudillo: true,
+			v: PROTOCOL_VERSION,
+			type: 'person:open.push',
+			payload: { idTag, target }
+		})
+	}
+
 	// ============================================
 	// EMBED API
 	// ============================================

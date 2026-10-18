@@ -3,7 +3,7 @@
 
 import type * as Types from '@cloudillo/core'
 import type { ApiClient } from '@cloudillo/core'
-import { useInfiniteScroll } from '@cloudillo/react'
+import { useAuth, useInfiniteScroll } from '@cloudillo/react'
 import { useAtomValue } from 'jotai'
 import * as React from 'react'
 
@@ -14,59 +14,27 @@ import {
 	useCurrentContextIdTag
 } from '../../../context/index.js'
 import { useWsBus } from '../../../ws-bus.js'
-import type { File, FileTypeFilter, OwnerFilter, ViewMode } from '../types.js'
-import { MANAGED_FOLDER_ID, TRASH_FOLDER_ID } from '../types.js'
+import { sortAtom } from '../atoms.js'
+import type { File } from '../types.js'
+import { resolveAccessLevel } from '../utils.js'
+import type { FilesPerm } from './useFilesFilters.js'
 
 export interface UseFileListOptions {
-	viewMode?: ViewMode
-	parentId?: string | null
-	tags?: string[]
-	fileType?: FileTypeFilter
-	owner?: OwnerFilter
-	ownerIdTag?: string // Current user's idTag (needed for 'me'/'others' filter)
-	searchQuery?: string
+	/** The mapped list query (`useFilesFilters().toListQuery`), without cursor/limit/sort */
+	query: Types.ListFilesQuery
+	/** "My permission", filtered client-side on each row's access level */
+	perm?: FilesPerm
+	/** Roles held where the rows live, to resolve rows that carry no `accessLevel` */
+	permRoles?: string[]
 	remoteApi?: ApiClient | null
-	/** Drive of a root listing: `''` = main drive, `'@tenant~name'` = that room, absent = all */
-	channel?: string
 }
 
 const PAGE_SIZE = 30
-
-export interface FileFilterParamsInput {
-	tags?: string[]
-	fileType?: FileTypeFilter
-	owner?: OwnerFilter
-	ownerIdTag?: string
-	/** The drive's channel; applies at the root only (`parentId === null`), inside a folder the
-	 *  server inherits it */
-	channel?: string
-	parentId?: string | null
-}
-
-// Map the independent UI filters (tags, file-type, owner) to API params.
-// Kept as a pure helper so the FilesApp probe and useFileList stay in sync
-// when filter semantics change.
-export function buildFileFilterParams(input: FileFilterParamsInput): Types.ListFilesQuery {
-	const params: Types.ListFilesQuery = {}
-
-	const tagsParam = input.tags && input.tags.length > 0 ? input.tags.join(',') : undefined
-	if (tagsParam) params.tag = tagsParam
-
-	if (input.fileType === 'live') {
-		params.fileTp = 'CRDT,RTDB,FLDR'
-	} else if (input.fileType === 'static') {
-		params.fileTp = 'BLOB,FLDR'
-	}
-
-	if (input.owner === 'me' && input.ownerIdTag) {
-		params.ownerIdTag = input.ownerIdTag
-	} else if (input.owner === 'others' && input.ownerIdTag) {
-		params.notOwnerIdTag = input.ownerIdTag
-	}
-
-	if (input.parentId === null && input.channel !== undefined) params.channel = input.channel
-
-	return params
+// perm filter auto-loads ≤5 pages, server-side perm param if users hit this
+const PERM_AUTO_PAGES = 5
+const PERM_LEVELS: Record<FilesPerm, readonly string[]> = {
+	edit: ['write', 'admin'],
+	read: ['read', 'comment']
 }
 
 export function convertFileView(f: Types.FileView): File {
@@ -113,111 +81,48 @@ export function convertFileView(f: Types.FileView): File {
 	}
 }
 
-export function useFileList(options?: UseFileListOptions) {
+export function useFileList({ query, perm, permRoles, remoteApi }: UseFileListOptions) {
 	const { api } = useContextAwareApi()
 	const contextIdTag = useCurrentContextIdTag()
-	const [sort, setSort] = React.useState<keyof File | undefined>()
-	const [sortAsc, setSortAsc] = React.useState(false)
+	const [auth] = useAuth()
+	const sort = useAtomValue(sortAtom)
 	const [refreshCounter, setRefreshCounter] = React.useState(0)
+	// Consecutive fetched pages the `perm` filter emptied; drives the auto-load cap. Keyed by the
+	// list it counts, so a new list starts from 0 and a stale fetch cannot bump it
+	const [permEmpty, setPermEmpty] = React.useState({ key: '', n: 0 })
 
-	const {
-		viewMode = 'browse',
-		parentId,
-		tags,
-		fileType = 'all',
-		owner = 'anyone',
-		ownerIdTag,
-		searchQuery,
-		remoteApi,
-		channel
-	} = options || {}
+	// One string key for the whole query (incl. sort; `recent` overrides it), so deps don't
+	// churn on object identity
+	const queryKey = JSON.stringify({ sort: sort.field, sortDir: sort.dir, ...query })
+	const fullQuery = React.useMemo(() => JSON.parse(queryKey) as Types.ListFilesQuery, [queryKey])
+	const permKey = perm ? `${perm}:${auth?.idTag ?? ''}:${(permRoles ?? []).join(',')}` : ''
+	const listKey = `${queryKey}|${permKey}|${contextIdTag}|${refreshCounter}`
+	const listKeyRef = React.useRef(listKey)
+	listKeyRef.current = listKey
+	const permEmptyPages = permEmpty.key === listKey ? permEmpty.n : 0
 
-	const trimmedSearch = searchQuery?.trim() || undefined
-	// Stable key for tags so the callback's dep array doesn't re-run on
-	// array-identity churn. The original `tags` array is passed straight
-	// through to buildFileFilterParams (no join/split round-trip).
-	const tagsKey = tags && tags.length > 0 ? tags.join(',') : ''
-
-	// Build the base query params based on viewMode + independent filters.
 	const buildQueryParams = React.useCallback(
-		(cursor: string | null, limit: number): Types.ListFilesQuery => {
-			const baseParams: Types.ListFilesQuery = {
-				cursor: cursor ?? undefined,
-				limit,
-				...buildFileFilterParams({
-					tags,
-					fileType,
-					owner,
-					ownerIdTag,
-					...(viewMode === 'browse' && { channel, parentId })
-				})
-			}
-
-			// Hierarchy-agnostic views (Recent/Starred/Trash) and any search
-			// surface files outside the current folder context, so ask the
-			// backend for each item's immediate parent folder name. Browse
-			// without search stays as cheap as before.
-			if (viewMode !== 'browse' || trimmedSearch) {
-				baseParams.withParent = true
-			}
-
-			// Apply search query
-			if (trimmedSearch) {
-				baseParams.fileName = trimmedSearch
-			}
-
-			// Apply view mode (content scope)
-			switch (viewMode) {
-				case 'starred':
-					return { ...baseParams, starred: true }
-				case 'recent':
-					return { ...baseParams, sort: 'recent', sortDir: 'desc' }
-				case 'trash':
-					return { ...baseParams, parentId: TRASH_FOLDER_ID }
-				case 'managed':
-					return { ...baseParams, parentId: MANAGED_FOLDER_ID }
-				default:
-					// 'browse' mode - use parentId if provided
-					return {
-						...baseParams,
-						...(parentId !== undefined && { parentId: parentId ?? '__root__' })
-					}
-			}
-		},
-		[viewMode, parentId, channel, tagsKey, fileType, trimmedSearch, owner, ownerIdTag]
+		(cursor: string | null, limit: number): Types.ListFilesQuery => ({
+			...fullQuery,
+			cursor: cursor ?? undefined,
+			limit
+		}),
+		[fullQuery]
 	)
 
-	// Build cache query params for offline fallback.
-	// For "browse" at root (parentId=null), return all cached files for the context
-	// rather than only root-level files — this maximizes offline usefulness.
-	// Note: owner and searchQuery filters are not supported by the cache layer,
-	// so offline results may include unfiltered items for those dimensions.
+	// Offline-cache params. A root or recursive listing returns every cached file for the
+	// context rather than only root-level ones — this maximizes offline usefulness. Only
+	// fileTp/starred/parentId are supported by the cache layer, so offline results may include
+	// unfiltered items for the other dimensions.
 	const cacheQueryParams = React.useMemo(() => {
 		const params: Record<string, string | boolean> = {}
-
-		// File type filter for cache
-		if (fileType === 'live') {
-			params.fileTp = 'CRDT,RTDB,FLDR'
-		} else if (fileType === 'static') {
-			params.fileTp = 'BLOB,FLDR'
+		if (fullQuery.fileTp) params.fileTp = fullQuery.fileTp
+		if (fullQuery.starred) params.starred = true
+		if (fullQuery.parentId && fullQuery.parentId !== '__root__' && !fullQuery.recursive) {
+			params.parentId = fullQuery.parentId
 		}
-
-		switch (viewMode) {
-			case 'starred':
-				return { ...params, starred: true }
-			case 'recent':
-				return params // All cached files, sorted by date (no folder filter)
-			case 'trash':
-				return { ...params, parentId: TRASH_FOLDER_ID }
-			case 'managed':
-				return { ...params, parentId: MANAGED_FOLDER_ID }
-			default:
-				// Only apply parentId filter for subfolder navigation, not root
-				// Offline root shows every drive's cached files; filter by channel in the
-				// cache layer if that confuses
-				return parentId ? { ...params, parentId } : params
-		}
-	}, [viewMode, parentId, fileType])
+		return params
+	}, [fullQuery])
 
 	// Raw network fetch function (returns FileView for caching)
 	const rawFetchPage = React.useCallback(
@@ -249,18 +154,39 @@ export function useFileList(options?: UseFileListOptions) {
 		[contextIdTag, rawFetchPage, cacheQueryParams, remoteApi]
 	)
 
-	// Convert FileView → File after cache layer
+	// Convert FileView → File after cache layer, then apply the client-side `perm` filter
 	const fetchPage = React.useCallback(
 		async (cursor: string | null, limit: number) => {
 			const result = cachedFetchPage
 				? await cachedFetchPage(cursor, limit)
 				: await rawFetchPage(cursor, limit)
-			return {
-				...result,
-				items: result.items.map(convertFileView)
+			const items = result.items.map(convertFileView)
+			if (!permKey) return { ...result, items }
+
+			const [level, idTag, roles] = permKey.split(':')
+			const allowed = PERM_LEVELS[level as FilesPerm]
+			// A non-recursive listing keeps its subfolders navigable
+			const keepFolders = !fullQuery.recursive
+			// Unknown level (not resolvable locally, e.g. remote rows) counts as admin: the
+			// server enforces the real permission, same assumption as `shareGrantCeiling`
+			const kept = items.filter(
+				(f) =>
+					(keepFolders && f.fileTp === 'FLDR') ||
+					allowed.includes(
+						resolveAccessLevel(f, idTag || undefined, roles ? roles.split(',') : []) ??
+							'admin'
+					)
+			)
+			if (listKey === listKeyRef.current) {
+				setPermEmpty((prev) =>
+					items.length > 0 && kept.length === 0
+						? { key: listKey, n: (prev.key === listKey ? prev.n : 0) + 1 }
+						: { key: listKey, n: 0 }
+				)
 			}
+			return { ...result, items: kept }
 		},
-		[cachedFetchPage, rawFetchPage]
+		[cachedFetchPage, rawFetchPage, permKey, fullQuery.recursive, listKey]
 	)
 
 	// Use infinite scroll hook
@@ -279,21 +205,22 @@ export function useFileList(options?: UseFileListOptions) {
 	} = useInfiniteScroll<File>({
 		fetchPage,
 		pageSize: PAGE_SIZE,
-		deps: [
-			viewMode,
-			parentId,
-			channel,
-			tagsKey,
-			fileType,
-			owner,
-			ownerIdTag,
-			trimmedSearch,
-			contextIdTag,
-			remoteApi,
-			refreshCounter
-		],
+		deps: [queryKey, permKey, contextIdTag, remoteApi, refreshCounter],
 		enabled: !!api
 	})
+
+	// A page the perm filter emptied loads the next one, up to PERM_AUTO_PAGES per user action
+	// (filter change or Load more); past that the list ends in a "Load more" line (`permCapped`)
+	const permAutoLoading =
+		!!permKey && hasMore && permEmptyPages > 0 && permEmptyPages <= PERM_AUTO_PAGES
+	const permCapped = !!permKey && hasMore && permEmptyPages > PERM_AUTO_PAGES
+	React.useEffect(() => {
+		if (permAutoLoading && !isLoading && !isLoadingMore) loadMore()
+	}, [permAutoLoading, isLoading, isLoadingMore, loadMore])
+	const loadMoreFiles = React.useCallback(() => {
+		setPermEmpty({ key: listKey, n: 0 })
+		loadMore()
+	}, [loadMore, listKey])
 
 	// Cross-route file-row updates broadcast by MicrofrontendContainer's
 	// access-conflict handler. Patch the row in place if it's in our dataset.
@@ -338,16 +265,6 @@ export function useFileList(options?: UseFileListOptions) {
 				return files
 			}
 
-			function setState(
-				sort: keyof File | undefined,
-				sortAsc: boolean | undefined,
-				_page: number | undefined
-			) {
-				if (sort !== undefined) setSort(sort)
-				if (sortAsc !== undefined) setSortAsc(sortAsc)
-				// page is no longer used - infinite scroll handles loading
-			}
-
 			function setFileData(entryId: string, file: File | ((prev: File) => File)) {
 				updateItem((f) => f.entryId === entryId, file)
 			}
@@ -361,16 +278,16 @@ export function useFileList(options?: UseFileListOptions) {
 				getData,
 				files,
 				setFileData,
-				state: { sort, sortAsc },
-				setState,
 				refresh,
 				// Infinite scroll
-				isLoading,
+				isLoading: isLoading || (permAutoLoading && files.length === 0),
 				isLoadingMore,
 				error,
 				isOffline,
 				hasMore,
-				loadMore,
+				loadMore: loadMoreFiles,
+				/** The perm filter hit its auto-load cap with more pages left */
+				permCapped,
 				reset,
 				prepend,
 				sentinelRef
@@ -378,14 +295,14 @@ export function useFileList(options?: UseFileListOptions) {
 		},
 		[
 			files,
-			sort,
-			sortAsc,
 			isLoading,
+			permAutoLoading,
 			isLoadingMore,
 			error,
 			isOffline,
 			hasMore,
-			loadMore,
+			loadMoreFiles,
+			permCapped,
 			reset,
 			prepend,
 			sentinelRef

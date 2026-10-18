@@ -62,6 +62,7 @@ import {
 	useProfileTrustBootstrap,
 	useSidebar
 } from './context/index.js'
+import { PersonActionsProvider } from './context/person-actions.js'
 import { UnknownContextBanner } from './context/unknown-context-banner.js'
 import { CommunityVerifyIdpBanner } from './context/verify-idp-banner.js'
 import { idpRoutes } from './idp/index.js'
@@ -82,6 +83,7 @@ import { useSearchReindexNotifications } from './notifications/useSearchReindexN
 import { DocumentTitleSync, Omnibox } from './omnibox.js'
 import { onboardingRoutes } from './onboarding/index.js'
 import { authedProfileRoutes, profileRoutes } from './profile/profile.js'
+import { roomsRoutes } from './rooms/index.js'
 import usePWA, {
 	clearAuthToken,
 	deleteApiKey,
@@ -538,8 +540,8 @@ function PlaceHolder({ title }: { title: string }) {
  *
  * **Guest policy is the pathless `RequireAuth` layout route.** Contributing no path segments,
  * it changes no ranking; it just draws the line between the sections a share-link visitor
- * may reach (`app`, `profile`, `search`) and the ones needing a session. It must not wrap
- * `ContextGuard` or those three, or a guest following `/s/:refId` → `/@owner/app/…` would
+ * may reach (`app`, `profile`, `rooms`, `search`) and the ones needing a session. It must not
+ * wrap `ContextGuard` or those four, or a guest following `/s/:refId` → `/@owner/app/…` would
  * bounce to `/login`.
  *
  * **Published site pages take over two routes.** A page served by the site wrapper
@@ -587,6 +589,8 @@ function ShellRoutes({ pwa }: { pwa: UsePWA }) {
 				{/* Guest-visible: a share link must render for an anonymous visitor. */}
 				{appRoutes()}
 				{profileRoutes()}
+				{/* The porch is public, so the room directory and homes are too. */}
+				{roomsRoutes()}
 				<Route path="search" element={<SearchPage />} />
 				<Route element={<RequireAuth />}>
 					{settingsRoutes(pwa)}
@@ -725,26 +729,28 @@ export function Layout() {
 		<WsBusRoot>
 			{/* Everything below reads the URL's context through `useCtx()`. */}
 			<CtxProvider>
-				<AppShell
-					sidebar={!authScreen && <Sidebar />}
-					sidebarPinned={!authScreen && sidebar.isPinned}
-					header={<Header inert={dialog.isOpen} />}
-					inert={dialog.isOpen}
-				>
-					<GuestOwnerBanner />
-					<CommunityVerifyIdpBanner />
-					<UnknownContextBanner />
-					<ShellRoutes pwa={pwa} />
-				</AppShell>
-				<DialogContainer />
-				<TourHost />
-				<Toasts />
-				<MediaPicker />
-				<ShareCreate />
-				<DocumentPicker />
-				<QrScanner />
-				<FeedPostHost />
-				<CameraCaptureDialog />
+				<PersonActionsProvider>
+					<AppShell
+						sidebar={!authScreen && <Sidebar />}
+						sidebarPinned={!authScreen && sidebar.isPinned}
+						header={<Header inert={dialog.isOpen} />}
+						inert={dialog.isOpen}
+					>
+						<GuestOwnerBanner />
+						<CommunityVerifyIdpBanner />
+						<UnknownContextBanner />
+						<ShellRoutes pwa={pwa} />
+					</AppShell>
+					<DialogContainer />
+					<TourHost />
+					<Toasts />
+					<MediaPicker />
+					<ShareCreate />
+					<DocumentPicker />
+					<QrScanner />
+					<FeedPostHost />
+					<CameraCaptureDialog />
+				</PersonActionsProvider>
 			</CtxProvider>
 		</WsBusRoot>
 	)

@@ -53,6 +53,13 @@ export const CONTEXT_MENU: MenuItem[] = [
 		path: 'users'
 	},
 	{
+		id: 'rooms',
+		icon: getIcon('room'),
+		label: 'Rooms',
+		trans: { hu: 'Szobák' },
+		path: 'rooms'
+	},
+	{
 		id: 'settings',
 		icon: getIcon('settings'),
 		label: 'Settings',

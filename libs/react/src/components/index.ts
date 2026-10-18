@@ -232,6 +232,7 @@ export {
 	isInDialog,
 	MENU_ITEM_SELECTOR,
 	useBodyScrollLock,
+	useCanHover,
 	useDebouncedValue,
 	useEscapeKey,
 	useIsDesktop,
@@ -348,6 +349,9 @@ export { PageHeader } from './PageHeader/index.js'
 export type { PanelProps, SurfaceProps, SurfaceVariant } from './Panel/index.js'
 // Panel Component
 export { Panel } from './Panel/index.js'
+export type { PersonActions, PersonCardProps, PersonHoverProps } from './Person/index.js'
+// Person Components
+export { PersonActionsContext, PersonCard, PersonHover } from './Person/index.js'
 export type {
 	AnchoredPositionOptions,
 	AnchorPlacement,

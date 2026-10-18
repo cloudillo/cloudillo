@@ -5,7 +5,7 @@ import * as React from 'react'
 
 import { mergeClasses } from '../utils.js'
 
-export type FcdDetailsMode = 'inline' | 'overlay' | 'adaptive'
+export type FcdDetailsMode = 'overlay'
 
 /** Built-in mobile filter toggle state, provided when `filterLabel` is set */
 export interface FcdFilterContextValue {
@@ -20,16 +20,19 @@ export const FcdFilterContext = React.createContext<FcdFilterContextValue | unde
 export interface FcdContainerProps {
 	className?: string
 	children?: React.ReactNode
-	/** Remove the container width cap, letting the layout stretch to the viewport. */
-	fluid?: boolean
+	/**
+	 * Full-width bar (e.g. a `DocBar`) rendered flush above the filter/content/details grid.
+	 * Below md the filter drawer and the details sheet open under it.
+	 */
+	bar?: React.ReactNode
 	/**
 	 * Where the details panel sits relative to content.
-	 * - `'inline'` (default): details takes a column at lg (72rem+), overlays below; content reflows.
-	 * - `'overlay'`: details is an absolute overlay inside the container at every breakpoint.
-	 * - `'adaptive'`: overlay up to xl (96rem), then docks in the viewport's right gutter.
+	 * - unset (default): details docks beside content at md+ while there is room, and overlays
+	 *   once content would drop below its floor width.
+	 * - `'overlay'`: details is always an absolute overlay inside the container; it never docks.
 	 */
 	detailsMode?: FcdDetailsMode
-	/** Width of the details panel where it overlays or docks (CSS length, sets `--fcd-details-width`) */
+	/** Width of the details panel where it docks or overlays (CSS length, sets `--fcd-details-width`) */
 	detailsWidth?: string
 	/**
 	 * Renders a mobile (<md) toggle row at the top of `Fcd.Content` that opens the filter;
@@ -41,8 +44,8 @@ export interface FcdContainerProps {
 export function FcdContainer({
 	className,
 	children,
-	fluid,
-	detailsMode = 'inline',
+	bar,
+	detailsMode,
 	detailsWidth,
 	filterLabel
 }: FcdContainerProps) {
@@ -57,10 +60,8 @@ export function FcdContainer({
 		<FcdFilterContext.Provider value={ctx}>
 			<main
 				className={mergeClasses(
-					'c-fcd c-container w-100 h-100',
-					fluid && 'fluid',
+					'c-fcd c-container fluid w-100 h-100',
 					detailsMode === 'overlay' && 'details-overlay',
-					detailsMode === 'adaptive' && 'details-adaptive',
 					className
 				)}
 				style={
@@ -69,7 +70,8 @@ export function FcdContainer({
 						: undefined
 				}
 			>
-				<div className="row h-100">{children}</div>
+				{bar && <div className="c-fcd-bar">{bar}</div>}
+				<div className="row c-fcd-grid fill">{children}</div>
 			</main>
 		</FcdFilterContext.Provider>
 	)

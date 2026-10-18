@@ -21,6 +21,7 @@ import {
 	List,
 	ListItem,
 	LoadingSpinner,
+	PersonHover,
 	ProfilePicture,
 	SkeletonList,
 	Tab,
@@ -288,12 +289,17 @@ function EngagementRow({
 			href={profilePath(urlContext, issuer.idTag)}
 			onClick={onClose}
 			leading={
-				<ProfilePicture
-					className={hatRingClass(action.hat)}
-					profile={issuer}
-					srcTag={picIdTag}
-					size="sm"
-				/>
+				// ProfilePicture forwards no ref, so the HBox is the trigger
+				<PersonHover idTag={issuer.idTag}>
+					<HBox>
+						<ProfilePicture
+							className={hatRingClass(action.hat)}
+							profile={issuer}
+							srcTag={picIdTag}
+							size="sm"
+						/>
+					</HBox>
+				</PersonHover>
 			}
 			title={<HatVia hat={action.hat} srcTag={picIdTag} name={issuer.name || issuer.idTag} />}
 			subtitle={`@${issuer.idTag}`}

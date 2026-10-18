@@ -1384,7 +1384,7 @@ export function NotilloApp() {
 						)}
 					</DocBarMenu>
 				</AppDocBar>
-				<Fcd.Container className="pt-2 g-2 flex-fill" fluid detailsMode="adaptive">
+				<Fcd.Container className="pt-2 g-2 flex-fill">
 					{!viewEmbed && (
 						<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
 							<Panel elevation="mid" className="c-vbox fill">

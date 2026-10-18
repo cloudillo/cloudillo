@@ -176,16 +176,16 @@ export function useGalleryFilters(): UseGalleryFiltersReturn {
 			const now = dayjs()
 			switch (filters.timeFilter) {
 				case 'today':
-					params.createdAfter = now.startOf('day').toISOString()
+					params.modifiedAfter = now.startOf('day').toISOString()
 					break
 				case 'week':
-					params.createdAfter = now.startOf('week').toISOString()
+					params.modifiedAfter = now.startOf('week').toISOString()
 					break
 				case 'month':
-					params.createdAfter = now.startOf('month').toISOString()
+					params.modifiedAfter = now.startOf('month').toISOString()
 					break
 				case 'year':
-					params.createdAfter = now.startOf('year').toISOString()
+					params.modifiedAfter = now.startOf('year').toISOString()
 					break
 			}
 		}

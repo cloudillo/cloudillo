@@ -15,7 +15,7 @@ export interface FcdFilterProps {
 	isVisible?: boolean
 	/** Required with `isVisible`, or the drawer can't be closed */
 	hide?: () => void
-	/** Hide the filter rail at md+ and let content take its space */
+	/** Remove the rail track at md+ and let content use its space */
 	collapsed?: boolean
 	children?: React.ReactNode
 }
@@ -34,7 +34,7 @@ export function FcdFilter({ className, isVisible, hide, collapsed, children }: F
 			<div
 				id={ctx?.filterId}
 				className={mergeClasses(
-					'c-fcd-filter sm-hide-dyn hide-left col-md-4 col-lg-3 h-100 overflow-y-auto',
+					'c-fcd-filter sm-hide-dyn hide-left h-100 overflow-y-auto',
 					className,
 					visible && 'show',
 					collapsed && 'collapsed'

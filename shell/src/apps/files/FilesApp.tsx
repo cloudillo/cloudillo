@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import type * as Types from '@cloudillo/core'
 import {
 	Alert,
 	Button,
@@ -10,15 +9,12 @@ import {
 	Fcd,
 	FileButton,
 	Grid,
-	IcLocked,
 	IcOffline,
 	Icon,
 	IcUpload,
 	List,
 	LoadingSpinner,
 	LoadMoreTrigger,
-	PageHeader,
-	ProfilePicture,
 	Text,
 	useAuth,
 	useDebouncedValue,
@@ -28,7 +24,7 @@ import {
 	VBox
 } from '@cloudillo/react'
 import { ROLE_LEVELS, roleLevel } from '@cloudillo/types'
-import { useAtom, useSetAtom } from 'jotai'
+import { useAtomValue, useSetAtom } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate } from 'react-router-dom'
@@ -43,38 +39,27 @@ import {
 import { IcCloud } from '../../icons.js'
 import { usePorch } from '../../lib/porch.js'
 import { getDirtyDocIds } from '../../message-bus/handlers/crdt.js'
-import { useCanCreateRooms } from '../../profile/rooms-tab.js'
-import { appPath, feedPath, profilePath, type QueryInit, settingsPath } from '../../routes.js'
-import { DrawerToggle } from '../../ui/DrawerToggle.js'
+import { appPath, type QueryInit } from '../../routes.js'
 import { isPermissionError, useAppConfig } from '../../utils.js'
-import {
-	displayModeAtom,
-	fileTypeFilterAtom,
-	lastFilesUrlAtom,
-	ownerFilterAtom,
-	searchQueryAtom,
-	selectedTagsAtom
-} from './atoms.js'
+import { displayModeAtom, lastFilesUrlAtom } from './atoms.js'
 import { audienceText, confirmAudienceDialog, widensAudience } from './audience.js'
 import type { ContextMenuPosition } from './components/index.js'
 import {
-	Breadcrumbs,
 	ContextMenu,
 	CreateMenu,
 	DetailsPanel,
-	FilterChips,
+	FilesBar,
+	FilterBar,
 	HandActionBar,
 	ImportChoiceDialog,
 	ItemCard,
 	ItemGrid,
 	ShareDialog,
 	Sidebar,
-	Toolbar,
 	UploadProgress
 } from './components/index.js'
-import { viewItems } from './components/Sidebar.js'
+import { useCurrentFolder } from './hooks/useCurrentFolder.js'
 import {
-	buildFileFilterParams,
 	convertFileView,
 	useFileList,
 	useFileNavigation,
@@ -82,6 +67,7 @@ import {
 	useMultiSelect,
 	useSmartUpload
 } from './hooks/index.js'
+import { useFilesFilters } from './hooks/useFilesFilters.js'
 import type { File, FileOps, ViewMode } from './types.js'
 import { isFileProcessing } from './types.js'
 import { canWrite, fileSrcIdTag } from './utils.js'
@@ -110,6 +96,7 @@ export function FilesApp() {
 	const {
 		currentFolderId,
 		remoteOwner,
+		shareRoot,
 		isRemoteBrowsing,
 		drive,
 		driveChannel,
@@ -119,11 +106,9 @@ export function FilesApp() {
 		remoteRoles,
 		breadcrumbs,
 		viewMode,
-		canGoBack,
 		navigateToFolder,
 		navigateToView,
 		navigateToDrive,
-		goBack,
 		goUp,
 		enterFolder
 	} = useFileNavigation()
@@ -139,7 +124,6 @@ export function FilesApp() {
 		if (unknownDrive) navigate({ search: '' }, { replace: true })
 	}, [unknownDrive, navigate])
 
-	const canAdminRooms = useCanCreateRooms(contextIdTag ?? auth?.idTag, ctxRoles)
 	const audience = isRemoteBrowsing
 		? undefined
 		: audienceText(t, contextName, drive ? currentRoom : null, isHome)
@@ -158,116 +142,31 @@ export function FilesApp() {
 		getDirtyDocIds().then(setDirtyDocIds)
 	}, [])
 
-	// Filter state (persists across route changes via Jotai atoms)
-	const [selectedTags, setSelectedTags] = useAtom(selectedTagsAtom)
-	const [fileTypeFilter, setFileTypeFilter] = useAtom(fileTypeFilterAtom)
-	const [ownerFilter, setOwnerFilter] = useAtom(ownerFilterAtom)
-	const [searchQuery, setSearchQuery] = useAtom(searchQueryAtom)
-
-	// Debounce search query for API calls (300ms)
-	const debouncedSearchQuery = useDebouncedValue(searchQuery, 300)
-
-	// Search scope — by default Browse-mode searches stay confined to the
-	// current folder. The "outside matches?" probe (below) can offer the user
-	// to broaden it; resetting scope on context changes prevents accidental
-	// global search after navigation.
-	const [searchScope, setSearchScope] = React.useState<'folder' | 'all'>('folder')
-	const searchActive = !!debouncedSearchQuery
-	// Parent-folder chip only adds info when rows can escape the current folder:
-	// hierarchy-agnostic views (recent/starred/trash) always, or a browse search
-	// that has been broadened to scope=all. In browse + folder-scope every row
-	// shares the breadcrumb's parent, so the chip would be noise on every line.
-	const showParentChip = viewMode !== 'browse' || (searchActive && searchScope === 'all')
-	React.useEffect(() => {
-		setSearchScope('folder')
-	}, [viewMode, currentFolderId, contextIdTag])
-	// Separately: a fresh-empty search query resets scope, so re-opening
-	// search after broadening starts in folder-scope again. Crucially this
-	// does NOT include non-empty changes — typing another character must
-	// not snap the user back to folder-scope mid-query.
-	React.useEffect(() => {
-		if (!debouncedSearchQuery) setSearchScope('folder')
-	}, [debouncedSearchQuery])
-
-	const listParentId =
-		viewMode === 'browse' && searchActive && searchScope === 'all' ? undefined : currentFolderId
+	// Filter state lives in the URL
+	const { filters, effectiveScope, activeCount, setFilter, clearAll, toListQuery } =
+		useFilesFilters()
+	const searchActive = activeCount > 0
+	// Parent-folder chip only adds info when rows can escape the current folder: Trash/Managed,
+	// or a drive/all-scope listing. In folder scope every row shares the crumb's parent.
+	const showParentChip = viewMode !== 'browse' || effectiveScope !== 'folder'
 
 	// File list (with all filters)
-	const fileListData = useFileList({
+	const listQuery = toListQuery({
 		viewMode,
-		parentId: listParentId,
-		tags: selectedTags,
-		fileType: fileTypeFilter,
-		owner: ownerFilter,
-		ownerIdTag: contextIdTag,
-		searchQuery: debouncedSearchQuery,
-		remoteApi,
-		channel: isRemoteBrowsing ? undefined : (driveChannel ?? '')
+		parentId: currentFolderId,
+		channel: isRemoteBrowsing ? undefined : (driveChannel ?? ''),
+		shareRoot,
+		ownerIdTag: contextIdTag
+	})
+	const fileListData = useFileList({
+		query: listQuery,
+		perm: filters.perm,
+		permRoles: isRemoteBrowsing ? remoteRoles : ctxRoles,
+		remoteApi
 	})
 
-	// Probe whether matches exist outside the current folder so we can prompt
-	// the user to broaden their search. Cheap: limit=1 with notParentId so the
-	// server only returns rows the user would see when scope=all. The probe
-	// mirrors the active filters (tags, fileType, owner) so the banner only
-	// appears when broadening would actually yield results.
-	const [outsideMatchExists, setOutsideMatchExists] = React.useState(false)
-	React.useEffect(() => {
-		// Clear on early-return (probe not applicable). Avoid an unconditional
-		// false→true reset on every dep tick: writing the result once at the
-		// end of the request prevents the banner from blinking off while the
-		// user is mid-typing or toggling tags.
-		// Probe must mirror the list's API source (remote when browsing a
-		// remote share) so the banner reflects what the user would actually
-		// see when broadening — local-API matches inside a remote folder
-		// would be spurious.
-		const probeApi = remoteApi || api
-		if (
-			!probeApi ||
-			viewMode !== 'browse' ||
-			searchScope !== 'folder' ||
-			!debouncedSearchQuery ||
-			!currentFolderId
-		) {
-			setOutsideMatchExists(false)
-			return
-		}
-		let cancelled = false
-		;(async function () {
-			try {
-				const probeParams: Types.ListFilesQuery = {
-					...buildFileFilterParams({
-						tags: selectedTags,
-						fileType: fileTypeFilter,
-						owner: ownerFilter,
-						ownerIdTag: contextIdTag
-					}),
-					fileName: debouncedSearchQuery,
-					notParentId: currentFolderId,
-					limit: 1
-				}
-				const result = await probeApi.files.listPaginated(probeParams)
-				if (cancelled) return
-				setOutsideMatchExists(result.data.length > 0)
-			} catch (err) {
-				console.error('outside-match probe failed', err)
-				if (!cancelled) setOutsideMatchExists(false)
-			}
-		})()
-		return () => {
-			cancelled = true
-		}
-	}, [
-		api,
-		remoteApi,
-		viewMode,
-		searchScope,
-		debouncedSearchQuery,
-		currentFolderId,
-		selectedTags,
-		fileTypeFilter,
-		ownerFilter,
-		contextIdTag
-	])
+	// Bumped on every pin toggle so the sidebar refetches its pinned folders
+	const [pinVersion, setPinVersion] = React.useState(0)
 
 	// The remote node, the tenant it belongs to, and our roles there — derived once and handed to
 	// both the details panel and the share dialog it opens, so the affordance one offers and what
@@ -307,7 +206,7 @@ export function FilesApp() {
 	// Sort files: pinned first (except in Recent/Trash), then folders, then regular files
 	const files = React.useMemo(() => {
 		const data = fileListData.getData()
-		const skipPinSort = viewMode === 'recent' || viewMode === 'trash' || viewMode === 'managed'
+		const skipPinSort = filters.recent || viewMode === 'trash' || viewMode === 'managed'
 		return [...data].sort((a, b) => {
 			// Pinned files first (not in Recent or Trash views)
 			if (!skipPinSort) {
@@ -324,7 +223,7 @@ export function FilesApp() {
 			// Default: keep original order (from API)
 			return 0
 		})
-	}, [fileListData, viewMode])
+	}, [fileListData, viewMode, filters.recent])
 
 	// A metadata edit changes a row that is already loaded, so patch it. refresh() resets
 	// useInfiniteScroll: it blanks the list, drops every page past the first and the scroll
@@ -353,9 +252,9 @@ export function FilesApp() {
 	// Multi-select state
 	const multiSelect = useMultiSelect({
 		files: files,
-		// Search and tags too: `pruneOnFilesChange` bails on an empty list, so filtering down
-		// to zero results would otherwise preserve the old selection invisibly.
-		resetKey: `${viewMode}:${currentFolderId ?? ''}:${remoteOwner ?? ''}:${debouncedSearchQuery}:${selectedTags.slice().sort().join(',')}`
+		// Place and filters (all in the URL): `pruneOnFilesChange` bails on an empty list, so
+		// filtering down to zero results would otherwise preserve the old selection invisibly.
+		resetKey: location.search
 	})
 
 	// Get the first selected file for the details panel
@@ -371,8 +270,8 @@ export function FilesApp() {
 	// Filter visibility (mobile)
 	const [showFilter, setShowFilter] = React.useState<boolean>(false)
 
-	// Display mode (grid/list, persists across sessions via localStorage atom)
-	const [displayMode, setDisplayMode] = useAtom(displayModeAtom)
+	// Display mode (grid/list, persists via localStorage); toggled in the FilterBar
+	const displayMode = useAtomValue(displayModeAtom)
 
 	// Context menu state
 	const [contextMenuFile, setContextMenuFile] = React.useState<File | undefined>()
@@ -388,6 +287,13 @@ export function FilesApp() {
 	// On mobile (<768px), details panel only shows when explicitly requested via info button
 	const [showMobileDetails, setShowMobileDetails] = React.useState<boolean>(false)
 	const isMobile = useIsMobile()
+
+	// The folder being browsed, for the bar's Share / ⓘ; ⓘ shows it when nothing is selected
+	const currentFolder = useCurrentFolder(currentFolderId, isRemoteBrowsing ? remoteApi : api)
+	const [showFolderDetails, setShowFolderDetails] = React.useState(false)
+	React.useEffect(() => setShowFolderDetails(false), [currentFolderId])
+	const panelFile = selectedFile ?? (showFolderDetails ? currentFolder : undefined)
+	const shownFile = detailsFile ?? panelFile
 
 	// Reset filter on path change (not on search param changes like folder navigation)
 	React.useEffect(
@@ -451,12 +357,24 @@ export function FilesApp() {
 	const clearSelectionRef = React.useRef(multiSelect.clearSelection)
 	clearSelectionRef.current = multiSelect.clearSelection
 
+	// Sidebar items always clear the filters; the navigate* helpers no-op on a re-click of the
+	// current place, so that case clears in place instead.
 	const handleViewModeChange = React.useCallback(
 		function (mode: ViewMode) {
-			navigateToView(mode)
+			if (mode === viewMode) clearAll()
+			else navigateToView(mode)
 			clearSelectionRef.current()
 		},
-		[navigateToView]
+		[viewMode, navigateToView, clearAll]
+	)
+
+	const handleDriveChange = React.useCallback(
+		function (name: string | null) {
+			if (viewMode === 'browse' && !currentFolderId && !remoteOwner && drive === name) {
+				clearAll()
+			} else navigateToDrive(name)
+		},
+		[viewMode, currentFolderId, remoteOwner, drive, navigateToDrive, clearAll]
 	)
 
 	const handleCreateFolder = React.useCallback(
@@ -707,7 +625,7 @@ export function FilesApp() {
 					return
 				}
 				// Un-starring in the starred view removes the row: only a refetch can do that.
-				if (viewMode === 'starred' && !starred) fileListData.refresh()
+				if (filters.starred && !starred) fileListData.refresh()
 				else patchFile(entryId, (f) => ({ userData: { ...f.userData, starred } }))
 			},
 
@@ -723,6 +641,7 @@ export function FilesApp() {
 					return
 				}
 				patchFile(entryId, (f) => ({ userData: { ...f.userData, pinned } }))
+				setPinVersion((v) => v + 1)
 			},
 
 			// Batch operations for multi-select
@@ -782,7 +701,7 @@ export function FilesApp() {
 				const done = entryIds.filter((_, i) => results[i].status === 'fulfilled')
 				// Nothing succeeded on the server, so nothing here has to change.
 				if (done.length > 0) {
-					if (viewMode === 'starred' && !starred) {
+					if (filters.starred && !starred) {
 						// Un-starring in the starred view removes the rows: only a refetch
 						// can do that.
 						fileListData.refresh()
@@ -813,6 +732,7 @@ export function FilesApp() {
 				for (const id of done) {
 					patchFile(id, (f) => ({ userData: { ...f.userData, pinned } }))
 				}
+				if (done.length > 0) setPinVersion((v) => v + 1)
 				if (done.length < entryIds.length) {
 					console.error(
 						'Failed to change pinned state for some files',
@@ -927,7 +847,8 @@ export function FilesApp() {
 		multiSelect,
 		porch,
 		contextName,
-		isHome
+		isHome,
+		filters.starred
 	])
 
 	// Keyboard shortcuts
@@ -951,6 +872,29 @@ export function FilesApp() {
 
 	const isTrashView = viewMode === 'trash'
 	const isInitialLoading = fileListData.isLoading && files.length === 0
+
+	// The perm filter stops auto-loading after a few emptied pages; say so instead of spinning
+	const loadMoreFooter = fileListData.permCapped ? (
+		<VBox gap={2} align="center" className="p-2">
+			<Text size="sm" emphasis="muted">
+				{t('Some files may be hidden by ‘My permission’.')}
+			</Text>
+			<Button size="sm" onClick={fileListData.loadMore}>
+				{t('Load more')}
+			</Button>
+		</VBox>
+	) : (
+		<LoadMoreTrigger
+			ref={fileListData.sentinelRef}
+			isLoading={fileListData.isLoadingMore}
+			hasMore={fileListData.hasMore}
+			error={fileListData.error}
+			onRetry={fileListData.loadMore}
+			loadingLabel={t('Loading more files...')}
+			retryLabel={t('Retry')}
+			errorPrefix={t('Failed to load:')}
+		/>
+	)
 
 	// Disable drag-drop in trash view and read-only remote browsing
 	const canUpload = viewMode === 'browse' && canCreate
@@ -981,105 +925,82 @@ export function FilesApp() {
 					) : undefined
 				}
 			>
-				<Fcd.Container>
+				<Fcd.Container
+					bar={
+						<FilesBar
+							viewMode={viewMode}
+							effectiveScope={effectiveScope}
+							driveTitle={
+								drive
+									? `~${drive}${currentRoom?.title ? ` · ${currentRoom.title}` : ''}`
+									: contextName
+							}
+							breadcrumbs={breadcrumbs}
+							onNavigate={navigateToFolder}
+							remote={
+								isRemoteBrowsing
+									? {
+											ownerIdTag: remoteOwner ?? undefined,
+											permission: canWrite(remoteAccessLevel)
+												? 'write'
+												: 'read'
+										}
+									: undefined
+							}
+							currentFolder={currentFolder}
+							folderId={currentFolderId}
+							ownerScope={remoteScope}
+							slotFallback={
+								!isRemoteBrowsing && audience
+									? {
+											idTag:
+												community?.idTag ??
+												contextIdTag ??
+												auth?.idTag ??
+												'',
+											label: audience,
+											ownerOnly: isHome && !drive
+										}
+									: undefined
+							}
+							onShare={setShareDialogFile}
+							onInfo={() => {
+								setShowFolderDetails(true)
+								setShowMobileDetails(true)
+							}}
+							onEmptyTrash={handleEmptyTrash}
+							createMenu={
+								canCreate && !isMobile && <CreateMenu {...createMenuProps} />
+							}
+							onOpenNav={() => setShowFilter(true)}
+							q={filters.q}
+							onSearch={(q) => setFilter({ q })}
+							activeCount={activeCount}
+							onClearFilters={clearAll}
+							selectedFiles={multiSelect.getSelectedFiles()}
+							onClearSelection={multiSelect.clearSelection}
+							fileOps={fileOps}
+						/>
+					}
+				>
 					<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
 						<Sidebar
 							viewMode={viewMode}
 							onViewModeChange={handleViewModeChange}
-							fileTypeFilter={fileTypeFilter}
-							onFileTypeFilterChange={setFileTypeFilter}
-							ownerFilter={ownerFilter}
-							onOwnerFilterChange={setOwnerFilter}
-							searchQuery={searchQuery}
-							onSearchQueryChange={setSearchQuery}
-							selectedTags={selectedTags}
-							onTagFilter={setSelectedTags}
 							contextName={contextName}
 							drive={drive}
+							driveChannel={driveChannel}
+							currentFolderId={isRemoteBrowsing ? null : currentFolderId}
 							rooms={rooms}
-							onDriveChange={navigateToDrive}
+							onDriveChange={handleDriveChange}
+							pinVersion={pinVersion}
 						/>
 					</Fcd.Filter>
 					<Fcd.Content
-						width="fluid"
+						width="wide"
+						surface="raised"
 						header={
 							<VBox gap={2}>
-								<PageHeader
-									title={
-										isDriveView
-											? drive
-												? `~${drive}${currentRoom?.title ? ` · ${currentRoom.title}` : ''}`
-												: contextName
-											: `${t('Files')} · ${viewItems(t).find((v) => v.mode === viewMode)?.label ?? ''}`
-									}
-									leading={
-										community && (
-											<ProfilePicture
-												profile={{ profilePic: community.profilePic }}
-												srcTag={community.idTag}
-												size="sm"
-											/>
-										)
-									}
-									subtitle={
-										!isDriveView
-											? community && (community.name || community.idTag)
-											: drive
-												? audience && (
-														<Button
-															variant="link"
-															onClick={() =>
-																navigate(
-																	canAdminRooms
-																		? settingsPath(
-																				urlContextIdTag,
-																				['rooms', drive]
-																			)
-																		: profilePath(
-																				urlContextIdTag,
-																				contextIdTag,
-																				'rooms'
-																			)
-																)
-															}
-														>
-															{currentRoom?.closed && <IcLocked />}
-															{audience}
-														</Button>
-													)
-												: audience
-									}
-									actions={
-										<>
-											<DrawerToggle nav onClick={() => setShowFilter(true)} />
-											{isDriveView && drive && (
-												<Button
-													onClick={() =>
-														navigate(
-															feedPath(urlContextIdTag, undefined, {
-																room: drive
-															})
-														)
-													}
-												>
-													{t('Posts')}
-												</Button>
-											)}
-											{canCreate && !isMobile && (
-												<CreateMenu {...createMenuProps} />
-											)}
-										</>
-									}
-								/>
-								<Toolbar
-									canGoBack={canGoBack}
-									onGoBack={goBack}
-									canGoUp={!!(currentFolderId || isRemoteBrowsing)}
-									onGoUp={goUp}
-									displayMode={displayMode}
-									onDisplayModeChange={setDisplayMode}
-									onEmptyTrash={isTrashView ? handleEmptyTrash : undefined}
-								/>
 								<HandActionBar
 									api={api}
 									currentFolderId={currentFolderId}
@@ -1094,93 +1015,12 @@ export function FilesApp() {
 									contextName={contextName}
 									rooms={porch}
 								/>
-								{viewMode === 'browse' &&
-									(breadcrumbs.length > 1 || isRemoteBrowsing) && (
-										<Breadcrumbs
-											items={breadcrumbs}
-											onNavigate={navigateToFolder}
-											isRemoteBrowsing={isRemoteBrowsing}
-											accessLevel={remoteAccessLevel}
-										/>
-									)}
 								{fileListData.isOffline && (
 									<Alert color="neutral" compact icon={<IcOffline />}>
 										{t('Showing cached data — you appear to be offline')}
 									</Alert>
 								)}
-								<FilterChips
-									fileTypeFilter={fileTypeFilter}
-									ownerFilter={ownerFilter}
-									searchQuery={debouncedSearchQuery}
-									selectedTags={selectedTags}
-									onFileTypeFilterChange={setFileTypeFilter}
-									onOwnerFilterChange={setOwnerFilter}
-									onSearchQueryChange={setSearchQuery}
-									onTagFilter={setSelectedTags}
-								/>
-								{searchActive &&
-									viewMode === 'browse' &&
-									(() => {
-										const folderPath =
-											breadcrumbs
-												.map((b) => b.name)
-												.filter(Boolean)
-												.join(' / ') || t('Files')
-										return (
-											<>
-												{searchScope === 'folder' && outsideMatchExists && (
-													<Alert
-														compact
-														color="info"
-														actions={
-															<Button
-																size="sm"
-																onClick={() =>
-																	setSearchScope('all')
-																}
-															>
-																{t('Search all files')}
-															</Button>
-														}
-													>
-														{t(
-															'More matches exist outside this folder.'
-														)}{' '}
-														<Text emphasis="muted">{`${t('In folder:')} ${folderPath}`}</Text>
-													</Alert>
-												)}
-												{searchScope === 'folder' &&
-													!outsideMatchExists && (
-														<Text
-															as="div"
-															size="sm"
-															emphasis="muted"
-															className="p-2"
-														>
-															{`${t('In folder:')} ${folderPath}`}
-														</Text>
-													)}
-												{searchScope === 'all' && (
-													<Alert
-														compact
-														color="info"
-														actions={
-															<Button
-																size="sm"
-																onClick={() =>
-																	setSearchScope('folder')
-																}
-															>
-																{t('Back to this folder')}
-															</Button>
-														}
-													>
-														{t('Searching all files')}
-													</Alert>
-												)}
-											</>
-										)
-									})()}
+								{viewMode === 'browse' && <FilterBar />}
 							</VBox>
 						}
 					>
@@ -1213,30 +1053,46 @@ export function FilesApp() {
 									)
 								}
 							/>
-						) : files.length === 0 ? (
+						) : files.length === 0 && searchActive && !fileListData.permCapped ? (
+							<EmptyState
+								icon={<Icon as={IcCloud} size="xl" />}
+								title={t('No files match these filters')}
+								actions={
+									<>
+										<Button onClick={clearAll}>{t('Clear filters')}</Button>
+										{viewMode === 'browse' && effectiveScope !== 'all' && (
+											<Button
+												onClick={() =>
+													setFilter({
+														scope:
+															effectiveScope === 'folder'
+																? 'drive'
+																: 'all'
+													})
+												}
+											>
+												{effectiveScope === 'folder'
+													? t('Search this drive')
+													: t('Search all drives')}
+											</Button>
+										)}
+									</>
+								}
+							/>
+						) : files.length === 0 && !fileListData.permCapped ? (
 							<EmptyState
 								icon={<Icon as={IcCloud} size="xl" />}
 								title={
 									isTrashView
 										? t('Trash is empty')
-										: viewMode === 'starred'
-											? t('No starred files yet')
-											: viewMode === 'recent'
-												? t('No recent files')
-												: currentFolderId
-													? t('This folder is empty')
-													: t('No files found')
+										: currentFolderId
+											? t('This folder is empty')
+											: t('No files found')
 								}
 								description={
 									isTrashView
 										? t('Files you delete will appear here')
-										: viewMode === 'starred'
-											? t('Star files to quickly access them later')
-											: viewMode === 'recent'
-												? t('Files you open will appear here')
-												: t(
-														'Create a new document or upload files to get started'
-													)
+										: t('Create a new document or upload files to get started')
 								}
 							/>
 						) : displayMode === 'grid' ? (
@@ -1262,16 +1118,7 @@ export function FilesApp() {
 										/>
 									))}
 								</Grid>
-								<LoadMoreTrigger
-									ref={fileListData.sentinelRef}
-									isLoading={fileListData.isLoadingMore}
-									hasMore={fileListData.hasMore}
-									error={fileListData.error}
-									onRetry={fileListData.loadMore}
-									loadingLabel={t('Loading more files...')}
-									retryLabel={t('Retry')}
-									errorPrefix={t('Failed to load:')}
-								/>
+								{loadMoreFooter}
 							</>
 						) : (
 							<>
@@ -1296,16 +1143,7 @@ export function FilesApp() {
 										/>
 									))}
 								</List>
-								<LoadMoreTrigger
-									ref={fileListData.sentinelRef}
-									isLoading={fileListData.isLoadingMore}
-									hasMore={fileListData.hasMore}
-									error={fileListData.error}
-									onRetry={fileListData.loadMore}
-									loadingLabel={t('Loading more files...')}
-									retryLabel={t('Retry')}
-									errorPrefix={t('Failed to load:')}
-								/>
+								{loadMoreFooter}
 							</>
 						)}
 						{/* Keeps the last row clear of the mobile FAB */}
@@ -1314,15 +1152,16 @@ export function FilesApp() {
 						)}
 					</Fcd.Content>
 					<Fcd.Details
-						isVisible={!!auth && !!selectedFile && (!isMobile || showMobileDetails)}
+						isVisible={!!auth && !!panelFile && (!isMobile || showMobileDetails)}
 						hide={() => {
 							setShowMobileDetails(false)
+							setShowFolderDetails(false)
 							multiSelect.clearSelection()
 						}}
 					>
-						{auth && detailsFile && (
+						{auth && shownFile && (
 							<DetailsPanel
-								file={detailsFile}
+								file={shownFile}
 								fileOps={fileOps}
 								onShare={setShareDialogFile}
 								onNavigateToFolder={navigateToFolder}

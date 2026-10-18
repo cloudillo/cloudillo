@@ -20,6 +20,13 @@ import { channelTarget } from '../audience.js'
 import type { File, ViewMode } from '../types.js'
 import { MANAGED_FOLDER_ID, TRASH_FOLDER_ID, VIEW_MODES } from '../types.js'
 import type { FileAccessLevel } from '../utils.js'
+import {
+	filterSearch,
+	legacyViewSearch,
+	NARROWER_PARAMS,
+	parseFilesFilters,
+	resolveScope
+} from './useFilesFilters.js'
 
 export interface BreadcrumbItem {
 	id: string | null
@@ -64,6 +71,23 @@ export function useFileNavigation() {
 	const contextIdTag = useCurrentContextIdTag()
 	const driveChannel = drive && contextIdTag ? makeChannel(contextIdTag, drive) : undefined
 	const contextName = useContextName()
+	// Every filter param, so the nav stack (in-app back) restores them
+	const currentFilters = filterSearch(searchParams)
+	// Opening a subfolder from folder scope keeps the narrowers; from a drive/all-scope result
+	// set it clears everything
+	const keptNarrowers =
+		resolveScope(parseFilesFilters(searchParams)) === 'folder'
+			? filterSearch(searchParams, NARROWER_PARAMS)
+			: ''
+
+	// Legacy `view=starred|recent` links become the Starred / Recent finders
+	React.useEffect(
+		function redirectLegacyView() {
+			const search = legacyViewSearch(searchParams)
+			if (search !== null) navigate({ search }, { replace: true })
+		},
+		[searchParams, navigate]
+	)
 
 	const canGoBack = navStack.length > 0
 
@@ -238,9 +262,17 @@ export function useFileNavigation() {
 
 	const navigateToFolder = React.useCallback(
 		function (folderId: string | null) {
-			navigate({ search: navSearch({ drive, parentId: folderId, remoteOwner, shareRoot }) })
+			navigate({
+				search: navSearch({
+					drive,
+					parentId: folderId,
+					remoteOwner,
+					shareRoot,
+					filters: keptNarrowers
+				})
+			})
 		},
-		[remoteOwner, shareRoot, drive, navigate]
+		[remoteOwner, shareRoot, drive, keptNarrowers, navigate]
 	)
 
 	// Open a drive's root: `null` = the main drive, else a bare room name.
@@ -249,11 +281,27 @@ export function useFileNavigation() {
 			if (viewMode === 'browse' && !currentFolderId && !remoteOwner && drive === name) return
 			setNavStack((prev) => [
 				...prev,
-				{ parentId: currentFolderId, remoteOwner, shareRoot, drive, view: viewMode }
+				{
+					parentId: currentFolderId,
+					remoteOwner,
+					shareRoot,
+					drive,
+					view: viewMode,
+					filters: currentFilters
+				}
 			])
 			navigate({ search: navSearch({ drive: name }) })
 		},
-		[navigate, setNavStack, currentFolderId, remoteOwner, shareRoot, drive, viewMode]
+		[
+			navigate,
+			setNavStack,
+			currentFolderId,
+			remoteOwner,
+			shareRoot,
+			drive,
+			viewMode,
+			currentFilters
+		]
 	)
 
 	const navigateToView = React.useCallback(
@@ -273,14 +321,24 @@ export function useFileNavigation() {
 					remoteOwner,
 					shareRoot,
 					drive,
-					view: viewMode
+					view: viewMode,
+					filters: currentFilters
 				}
 			])
 			navigate({
 				search: navSearch({ drive: mode === 'browse' ? drive : null, view: mode })
 			})
 		},
-		[navigate, setNavStack, currentFolderId, remoteOwner, shareRoot, drive, viewMode]
+		[
+			navigate,
+			setNavStack,
+			currentFolderId,
+			remoteOwner,
+			shareRoot,
+			drive,
+			viewMode,
+			currentFilters
+		]
 	)
 
 	const goBack = React.useCallback(
@@ -332,7 +390,8 @@ export function useFileNavigation() {
 					remoteOwner,
 					shareRoot,
 					drive,
-					view: viewMode
+					view: viewMode,
+					filters: currentFilters
 				}
 			])
 
@@ -365,7 +424,8 @@ export function useFileNavigation() {
 							drive: folderDrive,
 							parentId: folder.entryId,
 							remoteOwner,
-							shareRoot
+							shareRoot,
+							filters: keptNarrowers
 						})
 					})
 				}
@@ -377,6 +437,8 @@ export function useFileNavigation() {
 			shareRoot,
 			drive,
 			viewMode,
+			currentFilters,
+			keptNarrowers,
 			contextIdTag,
 			auth?.idTag,
 			setNavStack,

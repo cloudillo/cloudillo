@@ -1,208 +1,109 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import type { ApiClient, PorchEntry } from '@cloudillo/core'
 import {
-	Badge,
 	Button,
-	Dialog,
-	EmptyState,
-	IcAdd,
-	List,
-	ListItem,
-	LoadingSpinner,
-	makeChannel,
+	Field,
+	HBox,
+	NativeSelect,
 	Panel,
-	parseChannel,
 	Text,
-	useApi,
 	useAuth,
-	useToast
+	useDialog,
+	VBox
 } from '@cloudillo/react'
+import { useAtomValue } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router-dom'
 
-import { canAdminContext, useActiveCommunity, useApiContext, useCtx } from '../context/index.js'
-import { IcRoom } from '../icons.js'
-import { settingsPath } from '../routes.js'
-import { describeRoom, RoomForm } from './room-form.js'
+import { activeContextAtom, isContextLeader, useContextAwareApi, useCtx } from '../context/index.js'
+import { roomsPath } from '../routes.js'
 
-/**
- * The API client of the tenant whose rooms are administered: the active community's (through
- * its context token), or the home client for a person's own rooms. Null while no token exists,
- * or when the user may not administer the community's rooms.
- */
-export function useRoomsClient(): ApiClient | null {
-	const { api } = useApi()
-	const [auth] = useAuth()
-	const community = useActiveCommunity()
-	const { getClientFor } = useApiContext()
-	const communityIdTag = community?.idTag
-	const allowed = !community || canAdminContext(community, auth?.idTag, 'rooms')
-
-	return React.useMemo(() => {
-		if (!allowed) return null
-		if (!communityIdTag) return api ?? null
-		return getClientFor(communityIdTag, { explicit: true })
-	}, [allowed, communityIdTag, api, getClientFor])
-}
-
-/** The idTag of the tenant whose rooms are administered: the active community, or the user. */
-export function useRoomsTenant(): string | undefined {
-	const [auth] = useAuth()
-	return useActiveCommunity()?.idTag ?? auth?.idTag
-}
+const CREATE_ROLE_KEY = 'room.create_role'
 
 /**
- * The tenant's rooms with their admin fields, closed-room member counts and pending knock
- * counts; reloaded by calling `reload`.
+ * `settings/rooms`: the room policy ("who can create rooms") and a link to the rooms section.
+ * The setting is `PermissionLevel::User` (owner / leader+), so moderators — who may open this
+ * page — see the link only. Read and written through `useContextAwareApi()` like
+ * `files.tsx`'s `search.store_text`, so both stay on the active context's tenant.
  */
-export function useRooms(client: ApiClient | null, tenant: string | undefined) {
-	const [rooms, setRooms] = React.useState<PorchEntry[]>()
-	const [memberCounts, setMemberCounts] = React.useState<Record<string, number>>({})
-	const [requestCounts, setRequestCounts] = React.useState<Record<string, number>>({})
-	const [version, setVersion] = React.useState(0)
-	// Another tenant: drop the previous one's data during render, like `usePorch`.
-	const [prevTenant, setPrevTenant] = React.useState(tenant)
-	if (prevTenant !== tenant) {
-		setPrevTenant(tenant)
-		setRooms(undefined)
-		setMemberCounts({})
-		setRequestCounts({})
-	}
+export function RoomsSettings() {
+	const { t } = useTranslation()
+	const base = useCtx().base
+	const [auth] = useAuth()
+	const activeContext = useAtomValue(activeContextAtom)
+	const { api: contextApi } = useContextAwareApi()
+	const dialog = useDialog()
+	const canEdit = isContextLeader(activeContext, auth?.idTag)
+	const [createRole, setCreateRole] = React.useState<string>()
 
 	React.useEffect(
-		function loadRooms() {
-			if (!client || !tenant) return
+		function loadCreateRole() {
+			setCreateRole(undefined)
+			if (!contextApi || !canEdit) return
 			let cancelled = false
-			;(async function () {
-				try {
-					const list = await client.channels.list()
-					if (cancelled) return
-					setRooms(list)
-					const closed = list.filter((r) => r.closed)
-					if (closed.length === 0) {
-						setMemberCounts({})
-						setRequestCounts({})
-						return
-					}
-					// ponytail: one roster request per closed room; a count field on the list if rooms grow many
-					const [counts, knocks] = await Promise.all([
-						Promise.all(
-							closed.map(async (r) => [
-								r.name,
-								(await client.channels.members(r.name)).length
-							])
-						),
-						client.actions.list({
-							type: 'SUBS',
-							status: 'C',
-							subject: closed.map((r) => makeChannel(tenant, r.name))
-						})
-					])
-					if (cancelled) return
-					setMemberCounts(Object.fromEntries(counts))
-					const pending: Record<string, number> = {}
-					for (const k of knocks) {
-						const name = k.subject && parseChannel(k.subject).name
-						if (name) pending[name] = (pending[name] ?? 0) + 1
-					}
-					setRequestCounts(pending)
-				} catch (err) {
-					console.error('Failed to load rooms:', err)
-					if (!cancelled) setRooms((prev) => prev ?? [])
-				}
-			})()
+			contextApi.settings
+				.get(CREATE_ROLE_KEY)
+				.then((res) => {
+					if (!cancelled) setCreateRole(String(res.value ?? 'moderator'))
+				})
+				.catch((err) => {
+					console.error(`Failed to load ${CREATE_ROLE_KEY}:`, err)
+					// The backend default; a save still goes through
+					if (!cancelled) setCreateRole('moderator')
+				})
 			return () => {
 				cancelled = true
 			}
 		},
-		[client, tenant, version]
+		[contextApi, canEdit]
 	)
 
-	return { rooms, memberCounts, requestCounts, reload: () => setVersion((v) => v + 1) }
-}
-
-/** `settings/rooms`: the tenant's rooms, with "New room". */
-export function RoomsSettings() {
-	const { t } = useTranslation()
-	const toast = useToast()
-	const base = useCtx().base
-	const client = useRoomsClient()
-	const { rooms, memberCounts, requestCounts, reload } = useRooms(client, useRoomsTenant())
-	const [creating, setCreating] = React.useState(false)
-
-	if (!client) {
-		return (
-			<Panel padding={3}>
-				<Text as="p" emphasis="muted">
-					{t('You need moderator permissions to manage rooms.')}
-				</Text>
-			</Panel>
-		)
+	async function onChange(evt: React.ChangeEvent<HTMLSelectElement>) {
+		const next = evt.target.value
+		const prev = createRole
+		if (!contextApi) return
+		setCreateRole(next)
+		try {
+			await contextApi.settings.update(CREATE_ROLE_KEY, { value: next })
+		} catch (err: unknown) {
+			setCreateRole(prev)
+			if (err instanceof Error) await dialog.tell(t('Error'), err.message)
+		}
 	}
 
 	return (
 		<Panel padding={3}>
-			<Button
-				color="primary"
-				className="mb-2"
-				icon={<IcAdd />}
-				onClick={() => setCreating(true)}
-			>
-				{t('New room')}
-			</Button>
-
-			{!rooms ? (
-				<LoadingSpinner />
-			) : rooms.length === 0 ? (
-				<EmptyState
-					icon={<IcRoom />}
-					title={t('No rooms yet')}
-					description={t('Rooms group posts and files for a subset of people.')}
-				/>
-			) : (
-				<List>
-					{rooms.map((room) => (
-						<ListItem
-							key={room.name}
-							leading={<IcRoom />}
-							title={room.title || `~${room.name}`}
-							subtitle={`~${room.name} · ${describeRoom(room, t)}`}
-							meta={
-								room.closed && memberCounts[room.name] !== undefined
-									? t('{{count}} members', { count: memberCounts[room.name] })
-									: undefined
-							}
-							trailing={
-								requestCounts[room.name] ? (
-									<Badge variant="soft">{requestCounts[room.name]}</Badge>
-								) : undefined
-							}
-							href={settingsPath(base, ['rooms', room.name])}
-						/>
-					))}
-				</List>
-			)}
-
-			<Dialog
-				open={creating}
-				onClose={() => setCreating(false)}
-				size="sm"
-				title={t('New room')}
-			>
-				{creating && (
-					<RoomForm
-						client={client}
-						onCancel={() => setCreating(false)}
-						onSaved={() => {
-							setCreating(false)
-							reload()
-							toast.success(t('Room created'))
-						}}
-					/>
+			<VBox gap={3}>
+				{canEdit ? (
+					<Field orientation="horizontal" label={t('Who can create rooms')}>
+						<NativeSelect
+							name={CREATE_ROLE_KEY}
+							value={createRole ?? 'moderator'}
+							disabled={createRole === undefined}
+							onChange={onChange}
+						>
+							{/* `supporter` is the lowest role the backend accepts here */}
+							<option value="moderator">{t('Moderators')}</option>
+							<option value="supporter">{t('Any member')}</option>
+						</NativeSelect>
+					</Field>
+				) : (
+					<Text as="p" emphasis="muted">
+						{t('Only leaders can change who can create rooms.')}
+					</Text>
 				)}
-			</Dialog>
+				{canEdit ? (
+					<Link to={roomsPath(base)}>{t('Manage rooms →')}</Link>
+				) : (
+					<HBox>
+						<Button color="primary" href={roomsPath(base)}>
+							{t('Create or manage rooms')}
+						</Button>
+					</HBox>
+				)}
+			</VBox>
 		</Panel>
 	)
 }

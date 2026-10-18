@@ -9,6 +9,7 @@ import { AvatarGroup } from '../Avatar/index.js'
 import { displayName, PresenceAvatar } from '../Avatar/PresenceAvatar.js'
 import { Dropdown } from '../Dropdown/index.js'
 import { MenuHeader, MenuItem } from '../Menu/index.js'
+import { PersonHover } from '../Person/index.js'
 import { mergeClasses } from '../utils.js'
 
 /**
@@ -96,13 +97,20 @@ export function DocBarPresence({
 			trigger={
 				<AvatarGroup max={max} size="sm" onClick={onUserClick ? onFaceClick : undefined}>
 					{users.map((user) => (
-						<PresenceAvatar
+						// Tap opens the roster, so only hover shows the card here
+						<PersonHover
 							key={user.idTag ?? user.connId}
-							user={user}
-							size="sm"
-							guestLabel={guestLabel}
-							title={rowLabel(user)}
-						/>
+							idTag={user.idTag ?? ''}
+							tapOpens={false}
+							disabled={!user.idTag}
+						>
+							<PresenceAvatar
+								user={user}
+								size="sm"
+								guestLabel={guestLabel}
+								title={rowLabel(user)}
+							/>
+						</PersonHover>
 					))}
 				</AvatarGroup>
 			}
@@ -113,12 +121,14 @@ export function DocBarPresence({
 				<MenuItem
 					key={user.idTag ?? user.connId}
 					icon={
-						<PresenceAvatar
-							user={user}
-							size="xs"
-							guestLabel={guestLabel}
-							title={rowLabel(user)}
-						/>
+						<PersonHover idTag={user.idTag ?? ''} disabled={!user.idTag}>
+							<PresenceAvatar
+								user={user}
+								size="xs"
+								guestLabel={guestLabel}
+								title={rowLabel(user)}
+							/>
+						</PersonHover>
 					}
 					label={rowLabel(user)}
 					// Two tabs of one person collapse to one row; say how many.

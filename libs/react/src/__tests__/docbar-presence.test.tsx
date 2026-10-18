@@ -5,7 +5,20 @@ import type { PresenceEntry } from '@cloudillo/core'
 import { fireEvent, render, screen } from '@testing-library/react'
 import * as React from 'react'
 
-import { DocBarPresence } from '../components/DocBar/DocBarPresence.js'
+import { DocBarPresence as DocBarPresenceBare } from '../components/DocBar/DocBarPresence.js'
+import { PersonActionsContext } from '../components/Person/PersonActionsContext.js'
+
+/**
+ * Faces and roster icons render `PersonHover`. An empty node keeps it off the
+ * app bus and the network; no actions means no card buttons.
+ */
+function DocBarPresence(props: React.ComponentProps<typeof DocBarPresenceBare>) {
+	return (
+		<PersonActionsContext.Provider value={{ node: {} }}>
+			<DocBarPresenceBare {...props} />
+		</PersonActionsContext.Provider>
+	)
+}
 
 const SIGNED_IN: PresenceEntry = {
 	name: 'Szilárd Hajba',
@@ -30,6 +43,21 @@ function faces(container: HTMLElement) {
 }
 
 describe('DocBarPresence', () => {
+	// jsdom has no matchMedia; `PersonHover` asks for `(hover: hover)`. Everything
+	// else (Menu's sheet query) stays false, so the roster is a dropdown.
+	beforeEach(() => {
+		window.matchMedia = ((query: string) => ({
+			matches: query === '(hover: hover)',
+			media: query,
+			addEventListener() {},
+			removeEventListener() {}
+		})) as unknown as typeof window.matchMedia
+	})
+
+	afterEach(() => {
+		;(window as { matchMedia?: unknown }).matchMedia = undefined
+	})
+
 	it('renders nothing for an empty roster', () => {
 		const { container } = render(<DocBarPresence users={[]} />)
 		expect(container.firstChild).toBeNull()

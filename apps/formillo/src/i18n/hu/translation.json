@@ -20,6 +20,10 @@
 	"guest": "vendég",
 	"1 collaborator": "1 közreműködő",
 	"{{count}} collaborators": "{{count}} közreműködő",
+	"Open profile": "Profil megnyitása",
+	"Message": "Üzenet",
+	"More": "Továbbiak",
+	"Community": "Közösség",
 	"Share to feed": "Megosztás a hírfolyamban",
 	"Could not share this document": "Nem sikerült megosztani ezt a dokumentumot"
 }

@@ -782,11 +782,10 @@
 	border-left: 3px solid var(--col-primary);
 }
 
-/* Messages rail: three tabs + search need ~18rem; the md col-md-4 share is narrower at 768 */
-@media (width >= 48rem) {
-	.c-fcd > .row > .c-fcd-filter.messages-rail {
-		min-width: 18rem;
-	}
+/* Messages rail: three tabs + search need 18rem, a bit more than the default --fcd-rail-w
+   (the token sizes both the md+ grid track and the rail; the <md drawer keeps its own cap) */
+.c-fcd:has(> .row > .c-fcd-filter.messages-rail) {
+	--fcd-rail-w: 18rem;
 }
 
 /* Calendar toolbar: range title and view switcher never shrink; the search

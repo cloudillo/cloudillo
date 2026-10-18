@@ -1,240 +1,175 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import type { PorchEntry, TagInfo } from '@cloudillo/core'
-import {
-	Button,
-	HBox,
-	IconText,
-	IcTag,
-	Nav,
-	Panel,
-	SearchInput,
-	Segmented,
-	SegmentedItem,
-	Tag,
-	Text,
-	useAuth,
-	VBox
-} from '@cloudillo/react'
-import type { TFunction } from 'i18next'
+import type { PorchEntry } from '@cloudillo/core'
+import { Nav, Text, useAuth, VBox } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { useContextAwareApi, useCtx, useCurrentContextIdTag } from '../../../context/index.js'
-import { IcBrowse, IcManaged, IcRecent, IcRoom, IcStar, IcTrash } from '../../../icons.js'
-import { profilePath } from '../../../routes.js'
-import type { FileTypeFilter, OwnerFilter, ViewMode } from '../types.js'
-
-export const viewItems = (
-	t: TFunction
-): { mode: ViewMode; icon: React.ComponentType; label: string }[] => [
-	{ mode: 'browse', icon: IcBrowse, label: t('Browse') },
-	{ mode: 'starred', icon: IcStar, label: t('Starred') },
-	{ mode: 'recent', icon: IcRecent, label: t('Recent') },
-	{ mode: 'trash', icon: IcTrash, label: t('Trash') },
-	{ mode: 'managed', icon: IcManaged, label: t('Managed') }
-]
+import { useContextAwareApi, useCtx } from '../../../context/index.js'
+import { IcBrowse, IcManaged, IcPinned, IcPost, IcRoom, IcTrash } from '../../../icons.js'
+import { feedPath, filesPath, roomsPath } from '../../../routes.js'
+import type { ViewMode } from '../types.js'
 
 interface SidebarProps {
 	className?: string
 	viewMode: ViewMode
+	/** Re-clicking the current view must clear the filters (the caller handles it) */
 	onViewModeChange: (mode: ViewMode) => void
-	fileTypeFilter: FileTypeFilter
-	onFileTypeFilterChange: (filter: FileTypeFilter) => void
-	ownerFilter: OwnerFilter
-	onOwnerFilterChange: (filter: OwnerFilter) => void
-	searchQuery: string
-	onSearchQueryChange: (query: string) => void
-	selectedTags?: string[]
-	onTagFilter?: (tags: string[]) => void
 	/** Main drive label (the context's name) */
 	contextName: string
 	/** Current room (bare name); null = main drive */
 	drive: string | null
+	/** Channel of the current drive (`''`/undefined = main drive); scopes the pinned folders */
+	driveChannel?: string
+	/** Current folder (null = drive root); marks the active pinned folder */
+	currentFolderId: string | null
 	/** Rooms the viewer is `in`; empty hides the Rooms group */
 	rooms: PorchEntry[]
+	/** Re-clicking the current drive must clear the filters (the caller handles it) */
 	onDriveChange: (name: string | null) => void
+	/** Bumped by the caller on every pin toggle, to refetch the pinned folders */
+	pinVersion?: number
 }
 
-// Rail recipe: padded VBox → SearchInput → Nav → `Panel variant="plain"` facets.
+// Navigation only: every item opens an unfiltered place.
 export const Sidebar = React.memo(function Sidebar({
 	className,
 	viewMode,
 	onViewModeChange,
-	fileTypeFilter,
-	onFileTypeFilterChange,
-	ownerFilter,
-	onOwnerFilterChange,
-	searchQuery,
-	onSearchQueryChange,
-	selectedTags = [],
-	onTagFilter,
 	contextName,
 	drive,
+	driveChannel,
+	currentFolderId,
 	rooms,
-	onDriveChange
+	onDriveChange,
+	pinVersion
 }: SidebarProps) {
 	const { t } = useTranslation()
 	const base = useCtx().base
-	const contextIdTag = useCurrentContextIdTag()
 	const sortedRooms = React.useMemo(
 		() => [...rooms].sort((a, b) => a.name.localeCompare(b.name)),
 		[rooms]
 	)
 	const hasRooms = sortedRooms.length > 0
-	// `authenticated` is a dep of the tag-load effect below: the api client's
+	// `authenticated` is a dep of the pinned-load effect below: the api client's
 	// identity is stable per idTag, so this flag (not `api`, and not `auth`,
 	// which tracks the home session) is what changes when a context token lands.
 	const { api, authenticated } = useContextAwareApi()
 	const [auth] = useAuth()
 
-	// Tags with counts for tag cloud
-	const [tags, setTags] = React.useState<TagInfo[]>([])
-
-	// Load tags with counts
+	// Pinned folders of the current drive (pins are per user)
+	const [pinned, setPinned] = React.useState<{ entryId: string; fileName: string }[]>([])
 	React.useEffect(
-		function loadTags() {
+		function loadPinned() {
 			if (!api || !auth) return
-
+			let cancelled = false
 			;(async function () {
 				try {
-					const res = await api.tags.list({ withCounts: true, limit: 10 })
-					setTags(res.tags)
+					const res = await api.files.list({
+						pinned: true,
+						fileTp: 'FLDR',
+						channel: driveChannel ?? ''
+					})
+					if (!cancelled) setPinned(res)
 				} catch {
-					// Ignore errors loading tags
+					if (!cancelled) setPinned([])
 				}
 			})()
+			return () => {
+				cancelled = true
+			}
 		},
-		[api, authenticated, auth]
+		[api, authenticated, auth, driveChannel, pinVersion]
 	)
 
-	const toggleTag = React.useCallback(
-		function toggleTag(tag: string) {
-			if (!onTagFilter) return
-
-			const newTags = selectedTags.includes(tag)
-				? selectedTags.filter((t) => t !== tag)
-				: [...selectedTags, tag]
-			onTagFilter(newTags)
-		},
-		[selectedTags, onTagFilter]
-	)
-
-	const clearTags = React.useCallback(
-		function clearTags() {
-			if (onTagFilter) onTagFilter([])
-		},
-		[onTagFilter]
-	)
+	const browsing = viewMode === 'browse'
 
 	return (
 		<VBox gap={2} padding={2} className={className}>
-			<SearchInput
-				aria-label={t('Search files...')}
-				placeholder={t('Search files...')}
-				value={searchQuery}
-				onChange={(e) => onSearchQueryChange(e.target.value)}
-			/>
-
 			<Nav aria-label={t('Files')}>
 				{/* Main drive; with no rooms it stays the plain "Browse" entry */}
 				<Nav.Item
 					icon={<IcBrowse />}
 					label={hasRooms ? contextName : t('Browse')}
-					active={viewMode === 'browse' && !drive}
+					active={browsing && !drive && !currentFolderId}
 					onClick={() => onDriveChange(null)}
 				/>
-				{hasRooms && (
-					<Nav.Section label={t('Rooms')}>
-						{sortedRooms.map((room) => (
+				{pinned.length > 0 && (
+					<Nav.Section label={t('Pinned')}>
+						{pinned.map((folder) => (
 							<Nav.Item
-								key={room.name}
-								icon={<IcRoom />}
-								label={
-									<>
-										~{room.name}
-										{room.title && <Text color="secondary"> {room.title}</Text>}
-									</>
-								}
-								active={viewMode === 'browse' && drive === room.name}
-								onClick={() => onDriveChange(room.name)}
+								key={folder.entryId}
+								icon={<IcPinned />}
+								label={folder.fileName}
+								active={browsing && currentFolderId === folder.entryId}
+								href={filesPath(base, { drive, parentId: folder.entryId })}
 							/>
 						))}
+					</Nav.Section>
+				)}
+				{hasRooms && (
+					<Nav.Section label={t('Rooms')}>
+						{sortedRooms.map((room) => {
+							const isActive = browsing && drive === room.name
+							return (
+								<React.Fragment key={room.name}>
+									<Nav.Item
+										icon={<IcRoom />}
+										label={
+											<>
+												~{room.name}
+												{room.title && (
+													<Text color="secondary"> {room.title}</Text>
+												)}
+											</>
+										}
+										active={isActive && !currentFolderId}
+										onClick={() => onDriveChange(room.name)}
+									/>
+									{isActive && (
+										<>
+											<Nav.Item
+												depth={1}
+												icon={<IcRoom />}
+												label={t('Room home')}
+												active={false}
+												href={roomsPath(base, room.name)}
+											/>
+											<Nav.Item
+												depth={1}
+												icon={<IcPost />}
+												label={t('Posts')}
+												active={false}
+												href={feedPath(base, undefined, {
+													room: room.name
+												})}
+											/>
+										</>
+									)}
+								</React.Fragment>
+							)
+						})}
 						<Nav.Item
-							label={<Text color="secondary">{t('Browse rooms…')}</Text>}
-							href={profilePath(base, contextIdTag, 'rooms')}
+							label={<Text color="secondary">{t('All rooms →')}</Text>}
+							href={roomsPath(base)}
 						/>
 					</Nav.Section>
 				)}
-				{hasRooms && <Nav.Divider />}
-				{viewItems(t)
-					.filter(({ mode }) => mode !== 'browse')
-					.map(({ mode, icon: ViewIcon, label }) => (
-						<Nav.Item
-							key={mode}
-							icon={<ViewIcon />}
-							label={label}
-							active={viewMode === mode}
-							onClick={() => onViewModeChange(mode)}
-						/>
-					))}
+				<Nav.Divider />
+				<Nav.Item
+					icon={<IcManaged />}
+					label={t('Managed')}
+					active={viewMode === 'managed'}
+					onClick={() => onViewModeChange('managed')}
+				/>
+				<Nav.Item
+					icon={<IcTrash />}
+					label={t('Trash')}
+					active={viewMode === 'trash'}
+					onClick={() => onViewModeChange('trash')}
+				/>
 			</Nav>
-
-			<Panel variant="plain" title={t('Type')}>
-				<Segmented
-					size="sm"
-					fill
-					aria-label={t('Type')}
-					value={fileTypeFilter}
-					onChange={(v) => onFileTypeFilterChange(v as FileTypeFilter)}
-				>
-					<SegmentedItem value="all">{t('All')}</SegmentedItem>
-					<SegmentedItem value="live">{t('Live')}</SegmentedItem>
-					<SegmentedItem value="static">{t('Static')}</SegmentedItem>
-				</Segmented>
-			</Panel>
-
-			<Panel variant="plain" title={t('Owner')}>
-				<Segmented
-					size="sm"
-					fill
-					aria-label={t('Owner')}
-					value={ownerFilter}
-					onChange={(v) => onOwnerFilterChange(v as OwnerFilter)}
-				>
-					<SegmentedItem value="anyone">{t('Anyone')}</SegmentedItem>
-					<SegmentedItem value="me">{t('Me')}</SegmentedItem>
-					<SegmentedItem value="others">{t('Others')}</SegmentedItem>
-				</Segmented>
-			</Panel>
-
-			{tags.length > 0 && (
-				<Panel
-					variant="plain"
-					title={<IconText icon={<IcTag />}>{t('Tags')}</IconText>}
-					actions={
-						selectedTags.length > 0 && (
-							<Button variant="ghost" size="sm" onClick={clearTags}>
-								{t('Clear')}
-							</Button>
-						)
-					}
-				>
-					<HBox gap={1} wrap>
-						{tags.map((tagInfo) => (
-							<Tag
-								key={tagInfo.tag}
-								pressed={selectedTags.includes(tagInfo.tag)}
-								count={tagInfo.count}
-								onClick={() => toggleTag(tagInfo.tag)}
-							>
-								{tagInfo.tag}
-							</Tag>
-						))}
-					</HBox>
-				</Panel>
-			)}
 		</VBox>
 	)
 })

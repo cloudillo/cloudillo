@@ -34,6 +34,7 @@ import { initFeedHandlers } from './handlers/feed.js'
 import { initImportHandlers } from './handlers/import.js'
 import { initLifecycleHandlers } from './handlers/lifecycle.js'
 import { initMediaHandlers } from './handlers/media.js'
+import { initPersonHandlers } from './handlers/person.js'
 import { initSensorHandlers } from './handlers/sensor.js'
 import { initSettingsHandlers } from './handlers/settings.js'
 import { initShareHandlers } from './handlers/share.js'
@@ -233,6 +234,7 @@ export class ShellMessageBus extends MessageBusBase {
 		initSiteHandlers(this)
 		initDocInfoHandlers(this)
 		initFeedHandlers(this)
+		initPersonHandlers(this)
 
 		this.initialized = true
 		this.log('Initialized')

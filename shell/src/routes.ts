@@ -242,6 +242,15 @@ export function settingsPath(base: CtxBase, tail?: Tail, query?: QueryInit): str
 	return contextPath(base, 'settings', joinTail(tail), query)
 }
 
+/** A room home tab; `members` is the default and has no URL segment. */
+export type RoomTab = 'members' | 'settings'
+
+/** The rooms directory, or one room's home (`roomsPath(base, 'x', 'settings')`). */
+export function roomsPath(base: CtxBase, name?: string, tab?: RoomTab): string {
+	const segments = name == null ? [] : tab == null || tab === 'members' ? [name] : [name, tab]
+	return contextPath(base, 'rooms', joinTail(segments))
+}
+
 /** The identity provider pages (`idpPath(base)` = identities, `idpPath(base, 'settings')`). */
 export function idpPath(base: CtxBase, tail?: Tail, query?: QueryInit): string {
 	return contextPath(base, 'idp', joinTail(tail), query)

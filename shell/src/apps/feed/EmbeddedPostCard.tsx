@@ -6,6 +6,7 @@ import {
 	Button,
 	Card,
 	HBox,
+	PersonHover,
 	ProfileCard,
 	RichText,
 	RoomChip,
@@ -85,16 +86,18 @@ export function EmbeddedPostCard({
 		<Card variant="outline" padding={2} className={className}>
 			<VBox gap={2}>
 				<HBox align="center" gap={2}>
-					<Link
-						to={profilePath(urlContext, subjectAction.issuer.idTag)}
-						className="flex-fill"
-					>
-						<ProfileCard
-							profile={subjectAction.issuer}
-							srcTag={fileIdTag}
-							hat={subjectAction.hat}
-						/>
-					</Link>
+					<PersonHover idTag={subjectAction.issuer.idTag}>
+						<Link
+							to={profilePath(urlContext, subjectAction.issuer.idTag)}
+							className="flex-fill"
+						>
+							<ProfileCard
+								profile={subjectAction.issuer}
+								srcTag={fileIdTag}
+								hat={subjectAction.hat}
+							/>
+						</Link>
+					</PersonHover>
 					{subjectAction.channel && (
 						<RoomChip
 							channel={subjectAction.channel}

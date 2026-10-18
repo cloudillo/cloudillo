@@ -120,7 +120,7 @@
 	.c-nav-link.active:hover {
 		color: var(--col-primary);
 	}
-	/* The 32px AppIcon tiles plus a label must fit the island's ~50px content box. */
+	/* The 32px AppIcon glyphs plus a label must fit the island's ~50px content box. */
 	.c-app-icon {
 		width: 1.75rem;
 		height: 1.75rem;
@@ -135,6 +135,8 @@
 		align-self: stretch;
 		padding: 0.25rem 0.5rem;
 		background: var(--col-frame);
+		/* untiled AppIcon cut-outs show the island surface */
+		--app-icon-surface: var(--col-frame);
 		border: 1px solid var(--col-outline);
 		border-radius: var(--radius-xl);
 		box-shadow: var(--shadow-md);
@@ -288,12 +290,15 @@
 	max-height: 18rem;
 	overflow-y: auto;
 	padding: 0.5rem;
+	/* untiled AppIcon cut-outs show the popover surface */
+	--app-icon-surface: var(--col-bg);
 }
 
 .c-bottom-sheet .c-extra-menu {
 	max-width: 22rem;
 	margin: 0 auto;
 	padding: 1rem;
+	--app-icon-surface: var(--col-overlay);
 }
 
 /* Navigation label replacing h6 for proper heading hierarchy (rail, dock). */
@@ -602,6 +607,67 @@
 	--col-bg: var(--col-container-secondary);
 }
 
+/* Context colors (context/context-colors.ts): a swatch is hue + chroma; lightness is
+   shared per mode so every swatch keeps contrast. Keys apply on :root (active frame),
+   on each ContextChip and on the picker swatches. Dark lightness sits on :root too, so
+   `--ctx-bg` resolves right wherever a key is set. */
+:root {
+	--ctx-l: 90;
+	--ctx-c-mul: 1;
+}
+[data-ctx-color] {
+	--ctx-bg: lch(var(--ctx-l) calc(var(--ctx-c) * var(--ctx-c-mul)) var(--ctx-h));
+}
+:root:has(> body.dark) {
+	--ctx-l: 17;
+	--ctx-c-mul: 0.8;
+}
+[data-ctx-color='neutral'] {
+	--ctx-h: 250;
+	--ctx-c: 8;
+}
+[data-ctx-color='blue'] {
+	--ctx-h: 250;
+	--ctx-c: 22;
+}
+[data-ctx-color='violet'] {
+	--ctx-h: 300;
+	--ctx-c: 20;
+}
+[data-ctx-color='accent'] {
+	--ctx-h: 330;
+	--ctx-c: 22;
+}
+[data-ctx-color='rose'] {
+	--ctx-h: 15;
+	--ctx-c: 20;
+}
+[data-ctx-color='amber'] {
+	--ctx-h: 70;
+	--ctx-c: 26;
+}
+[data-ctx-color='sand'] {
+	--ctx-h: 95;
+	--ctx-c: 18;
+}
+[data-ctx-color='green'] {
+	--ctx-h: 145;
+	--ctx-c: 20;
+}
+[data-ctx-color='teal'] {
+	--ctx-h: 195;
+	--ctx-c: 18;
+}
+
+/* After the community rule: a colored community wins on source order. The dock is
+   transparent; its islands paint `--col-frame`. */
+:root[data-ctx-color] :is(.c-sidebar.left, .c-nav.nav-top) {
+	--col-bg: var(--ctx-bg);
+}
+:root[data-ctx-color] .c-nav.nav-bottom .c-nav-island {
+	--col-frame: var(--ctx-bg);
+}
+
 /* Below lg: no rail at all. */
 @media (width < 72rem) {
 	.c-sidebar.left {
@@ -618,6 +684,8 @@
 	min-height: 0;
 	flex: 1;
 	padding: 0.5rem 0;
+	/* untiled AppIcon cut-outs show the rail surface */
+	--app-icon-surface: var(--col-bg);
 	/* Safe to scroll: the "Other" flyout is portaled out of the rail, so
 	   nothing here can clip it. */
 	overflow-y: auto;
@@ -638,9 +706,11 @@
 	width: 100%;
 }
 
-.c-sidebar-apps .c-app-icon {
-	width: 2.5rem;
-	height: 2.5rem;
+/* rail AppIcons and the "Other" glyph */
+.c-sidebar-apps .c-app-icon,
+.c-sidebar-apps .c-nav-split-more .c-badge-anchor > svg {
+	width: 2rem;
+	height: 2rem;
 }
 
 .c-sidebar-apps .c-nav-label,
@@ -667,18 +737,6 @@
 	flex-direction: column;
 	flex: none;
 	margin: 0.25rem;
-}
-
-/* The "Other" glyph on a tile matching `.c-app-icon.tile`, sized like the rail AppIcons. */
-.c-sidebar-apps .c-nav-split-more .c-badge-anchor > svg {
-	box-sizing: content-box;
-	width: 1.5rem;
-	height: 1.5rem;
-	padding: 0.5rem;
-	border-radius: 30%;
-	background: #eceff2;
-	/* The tile is fixed-light in both themes, so the glyph is too. */
-	color: #3b4148;
 }
 
 /* Context-scoped tools (People / Communities / <community> settings / IdP / Server) sit at

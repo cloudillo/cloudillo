@@ -113,6 +113,9 @@ export const storageOwnerAtom = atomWithStorage<string | null>(
  */
 export const favoritesAtom = atom<string[]>([])
 
+/** Context key → swatch key (`context-colors.ts`). Synced as 'ui.context_colors'. */
+export const contextColorsAtom = atom<Record<string, string>>({})
+
 /**
  * Recent contexts (LRU)
  * Array of idTags in order of recent access (most recent first)

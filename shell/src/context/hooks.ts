@@ -9,8 +9,8 @@
 
 import {
 	type ApiClient,
-	createApiClient,
 	contextKey,
+	createApiClient,
 	FetchError,
 	getApiClient,
 	setApiToken
@@ -28,8 +28,9 @@ import {
 	activeContextAtom,
 	activeContextDisplayAtom,
 	communitiesAtom,
-	contextIdpEnabledAtom,
+	contextColorsAtom,
 	contextHatRoleAtom,
+	contextIdpEnabledAtom,
 	contextIdpEnabledCacheAtom,
 	contextRolesAtom,
 	contextSwitchingAtom,
@@ -46,6 +47,7 @@ import {
 	totalUnreadCountAtom,
 	withoutPins
 } from './atoms'
+import type { ContextColor } from './context-colors.js'
 import {
 	activeKeyFor,
 	effectiveTrust,
@@ -54,6 +56,9 @@ import {
 	withoutKey
 } from './trust-gate.js'
 import type { ActiveContext, CommunityRef, ContextSwitchEvent } from './types'
+
+// Serialized, and each save sends the latest map, so fast picks can't land out of order
+let contextColorsSave: Promise<unknown> = Promise.resolve()
 
 /**
  * Fetch `idp.enabled` for a given context and write it into
@@ -595,6 +600,43 @@ export function useCommunitiesList() {
 		[api]
 	)
 
+	/** Write the context-color map to the atom and the backend */
+	const saveContextColors = React.useCallback(
+		(next: Record<string, string>) => {
+			store.set(contextColorsAtom, next)
+			if (!api) return
+			contextColorsSave = contextColorsSave.then(() =>
+				api.settings
+					.update('ui.context_colors', { value: store.get(contextColorsAtom) })
+					.catch((err) => {
+						console.error('Failed to save context colors:', err)
+					})
+			)
+		},
+		[api, store]
+	)
+
+	/** Color context `key` (home's idTag or a pin key); `undefined` resets it to the default */
+	const setContextColor = React.useCallback(
+		(key: string, color: ContextColor | undefined) => {
+			const { [key]: _, ...rest } = store.get(contextColorsAtom)
+			saveContextColors(color ? { ...rest, [key]: color } : rest)
+		},
+		[store, saveContextColors]
+	)
+
+	/** Drop the colors of unpinned keys, so the map does not collect orphans */
+	const pruneContextColors = React.useCallback(
+		(keys: string[]) => {
+			const prev = store.get(contextColorsAtom)
+			if (!keys.some((k) => Object.hasOwn(prev, k))) return
+			saveContextColors(
+				Object.fromEntries(Object.entries(prev).filter(([k]) => !keys.includes(k)))
+			)
+		},
+		[store, saveContextColors]
+	)
+
 	/**
 	 * Load communities from backend (called on app init)
 	 */
@@ -768,11 +810,12 @@ export function useCommunitiesList() {
 			const pinning = !prev.includes(key)
 			const newFavorites = pinning ? [...prev, key] : prev.filter((k) => k !== key)
 			if (pinning) rememberPartner([key])
+			else pruneContextColors([key])
 			setFavorites(newFavorites)
 			// Save to backend (async, non-blocking)
 			savePinnedCommunities(newFavorites)
 		},
-		[store, setFavorites, savePinnedCommunities, rememberPartner]
+		[store, setFavorites, savePinnedCommunities, rememberPartner, pruneContextColors]
 	)
 
 	/** Drop every pin (bare and hatted) of community `idTag` */
@@ -783,8 +826,9 @@ export function useCommunitiesList() {
 			if (next.length === prev.length) return
 			setFavorites(next)
 			savePinnedCommunities(next)
+			pruneContextColors(prev.filter((k) => !next.includes(k)))
 		},
-		[store, setFavorites, savePinnedCommunities]
+		[store, setFavorites, savePinnedCommunities, pruneContextColors]
 	)
 
 	/** Pin `idTag` bare, or drop every pin of it when it has any */
@@ -853,9 +897,12 @@ export function useCommunitiesList() {
 		(idTag: string) => {
 			setCommunities((prev) => prev.filter((c) => c.idTag !== idTag))
 			// Every pinned variant (bare and hatted) goes with it, and so do pins worn under it.
-			setFavorites((prev) => withoutPins(prev, idTag, true))
+			const prev = store.get(favoritesAtom)
+			const next = withoutPins(prev, idTag, true)
+			setFavorites(next)
+			pruneContextColors(prev.filter((k) => !next.includes(k)))
 		},
-		[setCommunities, setFavorites]
+		[setCommunities, setFavorites, store, pruneContextColors]
 	)
 
 	/**
@@ -914,6 +961,7 @@ export function useCommunitiesList() {
 		togglePinCommunity,
 		pinCommunities,
 		pinCommunityAt,
+		setContextColor,
 		setShowInHome,
 		addCommunity,
 		removeCommunity,

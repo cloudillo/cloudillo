@@ -137,7 +137,7 @@ export function CreateMenu({
 				{createItems(t).map(({ app, db, label }) => (
 					<MenuItem
 						key={app}
-						icon={<AppIcon app={app} size="sm" tile={false} />}
+						icon={<AppIcon app={app} size="sm" />}
 						label={label}
 						onClick={() => create(app, db)}
 					/>

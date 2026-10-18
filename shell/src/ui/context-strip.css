@@ -89,6 +89,42 @@
 	}
 }
 
+/* The context's swatch (app-shell.css) as the resting chip surface; hover and the
+   active pill keep their own. */
+.c-tag.c-ctx-chip[data-ctx-color]:not(.active, :hover) {
+	background: var(--ctx-bg);
+}
+
+/* Chip menu color picker (ContextColorPicker). "Default" has no swatch: an outlined ring. */
+.c-ctx-colors {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.375rem;
+	padding: 0.5rem 0.75rem;
+	max-width: 15rem;
+}
+.c-ctx-swatch {
+	appearance: none;
+	width: 1.75rem;
+	height: 1.75rem;
+	padding: 0;
+	border: 1px solid var(--col-outline);
+	border-radius: var(--radius-full);
+	background: transparent;
+	cursor: pointer;
+
+	&[data-ctx-color] {
+		background: var(--ctx-bg);
+	}
+	&[aria-checked='true'] {
+		outline: 2px solid var(--col-primary);
+		outline-offset: 2px;
+	}
+	&:focus-visible {
+		box-shadow: 0 0 var(--sh-focus) var(--col-focus);
+	}
+}
+
 .c-sortable-item:has(> .c-ctx-chip) {
 	cursor: grab;
 }

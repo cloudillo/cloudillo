@@ -23,10 +23,12 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { getFileIcon } from '../apps/files/icons.js'
+import { resolveContextColor } from '../context/context-colors.js'
 import { useEnterPin, useHatEntry } from '../context/hat-entry.js'
 import {
 	activeContextAtom,
 	activePinKey,
+	contextColorsAtom,
 	type PinnedCommunity,
 	partnerCommunitiesAtom,
 	previewCommunityAtom,
@@ -61,6 +63,7 @@ export function ContextBar() {
 	const previewCommunity = useAtomValue(previewCommunityAtom)
 	const partners = useAtomValue(partnerCommunitiesAtom)
 	const unreadCounts = useAtomValue(unreadCountAtom)
+	const colors = useAtomValue(contextColorsAtom)
 	const { pinnedEntries, pinnedKeys, pinCommunityAt } = useCommunitiesList()
 	const handleSwitch = useContextSwitchNav()
 	const enterPin = useEnterPin()
@@ -168,6 +171,7 @@ export function ContextBar() {
 				name={community.name}
 				hat={worn?.hat}
 				active={active}
+				color={resolveContextColor(colors, community.pinKey, false)}
 				aria-label={
 					community.isPending
 						? t('{{name}} (setting up)', { name: community.name })
@@ -217,6 +221,7 @@ export function ContextBar() {
 							profilePic={auth.profilePic}
 							unread={!!unreadCounts[auth.idTag ?? '']}
 							active={meActive}
+							color={resolveContextColor(colors, auth.idTag, true)}
 							aria-label={t('My profile')}
 							onClick={wrapClick(() => handleSwitch(auth.idTag!))}
 							{...getTriggerProps({

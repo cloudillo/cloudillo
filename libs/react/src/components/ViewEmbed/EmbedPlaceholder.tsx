@@ -177,7 +177,7 @@ export function EmbedPlaceholder({
 				title={
 					title && (
 						<span className="cl-embed-placeholder-title">
-							{isAppId(appId) && <AppIcon app={appId} size="sm" tile={false} />}
+							{isAppId(appId) && <AppIcon app={appId} size="sm" />}
 							{title}
 						</span>
 					)

@@ -16,6 +16,7 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
 import './context-strip.css'
+import type { ContextColor } from '../context/context-colors.js'
 import { IcPending } from '../icons.js'
 
 export interface ContextAvatarProps {
@@ -80,6 +81,8 @@ export interface ContextChipProps
 	preview?: boolean
 	/** `vertical`: avatar over name, the sheet's pinned-row tile */
 	orientation?: 'horizontal' | 'vertical'
+	/** The context's swatch (`context-colors.ts`); omit for no tint */
+	color?: ContextColor
 	/** Without it the chip is static */
 	onClick?: React.MouseEventHandler<HTMLElement>
 }
@@ -95,6 +98,7 @@ export function ContextChip({
 	active,
 	preview,
 	orientation = 'horizontal',
+	color,
 	onClick,
 	className,
 	...props
@@ -122,6 +126,7 @@ export function ContextChip({
 			onClick={onClick}
 			aria-current={active ? 'true' : undefined}
 			data-ctx-chip=""
+			data-ctx-color={color}
 			{...props}
 		>
 			{name && <span className="c-ctx-chip-name">{name}</span>}

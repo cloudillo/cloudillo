@@ -14,6 +14,27 @@
 	--c-error: var(--col-error);
 }
 
+/* Cloudillo brand hues (logo: #008cb6 → h236, #e98a54 → h53); OpalUI keeps its own defaults.
+   Selectors mirror opalui color.css + themes/*.css so source order wins. Warning moves to
+   h90 so accent ≠ warning. */
+body {
+	--color-primary: lch(35 60 236);
+	--color-accent: lch(35 60 53);
+	--color-warning: lch(35 50 90);
+}
+body.dark {
+	--color-primary: lch(68 60 236);
+	--color-accent: lch(68 60 53);
+}
+body.theme-opaque.light {
+	--color-primary: lch(45 60 236);
+}
+body.theme-opaque.dark,
+body.theme-glass.light,
+body.theme-glass.dark {
+	--color-primary: lch(68 50 236);
+}
+
 /* ==========================================================================
    Accessibility Base Styles
    Focus rings and screen reader utilities
@@ -3126,50 +3147,21 @@ body.dark .c-id-color {
 }
 
 /* ==========================================================================
-   AppIcon — app and file-type glyphs (from claude-docs/icons.html, "Solid")
-   App hues live here, not in OpalUI: OpalUI must not know app names.
+   AppIcon — app and file-type glyphs (claude-docs/icons.html "Solid"), brand duotone: logo
+   blue, secondary parts mixed 45% toward the surface, orange accents
    ========================================================================== */
 
 :root {
 	--p-blue: #008cb6;
 	--p-orange: #e98a54;
-	--p-yellow: oklch(0.83 0.15 88);
-	--p-green: oklch(0.68 0.15 150);
-	--p-violet: oklch(0.58 0.16 295);
-	--p-pink: oklch(0.68 0.17 0);
-	--p-teal: oklch(0.72 0.11 195);
-	--p-navy: oklch(0.42 0.09 250);
-	--p-paper: #fff;
-
-	--h-quillo: oklch(0.58 0.14 252);
-	--h-prezillo: oklch(0.63 0.14 68);
-	--h-calcillo: oklch(0.6 0.13 152);
-	--h-taskillo: oklch(0.6 0.11 188);
-	--h-formillo: oklch(0.56 0.15 300);
-	--h-notillo: oklch(0.52 0.14 272);
-	--h-ideallo: oklch(0.64 0.13 88);
-	--h-scanillo: oklch(0.62 0.11 218);
-	--h-mapillo: oklch(0.6 0.11 128);
-	--h-files: oklch(0.56 0.07 250);
-	--h-feed: oklch(0.63 0.16 25);
-	--h-messages: oklch(0.64 0.12 235);
-	--h-gallery: oklch(0.58 0.17 348);
-	--h-calendar: oklch(0.58 0.18 22);
-	--h-contacts: oklch(0.55 0.07 55);
-	--h-qrscan: oklch(0.56 0.1 240);
-	/* file types: one neutral navy, the folder borrows the Files hue */
-	--h-image: var(--p-navy);
-	--h-video: var(--p-navy);
-	--h-pdf: var(--p-navy);
-	--h-generic: var(--p-navy);
-	--h-folder: var(--h-files);
 }
 
-/* --hue/--fg2 are set per icon; --tile is what cut-outs show through.
-   --fg clamps the hue's lightness per surface so every glyph keeps >= 3:1 contrast */
+/* --tile is what cut-outs (and the 45% .gh mix) show through.
+   --fg clamps the logo blue's lightness per surface so the opaque .gf/.gs parts keep >= 3:1
+   contrast; .gh parts are secondary detail and carry no meaning on their own */
 .c-app-icon {
 	--tile: var(--app-icon-surface, var(--col-container));
-	--fg: oklch(from var(--hue) min(l, 0.53) c h);
+	--fg: oklch(from var(--p-blue) min(l, 0.53) c h);
 	--node: var(--p-orange);
 	display: inline-block;
 	flex-shrink: 0;
@@ -3178,10 +3170,10 @@ body.dark .c-id-color {
 /* the fixed-light tile looks the same in both themes, so glyph colours never adapt */
 .c-app-icon.tile {
 	--tile: #eceff2;
-	--fg: oklch(from var(--hue) min(l, 0.61) c h);
+	--fg: oklch(from var(--p-blue) min(l, 0.61) c h);
 }
 body.dark .c-app-icon:not(.tile) {
-	--fg: oklch(from var(--hue) max(l, 0.58) c h);
+	--fg: oklch(from var(--p-blue) max(l, 0.58) c h);
 }
 .c-app-icon-tile {
 	fill: var(--tile);
@@ -3197,7 +3189,7 @@ body.dark .c-app-icon:not(.tile) {
 	fill: var(--fg);
 }
 .c-app-icon .gh {
-	fill: var(--fg2);
+	fill: color-mix(in oklch, var(--fg) 45%, var(--tile));
 }
 .c-app-icon .gd {
 	fill: var(--tile);

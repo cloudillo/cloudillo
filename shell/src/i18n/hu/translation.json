@@ -2471,5 +2471,15 @@
 	"Reconnecting…": "Újracsatlakozás…",
 	"Synced": "Szinkronizálva",
 	"Partner communities ({{count}})_one": "Partnerközösségek ({{count}})",
-	"Partner communities ({{count}})_other": "Partnerközösségek ({{count}})"
+	"Partner communities ({{count}})_other": "Partnerközösségek ({{count}})",
+	"Color": "Szín",
+	"Neutral": "Semleges",
+	"Blue": "Kék",
+	"Violet": "Ibolya",
+	"Magenta": "Bíbor",
+	"Rose": "Rózsa",
+	"Amber": "Borostyán",
+	"Sand": "Homok",
+	"Green": "Zöld",
+	"Teal": "Kékeszöld"
 }

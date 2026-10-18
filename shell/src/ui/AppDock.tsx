@@ -38,7 +38,7 @@ export function AppDockIsland({ apps, children }: { apps?: boolean; children: Re
 }
 
 /**
- * An app tile (dock, rail, Other grid): icon (an `AppIcon` tile) with an optional badge over
+ * An app tile (dock, rail, Other grid): icon (an untiled `AppIcon`) with an optional badge over
  * a label. A link with `href`, else a button (Scan QR, the Other trigger).
  */
 export function AppDockLink({

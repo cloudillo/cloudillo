@@ -51,32 +51,6 @@ export function isAppId(id: string | undefined): id is AppId {
 	return !!id && (APP_IDS as readonly string[]).includes(id)
 }
 
-/** Palette key (`--p-<key>`) of each glyph's second colour */
-export const GLYPH_COLOR2: Record<GlyphId, string> = {
-	quillo: 'teal',
-	prezillo: 'blue',
-	calcillo: 'teal',
-	taskillo: 'green',
-	formillo: 'pink',
-	notillo: 'teal',
-	ideallo: 'pink',
-	scanillo: 'navy',
-	mapillo: 'teal',
-	pagillo: 'orange',
-	files: 'orange',
-	feed: 'violet',
-	messages: 'green',
-	gallery: 'violet',
-	calendar: 'navy',
-	contacts: 'teal',
-	qrscan: 'navy',
-	image: 'navy',
-	video: 'navy',
-	pdf: 'navy',
-	folder: 'navy',
-	generic: 'navy'
-}
-
 export const GLYPHS: Record<GlyphId, string> = {
 	quillo: '<path class="gf" style="stroke:var(--fg);stroke-width:3;stroke-linejoin:round" d="M12 7h16l10 10v24H12z"/><path class="gd" d="M28 7v10h10z"/><path class="gtl" d="M18 24h13M18 30h13M18 36h6"/><circle class="go" cx="29" cy="36" r="3"/>',
 	prezillo:

@@ -4,7 +4,7 @@
 import * as React from 'react'
 
 import { mergeClasses } from '../utils.js'
-import { type AppId, GLYPH_COLOR2, GLYPHS, type GlyphId } from './glyphs.js'
+import { type AppId, GLYPHS, type GlyphId } from './glyphs.js'
 
 /** Only the sizes the atlas glyphs were drawn and checked at (px, so strokes stay on the grid) */
 export type AppIconSize = 'sm' | 'md' | 'lg'
@@ -17,7 +17,7 @@ const GLYPH_ON_TILE = 'translate(2 2) scale(1.25)'
 interface GlyphIconProps extends Omit<React.SVGAttributes<SVGSVGElement>, 'children'> {
 	/** Default `md` (32px) */
 	size?: AppIconSize
-	/** Fixed-light squircle tile (default); `false` draws the bare glyph for list rows and inline mentions */
+	/** Fixed-light squircle tile (default, except AppIcon); `false` draws the bare glyph for list rows and inline mentions */
 	tile?: boolean
 	/** Accessible name; without it the icon is decorative */
 	label?: string
@@ -29,10 +29,7 @@ export interface AppIconProps extends GlyphIconProps {
 
 /** Shared by AppIcon and FileTypeIcon */
 export const GlyphIcon = React.forwardRef<SVGSVGElement, GlyphIconProps & { glyph: GlyphId }>(
-	function GlyphIcon(
-		{ glyph, size = 'md', tile = true, label, className, style, ...props },
-		ref
-	) {
+	function GlyphIcon({ glyph, size = 'md', tile = true, label, className, ...props }, ref) {
 		const px = SIZE_PX[size]
 		const markup = { __html: GLYPHS[glyph] }
 		return (
@@ -42,13 +39,6 @@ export const GlyphIcon = React.forwardRef<SVGSVGElement, GlyphIconProps & { glyp
 				viewBox={tile ? '0 0 64 64' : '0 0 48 48'}
 				width={px}
 				height={px}
-				style={
-					{
-						'--hue': `var(--h-${glyph})`,
-						'--fg2': `var(--p-${GLYPH_COLOR2[glyph]})`,
-						...style
-					} as React.CSSProperties
-				}
 				{...(label ? { role: 'img', 'aria-label': label } : { 'aria-hidden': true })}
 				{...props}
 			>
@@ -66,10 +56,10 @@ export const GlyphIcon = React.forwardRef<SVGSVGElement, GlyphIconProps & { glyp
 )
 
 export const AppIcon = React.forwardRef<SVGSVGElement, AppIconProps>(function AppIcon(
-	{ app, ...props },
+	{ app, tile = false, ...props },
 	ref
 ) {
-	return <GlyphIcon ref={ref} glyph={app} {...props} />
+	return <GlyphIcon ref={ref} glyph={app} tile={tile} {...props} />
 })
 
 // vim: ts=4

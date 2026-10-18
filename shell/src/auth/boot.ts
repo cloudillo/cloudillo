@@ -31,6 +31,7 @@ import type { AuthState } from '@cloudillo/react'
 import type { TFunction } from 'i18next'
 import type { NavigateFunction } from 'react-router-dom'
 
+import { isContextColor } from '../context/context-colors.js'
 import { loadIdpEnabled } from '../context/index.js'
 import { applyMenuConfig } from '../manifest-registry.js'
 import { readSwKeyCookie } from '../pwa/cookie.js'
@@ -60,6 +61,7 @@ export interface BootDeps {
 	setKeyLoss: (state: KeyLossState) => void
 	setLoginInitData: (data: LoginInitData | null) => void
 	setFavorites: (favorites: string[]) => void
+	setContextColors: (colors: Record<string, string>) => void
 	setContextIdpEnabled: (
 		updater: (prev: Record<string, boolean | 'unknown'>) => Record<string, boolean | 'unknown'>
 	) => void
@@ -136,6 +138,7 @@ export async function runBootSequence(deps: BootDeps): Promise<void> {
 		setKeyLoss,
 		setLoginInitData,
 		setFavorites,
+		setContextColors,
 		setContextIdpEnabled,
 		loadNotifications,
 		toastWarning,
@@ -182,6 +185,14 @@ export async function runBootSequence(deps: BootDeps): Promise<void> {
 			if (Array.isArray(pinnedVal)) {
 				setFavorites([...new Set(pinnedVal.filter(isContextKey))])
 			}
+			const colorsVal = uiSettings.find((s) => s.key === 'ui.context_colors')?.value
+			setContextColors(
+				colorsVal && typeof colorsVal === 'object' && !Array.isArray(colorsVal)
+					? (Object.fromEntries(
+							Object.entries(colorsVal).filter(([, v]) => isContextColor(v))
+						) as Record<string, string>)
+					: {}
+			)
 
 			setTheme(theme as string | undefined, colors as string | undefined)
 

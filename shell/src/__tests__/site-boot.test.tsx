@@ -84,6 +84,7 @@ async function bootAsSiteReader(siteSeed: SiteBootSeed | null) {
 			auth: { loginInit: async () => ({ status: 'anonymous' }) }
 		}),
 		setApiToken: () => {},
+		isContextKey: (key: unknown) => typeof key === 'string',
 		FetchError: class FetchError extends Error {}
 	}))
 
@@ -107,6 +108,7 @@ async function bootAsSiteReader(siteSeed: SiteBootSeed | null) {
 		setKeyLoss: () => {},
 		setLoginInitData: () => {},
 		setFavorites: () => {},
+		setContextColors: () => {},
 		setContextIdpEnabled: () => {},
 		loadNotifications: () => {},
 		toastWarning: () => {},

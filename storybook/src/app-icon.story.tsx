@@ -37,7 +37,7 @@ export function AppIconStory() {
 				<Variant key={size} name={`Tile · ${size}`}>
 					<div className="c-hbox g-2 flex-wrap">
 						{APP_IDS.map((app) => (
-							<AppIcon key={app} app={app} size={size} label={app} />
+							<AppIcon key={app} app={app} size={size} tile label={app} />
 						))}
 					</div>
 				</Variant>
@@ -46,7 +46,7 @@ export function AppIconStory() {
 				<Variant key={size} name={`Bare · ${size}`}>
 					<div className="c-hbox g-2 flex-wrap">
 						{APP_IDS.map((app) => (
-							<AppIcon key={app} app={app} size={size} tile={false} label={app} />
+							<AppIcon key={app} app={app} size={size} label={app} />
 						))}
 					</div>
 				</Variant>

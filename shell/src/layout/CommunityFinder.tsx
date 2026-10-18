@@ -34,12 +34,15 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 
+import { resolveContextColor } from '../context/context-colors.js'
+import { useEnterPin } from '../context/hat-entry.js'
 import {
 	activeContextAtom,
+	activePinKey,
 	type CommunityRef,
 	ContextTools,
-	activePinKey,
 	communitiesAtom,
+	contextColorsAtom,
 	partnerCommunitiesAtom,
 	pinKeyFor,
 	recentCommunitiesAtom,
@@ -47,7 +50,6 @@ import {
 	useContextSwitchNav,
 	useCtx
 } from '../context/index.js'
-import { useEnterPin } from '../context/hat-entry.js'
 import { ProfileContextMenu, useProfileContextMenu } from '../context/profile-context-menu.js'
 import { IcProfile, IcUnpin } from '../icons.js'
 import { unreadCountAtom } from '../read-position.js'
@@ -129,6 +131,7 @@ function PinnedRow({ onDone }: { onDone: () => void }) {
 	const activeContext = useAtomValue(activeContextAtom)
 	const partners = useAtomValue(partnerCommunitiesAtom)
 	const unreadCounts = useAtomValue(unreadCountAtom)
+	const colors = useAtomValue(contextColorsAtom)
 	const { pinnedEntries, pinnedKeys } = useCommunitiesList()
 	const handleSwitch = useContextSwitchNav()
 	const enterPin = useEnterPin()
@@ -181,6 +184,7 @@ function PinnedRow({ onDone }: { onDone: () => void }) {
 						name={entry.name}
 						hat={active ? activeContext?.hat : entry.hat}
 						active={active}
+						color={resolveContextColor(colors, entry.pinKey, entry.type === 'me')}
 						aria-label={
 							entry.isPending ? t('{{name}} (setting up)', { name: label }) : label
 						}

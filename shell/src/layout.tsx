@@ -52,6 +52,7 @@ import { QrScannerDialog } from './components/QrScanner/index.js'
 import { ShareCreate } from './components/ShareCreate/index.js'
 import {
 	CtxProvider,
+	contextColorsAtom,
 	contextIdpEnabledAtom,
 	favoritesAtom,
 	Sidebar,
@@ -259,6 +260,7 @@ function Header({ inert }: { inert?: boolean }) {
 
 	const setLoginInitData = useSetAtom(loginInitAtom)
 	const setFavorites = useSetAtom(favoritesAtom)
+	const setContextColors = useSetAtom(contextColorsAtom)
 	const setContextIdpEnabled = useSetAtom(contextIdpEnabledAtom)
 
 	React.useEffect(
@@ -283,6 +285,7 @@ function Header({ inert }: { inert?: boolean }) {
 				setKeyLoss,
 				setLoginInitData,
 				setFavorites,
+				setContextColors,
 				setContextIdpEnabled,
 				loadNotifications,
 				toastWarning,

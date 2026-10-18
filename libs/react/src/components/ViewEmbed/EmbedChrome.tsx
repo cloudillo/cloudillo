@@ -122,7 +122,7 @@ export function EmbedChrome({
 			onDoubleClick={(evt) => evt.stopPropagation()}
 		>
 			<span className="cl-embed-chrome-chip">
-				{isAppId(appId) && <AppIcon app={appId} size="sm" tile={false} />}
+				{isAppId(appId) && <AppIcon app={appId} size="sm" />}
 				<span className="cl-embed-chrome-title">{title}</span>
 				{owner && <span className="cl-embed-chrome-owner">{owner}</span>}
 			</span>

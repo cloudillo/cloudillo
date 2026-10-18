@@ -1,12 +1,19 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { mergeClasses, SkipLink } from '@cloudillo/react'
+import { mergeClasses, SkipLink, useAuth } from '@cloudillo/react'
 import { useAtomValue } from 'jotai'
 import * as React from 'react'
 import { useLocation } from 'react-router-dom'
 
-import { activeContextAtom } from '../context/atoms.js'
+import {
+	activeContextAtom,
+	activePinKey,
+	contextColorsAtom,
+	favoritesAtom,
+	partnerCommunitiesAtom
+} from '../context/atoms.js'
+import { resolveContextColor } from '../context/context-colors.js'
 import { ErrorBoundary } from '../ErrorBoundary.js'
 import { matchAppRoute } from '../routes.js'
 
@@ -28,7 +35,16 @@ export interface AppShellProps {
 export function AppShell({ header, sidebar, sidebarPinned, inert, children }: AppShellProps) {
 	const { pathname } = useLocation()
 	const docMode = !!matchAppRoute(pathname)?.resId
-	const community = useAtomValue(activeContextAtom)?.type === 'community'
+	const [auth] = useAuth()
+	const active = useAtomValue(activeContextAtom)
+	const favorites = useAtomValue(favoritesAtom)
+	const partners = useAtomValue(partnerCommunitiesAtom)
+	const colors = useAtomValue(contextColorsAtom)
+	const community = active?.type === 'community'
+	// Home is keyed by the user's own idTag; a community only by its pin (unpinned → default).
+	const ctxColor = community
+		? resolveContextColor(colors, activePinKey(favorites, active, partners), false)
+		: auth?.idTag && resolveContextColor(colors, auth.idTag, true)
 
 	// On :root like AppFrame's `data-app-frame`: app-shell.css combines the two below md into
 	// mobile doc mode (no dock, slim header) and tints the rail in a community context.
@@ -38,7 +54,14 @@ export function AppShell({ header, sidebar, sidebarPinned, inert, children }: Ap
 		else delete root.docMode
 		if (community) root.community = ''
 		else delete root.community
-	}, [docMode, community])
+		if (ctxColor) root.ctxColor = ctxColor
+		else delete root.ctxColor
+		return () => {
+			delete root.docMode
+			delete root.community
+			delete root.ctxColor
+		}
+	}, [docMode, community, ctxColor])
 
 	return (
 		<>

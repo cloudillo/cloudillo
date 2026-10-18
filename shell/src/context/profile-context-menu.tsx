@@ -35,7 +35,9 @@ import {
 	IcUnpin
 } from '../icons.js'
 import { profilePath } from '../routes.js'
-import { pinKeyFor, previewCommunityAtom } from './atoms'
+import { ContextColorPicker } from '../ui/ContextColorPicker.js'
+import { contextColorsAtom, pinKeyFor, previewCommunityAtom } from './atoms'
+import { resolveContextColor } from './context-colors.js'
 import { useCtx } from './ctx'
 import { useCommunitiesList } from './hooks'
 
@@ -97,9 +99,16 @@ export function ProfileContextMenu({
 	const [auth] = useAuth()
 	const toast = useToast()
 	const ctx = useCtx()
-	const { communities, pinnedKeys, toggleFavorite, togglePinCommunity, setShowInHome } =
-		useCommunitiesList()
+	const {
+		communities,
+		pinnedKeys,
+		toggleFavorite,
+		togglePinCommunity,
+		setShowInHome,
+		setContextColor
+	} = useCommunitiesList()
 	const previewCommunity = useAtomValue(previewCommunityAtom)
+	const contextColors = useAtomValue(contextColorsAtom)
 
 	const isMobile = useIsMobile()
 	const Item = isMobile ? ActionSheetItem : MenuItem
@@ -122,6 +131,16 @@ export function ProfileContextMenu({
 	const memberCommunity = isMember ? communities.find((c) => c.idTag === target.idTag) : undefined
 	const showHomeEntry = isCommunity && !isOwnProfile && isMember
 	const shownInHome = memberCommunity?.showInHome !== false
+	// Only home and pinned contexts take a color, keyed by context key (home: own idTag).
+	const colorKey =
+		target.type === 'me'
+			? auth?.idTag
+			: isPinned
+				? (target.pinKey ??
+					(pinnedKeys.includes(target.idTag)
+						? target.idTag
+						: pinKeyFor(target.idTag, pinnedKeys)))
+				: undefined
 
 	const handleAction = (action: () => void) => () => {
 		action()
@@ -217,6 +236,16 @@ export function ProfileContextMenu({
 							onClick={handleAction(onMoveRight)}
 						/>
 					)}
+				</>
+			)}
+			{colorKey && (
+				<>
+					<Divider />
+					<ContextColorPicker
+						noDefault={target.type === 'me'}
+						value={resolveContextColor(contextColors, colorKey, target.type === 'me')}
+						onChange={(color) => setContextColor(colorKey, color)}
+					/>
 				</>
 			)}
 			{showHomeEntry && (

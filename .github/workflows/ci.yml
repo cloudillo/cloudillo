@@ -22,6 +22,12 @@ jobs:
           node-version: 24
           cache: pnpm
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: pip install fonttools
+
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 

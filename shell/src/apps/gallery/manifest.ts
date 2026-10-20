@@ -10,6 +10,7 @@ export const manifest: AppManifest = {
 	name: 'Gallery',
 	version: pkg.version,
 	kind: 'internal',
+	crossContext: true,
 	icon: 'image',
 	defaultOrder: 50,
 	translations: {

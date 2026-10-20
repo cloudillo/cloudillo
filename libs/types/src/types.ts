@@ -964,6 +964,10 @@ export const tAppManifest = T.struct({
 	// Can't boot without trusted mode (allow-same-origin): the shell refuses to launch it untrusted
 	requiresTrusted: T.optional(T.boolean),
 
+	// Has a landing page in every context: a context switch keeps the app (minus any object
+	// the old context owns) instead of falling back to Files
+	crossContext: T.optional(T.boolean),
+
 	// Extensibility
 	meta: T.optional(T.record(T.unknown))
 })

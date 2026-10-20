@@ -10,6 +10,7 @@ export const manifest: AppManifest = {
 	name: 'Feed',
 	version: pkg.version,
 	kind: 'internal',
+	crossContext: true,
 	icon: 'list',
 	defaultOrder: 20,
 	translations: {

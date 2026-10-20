@@ -163,6 +163,38 @@ export function rebase(pathname: string, base: CtxBase): string {
 }
 
 /**
+ * Where a context-chip switch lands: the same *kind* of place in `toIdTag`, with any object
+ * the old context owns dropped — a doc, a file, a post, a conversation, a room. Profiles are
+ * global, so they ride along, except the old context's own page, which becomes the new one's.
+ * Everything else is `rebase`d; route guards decide whether it is allowed over there.
+ *
+ * @param homeIdTag - this node's idTag, resolving `~` (as in `ctxBase`)
+ * @param keepsApp - apps whose page survives the switch: those whose manifest sets
+ *   `crossContext`; any other app falls back to Files
+ */
+export function switchPath(
+	pathname: string,
+	toIdTag: string,
+	homeIdTag: string | undefined,
+	keepsApp: (id: string) => boolean
+): string {
+	const base = ctxBase(toIdTag, homeIdTag)
+	const [, ctx, section, sub, ...rest] = pathname.split('/')
+	switch (section) {
+		case 'app':
+			return keepsApp(sub) ? appPath(base, sub) : filesPath(base)
+		case 'rooms':
+			return roomsPath(base)
+		case 'profile': {
+			// Compared encoded, as the path spells it — no decode that could throw.
+			const from = ctx === HOME_CONTEXT ? encodeSegment(homeIdTag ?? '') : ctx?.slice(1)
+			if (sub && sub === from) return profilePath(base, toIdTag) + joinTail(rest, false)
+		}
+	}
+	return rebase(pathname, base)
+}
+
+/**
  * Scope a menu template (`app/files`, `communities`, `settings`) to a context. An absolute
  * template passes through untouched, which two items rely on: `site-admin` stays pinned to
  * `/~/site-admin` whatever context is browsed, and the guest-document item carries a whole

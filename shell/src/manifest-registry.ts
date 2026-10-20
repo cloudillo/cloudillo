@@ -25,6 +25,11 @@ export { appRequiresTrusted, appTrust } from './app-trust.js'
 // All registered manifests
 export const allManifests: AppManifest[] = [...shellManifests, ...bundledManifests]
 
+// Apps a context switch keeps (`switchPath`)
+export const crossContextApps: ReadonlySet<string> = new Set(
+	allManifests.filter((m) => m.crossContext).map((m) => m.id)
+)
+
 /**
  * The sidebar's bottom block: things that act on the *active context* rather than
  * being apps in it. Deliberately NOT part of `getAllMenuItems()` — they are fixed

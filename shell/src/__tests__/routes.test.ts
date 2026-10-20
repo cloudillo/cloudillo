@@ -24,6 +24,7 @@ import {
 	sectionMatch,
 	settingsPath,
 	siteAdminPath,
+	switchPath,
 	viewPath
 } from '../routes.js'
 
@@ -231,6 +232,48 @@ describe('rebase', () => {
 
 	it('keeps the query string, which is part of the tail', () => {
 		expect(rebase('/~/app/files?path=%2Fdocs', COMM)).toBe('/@comm.tld/app/files?path=%2Fdocs')
+	})
+})
+
+describe('switchPath', () => {
+	const kept = (id: string) => ['feed', 'messages', 'calendar'].includes(id)
+
+	it('drops objects the old context owns', () => {
+		expect(switchPath('/~/app/quillo/bob.org:abc', 'comm.tld', HOME, kept)).toBe(
+			'/@comm.tld/app/files'
+		)
+		expect(switchPath('/~/app/view/home.tld:f1', 'comm.tld', HOME, kept)).toBe(
+			'/@comm.tld/app/files'
+		)
+		expect(switchPath('/~/app/feed/a1', 'comm.tld', HOME, kept)).toBe('/@comm.tld/app/feed')
+		expect(switchPath('/@comm.tld/app/messages/c9', HOME, HOME, kept)).toBe('/~/app/messages')
+		expect(switchPath('/~/rooms/design/settings', 'comm.tld', HOME, kept)).toBe(
+			'/@comm.tld/rooms'
+		)
+	})
+
+	it('keeps section pages', () => {
+		expect(switchPath('/~/app/calendar', 'comm.tld', HOME, kept)).toBe(
+			'/@comm.tld/app/calendar'
+		)
+		expect(switchPath('/~/app/calendar', 'comm.tld', HOME, () => false)).toBe(
+			'/@comm.tld/app/files'
+		)
+		expect(switchPath('/~/settings/security', 'comm.tld', HOME, kept)).toBe(
+			'/@comm.tld/settings/security'
+		)
+	})
+
+	it('keeps profiles, remapping the old context own page', () => {
+		expect(switchPath('/~/profile/alice.org/feed', 'comm.tld', HOME, kept)).toBe(
+			'/@comm.tld/profile/alice.org/feed'
+		)
+		expect(switchPath('/@a.tld/profile/a.tld/about', 'comm.tld', HOME, kept)).toBe(
+			'/@comm.tld/profile/comm.tld/about'
+		)
+		expect(switchPath('/~/profile/home.tld', 'comm.tld', HOME, kept)).toBe(
+			'/@comm.tld/profile/comm.tld'
+		)
 	})
 })
 

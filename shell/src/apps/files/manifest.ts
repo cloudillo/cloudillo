@@ -10,6 +10,7 @@ export const manifest: AppManifest = {
 	name: 'Files',
 	version: pkg.version,
 	kind: 'internal',
+	crossContext: true,
 	icon: 'file',
 	defaultOrder: 10,
 	capabilities: ['storage'],

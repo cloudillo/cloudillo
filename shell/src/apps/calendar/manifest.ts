@@ -10,6 +10,7 @@ export const manifest: AppManifest = {
 	name: 'Calendar',
 	version: pkg.version,
 	kind: 'internal',
+	crossContext: true,
 	icon: 'calendar',
 	defaultOrder: 60,
 	translations: {

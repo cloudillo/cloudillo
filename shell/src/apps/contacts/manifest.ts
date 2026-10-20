@@ -10,6 +10,7 @@ export const manifest: AppManifest = {
 	name: 'Contacts',
 	version: pkg.version,
 	kind: 'internal',
+	crossContext: true,
 	icon: 'contact',
 	defaultOrder: 65,
 	translations: {

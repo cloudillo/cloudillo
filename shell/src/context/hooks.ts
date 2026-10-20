@@ -21,9 +21,10 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useMatch, useNavigate } from 'react-router-dom'
 
+import { crossContextApps } from '../manifest-registry.js'
 import { installHatToken } from '../pwa.js'
 import { seedCommunityFromHome } from '../read-position.js'
-import { CTX_SECTION_MATCH, ctxBase, feedPath, isContextSegment, rebase } from '../routes.js'
+import { CTX_SECTION_MATCH, ctxBase, feedPath, isContextSegment, switchPath } from '../routes.js'
 import {
 	activeContextAtom,
 	activeContextDisplayAtom,
@@ -1070,13 +1071,13 @@ export function useContextSwitch() {
 }
 
 /**
- * Switch context and stay on the same page — the behaviour behind every context chip,
- * shared by the top-bar strip and the mobile community sheet.
+ * Switch context and stay in the same kind of place — the behaviour behind every context
+ * chip, shared by the top-bar strip and the mobile community sheet.
  *
- * Whatever section the URL names rides along; the route tree decides whether it resolves
- * in the new context. Falls back to the default feed when the current URL is not a context
- * route at all, or when the target context's IDP is disabled (or unknown — we have no
- * token to ask the foreign server yet).
+ * The section rides along minus any object the old context owns (`switchPath`); the route
+ * tree decides whether it resolves in the new context. Falls back to the default feed when
+ * the current URL is not a context route at all, or when the target context's IDP is
+ * disabled (or unknown — we have no token to ask the foreign server yet).
  */
 export function useContextSwitchNav(): (idTag: string) => void {
 	const { t } = useTranslation()
@@ -1089,8 +1090,7 @@ export function useContextSwitchNav(): (idTag: string) => void {
 	const isDesktop = useIsDesktop()
 	// Segment 2 of a context route, `undefined` on anything else (`/login`, `/s/:refId`,
 	// a bare `/~`) — the pattern matches any two segments, so the sigil test is what rules
-	// those out. Only two sections need naming below; the rest ride along byte-for-byte
-	// through `rebase`, so the switcher stays ignorant of the section registry.
+	// those out. Only two sections need naming below; `switchPath` decides the rest.
 	const sectionMatch = useMatch(CTX_SECTION_MATCH)
 	const section = isContextSegment(sectionMatch?.params.contextIdTag)
 		? sectionMatch?.params.section
@@ -1115,9 +1115,12 @@ export function useContextSwitchNav(): (idTag: string) => void {
 					// section carries state that survives a context switch — an app's
 					// launch params name resources in the old context.
 					const query = section === 'search' ? location.search : ''
-					// `rebase` on the raw pathname, not the match's splat param: the
-					// splat is decoded, so a `%`-escaped resId would come back raw.
-					destination = rebase(location.pathname, base) + query
+					// The raw pathname, not the match's splat param: the splat is
+					// decoded, so a `%`-escaped resId would come back raw.
+					destination =
+						switchPath(location.pathname, idTag, auth?.idTag, (id) =>
+							crossContextApps.has(id)
+						) + query
 				}
 			}
 

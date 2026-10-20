@@ -1,11 +1,12 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
-import { type Block, UniqueID } from '@blocknote/core'
+import type { Block } from '@blocknote/core'
 import {
 	filterSuggestionItems,
 	SideMenuExtension,
-	SuggestionMenu
+	SuggestionMenu,
+	UniqueID
 } from '@blocknote/core/extensions'
 import { BlockNoteView } from '@blocknote/mantine'
 import {

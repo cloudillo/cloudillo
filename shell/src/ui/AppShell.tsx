@@ -15,6 +15,7 @@ import {
 } from '../context/atoms.js'
 import { resolveContextColor } from '../context/context-colors.js'
 import { ErrorBoundary } from '../ErrorBoundary.js'
+import { getShellBus } from '../message-bus/index.js'
 import { matchAppRoute } from '../routes.js'
 
 import './app-shell.css'
@@ -62,6 +63,13 @@ export function AppShell({ header, sidebar, sidebarPinned, inert, children }: Ap
 			delete root.ctxColor
 		}
 	}, [docMode, community, ctxColor])
+
+	// Apps carry the same seed in their own document (inline `--color-neutral`). Declared after the
+	// dataset effect, so it runs after `ctxColor` is applied and the body's computed
+	// `--color-neutral` is current; on mount no app is initialized yet, so it posts nothing.
+	React.useEffect(() => {
+		getShellBus()?.broadcastThemeUpdate()
+	}, [community, ctxColor])
 
 	return (
 		<>

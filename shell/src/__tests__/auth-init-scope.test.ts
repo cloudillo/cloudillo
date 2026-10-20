@@ -59,7 +59,7 @@ function createBus(pending: Map<string, PendingRegistration>) {
 			markInitialized: () => {}
 		}),
 		getAuthState: () => ({ idTag: '@user.example.com', tnId: 1, roles: [] }),
-		getThemeState: () => ({ darkMode: false }),
+		getThemeState: () => ({ darkMode: false, neutral: 'lch(35 8 250)' }),
 		getLanguage: () => 'en',
 		getAccessToken,
 		sendResponse: (

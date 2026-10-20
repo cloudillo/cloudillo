@@ -66,7 +66,7 @@ function createBus({ pending = new Map(), authState, connection }: BusOpts) {
 			markInitialized: () => {}
 		}),
 		getAuthState: () => authState ?? undefined,
-		getThemeState: () => ({ darkMode: false }),
+		getThemeState: () => ({ darkMode: false, neutral: 'lch(35 8 250)' }),
 		getLanguage: () => 'en',
 		getAccessToken: async (resId: string) => {
 			getAccessTokenCalls.push(resId)
@@ -138,6 +138,14 @@ describe('auth:init.res identity — relayed embed', () => {
 			authenticated: true,
 			token: 'embed-token'
 		})
+	})
+
+	it('forwards the theme seed', async () => {
+		const bus = embedBus(SIGNED_IN)
+
+		await bus.init('_embed:n1')
+
+		expect(bus.responses[0].data).toMatchObject({ darkMode: false, neutral: 'lch(35 8 250)' })
 	})
 
 	it('always sends the key, so an app cannot read a missing flag as false', async () => {

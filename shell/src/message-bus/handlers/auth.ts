@@ -12,7 +12,7 @@
 import type { AuthInitReq, AuthTokenRefreshReq, EmbedMode } from '@cloudillo/core'
 import { jwtRemainingSeconds } from '@cloudillo/core/jwt'
 
-import type { ShellMessageBus } from '../shell-bus.js'
+import { type ShellMessageBus, themeFields } from '../shell-bus.js'
 
 /**
  * Initialize auth message handlers on the shell bus
@@ -69,7 +69,7 @@ export function initAuthHandlers(bus: ShellMessageBus): void {
 				tnId: authState?.tnId,
 				roles: authState?.roles,
 				theme: 'glass',
-				darkMode: themeState.darkMode,
+				...themeFields(themeState),
 				language: bus.getLanguage(),
 				token: pending.token,
 				access: pending.access || 'read',
@@ -218,7 +218,7 @@ export function initAuthHandlers(bus: ShellMessageBus): void {
 				tnId: authState?.tnId,
 				roles: authState?.roles,
 				theme: 'glass',
-				darkMode: themeState.darkMode,
+				...themeFields(themeState),
 				language: bus.getLanguage(),
 				token,
 				access: connection?.access || 'write',

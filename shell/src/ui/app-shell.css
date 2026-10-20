@@ -659,6 +659,18 @@
 	--ctx-c: 18;
 }
 
+/* Context wash: OpalUI derives every surface, text and outline color from the
+   `--color-neutral` seed, so retinting it follows the active swatch. No swatch → the
+   neutral one (8 @ 250), quieter than OpalUI's own 20. `:root body` beats OpalUI's `body`.
+   `--ctx-wash` damps the seed below the rail's swatch chroma: a whole-UI tint reads much
+   stronger than the same chroma on the rail alone. */
+:root body {
+	--ctx-wash: 0.6;
+	--color-neutral: lch(
+		35 calc(var(--ctx-c, 8) * var(--ctx-c-mul) * var(--ctx-wash)) var(--ctx-h, 250)
+	);
+}
+
 /* After the community rule: a colored community wins on source order. The dock is
    transparent; its islands paint `--col-frame`. */
 :root[data-ctx-color] :is(.c-sidebar.left, .c-nav.nav-top) {
@@ -768,6 +780,7 @@
 .c-notification.actionable {
 	border-left: 3px solid var(--col-primary);
 	background: var(--col-selected);
+	color: var(--col-on-selected);
 }
 
 .c-notification-group-heading {

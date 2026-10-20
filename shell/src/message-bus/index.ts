@@ -17,7 +17,10 @@
  *     return api.auth.getAccessToken({ scope: `file:${fileId}:${access === 'read' ? 'R' : 'W'}` })
  *   },
  *   getAuthState: () => authState,
- *   getThemeState: () => ({ darkMode: document.body.classList.contains('dark') })
+ *   getThemeState: () => ({
+ *     darkMode: document.body.classList.contains('dark'),
+ *     neutral: getComputedStyle(document.body).getPropertyValue('--color-neutral').trim()
+ *   })
  * })
  *
  * // In MicrofrontendContainer

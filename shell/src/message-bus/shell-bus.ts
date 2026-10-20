@@ -130,6 +130,19 @@ export interface AuthState {
  */
 export interface ThemeState {
 	darkMode: boolean
+	/**
+	 * Resolved OpalUI `--color-neutral` seed (context color, dark damping baked in); empty if
+	 * the stylesheet has not applied
+	 */
+	neutral: string
+}
+
+/**
+ * The theme fields apps receive, picked explicitly so a new ThemeState field never reaches an
+ * untrusted frame
+ */
+export function themeFields(t: ThemeState): { darkMode: boolean; neutral: string } {
+	return { darkMode: t.darkMode, neutral: t.neutral }
 }
 
 /**
@@ -439,12 +452,13 @@ export class ShellMessageBus extends MessageBusBase {
 	/**
 	 * Broadcast a theme update to all initialized app iframes
 	 */
-	broadcastThemeUpdate(darkMode: boolean): void {
+	broadcastThemeUpdate(): void {
+		const theme = themeFields(this.getThemeState())
 		const windows = this.appTracker.getInitializedWindows()
 		for (const appWindow of windows) {
-			this.sendNotify(appWindow, 'theme:update', { darkMode })
+			this.sendNotify(appWindow, 'theme:update', theme)
 		}
-		this.log('Broadcast theme update to', windows.length, 'apps, darkMode:', darkMode)
+		this.log('Broadcast theme update to', windows.length, 'apps:', theme)
 	}
 
 	/**
@@ -538,7 +552,7 @@ export class ShellMessageBus extends MessageBusBase {
 			tnId: data.tnId,
 			roles: data.roles,
 			theme: 'glass',
-			darkMode: data.darkMode,
+			...themeFields(this.getThemeState()),
 			language: this.getLanguage(),
 			token: data.token,
 			access: data.access || 'write',

@@ -23,7 +23,7 @@ function fakeWindow() {
 const config = {
 	getAccessToken: async () => undefined,
 	getAuthState: () => null,
-	getThemeState: () => ({ darkMode: false }),
+	getThemeState: () => ({ darkMode: false, neutral: 'lch(35 8 250)' }),
 	getLanguage: () => 'en'
 }
 
@@ -44,6 +44,26 @@ describe('sendToApp target origin', () => {
 		bus.preRegisterApp(win, { appName: 'thirdparty' })
 		bus.sendNotify(win, 'theme:update', { darkMode: true })
 		expect(posts.map((p) => p.target)).toEqual(['*'])
+	})
+})
+
+describe('broadcastThemeUpdate', () => {
+	beforeEach(() => resetAppTracker())
+
+	it('sends only the picked theme fields', () => {
+		const bus = new ShellMessageBus({
+			...config,
+			getThemeState: () => ({ darkMode: false, neutral: 'lch(35 8 250)', extra: 1 })
+		})
+		const { win, posts } = fakeWindow()
+		bus.preRegisterApp(win, { appName: 'thirdparty' })
+		bus.getAppTracker().markInitialized(win)
+		bus.broadcastThemeUpdate()
+		expect(posts).toHaveLength(1)
+		expect((posts[0].message as { payload: unknown }).payload).toEqual({
+			darkMode: false,
+			neutral: 'lch(35 8 250)'
+		})
 	})
 })
 

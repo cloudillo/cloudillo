@@ -20,7 +20,7 @@ function applyColorScheme(dark: boolean) {
 		document.body.classList.remove('dark')
 		document.body.classList.add('light')
 	}
-	getShellBus()?.broadcastThemeUpdate(dark)
+	getShellBus()?.broadcastThemeUpdate()
 }
 
 function applySystemColorScheme() {

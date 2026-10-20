@@ -866,7 +866,7 @@ describe('the dispatch gate on an embed connection', () => {
 	const config = {
 		getAccessToken: async () => undefined,
 		getAuthState: () => null,
-		getThemeState: () => ({ darkMode: false }),
+		getThemeState: () => ({ darkMode: false, neutral: 'lch(35 8 250)' }),
 		getLanguage: () => 'en'
 	}
 

@@ -154,6 +154,24 @@ describe('AppBus message source validation', () => {
 		expect(bus.getState().darkMode).toBe(before)
 	})
 
+	it('applies the context neutral seed from a theme:update and clears it when absent', async () => {
+		await initBus()
+		const send = (payload: { darkMode: boolean; neutral?: string }) => {
+			window.dispatchEvent(
+				new MessageEvent('message', {
+					source: window.parent,
+					data: { cloudillo: true, v: PROTOCOL_VERSION, type: 'theme:update', payload }
+				})
+			)
+		}
+
+		send({ darkMode: false, neutral: 'lch(35 22 250)' })
+		expect(document.body.style.getPropertyValue('--color-neutral')).toBe('lch(35 22 250)')
+
+		send({ darkMode: false })
+		expect(document.body.style.getPropertyValue('--color-neutral')).toBe('')
+	})
+
 	it('ignores a doc:info.push from anything but the parent', async () => {
 		const bus = await initBus()
 		const seen: unknown[] = []

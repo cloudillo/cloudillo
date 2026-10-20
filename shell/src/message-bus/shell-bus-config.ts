@@ -115,7 +115,8 @@ export function createShellBusConfig({
 			}
 		},
 		getThemeState: () => ({
-			darkMode: document.body.classList.contains('dark')
+			darkMode: document.body.classList.contains('dark'),
+			neutral: getComputedStyle(document.body).getPropertyValue('--color-neutral').trim()
 		}),
 		getLanguage: () => i18n.language,
 		getApi: () => apiRef.current ?? null

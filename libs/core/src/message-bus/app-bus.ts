@@ -96,6 +96,8 @@ export interface AppState {
 	access: 'read' | 'comment' | 'write'
 	/** Dark mode enabled */
 	darkMode: boolean
+	/** OpalUI `--color-neutral` seed from the shell (context color), absent → OpalUI default */
+	neutral?: string
 	/** UI language code (e.g. 'en', 'hu') */
 	language?: string
 	/** Token lifetime in seconds */
@@ -741,6 +743,7 @@ export class AppMessageBus extends MessageBusBase {
 				accessToken: initData.token,
 				access: initData.access || 'write',
 				darkMode: !!initData.darkMode,
+				neutral: initData.neutral,
 				language: initData.language,
 				tokenLifetime: initData.tokenLifetime,
 				theme: initData.theme,
@@ -781,6 +784,7 @@ export class AppMessageBus extends MessageBusBase {
 				accessToken: msg.payload.token,
 				access: msg.payload.access || 'write',
 				darkMode: !!msg.payload.darkMode,
+				neutral: msg.payload.neutral,
 				language: msg.payload.language,
 				tokenLifetime: msg.payload.tokenLifetime,
 				theme: msg.payload.theme,
@@ -878,6 +882,7 @@ export class AppMessageBus extends MessageBusBase {
 		this.on('theme:update', (msg: ThemeUpdate) => {
 			const before = this.state.darkMode
 			this.state.darkMode = msg.payload.darkMode
+			this.state.neutral = msg.payload.neutral
 			this.applyTheme()
 			if (before !== this.state.darkMode) this.emitThemeChange()
 			this.log('Theme updated, darkMode:', msg.payload.darkMode)
@@ -924,6 +929,9 @@ export class AppMessageBus extends MessageBusBase {
 			document.body.classList.add('light')
 			document.body.classList.remove('dark')
 		}
+		if (this.state.neutral)
+			document.body.style.setProperty('--color-neutral', this.state.neutral)
+		else document.body.style.removeProperty('--color-neutral')
 	}
 
 	// ============================================

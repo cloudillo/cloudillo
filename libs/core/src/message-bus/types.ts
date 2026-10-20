@@ -140,6 +140,11 @@ export const tAuthInitRes = msg('auth:init.res', {
 			roles: T.optional(T.array(T.string)),
 			theme: T.string,
 			darkMode: T.optional(T.boolean),
+			/**
+			 * OpalUI `--color-neutral` seed for the active context; the shell always sends it,
+			 * absent only from an older shell → app keeps its own
+			 */
+			neutral: T.optional(T.string),
 			language: T.optional(T.string),
 			token: T.optional(T.string),
 			access: T.optional(T.literal('read', 'comment', 'write')),
@@ -209,6 +214,11 @@ export const tAuthInitPush = msg('auth:init.push', {
 		roles: T.optional(T.array(T.string)),
 		theme: T.string,
 		darkMode: T.optional(T.boolean),
+		/**
+		 * OpalUI `--color-neutral` seed for the active context; the shell always sends it,
+		 * absent only from an older shell → app keeps its own
+		 */
+		neutral: T.optional(T.string),
 		language: T.optional(T.string),
 		token: T.optional(T.string),
 		access: T.optional(T.literal('read', 'comment', 'write')),
@@ -723,7 +733,9 @@ export type DocRenameRes = T.TypeOf<typeof tDocRenameRes>
  */
 export const tThemeUpdate = msg('theme:update', {
 	payload: T.struct({
-		darkMode: T.boolean
+		darkMode: T.boolean,
+		/** See `tAuthInitRes` */
+		neutral: T.optional(T.string)
 	})
 })
 export type ThemeUpdate = T.TypeOf<typeof tThemeUpdate>

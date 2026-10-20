@@ -8,13 +8,16 @@
 
 import {
 	Button,
+	HBox,
 	IcBook,
 	IcColumns,
 	IcDocument,
 	IcFile,
 	IcImage,
+	Panel,
 	Segmented,
-	SegmentedItem
+	SegmentedItem,
+	VBox
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -58,30 +61,47 @@ export function TemplateGallery({ yDoc, doc }: TemplateGalleryProps) {
 		applyTemplate(yDoc, doc, id, { size, orientation, lang: i18n.language, t: (s) => t(s) })
 
 	return (
-		<div className="c-vbox flex-fill g-3 p-4" style={{ overflowY: 'auto' }}>
-			<h2>{t('Choose a template')}</h2>
-			<Segmented layout="grid" value={id} onChange={(v) => setId(v as TemplateId)}>
-				{TEMPLATES.map((tp) => (
-					<SegmentedItem key={tp.id} value={tp.id} icon={ICONS[tp.id]}>
-						{t(tp.name)}
-					</SegmentedItem>
-				))}
-			</Segmented>
-			<div className="c-hbox g-3">
-				<Segmented value={size} onChange={(v) => setSize(v as PagePreset)}>
-					<SegmentedItem value="A4">A4</SegmentedItem>
-					<SegmentedItem value="Letter">{t('Letter')}</SegmentedItem>
-				</Segmented>
-				<Segmented value={orientation} onChange={(v) => setOrientation(v as Orientation)}>
-					<SegmentedItem value="portrait">{t('Portrait')}</SegmentedItem>
-					<SegmentedItem value="landscape">{t('Landscape')}</SegmentedItem>
-				</Segmented>
-			</div>
-			<div>
-				<Button color="primary" onClick={create}>
-					{t('Create publication')}
-				</Button>
-			</div>
+		<div className="flex-fill p-4 pagillo-gallery">
+			<Panel title={t('Choose a template')} padding={4} className="pagillo-gallery-card">
+				<VBox gap={3} className="mt-3">
+					<Segmented
+						layout="grid"
+						value={id}
+						onChange={(v) => setId(v as TemplateId)}
+						className="pagillo-gallery-templates"
+						aria-label={t('Template')}
+					>
+						{TEMPLATES.map((tp) => (
+							<SegmentedItem key={tp.id} value={tp.id} icon={ICONS[tp.id]}>
+								{t(tp.name)}
+							</SegmentedItem>
+						))}
+					</Segmented>
+					<HBox gap={3}>
+						<Segmented
+							value={size}
+							onChange={(v) => setSize(v as PagePreset)}
+							aria-label={t('Page size')}
+						>
+							<SegmentedItem value="A4">A4</SegmentedItem>
+							<SegmentedItem value="Letter">{t('Letter')}</SegmentedItem>
+						</Segmented>
+						<Segmented
+							value={orientation}
+							onChange={(v) => setOrientation(v as Orientation)}
+							aria-label={t('Orientation')}
+						>
+							<SegmentedItem value="portrait">{t('Portrait')}</SegmentedItem>
+							<SegmentedItem value="landscape">{t('Landscape')}</SegmentedItem>
+						</Segmented>
+					</HBox>
+					<HBox>
+						<Button color="primary" onClick={create}>
+							{t('Create publication')}
+						</Button>
+					</HBox>
+				</VBox>
+			</Panel>
 		</div>
 	)
 }

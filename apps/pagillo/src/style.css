@@ -29,6 +29,26 @@ body,
 	background: var(--col-surface);
 }
 
+/* New-publication gallery: page-column backdrop, dialog-level card */
+.pagillo-gallery {
+	display: grid;
+	place-items: safe center;
+	overflow-y: auto;
+	background: var(--col-surface);
+}
+
+.c-panel.pagillo-gallery-card {
+	/* Definite width: an auto-fill grid in a shrink-to-fit box collapses to one column */
+	width: min(100%, 60rem);
+	background: var(--col-overlay);
+	box-shadow: var(--shadow-lg);
+}
+
+.pagillo-gallery-templates {
+	--segmented-min: 8rem;
+	max-width: 56rem;
+}
+
 .pagillo-page {
 	flex: none;
 	background: #fff;

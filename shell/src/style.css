@@ -39,6 +39,18 @@ p {
 	line-height: 1.42;
 }
 
+/* Files filter + view rows: one panel, no gap, joined corners squared */
+.files-filters {
+	& > .c-toolbar:not(:first-child) {
+		border-top-left-radius: 0;
+		border-top-right-radius: 0;
+	}
+	& > .c-toolbar:not(:last-child) {
+		border-bottom-left-radius: 0;
+		border-bottom-right-radius: 0;
+	}
+}
+
 /* Quill (profile About editor) — vendor overrides */
 .ql-container {
 	font-size: 1rem;

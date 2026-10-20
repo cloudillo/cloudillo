@@ -12,25 +12,25 @@ import { channelTarget } from '../audience.js'
 import type { File } from '../types.js'
 import { MANAGED_FOLDER_ID, TRASH_FOLDER_ID } from '../types.js'
 
-/** `~board › Minutes` / `<context> › Events`. `driveOnly` drops the folder (Trash, Managed). */
+/** `~board › Minutes` / `<context> › Events`. `roomOnly` drops the folder (Trash, Managed). */
 export function locationText(
 	contextName: string,
 	channel: string | undefined,
 	parentName: string | undefined,
-	driveOnly: boolean
+	roomOnly: boolean
 ): string {
-	const drive = channel ? `~${parseChannel(channel).name}` : contextName
-	return !driveOnly && parentName ? `${drive} › ${parentName}` : drive
+	const room = channel ? `~${parseChannel(channel).name}` : contextName
+	return !roomOnly && parentName ? `${room} › ${parentName}` : room
 }
 
 export interface LocationChipProps {
 	file: File
-	/** Show the drive only and open its root (the row's folder is unknown or not a place). */
-	driveOnly?: boolean
+	/** Show the room only and open its root (the row's folder is unknown or not a place). */
+	roomOnly?: boolean
 }
 
-/** Where a row lives, in cross-drive views: click opens that folder in its drive. */
-export function LocationChip({ file, driveOnly }: LocationChipProps) {
+/** Where a row lives, in cross-room views: click opens that folder in its room. */
+export function LocationChip({ file, roomOnly }: LocationChipProps) {
 	const navigate = useNavigate()
 	const [auth] = useAuth()
 	const { base } = useCtx()
@@ -42,7 +42,7 @@ export function LocationChip({ file, driveOnly }: LocationChipProps) {
 
 	// Trash keeps no original folder; Managed rows sit under a virtual parent.
 	const parentId =
-		driveOnly ||
+		roomOnly ||
 		!file.parentId ||
 		file.parentId === '__root__' ||
 		file.parentId === TRASH_FOLDER_ID ||
@@ -50,7 +50,7 @@ export function LocationChip({ file, driveOnly }: LocationChipProps) {
 			? undefined
 			: file.parentId
 	// A `@tenant~name` channel names its own context, which may not be the one browsed
-	const { tenant, drive } = channelTarget(file.channel, contextIdTag)
+	const { tenant, room } = channelTarget(file.channel, contextIdTag)
 	const target = tenant ? ctxBase(tenant, auth?.idTag) : base
 
 	function handleClick(evt: React.MouseEvent<HTMLElement>) {
@@ -62,7 +62,7 @@ export function LocationChip({ file, driveOnly }: LocationChipProps) {
 				search: navSearch({ parentId: parentId ?? shareRoot, remoteOwner, shareRoot })
 			})
 		} else {
-			navigate(filesPath(target, { ...(drive && { drive }), ...(parentId && { parentId }) }))
+			navigate(filesPath(target, { ...(room && { room }), ...(parentId && { parentId }) }))
 		}
 	}
 

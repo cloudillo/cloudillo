@@ -56,10 +56,7 @@ export function RoomSettingsTab({ client, tenant, room, base, onChanged }: RoomS
 				}),
 				{
 					actions: (
-						<Button
-							size="sm"
-							onClick={() => navigate(filesPath(base, { drive: name }))}
-						>
+						<Button size="sm" onClick={() => navigate(filesPath(base, { room: name }))}>
 							{t('Open files')}
 						</Button>
 					)

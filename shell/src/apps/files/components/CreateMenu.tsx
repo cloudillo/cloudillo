@@ -39,7 +39,7 @@ const createItems = (t: TFunction): { app: AppId; db?: boolean; label: string }[
 interface CreateMenuProps {
 	contextIdTag?: string
 	currentFolderId?: string | null
-	/** Absolute `@tenant~name` room of the current drive; sent only at its root (folders inherit) */
+	/** Absolute `@tenant~name` channel of the current room; sent only at its root (folders inherit) */
 	channel?: string
 	onCreateFolder?: () => void
 	onUpload?: (files: globalThis.File[]) => void

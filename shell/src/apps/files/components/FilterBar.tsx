@@ -30,7 +30,7 @@ import { useAtom } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { IcRecent, IcStar } from '../../../icons.js'
+import { IcBrowse, IcFilesApp, IcRecent, IcRoom, IcStar } from '../../../icons.js'
 import { displayModeAtom, type FilesSortField, sortAtom } from '../atoms.js'
 import {
 	countActiveFilters,
@@ -39,7 +39,6 @@ import {
 	type FilesModified,
 	type FilesOwner,
 	type FilesPerm,
-	type FilesScope,
 	type FilesType,
 	useFilesFilters
 } from '../hooks/useFilesFilters.js'
@@ -48,9 +47,6 @@ import { TagFilter } from './TagFilter.js'
 
 type TFn = ReturnType<typeof useTranslation>['t']
 
-function scopeLabels(t: TFn): Record<FilesScope, string> {
-	return { folder: t('This folder'), drive: t('This drive'), all: t('All drives') }
-}
 function typeLabels(t: TFn): Record<FilesType, string> {
 	return { doc: t('Documents'), file: t('Files'), image: t('Images'), folder: t('Folders') }
 }
@@ -122,13 +118,15 @@ function SheetGroup({ label, children }: { label: string; children: React.ReactN
 
 /**
  * The Files filter bar: scope chip, Recent/Starred, Type, Access, pinned extras + `⋯`,
- * Tags, Sort, List/Grid, Clear. All filter state is in the URL (`useFilesFilters`).
- * Below ~720px of content width it collapses to `[scope] [Filters · n] [Tags] … [Sort]`, the
- * rest moving into a Filters sheet, plus a scrolling row of the active filters.
+ * Tags, Clear; then a second row with Sort (left) and List/Grid (right). All filter state is in
+ * the URL (`useFilesFilters`). Below ~720px of content width the bar collapses to
+ * `[scope] [Filters · n] [Tags]`, the rest moving into a Filters sheet, plus a scrolling row of
+ * the active filters.
  */
-export function FilterBar() {
+export function FilterBar({ roomName, folderName }: { roomName: string; folderName?: string }) {
 	const { t } = useTranslation()
-	const { filters, effectiveScope, activeCount, setFilter, clearAll } = useFilesFilters()
+	const { filters, effectiveScope, activeCount, setFilter, setScope, clearAll } =
+		useFilesFilters()
 	const [sort, setSort] = useAtom(sortAtom)
 	const [displayMode, setDisplayMode] = useAtom(displayModeAtom)
 	const isMobile = useIsMobile()
@@ -137,26 +135,27 @@ export function FilterBar() {
 	const narrow = useNarrow(barRef, COLLAPSE_PX)
 	const [sheetOpen, setSheetOpen] = React.useState(false)
 
-	// A finder flipping the derived scope (no explicit `scope`): announce it and flash the chip
+	// A finder flipping the derived scope (no explicit `scope`): announce it
 	const prevScope = React.useRef(effectiveScope)
 	const [announce, setAnnounce] = React.useState('')
-	const [flash, setFlash] = React.useState(false)
 	React.useEffect(() => {
 		const prev = prevScope.current
 		prevScope.current = effectiveScope
 		if (prev === effectiveScope || filters.scope) return
 		setAnnounce(
-			effectiveScope === 'drive' ? t('Searching this drive') : t('Back to this folder')
+			effectiveScope === 'room'
+				? t('Searching all of {{place}}, including subfolders', { place: roomName })
+				: t('Back to {{place}}', { place: folderName ?? roomName })
 		)
-		setFlash(true)
-	}, [effectiveScope, filters.scope, t])
-	React.useEffect(() => {
-		if (!flash) return
-		const timer = setTimeout(() => setFlash(false), 1500)
-		return () => clearTimeout(timer)
-	}, [flash])
+	}, [effectiveScope, filters.scope, roomName, folderName, t])
+	// A finder widened the derived scope past the current folder: kept emphasized while it lasts
+	const widened = !filters.scope && effectiveScope === 'room'
+	const onlyLabel = folderName
+		? t('Only {{place}}', { place: folderName })
+		: t('Only top level of {{place}}', { place: roomName })
+	const allLabel = t('All of {{place}}', { place: roomName })
+	const canClear = activeCount > 0 || !!filters.scope
 
-	const scopes = scopeLabels(t)
 	const types = typeLabels(t)
 	const accesses = accessLabels(t)
 	const extras = extraOptions(t)
@@ -179,24 +178,45 @@ export function FilterBar() {
 
 	const scopeMenu = (
 		<>
-			<Menu
-				trigger={
-					// the highlight is a colour swap, not motion, so it needs no
-					// reduced-motion guard; add a CSS pulse in that media query if wanted
-					<Tag caret color={flash ? 'accent' : undefined}>
-						{scopes[effectiveScope]}
-					</Tag>
-				}
-			>
-				{(Object.keys(scopes) as FilesScope[]).map((scope) => (
+			{effectiveScope === 'all' ? (
+				<Tag
+					color="primary"
+					icon={<IcFilesApp />}
+					onRemove={() => setFilter({ scope: null })}
+				>
+					{t('All rooms')}
+				</Tag>
+			) : (
+				<Menu
+					trigger={
+						<Tag
+							caret
+							icon={effectiveScope === 'folder' ? <IcBrowse /> : <IcRoom />}
+							color={filters.scope ? 'primary' : widened ? 'accent' : undefined}
+						>
+							{effectiveScope === 'folder' ? (folderName ?? roomName) : allLabel}
+						</Tag>
+					}
+				>
 					<MenuItem
-						key={scope}
-						label={scopes[scope]}
-						selected={effectiveScope === scope}
-						onClick={() => setFilter({ scope })}
+						icon={<IcBrowse />}
+						label={onlyLabel}
+						selected={effectiveScope === 'folder'}
+						onClick={() => setScope('folder')}
 					/>
-				))}
-			</Menu>
+					<MenuItem
+						icon={<IcRoom />}
+						label={allLabel}
+						selected={effectiveScope === 'room'}
+						onClick={() => setScope('room')}
+					/>
+				</Menu>
+			)}
+			{widened && (
+				<Tag icon={<IcBrowse />} onClick={() => setScope('folder')}>
+					{onlyLabel}
+				</Tag>
+			)}
 			<VisuallyHidden aria-live="polite">{announce}</VisuallyHidden>
 		</>
 	)
@@ -239,7 +259,7 @@ export function FilterBar() {
 					icon={sort.dir === 'asc' ? <IcSortAsc /> : <IcSortDesc />}
 					aria-label={t('Sort by {{field}}', { field: sorts[sort.field] })}
 				>
-					{!narrow && sorts[sort.field]}
+					{sorts[sort.field]}
 				</Button>
 			}
 		>
@@ -310,7 +330,7 @@ export function FilterBar() {
 
 	// Collapsed: the active sheet filters as a scrolling row of removable chips
 	const activeRow = narrow && sheetCount > 0 && (
-		<Toolbar className="scroll" padding={0} aria-label={t('Active filters')}>
+		<Toolbar className="scroll" aria-label={t('Active filters')}>
 			{filters.recent && removable('recent', t('Recent'), () => setFilter({ recent: null }))}
 			{filters.starred &&
 				removable('starred', t('Starred'), () => setFilter({ starred: null }))}
@@ -369,8 +389,7 @@ export function FilterBar() {
 						))}
 					</SheetGroup>
 				))}
-				<SheetGroup label={t('Layout')}>{layoutControl}</SheetGroup>
-				{activeCount > 0 && (
+				{canClear && (
 					<Button variant="ghost" onClick={clearAll}>
 						{t('Clear filters')}
 					</Button>
@@ -381,120 +400,123 @@ export function FilterBar() {
 
 	return (
 		<>
-			<Toolbar
-				ref={barRef}
-				className="flex-wrap"
-				// Hides on scroll down on phones; the header sits above the scroll area, so it
-				// is sticky by construction. Reduced motion is handled in OpalUI c-toolbar.css.
-				autoHide={isMobile}
-				aria-label={t('Filters')}
-			>
-				{scopeMenu}
-				{narrow ? (
-					<>
-						<Tag
-							icon={<IcFilter />}
-							color={sheetCount > 0 ? 'primary' : undefined}
-							count={sheetCount || undefined}
-							aria-haspopup="dialog"
-							onClick={() => setSheetOpen(true)}
-						>
-							{t('Filters')}
-						</Tag>
-						{tagFilter}
-						<ToolbarSpacer />
-						{sortControl}
-					</>
-				) : (
-					<>
-						<ToolbarDivider />
-						{finderToggles}
-						<Menu
-							trigger={
-								<Tag caret color={filters.type ? 'primary' : undefined}>
-									{filters.type ? types[filters.type] : t('Type')}
-								</Tag>
-							}
-						>
-							<MenuItem
-								label={t('Any type')}
-								selected={!filters.type}
-								onClick={() => setFilter({ type: null })}
-							/>
-							{(Object.keys(types) as FilesType[]).map((type) => (
-								<MenuItem
-									key={type}
-									label={types[type]}
-									selected={filters.type === type}
-									onClick={() => setFilter({ type })}
-								/>
-							))}
-						</Menu>
-						<Menu
-							trigger={
-								<Tag
-									caret
-									color={filters.access.length > 0 ? 'primary' : undefined}
-									count={filters.access.length || undefined}
-								>
-									{t('Access')}
-								</Tag>
-							}
-						>
-							{(Object.keys(accesses) as FilesAccess[]).map((access) => (
-								<MenuItem
-									key={access}
-									label={accesses[access]}
-									checked={filters.access.includes(access)}
-									onClick={(evt) => toggleAccess(evt, access)}
-								/>
-							))}
-						</Menu>
-						{extraChips}
-						{unpinned.length > 0 && (
+			<VBox gap={0} className="files-filters">
+				<Toolbar
+					ref={barRef}
+					className="flex-wrap"
+					// Hides on scroll down on phones; the header sits above the scroll area, so it
+					// is sticky by construction. Reduced motion is handled in OpalUI c-toolbar.css.
+					autoHide={isMobile}
+					aria-label={t('Filters')}
+				>
+					{scopeMenu}
+					{narrow ? (
+						<>
+							<Tag
+								icon={<IcFilter />}
+								color={sheetCount > 0 ? 'primary' : undefined}
+								count={sheetCount || undefined}
+								aria-haspopup="dialog"
+								onClick={() => setSheetOpen(true)}
+							>
+								{t('Filters')}
+							</Tag>
+							{tagFilter}
+						</>
+					) : (
+						<>
+							<ToolbarDivider />
+							{finderToggles}
 							<Menu
 								trigger={
-									<Button
-										variant="ghost"
-										size="sm"
-										icon={<IcMore />}
-										aria-label={t('More filters')}
-									/>
+									<Tag caret color={filters.type ? 'primary' : undefined}>
+										{filters.type ? types[filters.type] : t('Type')}
+									</Tag>
 								}
 							>
-								{unpinned.map((key) => (
-									<SubMenuItem key={key} label={extras[key].label}>
-										{Object.entries(extras[key].values).map(
-											([value, label]) => (
-												<MenuItem
-													key={value}
-													label={label}
-													onClick={() =>
-														setFilter({
-															[key]: value
-														} as FilesFilterUpdates)
-													}
-												/>
-											)
-										)}
-									</SubMenuItem>
+								<MenuItem
+									label={t('Any type')}
+									selected={!filters.type}
+									onClick={() => setFilter({ type: null })}
+								/>
+								{(Object.keys(types) as FilesType[]).map((type) => (
+									<MenuItem
+										key={type}
+										label={types[type]}
+										selected={filters.type === type}
+										onClick={() => setFilter({ type })}
+									/>
 								))}
 							</Menu>
-						)}
-						<ToolbarDivider />
-						{tagFilter}
-						<ToolbarSpacer />
-						{sortControl}
-						{layoutControl}
-						{activeCount > 0 && (
-							<Button variant="ghost" size="sm" onClick={clearAll}>
-								{t('Clear')}
-							</Button>
-						)}
-					</>
-				)}
-			</Toolbar>
-			{activeRow}
+							<Menu
+								trigger={
+									<Tag
+										caret
+										color={filters.access.length > 0 ? 'primary' : undefined}
+										count={filters.access.length || undefined}
+									>
+										{t('Access')}
+									</Tag>
+								}
+							>
+								{(Object.keys(accesses) as FilesAccess[]).map((access) => (
+									<MenuItem
+										key={access}
+										label={accesses[access]}
+										checked={filters.access.includes(access)}
+										onClick={(evt) => toggleAccess(evt, access)}
+									/>
+								))}
+							</Menu>
+							{extraChips}
+							{unpinned.length > 0 && (
+								<Menu
+									trigger={
+										<Button
+											variant="ghost"
+											size="sm"
+											icon={<IcMore />}
+											aria-label={t('More filters')}
+										/>
+									}
+								>
+									{unpinned.map((key) => (
+										<SubMenuItem key={key} label={extras[key].label}>
+											{Object.entries(extras[key].values).map(
+												([value, label]) => (
+													<MenuItem
+														key={value}
+														label={label}
+														onClick={() =>
+															setFilter({
+																[key]: value
+															} as FilesFilterUpdates)
+														}
+													/>
+												)
+											)}
+										</SubMenuItem>
+									))}
+								</Menu>
+							)}
+							<ToolbarDivider />
+							{tagFilter}
+							<ToolbarSpacer />
+							{canClear && (
+								<Button variant="ghost" size="sm" onClick={clearAll}>
+									{t('Clear')}
+								</Button>
+							)}
+						</>
+					)}
+				</Toolbar>
+				{activeRow}
+				<Toolbar autoHide={isMobile} aria-label={t('View')}>
+					{sortControl}
+					<ToolbarSpacer />
+					{layoutControl}
+				</Toolbar>
+			</VBox>
 			{narrow && sheet}
 			{filters.type === 'image' && (
 				<Text size="sm" emphasis="muted">

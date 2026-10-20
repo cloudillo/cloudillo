@@ -7,13 +7,13 @@ import type { TFunction } from 'i18next'
 
 import { floorText } from '../../profile/role-labels.js'
 
-/** Leaving a room (for the main drive or another room) changes who sees an item;
+/** Leaving a room (for the main room or another room) changes who sees an item;
  *  main → room only narrows it, so that needs no confirm. */
 export const leavesRoom = (src: string | null | undefined, target: string | null) =>
 	!!src && src !== target
 
 /** Landing in `target` widens who sees an item from `src`: it leaves its room, or its room is
- *  gone (the server falls back to the main drive) or not yet known. */
+ *  gone (the server falls back to the main room) or not yet known. */
 export function widensAudience(
 	porch: PorchEntry[] | undefined,
 	tenant: string,
@@ -30,10 +30,10 @@ export function widensAudience(
 export function channelTarget(
 	channel: string | undefined,
 	contextIdTag?: string
-): { tenant?: string; drive: string | null } {
-	if (!channel) return { drive: null }
+): { tenant?: string; room: string | null } {
+	if (!channel) return { room: null }
 	const { tenant, name } = parseChannel(channel)
-	return { tenant: tenant && tenant !== contextIdTag ? tenant : undefined, drive: name }
+	return { tenant: tenant && tenant !== contextIdTag ? tenant : undefined, room: name }
 }
 
 /** The porch entry for `channel` on `tenant`; 'unknown' while the porch is still loading. */
@@ -47,7 +47,7 @@ export function findRoom(
 }
 
 /** The update that reparents an entry to the target. `{parentId: null}` alone keeps the entry
- *  in its current drive, so a root target always names the drive: null = main, `@ctx~name` = room. */
+ *  in its current room, so a root target always names the room: null = main, `@ctx~name` = room. */
 export function reparentPatch(
 	atRoot: boolean,
 	currentFolderId: string | null,
@@ -57,7 +57,7 @@ export function reparentPatch(
 }
 
 /**
- * Who a drive's files are visible to. `room`: `null` = the main drive, `undefined` = a room the
+ * Who a room's files are visible to. `room`: `null` = the main room, `undefined` = a room the
  * reader is not `in` (no audience data) → no line. Closed rooms: callers add the lock icon.
  */
 export function audienceText(

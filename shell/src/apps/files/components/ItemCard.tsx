@@ -254,7 +254,7 @@ export const ItemCard = React.memo(function ItemCard({
 							{smartTimestamp.time}
 						</Text>
 						{showParentChip && (
-							<LocationChip file={file} driveOnly={isInTrash || isManagedView} />
+							<LocationChip file={file} roomOnly={isInTrash || isManagedView} />
 						)}
 						{showAttribution && attribution && (
 							<HBox gap={1} align="center" fill>

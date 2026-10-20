@@ -15,14 +15,14 @@ import {
 } from '../../../context/index.js'
 import { ctxBase, filesPath } from '../../../routes.js'
 import { ROOM_NAME_RE } from '../../../settings/room-form.js'
-import { fileNavStackAtom, navSearch } from '../atoms.js'
+import { fileNavStackAtom, navSearch, roomLabel } from '../atoms.js'
 import { channelTarget } from '../audience.js'
 import type { File, ViewMode } from '../types.js'
 import { MANAGED_FOLDER_ID, TRASH_FOLDER_ID, VIEW_MODES } from '../types.js'
 import type { FileAccessLevel } from '../utils.js'
 import {
 	filterSearch,
-	legacyViewSearch,
+	legacySearch,
 	NARROWER_PARAMS,
 	parseFilesFilters,
 	resolveScope
@@ -65,15 +65,15 @@ export function useFileNavigation() {
 		viewParam && (VIEW_MODES as readonly string[]).includes(viewParam)
 			? (viewParam as ViewMode)
 			: 'browse'
-	// Bare room name; absent = the context's main drive. Browse view only, never while remote browsing.
-	const rawDrive = (!remoteOwner && viewMode === 'browse' && searchParams.get('drive')) || null
-	const drive = rawDrive && ROOM_NAME_RE.test(rawDrive) ? rawDrive : null
+	// Bare room name; absent = the context's main room. Browse view only, never while remote browsing.
+	const rawRoom = (!remoteOwner && viewMode === 'browse' && searchParams.get('room')) || null
+	const room = rawRoom && ROOM_NAME_RE.test(rawRoom) ? rawRoom : null
 	const contextIdTag = useCurrentContextIdTag()
-	const driveChannel = drive && contextIdTag ? makeChannel(contextIdTag, drive) : undefined
+	const roomChannel = room && contextIdTag ? makeChannel(contextIdTag, room) : undefined
 	const contextName = useContextName()
 	// Every filter param, so the nav stack (in-app back) restores them
 	const currentFilters = filterSearch(searchParams)
-	// Opening a subfolder from folder scope keeps the narrowers; from a drive/all-scope result
+	// Opening a subfolder from folder scope keeps the narrowers; from a room/all-scope result
 	// set it clears everything
 	const keptNarrowers =
 		resolveScope(parseFilesFilters(searchParams)) === 'folder'
@@ -83,7 +83,7 @@ export function useFileNavigation() {
 	// Legacy `view=starred|recent` links become the Starred / Recent finders
 	React.useEffect(
 		function redirectLegacyView() {
-			const search = legacyViewSearch(searchParams)
+			const search = legacySearch(searchParams)
 			if (search !== null) navigate({ search }, { replace: true })
 		},
 		[searchParams, navigate]
@@ -140,7 +140,7 @@ export function useFileNavigation() {
 				parentId: currentFolderId,
 				remoteOwner,
 				shareRoot,
-				drive,
+				room,
 				view: viewMode
 			}
 			setNavStack((prev) => {
@@ -152,7 +152,7 @@ export function useFileNavigation() {
 						entry.parentId === currentState.parentId &&
 						entry.remoteOwner === currentState.remoteOwner &&
 						entry.shareRoot === currentState.shareRoot &&
-						(entry.drive ?? null) === currentState.drive &&
+						(entry.room ?? null) === currentState.room &&
 						(entry.view ?? 'browse') === currentState.view
 					) {
 						idx = i
@@ -165,7 +165,7 @@ export function useFileNavigation() {
 				return []
 			})
 		},
-		[navigationType, currentFolderId, remoteOwner, shareRoot, drive, viewMode]
+		[navigationType, currentFolderId, remoteOwner, shareRoot, room, viewMode]
 	)
 
 	// Build breadcrumb path when folder changes
@@ -209,9 +209,9 @@ export function useFileNavigation() {
 
 					setBreadcrumbs(folderPath)
 				} else {
-					// Local mode: the trail starts at the drive
+					// Local mode: the trail starts at the room
 					const path: BreadcrumbItem[] = [
-						{ id: null, name: drive ? `~${drive}` : contextName }
+						{ id: null, name: roomLabel(room, contextName) }
 					]
 
 					if (
@@ -255,7 +255,7 @@ export function useFileNavigation() {
 			isRemoteBrowsing,
 			shareRoot,
 			remoteOwner,
-			drive,
+			room,
 			contextName
 		]
 	)
@@ -264,7 +264,7 @@ export function useFileNavigation() {
 		function (folderId: string | null) {
 			navigate({
 				search: navSearch({
-					drive,
+					room,
 					parentId: folderId,
 					remoteOwner,
 					shareRoot,
@@ -272,25 +272,25 @@ export function useFileNavigation() {
 				})
 			})
 		},
-		[remoteOwner, shareRoot, drive, keptNarrowers, navigate]
+		[remoteOwner, shareRoot, room, keptNarrowers, navigate]
 	)
 
-	// Open a drive's root: `null` = the main drive, else a bare room name.
-	const navigateToDrive = React.useCallback(
+	// Open a room's root: `null` = the main room, else a bare room name.
+	const navigateToRoom = React.useCallback(
 		function (name: string | null) {
-			if (viewMode === 'browse' && !currentFolderId && !remoteOwner && drive === name) return
+			if (viewMode === 'browse' && !currentFolderId && !remoteOwner && room === name) return
 			setNavStack((prev) => [
 				...prev,
 				{
 					parentId: currentFolderId,
 					remoteOwner,
 					shareRoot,
-					drive,
+					room,
 					view: viewMode,
 					filters: currentFilters
 				}
 			])
-			navigate({ search: navSearch({ drive: name }) })
+			navigate({ search: navSearch({ room: name }) })
 		},
 		[
 			navigate,
@@ -298,7 +298,7 @@ export function useFileNavigation() {
 			currentFolderId,
 			remoteOwner,
 			shareRoot,
-			drive,
+			room,
 			viewMode,
 			currentFilters
 		]
@@ -320,13 +320,13 @@ export function useFileNavigation() {
 					parentId: currentFolderId,
 					remoteOwner,
 					shareRoot,
-					drive,
+					room,
 					view: viewMode,
 					filters: currentFilters
 				}
 			])
 			navigate({
-				search: navSearch({ drive: mode === 'browse' ? drive : null, view: mode })
+				search: navSearch({ room: mode === 'browse' ? room : null, view: mode })
 			})
 		},
 		[
@@ -335,7 +335,7 @@ export function useFileNavigation() {
 			currentFolderId,
 			remoteOwner,
 			shareRoot,
-			drive,
+			room,
 			viewMode,
 			currentFilters
 		]
@@ -389,7 +389,7 @@ export function useFileNavigation() {
 					parentId: currentFolderId,
 					remoteOwner,
 					shareRoot,
-					drive,
+					room,
 					view: viewMode,
 					filters: currentFilters
 				}
@@ -407,21 +407,21 @@ export function useFileNavigation() {
 				params.set('shareRoot', remoteId)
 				navigate({ search: params.toString() })
 			} else {
-				// Search/Starred list folders from every drive (and context): adopt the folder's own
-				const { tenant, drive: folderDrive }: ReturnType<typeof channelTarget> = remoteOwner
-					? { drive }
+				// Search/Starred list folders from every room (and context): adopt the folder's own
+				const { tenant, room: folderRoom }: ReturnType<typeof channelTarget> = remoteOwner
+					? { room }
 					: channelTarget(folder.channel, contextIdTag)
 				if (tenant) {
 					navigate(
 						filesPath(ctxBase(tenant, auth?.idTag), {
-							...(folderDrive && { drive: folderDrive }),
+							...(folderRoom && { room: folderRoom }),
 							parentId: folder.entryId
 						})
 					)
 				} else {
 					navigate({
 						search: navSearch({
-							drive: folderDrive,
+							room: folderRoom,
 							parentId: folder.entryId,
 							remoteOwner,
 							shareRoot,
@@ -435,7 +435,7 @@ export function useFileNavigation() {
 			currentFolderId,
 			remoteOwner,
 			shareRoot,
-			drive,
+			room,
 			viewMode,
 			currentFilters,
 			keptNarrowers,
@@ -451,8 +451,8 @@ export function useFileNavigation() {
 		remoteOwner,
 		shareRoot,
 		isRemoteBrowsing,
-		drive,
-		driveChannel,
+		room,
+		roomChannel,
 		contextName,
 		remoteAccessLevel,
 		breadcrumbs,
@@ -462,7 +462,7 @@ export function useFileNavigation() {
 		remoteRoles,
 		navigateToFolder,
 		navigateToView,
-		navigateToDrive,
+		navigateToRoom,
 		goBack,
 		goUp,
 		enterFolder

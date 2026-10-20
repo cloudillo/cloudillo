@@ -2,13 +2,15 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import {
+	applyFilterUpdates,
 	buildFileFilterParams,
 	countActiveFilters,
 	type FilesFilters,
 	type FilesQueryContext,
-	legacyViewSearch,
+	legacySearch,
 	parseFilesFilters,
-	resolveScope
+	resolveScope,
+	scopeParam
 } from '../apps/files/hooks/useFilesFilters.js'
 
 const DAY = 86400
@@ -24,6 +26,29 @@ const browse = (ctx: Partial<FilesQueryContext> = {}): FilesQueryContext => ({
 })
 const build = (search: string, ctx?: Partial<FilesQueryContext>) =>
 	buildFileFilterParams(parse(search), browse(ctx))
+
+describe('applyFilterUpdates', () => {
+	const apply = (search: string, updates: Parameters<typeof applyFilterUpdates>[1]) =>
+		applyFilterUpdates(new URLSearchParams(search), updates)
+
+	it('drops scope=folder when the finder ends', () => {
+		expect(apply('q=x&scope=folder', { q: null }).has('scope')).toBe(false)
+	})
+	it('keeps scope=folder while a finder is active', () => {
+		expect(apply('q=x', { scope: 'folder' }).get('scope')).toBe('folder')
+	})
+	it('drops scope=folder with no finder (it is the default)', () => {
+		expect(apply('', { scope: 'folder' }).has('scope')).toBe(false)
+	})
+	it('keeps a sticky scope=room', () => {
+		const room = apply('', { scope: 'room' })
+		expect(room.get('scope')).toBe('room')
+		expect(applyFilterUpdates(room, { q: 'x' }).get('scope')).toBe('room')
+	})
+	it('leaves non-filter params alone', () => {
+		expect(apply('parentId=f1&q=x&scope=folder', { q: null }).toString()).toBe('parentId=f1')
+	})
+})
 
 describe('parseFilesFilters', () => {
 	it('parses every param', () => {
@@ -46,7 +71,7 @@ describe('parseFilesFilters', () => {
 	})
 
 	it('drops invalid enum values', () => {
-		const f = parse('scope=room&type=video&access=people,bogus&owner=you&modified=1d&perm=x')
+		const f = parse('scope=bogus&type=video&access=people,bogus&owner=you&modified=1d&perm=x')
 		expect(f.scope).toBeUndefined()
 		expect(f.type).toBeUndefined()
 		expect(f.access).toEqual(['people'])
@@ -57,17 +82,30 @@ describe('parseFilesFilters', () => {
 	})
 })
 
+describe('scopeParam', () => {
+	it('clears the param when picking the derived default', () => {
+		expect(scopeParam(parse(''), 'folder')).toBeNull()
+		expect(scopeParam(parse('q=x'), 'room')).toBeNull()
+	})
+
+	it('keeps a non-default pick', () => {
+		expect(scopeParam(parse(''), 'room')).toBe('room')
+		expect(scopeParam(parse(''), 'all')).toBe('all')
+		expect(scopeParam(parse('q=x'), 'all')).toBe('all')
+	})
+})
+
 describe('resolveScope', () => {
 	it('lets an explicit scope win', () => {
 		expect(resolveScope(parse('scope=folder&q=x'))).toBe('folder')
 		expect(resolveScope(parse('scope=all'))).toBe('all')
 	})
 
-	it('derives drive while a finder is active, else folder', () => {
-		expect(resolveScope(parse('q=x'))).toBe('drive')
-		expect(resolveScope(parse('starred=1'))).toBe('drive')
-		expect(resolveScope(parse('recent=1'))).toBe('drive')
-		expect(resolveScope(parse('tags=a'))).toBe('drive')
+	it('derives room while a finder is active, else folder', () => {
+		expect(resolveScope(parse('q=x'))).toBe('room')
+		expect(resolveScope(parse('starred=1'))).toBe('room')
+		expect(resolveScope(parse('recent=1'))).toBe('room')
+		expect(resolveScope(parse('tags=a'))).toBe('room')
 		expect(resolveScope(parse('q=%20'))).toBe('folder')
 		expect(resolveScope(parse('type=doc&owner=me'))).toBe('folder')
 	})
@@ -88,28 +126,28 @@ describe('countActiveFilters', () => {
 	})
 })
 
-describe('legacyViewSearch', () => {
+describe('legacySearch', () => {
 	it('maps view=starred|recent to the finder', () => {
-		expect(legacyViewSearch(new URLSearchParams('drive=board&view=starred'))).toBe(
-			'drive=board&starred=1'
+		expect(legacySearch(new URLSearchParams('view=starred&parentId=f1'))).toBe(
+			'starred=1&parentId=f1'
 		)
-		expect(legacyViewSearch(new URLSearchParams('view=recent'))).toBe('recent=1')
+		expect(legacySearch(new URLSearchParams('view=recent'))).toBe('recent=1')
 	})
 
-	it('leaves other views alone', () => {
-		expect(legacyViewSearch(new URLSearchParams('view=trash'))).toBeNull()
-		expect(legacyViewSearch(new URLSearchParams('parentId=f1'))).toBeNull()
+	it('leaves current links alone', () => {
+		expect(legacySearch(new URLSearchParams('view=trash'))).toBeNull()
+		expect(legacySearch(new URLSearchParams('parentId=f1'))).toBeNull()
 	})
 })
 
 describe('buildFileFilterParams', () => {
-	it('folder scope: the current folder, the drive channel at the root only', () => {
+	it('folder scope: the current folder, the room channel at the root only', () => {
 		expect(build('', { channel: '@a~x' })).toEqual({ parentId: '__root__', channel: '@a~x' })
 		expect(build('', { channel: '@a~x', parentId: 'f1' })).toEqual({ parentId: 'f1' })
 		expect(build('', { channel: undefined })).toEqual({ parentId: '__root__' })
 	})
 
-	it('drive scope: the whole drive, recursive', () => {
+	it('room scope: the whole room, recursive', () => {
 		expect(build('q=x', { channel: '@a~x', parentId: 'f1' })).toEqual({
 			parentId: '__root__',
 			channel: '@a~x',
@@ -119,8 +157,8 @@ describe('buildFileFilterParams', () => {
 		})
 	})
 
-	it('drive scope while remote: the share root subtree', () => {
-		expect(build('scope=drive', { channel: undefined, shareRoot: 's1' })).toEqual({
+	it('room scope while remote: the share root subtree', () => {
+		expect(build('scope=room', { channel: undefined, shareRoot: 's1' })).toEqual({
 			parentId: 's1',
 			recursive: true,
 			withParent: true
@@ -150,7 +188,7 @@ describe('buildFileFilterParams', () => {
 		expect(build('type=doc').fileTp).toBe('CRDT,RTDB,FLDR')
 		expect(build('type=file').fileTp).toBe('BLOB,FLDR')
 		expect(build('type=folder').fileTp).toBe('FLDR')
-		expect(build('type=doc&scope=drive').fileTp).toBe('CRDT,RTDB')
+		expect(build('type=doc&scope=room').fileTp).toBe('CRDT,RTDB')
 	})
 
 	it('image filters by content type, not fileTp', () => {

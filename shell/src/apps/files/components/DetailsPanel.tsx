@@ -274,7 +274,7 @@ export function DetailsPanel({
 					{
 						key: 'room',
 						term: t('Room'),
-						description: <LocationChip file={file} driveOnly />
+						description: <LocationChip file={file} roomOnly />
 					}
 				]
 			: []),

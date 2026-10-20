@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
+import { roomTitleHint } from '@cloudillo/react'
 import { atom } from 'jotai'
 import { atomWithStorage } from 'jotai/utils'
 
@@ -11,18 +12,25 @@ export interface NavigationEntry {
 	parentId: string | null
 	remoteOwner: string | null
 	shareRoot: string | null
-	/** Bare room name; absent/null = main drive */
-	drive?: string | null
+	/** Bare room name; absent/null = main room */
+	room?: string | null
 	view?: ViewMode
 	/** Filter params as a query string (`useFilesFilters` keys); absent = none */
 	filters?: string
+}
+
+/** A room root's label: `~name[ · Title]` (title only when distinct), or the context's name for
+ *  the main room */
+export function roomLabel(room: string | null | undefined, contextName: string, title?: string) {
+	const hint = room && title && roomTitleHint({ name: room, title })
+	return room ? `~${room}${hint ? ` · ${hint}` : ''}` : contextName
 }
 
 /** The Files query string for a location; `remoteOwner`/`shareRoot` only count inside a folder.
  *  `filters` passes filter params through; omitted, the location opens unfiltered. */
 export function navSearch(entry: Partial<NavigationEntry>): string {
 	const params = new URLSearchParams()
-	if (entry.drive) params.set('drive', entry.drive)
+	if (entry.room) params.set('room', entry.room)
 	if (entry.view && entry.view !== 'browse') params.set('view', entry.view)
 	if (entry.parentId) {
 		params.set('parentId', entry.parentId)

@@ -161,7 +161,7 @@ function Header({ inert }: { inert?: boolean }) {
 	const docMode = !!matchAppRoute(location.pathname)?.resId
 	const lastFiles = useAtomValue(lastFilesUrlAtom)
 	const filesBase = filesPath(urlContext)
-	// Return to the folder/drive the doc was opened from — only when it was this context's Files.
+	// Return to the folder/room the doc was opened from — only when it was this context's Files.
 	const closeHref = lastFiles.pathname === filesBase ? filesBase + lastFiles.search : filesBase
 	const unreadCounts = useAtomValue(unreadCountAtom)
 	// Conversations with anything unread — consistent across DMs (per-message counts)

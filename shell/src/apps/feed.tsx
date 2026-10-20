@@ -40,6 +40,7 @@ import {
 	RichText,
 	RichTextInput,
 	RoomChip,
+	roomTitleHint,
 	SearchInput,
 	SkeletonCard,
 	Spacer,
@@ -1055,10 +1056,7 @@ function RoomMenuItems({
 				onClick={() => onShowOnly(channel)}
 			/>
 			<MenuItem label={t('Room home')} onClick={() => navigate(roomsPath(base, room))} />
-			<MenuItem
-				label={t('Files')}
-				onClick={() => navigate(filesPath(base, { drive: room }))}
-			/>
+			<MenuItem label={t('Files')} onClick={() => navigate(filesPath(base, { room }))} />
 			<MenuItem
 				label={isMuted ? t('Unmute ~{{room}}', { room }) : t('Mute ~{{room}}', { room })}
 				onClick={() => {
@@ -1218,15 +1216,23 @@ const FilterBar = React.memo(function FilterBar({
 							active={viewMode === 'feed' && !room}
 							onClick={() => onRoomChange(undefined)}
 						/>
-						{rooms.map((r) => (
-							<Nav.Item
-								key={r.name}
-								icon={<IcRoom />}
-								label={r.title || `~${r.name}`}
-								active={viewMode === 'feed' && room === r.name}
-								onClick={() => onRoomChange(r.name)}
-							/>
-						))}
+						{rooms.map((r) => {
+							const hint = roomTitleHint(r)
+							return (
+								<Nav.Item
+									key={r.name}
+									icon={<IcRoom />}
+									label={
+										<>
+											~{r.name}
+											{hint && <Text color="secondary"> {hint}</Text>}
+										</>
+									}
+									active={viewMode === 'feed' && room === r.name}
+									onClick={() => onRoomChange(r.name)}
+								/>
+							)
+						})}
 					</Nav.Section>
 				)}
 				<Nav.Divider />
@@ -2048,12 +2054,13 @@ export function FeedApp() {
 		setViewMode('feed')
 	}
 
-	// The bar's `sub` is the active narrowing: the room (rail title, else `~name`, or the absolute
-	// `@tenant~name` as given), else the tag.
+	// The bar's `sub` is the active narrowing: the room (a distinct title, else `~name`, or the
+	// absolute `@tenant~name` as given), else the tag.
+	const subRoom = inRooms.find((r) => r.name === room)
 	const feedSub = channel
 		? {
 				label:
-					inRooms.find((r) => r.name === room)?.title ||
+					(subRoom && roomTitleHint(subRoom)) ??
 					(room?.startsWith('@') ? room : `~${room}`),
 				icon: <IcRoom />
 			}

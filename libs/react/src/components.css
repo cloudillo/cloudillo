@@ -386,7 +386,7 @@ body.theme-glass.dark {
 
 .c-list-item.selected {
 	background: var(--col-selected);
-	color: var(--col-primary);
+	color: var(--col-on-selected);
 }
 
 .c-list-item.disabled {
@@ -1207,6 +1207,17 @@ body.theme-glass.dark {
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+}
+
+/* Chips in a toolbar share one height, with or without an icon */
+.c-toolbar .c-tag {
+	height: var(--size-xs);
+}
+
+/* Beats the global IconContext size (1.5rem) */
+.c-tag-icon svg {
+	width: 1rem;
+	height: 1rem;
 }
 
 /* The room name is the chip's whole meaning — wrap rather than truncate it. */

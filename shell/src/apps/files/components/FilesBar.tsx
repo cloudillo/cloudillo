@@ -45,19 +45,19 @@ export type DisplayMode = 'grid' | 'list'
 export interface FilesBarProps {
 	viewMode: ViewMode
 	effectiveScope: FilesScope
-	/** Name of the place's root: the drive (`~room · Title` / context name). Remote: share root. */
-	driveTitle?: string
+	/** Name of the place's root: the room (`~room · Title` / context name). Remote: share root. */
+	roomTitle?: string
 	/** `useFileNavigation().breadcrumbs`: root first, current folder last */
 	breadcrumbs: BreadcrumbItem[]
 	onNavigate: (folderId: string | null) => void
 	/** Remote browsing: the node's owner and our level there */
 	remote?: { ownerIdTag?: string; permission: 'write' | 'read' }
-	/** The folder being browsed (`useCurrentFolder`); undefined at the drive root */
+	/** The folder being browsed (`useCurrentFolder`); undefined at the room root */
 	currentFolder?: File
 	/** The browsed folder's id from the route, known before `currentFolder` loads */
 	folderId: string | null
 	ownerScope?: FileOwnerScopeOverride
-	/** Drive-root audience for the access slot (no entry to ask the endpoint about) */
+	/** Room-root audience for the access slot (no entry to ask the endpoint about) */
 	slotFallback?: AccessSlotFallback
 	onShare: (file: File) => void
 	onInfo: () => void
@@ -83,7 +83,7 @@ export interface FilesBarProps {
 export function FilesBar({
 	viewMode,
 	effectiveScope,
-	driveTitle,
+	roomTitle,
 	breadcrumbs,
 	onNavigate,
 	remote,
@@ -108,10 +108,10 @@ export function FilesBar({
 	const isMobile = useIsMobile()
 
 	const isBrowse = viewMode === 'browse'
-	const allDrives = isBrowse && effectiveScope === 'all'
+	const allRooms = isBrowse && effectiveScope === 'all'
 	const selCount = selectedFiles.length
 	const selecting = selCount > 0
-	const placeFolder = isBrowse && !allDrives ? currentFolder : undefined
+	const placeFolder = isBrowse && !allRooms ? currentFolder : undefined
 	const { access } = useFileAccess(placeFolder, ownerScope)
 
 	// Search: local text, written to `q` debounced (replace). Expanded whenever `q` is set.
@@ -144,23 +144,23 @@ export function FilesBar({
 		if (selecting) onClearSelection()
 	}
 
-	// Title + crumb in reading order: Drive › … › Parent › Folder
+	// Title + crumb in reading order: Room › … › Parent › Folder
 	const root = breadcrumbs[0]
 	const current = breadcrumbs.length > 1 ? breadcrumbs[breadcrumbs.length - 1] : undefined
 	const between = breadcrumbs.slice(1, -1)
 	const hidden = between.slice(0, -1)
 	const parent = between[between.length - 1]
-	const placeName = remote ? root?.name : driveTitle
+	const placeName = remote ? root?.name : roomTitle
 	const title = selecting
 		? t('{{count}} selected', { count: selCount })
 		: viewMode === 'trash'
 			? t('Trash')
 			: viewMode === 'managed'
 				? t('Managed')
-				: allDrives
-					? t('All drives')
+				: allRooms
+					? t('All rooms')
 					: placeName
-	const showTrail = !selecting && isBrowse && !allDrives && !!current
+	const showTrail = !selecting && isBrowse && !allRooms && !!current
 
 	function levelsMenu(levels: BreadcrumbItem[]) {
 		return (
@@ -321,7 +321,7 @@ export function FilesBar({
 				access={placeFolder ? access : undefined}
 				fallback={placeFolder ? undefined : slotFallback}
 				remotePermission={remote?.permission}
-				hidden={!isBrowse || allDrives}
+				hidden={!isBrowse || allRooms}
 				compact={isMobile}
 				onNavigateToFolder={onNavigate}
 				onManage={placeFolder && (() => onShare(placeFolder))}
@@ -357,7 +357,7 @@ export function FilesBar({
 					</Button>
 				</>
 			)}
-			{isBrowse && !allDrives && createMenu}
+			{isBrowse && !allRooms && createMenu}
 		</>
 	)
 

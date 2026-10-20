@@ -20,6 +20,12 @@ export function absChannel(channel: string, tenant: string): string {
 	return parseChannel(channel).tenant ? channel : makeChannel(tenant, channel)
 }
 
+/** A room's title, unless it only restates the name (case/separators aside). */
+export function roomTitleHint(room: { name: string; title?: string | null }): string | undefined {
+	const norm = (s: string) => s.toLowerCase().replace(/[\s._-]+/g, '')
+	return room.title && norm(room.title) !== norm(room.name) ? room.title : undefined
+}
+
 /** The idTag an action lives on: its audience, else its issuer. */
 export const actionContextTag = (a: { audience?: { idTag: string }; issuer: { idTag: string } }) =>
 	a.audience?.idTag ?? a.issuer.idTag

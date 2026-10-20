@@ -804,7 +804,7 @@ export class ApiClient {
 			})
 		},
 
-		/** PATCH /files/:entryId - Rename, move (incl. cross-drive `channel`), visibility */
+		/** PATCH /files/:entryId - Rename, move (incl. cross-room `channel`), visibility */
 		update: (entryId: string, data: Types.PatchFileRequest) =>
 			this.request('PATCH', `/files/${entryId}`, Types.tPatchFileResult, {
 				data
@@ -820,7 +820,7 @@ export class ApiClient {
 				query: { permanent: true }
 			}),
 
-		/** POST /files/:entryId/restore - Restore from trash (no `parentId` = root of its drive) */
+		/** POST /files/:entryId/restore - Restore from trash (no `parentId` = root of its room) */
 		restore: (entryId: string, parentId?: string) =>
 			this.request('POST', `/files/${entryId}/restore`, Types.tRestoreFileResult, {
 				data: { parentId }

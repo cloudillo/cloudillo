@@ -184,7 +184,7 @@ type OmniItem =
 	| { kind: 'hit'; hit: SearchHit }
 	| { kind: 'see-all'; query: string; total?: number }
 	// In the Files app: hand the query to its name search
-	| { kind: 'files-search'; query: string; place: string; drive?: string }
+	| { kind: 'files-search'; query: string; place: string; room?: string }
 	| { kind: 'recent'; query: string }
 	| { kind: 'recent-clear' }
 	// Not selectable: status rows so the dropdown says what it is doing instead of
@@ -222,10 +222,10 @@ export function Omnibox() {
 	// `useMatch`, not the pathname: the Files route offers a name-search handoff row
 	const inFiles = !!useMatch(sectionMatch('app', 'files/*'))
 	const location = useLocation()
-	const filesDrive = inFiles
-		? (new URLSearchParams(location.search).get('drive') ?? undefined)
+	const filesRoom = inFiles
+		? (new URLSearchParams(location.search).get('room') ?? undefined)
 		: undefined
-	const filesPlace = filesDrive ? `~${filesDrive}` : (activeContext?.name ?? contextIdTag ?? '')
+	const filesPlace = filesRoom ? `~${filesRoom}` : (activeContext?.name ?? contextIdTag ?? '')
 
 	const query = search.query ?? ''
 	// A guest has no profile surface: the `@` hotkey is disabled in `layout.tsx` and
@@ -446,7 +446,7 @@ export function Omnibox() {
 							kind: 'files-search',
 							query: query.trim(),
 							place: filesPlace,
-							drive: filesDrive
+							room: filesRoom
 						}
 					]
 				: []
@@ -476,7 +476,7 @@ export function Omnibox() {
 		ftsLoading,
 		showSpinner,
 		inFiles,
-		filesDrive,
+		filesRoom,
 		filesPlace
 	])
 
@@ -564,8 +564,8 @@ export function Omnibox() {
 			} else if (item.kind === 'see-all') {
 				openResults(item.query)
 			} else if (item.kind === 'files-search') {
-				// No `scope`: a `q` alone derives drive scope
-				navigate(filesPath(ctx.base, { drive: item.drive, q: item.query }))
+				// No `scope`: a `q` alone derives room scope
+				navigate(filesPath(ctx.base, { room: item.room, q: item.query }))
 				setSearch({})
 			} else {
 				const target = resolveRef(item.raw)

@@ -41,7 +41,7 @@ import { usePorch } from '../../lib/porch.js'
 import { getDirtyDocIds } from '../../message-bus/handlers/crdt.js'
 import { appPath, type QueryInit } from '../../routes.js'
 import { isPermissionError, useAppConfig } from '../../utils.js'
-import { displayModeAtom, lastFilesUrlAtom } from './atoms.js'
+import { displayModeAtom, lastFilesUrlAtom, roomLabel } from './atoms.js'
 import { audienceText, confirmAudienceDialog, widensAudience } from './audience.js'
 import type { ContextMenuPosition } from './components/index.js'
 import {
@@ -98,8 +98,8 @@ export function FilesApp() {
 		remoteOwner,
 		shareRoot,
 		isRemoteBrowsing,
-		drive,
-		driveChannel,
+		room,
+		roomChannel,
 		contextName,
 		remoteAccessLevel,
 		remoteApi,
@@ -108,7 +108,7 @@ export function FilesApp() {
 		viewMode,
 		navigateToFolder,
 		navigateToView,
-		navigateToDrive,
+		navigateToRoom,
 		goUp,
 		enterFolder
 	} = useFileNavigation()
@@ -116,19 +116,23 @@ export function FilesApp() {
 	// The whole porch: restore tells a deleted room (absent) from one merely left
 	const { rooms: porch } = usePorch(isRemoteBrowsing ? undefined : contextIdTag, ctxRoles)
 	const rooms = React.useMemo(() => (porch ?? []).filter((r) => r.status === 'in'), [porch])
-	// Porch entry of the current room drive; undefined for a room the reader is not `in`
-	const currentRoom = drive ? rooms.find((r) => r.name === drive) : undefined
-	// A `?drive=` naming no room we are in (stale link, left room): fall back to the main drive
-	const unknownDrive = !!porch && !!drive && !currentRoom
+	// Porch entry of the current room; undefined for a room the reader is not `in`
+	const currentRoom = room ? rooms.find((r) => r.name === room) : undefined
+	// A `?room=` naming no room we are in (stale link, left room): fall back to the main room
+	const unknownRoom = !!porch && !!room && !currentRoom
 	React.useEffect(() => {
-		if (unknownDrive) navigate({ search: '' }, { replace: true })
-	}, [unknownDrive, navigate])
+		if (unknownRoom) navigate({ search: '' }, { replace: true })
+	}, [unknownRoom, navigate])
+	// The place's root: `~name · Title` for a room, else the context's name
+	const roomTitle = roomLabel(room, contextName, currentRoom?.title)
+	// What room scope covers: the room, or the share root while remote browsing
+	const scopeRoot = isRemoteBrowsing ? (breadcrumbs[0]?.name ?? roomTitle) : roomTitle
 
 	const audience = isRemoteBrowsing
 		? undefined
-		: audienceText(t, contextName, drive ? currentRoom : null, isHome)
-	// Drive header (title + audience) while browsing a local drive
-	const isDriveView = viewMode === 'browse' && !isRemoteBrowsing
+		: audienceText(t, contextName, room ? currentRoom : null, isHome)
+	// Room header (title + audience) while browsing a local room
+	const isRoomView = viewMode === 'browse' && !isRemoteBrowsing
 	// Home needs no role (own session); a community needs contributor, as the server's create check.
 	const canCreate = isRemoteBrowsing
 		? canWrite(remoteAccessLevel)
@@ -143,18 +147,18 @@ export function FilesApp() {
 	}, [])
 
 	// Filter state lives in the URL
-	const { filters, effectiveScope, activeCount, setFilter, clearAll, toListQuery } =
+	const { filters, effectiveScope, activeCount, setFilter, setScope, clearAll, toListQuery } =
 		useFilesFilters()
 	const searchActive = activeCount > 0
 	// Parent-folder chip only adds info when rows can escape the current folder: Trash/Managed,
-	// or a drive/all-scope listing. In folder scope every row shares the crumb's parent.
+	// or a room/all-scope listing. In folder scope every row shares the crumb's parent.
 	const showParentChip = viewMode !== 'browse' || effectiveScope !== 'folder'
 
 	// File list (with all filters)
 	const listQuery = toListQuery({
 		viewMode,
 		parentId: currentFolderId,
-		channel: isRemoteBrowsing ? undefined : (driveChannel ?? ''),
+		channel: isRemoteBrowsing ? undefined : (roomChannel ?? ''),
 		shareRoot,
 		ownerIdTag: contextIdTag
 	})
@@ -165,8 +169,8 @@ export function FilesApp() {
 		remoteApi
 	})
 
-	// Bumped on every pin toggle so the sidebar refetches its pinned folders
-	const [pinVersion, setPinVersion] = React.useState(0)
+	// Bumped on every star toggle or rename/trash/restore so the sidebar refetches its starred folders
+	const [starVersion, setStarVersion] = React.useState(0)
 
 	// The remote node, the tenant it belongs to, and our roles there — derived once and handed to
 	// both the details panel and the share dialog it opens, so the affordance one offers and what
@@ -192,8 +196,8 @@ export function FilesApp() {
 		parentId: currentFolderId,
 		onUploadComplete: fileListData.refresh,
 		apiOverride: isRemoteBrowsing ? remoteApi : undefined,
-		// Room of the current drive; the hooks send it only at the root (folders inherit)
-		channel: isRemoteBrowsing ? undefined : driveChannel
+		// Channel of the current room; the hooks send it only at the root (folders inherit)
+		channel: isRemoteBrowsing ? undefined : roomChannel
 	})
 
 	// Clear finished uploads so the mobile FAB returns; errors stay so failures remain visible.
@@ -368,13 +372,13 @@ export function FilesApp() {
 		[viewMode, navigateToView, clearAll]
 	)
 
-	const handleDriveChange = React.useCallback(
+	const handleRoomChange = React.useCallback(
 		function (name: string | null) {
-			if (viewMode === 'browse' && !currentFolderId && !remoteOwner && drive === name) {
+			if (viewMode === 'browse' && !currentFolderId && !remoteOwner && room === name) {
 				clearAll()
-			} else navigateToDrive(name)
+			} else navigateToRoom(name)
 		},
-		[viewMode, currentFolderId, remoteOwner, drive, navigateToDrive, clearAll]
+		[viewMode, currentFolderId, remoteOwner, room, navigateToRoom, clearAll]
 	)
 
 	const handleCreateFolder = React.useCallback(
@@ -394,7 +398,7 @@ export function FilesApp() {
 					contentType: 'cloudillo/folder',
 					fileName: folderName || t('Untitled folder'),
 					parentId: currentFolderId || undefined,
-					channel: currentFolderId ? undefined : driveChannel
+					channel: currentFolderId ? undefined : roomChannel
 				})
 				fileListData.refresh()
 			} catch (err) {
@@ -402,7 +406,7 @@ export function FilesApp() {
 				toast.error(t('Failed to create folder'))
 			}
 		},
-		[api, dialog, t, toast, currentFolderId, driveChannel, fileListData]
+		[api, dialog, t, toast, currentFolderId, roomChannel, fileListData]
 	)
 
 	const handleEmptyTrash = React.useCallback(
@@ -425,8 +429,8 @@ export function FilesApp() {
 	)
 
 	const fileOps: FileOps = React.useMemo(() => {
-		// A restore lands at the root of the entry's drive; when that room is gone (absent
-		// from the porch, not merely left) it falls back to the main drive — a wider audience.
+		// A restore lands at the root of the entry's room; when that room is gone (absent
+		// from the porch, not merely left) it falls back to the main room — a wider audience.
 		async function confirmRestore(entryIds: string[]): Promise<boolean> {
 			const data = fileListData.getData()
 			const orphaned = entryIds.some((id) => {
@@ -527,6 +531,7 @@ export function FilesApp() {
 					setRenameFileId(undefined)
 					setRenameFileName(undefined)
 					patchFile(entryId, { fileName })
+					setStarVersion((v) => v + 1)
 				} catch (err) {
 					console.error('Failed to rename file', err)
 					toast.error(
@@ -582,6 +587,7 @@ export function FilesApp() {
 				if (!res) return
 
 				await api.files.delete(entryId)
+				setStarVersion((v) => v + 1)
 				if (multiSelect.isSelected(entryId)) {
 					multiSelect.clearSelection()
 				}
@@ -592,6 +598,7 @@ export function FilesApp() {
 				if (!api) return
 				if (!parentId && !(await confirmRestore([entryId]))) return
 				await api.files.restore(entryId, parentId)
+				setStarVersion((v) => v + 1)
 				fileListData.refresh()
 			},
 
@@ -607,6 +614,7 @@ export function FilesApp() {
 				if (!res) return
 
 				await api.files.permanentDelete(entryId)
+				setStarVersion((v) => v + 1)
 				if (multiSelect.isSelected(entryId)) {
 					multiSelect.clearSelection()
 				}
@@ -627,6 +635,7 @@ export function FilesApp() {
 				// Un-starring in the starred view removes the row: only a refetch can do that.
 				if (filters.starred && !starred) fileListData.refresh()
 				else patchFile(entryId, (f) => ({ userData: { ...f.userData, starred } }))
+				setStarVersion((v) => v + 1)
 			},
 
 			togglePinned: async function togglePinned(entryId: string) {
@@ -641,7 +650,6 @@ export function FilesApp() {
 					return
 				}
 				patchFile(entryId, (f) => ({ userData: { ...f.userData, pinned } }))
-				setPinVersion((v) => v + 1)
 			},
 
 			// Batch operations for multi-select
@@ -658,6 +666,7 @@ export function FilesApp() {
 				if (!res) return
 
 				await Promise.all(entryIds.map((id) => api.files.delete(id)))
+				setStarVersion((v) => v + 1)
 				multiSelect.clearSelection()
 				fileListData.refresh()
 			},
@@ -666,6 +675,7 @@ export function FilesApp() {
 				if (!api || entryIds.length === 0) return
 				if (!parentId && !(await confirmRestore(entryIds))) return
 				await Promise.all(entryIds.map((id) => api.files.restore(id, parentId)))
+				setStarVersion((v) => v + 1)
 				multiSelect.clearSelection()
 				fileListData.refresh()
 			},
@@ -684,6 +694,7 @@ export function FilesApp() {
 				if (!res) return
 
 				await Promise.all(entryIds.map((id) => api.files.permanentDelete(id)))
+				setStarVersion((v) => v + 1)
 				multiSelect.clearSelection()
 				fileListData.refresh()
 			},
@@ -701,6 +712,7 @@ export function FilesApp() {
 				const done = entryIds.filter((_, i) => results[i].status === 'fulfilled')
 				// Nothing succeeded on the server, so nothing here has to change.
 				if (done.length > 0) {
+					setStarVersion((v) => v + 1)
 					if (filters.starred && !starred) {
 						// Un-starring in the starred view removes the rows: only a refetch
 						// can do that.
@@ -732,7 +744,6 @@ export function FilesApp() {
 				for (const id of done) {
 					patchFile(id, (f) => ({ userData: { ...f.userData, pinned } }))
 				}
-				if (done.length > 0) setPinVersion((v) => v + 1)
 				if (done.length < entryIds.length) {
 					console.error(
 						'Failed to change pinned state for some files',
@@ -901,7 +912,7 @@ export function FilesApp() {
 	const createMenuProps = {
 		contextIdTag,
 		currentFolderId,
-		channel: isRemoteBrowsing ? undefined : driveChannel,
+		channel: isRemoteBrowsing ? undefined : roomChannel,
 		onCreateFolder:
 			viewMode === 'browse' && !isRemoteBrowsing && canCreate
 				? handleCreateFolder
@@ -930,11 +941,7 @@ export function FilesApp() {
 						<FilesBar
 							viewMode={viewMode}
 							effectiveScope={effectiveScope}
-							driveTitle={
-								drive
-									? `~${drive}${currentRoom?.title ? ` · ${currentRoom.title}` : ''}`
-									: contextName
-							}
+							roomTitle={roomTitle}
 							breadcrumbs={breadcrumbs}
 							onNavigate={navigateToFolder}
 							remote={
@@ -959,7 +966,7 @@ export function FilesApp() {
 												auth?.idTag ??
 												'',
 											label: audience,
-											ownerOnly: isHome && !drive
+											ownerOnly: isHome && !room
 										}
 									: undefined
 							}
@@ -988,12 +995,12 @@ export function FilesApp() {
 							viewMode={viewMode}
 							onViewModeChange={handleViewModeChange}
 							contextName={contextName}
-							drive={drive}
-							driveChannel={driveChannel}
+							room={room}
+							allRooms={effectiveScope === 'all'}
 							currentFolderId={isRemoteBrowsing ? null : currentFolderId}
 							rooms={rooms}
-							onDriveChange={handleDriveChange}
-							pinVersion={pinVersion}
+							onRoomChange={handleRoomChange}
+							starVersion={starVersion}
 						/>
 					</Fcd.Filter>
 					<Fcd.Content
@@ -1010,8 +1017,12 @@ export function FilesApp() {
 											: undefined
 									}
 									viewMode={viewMode}
-									onRefresh={fileListData.refresh}
-									driveChannel={driveChannel}
+									onRefresh={() => {
+										fileListData.refresh()
+										// A cross-room move changes a starred folder's channel
+										setStarVersion((v) => v + 1)
+									}}
+									roomChannel={roomChannel}
 									contextName={contextName}
 									rooms={porch}
 								/>
@@ -1020,20 +1031,29 @@ export function FilesApp() {
 										{t('Showing cached data — you appear to be offline')}
 									</Alert>
 								)}
-								{viewMode === 'browse' && <FilterBar />}
+								{viewMode === 'browse' && (
+									<FilterBar
+										roomName={scopeRoot}
+										folderName={
+											breadcrumbs.length > 1
+												? breadcrumbs[breadcrumbs.length - 1].name
+												: undefined
+										}
+									/>
+								)}
 							</VBox>
 						}
 					>
 						{isInitialLoading ? (
 							<LoadingSpinner fill size="lg" label={t('Loading files...')} />
 						) : files.length === 0 &&
-							isDriveView &&
-							drive &&
+							isRoomView &&
+							room &&
 							!currentFolderId &&
 							!searchActive ? (
 							<EmptyState
 								icon={<Icon as={IcCloud} size="xl" />}
-								title={t('No files in ~{{room}} yet.', { room: drive })}
+								title={t('No files in ~{{room}} yet.', { room })}
 								description={
 									audience &&
 									t('Files you add here are visible to {{audience}}.', {
@@ -1060,20 +1080,9 @@ export function FilesApp() {
 								actions={
 									<>
 										<Button onClick={clearAll}>{t('Clear filters')}</Button>
-										{viewMode === 'browse' && effectiveScope !== 'all' && (
-											<Button
-												onClick={() =>
-													setFilter({
-														scope:
-															effectiveScope === 'folder'
-																? 'drive'
-																: 'all'
-													})
-												}
-											>
-												{effectiveScope === 'folder'
-													? t('Search this drive')
-													: t('Search all drives')}
+										{viewMode === 'browse' && effectiveScope === 'folder' && (
+											<Button onClick={() => setScope('room')}>
+												{t('Search {{place}}', { place: scopeRoot })}
 											</Button>
 										)}
 									</>

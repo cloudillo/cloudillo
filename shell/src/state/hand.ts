@@ -11,7 +11,7 @@ export interface FileHandItem {
 	sourceContext: string // listing-context idTag the row was picked up from
 	ownerIdTag?: string // the row's owner profile at pick-up time
 	sourceParentId?: string | null // parent folder at pick-up time. null = root, undefined = unknown (legacy)
-	sourceChannel?: string | null // drive at pick-up time: `@tenant~name`, null = main, undefined = unknown
+	sourceChannel?: string | null // room at pick-up time: `@tenant~name`, null = main, undefined = unknown
 	label: string // last-known fileName
 	icon?: string
 	fileTp?: string // needed for create call

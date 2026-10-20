@@ -10,7 +10,8 @@ import {
 	IcAdd,
 	List,
 	ListItem,
-	LoadingSpinner
+	LoadingSpinner,
+	roomTitleHint
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -38,7 +39,7 @@ export function RoomsDirectory() {
 						<Button
 							size="sm"
 							variant="ghost"
-							href={filesPath(base, { drive: room.name })}
+							href={filesPath(base, { room: room.name })}
 						>
 							{t('Files')}
 						</Button>
@@ -78,19 +79,25 @@ export function RoomsDirectory() {
 	} else {
 		body = (
 			<List>
-				{rooms.map((room) => (
-					<ListItem
-						key={room.name}
-						leading={<IcRoom />}
-						title={
-							<Link to={roomsPath(base, room.name)}>
-								{room.title || `~${room.name}`}
-							</Link>
-						}
-						subtitle={room.descr ? `~${room.name} · ${room.descr}` : `~${room.name}`}
-						trailing={rowActions(room)}
-					/>
-				))}
+				{rooms.map((room) => {
+					const hint = roomTitleHint(room)
+					return (
+						<ListItem
+							key={room.name}
+							leading={<IcRoom />}
+							title={
+								<Link to={roomsPath(base, room.name)}>
+									{hint ?? `~${room.name}`}
+								</Link>
+							}
+							subtitle={
+								[hint && `~${room.name}`, room.descr].filter(Boolean).join(' · ') ||
+								undefined
+							}
+							trailing={rowActions(room)}
+						/>
+					)
+				})}
 			</List>
 		)
 	}

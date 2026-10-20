@@ -11,8 +11,8 @@ import {
 	IcComment,
 	IcEdit,
 	IcGoTo,
+	IcLink,
 	Icon,
-	IcPin,
 	IcView,
 	parseChannel,
 	RadioGroup,
@@ -49,11 +49,11 @@ export interface HandActionBarProps {
 	currentFolderName?: string
 	viewMode: ViewMode
 	onRefresh: () => void
-	/** The drive being browsed (`@ctx~name`); undefined = main drive. */
-	driveChannel?: string
+	/** The room being browsed (`@ctx~name`); undefined = main room. */
+	roomChannel?: string
 	contextName: string
 	/** The whole porch (undefined while loading): tells a deleted room from one merely left,
-	 *  and gives the audience text for the cross-drive confirm. */
+	 *  and gives the audience text for the cross-room confirm. */
 	rooms: PorchEntry[] | undefined
 }
 
@@ -87,7 +87,7 @@ export function HandActionBar({
 	currentFolderName,
 	viewMode,
 	onRefresh,
-	driveChannel,
+	roomChannel,
 	contextName,
 	rooms
 }: HandActionBarProps) {
@@ -111,7 +111,7 @@ export function HandActionBar({
 	const isOwnContext = ctxIdTag === auth.idTag
 	const isBrowse = viewMode === 'browse'
 
-	const targetChannel = driveChannel ?? null
+	const targetChannel = roomChannel ?? null
 	const atRoot = !currentFolderId || currentFolderId === '__root__'
 
 	const canWriteHere =
@@ -157,8 +157,8 @@ export function HandActionBar({
 		applicable: (it: FileHandItem) => boolean,
 		fn: (it: FileHandItem) => Promise<void>,
 		success: (count: number) => string,
-		// Move/Restore cross drives on the server, which gates other members' files to moderators
-		driveGate = false
+		// Move/Restore cross rooms on the server, which gates other members' files to moderators
+		roomGate = false
 	): Promise<{ ok: number; failed: number }> {
 		const targets = items.filter(applicable)
 		if (targets.length === 0) return { ok: 0, failed: 0 }
@@ -210,7 +210,7 @@ export function HandActionBar({
 			const failedItem = targets[results.findIndex((r) => r.status === 'rejected')]
 			let reason: string
 			if (
-				driveGate &&
+				roomGate &&
 				err?.httpStatus === 403 &&
 				failedItem?.sourceContext === ctxIdTag &&
 				failedItem.sourceChannel &&
@@ -219,7 +219,7 @@ export function HandActionBar({
 				// else's file can trip the moderator gate
 				(failedItem.fileTp === 'FLDR' || failedItem.ownerIdTag !== auth?.idTag)
 			) {
-				// Cross-drive move gate: the subtree holds other members' files
+				// Cross-room move gate: the subtree holds other members' files
 				reason = t("Only moderators can move other members' files out of ~{{room}}", {
 					room: parseChannel(failedItem.sourceChannel).name
 				})
@@ -271,15 +271,15 @@ export function HandActionBar({
 			)
 		)
 			return true
-		const place = driveChannel ? `~${parseChannel(driveChannel).name}` : contextName
-		const found = driveChannel ? findRoom(rooms, ctxIdTag, driveChannel) : null
+		const place = roomChannel ? `~${parseChannel(roomChannel).name}` : contextName
+		const found = roomChannel ? findRoom(rooms, ctxIdTag, roomChannel) : null
 		const room = found === 'unknown' ? undefined : found
 		const audience = audienceText(t, contextName, room, isOwnContext) ?? place
 		return confirmAudienceDialog(dialog, t, title(place), audience)
 	}
 
-	// Root targets name the room; inside a folder the server inherits its drive.
-	const rootChannel = atRoot && driveChannel ? { channel: driveChannel } : {}
+	// Root targets name the room; inside a folder the server inherits its room.
+	const rootChannel = atRoot && roomChannel ? { channel: roomChannel } : {}
 
 	const doPin = () =>
 		run(
@@ -293,7 +293,7 @@ export function HandActionBar({
 					...rootChannel
 				})
 			},
-			(count) => t('Pinned {{count}} files', { count })
+			(count) => t('Added {{count}} shortcuts', { count })
 		)
 
 	const doPlace = async (level: AccessLevel) => {
@@ -383,9 +383,10 @@ export function HandActionBar({
 			<Toolbar variant="soft">
 				<Icon as={IcHand} />
 				<Text size="sm" emphasis="muted">
-					{t('Holding {{count}} files. Switch to Browse to place, move or pin them.', {
-						count: items.length
-					})}
+					{t(
+						'Holding {{count}} files. Switch to Browse to place, move or add shortcuts.',
+						{ count: items.length }
+					)}
 				</Text>
 			</Toolbar>
 		)
@@ -488,15 +489,15 @@ export function HandActionBar({
 				{states.pin !== 'hidden' && (
 					<Button
 						color="primary"
-						icon={<IcPin />}
+						icon={<IcLink />}
 						disabledReason={
 							states.pin === 'disabled'
-								? disabledTooltip(counts.pin, items.length, t('pinned'))
+								? disabledTooltip(counts.pin, items.length, t('added as shortcuts'))
 								: undefined
 						}
 						onClick={doPin}
 					>
-						{t('Pin here')}
+						{t('Add shortcut here')}
 						{states.pin === 'disabled' && (
 							<Badge
 								size="sm"

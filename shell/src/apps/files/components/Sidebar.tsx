@@ -2,13 +2,22 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 import type { PorchEntry } from '@cloudillo/core'
-import { Nav, Text, useAuth, VBox } from '@cloudillo/react'
+import { Nav, roomTitleHint, Text, useAuth, VBox } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { useContextAwareApi, useCtx } from '../../../context/index.js'
-import { IcBrowse, IcManaged, IcPinned, IcPost, IcRoom, IcTrash } from '../../../icons.js'
-import { feedPath, filesPath, roomsPath } from '../../../routes.js'
+import { useContextAwareApi, useCtx, useCurrentContextIdTag } from '../../../context/index.js'
+import {
+	IcBrowse,
+	IcFilesApp,
+	IcManaged,
+	IcPost,
+	IcRoom,
+	IcTrash,
+	IcUnstar
+} from '../../../icons.js'
+import { ctxBase, feedPath, filesPath, roomsPath } from '../../../routes.js'
+import { channelTarget } from '../audience.js'
 import type { ViewMode } from '../types.js'
 
 interface SidebarProps {
@@ -16,20 +25,20 @@ interface SidebarProps {
 	viewMode: ViewMode
 	/** Re-clicking the current view must clear the filters (the caller handles it) */
 	onViewModeChange: (mode: ViewMode) => void
-	/** Main drive label (the context's name) */
+	/** Main room label (the context's name) */
 	contextName: string
-	/** Current room (bare name); null = main drive */
-	drive: string | null
-	/** Channel of the current drive (`''`/undefined = main drive); scopes the pinned folders */
-	driveChannel?: string
-	/** Current folder (null = drive root); marks the active pinned folder */
+	/** Current room (bare name); null = main room */
+	room: string | null
+	/** Listing every room (`scope=all`); marks the All rooms item */
+	allRooms: boolean
+	/** Current folder (null = room root); a starred one takes the highlight from its room */
 	currentFolderId: string | null
 	/** Rooms the viewer is `in`; empty hides the Rooms group */
 	rooms: PorchEntry[]
-	/** Re-clicking the current drive must clear the filters (the caller handles it) */
-	onDriveChange: (name: string | null) => void
-	/** Bumped by the caller on every pin toggle, to refetch the pinned folders */
-	pinVersion?: number
+	/** Re-clicking the current room must clear the filters (the caller handles it) */
+	onRoomChange: (name: string | null) => void
+	/** Bumped by the caller on every star toggle, to refetch the starred folders */
+	starVersion?: number
 }
 
 // Navigation only: every item opens an unfiltered place.
@@ -38,12 +47,12 @@ export const Sidebar = React.memo(function Sidebar({
 	viewMode,
 	onViewModeChange,
 	contextName,
-	drive,
-	driveChannel,
+	room,
+	allRooms,
 	currentFolderId,
 	rooms,
-	onDriveChange,
-	pinVersion
+	onRoomChange,
+	starVersion
 }: SidebarProps) {
 	const { t } = useTranslation()
 	const base = useCtx().base
@@ -52,80 +61,116 @@ export const Sidebar = React.memo(function Sidebar({
 		[rooms]
 	)
 	const hasRooms = sortedRooms.length > 0
-	// `authenticated` is a dep of the pinned-load effect below: the api client's
+	// `authenticated` is a dep of the starred-load effect below: the api client's
 	// identity is stable per idTag, so this flag (not `api`, and not `auth`,
 	// which tracks the home session) is what changes when a context token lands.
 	const { api, authenticated } = useContextAwareApi()
 	const [auth] = useAuth()
 
-	// Pinned folders of the current drive (pins are per user)
-	const [pinned, setPinned] = React.useState<{ entryId: string; fileName: string }[]>([])
+	// Starred folders across every room of the context (stars are per user); no `channel`
+	// in the query means all rooms
+	const [starred, setStarred] = React.useState<
+		{ entryId: string; fileName: string; channel?: string }[]
+	>([])
 	React.useEffect(
-		function loadPinned() {
+		function loadStarred() {
 			if (!api || !auth) return
 			let cancelled = false
 			;(async function () {
 				try {
-					const res = await api.files.list({
-						pinned: true,
-						fileTp: 'FLDR',
-						channel: driveChannel ?? ''
-					})
-					if (!cancelled) setPinned(res)
+					const res = await api.files.list({ starred: true, fileTp: 'FLDR' })
+					if (!cancelled) {
+						setStarred(res.sort((a, b) => a.fileName.localeCompare(b.fileName)))
+					}
 				} catch {
-					if (!cancelled) setPinned([])
+					if (!cancelled) setStarred([])
 				}
 			})()
 			return () => {
 				cancelled = true
 			}
 		},
-		[api, authenticated, auth, driveChannel, pinVersion]
+		[api, authenticated, auth, starVersion]
 	)
 
+	// Each starred folder linked into its own room and context; folders of local rooms the
+	// viewer is not `in` are left out (the room would not open), the Starred filter still has them
+	const contextIdTag = useCurrentContextIdTag()
+	const starredLinks = React.useMemo(() => {
+		const roomNames = new Set(rooms.map((r) => r.name))
+		return starred.flatMap((folder) => {
+			const { tenant, room: folderRoom } = channelTarget(folder.channel, contextIdTag)
+			if (!tenant && folderRoom && !roomNames.has(folderRoom)) return []
+			// The hint tells apart same-named folders of different rooms
+			const hint = tenant
+				? `@${tenant}${folderRoom ? `~${folderRoom}` : ''}`
+				: folderRoom && `~${folderRoom}`
+			const href = tenant
+				? filesPath(ctxBase(tenant, auth?.idTag), {
+						...(folderRoom && { room: folderRoom }),
+						parentId: folder.entryId
+					})
+				: filesPath(base, { room: folderRoom, parentId: folder.entryId })
+			return [
+				{
+					entryId: folder.entryId,
+					label: hint ? `${folder.fileName} · ${hint}` : folder.fileName,
+					href
+				}
+			]
+		})
+	}, [starred, rooms, contextIdTag, auth?.idTag, base])
+
 	const browsing = viewMode === 'browse'
+	// A starred current folder owns the highlight, so its room item stays inactive
+	const starredActive = browsing && starredLinks.some((f) => f.entryId === currentFolderId)
 
 	return (
 		<VBox gap={2} padding={2} className={className}>
 			<Nav aria-label={t('Files')}>
-				{/* Main drive; with no rooms it stays the plain "Browse" entry */}
+				{/* Main room; with no rooms it stays the plain "Browse" entry */}
 				<Nav.Item
 					icon={<IcBrowse />}
 					label={hasRooms ? contextName : t('Browse')}
-					active={browsing && !drive && !currentFolderId}
-					onClick={() => onDriveChange(null)}
+					active={browsing && !room && !allRooms && !starredActive}
+					onClick={() => onRoomChange(null)}
 				/>
-				{pinned.length > 0 && (
-					<Nav.Section label={t('Pinned')}>
-						{pinned.map((folder) => (
+				{starredLinks.length > 0 && (
+					<Nav.Section label={t('Starred')}>
+						{starredLinks.map((link) => (
 							<Nav.Item
-								key={folder.entryId}
-								icon={<IcPinned />}
-								label={folder.fileName}
-								active={browsing && currentFolderId === folder.entryId}
-								href={filesPath(base, { drive, parentId: folder.entryId })}
+								key={link.entryId}
+								icon={<IcUnstar />}
+								label={link.label}
+								active={browsing && currentFolderId === link.entryId}
+								href={link.href}
 							/>
 						))}
 					</Nav.Section>
 				)}
 				{hasRooms && (
 					<Nav.Section label={t('Rooms')}>
-						{sortedRooms.map((room) => {
-							const isActive = browsing && drive === room.name
+						<Nav.Item
+							icon={<IcFilesApp />}
+							label={t('All rooms')}
+							active={browsing && allRooms}
+							href={filesPath(base, { scope: 'all' })}
+						/>
+						{sortedRooms.map((r) => {
+							const isActive = browsing && room === r.name
+							const hint = roomTitleHint(r)
 							return (
-								<React.Fragment key={room.name}>
+								<React.Fragment key={r.name}>
 									<Nav.Item
 										icon={<IcRoom />}
 										label={
 											<>
-												~{room.name}
-												{room.title && (
-													<Text color="secondary"> {room.title}</Text>
-												)}
+												~{r.name}
+												{hint && <Text color="secondary"> {hint}</Text>}
 											</>
 										}
-										active={isActive && !currentFolderId}
-										onClick={() => onDriveChange(room.name)}
+										active={isActive && !starredActive}
+										onClick={() => onRoomChange(r.name)}
 									/>
 									{isActive && (
 										<>
@@ -134,7 +179,7 @@ export const Sidebar = React.memo(function Sidebar({
 												icon={<IcRoom />}
 												label={t('Room home')}
 												active={false}
-												href={roomsPath(base, room.name)}
+												href={roomsPath(base, r.name)}
 											/>
 											<Nav.Item
 												depth={1}
@@ -142,7 +187,7 @@ export const Sidebar = React.memo(function Sidebar({
 												label={t('Posts')}
 												active={false}
 												href={feedPath(base, undefined, {
-													room: room.name
+													room: r.name
 												})}
 											/>
 										</>
@@ -151,7 +196,7 @@ export const Sidebar = React.memo(function Sidebar({
 							)
 						})}
 						<Nav.Item
-							label={<Text color="secondary">{t('All rooms →')}</Text>}
+							label={<Text color="secondary">{t('Room directory →')}</Text>}
 							href={roomsPath(base)}
 						/>
 					</Nav.Section>

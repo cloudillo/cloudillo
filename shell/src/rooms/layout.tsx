@@ -9,6 +9,7 @@ import {
 	Fcd,
 	IcAdd,
 	Nav,
+	roomTitleHint,
 	Text,
 	useApi,
 	useAuth,
@@ -137,6 +138,7 @@ export function RoomsLayout() {
 
 	function roomItem(room: PorchEntry) {
 		const active = room.name === name
+		const hint = roomTitleHint(room)
 		return (
 			<React.Fragment key={room.name}>
 				<Nav.Item
@@ -144,7 +146,7 @@ export function RoomsLayout() {
 					label={
 						<>
 							~{room.name}
-							{room.title && <Text color="secondary"> {room.title}</Text>}
+							{hint && <Text color="secondary"> {hint}</Text>}
 						</>
 					}
 					active={active}
@@ -164,7 +166,7 @@ export function RoomsLayout() {
 							icon={<IcFiles />}
 							label={t('Files')}
 							active={false}
-							href={filesPath(base, { drive: room.name })}
+							href={filesPath(base, { room: room.name })}
 						/>
 					</>
 				)}
@@ -191,7 +193,7 @@ export function RoomsLayout() {
 					variant="ghost"
 					icon={<IcFiles />}
 					aria-label={isMobile ? t('Files') : undefined}
-					href={filesPath(base, { drive: name })}
+					href={filesPath(base, { room: name })}
 				>
 					{!isMobile && t('Files')}
 				</Button>
@@ -218,7 +220,14 @@ export function RoomsLayout() {
 					title={t('Rooms')}
 					state="ready"
 					start={<DrawerToggle nav onClick={() => setShowFilter(true)} />}
-					sub={name ? { label: room?.title || `~${name}`, icon: <IcRoom /> } : undefined}
+					sub={
+						name
+							? {
+									label: (room && roomTitleHint(room)) ?? `~${name}`,
+									icon: <IcRoom />
+								}
+							: undefined
+					}
 				>
 					{actions}
 				</DocBar>

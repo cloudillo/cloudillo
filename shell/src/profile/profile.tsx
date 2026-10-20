@@ -54,8 +54,10 @@ import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-do
 
 import 'quill/dist/quill.core.css'
 import 'quill/dist/quill.bubble.css'
-
+import Lightbox from 'yet-another-react-lightbox'
+import 'yet-another-react-lightbox/styles.css'
 import type { Profile } from '@cloudillo/types'
+import Zoom from 'yet-another-react-lightbox/plugins/zoom'
 
 import { ComposePanel } from '../apps/feed/index.js'
 import { pendingQuoteAtom } from '../apps/feed/quote-intent.js'
@@ -455,6 +457,7 @@ export function ProfilePage({
 	const [coverUpload, setCoverUpload] = React.useState<string | undefined>()
 	const [profileUpload, setProfileUpload] = React.useState<string | undefined>()
 	const [editMode, setEditMode] = React.useState(false)
+	const [picOpen, setPicOpen] = React.useState(false)
 	const [nameDraft, setNameDraft] = React.useState(profile.name)
 
 	// Keep the name draft in sync when the profile name changes externally,
@@ -725,6 +728,19 @@ export function ProfilePage({
 									: undefined
 							}
 							alt={profile.name}
+							{...(profile.profilePic && {
+								role: 'button',
+								tabIndex: 0,
+								'aria-label': t('View profile picture'),
+								className: 'cursor-pointer',
+								onClick: () => setPicOpen(true),
+								onKeyDown: (e: React.KeyboardEvent) => {
+									if (e.key === 'Enter' || e.key === ' ') {
+										e.preventDefault()
+										setPicOpen(true)
+									}
+								}
+							})}
 						/>
 					}
 					coverAction={
@@ -905,6 +921,21 @@ export function ProfilePage({
 						/>
 					}
 				/>
+				{profile.profilePic && (
+					<Lightbox
+						open={picOpen}
+						close={() => setPicOpen(false)}
+						slides={[
+							{
+								src: getFileUrl(profile.idTag, profile.profilePic, 'vis.hd') ?? '',
+								alt: profile.name
+							}
+						]}
+						plugins={[Zoom]}
+						render={{ buttonPrev: () => null, buttonNext: () => null }}
+						carousel={{ finite: true }}
+					/>
+				)}
 				{children}
 				{coverUpload && (
 					<ImageUpload

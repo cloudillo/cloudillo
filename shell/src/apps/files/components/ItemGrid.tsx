@@ -126,7 +126,7 @@ export const ItemGrid = React.memo(function ItemGrid({
 		<VBox gap={1}>
 			{/* Parent folder context — shown only in hierarchy-agnostic views
 			    or during cross-folder search. */}
-			{showParentChip && <LocationChip file={file} driveOnly={isInTrash || isManagedView} />}
+			{showParentChip && <LocationChip file={file} roomOnly={isInTrash || isManagedView} />}
 			<Text size="sm">
 				{smartTimestamp.label && <Text emphasis="muted">{t(smartTimestamp.label)} </Text>}
 				{smartTimestamp.time}

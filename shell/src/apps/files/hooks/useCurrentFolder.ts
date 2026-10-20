@@ -10,7 +10,7 @@ import { convertFileView } from './useFileList.js'
 
 /**
  * The folder being browsed, as a `File` (for Share / ⓘ in the bar). `api` is the serving node —
- * `remoteApi` while remote-browsing. No call at the drive root or for a Trash/Managed sentinel.
+ * `remoteApi` while remote-browsing. No call at the room root or for a Trash/Managed sentinel.
  */
 export function useCurrentFolder(
 	folderId: string | null,

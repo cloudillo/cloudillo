@@ -10,6 +10,7 @@ import {
 	HBox,
 	LoadingSpinner,
 	makeChannel,
+	roomTitleHint,
 	Tab,
 	Tabs,
 	Text,
@@ -261,17 +262,21 @@ export function RoomHome() {
 	// Unknown or retired tabs (`overview`) land on the default, the member list
 	const current: RoomTab = tab === 'settings' && adminClient ? 'settings' : 'members'
 	const inRoom = room.status === 'in'
+	const subline = [
+		roomTitleHint(room) && `~${room.name}`,
+		// `visibility` reaches admins only; without it describeRoom would guess
+		room.visibility !== undefined && describeRoom(room, t)
+	]
+		.filter(Boolean)
+		.join(' · ')
 
 	return (
 		<Fcd.Content width="wide">
-			<Text as="p" color="secondary" className="mb-1">
-				{
-					// `visibility` reaches admins only; without it describeRoom would guess
-					room.visibility !== undefined
-						? `~${room.name} · ${describeRoom(room, t)}`
-						: `~${room.name}`
-				}
-			</Text>
+			{subline && (
+				<Text as="p" color="secondary" className="mb-1">
+					{subline}
+				</Text>
+			)}
 			{room.descr && (
 				<Text as="p" className="mb-2">
 					{room.descr}

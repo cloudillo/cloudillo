@@ -12,11 +12,11 @@ import { type FileOwnerScopeOverride, useFileOwnerScope } from './useFileOwnerSc
  *  DetailsPanel, ShareDialog), so they never disagree. */
 const accessVersionAtom = atom(0)
 
-/** Stands in at the drive root, which has no entry: an empty id makes no call. */
+/** Stands in at the room root, which has no entry: an empty id makes no call. */
 const NO_FILE: Pick<File, 'entryId' | 'fileId'> = { entryId: '', fileId: null }
 
 export interface FileAccessState {
-	/** `undefined` at the drive root, while loading, or after an error */
+	/** `undefined` at the room root, while loading, or after an error */
 	access: FileAccess | undefined
 	error: boolean
 	/** Re-fetch every mounted `useFileAccess` (call after a share change) */
@@ -25,7 +25,7 @@ export interface FileAccessState {
 
 /**
  * `GET /files/:id/access` for `file`, on the node that holds it (`useFileOwnerScope`, so remote
- * and cross-owner rows ask the right node). `file` undefined = the drive root: no call.
+ * and cross-owner rows ask the right node). `file` undefined = the room root: no call.
  */
 export function useFileAccess(
 	file: File | undefined,

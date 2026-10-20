@@ -19,11 +19,11 @@ function RoomPostsRedirect() {
 	return <Navigate to={feedPath(ctx.base, undefined, { room: name })} replace />
 }
 
-/** Old `rooms/:name/files` URL → the room's drive in Files. */
+/** Old `rooms/:name/files` URL → the room in Files. */
 function RoomFilesRedirect() {
 	const ctx = useCtx()
 	const { name = '' } = useParams()
-	return <Navigate to={filesPath(ctx.base, { drive: name })} replace />
+	return <Navigate to={filesPath(ctx.base, { room: name })} replace />
 }
 
 /** Called, never rendered — see `ShellRoutes` in `layout.tsx`. Guest-visible. */

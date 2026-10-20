@@ -25,7 +25,7 @@ import {
 	useProfileNode
 } from './AccessList.js'
 
-/** The audience when there is no `FileAccess` to read it from: the drive root has no entry, so
+/** The audience when there is no `FileAccess` to read it from: the room root has no entry, so
  *  the caller derives it from the porch (`audienceText`) instead of calling the endpoint. */
 export interface AccessSlotFallback {
 	/** The tenant whose avatar stands for the audience (community, or the user at home) */
@@ -36,12 +36,12 @@ export interface AccessSlotFallback {
 }
 
 export interface AccessSlotProps {
-	/** The place's access; undefined at the drive root or while loading → `fallback` */
+	/** The place's access; undefined at the room root or while loading → `fallback` */
 	access?: FileAccess
 	fallback?: AccessSlotFallback
 	/** Remote folder: our own level there, shown as "Can edit" / "Read only" (also on mobile) */
 	remotePermission?: 'write' | 'read'
-	/** All drives, Trash, Managed, selection mode */
+	/** All rooms, Trash, Managed, selection mode */
 	hidden?: boolean
 	/** Mobile: drop the labels, one face */
 	compact?: boolean

@@ -8,7 +8,7 @@ import { useSearchParams } from 'react-router-dom'
 import type { ViewMode } from '../types.js'
 import { MANAGED_FOLDER_ID, TRASH_FOLDER_ID } from '../types.js'
 
-export type FilesScope = 'folder' | 'drive' | 'all'
+export type FilesScope = 'folder' | 'room' | 'all'
 export type FilesType = 'doc' | 'file' | 'image' | 'folder'
 // no 'network' chip yet (the API accepts it); add one with its label when wanted
 export type FilesAccess = Exclude<NonNullable<Types.ListFilesQuery['access']>[number], 'network'>
@@ -45,7 +45,7 @@ export const FILTER_PARAMS = [
 	...NARROWER_PARAMS
 ] as const
 
-const SCOPES: readonly FilesScope[] = ['folder', 'drive', 'all']
+const SCOPES: readonly FilesScope[] = ['folder', 'room', 'all']
 const TYPES: readonly FilesType[] = ['doc', 'file', 'image', 'folder']
 const ACCESS: readonly FilesAccess[] = ['private', 'audience', 'people', 'link', 'public']
 const OWNERS: readonly FilesOwner[] = ['me', 'others']
@@ -84,14 +84,19 @@ export function parseFilesFilters(params: URLSearchParams): FilesFilters {
 	}
 }
 
-/** A finder (`q`, `starred`, `recent`, `tags`) widens the derived scope to the drive */
+/** A finder (`q`, `starred`, `recent`, `tags`) widens the derived scope to the room */
 export function isFinderActive(f: FilesFilters): boolean {
 	return !!f.q.trim() || f.starred || f.recent || f.tags.length > 0
 }
 
-/** Explicit `scope` wins; otherwise `drive` while a finder is active, else `folder` */
+/** Explicit `scope` wins; otherwise `room` while a finder is active, else `folder` */
 export function resolveScope(f: FilesFilters): FilesScope {
-	return f.scope ?? (isFinderActive(f) ? 'drive' : 'folder')
+	return f.scope ?? (isFinderActive(f) ? 'room' : 'folder')
+}
+
+/** The `scope` param for picking `scope`: the derived default clears it */
+export function scopeParam(filters: FilesFilters, scope: FilesScope): FilesScope | null {
+	return scope === resolveScope({ ...filters, scope: undefined }) ? null : scope
 }
 
 /** Active filters, each param counting once (`scope` is a place, not a filter) */
@@ -126,22 +131,24 @@ export function filterSearch(
  * Legacy `view=starred|recent` → the Starred / Recent finder: the replacement query string,
  * or null when `params` has no legacy view. Used by `redirectLegacyView` in `useFileNavigation`.
  */
-export function legacyViewSearch(params: URLSearchParams): string | null {
+export function legacySearch(params: URLSearchParams): string | null {
 	const view = params.get('view')
 	if (view !== 'starred' && view !== 'recent') return null
-	const next = new URLSearchParams(params)
-	next.delete('view')
-	next.set(view, '1')
+	const next = new URLSearchParams()
+	for (const [key, value] of params) {
+		if (key === 'view') next.append(value, '1')
+		else next.append(key, value)
+	}
 	return next.toString()
 }
 
 export interface FilesQueryContext {
 	viewMode: ViewMode
-	/** Current folder; null = the drive root */
+	/** Current folder; null = the room root */
 	parentId: string | null
-	/** Local drive's channel (`''` = main drive); undefined while remote browsing */
+	/** Local room's channel (`''` = main room); undefined while remote browsing */
 	channel?: string
-	/** Remote share root: drive scope lists its subtree */
+	/** Remote share root: room scope lists its subtree */
 	shareRoot?: string | null
 	/** idTag the owner me/others filter compares against */
 	ownerIdTag?: string
@@ -175,7 +182,7 @@ export function buildFileFilterParams(
 	} else {
 		params.recursive = true
 		params.withParent = true
-		if (scope === 'drive') {
+		if (scope === 'room') {
 			if (ctx.shareRoot) {
 				params.parentId = ctx.shareRoot
 			} else {
@@ -212,6 +219,29 @@ export function buildFileFilterParams(
 	return params
 }
 
+/** `prev` with `updates` applied; `scope=folder` is dropped while no finder is active (it is the default) */
+export function applyFilterUpdates(
+	prev: URLSearchParams,
+	updates: FilesFilterUpdates
+): URLSearchParams {
+	const next = new URLSearchParams(prev)
+	for (const [key, value] of Object.entries(updates)) {
+		const str = Array.isArray(value)
+			? value.join(',')
+			: value === true
+				? '1'
+				: typeof value === 'string'
+					? value
+					: ''
+		if (str) next.set(key, str)
+		else next.delete(key)
+	}
+	if (next.get('scope') === 'folder' && !isFinderActive(parseFilesFilters(next))) {
+		next.delete('scope')
+	}
+	return next
+}
+
 export function useFilesFilters() {
 	const [searchParams, setSearchParams] = useSearchParams()
 	const filters = React.useMemo(() => parseFilesFilters(searchParams), [searchParams])
@@ -219,29 +249,19 @@ export function useFilesFilters() {
 	// Filter changes replace the history entry; only place navigation pushes
 	const setFilter = React.useCallback(
 		(updates: FilesFilterUpdates) => {
-			setSearchParams(
-				(prev) => {
-					const next = new URLSearchParams(prev)
-					for (const [key, value] of Object.entries(updates)) {
-						const str = Array.isArray(value)
-							? value.join(',')
-							: value === true
-								? '1'
-								: typeof value === 'string'
-									? value
-									: ''
-						if (str) next.set(key, str)
-						else next.delete(key)
-					}
-					return next
-				},
-				{ replace: true }
-			)
+			setSearchParams((prev) => applyFilterUpdates(prev, updates), { replace: true })
 		},
 		[setSearchParams]
 	)
 
-	// Keeps the place (`drive`, `parentId`, `view`, `remoteOwner`, `shareRoot`)
+	const setScope = React.useCallback(
+		(scope: FilesScope) => {
+			setFilter({ scope: scopeParam(filters, scope) })
+		},
+		[filters, setFilter]
+	)
+
+	// Keeps the place (`room`, `parentId`, `view`, `remoteOwner`, `shareRoot`)
 	const clearAll = React.useCallback(() => {
 		setSearchParams(
 			(prev) => {
@@ -264,6 +284,7 @@ export function useFilesFilters() {
 		finderActive: isFinderActive(filters),
 		activeCount: countActiveFilters(filters),
 		setFilter,
+		setScope,
 		clearAll,
 		toListQuery
 	}

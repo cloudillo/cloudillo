@@ -19,20 +19,20 @@ const t = ((key: string, opts?: Record<string, unknown>) =>
 	key.replace(/{{(\w+)}}/g, (_, k) => String(opts?.[k]))) as unknown as TFunction
 const room = (r: Partial<PorchEntry>): PorchEntry => ({ name: 'board', status: 'in', ...r })
 
-describe('navSearch (?drive= round-trip)', () => {
-	it('keeps the drive alongside parentId and view', () => {
-		const search = navSearch({ drive: 'board', parentId: 'f1', view: 'browse' })
-		expect(search).toBe('drive=board&parentId=f1')
+describe('navSearch (?room= round-trip)', () => {
+	it('keeps the room alongside parentId and view', () => {
+		const search = navSearch({ room: 'board', parentId: 'f1', view: 'browse' })
+		expect(search).toBe('room=board&parentId=f1')
 		const params = new URLSearchParams(search)
-		expect(navSearch({ drive: params.get('drive'), parentId: params.get('parentId') })).toBe(
+		expect(navSearch({ room: params.get('room'), parentId: params.get('parentId') })).toBe(
 			search
 		)
-		expect(navSearch({ drive: 'board', view: 'trash' })).toBe('drive=board&view=trash')
+		expect(navSearch({ room: 'board', view: 'trash' })).toBe('room=board&view=trash')
 	})
 
-	it('omits the drive for the main drive', () => {
-		expect(navSearch({ drive: null })).toBe('')
-		expect(navSearch({ drive: null, parentId: 'f1' })).toBe('parentId=f1')
+	it('omits the room for the main room', () => {
+		expect(navSearch({ room: null })).toBe('')
+		expect(navSearch({ room: null, parentId: 'f1' })).toBe('parentId=f1')
 	})
 
 	it('carries remoteOwner/shareRoot only inside a folder', () => {
@@ -48,11 +48,11 @@ describe('locationText', () => {
 		expect(locationText('Acme', '@acme.org~board', 'Minutes', false)).toBe('~board › Minutes')
 	})
 
-	it('names the context for the main drive', () => {
+	it('names the context for the main room', () => {
 		expect(locationText('Acme', undefined, 'Events', false)).toBe('Acme › Events')
 	})
 
-	it('shows the drive only when driveOnly or no folder', () => {
+	it('shows the room only when roomOnly or no folder', () => {
 		expect(locationText('Acme', '@acme.org~board', 'Minutes', true)).toBe('~board')
 		expect(locationText('Acme', undefined, undefined, false)).toBe('Acme')
 	})
@@ -114,7 +114,7 @@ describe('widensAudience', () => {
 		expect(widensAudience(porch, 'acme.org', 'board', '@acme.org~ops')).toBe(true)
 	})
 
-	it('main-drive items never widen', () => {
+	it('main-room items never widen', () => {
 		expect(widensAudience(porch, 'acme.org', null, '@acme.org~board')).toBe(false)
 		expect(widensAudience(undefined, 'acme.org', undefined, null)).toBe(false)
 	})
@@ -126,7 +126,7 @@ describe('widensAudience', () => {
 })
 
 describe('reparentPatch', () => {
-	it('names the drive at the root and inherits it in a folder', () => {
+	it('names the room at the root and inherits it in a folder', () => {
 		expect(reparentPatch(true, 'f1', '@a~x')).toEqual({ parentId: null, channel: '@a~x' })
 		expect(reparentPatch(true, null, null)).toEqual({ parentId: null, channel: null })
 		expect(reparentPatch(false, 'f1', '@a~x')).toEqual({ parentId: 'f1' })

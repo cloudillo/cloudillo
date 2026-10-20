@@ -564,9 +564,9 @@ export interface PatchFileRequest {
 	fileName?: string
 	parentId?: string | null // Move file to folder (null = root)
 	visibility?: ActionVisibility | null // File visibility level
-	/** Cross-drive move; only with `parentId: null` (else 400). Absent = stay in the entry's current
-	 *  drive, `null` = main drive, `'@tenant~name'` = that room's root. A move into a folder sends
-	 *  no `channel`: the folder's drive is inherited. */
+	/** Cross-room move; only with `parentId: null` (else 400). Absent = stay in the entry's current
+	 *  room, `null` = main room, `'@tenant~name'` = that room's root. A move into a folder sends
+	 *  no `channel`: the folder's room is inherited. */
 	channel?: string | null
 }
 
@@ -580,14 +580,14 @@ export interface GetFileVariantSelector {
 export interface ListFilesQuery {
 	fileId?: string // Entry id, or a content id with a single entry
 	parentId?: string // Filter by folder: null=root, "__trash__"=trash, or folder entryId
-	/** Drive filter, root listing only: absent = all drives, `''` = main drive, `'@tenant~name'` = that room */
+	/** Room filter, root listing only: absent = all rooms, `''` = main room, `'@tenant~name'` = that room */
 	channel?: string
 	notParentId?: string // Exclude files inside this folder. Use with fileName/global search to find matches outside the current folder.
 	rootId?: string // Filter by document tree root
 	preset?: string
 	tag?: string
 	tags?: string[] // Every listed tag must be present (AND). Comma-joined on the wire: safe, the backend forbids ',' in tag names
-	recursive?: boolean // With parentId: list the whole subtree; without: the whole drive/room
+	recursive?: boolean // With parentId: list the whole subtree; without: the whole room
 	/** Exposure filter, OR'ed */
 	access?: ('private' | 'audience' | 'network' | 'people' | 'link' | 'public')[]
 	status?: ('P' | 'A')[]
@@ -755,8 +755,8 @@ export const tDeleteFileResult = T.struct({
 })
 export type DeleteFileResult = T.TypeOf<typeof tDeleteFileResult>
 
-// Restore file from trash. Without a `parentId` the entry lands at the root of its drive (trash
-// keeps no original folder), or the main drive when its room is gone.
+// Restore file from trash. Without a `parentId` the entry lands at the root of its room (trash
+// keeps no original folder), or the main room when its room is gone.
 export const tRestoreFileResult = T.struct({
 	entryId: T.string,
 	fileId: T.nullable(T.string),

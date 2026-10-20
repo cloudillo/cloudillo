@@ -1,6 +1,6 @@
 {
 	"name": "@cloudillo/pagillo-app",
-	"version": "0.8.20",
+	"version": "0.8.21",
 	"private": true,
 	"description": "Pagillo collaborative page layout and publishing",
 	"type": "module",

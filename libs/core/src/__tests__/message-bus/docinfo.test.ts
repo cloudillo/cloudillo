@@ -92,6 +92,20 @@ describe('registry', () => {
 		// A push may only travel shell -> app
 		expect(validateMessage(msg, 'app>shell')).toBeUndefined()
 	})
+
+	it('accepts a message with an unknown field from a newer peer, dropping the field', () => {
+		const msg = {
+			cloudillo: true,
+			v: PROTOCOL_VERSION,
+			type: 'doc:info.push',
+			payload: { ...READY_INFO, futureField: 1 }
+		}
+		const result = validateMessage(msg, 'shell>app')
+		if (!result) throw new Error('message rejected')
+		expect(Object.keys((result.message as { payload: object }).payload)).not.toContain(
+			'futureField'
+		)
+	})
 })
 
 // vim: ts=4

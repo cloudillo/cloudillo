@@ -215,7 +215,9 @@ export function validateMessage(
 	if (!rule) return undefined
 	if (rule[0] !== expectedDirection) return undefined
 
-	const result = T.decode(rule[2] as T.Type<CloudilloMessage>, data)
+	// The protocol grows additively: an older bundle must ignore a newer peer's extra fields
+	// instead of dropping the whole message (only helps bundles built with this).
+	const result = T.decode(rule[2] as T.Type<CloudilloMessage>, data, { unknownFields: 'drop' })
 	if (!T.isOk(result)) return undefined
 
 	return { message: result.ok as CloudilloMessage, rule }

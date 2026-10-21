@@ -1,13 +1,13 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
-import { Field, LoadingSpinner, Panel, RadioGroup, useApi } from '@cloudillo/react'
+import { Field, List, LoadingSpinner, Panel, RadioGroup, useApi } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { IcDarkMode, IcGlass, IcLightMode, IcOpaque, IcSystemTheme } from '../icons.js'
 import { getShellBus } from '../message-bus/index.js'
-import { useSettings } from './settings.js'
+import { SwitchRow, useSettings } from './settings.js'
 
 // Track current color scheme listener so we can remove it when settings change
 let colorSchemeCleanup: (() => void) | null = null
@@ -193,6 +193,17 @@ export function AppearanceSettings() {
 					]}
 				/>
 			</Field>
+			<List variant="divided">
+				<SwitchRow
+					name="ui.single_key_shortcuts"
+					checked={settings['ui.single_key_shortcuts'] !== false}
+					onChange={onSettingChange}
+					label={t('Single-key shortcuts')}
+					description={t(
+						'Press / or @ to open search. Turn off if they interfere with speech input or assistive tools.'
+					)}
+				/>
+			</List>
 		</Panel>
 	)
 }

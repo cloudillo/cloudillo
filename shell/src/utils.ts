@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 import { FetchError } from '@cloudillo/core'
 import { bytesToBase64 } from '@cloudillo/core/base64'
+import dayjs from 'dayjs'
 import { atom, useAtom } from 'jotai'
 import * as React from 'react'
 
@@ -45,6 +46,20 @@ export const format = {
 			? n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 			: '-'
 	}
+}
+
+export function formatBytes(n: number): string {
+	const units = ['B', 'KB', 'MB', 'GB', 'TB']
+	let i = 0
+	while (n >= 1024 && i < units.length - 1) {
+		n /= 1024
+		i++
+	}
+	return `${i ? n.toFixed(1) : n} ${units[i]}`
+}
+
+export function formatUnixTime(secs: number, fmt = 'YYYY-MM-DD'): string {
+	return dayjs(secs * 1000).format(fmt)
 }
 
 // Thin aliases over @cloudillo/core/base64, which is the chunk-safe implementation

@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 import {
 	Fcd,
@@ -34,6 +34,7 @@ import {
 	IcCalendar,
 	IcFilesApp,
 	IcGeneral,
+	IcHistory,
 	IcNotifications,
 	IcPartner,
 	IcPrivacy,
@@ -44,6 +45,7 @@ import {
 	IcTrust
 } from '../icons.js'
 import { AppMenuSettings } from './apps.js'
+import { AuditLogSettings } from './audit-log.js'
 import { CalendarSettings } from './calendar.js'
 import { CommunityGeneralSettings } from './community-general.js'
 import { FilesSettings } from './files.js'
@@ -59,6 +61,7 @@ import { TrustSettings } from './trust.js'
 const PERSONAL_PAGES = [
 	'profile',
 	'security',
+	'audit-log',
 	'privacy',
 	'trust',
 	'notifications',
@@ -88,6 +91,7 @@ const PAGE_ICONS: Record<string, React.ReactNode> = {
 	general: <IcGeneral />,
 	profile: <IcProfile />,
 	security: <IcSecurity />,
+	'audit-log': <IcHistory />,
 	privacy: <IcPrivacy />,
 	trust: <IcTrust />,
 	notifications: <IcNotifications />,
@@ -167,6 +171,8 @@ function settingsTitle(t: (key: string) => string, page: string | undefined): st
 			return t('Profile')
 		case 'security':
 			return t('Security')
+		case 'audit-log':
+			return t('Audit log')
 		case 'privacy':
 			return t('Privacy')
 		case 'trust':
@@ -249,6 +255,7 @@ export function settingsRoutes(pwa: UsePWA) {
 			<Route path="general" element={<CommunityGeneralSettings />} />
 			<Route path="profile" element={<ProfileTabSettings />} />
 			<Route path="security" element={<SecuritySettings />} />
+			<Route path="audit-log" element={<AuditLogSettings />} />
 			<Route path="privacy" element={<PrivacySettings />} />
 			<Route path="trust" element={<TrustSettings />} />
 			<Route path="notifications" element={<NotificationSettings pwa={pwa} />} />

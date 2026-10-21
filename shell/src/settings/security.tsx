@@ -1,10 +1,14 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 import {
+	type ApiClient,
 	type ApiKeyListItem,
 	type CreateApiKeyResult,
+	FetchError,
 	getInstanceUrl,
+	type TotpEnrollResult,
+	type TotpStatus,
 	type WebAuthnCredential
 } from '@cloudillo/core'
 import {
@@ -32,6 +36,7 @@ import {
 	useApi,
 	useAuth,
 	useDialog,
+	useToast,
 	VBox
 } from '@cloudillo/react'
 import { browserSupportsWebAuthn } from '@simplewebauthn/browser'
@@ -44,14 +49,224 @@ interface NavigatorUA {
 
 import { useTranslation } from 'react-i18next'
 
+import { TotpCodeField, TotpEnrollInfo } from '../auth/auth.js'
 import { IcApiKey, IcPasskey } from '../icons.js'
 import {
 	deleteApiKey as swDeleteApiKey,
 	getApiKey as swGetApiKey,
 	setApiKey as swSetApiKey
 } from '../pwa.js'
+import { AuditCategorySwitches } from '../audit/audit-log.js'
 import { registerPasskey } from './passkey.js'
 import { SwitchRow, useSettings } from './settings.js'
+
+/** TOTP enroll / status / disable. Hidden while the server's `auth.mfa` is off and the
+ *  user has nothing to disable (`GET /auth/totp` carries the mode; users cannot read it). */
+export function TwoFactorPanel() {
+	const { t } = useTranslation()
+	const { api } = useApi()
+	const { error: toastError } = useToast()
+	const [status, setStatus] = React.useState<TotpStatus>()
+	const [enroll, setEnroll] = React.useState<TotpEnrollResult>()
+	const [disabling, setDisabling] = React.useState(false)
+	const [code, setCode] = React.useState('')
+	const [busy, setBusy] = React.useState(false)
+
+	React.useEffect(
+		function loadTotp() {
+			if (!api) return
+			api.auth.getTotp().then(setStatus, (err) => {
+				console.error('Failed to load TOTP status:', err)
+			})
+		},
+		[api]
+	)
+
+	/** The server answers a bare 403 for a wrong code *and* for a mode that changed under
+	 *  us, so `forbidden` is the caller's best guess and the status is re-read on any 403. */
+	async function run(fn: (api: ApiClient) => Promise<void>, forbidden: string) {
+		if (!api) return
+		setBusy(true)
+		try {
+			await fn(api)
+		} catch (err) {
+			const isForbidden = err instanceof FetchError && err.httpStatus === 403
+			toastError(
+				isForbidden ? forbidden : err instanceof Error ? err.message : t('Failed to save')
+			)
+			if (isForbidden) {
+				api.auth.getTotp().then(setStatus, (err) => {
+					console.error('Failed to reload TOTP status:', err)
+				})
+			}
+		} finally {
+			setBusy(false)
+			setCode('')
+		}
+	}
+
+	if (!status || (status.mode === 'off' && !status.enrolled)) return null
+
+	const codeReady = code.length === 6
+
+	return (
+		<Panel
+			title={t('Two-factor authentication')}
+			description={t(
+				'Ask for a code from an authenticator app when you sign in with a password.'
+			)}
+		>
+			<VBox gap={3}>
+				<HBox gap={2} align="center">
+					{status.enrolled ? (
+						<Badge color="success">{t('Enabled')}</Badge>
+					) : (
+						<Badge>{t('Not enabled')}</Badge>
+					)}
+					{status.mode === 'required' && (
+						<Text size="sm" emphasis="muted">
+							{t('Required by the server administrator.')}
+						</Text>
+					)}
+				</HBox>
+
+				{status.enrolled ? (
+					status.mode !== 'required' &&
+					(disabling ? (
+						<>
+							<TotpCodeField value={code} onChange={setCode} />
+							<ActionBar>
+								<Button
+									onClick={() => {
+										setDisabling(false)
+										setCode('')
+									}}
+								>
+									{t('Cancel')}
+								</Button>
+								<Button
+									color="error"
+									loading={busy}
+									disabled={!codeReady}
+									onClick={() =>
+										run(async (api) => {
+											setStatus(await api.auth.totpDisable({ code }))
+											setDisabling(false)
+										}, t('Invalid code. Please try again.'))
+									}
+								>
+									{t('Disable')}
+								</Button>
+							</ActionBar>
+						</>
+					) : (
+						<ActionBar>
+							<Button color="error" onClick={() => setDisabling(true)}>
+								{t('Disable two-factor authentication')}
+							</Button>
+						</ActionBar>
+					))
+				) : enroll ? (
+					<>
+						<TotpEnrollInfo secret={enroll.secret} otpauthUri={enroll.otpauthUri} />
+						<TotpCodeField value={code} onChange={setCode} />
+						<ActionBar>
+							<Button
+								onClick={() => {
+									setEnroll(undefined)
+									setCode('')
+								}}
+							>
+								{t('Cancel')}
+							</Button>
+							<Button
+								color="primary"
+								loading={busy}
+								disabled={!codeReady}
+								onClick={() =>
+									run(async (api) => {
+										setStatus(await api.auth.totpEnrollConfirm({ code }))
+										setEnroll(undefined)
+									}, t('Invalid code. Please try again.'))
+								}
+							>
+								{t('Verify')}
+							</Button>
+						</ActionBar>
+					</>
+				) : (
+					<ActionBar>
+						<Button
+							color="primary"
+							loading={busy}
+							onClick={() =>
+								run(async (api) => {
+									setEnroll(await api.auth.totpEnrollStart())
+								}, t('Two-factor authentication is not available right now.'))
+							}
+						>
+							{t('Enable')}
+						</Button>
+					</ActionBar>
+				)}
+			</VBox>
+		</Panel>
+	)
+}
+
+/** Tenant-level audit category choice; the categories come from the owner's audit list */
+function AuditCategoriesPanel() {
+	const { t } = useTranslation()
+	const { api } = useApi()
+	const { error: toastError } = useToast()
+	const [auth] = useAuth()
+	// The tenant category setting is SADM-only on the server
+	const isSiteAdmin = !!auth?.roles?.includes('SADM')
+	const [tenantCategories, setTenantCategories] = React.useState<string[]>()
+	const [globalCategories, setGlobalCategories] = React.useState<string[]>([])
+
+	React.useEffect(() => {
+		if (!api) return
+		api.auth.listAudit({ limit: 1 }).then(
+			(res) => {
+				setTenantCategories(res.tenantCategories)
+				setGlobalCategories(res.globalCategories)
+			},
+			(err) => {
+				// Owner-only endpoint: other users simply get no panel
+				if (err instanceof FetchError && err.httpStatus === 403) return
+				toastError(err instanceof Error ? err.message : String(err))
+			}
+		)
+	}, [api, toastError])
+
+	async function saveCategories(next: string[]) {
+		if (!api) return
+		await api.settings.update('audit.tenant_categories', { value: next })
+		setTenantCategories(next)
+	}
+
+	if (!tenantCategories) return null
+	return (
+		<Panel
+			title={t('Security log')}
+			description={
+				isSiteAdmin
+					? t('Choose which extra security events are logged for your account.')
+					: t(
+							'Security events logged for your account. The server administrator chooses the categories.'
+						)
+			}
+		>
+			<AuditCategorySwitches
+				enabled={tenantCategories}
+				locked={globalCategories}
+				readOnly={!isSiteAdmin}
+				onSave={saveCategories}
+			/>
+		</Panel>
+	)
+}
 
 interface ScopeDef {
 	value: string
@@ -860,6 +1075,8 @@ export function SecuritySettings() {
 				</Panel>
 			)}
 
+			<TwoFactorPanel />
+
 			<Panel title={t('Stay logged in')}>
 				<List variant="divided">
 					<SwitchRow
@@ -971,6 +1188,8 @@ export function SecuritySettings() {
 					</List>
 				)}
 			</Panel>
+
+			<AuditCategoriesPanel />
 
 			<CreateApiKeyModal
 				open={showCreateModal}

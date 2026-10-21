@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 import { FetchError, type TenantView } from '@cloudillo/core'
 import {
@@ -22,6 +22,8 @@ import { useTranslation } from 'react-i18next'
 import { useParams } from 'react-router-dom'
 
 import { IcAdmin } from '../icons.js'
+import { formatUnixTime } from '../utils.js'
+import { TenantStatusBadge } from './tenants.js'
 
 const STORAGE_KEY = 'limits.max_storage_gb'
 
@@ -215,6 +217,14 @@ export function TenantDetail() {
 							{t('Administrator')}
 						</Badge>
 					)}
+					{tenant?.expiresAt !== undefined && (
+						<Text size="sm" emphasis="muted">
+							{t('Expires {{date}}', {
+								date: formatUnixTime(tenant.expiresAt)
+							})}
+						</Text>
+					)}
+					{tenant && <TenantStatusBadge tenant={tenant} />}
 				</HBox>
 			</Panel>
 

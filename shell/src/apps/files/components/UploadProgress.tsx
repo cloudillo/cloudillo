@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 import {
 	Affix,
@@ -23,6 +23,7 @@ import {
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { formatBytes } from '../../../utils.js'
 import type { UploadItem } from '../hooks/useUploadQueue.js'
 
 export interface UploadProgressProps {
@@ -36,13 +37,6 @@ export interface UploadProgressProps {
 	onRemoveItem?: (id: string) => void
 	onClearCompleted?: () => void
 	onClearAll?: () => void
-}
-
-function formatFileSize(bytes: number): string {
-	if (bytes < 1024) return `${bytes} B`
-	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-	if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-	return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`
 }
 
 function UploadItemRow({ item, onRemove }: { item: UploadItem; onRemove?: (id: string) => void }) {
@@ -63,7 +57,7 @@ function UploadItemRow({ item, onRemove }: { item: UploadItem; onRemove?: (id: s
 			title={item.file.name}
 			subtitle={
 				<HBox gap={1} align="center" wrap>
-					{formatFileSize(item.file.size)}
+					{formatBytes(item.file.size)}
 					{item.status === 'complete' && item.existed && (
 						<Badge
 							color="info"

@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 import i18n from 'i18next'
 import LanguageDetector from 'i18next-browser-languagedetector'
@@ -45,6 +45,12 @@ i18n.use(initReactI18next)
 		}
 	})
 	.catch()
+
+// Keep <html lang> on the UI language (screen readers, hyphenation, spellcheck).
+document.documentElement.lang = i18n.resolvedLanguage || i18n.language || 'en'
+i18n.on('languageChanged', (lng) => {
+	document.documentElement.lang = lng
+})
 
 i18n.services.formatter?.add('uppercase', (value: string) => value.toUpperCase())
 i18n.services.formatter?.add('number', (value: unknown, lng?: string) =>

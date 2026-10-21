@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 import * as T from '@symbion/runtype'
 
-import { type ApiFetchResult, apiFetchHelper, FetchError } from './api.js'
+import { type ApiFetchResult, apiFetchHelper, FetchError, fetchErrorFromResponse } from './api.js'
 import * as Types from './api-types.js'
 import { jwtExpiryDate } from './jwt.js'
 import { getInstanceUrl } from './urls.js'
@@ -253,24 +253,7 @@ export class ApiClient {
 				headers: options?.headers,
 				signal: options?.signal
 			})
-		try {
-			return await send(options?.authToken || this.getAuthToken())
-		} catch (err) {
-			// A cancelled request never reached a verdict, so there is nothing to
-			// recover from — and a token refresh per superseded keystroke would cost
-			// more than the request it replaced.
-			if (options?.signal?.aborted) throw err
-			if (options?.skipAuthRecovery) throw err
-			const recovery = await this.handleAuthError(err, options?.authToken)
-			if (recovery?.token) {
-				this.setAuthToken(recovery.token)
-				return await send(recovery.token) // single retry with the refreshed token
-			}
-			if (recovery?.handled && err instanceof FetchError) {
-				err.sessionExpired = true // recovery already redirected — caller should reject quietly
-			}
-			throw err // preserve existing behaviour — callers still see the FetchError
-		}
+		return this.withAuthRecovery(send, options)
 	}
 
 	/**
@@ -299,10 +282,20 @@ export class ApiClient {
 				returnMeta: true,
 				signal: options?.signal
 			})
+		return this.withAuthRecovery(send, options)
+	}
+
+	/** Sends with the current token; on an auth error, refreshes once and retries */
+	private async withAuthRecovery<R>(
+		send: (authToken: string | undefined) => Promise<R>,
+		options?: { authToken?: string; skipAuthRecovery?: boolean; signal?: AbortSignal }
+	): Promise<R> {
 		try {
 			return await send(options?.authToken || this.getAuthToken())
 		} catch (err) {
-			// See `request` above: an aborted call is not an auth failure.
+			// A cancelled request never reached a verdict, so there is nothing to
+			// recover from — and a token refresh per superseded keystroke would cost
+			// more than the request it replaced.
 			if (options?.signal?.aborted) throw err
 			if (options?.skipAuthRecovery) throw err
 			const recovery = await this.handleAuthError(err, options?.authToken)
@@ -323,9 +316,15 @@ export class ApiClient {
 
 	/** Authentication endpoints */
 	auth = {
-		/** POST /auth/login - User login with password */
+		/** POST /auth/login - User login with password; may answer with a TOTP step */
 		login: (data: Types.LoginRequest) =>
-			this.request('POST', '/auth/login', Types.tLoginResult, { data }),
+			this.request('POST', '/auth/login', Types.tLoginResponse, { data }),
+
+		/** POST /auth/login/mfa - Finish a login (or forced enrollment) with a TOTP code.
+		 *  403 on a wrong code (token still live), 410 once the token is gone (expired,
+		 *  out of attempts, or account locked): the password step must be repeated. */
+		loginMfa: (data: Types.LoginMfaRequest) =>
+			this.request('POST', '/auth/login/mfa', Types.tLoginResult, { data }),
 
 		/** POST /auth/logout - User logout */
 		logout: (data?: { apiKey?: string }) =>
@@ -375,6 +374,21 @@ export class ApiClient {
 		/** POST /auth/set-password - Set password using a reference token */
 		setPassword: (data: Types.SetPasswordRequest) =>
 			this.request('POST', '/auth/set-password', Types.tSetPasswordResult, { data }),
+
+		/** GET /auth/totp - TOTP mode (server `auth.mfa`) and own enrollment */
+		getTotp: () => this.request('GET', '/auth/totp', Types.tTotpStatus),
+
+		/** POST /auth/totp/enroll - Start enrollment (403 mode off, 409 already enrolled) */
+		totpEnrollStart: () =>
+			this.request('POST', '/auth/totp/enroll', Types.tTotpEnrollResult, { data: {} }),
+
+		/** POST /auth/totp/confirm - Confirm enrollment with a code */
+		totpEnrollConfirm: (data: { code: string }) =>
+			this.request('POST', '/auth/totp/confirm', Types.tTotpStatus, { data }),
+
+		/** DELETE /auth/totp - Disable TOTP (403 wrong code or mode `required`) */
+		totpDisable: (data: { code: string }) =>
+			this.request('DELETE', '/auth/totp', Types.tTotpStatus, { data }),
 
 		/** POST /auth/forgot-password - Request password reset email */
 		forgotPassword: (data: Types.ForgotPasswordRequest) =>
@@ -426,6 +440,12 @@ export class ApiClient {
 		/** DELETE /auth/api-keys/{keyId} - Delete API key */
 		deleteApiKey: (keyId: number) =>
 			this.request('DELETE', `/auth/api-keys/${keyId}`, T.nullValue),
+
+		/** GET /auth/audit - The caller's own audit log (owner only) */
+		listAudit: (query?: Types.AuditListQuery) =>
+			this.request('GET', '/auth/audit', Types.tAuditListResult, {
+				query: query as Record<string, string | number | boolean | undefined>
+			}),
 
 		/** GET /auth/access-token?apiKey=... - Exchange API key for access token (unauthenticated) */
 		getAccessTokenByApiKey: (apiKey: string) =>
@@ -1624,6 +1644,34 @@ export class ApiClient {
 				query: query as Record<string, string | number | boolean | undefined>
 			}),
 
+		/** GET /admin/audit - Server-wide audit log (site admin) */
+		listAudit: (query?: Types.AdminAuditListQuery) =>
+			this.request('GET', '/admin/audit', Types.tAdminAuditListResult, {
+				query: query as Record<string, string | number | boolean | undefined>
+			}),
+
+		/** GET /admin/audit.csv - Audit log as CSV (same filters, up to 100k rows). The token
+		 *  goes in the Authorization header, not the URL; save with `downloadBlob`. */
+		exportAuditCsv: (
+			query?: Types.AdminAuditListQuery,
+			opts?: { signal?: AbortSignal }
+		): Promise<Blob> => {
+			const params = new URLSearchParams()
+			for (const [key, val] of Object.entries(query ?? {})) {
+				if (val !== undefined && val !== '') params.set(key, String(val))
+			}
+			// Raw fetch: the body is a Blob, which apiFetchHelper can't return
+			const url = `${getInstanceUrl(this.opts.idTag)}/api/admin/audit.csv?${params}`
+			return this.withAuthRecovery(async (token) => {
+				const res = await fetch(url, {
+					headers: token ? { Authorization: `Bearer ${token}` } : {},
+					signal: opts?.signal
+				})
+				if (!res.ok) throw fetchErrorFromResponse(res.status, await res.text())
+				return res.blob()
+			}, opts)
+		},
+
 		/** POST /admin/tenants/:idTag/password-reset - Send password reset email */
 		sendPasswordReset: (idTag: string) =>
 			this.request(
@@ -1631,6 +1679,38 @@ export class ApiClient {
 				`/admin/tenants/${encodeURIComponent(idTag)}/password-reset`,
 				Types.tPasswordResetResponse
 			),
+
+		/** POST /admin/tenants/:idTag/mfa-reset - Clear a tenant's TOTP (lost device); 204 */
+		resetMfa: (idTag: string) =>
+			this.request(
+				'POST',
+				`/admin/tenants/${encodeURIComponent(idTag)}/mfa-reset`,
+				T.nullValue
+			),
+
+		/** POST /admin/tenants/:idTag/suspend - Block the tenant's logins; 204 */
+		suspendTenant: (idTag: string) =>
+			this.request(
+				'POST',
+				`/admin/tenants/${encodeURIComponent(idTag)}/suspend`,
+				T.nullValue
+			),
+
+		/** POST /admin/tenants/:idTag/resume - Clear both suspension and expiry; 204 */
+		resumeTenant: (idTag: string) =>
+			this.request('POST', `/admin/tenants/${encodeURIComponent(idTag)}/resume`, T.nullValue),
+
+		/** PATCH /admin/tenants/:idTag - Set the expiry (unix seconds), or clear it with null; 204 */
+		setTenantExpiry: (idTag: string, expiresAt: number | null) =>
+			this.request('PATCH', `/admin/tenants/${encodeURIComponent(idTag)}`, T.nullValue, {
+				data: { expiresAt }
+			}),
+
+		/** GET /admin/backup - Backup running flag, last run and kept snapshots */
+		backupStatus: () => this.request('GET', '/admin/backup', Types.tBackupStatus),
+
+		/** POST /admin/backup - Start a backup in the background; 202, 409 while one runs */
+		runBackup: () => this.request('POST', '/admin/backup', T.nullValue),
 
 		/** POST /admin/tenants/:idTag/purge - Permanently delete a tenant and all its data. */
 		purgeTenant: (idTag: string, data: { confirmIdTag: string }) =>

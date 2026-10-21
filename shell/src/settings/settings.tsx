@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 import { EmptyState, IcNoAccess, ListItem, Toggle, useApi, useToast } from '@cloudillo/react'
 import * as React from 'react'
@@ -52,10 +52,14 @@ const DEBOUNCE_DELAYS = {
 // `level` selects between the caller's own scope (tenant or global) — for cross-
 // tenant admin writes (site admin editing tenant X), call api.settings.* directly
 // with { level: 'tenant', tenant: idTag }; this hook only handles self-settings.
-export function useSettings(prefix: string | string[], opts?: { level?: 'global' | 'tenant' }) {
+// `idTag` overrides the active context (see `useApi`).
+export function useSettings(
+	prefix: string | string[],
+	opts?: { level?: 'global' | 'tenant'; idTag?: string | null }
+) {
 	const level = opts?.level
 	const { t } = useTranslation()
-	const { api, authenticated } = useApi()
+	const { api, authenticated } = useApi(opts?.idTag)
 	const { error: toastError } = useToast()
 	const [settings, setSettings] = React.useState<
 		Record<string, string | number | boolean> | undefined

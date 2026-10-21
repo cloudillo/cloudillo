@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 import * as T from '@symbion/runtype'
 
@@ -117,6 +117,46 @@ export const tLoginResult = T.struct({
 })
 export type LoginResult = T.TypeOf<typeof tLoginResult>
 
+// TOTP MFA (backend `cloudillo-auth` handler.rs `LoginRes`, totp.rs `MfaChallenge`)
+export const tMfaRequired = T.struct({
+	mfaRequired: T.literal(true),
+	mfaToken: T.string
+})
+export type MfaRequired = T.TypeOf<typeof tMfaRequired>
+
+/** Forced enrollment: `auth.mfa` is `required` and the user has no TOTP yet */
+export const tMfaEnroll = T.struct({
+	mfaEnroll: T.literal(true),
+	mfaToken: T.string,
+	secret: T.string,
+	otpauthUri: T.string
+})
+export type MfaEnroll = T.TypeOf<typeof tMfaEnroll>
+
+/** POST /auth/login: a session, or a TOTP step to finish via POST /auth/login/mfa */
+export const tLoginResponse = T.union(tLoginResult, tMfaRequired, tMfaEnroll)
+export type LoginResponse = T.TypeOf<typeof tLoginResponse>
+
+export interface LoginMfaRequest {
+	mfaToken: string
+	code: string
+}
+
+export const tTotpMode = T.literal('off', 'optional', 'required')
+export type TotpMode = T.TypeOf<typeof tTotpMode>
+
+export const tTotpStatus = T.struct({
+	mode: tTotpMode,
+	enrolled: T.boolean
+})
+export type TotpStatus = T.TypeOf<typeof tTotpStatus>
+
+export const tTotpEnrollResult = T.struct({
+	secret: T.string,
+	otpauthUri: T.string
+})
+export type TotpEnrollResult = T.TypeOf<typeof tTotpEnrollResult>
+
 export const tAccessTokenResult = T.struct({
 	token: T.string
 })
@@ -164,7 +204,8 @@ export const tSmtpDiagnostic = T.struct({
 })
 export type SmtpDiagnostic = T.TypeOf<typeof tSmtpDiagnostic>
 
-export const tSetPasswordResult = tLoginResult
+// Same variants as login: a session, or a TOTP step (backend `post_set_password`)
+export const tSetPasswordResult = tLoginResponse
 export type SetPasswordResult = T.TypeOf<typeof tSetPasswordResult>
 
 export const tRegisterVerifyResult = T.struct({
@@ -957,6 +998,23 @@ export type ReindexResult = T.TypeOf<typeof tReindexResult>
 export const tDbMaintenanceResult = T.struct({ taskId: T.number })
 export type DbMaintenanceResult = T.TypeOf<typeof tDbMaintenanceResult>
 
+/** Response of GET /admin/backup. Times are unix seconds; `last` is null before the first
+ *  run since the server started; `snapshots` are newest first. */
+export const tBackupStatus = T.struct({
+	running: T.boolean,
+	last: T.union(
+		T.struct({
+			at: T.number,
+			ok: T.boolean,
+			bytes: T.number,
+			error: T.optional(T.string)
+		}),
+		T.nullValue
+	),
+	snapshots: T.array(T.struct({ name: T.string, createdAt: T.number, bytes: T.number }))
+})
+export type BackupStatus = T.TypeOf<typeof tBackupStatus>
+
 // ============================================================================
 // PROFILE ENDPOINTS
 // ============================================================================
@@ -1390,7 +1448,9 @@ export const tTenantView = T.struct({
 	status: T.optional(T.string),
 	roles: T.optional(T.array(T.string)),
 	profilePic: T.optional(T.string),
-	createdAt: T.number
+	createdAt: T.number,
+	suspendedAt: T.optional(T.number), // unix seconds; absent = not suspended
+	expiresAt: T.optional(T.number) // unix seconds; absent = no expiry
 })
 export type TenantView = T.TypeOf<typeof tTenantView>
 
@@ -1407,6 +1467,60 @@ export const tPurgeTenantResponse = T.struct({
 	idTag: T.string
 })
 export type PurgeTenantResponse = T.TypeOf<typeof tPurgeTenantResponse>
+
+// ============================================================================
+// AUDIT LOG ENDPOINTS (GET /auth/audit, GET /admin/audit, GET /admin/audit.csv)
+// ============================================================================
+
+/** Query for the tenant's own audit log. `from`/`to` are unix seconds, inclusive;
+ *  `event` is a prefix match; `limit` 1..1000 (default 100). */
+export interface AuditListQuery {
+	from?: number
+	to?: number
+	category?: string
+	event?: string
+	outcome?: string
+	limit?: number
+	cursor?: number
+}
+
+/** Site-admin query: the tenant filters plus tenant and actor scoping. */
+export interface AdminAuditListQuery extends AuditListQuery {
+	tnId?: number
+	idTag?: string
+	actor?: string
+}
+
+/** Categories a setting may enable; `auth` and `admin` are always logged. */
+export const AUDIT_OPTIONAL_CATEGORIES = ['sharing', 'access'] as const
+
+export const tAuditEvent = T.struct({
+	id: T.number,
+	ts: T.string,
+	tnId: T.optional(T.number),
+	actor: T.optional(T.string),
+	event: T.string,
+	/** 'auth' | 'admin' | 'sharing' | 'access' — kept open so a new category cannot break the list */
+	category: T.string,
+	ip: T.optional(T.string),
+	outcome: T.string,
+	details: T.optional(T.unknown)
+})
+export type AuditEvent = T.TypeOf<typeof tAuditEvent>
+
+export const tAdminAuditListResult = T.struct({
+	events: T.array(tAuditEvent),
+	nextCursor: T.union(T.number, T.nullValue)
+})
+export type AdminAuditListResult = T.TypeOf<typeof tAdminAuditListResult>
+
+export const tAuditListResult = T.struct({
+	events: T.array(tAuditEvent),
+	nextCursor: T.union(T.number, T.nullValue),
+	globalCategories: T.array(T.string),
+	tenantCategories: T.array(T.string)
+})
+export type AuditListResult = T.TypeOf<typeof tAuditListResult>
 
 // ============================================================================
 // ADMIN PROXY SITE ENDPOINTS

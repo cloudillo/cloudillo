@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 import { setApiToken } from '@cloudillo/core'
 import {
@@ -104,6 +104,7 @@ import {
 import { SearchPage } from './SearchPage.js'
 import { openOmniboxAtom, toggleOmniboxAtom, useSearch } from './search.js'
 import { settingsRoutes } from './settings/index.js'
+import { useSettings } from './settings/settings.js'
 import { isSiteDocument } from './site/detect.js'
 import { SitePage } from './site/SitePage.js'
 import { siteAdminRoutes } from './site-admin/index.js'
@@ -141,6 +142,10 @@ function Header({ inert }: { inert?: boolean }) {
 	const toggleOmnibox = useSetAtom(toggleOmniboxAtom)
 	const openOmnibox = useSetAtom(openOmniboxAtom)
 	const { api, setIdTag } = useApi()
+	// Loaded once per Header mount, so toggling it in Appearance applies after reload
+	// The user's own, not the active community's
+	const { settings: uiSettings } = useSettings('ui', { idTag: auth?.idTag ?? null })
+	const singleKeyShortcuts = uiSettings?.['ui.single_key_shortcuts'] !== false
 	const { t, i18n } = useTranslation()
 	const location = useLocation()
 	const navigate = useNavigate()
@@ -192,7 +197,13 @@ function Header({ inert }: { inert?: boolean }) {
 				toggleOmnibox()
 				return
 			}
-			if ((e.key === '/' || e.key === '@') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+			if (
+				singleKeyShortcuts &&
+				(e.key === '/' || e.key === '@') &&
+				!e.ctrlKey &&
+				!e.metaKey &&
+				!e.altKey
+			) {
 				// Don't swallow a `/` or `@` the user is typing in a field.
 				if (
 					isEditableTarget(document.activeElement) ||
@@ -209,7 +220,7 @@ function Header({ inert }: { inert?: boolean }) {
 		}
 		window.addEventListener('keydown', handleKeyDown)
 		return () => window.removeEventListener('keydown', handleKeyDown)
-	}, [setSearch, toggleOmnibox, auth])
+	}, [setSearch, toggleOmnibox, auth, singleKeyShortcuts])
 
 	useWsBus({ cmds: ['ACTION'] }, function handleAction(msg) {
 		// During onboarding the user handles incoming invites/connections inline

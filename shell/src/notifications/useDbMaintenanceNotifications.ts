@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 import { useToast } from '@cloudillo/react'
 import { useTranslation } from 'react-i18next'
 
+import { formatBytes } from '../utils.js'
 import { useWsBus, type WsBusMsg } from '../ws-bus.js'
 
 interface DbMaintenanceDoneData {
@@ -17,17 +18,6 @@ interface DbMaintenanceDoneData {
 // Module-level, not a ref: `useWsBus` replays `lastMsg` to every subscriber on mount,
 // so a remount of Layout would re-toast a run that finished before it.
 let lastHandled: WsBusMsg | undefined
-
-function formatSize(bytes: number): string {
-	const units = ['B', 'kB', 'MB', 'GB', 'TB']
-	let value = bytes
-	let unit = 0
-	while (value >= 1024 && unit < units.length - 1) {
-		value /= 1024
-		unit++
-	}
-	return `${value.toFixed(value < 10 && unit > 0 ? 1 : 0)} ${units[unit]}`
-}
 
 /**
  * Toast the outcome of an admin-triggered database optimization.
@@ -59,7 +49,7 @@ export function useDbMaintenanceNotifications() {
 			title: t('Database optimized'),
 			message: data.vacuumed
 				? t('The database was rewritten and is now {{size}}.', {
-						size: formatSize(size)
+						size: formatBytes(size)
 					})
 				: t(
 						'Search index compacted; the file had too little free space to be worth rewriting.'

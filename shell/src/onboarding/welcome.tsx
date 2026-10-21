@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 import type { IdpStatusResponse } from '@cloudillo/core'
 import { FetchError, setApiToken } from '@cloudillo/core'
@@ -22,8 +22,10 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router-dom'
 
 import { AuthLayout } from '../auth/AuthLayout.js'
+import { handOffMfa } from '../auth/mfa-handoff.js'
 import { IcPassword } from '../icons.js'
 import { installToken } from '../pwa.js'
+import { onboardingNextPath } from './next-step.js'
 import { type ResendState, VerifyIdpContent } from './verify-idp-content.js'
 
 const POLL_INTERVAL_MS = 10_000
@@ -201,6 +203,17 @@ export function Welcome() {
 				refId,
 				newPassword: password
 			})
+			// TOTP step (enrolled, or `auth.mfa` required): the password is set, so the
+			// login form finishes it (code or forced enrollment) and resumes the wizard
+			if ('mfaToken' in res) {
+				handOffMfa({
+					mfaToken: res.mfaToken,
+					secret: 'secret' in res ? res.secret : undefined,
+					otpauthUri: 'otpauthUri' in res ? res.otpauthUri : undefined
+				})
+				navigate('/login', { state: { onboardingRefId: refId } })
+				return
+			}
 			// Register SW with token (like login does)
 			if (res.token) {
 				await installToken(res.token)
@@ -215,28 +228,7 @@ export function Welcome() {
 			// wizard's Finish step can consume it (via api.onboarding.complete)
 			// even after a reload. The backend left the ref intact, so the flow
 			// stays reversible until then.
-			// IDP-typed registrations should already have cleared
-			// `ui.onboarding` via the refId-scoped IDP-status call above. The
-			// post-auth `/onboarding/verify-idp` redirect remains as a
-			// defensive fallback for race conditions where the clear hasn't
-			// propagated yet.
-			// Default to the invites step, which fetches any pending CONN/INVT
-			// invitations and silently advances to `join` when there are none.
-			let nextPath = '/onboarding/' + refId + '/invites'
-			try {
-				const setting = await api.settings.get('ui.onboarding')
-				if (setting.value === 'verify-idp') {
-					nextPath = '/onboarding/' + refId + '/verify-idp'
-				}
-			} catch (settingsErr) {
-				// 404 = no onboarding gate engaged → /onboarding/invites is correct.
-				if (!(settingsErr instanceof FetchError && settingsErr.httpStatus === 404)) {
-					console.warn(
-						'Failed to read ui.onboarding after setPassword, defaulting to join:',
-						settingsErr
-					)
-				}
-			}
+			const nextPath = await onboardingNextPath(api, refId)
 			setTimeout(() => {
 				navigate(nextPath)
 			}, 500)

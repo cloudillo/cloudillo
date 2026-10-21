@@ -159,6 +159,12 @@ async function build() {
 		// Copy the PWA icons
 		copyIcons(pkg.version)
 
+		// Pre-paint boot script (index.html loads it with a plain <script src>, no inline JS)
+		cpSync(
+			join(__dirname, 'src/boot.js'),
+			join(__dirname, `dist/assets-${pkg.version}/boot.js`)
+		)
+
 		// The internal apps' manifests, for the backend's bundled doc-format tier.
 		// One array rather than a file each: internal apps have no dist/apps/<id>.
 		await emitCloudilloManifest(esbuild, {

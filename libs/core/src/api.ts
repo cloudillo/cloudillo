@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 import * as T from '@symbion/runtype'
 
@@ -270,34 +270,38 @@ export async function apiFetchHelper<R, D = unknown>(
 
 		return opts.returnMeta ? { data: d.ok, meta } : d.ok
 	} else {
-		// Parse structured error response
-		let apiErrorCode: string | undefined
-		let errorMessage = textRes
-		let errorDetails: unknown
-
-		try {
-			// Expected envelope: `{ error: { code?, message?, details? } }`.
-			// Any truthy `error` field triggers the structured-extract; legacy or
-			// non-object shapes leave the inner fields as undefined and fall back
-			// to the plain-text response.
-			const errorBody = JSON.parse(textRes)
-			if (errorBody && typeof errorBody === 'object' && errorBody.error) {
-				apiErrorCode = errorBody.error.code
-				if (errorBody.error.message) errorMessage = errorBody.error.message
-				errorDetails = errorBody.error.details
-			}
-		} catch (_e) {
-			// Not JSON or no structured error, use plain text
-		}
-
-		throw new FetchError(
-			apiErrorCode || `API-HTTP-${res.status}`,
-			errorMessage,
-			res.status,
-			apiErrorCode,
-			errorDetails
-		)
+		throw fetchErrorFromResponse(res.status, textRes)
 	}
+}
+
+/** Build the `FetchError` for a non-OK response from its status and body text */
+export function fetchErrorFromResponse(status: number, textRes: string): FetchError {
+	let apiErrorCode: string | undefined
+	let errorMessage = textRes
+	let errorDetails: unknown
+
+	try {
+		// Expected envelope: `{ error: { code?, message?, details? } }`.
+		// Any truthy `error` field triggers the structured-extract; legacy or
+		// non-object shapes leave the inner fields as undefined and fall back
+		// to the plain-text response.
+		const errorBody = JSON.parse(textRes)
+		if (errorBody && typeof errorBody === 'object' && errorBody.error) {
+			apiErrorCode = errorBody.error.code
+			if (errorBody.error.message) errorMessage = errorBody.error.message
+			errorDetails = errorBody.error.details
+		}
+	} catch (_e) {
+		// Not JSON or no structured error, use plain text
+	}
+
+	return new FetchError(
+		apiErrorCode || `API-HTTP-${status}`,
+		errorMessage,
+		status,
+		apiErrorCode,
+		errorDetails
+	)
 }
 
 // vim: ts=4

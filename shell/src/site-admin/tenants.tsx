@@ -1,18 +1,22 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 import type { TenantView } from '@cloudillo/core'
 import {
+	ActionBar,
 	Alert,
 	Badge,
 	Button,
+	Dialog,
 	EmptyState,
+	Field,
 	HBox,
 	IcCommunity,
 	IcDelete,
 	IcMore,
 	IcPerson,
 	IcSettings,
+	Input,
 	Link,
 	Menu,
 	MenuDivider,
@@ -28,28 +32,107 @@ import {
 	useDialog,
 	VBox
 } from '@cloudillo/react'
+import dayjs from 'dayjs'
 import debounce from 'debounce'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { IcAdmin, IcApiKey } from '../icons.js'
+import { IcActive, IcAdmin, IcApiKey, IcPasskey, IcSchedule, IcSuspended } from '../icons.js'
 import { siteAdminPath } from '../routes.js'
+import { formatUnixTime } from '../utils.js'
+
+/** Login is refused once `expiresAt` (unix seconds) is reached */
+export function isTenantExpired(tenant: TenantView) {
+	return tenant.expiresAt !== undefined && tenant.expiresAt * 1000 <= Date.now()
+}
+
+/** Suspended / expired (admin account state) win over the `status` letter */
+export function TenantStatusBadge({ tenant }: { tenant: TenantView }) {
+	const { t } = useTranslation()
+	if (tenant.suspendedAt !== undefined) return <Badge color="error">{t('Suspended')}</Badge>
+	if (isTenantExpired(tenant)) return <Badge color="error">{t('Expired')}</Badge>
+	const isActive = tenant.status === 'A'
+	return (
+		<Badge color={isActive ? 'success' : 'warning'}>
+			{isActive ? t('Active') : (tenant.status ?? t('Unknown'))}
+		</Badge>
+	)
+}
+
+function ExpiryDialog({
+	tenant,
+	onClose,
+	onSave
+}: {
+	tenant: TenantView
+	onClose: () => void
+	onSave: (expiresAt: number | null) => void
+}) {
+	const { t } = useTranslation()
+	const [date, setDate] = React.useState(
+		tenant.expiresAt !== undefined ? formatUnixTime(tenant.expiresAt) : ''
+	)
+
+	return (
+		<Dialog
+			open
+			size="sm"
+			title={t('Set expiry')}
+			description={t(
+				'{{idTag}} cannot sign in from the start of this day. Resume clears the expiry.',
+				{ idTag: tenant.idTag }
+			)}
+			onClose={onClose}
+			onSubmit={() => date && onSave(dayjs(date).unix())}
+			footer={
+				<ActionBar>
+					{tenant.expiresAt !== undefined && (
+						<Button onClick={() => onSave(null)}>{t('Clear expiry')}</Button>
+					)}
+					<Button onClick={onClose}>{t('Cancel')}</Button>
+					<Button type="submit" color="primary" disabled={!date}>
+						{t('Save')}
+					</Button>
+				</ActionBar>
+			}
+		>
+			<Field label={t('Expiry date')}>
+				<Input
+					type="date"
+					value={date}
+					required
+					autoFocus
+					onChange={(e) => setDate(e.target.value)}
+				/>
+			</Field>
+		</Dialog>
+	)
+}
 
 function TenantRow({
 	tenant,
 	canDelete,
 	onPasswordReset,
+	onMfaReset,
+	onSuspend,
+	onResume,
+	onSetExpiry,
 	onDelete
 }: {
 	tenant: TenantView
 	canDelete: boolean
 	onPasswordReset: (idTag: string) => void
+	onMfaReset: (idTag: string) => void
+	onSuspend: (idTag: string) => void
+	onResume: (idTag: string) => void
+	onSetExpiry: (tenant: TenantView) => void
 	onDelete: (idTag: string) => void
 }) {
 	const { t } = useTranslation()
 
 	const isAdmin = tenant.roles?.includes('admin')
-	const isActive = tenant.status === 'A'
+	const isSuspended = tenant.suspendedAt !== undefined
+	const isExpired = isTenantExpired(tenant)
 
 	return (
 		<TableRow>
@@ -85,9 +168,15 @@ function TenantRow({
 				</Text>
 			</TableCell>
 			<TableCell>
-				<Badge color={isActive ? 'success' : 'warning'}>
-					{isActive ? t('Active') : (tenant.status ?? t('Unknown'))}
-				</Badge>
+				<TenantStatusBadge tenant={tenant} />
+				{tenant.expiresAt !== undefined && !isExpired && (
+					<Text size="sm" emphasis="muted">
+						{' '}
+						{t('Expires {{date}}', {
+							date: formatUnixTime(tenant.expiresAt)
+						})}
+					</Text>
+				)}
 			</TableCell>
 			<TableCell align="end">
 				<Menu
@@ -110,6 +199,31 @@ function TenantRow({
 						disabled={!tenant.email}
 						description={tenant.email ? undefined : t('No email address set')}
 						onClick={() => onPasswordReset(tenant.idTag)}
+					/>
+					<MenuItem
+						icon={<IcPasskey />}
+						label={t('Reset MFA')}
+						onClick={() => onMfaReset(tenant.idTag)}
+					/>
+					{isSuspended || isExpired ? (
+						<MenuItem
+							icon={<IcActive />}
+							label={t('Resume')}
+							onClick={() => onResume(tenant.idTag)}
+						/>
+					) : (
+						<MenuItem
+							icon={<IcSuspended />}
+							label={t('Suspend')}
+							disabled={!canDelete}
+							onClick={() => onSuspend(tenant.idTag)}
+						/>
+					)}
+					<MenuItem
+						icon={<IcSchedule />}
+						label={t('Set expiry')}
+						disabled={!canDelete}
+						onClick={() => onSetExpiry(tenant)}
 					/>
 					{canDelete && (
 						<>
@@ -137,6 +251,7 @@ export function Tenants() {
 	const [loading, setLoading] = React.useState(false)
 	const [search, setSearch] = React.useState('')
 	const [error, setError] = React.useState<string | undefined>()
+	const [expiryFor, setExpiryFor] = React.useState<TenantView | undefined>()
 
 	// Load tenants on mount and when search changes
 	const loadTenants = React.useCallback(
@@ -198,6 +313,84 @@ export function Tenants() {
 		}
 	}
 
+	async function handleMfaReset(idTag: string) {
+		if (!api) return
+
+		const confirmed = await dialog.confirm(
+			t('Reset two-factor authentication'),
+			t(
+				'This removes the authenticator app from {{idTag}}. Use it when the owner has lost their device.',
+				{ idTag }
+			),
+			{ color: 'error', confirmLabel: t('Reset') }
+		)
+		if (!confirmed) return
+
+		try {
+			await api.admin.resetMfa(idTag)
+			await dialog.tell(
+				t('Two-factor authentication reset'),
+				t('{{idTag}} can now sign in with the password alone.', { idTag })
+			)
+		} catch (err: unknown) {
+			console.error('Failed to reset MFA:', err)
+			await dialog.tell(
+				t('Error'),
+				err instanceof Error ? err.message : t('Failed to reset two-factor authentication')
+			)
+		}
+	}
+
+	async function handleSuspend(idTag: string) {
+		if (!api) return
+
+		const confirmed = await dialog.confirm(
+			t('Suspend tenant'),
+			t(
+				'{{idTag}} will not be able to sign in until resumed. Sessions already open end within an hour.',
+				{ idTag }
+			),
+			{ color: 'error', confirmLabel: t('Suspend') }
+		)
+		if (!confirmed) return
+
+		try {
+			await api.admin.suspendTenant(idTag)
+			loadTenants(search || undefined)
+		} catch (err) {
+			await dialog.tell(t('Error'), err instanceof Error ? err.message : String(err))
+		}
+	}
+
+	async function handleResume(idTag: string) {
+		if (!api) return
+
+		const confirmed = await dialog.confirm(
+			t('Resume tenant'),
+			t('{{idTag}} can sign in again. This also clears the expiry date.', { idTag }),
+			{ confirmLabel: t('Resume') }
+		)
+		if (!confirmed) return
+
+		try {
+			await api.admin.resumeTenant(idTag)
+			loadTenants(search || undefined)
+		} catch (err) {
+			await dialog.tell(t('Error'), err instanceof Error ? err.message : String(err))
+		}
+	}
+
+	async function handleSetExpiry(idTag: string, expiresAt: number | null) {
+		if (!api) return
+		setExpiryFor(undefined)
+		try {
+			await api.admin.setTenantExpiry(idTag, expiresAt)
+			loadTenants(search || undefined)
+		} catch (err) {
+			await dialog.tell(t('Error'), err instanceof Error ? err.message : String(err))
+		}
+	}
+
 	async function handleDelete(idTag: string) {
 		if (!api) return
 
@@ -248,10 +441,22 @@ export function Tenants() {
 							tenant={tenant}
 							canDelete={tenant.idTag !== auth?.idTag}
 							onPasswordReset={handlePasswordReset}
+							onMfaReset={handleMfaReset}
+							onSuspend={handleSuspend}
+							onResume={handleResume}
+							onSetExpiry={setExpiryFor}
 							onDelete={handleDelete}
 						/>
 					))}
 				</Table>
+			)}
+
+			{expiryFor && (
+				<ExpiryDialog
+					tenant={expiryFor}
+					onClose={() => setExpiryFor(undefined)}
+					onSave={(expiresAt) => handleSetExpiry(expiryFor.idTag, expiresAt)}
+				/>
 			)}
 		</VBox>
 	)

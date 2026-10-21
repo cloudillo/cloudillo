@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 import { Fcd, Nav } from '@cloudillo/react'
 import * as React from 'react'
@@ -8,16 +8,21 @@ import { Navigate, Outlet, Route, useLocation, useMatch } from 'react-router-dom
 
 import { useCtx } from '../context/index.js'
 import {
+	IcDatabase,
+	IcHistory,
 	IcIdp,
 	IcInvitation,
 	IcMail,
 	IcPeople,
 	IcPolicy,
 	IcProxy,
+	IcRules,
 	IcServer,
 	IcStorage
 } from '../icons.js'
 import { HOME_BASE, rebase, sectionMatch, siteAdminPath } from '../routes.js'
+import { AuditLog, AuditSettings } from './audit.js'
+import { Backup } from './backup.js'
 import { EmailSettings } from './email.js'
 import { SuggestedProvidersSettings } from './idps.js'
 import { Invitations } from './invitations.js'
@@ -86,6 +91,21 @@ export function SiteAdmin({ title, children }: { title: string; children?: React
 							icon={<IcPolicy />}
 							label={t('Default Policies')}
 						/>
+						<Nav.Item
+							href={siteAdminPath('audit-settings')}
+							icon={<IcRules />}
+							label={t('Audit settings')}
+						/>
+						<Nav.Item
+							href={siteAdminPath('audit')}
+							icon={<IcHistory />}
+							label={t('Audit log')}
+						/>
+						<Nav.Item
+							href={siteAdminPath('backup')}
+							icon={<IcDatabase />}
+							label={t('Backup')}
+						/>
 					</Nav.Section>
 				</Nav>
 			</Fcd.Filter>
@@ -122,6 +142,12 @@ function siteAdminTitle(
 			return t('Reverse Proxy')
 		case 'tenant':
 			return t('Default Policies')
+		case 'audit-settings':
+			return t('Audit settings')
+		case 'audit':
+			return t('Audit log')
+		case 'backup':
+			return t('Backup')
 		default:
 			return t('Administration')
 	}
@@ -173,6 +199,9 @@ export function siteAdminRoutes() {
 			<Route path="email" element={<EmailSettings />} />
 			<Route path="proxy-sites" element={<ProxySites />} />
 			<Route path="tenant" element={<TenantSettings />} />
+			<Route path="audit-settings" element={<AuditSettings />} />
+			<Route path="audit" element={<AuditLog />} />
+			<Route path="backup" element={<Backup />} />
 		</Route>
 	)
 }

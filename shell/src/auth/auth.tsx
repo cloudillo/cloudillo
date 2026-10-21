@@ -1,18 +1,26 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
-import { type ApiClient, FetchError, isSessionExpiredError, setApiToken } from '@cloudillo/core'
+import {
+	type ApiClient,
+	FetchError,
+	isSessionExpiredError,
+	type LoginResult,
+	setApiToken
+} from '@cloudillo/core'
 import {
 	ActionBar,
 	Alert,
 	type AuthState,
 	Button,
+	CodeBlock,
 	Field,
 	Form,
 	IcBack,
 	Input,
 	Logo,
 	PasswordInput,
+	QRCode,
 	Switcher,
 	Text,
 	Toggle,
@@ -25,19 +33,21 @@ import type { TFunction } from 'i18next'
 import { atom, useAtom } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { Navigate, Route, useNavigate } from 'react-router-dom'
+import { Navigate, Route, useLocation } from 'react-router-dom'
 
 interface NavigatorUA {
 	userAgentData?: { platform: string }
 }
 
 import { IcLogin, IcMail, IcPasskey } from '../icons.js'
+import { onboardingNextPath } from '../onboarding/next-step.js'
 import { RegisterForm } from '../profile/register.js'
 import { installToken, setApiKey } from '../pwa.js'
 import { feedPath, HOME_BASE, scopePath } from '../routes.js'
 import { useAppConfig } from '../utils.js'
 import { AuthLayout } from './AuthLayout.js'
 import { IdpActivate } from './idp-activate.js'
+import { clearMfaHandoff, type MfaStep, peekMfaHandoff } from './mfa-handoff.js'
 import { QrLoginPanel } from './QrLoginPanel.js'
 import { ResetPassword } from './reset-password.js'
 import { rateLimitMessage } from './utils.js'
@@ -56,7 +66,7 @@ export interface LoginInitData {
 export const loginInitAtom = atom<LoginInitData | null | undefined>(undefined)
 
 // undefined = still loading, null = no pre-fetched data, LoginInitData = ready
-const LoginInitContext = React.createContext<LoginInitData | null | undefined>(undefined)
+export const LoginInitContext = React.createContext<LoginInitData | null | undefined>(undefined)
 
 export function useLoginInit() {
 	return React.useContext(LoginInitContext)
@@ -173,6 +183,56 @@ function useWebAuthnLoginHandler() {
 	)
 }
 
+//////////
+// TOTP //
+//////////
+
+/** QR + manual key for adding the account to an authenticator app (login and settings) */
+export function TotpEnrollInfo({ secret, otpauthUri }: { secret: string; otpauthUri: string }) {
+	const { t } = useTranslation()
+	return (
+		<>
+			<Text as="p">
+				{t(
+					'Scan this QR code with an authenticator app, then enter the 6-digit code it shows.'
+				)}
+			</Text>
+			<QRCode value={otpauthUri} size={200} label={t('Authenticator app QR code')} />
+			<Text as="p" size="sm" emphasis="muted">
+				{t('Or enter this key manually:')}
+			</Text>
+			<CodeBlock copyable>{secret}</CodeBlock>
+		</>
+	)
+}
+
+/** The 6-digit TOTP code field (login and settings) */
+export function TotpCodeField({
+	value,
+	onChange
+}: {
+	value: string
+	onChange: (code: string) => void
+}) {
+	const { t } = useTranslation()
+	return (
+		<Field label={t('Authentication code')}>
+			<Input
+				name="code"
+				autoComplete="one-time-code"
+				inputMode="numeric"
+				maxLength={6}
+				value={value}
+				onChange={(evt: React.ChangeEvent<HTMLInputElement>) =>
+					onChange(evt.target.value.replace(/\D/g, ''))
+				}
+				placeholder="123456"
+				autoFocus
+			/>
+		</Field>
+	)
+}
+
 ///////////////
 // LoginForm //
 ///////////////
@@ -180,7 +240,10 @@ export function LoginForm() {
 	const { t } = useTranslation()
 	const { api } = useApi()
 	const [appConfig, _setAppConfig] = useAppConfig()
-	const _navigate = useNavigate()
+	// welcome.tsx sends an MFA user here mid-onboarding with the code step already
+	// open; resume the wizard after login
+	const location = useLocation()
+	const navState = location.state as { onboardingRefId?: unknown } | null
 	const [auth, setAuth] = useAuth()
 	const { error: toastError } = useToast()
 	const runWebAuthnLogin = useWebAuthnLoginHandler()
@@ -191,6 +254,13 @@ export function LoginForm() {
 	const [error, setError] = React.useState<string | undefined>()
 	const [webAuthnAttempted, setWebAuthnAttempted] = React.useState(false)
 	const [hasPasskeys, setHasPasskeys] = React.useState<boolean | undefined>(undefined)
+	const [mfa, setMfa] = React.useState<MfaStep | undefined>(peekMfaHandoff)
+	const [code, setCode] = React.useState('')
+	const [submitting, setSubmitting] = React.useState(false)
+	const [resumePath, setResumePath] = React.useState<string>()
+
+	// The handed-off step now lives in `mfa`; a reload falls back to the password
+	React.useEffect(() => clearMfaHandoff(), [])
 
 	// Chrome defers navigator.credentials.get() while the window is unfocused, so an
 	// auto-prompt fired at boot sits invisible until the user comes back. Wait for
@@ -228,7 +298,8 @@ export function LoginForm() {
 	// loginInitData === undefined means "still loading from layout" — wait.
 	React.useEffect(
 		function attemptWebAuthnLogin() {
-			if (!api || webAuthnAttempted || auth) return
+			// An open MFA step (e.g. from onboarding) owns the login; a passkey would drop it
+			if (!api || webAuthnAttempted || auth || mfa) return
 			if (!browserSupportsWebAuthn()) return
 			// Wait for loginInitData to be resolved (undefined = still loading)
 			if (loginInitData === undefined) return
@@ -253,7 +324,7 @@ export function LoginForm() {
 				await runWebAuthnLogin(api, false)
 			})()
 		},
-		[api, webAuthnAttempted, auth, loginInitData, focused]
+		[api, webAuthnAttempted, auth, mfa, loginInitData, focused]
 	)
 
 	async function onSubmit(evt: React.FormEvent) {
@@ -265,32 +336,108 @@ export function LoginForm() {
 				return
 			}
 
-			const loginResult = await api.auth.login({
+			const res = await api.auth.login({
 				idTag: api.idTag,
 				password
 			})
-			const authState: AuthState = { ...loginResult }
-			setAuth(authState)
-			setApiToken(authState.idTag ?? api.idTag, authState.token)
-
-			// Mint the encryption-key cookie BEFORE handing the token to the
-			// SW. On Firefox/Safari (no Cookie Store API) the SW reads the
-			// swKey cookie to encrypt the token before persisting it; on a
-			// fresh login that cookie is minted only inside setApiKey, which
-			// runs as part of createRememberMeKey.
-			if (remember && !(await createRememberMeKey(api))) {
-				toastError(rememberFailedMessage(t))
+			if ('mfaToken' in res) {
+				setMfa({
+					mfaToken: res.mfaToken,
+					secret: 'secret' in res ? res.secret : undefined,
+					otpauthUri: 'otpauthUri' in res ? res.otpauthUri : undefined
+				})
+				setCode('')
+				setError(undefined)
+				return
 			}
-
-			// Token is stored in SW encrypted storage via installToken()
-			await installToken(loginResult.token)
+			await finishLogin(api, res)
 		} catch (err: unknown) {
 			if (isSessionExpiredError(err)) return // global toast + /login redirect already shown
 			console.error('Login failed:', err)
 			setError(
-				rateLimitMessage(err, t) ?? (err instanceof Error ? err.message : 'Login failed')
+				rateLimitMessage(err, t) ?? (err instanceof Error ? err.message : t('Login failed'))
 			)
 		}
+	}
+
+	/** The post-login sequence, shared by the password and the TOTP step */
+	async function finishLogin(api: ApiClient, loginResult: LoginResult) {
+		const authState: AuthState = { ...loginResult }
+		// Registry first, then `setAuth`: the onboarding settings read needs the token,
+		// and `setAuth` renders the <Navigate> below, which must see `resumePath`.
+		setApiToken(authState.idTag ?? api.idTag, authState.token)
+		if (typeof navState?.onboardingRefId === 'string') {
+			setResumePath(await onboardingNextPath(api, navState.onboardingRefId))
+		}
+		setAuth(authState)
+
+		// Mint the encryption-key cookie BEFORE handing the token to the
+		// SW. On Firefox/Safari (no Cookie Store API) the SW reads the
+		// swKey cookie to encrypt the token before persisting it; on a
+		// fresh login that cookie is minted only inside setApiKey, which
+		// runs as part of createRememberMeKey.
+		if (remember && !(await createRememberMeKey(api))) {
+			toastError(rememberFailedMessage(t))
+		}
+
+		// Token is stored in SW encrypted storage via installToken()
+		await installToken(loginResult.token)
+	}
+
+	async function onMfaSubmit(evt: React.FormEvent) {
+		evt.preventDefault()
+		if (!api || !mfa || code.length !== 6 || submitting) return
+
+		setSubmitting(true)
+		try {
+			let loginResult: LoginResult
+			try {
+				loginResult = await api.auth.loginMfa({ mfaToken: mfa.mfaToken, code })
+				// The token is spent: don't keep the secret around
+				closeMfa()
+			} catch (err: unknown) {
+				if (isSessionExpiredError(err)) return // global toast + /login redirect already shown
+				console.error('MFA login failed:', err)
+				setCode('')
+				const banMsg = rateLimitMessage(err, t)
+				if (banMsg) {
+					setError(banMsg)
+				} else if (err instanceof FetchError && err.httpStatus === 410) {
+					// The backend has dropped the token: only a new password step helps
+					closeMfa()
+					setPassword('')
+					setError(t('The sign-in attempt expired. Please enter your password again.'))
+				} else if (err instanceof FetchError && err.httpStatus === 403) {
+					setError(t('Invalid code. Please try again.'))
+				} else {
+					setError(err instanceof Error ? err.message : t('Login failed'))
+				}
+				return
+			}
+			// The code was accepted: a failure from here on is not the code's fault
+			try {
+				await finishLogin(api, loginResult)
+			} catch (err: unknown) {
+				if (isSessionExpiredError(err)) return
+				console.error('Login failed:', err)
+				setError(err instanceof Error ? err.message : t('Login failed'))
+			}
+		} finally {
+			setSubmitting(false)
+		}
+	}
+
+	/** Back to the password form, not into an auto passkey prompt */
+	function closeMfa() {
+		setWebAuthnAttempted(true)
+		setMfa(undefined)
+		setCode('')
+	}
+
+	function cancelMfa() {
+		closeMfa()
+		setPassword('')
+		setError(undefined)
 	}
 
 	function onForgot(evt: React.MouseEvent) {
@@ -338,7 +485,8 @@ export function LoginForm() {
 		// After login, layout.tsx will load settings and handle onboarding redirect
 		const menuPath = appConfig?.menu?.find((m) => m.id === appConfig.defaultMenu)?.path
 		// Menu paths are context-relative templates; a fresh login always lands at home.
-		const navTo = menuPath ? scopePath(HOME_BASE, menuPath) : feedPath(HOME_BASE)
+		const navTo =
+			resumePath ?? (menuPath ? scopePath(HOME_BASE, menuPath) : feedPath(HOME_BASE))
 		return <Navigate to={navTo} />
 	} else {
 		return (
@@ -347,19 +495,54 @@ export function LoginForm() {
 				title={
 					forgot
 						? t('Reset Password')
-						: api?.idTag
-							? t('Sign in to {{idTag}}', { idTag: api.idTag })
-							: t('Sign in')
+						: mfa
+							? t('Two-factor authentication')
+							: api?.idTag
+								? t('Sign in to {{idTag}}', { idTag: api.idTag })
+								: t('Sign in')
 				}
 				width="md"
 			>
 				<Switcher gap={3}>
-					<Form onSubmit={forgot ? onForgotSubmit : onSubmit}>
-						{!forgot ? (
+					<Form onSubmit={forgot ? onForgotSubmit : mfa ? onMfaSubmit : onSubmit}>
+						{mfa ? (
 							<>
+								{mfa.secret && mfa.otpauthUri ? (
+									<>
+										<Alert color="info">
+											{t(
+												'This server requires two-factor authentication. Set it up to finish signing in.'
+											)}
+										</Alert>
+										<TotpEnrollInfo
+											secret={mfa.secret}
+											otpauthUri={mfa.otpauthUri}
+										/>
+									</>
+								) : (
+									<Text as="p" emphasis="muted">
+										{t('Enter the 6-digit code from your authenticator app.')}
+									</Text>
+								)}
+								<TotpCodeField value={code} onChange={setCode} />
+							</>
+						) : !forgot ? (
+							<>
+								{/* Password managers pair the password with this username field */}
+								{/* biome-ignore lint/plugin/no-raw-intrinsic: ds-allow: visually hidden username for password-manager autofill */}
+								<input
+									className="sr-only"
+									name="username"
+									autoComplete="username"
+									value={api?.idTag ?? ''}
+									readOnly
+									tabIndex={-1}
+									aria-hidden="true"
+								/>
 								<Field label={t('Password')}>
 									<PasswordInput
 										name="password"
+										autoComplete="current-password"
 										onChange={(evt) => setPassword(evt.target.value)}
 										value={password}
 										placeholder={t('Password')}
@@ -442,6 +625,21 @@ export function LoginForm() {
 											{t('Send reset link')}
 										</Button>
 									)}
+								</>
+							) : mfa ? (
+								<>
+									<Button type="button" onClick={cancelMfa}>
+										<IcBack />
+										{t('Back')}
+									</Button>
+									<Button
+										type="submit"
+										color="primary"
+										disabled={code.length !== 6 || submitting}
+									>
+										<IcLogin />
+										{t('Verify')}
+									</Button>
 								</>
 							) : (
 								<>

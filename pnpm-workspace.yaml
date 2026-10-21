@@ -5,8 +5,8 @@ packages:
   - 'apps/*'
   - 'local/*'
 overrides:
-  react: 19.3.0
-  react-dom: 19.3.0
+  react: 19.3.1
+  react-dom: 19.3.1
 allowBuilds:
   '@enzedonline/quill-blot-formatter2': false
   '@parcel/watcher': true

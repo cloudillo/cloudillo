@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 import { Button, HBox, IcClose, List, ListItem, Popover, Tag, Text, VBox } from '@cloudillo/react'
 import { useAtomValue, useSetAtom, useStore } from 'jotai'

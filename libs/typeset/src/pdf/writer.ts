@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 // Display list → PDF. pdfkit is imported dynamically so it never lands in a bundle that only
 // imports `@cloudillo/typeset` for layout; this module and its imports reference it by type only.

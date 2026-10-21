@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Szilárd Hajba
+// SPDX-License-Identifier: MPL-2.0
+
 import { Button, IcCheck, IcMore, IcShare, Link, Popper, Tooltip } from '@cloudillo/react'
 import * as React from 'react'
 

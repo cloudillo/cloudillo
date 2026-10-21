@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 /** Extract blockId from anchor string like "b:abc123" */
 export function anchorBlockId(anchor: string): string | null {

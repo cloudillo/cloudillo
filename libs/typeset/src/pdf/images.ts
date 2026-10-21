@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 // `image` items: bytes from `PdfEnv.fetchImage` (JPEG passes through as DCT, PNG via pdfkit),
 // cropped with the same `cropGeom` as the screen, clipped to the visible part.

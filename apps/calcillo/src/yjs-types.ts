@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Szilárd Hajba
+// SPDX-License-Identifier: MPL-2.0
+
 import type { Cell } from '@fortune-sheet/core'
 import type * as Y from 'yjs'
 

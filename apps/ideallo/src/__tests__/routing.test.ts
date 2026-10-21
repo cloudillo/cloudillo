@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 import { ANCHOR_CODES, anchorWorldPoint } from '../connectors/anchors.js'
 import { arrowheadExtent } from '../connectors/arrowheads.js'

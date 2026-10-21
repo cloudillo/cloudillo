@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 import type { Bounds } from '../crdt/runtime-types.js'
 import type { BarPositionInput } from '../utils/property-bar-position.js'

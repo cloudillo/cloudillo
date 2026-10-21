@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 // Display list → SVG string. Builds strings only (no `document`), so it also runs in a worker.
 // Glyphs are outlines: one `<path id="g-<sha256>-<gid>">` per used glyph (font units, y flipped),

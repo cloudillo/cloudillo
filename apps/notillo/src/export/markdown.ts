@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Szilárd Hajba
+// SPDX-License-Identifier: MPL-2.0
+
 import type { NotilloEditor } from '../editor/schema.js'
 import { downloadBlob } from './download.js'
 

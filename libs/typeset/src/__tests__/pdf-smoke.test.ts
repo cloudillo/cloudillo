@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 // Tagged (PDF/UA-1 when every figure has alt text) and PDF/A-2a output parses: header, page
 // count, title, MarkInfo, structure tree, XMP identification. Real JPEG/PNG bytes embed (no

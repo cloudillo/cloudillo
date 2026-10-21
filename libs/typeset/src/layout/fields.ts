@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 // Field runs (`Run.embed = { field }`). A field keeps its one U+FFFC character (story offsets are
 // unchanged) but is shaped as one sentinel glyph as wide as its text; `patchFields` swaps the

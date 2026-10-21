@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 // Deliberately router-free: every component imports this module, so anything
 // pulled in here lands in every consumer's bundle. `generateFragments` and

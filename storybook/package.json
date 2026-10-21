@@ -16,7 +16,7 @@
 		"clean": "rimraf .cache dist/assets-*"
 	},
 	"author": "Szilárd Hajba <szilu@cloudillo.org>",
-	"license": "LGPL-3.0-or-later",
+	"license": "MPL-2.0",
 	"devDependencies": {
 		"@cloudillo/core": "workspace:*",
 		"@cloudillo/react": "workspace:*",

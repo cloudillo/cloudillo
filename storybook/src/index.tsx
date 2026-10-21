@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Szilárd Hajba
+// SPDX-License-Identifier: MPL-2.0
+
 import i18next from 'i18next'
 import * as React from 'react'
 import { createRoot } from 'react-dom/client'

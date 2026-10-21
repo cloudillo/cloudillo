@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 // Footnotes: a `{ fn: storyId }` inline embed in a section story refers to a body story in
 // `Publication.footnotes`. Refs are numbered per section; bodies are placed at the bottom of the

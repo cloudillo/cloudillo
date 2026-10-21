@@ -26,4 +26,4 @@ const state = await bus.init('myapp')
 
 ## License
 
-LGPL-3.0-or-later
+MPL-2.0

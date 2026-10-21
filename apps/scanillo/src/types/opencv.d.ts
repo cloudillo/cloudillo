@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Szilárd Hajba
+// SPDX-License-Identifier: MPL-2.0
+
 // Minimal OpenCV.js and jscanify type declarations for scanillo
 // Covers only the API surface used in detect-document.ts and image-processing.ts
 

@@ -31,4 +31,4 @@ See `scripts/download-fonts.js` for the canonical list.
 
 ## License
 
-LGPL-3.0-or-later
+MPL-2.0

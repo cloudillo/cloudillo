@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 // Deterministic locale formatting: the engine's own pinned patterns for en, hu and de,
 // keyed by the publication language. Never `Intl`, never the viewer's locale.

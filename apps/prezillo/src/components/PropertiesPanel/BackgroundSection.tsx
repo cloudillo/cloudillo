@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 import type { Gradient } from '@cloudillo/canvas-tools'
 import { GradientPicker } from '@cloudillo/canvas-tools'

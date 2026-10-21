@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 // jsdom does not provide TextEncoder/TextDecoder. react-router touches them at
 // module-evaluation time, so any component test that transitively imports it

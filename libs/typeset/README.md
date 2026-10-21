@@ -24,4 +24,4 @@ const size = ptToFx(11) // 11264
 
 ## License
 
-LGPL-3.0-or-later
+MPL-2.0

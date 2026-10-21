@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 // `_site/manifest.json` is read back off the wire by a published page with no
 // session and nothing upstream type-checked. What is asserted here is the

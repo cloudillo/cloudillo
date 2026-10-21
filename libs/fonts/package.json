@@ -21,7 +21,7 @@
 		"url": "https://github.com/cloudillo/cloudillo/issues"
 	},
 	"author": "Szilárd Hajba <szilu@cloudillo.org>",
-	"license": "LGPL-3.0-or-later",
+	"license": "MPL-2.0",
 	"publishConfig": {
 		"access": "public"
 	},

@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 // SVG → PDF for embed render SVGs (already `sanitizeSvg`'d), through pdfkit's public drawing API.
 // Subset: svg (nested viewports), g, path, rect, circle, ellipse, line, polyline, polygon,

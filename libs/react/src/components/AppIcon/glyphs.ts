@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 // Solid glyphs from the icon atlas, on a 48 box.
 // Static markup only: AppIcon feeds these to an <svg> via dangerouslySetInnerHTML, never user input.

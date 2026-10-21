@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 // PDF/UA-1 tagging: the display list's `tags` → pdfkit's structure tree, marked content around
 // every item. Tag ids are per page; one block split over pages (same `bid`) is one element.

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Szilárd Hajba
+// SPDX-License-Identifier: MPL-2.0
+
 import { Affix, Center, Grid, Group, HBox, Spacer, Switcher, VBox } from '@cloudillo/react'
 import * as React from 'react'
 

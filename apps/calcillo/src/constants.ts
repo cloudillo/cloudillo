@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Szilárd Hajba
+// SPDX-License-Identifier: MPL-2.0
+
 /**
  * Constants for the Calcillo spreadsheet application.
  * Centralizes magic numbers and configuration values.

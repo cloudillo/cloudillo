@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 // A nav target is painted into an `href` server-side, on the site owner's own origin,
 // before any JS runs. The settings editor checks what an author types, but it is not

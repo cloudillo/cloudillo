@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Szilárd Hajba
+// SPDX-License-Identifier: MPL-2.0
+
 import { Progress } from '@cloudillo/react'
 import * as React from 'react'
 

@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 // Must come first: makes sessionStorage/localStorage safe to touch inside the
 // sandboxed iframe before Fortune Sheet (pulled in via ./app.js) can throw on it.

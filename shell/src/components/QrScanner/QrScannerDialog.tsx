@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 import { Alert, Button, HBox, IcClose, ImmersiveOverlay, Text, VBox } from '@cloudillo/react'
 import QrScanner from 'qr-scanner'

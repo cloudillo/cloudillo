@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 /** `attr`, the one output-safety helper `@cloudillo/core` does not carry. The
  *  allowlist itself (`escapeHtml`, `safe*`) is core's — import it from there.

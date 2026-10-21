@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Szilárd Hajba
+// SPDX-License-Identifier: MPL-2.0
+
 // Cloudillo Storybook Utility Components
 // Based on patron storybook structure
 

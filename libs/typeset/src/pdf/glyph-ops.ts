@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 // The only module that touches pdfkit internals (pinned exactly in package.json). It writes our
 // own glyph runs as TJ operators, so PDF glyph positions equal the display list's; pdfkit's text

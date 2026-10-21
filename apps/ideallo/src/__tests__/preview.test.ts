@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 import { clearRouteCache } from '../connectors/cache.js'
 import type { ConnectorEndpointPreview } from '../connectors/preview.js'

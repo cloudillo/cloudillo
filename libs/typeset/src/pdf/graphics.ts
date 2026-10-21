@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 // Vector items (`rect`, `line`, `path`), the embed placeholder and link annotations, through
 // pdfkit's public drawing API only. Emission is per backend on purpose (each has its own drawing

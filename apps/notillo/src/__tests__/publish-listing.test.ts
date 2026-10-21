@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 // The query half of an `index` block, which is the one piece of it the publisher and
 // the live editor share. Both sides adapt their own page type to `ListingPage` and

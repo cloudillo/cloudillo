@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 // Calcillo runs inside a sandboxed iframe that deliberately omits `allow-same-origin`
 // (the shell keeps apps on an opaque origin to protect the ServiceWorker encryption

@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 // Table of contents: a `{ toc: { levels } }` inline embed makes its paragraph the TOC of the whole
 // publication — one entry per section-story paragraph whose style has a `tocLevel` ≤ `levels`, in

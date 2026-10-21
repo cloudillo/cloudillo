@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 // Property test: an Engine fed random edits returns exactly the pages a fresh
 // `layoutPublication` of the same publication produces, and lists only pages that changed.

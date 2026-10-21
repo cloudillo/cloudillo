@@ -46,7 +46,7 @@ buildAppEntry(esbuild, {
 		// The dictionaries are runtime data aggregated with (not linked into) the app, each under
 		// its own license, shipped beside it (`spell/<lang>.license`): en (MIT AND BSD); hu is
 		// used under MPL-1.1, as hunspell-wasm is; de is GPL, fetched separately at runtime on
-		// first use of the language (mere aggregation, never linked into the LGPL bundle)
+		// first use of the language (mere aggregation, never linked into the MPL bundle)
 		for (const lang of ['en', 'hu', 'de']) {
 			const dir = dirname(require.resolve(`dictionary-${lang}`))
 			for (const ext of ['aff', 'dic'])

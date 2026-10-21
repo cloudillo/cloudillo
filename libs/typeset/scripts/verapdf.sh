@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SPDX-FileCopyrightText: Szilárd Hajba
-# SPDX-License-Identifier: LGPL-3.0-or-later
+# SPDX-License-Identifier: MPL-2.0
 #
 # Validate the PDF writer's corpus output with veraPDF (https://verapdf.org), if installed:
 # every PDF against PDF/UA-1, the `-pdfa` ones also against PDF/A-2a.

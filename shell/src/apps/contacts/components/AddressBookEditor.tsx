@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 import type { AddressBookOutput } from '@cloudillo/core'
 import { ActionBar, Alert, Button, Dialog, Field, Input, VBox } from '@cloudillo/react'

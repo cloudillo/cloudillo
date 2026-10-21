@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 import { FALLBACK_FONTS, getFontFileUrl } from '@cloudillo/fonts/font-files'
 import { FONT_METRICS } from '@cloudillo/fonts/font-metrics'

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Szilárd Hajba
+// SPDX-License-Identifier: MPL-2.0
+
 import * as Y from 'yjs'
 
 import type { ExtendedCell } from '../fortune-sheet-types'

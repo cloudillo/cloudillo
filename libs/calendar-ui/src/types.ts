@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 /** A single rendered occurrence. Consumers who expand RRULE masters do so
  *  upstream — the library takes a flat list. */

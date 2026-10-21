@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 import { astarRoute } from '../connectors/routing/astar.js'
 import { collapseCollinear } from '../connectors/routing/common.js'

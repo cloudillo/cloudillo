@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 // An island's props cross two untrusted boundaries. `siteBlockProp` walks a dot path
 // that comes from an *app manifest*, which is data off the wire; `parseSiteIslandProps`

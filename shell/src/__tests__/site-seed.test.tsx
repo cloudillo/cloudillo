@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 // `.test.tsx` rather than `.test.ts`, with no JSX in it: `site/detect.ts` reads the
 // document at module load, and this repo's jest split gives only `.test.tsx` a DOM.

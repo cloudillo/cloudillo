@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="https://github.com/cloudillo/cloudillo/actions/workflows/ci.yml"><img src="https://github.com/cloudillo/cloudillo/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/cloudillo/cloudillo/blob/main/COPYING"><img src="https://img.shields.io/github/license/cloudillo/cloudillo?color=blue" alt="License"></a>
+  <a href="https://github.com/cloudillo/cloudillo/blob/main/LICENSE"><img src="https://img.shields.io/github/license/cloudillo/cloudillo?color=blue" alt="License"></a>
   <a href="https://github.com/cloudillo/cloudillo/stargazers"><img src="https://img.shields.io/github/stars/cloudillo/cloudillo?style=social" alt="GitHub Stars"></a>
   <a href="https://hub.docker.com/r/cloudillo/cloudillo"><img src="https://img.shields.io/docker/pulls/cloudillo/cloudillo" alt="Docker Pulls"></a>
   <a href="https://github.com/cloudillo/cloudillo/pulls"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs Welcome"></a>
@@ -102,4 +102,4 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for development
 
 ## License
 
-Cloudillo is licensed under the [GNU Lesser General Public License v3.0 or later](COPYING).
+Cloudillo is licensed under the [Mozilla Public License 2.0](LICENSE).

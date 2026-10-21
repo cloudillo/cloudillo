@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 /** Splits `@tenant~name` into its parts; a bare name has no tenant. */
 export function parseChannel(channel: string): { tenant?: string; name: string } {

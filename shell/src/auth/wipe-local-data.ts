@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 import { APP_STORAGE_DB, CRDT_DB, DATA_CACHE_DB, deleteDatabase } from '../../shared/idb.js'
 import { clearCache, getCachedFileByFileId, resetKeyErrorState } from '../cache/index.js'

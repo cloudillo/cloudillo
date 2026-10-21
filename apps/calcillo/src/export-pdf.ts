@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 /**
  * PDF Export: a cell range, paginated by `renderRangeSvg`, drawn as vectors with svg2pdf.js.

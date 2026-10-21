@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 export type CropPoints = [[number, number], [number, number], [number, number], [number, number]]
 // Order: [topLeft, topRight, bottomRight, bottomLeft] — clockwise, normalized 0-1

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Szilárd Hajba
+// SPDX-License-Identifier: MPL-2.0
+
 export { exportDocx } from './docx.js'
 export { downloadBlob } from './download.js'
 export { exportMarkdown, importMarkdown } from './markdown.js'

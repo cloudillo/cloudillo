@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 // Library CSS must precede every module that imports shell CSS: esbuild orders the
 // bundle by first import, and shell rules (e.g. `--container-max-width`) must win.

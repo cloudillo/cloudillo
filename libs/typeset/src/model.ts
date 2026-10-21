@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 // Engine document model: plain objects, no Yjs.
 // All lengths are Fx (1/1024 pt, integer) unless noted otherwise.

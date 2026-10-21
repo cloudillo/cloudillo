@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
-// SPDX-License-Identifier: LGPL-3.0-or-later
+// SPDX-License-Identifier: MPL-2.0
 
 // Tables: column widths, cell layout (each cell's paragraphs are a mini-story), atomic row groups
 // and painting. Pagination (which groups fit a column, header repeat) is in `fill.ts`.

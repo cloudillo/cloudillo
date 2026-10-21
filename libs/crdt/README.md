@@ -22,4 +22,4 @@ https://github.com/cloudillo/cloudillo/tree/main/libs/crdt
 
 ## License
 
-LGPL-3.0-or-later
+MPL-2.0

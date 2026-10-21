@@ -70,7 +70,7 @@
 		"react-popper": "^2.3.0",
 		"react-qr-code": "^2.2.0",
 		"react-router-dom": "^7.18.4",
-		"use-editable": "^2.3.3",
+		"use-editable": "^3.0.0",
 		"y-protocols": "^1.0.7",
 		"y-websocket": "^3.1.0",
 		"yjs": "^13.6.33"

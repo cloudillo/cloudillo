@@ -35,7 +35,7 @@
 		"@typescript/native": "npm:typescript@^7.0.2",
 		"cross-env": "^10.1.0",
 		"esbuild": "^0.28.2",
-		"i18next": "^26.5.2",
+		"i18next": "^26.5.3",
 		"jest": "^30.5.2",
 		"jest-environment-jsdom": "^30.5.2",
 		"jotai": "^3.0.1",

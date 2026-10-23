@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: MPL-2.0
 
-import { type AppMessageBus, getAppBus } from '@cloudillo/core'
+import { type AppMessageBus, getAppBus, parseTileSources } from '@cloudillo/core'
 import { EmptyState, LoadingSpinner } from '@cloudillo/react'
 import * as React from 'react'
 
@@ -12,7 +12,8 @@ import './style.css'
 
 import { IcMap } from './icons.js'
 import { MapView } from './map.js'
-import type { MapilloSettings } from './types.js'
+import { toTileLayers } from './styles.js'
+import type { MapilloSettings, TileLayerConfig } from './types.js'
 import { DEFAULT_SETTINGS } from './types.js'
 
 const APP_NAME = 'mapillo'
@@ -47,10 +48,30 @@ async function loadSettings(bus: AppMessageBus): Promise<Partial<MapilloSettings
 	}
 }
 
+/**
+ * The admin-configured tile sources (`map.tile_sources`, a global key the manifest's
+ * `readSettings` grants). `[]` for a missing key or an empty list (Mapillo is off);
+ * undefined when the read fails or yields no usable source. No hard-coded fallback.
+ */
+async function loadTileLayers(bus: AppMessageBus): Promise<TileLayerConfig[] | undefined> {
+	try {
+		const value = await bus.settings.get('map.tile_sources')
+		// Missing (404 → undefined) or empty: no sources configured
+		if (value == null || (Array.isArray(value) && !value.length)) return []
+		const layers = toTileLayers(parseTileSources(value))
+		return layers.length ? layers : undefined
+	} catch (err) {
+		console.warn('[Mapillo] Failed to load tile sources:', err)
+		return undefined
+	}
+}
+
 export function MapilloApp() {
 	const [darkMode, setDarkMode] = React.useState(false)
 	const [ready, setReady] = React.useState(false)
 	const [settings, setSettings] = React.useState<MapilloSettings>(DEFAULT_SETTINGS)
+	const [tileLayers, setTileLayers] = React.useState<TileLayerConfig[]>([])
+	const [tileError, setTileError] = React.useState(false)
 	const busRef = React.useRef<AppMessageBus | null>(null)
 
 	React.useEffect(() => {
@@ -73,10 +94,12 @@ export function MapilloApp() {
 
 				// Load settings from server (shell proxies via its own API client,
 				// so this works even without an app-level access token)
-				const saved = await loadSettings(bus)
+				const [saved, layers] = await Promise.all([loadSettings(bus), loadTileLayers(bus)])
 				if (unmounted) return
 
 				setSettings((s) => ({ ...s, ...saved }))
+				setTileLayers(layers ?? [])
+				setTileError(!layers)
 				setReady(true)
 			} catch (err) {
 				if (unmounted) return
@@ -143,10 +166,33 @@ export function MapilloApp() {
 		)
 	}
 
+	if (tileError) {
+		return (
+			<EmptyState
+				fill
+				icon={<IcMap />}
+				title="Map sources could not be loaded"
+				description="Try reloading the page."
+			/>
+		)
+	}
+
+	if (!tileLayers.length) {
+		return (
+			<EmptyState
+				fill
+				icon={<IcMap />}
+				title="Mapillo is disabled by the administrator"
+				description="This server has no map tile sources configured."
+			/>
+		)
+	}
+
 	return (
 		<MapView
 			darkMode={darkMode}
 			settings={settings}
+			tileLayers={tileLayers}
 			onSettingsChange={handleSettingsChange}
 			bus={busRef.current}
 		/>

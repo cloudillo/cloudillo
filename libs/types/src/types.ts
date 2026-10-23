@@ -961,6 +961,10 @@ export const tAppManifest = T.struct({
 	// Bus capabilities this app uses
 	capabilities: T.optional(T.array(T.string)),
 
+	// Server setting keys outside `app.<id>.*` the app may read (never write) through
+	// `bus.settings.get`. Honoured for bundled manifests only (shell `handlers/settings.ts`)
+	readSettings: T.optional(T.array(T.string)),
+
 	// Can't boot without trusted mode (allow-same-origin): the shell refuses to launch it untrusted
 	requiresTrusted: T.optional(T.boolean),
 

@@ -16,6 +16,7 @@ export const manifest: AppManifest = {
 	contentTypes: [{ mimeType: 'cloudillo/mapillo', actions: ['view'], priority: 'primary' }],
 	defaultOrder: 60,
 	capabilities: ['sensor'],
+	readSettings: ['map.tile_sources'],
 	translations: {
 		hu: { name: 'Térkép', description: 'Térkép alkalmazás' }
 	}

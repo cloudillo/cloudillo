@@ -14,14 +14,8 @@ export interface NominatimResult {
 	boundingbox: [string, string, string, string]
 }
 
-export type TileLayerId =
-	| 'osm-standard'
-	| 'carto-positron'
-	| 'carto-positron-nolabels'
-	| 'carto-dark'
-	| 'carto-voyager'
-	| 'opentopomap'
-	| 'esri-imagery'
+/** A tile source's name; the sources come from the `map.tile_sources` server setting */
+export type TileLayerId = string
 
 export interface TileLayerConfig {
 	id: TileLayerId
@@ -252,7 +246,8 @@ export interface MapilloSettings {
 }
 
 export const DEFAULT_SETTINGS: MapilloSettings = {
-	activeTileLayerId: 'osm-standard',
+	// None chosen: the first configured source
+	activeTileLayerId: '',
 	nominatimConsent: false,
 	overpassConsent: false,
 	overpassServer: 'overpass-de'

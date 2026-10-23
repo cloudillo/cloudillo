@@ -19,6 +19,7 @@ import type {
 	NominatimResult,
 	PoiCategory,
 	PoiFeature,
+	TileLayerConfig,
 	TileLayerId
 } from './types.js'
 import { OVERPASS_SERVERS, POI_CATEGORIES } from './types.js'
@@ -28,9 +29,10 @@ interface MapViewProps {
 	settings: MapilloSettings
 	onSettingsChange: (changes: Partial<MapilloSettings>) => void
 	bus: AppMessageBus | null
+	tileLayers: TileLayerConfig[]
 }
 
-export function MapView({ darkMode, settings, onSettingsChange, bus }: MapViewProps) {
+export function MapView({ darkMode, settings, onSettingsChange, bus, tileLayers }: MapViewProps) {
 	const mapContainerRef = React.useRef<HTMLDivElement>(null)
 	const mapRef = React.useRef<maplibregl.Map | null>(null)
 	const searchMarkerRef = React.useRef<maplibregl.Marker | null>(null)
@@ -41,7 +43,8 @@ export function MapView({ darkMode, settings, onSettingsChange, bus }: MapViewPr
 	const [bearing, setBearing] = React.useState(0)
 	const [activePanel, setActivePanel] = React.useState<'layers' | 'poi' | 'settings' | null>(null)
 
-	const activeTileId = settings.activeTileLayerId
+	const activeLayer = getTileLayer(tileLayers, settings.activeTileLayerId)
+	const activeTileId = activeLayer.id
 
 	// Initialize map (synchronous — raster tiles don't need worker)
 	React.useEffect(() => {
@@ -49,8 +52,8 @@ export function MapView({ darkMode, settings, onSettingsChange, bus }: MapViewPr
 
 		const map = new maplibregl.Map({
 			container: mapContainerRef.current,
-			style: getMapStyle(activeTileId),
-			maxZoom: getTileLayer(activeTileId).maxZoom,
+			style: getMapStyle(activeLayer),
+			maxZoom: activeLayer.maxZoom,
 			center: [0, 20],
 			zoom: 2,
 			// Load tiles via <img> instead of fetch(): from our opaque-origin sandbox, Firefox's
@@ -76,13 +79,12 @@ export function MapView({ darkMode, settings, onSettingsChange, bus }: MapViewPr
 	React.useEffect(() => {
 		const el = mapContainerRef.current
 		if (!el) return
-		const layer = getTileLayer(activeTileId)
-		if (darkMode && !layer.skipDarkFilter) {
+		if (darkMode && !activeLayer.skipDarkFilter) {
 			el.classList.add('dark-mode')
 		} else {
 			el.classList.remove('dark-mode')
 		}
-	}, [darkMode, activeTileId])
+	}, [darkMode, activeLayer])
 
 	// Handle tile layer change
 	const handleTileChange = React.useCallback(
@@ -90,14 +92,14 @@ export function MapView({ darkMode, settings, onSettingsChange, bus }: MapViewPr
 			onSettingsChange({ activeTileLayerId: id })
 			const map = mapRef.current
 			if (!map) return
-			const layer = getTileLayer(id)
+			const layer = getTileLayer(tileLayers, id)
 			map.setMaxZoom(layer.maxZoom)
 			if (map.getZoom() > layer.maxZoom) {
 				map.setZoom(layer.maxZoom)
 			}
-			map.setStyle(getMapStyle(id))
+			map.setStyle(getMapStyle(layer))
 		},
-		[onSettingsChange]
+		[onSettingsChange, tileLayers]
 	)
 
 	// Subscribe to compass heading via message bus
@@ -312,6 +314,7 @@ export function MapView({ darkMode, settings, onSettingsChange, bus }: MapViewPr
 				onPrivacyAcknowledge={handleNominatimConsent}
 			/>
 			<LayerPanel
+				layers={tileLayers}
 				activeTileId={activeTileId}
 				onSelect={handleTileChange}
 				open={activePanel === 'layers'}

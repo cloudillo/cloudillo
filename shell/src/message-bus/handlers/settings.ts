@@ -11,7 +11,26 @@
 
 import type { SettingsGetReq, SettingsListReq, SettingsSetReq } from '@cloudillo/core'
 
+// The leaf module, not manifest-registry.ts (icon registry + React)
+import { bundledManifests } from '../../bundled-manifests.js'
 import type { ShellMessageBus } from '../shell-bus.js'
+
+/**
+ * Keys the backend registers `readable_by_all`. The shell's token is unscoped, so nothing
+ * admin-only may ever go here, whatever a manifest's `readSettings` asks for.
+ */
+const PUBLIC_SETTING_KEYS: readonly string[] = ['map.tile_sources']
+
+/**
+ * A key outside the app's scope that its manifest's `readSettings` grants read access to.
+ * Bundled manifests only: they ship with the shell, so an installed app cannot grant itself
+ * a read of server settings the shell's unscoped token can see.
+ */
+export function readGrant(appName: string, key: string): string | undefined {
+	if (!PUBLIC_SETTING_KEYS.includes(key)) return undefined
+	const m = bundledManifests.find((b) => b.id === appName && b.kind === 'bundled')
+	return m?.readSettings?.includes(key) ? key : undefined
+}
 
 /**
  * Validate and scope a key for the given app.
@@ -79,7 +98,7 @@ export function initSettingsHandlers(bus: ShellMessageBus): void {
 			return
 		}
 
-		const scopedKey = scopeKey(appName, msg.payload.key)
+		const scopedKey = readGrant(appName, msg.payload.key) ?? scopeKey(appName, msg.payload.key)
 		if (!scopedKey) {
 			bus.sendResponse(
 				appWindow,

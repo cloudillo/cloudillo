@@ -5,17 +5,17 @@ import { IcCheck, IcClose } from '@cloudillo/react'
 import * as React from 'react'
 
 import { IcLayers } from './icons.js'
-import { TILE_LAYERS } from './styles.js'
-import type { TileLayerId } from './types.js'
+import type { TileLayerConfig, TileLayerId } from './types.js'
 
 interface LayerPanelProps {
+	layers: TileLayerConfig[]
 	activeTileId: TileLayerId
 	onSelect: (id: TileLayerId) => void
 	open: boolean
 	onToggle: (open: boolean) => void
 }
 
-export function LayerPanel({ activeTileId, onSelect, open, onToggle }: LayerPanelProps) {
+export function LayerPanel({ layers, activeTileId, onSelect, open, onToggle }: LayerPanelProps) {
 	if (!open) {
 		return (
 			<button
@@ -37,7 +37,7 @@ export function LayerPanel({ activeTileId, onSelect, open, onToggle }: LayerPane
 				</button>
 			</div>
 			<div className="mapillo-layer-list">
-				{TILE_LAYERS.map((layer) => {
+				{layers.map((layer) => {
 					const isActive = layer.id === activeTileId
 					return (
 						<button
@@ -54,7 +54,9 @@ export function LayerPanel({ activeTileId, onSelect, open, onToggle }: LayerPane
 							/>
 							<div className="mapillo-layer-info">
 								<div className="mapillo-layer-name">{layer.name}</div>
-								<div className="mapillo-layer-desc">{layer.description}</div>
+								{layer.description && (
+									<div className="mapillo-layer-desc">{layer.description}</div>
+								)}
 							</div>
 							{isActive && <IcCheck className="mapillo-layer-check" />}
 						</button>

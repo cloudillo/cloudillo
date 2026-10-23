@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 import type { ReservedReason } from '@cloudillo/core'
-import { reservedSlugReason } from '@cloudillo/core'
+import { errorMessage, reservedSlugReason } from '@cloudillo/core'
 import {
 	Button,
 	IcHome,
@@ -237,7 +237,7 @@ export function PagePropertiesPanel({
 			setSaveError(undefined)
 			save(patch).catch((err) => {
 				console.error('[Notillo] Page property save failed:', err)
-				setSaveError(err instanceof Error ? err.message : String(err))
+				setSaveError(errorMessage(err))
 			})
 		},
 		[save]

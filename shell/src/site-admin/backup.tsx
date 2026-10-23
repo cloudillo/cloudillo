@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: MPL-2.0
 
-import { type BackupStatus, FetchError } from '@cloudillo/core'
+import { type BackupStatus, errorMessage, FetchError } from '@cloudillo/core'
 import {
 	Alert,
 	Badge,
@@ -41,7 +41,7 @@ export function Backup() {
 			setError(undefined)
 		} catch (err) {
 			console.error('Failed to load backup status:', err)
-			setError(err instanceof Error ? err.message : String(err))
+			setError(errorMessage(err))
 		}
 	}, [api])
 
@@ -66,7 +66,7 @@ export function Backup() {
 			if (err instanceof FetchError && err.httpStatus === 409) {
 				await dialog.tell(t('Backup'), t('A backup is already running.'))
 			} else {
-				await dialog.tell(t('Error'), err instanceof Error ? err.message : String(err))
+				await dialog.tell(t('Error'), errorMessage(err))
 			}
 			load()
 		}

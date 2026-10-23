@@ -10,7 +10,7 @@
  * with Retry.
  */
 
-import { downloadBlob, getAppBus, sanitizeFilename } from '@cloudillo/core'
+import { downloadBlob, errorMessage, getAppBus, sanitizeFilename } from '@cloudillo/core'
 import {
 	ActionBar,
 	Alert,
@@ -172,7 +172,7 @@ export function PdfExportDialog(props: PdfExportDialogProps) {
 			if (ac.signal.aborted) return
 			running.current = false
 			setProgress(undefined)
-			setError(err instanceof Error ? err.message : String(err))
+			setError(errorMessage(err))
 			return
 		}
 		if (!prepared || ac.signal.aborted) {

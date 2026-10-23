@@ -83,4 +83,9 @@ export function randomId(length = 12): string {
 	return bytesToBase64Url(bytes).slice(0, length)
 }
 
+/** The message of a thrown value, for display */
+export function errorMessage(err: unknown): string {
+	return err instanceof Error ? err.message : String(err)
+}
+
 // vim: ts=4

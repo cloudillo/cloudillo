@@ -1,7 +1,12 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: MPL-2.0
 
-import { type MountPathProblem, normalizeMountPath, siteTagSlug } from '@cloudillo/core'
+import {
+	errorMessage,
+	type MountPathProblem,
+	normalizeMountPath,
+	siteTagSlug
+} from '@cloudillo/core'
 import {
 	Badge,
 	type BadgeProps,
@@ -247,7 +252,7 @@ export function SiteMountsPanel({
 					setPending((prev) => (prev?.docFileId === docFileId ? undefined : prev))
 					setError(docFileId, undefined)
 				} catch (err) {
-					setError(docFileId, err instanceof Error ? err.message : String(err))
+					setError(docFileId, errorMessage(err))
 				} finally {
 					setBusy(undefined)
 				}
@@ -348,7 +353,7 @@ export function SiteMountsPanel({
 					await onSetRoot(result.fileId)
 					setError(result.fileId, undefined)
 				} catch (err) {
-					setRootError(err instanceof Error ? err.message : String(err))
+					setRootError(errorMessage(err))
 				} finally {
 					setBusy(undefined)
 				}
@@ -387,7 +392,7 @@ export function SiteMountsPanel({
 					await onUnmount(docFileId)
 					setError(docFileId, undefined)
 				} catch (err) {
-					setError(docFileId, err instanceof Error ? err.message : String(err))
+					setError(docFileId, errorMessage(err))
 				} finally {
 					setBusy(undefined)
 				}

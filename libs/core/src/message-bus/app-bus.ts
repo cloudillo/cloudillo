@@ -19,7 +19,7 @@ import { setApiToken } from '../api-registry.js'
 import { clampNatural } from '../embed-view.js'
 import { MAX_RENDER_PAGES, MAX_RENDER_SVG_SIZE, MAX_RENDER_TOTAL_SIZE } from '../render-limits.js'
 import { parseDocRef } from '../urls.js'
-import { randomId } from '../utils.js'
+import { errorMessage, randomId } from '../utils.js'
 import { MessageBusBase, type MessageBusConfig } from './core.js'
 import { validateMessage } from './registry.js'
 import {
@@ -1827,7 +1827,7 @@ export class AppMessageBus extends MessageBusBase {
 			payload = { reqId: req.reqId, ok: true, pages, natural: clampNatural(natural) }
 		} catch (err) {
 			this.log('Render failed:', err)
-			const error = (err instanceof Error ? err.message : String(err)).slice(0, 1024)
+			const error = errorMessage(err).slice(0, 1024)
 			payload = { reqId: req.reqId, ok: false, error }
 		}
 		if (Date.now() >= req.deadline) return

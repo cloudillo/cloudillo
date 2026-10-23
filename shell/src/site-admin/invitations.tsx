@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 import type * as Types from '@cloudillo/core'
+import { errorMessage } from '@cloudillo/core'
 import {
 	Badge,
 	Button,
@@ -406,10 +407,7 @@ function RegistrationInvites() {
 			}
 			resetForm()
 		} catch (err) {
-			await dialog.tell(
-				t('Failed to create invitation'),
-				err instanceof Error ? err.message : String(err)
-			)
+			await dialog.tell(t('Failed to create invitation'), errorMessage(err))
 		} finally {
 			setCreating(false)
 		}
@@ -500,10 +498,7 @@ function RegistrationInvites() {
 				unlimitedCount: false
 			})
 		} catch (err) {
-			await dialog.tell(
-				t('Failed to update invitation'),
-				err instanceof Error ? err.message : String(err)
-			)
+			await dialog.tell(t('Failed to update invitation'), errorMessage(err))
 		}
 	}
 
@@ -751,10 +746,7 @@ function CommunityInvites() {
 			setShowForm(false)
 		} catch (err) {
 			console.error('Error sending community invite:', err)
-			await dialog.tell(
-				t('Failed to send invitation'),
-				err instanceof Error ? err.message : String(err)
-			)
+			await dialog.tell(t('Failed to send invitation'), errorMessage(err))
 		} finally {
 			setSending(false)
 		}
@@ -776,10 +768,7 @@ function CommunityInvites() {
 			setInvites((prev) => prev?.filter((inv) => inv.refId !== refId))
 		} catch (err) {
 			console.error('Error deleting community invite:', err)
-			await dialog.tell(
-				t('Failed to delete invitation'),
-				err instanceof Error ? err.message : String(err)
-			)
+			await dialog.tell(t('Failed to delete invitation'), errorMessage(err))
 		}
 	}
 

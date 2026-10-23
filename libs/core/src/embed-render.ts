@@ -24,7 +24,7 @@ import {
 } from './render-limits.js'
 import { escapeHtml } from './site.js'
 import { docRef } from './urls.js'
-import { randomId } from './utils.js'
+import { errorMessage, randomId } from './utils.js'
 
 export {
 	MAX_RENDER_PAGES,
@@ -177,7 +177,7 @@ export async function renderEmbed(opts: RenderEmbedOptions): Promise<RenderEmbed
 						relay = setupEmbedRelay(el, { onChildNotification })
 						document.body.appendChild(el)
 					},
-					(err: unknown) => fail(err instanceof Error ? err.message : String(err))
+					(err: unknown) => fail(errorMessage(err))
 				)
 		})
 	} finally {
@@ -271,7 +271,7 @@ export async function renderEmbeds(
 				const r = await render({ ...item, signal: item.signal ?? signal })
 				results[i] = { ok: true, ...r }
 			} catch (err) {
-				results[i] = { ok: false, error: err instanceof Error ? err.message : String(err) }
+				results[i] = { ok: false, error: errorMessage(err) }
 			}
 			onProgress?.(++done, items.length)
 		}

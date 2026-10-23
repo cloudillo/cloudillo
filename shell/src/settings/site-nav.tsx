@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: MPL-2.0
 
-import { safeHref } from '@cloudillo/core'
+import { errorMessage, safeHref } from '@cloudillo/core'
 import {
 	Badge,
 	Button,
@@ -207,7 +207,7 @@ export function SiteNavPanel({
 						setCustomising(false)
 					}
 				} catch (err) {
-					setError(err instanceof Error ? err.message : String(err))
+					setError(errorMessage(err))
 				} finally {
 					setSaving(false)
 				}

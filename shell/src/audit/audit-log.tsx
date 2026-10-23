@@ -4,7 +4,8 @@
 import {
 	type AdminAuditListQuery,
 	AUDIT_OPTIONAL_CATEGORIES,
-	type AuditEvent
+	type AuditEvent,
+	errorMessage
 } from '@cloudillo/core'
 import {
 	Alert,
@@ -73,7 +74,7 @@ export function useAuditLog(
 				if (cursor === undefined) {
 					setEvents(undefined)
 				}
-				setError(err instanceof Error ? err.message : String(err))
+				setError(errorMessage(err))
 			}
 		},
 		[load, query]

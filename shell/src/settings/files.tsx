@@ -5,6 +5,7 @@ import {
 	Button,
 	Field,
 	HBox,
+	Input,
 	List,
 	LoadingSpinner,
 	NativeSelect,
@@ -39,9 +40,12 @@ export function FilesSettings() {
 		[variantOptions]
 	)
 
-	const { settings, onSettingChange } = useSettings('file')
+	const { settings, onSettingChange, denied } = useSettings('file')
 
 	const [auth] = useAuth()
+	// file.trash_retention_days is PermissionLevel::Admin: the server lists it to every
+	// owner but only a site admin may write it, so `denied` alone never hides it.
+	const canEditRetention = !denied && !!auth?.roles?.includes('SADM')
 	const activeContext = useAtomValue(activeContextAtom)
 	// Deliberately not `useSettings`: that hook writes through `useApi()`, bound to the
 	// user's own idTag, while the reindex this change asks for must run on the active
@@ -177,6 +181,27 @@ export function FilesSettings() {
 					</NativeSelect>
 				</Field>
 			</Panel>
+
+			{canEditRetention && (
+				<Panel title={t('Trash')}>
+					<Field
+						label={t('Trash retention (days)')}
+						orientation="horizontal"
+						hint={t(
+							'Deleted files are purged from the trash after this many days. 0 keeps them forever.'
+						)}
+					>
+						<Input
+							className="w-sm"
+							name="file.trash_retention_days"
+							type="number"
+							min="0"
+							value={String(settings['file.trash_retention_days'] ?? 30)}
+							onChange={onSettingChange}
+						/>
+					</Field>
+				</Panel>
+			)}
 
 			{canManageIndex && (
 				// The hint is the Panel description, so it stays put in all three states and

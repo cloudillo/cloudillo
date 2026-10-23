@@ -18,10 +18,13 @@ export interface OnboardingDraft {
 	// Genuinely absent for person-to-person CONNs, hence the optional value: a
 	// `Record<string, string>` would type every lookup as present.
 	inviteCommunities: Record<string, string | undefined>
-	// Whether to create a CONN to the default Cloudillo community. Tri-state:
-	// undefined until the invites loader seeds it (default-ON unless the inviter
-	// already invited the user to cloudillo.net, in which case it's forced off
-	// to avoid a duplicate CONN). Preserved across Back navigation once set.
+	// The `onboarding.community` resolved by the invites loader ('' = none to
+	// offer), so Finish joins exactly the community the card showed.
+	community?: string
+	// Whether to create a CONN to `community`. Tri-state: undefined until the
+	// invites loader seeds it (default-ON unless there is no community or the
+	// inviter already invited the user to it, in which case it's forced off to
+	// avoid a duplicate CONN). Preserved across Back navigation once set.
 	join?: boolean
 	// Extras step toggles.
 	enableNotifications: boolean

@@ -13,6 +13,7 @@ import * as T from '@symbion/runtype'
 // Bundled app manifests, in their own leaf module for the same reason as the internal
 // ones below.
 import { bundledManifests } from './bundled-manifests.js'
+import { disabledApps, withoutDisabledApps } from './disabled-apps.js'
 import { getIcon } from './icon-registry.js'
 // Internal app manifests, in their own leaf module so the build can serialize them
 // into `dist/shell-apps.json` without dragging in the icon registry and the UI types
@@ -21,6 +22,7 @@ import { shellManifests } from './shell-manifests.js'
 import type { AppConfigState, MenuItem } from './utils.js'
 
 export { appRequiresTrusted, appTrust } from './app-trust.js'
+export { disabledApps, withoutDisabledApps } from './disabled-apps.js'
 
 // All registered manifests
 export const allManifests: AppManifest[] = [...shellManifests, ...bundledManifests]
@@ -169,7 +171,9 @@ export const appConfig = buildAppConfig(allManifests)
  * so they are not in the pool the App Menu Configurator hands out.
  */
 export function getAllMenuItems(): MenuItem[] {
-	return allManifests.filter((m) => m.defaultOrder != null).map(manifestToMenuItem)
+	return allManifests
+		.filter((m) => m.defaultOrder != null && !disabledApps.has(m.id))
+		.map(manifestToMenuItem)
 }
 
 /**
@@ -192,7 +196,7 @@ export function applyMenuConfig(
 	// would leave `defaultMenu` pointing at nothing in `menu`.
 	const defaultMenu = menu[0]?.id ?? baseConfig.defaultMenu
 
-	return { ...baseConfig, menu, defaultMenu }
+	return withoutDisabledApps({ ...baseConfig, menu, defaultMenu })
 }
 
 // Content type handler lookup for "Open With" functionality

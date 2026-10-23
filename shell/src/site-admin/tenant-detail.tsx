@@ -22,7 +22,7 @@ import { useTranslation } from 'react-i18next'
 import { useParams } from 'react-router-dom'
 
 import { IcAdmin } from '../icons.js'
-import { formatUnixTime } from '../utils.js'
+import { formatBytes, formatUnixTime } from '../utils.js'
 import { TenantStatusBadge } from './tenants.js'
 
 const STORAGE_KEY = 'limits.max_storage_gb'
@@ -229,6 +229,14 @@ export function TenantDetail() {
 			</Panel>
 
 			<Panel title={t('Storage')}>
+				{tenant?.storageUsed !== undefined && (
+					<Text>
+						{t('Used {{used}} of {{quota}}', {
+							used: formatBytes(tenant.storageUsed),
+							quota: formatBytes((tenantStorageGb ?? storageGbDefault) * 1024 ** 3)
+						})}
+					</Text>
+				)}
 				<Field
 					label={t('Maximum Storage Quota (GB)')}
 					orientation="horizontal"

@@ -36,6 +36,7 @@ import {
 import { resetAppCache, type UsePWA } from '../pwa.js'
 import { settingsPath, siteAdminPath } from '../routes.js'
 import { subscribeNotifications } from './notifications.js'
+import { usePushAllowed } from './settings.js'
 
 interface SettingsOverviewProps {
 	pwa: UsePWA
@@ -48,6 +49,7 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 	const { api } = useApi()
 	const [auth] = useAuth()
 	const activeContext = useAtomValue(activeContextAtom)
+	const pushAllowed = usePushAllowed()
 	// In a community the overview is the community's: the passkey/device/install/SADM blocks
 	// are the signed-in user's own and would read as the community's.
 	const isCommunity = activeContext?.type === 'community'
@@ -111,7 +113,8 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 	}, [])
 
 	const notificationsEnabled = Notification.permission === 'granted' && !!notificationSubscription
-	const canEnableNotifications = 'Notification' in window && Notification.permission !== 'denied'
+	const canEnableNotifications =
+		'Notification' in window && Notification.permission !== 'denied' && pushAllowed
 	const hasPasskeys = passkeys.length > 0
 	// Mirrors the backend's `require_leader` on POST /api/search/reindex.
 	const canReindex = isContextLeader(activeContext, auth?.idTag)

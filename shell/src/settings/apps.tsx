@@ -19,7 +19,8 @@ import { useTranslation } from 'react-i18next'
 import {
 	applyMenuConfig,
 	appConfig as defaultAppConfig,
-	getAllMenuItems
+	getAllMenuItems,
+	withoutDisabledApps
 } from '../manifest-registry.js'
 import type { MenuItem } from '../utils.js'
 import { useAppConfig } from '../utils.js'
@@ -105,7 +106,7 @@ export function AppMenuSettings() {
 	const handleReset = React.useCallback(async () => {
 		const prevConfig = appConfig
 		// Reset to static default menu
-		setAppConfig(defaultAppConfig)
+		setAppConfig(withoutDisabledApps(defaultAppConfig))
 
 		if (!api) return
 		try {

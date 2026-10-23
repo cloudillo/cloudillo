@@ -33,7 +33,8 @@ import type { NavigateFunction } from 'react-router-dom'
 
 import { isContextColor } from '../context/context-colors.js'
 import { loadIdpEnabled } from '../context/index.js'
-import { applyMenuConfig } from '../manifest-registry.js'
+import { applyTileSourcesSetting } from '../disabled-apps.js'
+import { applyMenuConfig, withoutDisabledApps } from '../manifest-registry.js'
 import { readSwKeyCookie } from '../pwa/cookie.js'
 import {
 	clearAuthToken,
@@ -154,6 +155,12 @@ export async function runBootSequence(deps: BootDeps): Promise<void> {
 	) => {
 		let activeConfig = appConfig
 		let onboarding: string | undefined
+		// In parallel with the UI settings; a missing key (404) is "no sources" and turns
+		// Mapillo off, any other failed read leaves it on
+		const tileSources = apiClient.settings.get('map.tile_sources').then(
+			(res) => res.value,
+			(err) => ((err as { httpStatus?: number }).httpStatus === 404 ? [] : undefined)
+		)
 		try {
 			const uiSettings = await apiClient.settings.list({ prefix: 'ui' })
 			const theme = uiSettings.find((s) => s.key === 'ui.theme')?.value
@@ -178,7 +185,6 @@ export async function runBootSequence(deps: BootDeps): Promise<void> {
 					activeConfig,
 					appMenuVal as { main: string[]; extra?: string[] }
 				)
-				setAppConfig(activeConfig)
 			}
 
 			const pinnedVal = uiSettings.find((s) => s.key === 'ui.pinned_communities')?.value
@@ -208,6 +214,31 @@ export async function runBootSequence(deps: BootDeps): Promise<void> {
 			// repainting the page out of the scheme the pre-paint script chose.
 			const stored = readStoredTheme()
 			applyTheme(stored.theme, stored.colors)
+		}
+
+		// Hides Mapillo from the launcher, `ExternalApp` and `embed.ts`. Waits at most 2s so
+		// the first render is not blocked; a slower answer is applied when it lands.
+		let timer: ReturnType<typeof setTimeout> | undefined
+		let late = false
+		const tiles = await Promise.race([
+			tileSources,
+			new Promise((r) => {
+				timer = setTimeout(() => {
+					late = true
+					r(undefined)
+				}, 2000)
+			})
+		])
+		clearTimeout(timer)
+		const baseConfig = activeConfig
+		applyTileSourcesSetting(tiles)
+		activeConfig = withoutDisabledApps(baseConfig)
+		setAppConfig(activeConfig)
+		if (late) {
+			void tileSources.then((value) => {
+				applyTileSourcesSetting(value)
+				setAppConfig(withoutDisabledApps(baseConfig))
+			})
 		}
 
 		// One landing decision for both paths: on failure `activeConfig` is still the

@@ -3,7 +3,7 @@
 
 import { delay, resolveAppUrl } from '@cloudillo/core'
 import { jwtRemainingSeconds } from '@cloudillo/core/jwt'
-import { useApi, useAuth, useDialog, useToast } from '@cloudillo/react'
+import { EmptyState, useApi, useAuth, useDialog, useToast } from '@cloudillo/react'
 import { useSetAtom } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -11,14 +11,14 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import { version } from '../../package.json'
 import { fileViewUpdateAtom, useCtx, useGuestDocument } from '../context/index.js'
-import { appRequiresTrusted, appTrust } from '../manifest-registry.js'
+import { appRequiresTrusted, appTrust, disabledApps } from '../manifest-registry.js'
 import { releaseClientIdsForWindow } from '../message-bus/handlers/crdt.js'
 import { fileIdFromResId, idTagFromResId } from '../message-bus/handlers/resId.js'
 import { offAppTitle, onAppError, onAppReady, onAppTitle } from '../message-bus/index.js'
 import { getShellBus, type InitAppData } from '../message-bus/shell-bus.js'
 import { filesPath } from '../routes.js'
-import { AppFrame } from '../ui/AppFrame.js'
 import { documentTitleAtom } from '../title.js'
+import { AppFrame } from '../ui/AppFrame.js'
 import { useAppConfig } from '../utils.js'
 import { AppLoadingIndicator, type LoadingStage } from './AppLoadingIndicator.js'
 import type { AccessConflict } from './access-conflict.js'
@@ -582,6 +582,10 @@ export function ExternalApp({ className }: { className?: string }) {
 	)
 
 	const effectiveAccess = forcedAccess ?? access
+
+	if (!app && appId && disabledApps.has(appId)) {
+		return <EmptyState fill title={t('This app has been disabled by the administrator.')} />
+	}
 
 	return (
 		!!app && (

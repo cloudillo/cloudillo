@@ -35,10 +35,12 @@ await mockCloudilloReact({
 mockI18n()
 
 jest.unstable_mockModule('../auth/auth.js', () => ({
+	deviceName: () => 'Test - 1/1/2026',
 	TotpCodeField: ({ value, onChange }: { value: string; onChange: (v: string) => void }) => (
 		<input placeholder="123456" value={value} onChange={(e) => onChange(e.target.value)} />
 	),
-	TotpEnrollInfo: ({ secret }: { secret: string }) => <div>secret:{secret}</div>
+	TotpEnrollInfo: ({ secret }: { secret: string }) => <div>secret:{secret}</div>,
+	webAuthnErrorMessage: () => undefined
 }))
 
 jest.unstable_mockModule('../pwa.js', () => ({

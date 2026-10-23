@@ -26,14 +26,15 @@ import { useTranslation } from 'react-i18next'
 import { Navigate, Outlet, Route, useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import { AuthLayout } from '../auth/AuthLayout.js'
-import { DEFAULT_COMMUNITY_ID_TAG } from '../context/constants.js'
 import { useCommunitiesList } from '../context/index.js'
 import { useNotifications } from '../notifications/state.js'
 import type { UsePWA } from '../pwa.js'
 import { feedPath, HOME_BASE } from '../routes.js'
 import { subscribeNotifications } from '../settings/notifications.js'
 import { registerPasskey } from '../settings/passkey.js'
+import { usePushAllowed } from '../settings/settings.js'
 import { tourAtom } from '../tour/atoms.js'
+import { loadOnboardingCommunity } from './community.js'
 import { useOnboardingDraft } from './draft.js'
 import { VerifyIdp } from './verify-idp.js'
 import { Welcome } from './welcome.js'
@@ -83,9 +84,9 @@ function communityInviteTarget(a: Types.ActionView): ProfileInfo | undefined {
 
 // Invites step — presents the operator's auto-connect (CONN) and auto-join
 // community invitations (INVT) as default-ON, opt-out toggles held in the
-// shared draft, plus a pre-selected "Join the Cloudillo community" card folded
-// in at the bottom (suppressed when the inviter already invited the user to the
-// default community). Nothing is accepted here; acceptance happens at Finish.
+// shared draft, plus a pre-selected "Join a community" card for the operator's
+// configured onboarding community folded in at the bottom (suppressed when the
+// inviter already invited the user to it). Nothing is accepted here; acceptance happens at Finish.
 // The page always has content, so it never auto-advances.
 function Invites() {
 	const { t } = useTranslation()
@@ -100,6 +101,8 @@ function Invites() {
 	// True when an invite already covers the default community, so we suppress
 	// the folded-in Cloudillo card to avoid offering it twice.
 	const [alreadyInvited, setAlreadyInvited] = React.useState(false)
+	// `onboarding.community`, '' when there is none to offer (card hidden, no CONN).
+	const [community, setCommunity] = React.useState('')
 
 	React.useEffect(
 		function loadInvites() {
@@ -107,9 +110,10 @@ function Invites() {
 			let cancelled = false
 			;(async function () {
 				try {
-					const [connList, invtList] = await Promise.all([
+					const [connList, invtList, community] = await Promise.all([
 						api.actions.list({ type: 'CONN', status: ['C'] }),
-						api.actions.list({ type: 'INVT', status: ['C'] })
+						api.actions.list({ type: 'INVT', status: ['C'] }),
+						loadOnboardingCommunity(api)
 					])
 					if (cancelled) return
 					// Backend default-scopes to this tenant; additionally drop
@@ -130,9 +134,9 @@ function Invites() {
 					// Does an existing invite already cover the default community?
 					// If so, suppress the folded-in Cloudillo card below.
 					const inviteHasDefault =
-						i.some(
-							(a) => communityInviteTarget(a)?.idTag === DEFAULT_COMMUNITY_ID_TAG
-						) || c.some((a) => a.audience?.idTag === DEFAULT_COMMUNITY_ID_TAG)
+						i.some((a) => communityInviteTarget(a)?.idTag === community) ||
+						c.some((a) => a.audience?.idTag === community)
+					setCommunity(community)
 					setAlreadyInvited(inviteHasDefault)
 					setConns(c)
 					setInvts(i)
@@ -156,7 +160,13 @@ function Invites() {
 							...d,
 							invitesChecked: merged,
 							inviteCommunities: communities,
-							join: inviteHasDefault ? false : d.join === undefined ? true : d.join
+							community,
+							join:
+								!community || inviteHasDefault
+									? false
+									: d.join === undefined
+										? true
+										: d.join
 						}
 					})
 					setLoading(false)
@@ -216,7 +226,7 @@ function Invites() {
 			subtitle={
 				conns.length || invts.length
 					? t('Someone invited you. Choose what to accept — you can change this later.')
-					: t('Get started by joining the Cloudillo community.')
+					: t('Get started by joining a community.')
 			}
 			footer={
 				/* First reversible step — going back would land on the password
@@ -292,25 +302,16 @@ function Invites() {
 				</Fieldset>
 			)}
 
-			{!alreadyInvited && (
-				<Fieldset legend={t('Join the Cloudillo community')}>
+			{!!community && !alreadyInvited && (
+				<Fieldset legend={t('Join a community')}>
 					<Text as="p" size="sm" emphasis="muted">
-						{t(
-							'Connect with other Cloudillo users, get help, and stay updated on new features.'
-						)}
+						{t('Connect with other users, get help, and stay updated.')}
 					</Text>
 					<VBox gap={2}>
 						<Checkbox
 							variant="card"
-							leading={
-								<ProfilePicture
-									profile={{}}
-									srcTag={DEFAULT_COMMUNITY_ID_TAG}
-									small
-								/>
-							}
-							label={t('Cloudillo community')}
-							description={DEFAULT_COMMUNITY_ID_TAG}
+							leading={<ProfilePicture profile={{}} srcTag={community} small />}
+							label={community}
 							checked={!!draft.join}
 							onChange={(e) => setDraft((d) => ({ ...d, join: e.target.checked }))}
 						/>
@@ -339,8 +340,9 @@ function Extras({ pwa }: { pwa: UsePWA }) {
 	const [finishing, setFinishing] = React.useState(false)
 	const [passkeySupported] = React.useState(() => browserSupportsWebAuthn())
 	const finishedRef = React.useRef(false)
+	const pushAllowed = usePushAllowed()
 
-	const canNotify = pwa.askNotify
+	const canNotify = pwa.askNotify && pushAllowed
 	const canInstall = pwa.doInstall
 	const canPasskey = passkeySupported
 	const nothingToShow = !canNotify && !canInstall && !canPasskey
@@ -371,16 +373,13 @@ function Extras({ pwa }: { pwa: UsePWA }) {
 			}
 		}
 
-		// 2. Join the Cloudillo community (CONN to the default community).
-		let joined = false
-		if (draft.join) {
+		// 2. Join the onboarding community (CONN to `onboarding.community`).
+		let joined = ''
+		if (draft.join && draft.community) {
 			try {
 				if (!api) throw new Error('API client unavailable')
-				await api.actions.create({
-					type: 'CONN',
-					audienceTag: DEFAULT_COMMUNITY_ID_TAG
-				})
-				joined = true
+				await api.actions.create({ type: 'CONN', audienceTag: draft.community })
+				joined = draft.community
 			} catch (err) {
 				console.error('Failed to join community:', err)
 				toastError(t('Failed to join community. You can try again later in Settings.'))
@@ -393,7 +392,7 @@ function Extras({ pwa }: { pwa: UsePWA }) {
 			...accepted
 				.map((id) => draft.inviteCommunities[id])
 				.filter((tag): tag is string => !!tag),
-			...(joined ? [DEFAULT_COMMUNITY_ID_TAG] : [])
+			...(joined ? [joined] : [])
 		]
 		if (pinTags.length) {
 			try {

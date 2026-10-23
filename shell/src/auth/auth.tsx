@@ -103,7 +103,11 @@ export async function webAuthnLogin(
 				typeof startAuthentication
 			>[0]['optionsJSON']
 		})
-		const result = await api.auth.webAuthnLogin({ token: challengeData.token, response })
+		const result = await api.auth.webAuthnLogin({
+			token: challengeData.token,
+			response,
+			...rememberParams(remember)
+		})
 		// Registry before React state: `useContextAwareApi` reads the token during
 		// the very render `setAuth` triggers (same ordering as boot.ts).
 		tokenIdTag = result.idTag ?? api.idTag
@@ -111,10 +115,11 @@ export async function webAuthnLogin(
 		// Mint the encryption-key cookie BEFORE handing the token to the SW: on
 		// Firefox/Safari the SW reads the swKey cookie to encrypt the stored token,
 		// and on a fresh login no cookie exists yet — `setApiKey` inside
-		// `createRememberMeKey` is what mints it.
-		const rememberFailed = remember ? !(await createRememberMeKey(api)) : false
+		// `storeRememberKey` is what mints it.
+		const rememberFailed = remember ? !(await storeRememberKey(result.apiKey)) : false
 		await installToken(result.token)
-		return { ok: true, auth: result, rememberFailed }
+		const { apiKey: _apiKey, ...auth } = result // keep the plaintext key out of React state
+		return { ok: true, auth, rememberFailed }
 	} catch (err) {
 		// The token was registered but the session never opened: leaving it in the
 		// registry authenticates every later request from a logged-out page.
@@ -124,7 +129,7 @@ export async function webAuthnLogin(
 }
 
 /** @returns the message to show, or undefined to stay quiet. */
-function webAuthnErrorMessage(err: unknown, t: TFunction): string | undefined {
+export function webAuthnErrorMessage(err: unknown, t: TFunction): string | undefined {
 	// Dismissing the OS dialog, or having no credential for this origin, is normal flow.
 	if (err instanceof Error && (err.name === 'NotAllowedError' || err.name === 'AbortError')) {
 		console.log('Passkey prompt dismissed:', err.name)
@@ -142,16 +147,28 @@ function webAuthnErrorMessage(err: unknown, t: TFunction): string | undefined {
 	return err instanceof Error ? err.message : t('Passkey login failed')
 }
 
-/** @returns whether the device key was created — false means "Remember me"
- *  silently did nothing, which the caller should surface. */
-async function createRememberMeKey(api: ApiClient): Promise<boolean> {
+/** Login request fields asking the server for a device key (`LoginResult.apiKey`) */
+function rememberParams(remember: boolean): { remember?: boolean; deviceName?: string } {
+	if (!remember) return {}
+	return { remember: true, deviceName: deviceName() }
+}
+
+/** "<platform> - <date>", the name a device key is stored under */
+export function deviceName(): string {
+	const platform =
+		(navigator as NavigatorUA).userAgentData?.platform || navigator.platform || 'Device'
+	return `${platform} - ${new Date().toLocaleDateString()}`
+}
+
+/** @returns whether the device key was stored; false (no key from the server, e.g.
+ *  `auth.remember_days = 0`) means "Remember me" did nothing, so the caller should surface it */
+async function storeRememberKey(apiKey: string | undefined): Promise<boolean> {
+	if (!apiKey) return false
 	try {
-		const deviceName = `${(navigator as NavigatorUA).userAgentData?.platform || navigator.platform || 'Device'} - ${new Date().toLocaleDateString()}`
-		const apiKeyResult = await api.auth.createApiKey({ name: deviceName })
-		await setApiKey(apiKeyResult.plaintextKey)
+		await setApiKey(apiKey)
 		return true
 	} catch (err) {
-		console.warn('Failed to create remember-me API key:', err)
+		console.warn('Failed to store remember-me API key:', err)
 		return false
 	}
 }
@@ -338,7 +355,8 @@ export function LoginForm() {
 
 			const res = await api.auth.login({
 				idTag: api.idTag,
-				password
+				password,
+				...rememberParams(remember)
 			})
 			if ('mfaToken' in res) {
 				setMfa({
@@ -362,7 +380,7 @@ export function LoginForm() {
 
 	/** The post-login sequence, shared by the password and the TOTP step */
 	async function finishLogin(api: ApiClient, loginResult: LoginResult) {
-		const authState: AuthState = { ...loginResult }
+		const { apiKey: _apiKey, ...authState }: AuthState & { apiKey?: string } = loginResult
 		// Registry first, then `setAuth`: the onboarding settings read needs the token,
 		// and `setAuth` renders the <Navigate> below, which must see `resumePath`.
 		setApiToken(authState.idTag ?? api.idTag, authState.token)
@@ -375,8 +393,8 @@ export function LoginForm() {
 		// SW. On Firefox/Safari (no Cookie Store API) the SW reads the
 		// swKey cookie to encrypt the token before persisting it; on a
 		// fresh login that cookie is minted only inside setApiKey, which
-		// runs as part of createRememberMeKey.
-		if (remember && !(await createRememberMeKey(api))) {
+		// runs as part of storeRememberKey.
+		if (remember && !(await storeRememberKey(loginResult.apiKey))) {
 			toastError(rememberFailedMessage(t))
 		}
 
@@ -392,7 +410,11 @@ export function LoginForm() {
 		try {
 			let loginResult: LoginResult
 			try {
-				loginResult = await api.auth.loginMfa({ mfaToken: mfa.mfaToken, code })
+				loginResult = await api.auth.loginMfa({
+					mfaToken: mfa.mfaToken,
+					code,
+					...rememberParams(remember)
+				})
 				// The token is spent: don't keep the secret around
 				closeMfa()
 			} catch (err: unknown) {
@@ -579,6 +601,7 @@ export function LoginForm() {
 										leading={<IcMail />}
 										name="email"
 										type="email"
+										autoComplete="email"
 										value={email}
 										onChange={(evt: React.ChangeEvent<HTMLInputElement>) => {
 											setEmail(evt.target.value)

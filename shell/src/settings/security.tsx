@@ -5,8 +5,11 @@ import {
 	type ApiClient,
 	type ApiKeyListItem,
 	type CreateApiKeyResult,
+	errorMessage,
 	FetchError,
 	getInstanceUrl,
+	type ReauthRequest,
+	type SigningKey,
 	type TotpEnrollResult,
 	type TotpStatus,
 	type WebAuthnCredential
@@ -24,6 +27,7 @@ import {
 	IcAdd,
 	IcDelete,
 	IcEdit,
+	IcRefresh,
 	Input,
 	InputGroup,
 	List,
@@ -39,24 +43,19 @@ import {
 	useToast,
 	VBox
 } from '@cloudillo/react'
-import { browserSupportsWebAuthn } from '@simplewebauthn/browser'
+import { browserSupportsWebAuthn, startAuthentication } from '@simplewebauthn/browser'
 import type { TFunction } from 'i18next'
 import * as React from 'react'
-
-interface NavigatorUA {
-	userAgentData?: { platform: string }
-}
-
 import { useTranslation } from 'react-i18next'
 
-import { TotpCodeField, TotpEnrollInfo } from '../auth/auth.js'
+import { AuditCategorySwitches } from '../audit/audit-log.js'
+import { deviceName, TotpCodeField, TotpEnrollInfo, webAuthnErrorMessage } from '../auth/auth.js'
 import { IcApiKey, IcPasskey } from '../icons.js'
 import {
 	deleteApiKey as swDeleteApiKey,
 	getApiKey as swGetApiKey,
 	setApiKey as swSetApiKey
 } from '../pwa.js'
-import { AuditCategorySwitches } from '../audit/audit-log.js'
 import { registerPasskey } from './passkey.js'
 import { SwitchRow, useSettings } from './settings.js'
 
@@ -214,6 +213,120 @@ export function TwoFactorPanel() {
 	)
 }
 
+/** Profile signing keys: list, rotate, revoke verify-only keys. Owner-only on the server. */
+function SigningKeysPanel() {
+	const { t } = useTranslation()
+	const { api } = useApi()
+	const dialog = useDialog()
+	const { error: toastError } = useToast()
+	const [keys, setKeys] = React.useState<SigningKey[]>()
+
+	const loadKeys = React.useCallback(
+		async function loadKeys() {
+			if (!api) return
+			try {
+				setKeys(await api.auth.listSigningKeys())
+			} catch (err) {
+				// Owner-only endpoint: other users simply get no panel
+				if (err instanceof FetchError && err.httpStatus === 403) return
+				toastError(errorMessage(err))
+			}
+		},
+		[api, toastError]
+	)
+
+	React.useEffect(() => {
+		void loadKeys()
+	}, [loadKeys])
+
+	async function run(action: () => Promise<unknown>) {
+		try {
+			await action()
+		} catch (err) {
+			toastError(errorMessage(err))
+		}
+		await loadKeys()
+	}
+
+	async function rotateKey() {
+		if (!api) return
+		const confirmed = await dialog.confirm(
+			t('Rotate signing key?'),
+			t(
+				'A new key will sign your actions from now on. The current key becomes verify-only, so everything signed with it stays valid.'
+			),
+			{ confirmLabel: t('Rotate') }
+		)
+		if (confirmed) await run(() => api.auth.rotateSigningKey())
+	}
+
+	async function revokeKey(keyId: string) {
+		if (!api) return
+		const confirmed = await dialog.confirm(
+			t('Revoke signing key?'),
+			t(
+				'Actions signed with this key will no longer verify at other servers. This cannot be undone.'
+			),
+			{ color: 'error', confirmLabel: t('Revoke') }
+		)
+		if (confirmed) await run(() => api.auth.revokeSigningKey(keyId))
+	}
+
+	if (!keys) return null
+	return (
+		<Panel
+			title={t('Signing keys')}
+			description={t('Keys that sign your actions so other servers can verify them.')}
+			actions={
+				<Button size="sm" icon={<IcRefresh />} onClick={rotateKey}>
+					{t('Rotate key')}
+				</Button>
+			}
+		>
+			<List variant="divided">
+				{keys.map((key) => (
+					<ListItem
+						key={key.keyId}
+						leading={<IcApiKey />}
+						title={
+							<>
+								{key.keyId}{' '}
+								{key.status === 'A' ? (
+									<Badge size="sm" color="success" className="ms-1">
+										{t('Active')}
+									</Badge>
+								) : key.status === 'V' ? (
+									<Badge size="sm" className="ms-1">
+										{t('Verify-only')}
+									</Badge>
+								) : (
+									<Badge size="sm" color="error" className="ms-1">
+										{t('Revoked')}
+									</Badge>
+								)}
+							</>
+						}
+						subtitle={t('Created {{date}}', {
+							date: new Date(key.createdAt).toLocaleDateString()
+						})}
+						trailing={
+							key.status === 'V' && (
+								<Button
+									variant="ghost"
+									color="error"
+									icon={<IcDelete />}
+									aria-label={t('Revoke')}
+									onClick={() => revokeKey(key.keyId)}
+								/>
+							)
+						}
+					/>
+				))}
+			</List>
+		</Panel>
+	)
+}
+
 /** Tenant-level audit category choice; the categories come from the owner's audit list */
 function AuditCategoriesPanel() {
 	const { t } = useTranslation()
@@ -235,7 +348,7 @@ function AuditCategoriesPanel() {
 			(err) => {
 				// Owner-only endpoint: other users simply get no panel
 				if (err instanceof FetchError && err.httpStatus === 403) return
-				toastError(err instanceof Error ? err.message : String(err))
+				toastError(errorMessage(err))
 			}
 		)
 	}, [api, toastError])
@@ -334,6 +447,109 @@ function ScopeChecklist({ scopes, selected, onToggle }: ScopeChecklistProps) {
 		</VBox>
 	)
 }
+type ReauthPrompt = () => Promise<ReauthRequest | undefined>
+
+/** Re-authentication the server requires for an unscoped API key (403 without it): the
+ *  password or a fresh passkey assertion. Refused outright while TOTP is enrolled or MFA is
+ *  required. Render the returned node; the prompt resolves `undefined` when the user cancels. */
+function useReauth(): [React.ReactNode, ReauthPrompt] {
+	const { t } = useTranslation()
+	const { api } = useApi()
+	const resolveRef = React.useRef<(reauth: ReauthRequest | undefined) => void>(undefined)
+	const [open, setOpen] = React.useState(false)
+	const [password, setPassword] = React.useState('')
+	// undefined until `getTotp` answers; on failure the server decides
+	const [refused, setRefused] = React.useState<boolean | undefined>()
+	const [error, setError] = React.useState<string>()
+
+	const prompt = React.useCallback<ReauthPrompt>(() => {
+		// A still-pending caller is settled as cancelled
+		resolveRef.current?.(undefined)
+		setPassword('')
+		setError(undefined)
+		setRefused(undefined)
+		setOpen(true)
+		api?.auth.getTotp().then(
+			(status) => setRefused(status.enrolled || status.mode === 'required'),
+			() => setRefused(false)
+		)
+		return new Promise((resolve) => {
+			resolveRef.current = resolve
+		})
+	}, [api])
+
+	function finish(reauth: ReauthRequest | undefined) {
+		setOpen(false)
+		setPassword('')
+		resolveRef.current?.(reauth)
+		resolveRef.current = undefined
+	}
+
+	async function onPasskey() {
+		if (!api) return
+		setError(undefined)
+		try {
+			const challenge = await api.auth.getWebAuthnLoginChallenge()
+			const response = await startAuthentication({
+				optionsJSON: challenge.options as Parameters<
+					typeof startAuthentication
+				>[0]['optionsJSON']
+			})
+			finish({ webauthn: { token: challenge.token, response } })
+		} catch (err) {
+			const msg = webAuthnErrorMessage(err, t)
+			if (msg) setError(msg)
+		}
+	}
+
+	const canSubmit = refused === false && !!password
+	const node = (
+		<Dialog
+			open={open}
+			onClose={() => finish(undefined)}
+			title={t('Confirm your identity')}
+			description={t('Creating a full-access API key requires re-authentication.')}
+			onSubmit={() => {
+				if (canSubmit) finish({ password })
+			}}
+			footer={
+				<ActionBar>
+					<Button onClick={() => finish(undefined)}>{t('Cancel')}</Button>
+					{!refused && browserSupportsWebAuthn() && (
+						<Button onClick={onPasskey}>
+							<IcPasskey />
+							{t('Use passkey')}
+						</Button>
+					)}
+					<Button type="submit" color="primary" disabled={!canSubmit}>
+						{t('Confirm')}
+					</Button>
+				</ActionBar>
+			}
+		>
+			<VBox gap={3}>
+				{error && <Alert color="error">{error}</Alert>}
+				{refused ? (
+					<Alert color="error">
+						{t(
+							'Full-access API keys are unavailable while two-factor authentication is enabled or required. Choose at least one scope instead.'
+						)}
+					</Alert>
+				) : (
+					<Field label={t('Password')}>
+						<PasswordInput
+							autoComplete="current-password"
+							value={password}
+							onChange={(evt) => setPassword(evt.target.value)}
+						/>
+					</Field>
+				)}
+			</VBox>
+		</Dialog>
+	)
+	return [node, prompt]
+}
+
 // Create API Key Modal
 interface CreateApiKeyModalProps {
 	open: boolean
@@ -341,7 +557,7 @@ interface CreateApiKeyModalProps {
 	onCreated: (result: CreateApiKeyResult) => void
 }
 
-function CreateApiKeyModal({ open, onClose, onCreated }: CreateApiKeyModalProps) {
+export function CreateApiKeyModal({ open, onClose, onCreated }: CreateApiKeyModalProps) {
 	const { t } = useTranslation()
 	const { api } = useApi()
 	const availableScopes = React.useMemo(() => getAvailableScopes(t), [t])
@@ -349,6 +565,7 @@ function CreateApiKeyModal({ open, onClose, onCreated }: CreateApiKeyModalProps)
 	const [selectedScopes, setSelectedScopes] = React.useState<string[]>([])
 	const [isSubmitting, setIsSubmitting] = React.useState(false)
 	const [error, setError] = React.useState<string | undefined>()
+	const [reauthDialog, promptReauth] = useReauth()
 
 	React.useEffect(() => {
 		if (open) {
@@ -376,9 +593,15 @@ function CreateApiKeyModal({ open, onClose, onCreated }: CreateApiKeyModalProps)
 		if (finalScopes.has('caldav:write')) finalScopes.add('caldav:read')
 
 		try {
+			let reauth: ReauthRequest | undefined
+			if (finalScopes.size === 0) {
+				reauth = await promptReauth()
+				if (!reauth) return
+			}
 			const result = await api.auth.createApiKey({
 				name: name || undefined,
-				scopes: finalScopes.size > 0 ? Array.from(finalScopes).join(',') : undefined
+				scopes: finalScopes.size > 0 ? Array.from(finalScopes).join(',') : undefined,
+				reauth
 			})
 			onCreated(result)
 			onClose()
@@ -394,37 +617,40 @@ function CreateApiKeyModal({ open, onClose, onCreated }: CreateApiKeyModalProps)
 	}
 
 	return (
-		<Dialog
-			open={open}
-			onClose={onClose}
-			title={t('Create API Key')}
-			footer={
-				<ActionBar>
-					<Button onClick={onClose}>{t('Cancel')}</Button>
-					<Button color="primary" loading={isSubmitting} onClick={handleCreate}>
-						{t('Create API Key')}
-					</Button>
-				</ActionBar>
-			}
-		>
-			<VBox gap={3}>
-				{error && <Alert color="error">{error}</Alert>}
+		<>
+			{reauthDialog}
+			<Dialog
+				open={open}
+				onClose={onClose}
+				title={t('Create API Key')}
+				footer={
+					<ActionBar>
+						<Button onClick={onClose}>{t('Cancel')}</Button>
+						<Button color="primary" loading={isSubmitting} onClick={handleCreate}>
+							{t('Create API Key')}
+						</Button>
+					</ActionBar>
+				}
+			>
+				<VBox gap={3}>
+					{error && <Alert color="error">{error}</Alert>}
 
-				<Field label={t('Name (optional)')}>
-					<Input
-						placeholder={t('e.g., CI pipeline')}
-						value={name}
-						onChange={(e) => setName(e.target.value)}
+					<Field label={t('Name (optional)')}>
+						<Input
+							placeholder={t('e.g., CI pipeline')}
+							value={name}
+							onChange={(e) => setName(e.target.value)}
+						/>
+					</Field>
+
+					<ScopeChecklist
+						scopes={availableScopes}
+						selected={selectedScopes}
+						onToggle={toggleScope}
 					/>
-				</Field>
-
-				<ScopeChecklist
-					scopes={availableScopes}
-					selected={selectedScopes}
-					onToggle={toggleScope}
-				/>
-			</VBox>
-		</Dialog>
+				</VBox>
+			</Dialog>
+		</>
 	)
 }
 
@@ -466,6 +692,7 @@ function EditApiKeyModal({ open, apiKey, onClose, onSaved }: EditApiKeyModalProp
 	const [expiresAtInput, setExpiresAtInput] = React.useState('')
 	const [isSubmitting, setIsSubmitting] = React.useState(false)
 	const [error, setError] = React.useState<string | undefined>()
+	const [reauthDialog, promptReauth] = useReauth()
 
 	React.useEffect(() => {
 		if (open && apiKey) {
@@ -499,10 +726,17 @@ function EditApiKeyModal({ open, apiKey, onClose, onSaved }: EditApiKeyModalProp
 		const expiresAtChanged = expiresAtInput !== originalInput
 
 		try {
+			// Widening a scoped key to full access needs the same re-auth as creating one
+			let reauth: ReauthRequest | undefined
+			if (finalScopes.size === 0 && apiKey.scopes) {
+				reauth = await promptReauth()
+				if (!reauth) return
+			}
 			await api.auth.updateApiKey(apiKey.keyId, {
 				name: name || null,
 				scopes: finalScopes.size > 0 ? Array.from(finalScopes).join(',') : null,
-				...(expiresAtChanged && { expiresAt: dateInputToExpiresAt(expiresAtInput) })
+				...(expiresAtChanged && { expiresAt: dateInputToExpiresAt(expiresAtInput) }),
+				reauth
 			})
 			onSaved()
 		} catch (err: unknown) {
@@ -517,59 +751,62 @@ function EditApiKeyModal({ open, apiKey, onClose, onSaved }: EditApiKeyModalProp
 	}
 
 	return (
-		<Dialog
-			open={open}
-			onClose={onClose}
-			title={t('Edit API key')}
-			footer={
-				<ActionBar>
-					<Button onClick={onClose}>{t('Cancel')}</Button>
-					<Button color="primary" loading={isSubmitting} onClick={handleSave}>
-						{t('Save changes')}
-					</Button>
-				</ActionBar>
-			}
-		>
-			<VBox gap={3}>
-				{error && <Alert color="error">{error}</Alert>}
+		<>
+			{reauthDialog}
+			<Dialog
+				open={open}
+				onClose={onClose}
+				title={t('Edit API key')}
+				footer={
+					<ActionBar>
+						<Button onClick={onClose}>{t('Cancel')}</Button>
+						<Button color="primary" loading={isSubmitting} onClick={handleSave}>
+							{t('Save changes')}
+						</Button>
+					</ActionBar>
+				}
+			>
+				<VBox gap={3}>
+					{error && <Alert color="error">{error}</Alert>}
 
-				<Field label={t('Name (optional)')}>
-					<Input
-						placeholder={t('e.g., CI pipeline')}
-						value={name}
-						onChange={(e) => setName(e.target.value)}
-					/>
-				</Field>
-
-				<Field
-					label={t('Expires (optional)')}
-					hint={
-						expiresAtInput
-							? t('Key is valid until the end of this day.')
-							: t('No expiration — the key is valid until revoked.')
-					}
-				>
-					<HBox gap={2} align="center">
+					<Field label={t('Name (optional)')}>
 						<Input
-							type="date"
-							className="flex-fill"
-							value={expiresAtInput}
-							min={expiresAtToDateInput(Math.floor(Date.now() / 1000))}
-							onChange={(e) => setExpiresAtInput(e.target.value)}
+							placeholder={t('e.g., CI pipeline')}
+							value={name}
+							onChange={(e) => setName(e.target.value)}
 						/>
-						{expiresAtInput && (
-							<Button onClick={() => setExpiresAtInput('')}>{t('Clear')}</Button>
-						)}
-					</HBox>
-				</Field>
+					</Field>
 
-				<ScopeChecklist
-					scopes={availableScopes}
-					selected={selectedScopes}
-					onToggle={toggleScope}
-				/>
-			</VBox>
-		</Dialog>
+					<Field
+						label={t('Expires (optional)')}
+						hint={
+							expiresAtInput
+								? t('Key is valid until the end of this day.')
+								: t('No expiration — the key is valid until revoked.')
+						}
+					>
+						<HBox gap={2} align="center">
+							<Input
+								type="date"
+								className="flex-fill"
+								value={expiresAtInput}
+								min={expiresAtToDateInput(Math.floor(Date.now() / 1000))}
+								onChange={(e) => setExpiresAtInput(e.target.value)}
+							/>
+							{expiresAtInput && (
+								<Button onClick={() => setExpiresAtInput('')}>{t('Clear')}</Button>
+							)}
+						</HBox>
+					</Field>
+
+					<ScopeChecklist
+						scopes={availableScopes}
+						selected={selectedScopes}
+						onToggle={toggleScope}
+					/>
+				</VBox>
+			</Dialog>
+		</>
 	)
 }
 
@@ -711,10 +948,12 @@ function ApiKeyCreatedModal({ open, result, onClose }: ApiKeyCreatedModalProps) 
 
 export function SecuritySettings() {
 	const { t } = useTranslation()
-	const [_auth] = useAuth()
+	const [auth] = useAuth()
 	const { api } = useApi()
 	const dialog = useDialog()
-	const { settings } = useSettings('sec')
+	const { settings, onSettingChange, denied } = useSettings(['sec', 'auth'])
+	// auth.remember_days is PermissionLevel::Admin: listed to every owner, writable by SADM only
+	const canEditRememberDays = !denied && !!auth?.roles?.includes('SADM')
 
 	// Password change state
 	const [currentPassword, setCurrentPassword] = React.useState('')
@@ -737,6 +976,7 @@ export function SecuritySettings() {
 	const [showCreateModal, setShowCreateModal] = React.useState(false)
 	const [showKeyCreatedModal, setShowKeyCreatedModal] = React.useState(false)
 	const [createdKeyResult, setCreatedKeyResult] = React.useState<CreateApiKeyResult | null>(null)
+	const [reauthDialog, promptReauth] = useReauth()
 	const [editingKey, setEditingKey] = React.useState<ApiKeyListItem | undefined>()
 
 	// Load passkeys and API keys on mount
@@ -875,12 +1115,14 @@ export function SecuritySettings() {
 			)
 
 			if (!confirmed) return
+			const reauth = await promptReauth()
+			if (!reauth) return
 
 			try {
 				// Create API key with device info as name
-				const deviceName = `${(navigator as NavigatorUA).userAgentData?.platform || navigator.platform || 'Device'} - ${new Date().toLocaleDateString()}`
 				const result = await api.auth.createApiKey({
-					name: deviceName
+					name: deviceName(),
+					reauth
 				})
 
 				// Store the plaintext key in SW encrypted storage
@@ -957,6 +1199,7 @@ export function SecuritySettings() {
 
 	return (
 		<>
+			{reauthDialog}
 			<Panel title={t('Change password')}>
 				<VBox gap={2}>
 					<Field
@@ -1090,6 +1333,24 @@ export function SecuritySettings() {
 						'Only enable this on personal, trusted devices. The login credentials will be stored locally.'
 					)}
 				</Alert>
+				{canEditRememberDays && (
+					<Field
+						label={t('Remember devices for (days)')}
+						orientation="horizontal"
+						hint={t(
+							'How long a kept login stays valid on a device. 0 turns "stay logged in" off.'
+						)}
+					>
+						<Input
+							className="w-sm"
+							name="auth.remember_days"
+							type="number"
+							min="0"
+							value={String(settings['auth.remember_days'] ?? 30)}
+							onChange={onSettingChange}
+						/>
+					</Field>
+				)}
 			</Panel>
 
 			<Panel
@@ -1188,6 +1449,8 @@ export function SecuritySettings() {
 					</List>
 				)}
 			</Panel>
+
+			<SigningKeysPanel />
 
 			<AuditCategoriesPanel />
 

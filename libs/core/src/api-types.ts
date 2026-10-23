@@ -56,7 +56,13 @@ export type ActionVisibility = T.TypeOf<typeof tActionVisibility>
 // ============================================================================
 
 // Request types (TypeScript interfaces only - compile-time validation)
-export interface LoginRequest {
+/** Ask the server for a device API key along with the session (`LoginResult.apiKey`) */
+export interface RememberRequest {
+	remember?: boolean
+	deviceName?: string
+}
+
+export interface LoginRequest extends RememberRequest {
 	idTag: string
 	password: string
 }
@@ -113,7 +119,9 @@ export const tLoginResult = T.struct({
 	token: T.string,
 	name: T.string,
 	profilePic: T.string,
-	swEncryptionKey: T.optional(T.string)
+	swEncryptionKey: T.optional(T.string),
+	/** Plaintext device key; only when `remember` was asked for and the tenant allows it */
+	apiKey: T.optional(T.string)
 })
 export type LoginResult = T.TypeOf<typeof tLoginResult>
 
@@ -137,7 +145,7 @@ export type MfaEnroll = T.TypeOf<typeof tMfaEnroll>
 export const tLoginResponse = T.union(tLoginResult, tMfaRequired, tMfaEnroll)
 export type LoginResponse = T.TypeOf<typeof tLoginResponse>
 
-export interface LoginMfaRequest {
+export interface LoginMfaRequest extends RememberRequest {
 	mfaToken: string
 	code: string
 }
@@ -420,10 +428,54 @@ export interface WebAuthnRegisterRequest {
 }
 
 // WebAuthn login request
-export interface WebAuthnLoginRequest {
+export interface WebAuthnLoginRequest extends RememberRequest {
 	token: string
 	response: unknown // PublicKeyCredential
 }
+
+/** Fresh re-authentication, required for unscoped API keys: password (+ TOTP code), or a
+ *  passkey assertion from the login challenge */
+export interface ReauthRequest {
+	password?: string
+	webauthn?: { token: string; response: unknown }
+}
+
+// ============================================================================
+// SIGNING KEY ENDPOINTS
+// ============================================================================
+
+/**
+ * Profile signing key. Known status codes: A = active (signs), V = verify-only, R = revoked.
+ * A plain string so a future code from the server still decodes.
+ */
+export const tSigningKey = T.struct({
+	keyId: T.string,
+	status: T.string,
+	createdAt: T.string, // ISO
+	expiresAt: T.optional(T.string) // ISO
+})
+export type SigningKey = T.TypeOf<typeof tSigningKey>
+
+export const tSigningKeyList = T.array(tSigningKey)
+
+/** Key returned by rotate */
+export const tAuthKey = T.struct({
+	keyId: T.string,
+	publicKey: T.string,
+	expiresAt: T.optional(T.string)
+})
+export type AuthKey = T.TypeOf<typeof tAuthKey>
+
+// ============================================================================
+// DATA EXPORT ENDPOINTS
+// ============================================================================
+
+export const tExportStatus = T.struct({
+	status: T.string, // 'pending' | 'ready' | 'failed'; open so a new server code still decodes
+	createdAt: T.string, // ISO
+	size: T.optional(T.number)
+})
+export type ExportStatus = T.TypeOf<typeof tExportStatus>
 
 // ============================================================================
 // API KEY ENDPOINTS
@@ -449,6 +501,7 @@ export interface CreateApiKeyRequest {
 	name?: string
 	scopes?: string
 	expiresAt?: number
+	reauth?: ReauthRequest
 }
 
 // Update API key request (all fields optional; omitted = unchanged, null = clear)
@@ -456,6 +509,7 @@ export interface UpdateApiKeyRequest {
 	name?: string | null
 	scopes?: string | null
 	expiresAt?: number | null
+	reauth?: ReauthRequest
 }
 
 // Create API key result (includes plaintext key shown only once)
@@ -1450,7 +1504,8 @@ export const tTenantView = T.struct({
 	profilePic: T.optional(T.string),
 	createdAt: T.number,
 	suspendedAt: T.optional(T.number), // unix seconds; absent = not suspended
-	expiresAt: T.optional(T.number) // unix seconds; absent = no expiry
+	expiresAt: T.optional(T.number), // unix seconds; absent = no expiry
+	storageUsed: T.optional(T.number) // bytes
 })
 export type TenantView = T.TypeOf<typeof tTenantView>
 

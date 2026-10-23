@@ -164,4 +164,14 @@ export function useSettings(
 	return { settings, setSettings, onSettingChange, refresh, denied }
 }
 
+/** `notify.push_allowed` (Global): only an explicit false forbids push */
+export function isPushAllowed(settings: Record<string, unknown> | undefined): boolean {
+	return settings?.['notify.push_allowed'] !== false
+}
+
+export function usePushAllowed(): boolean {
+	const { settings } = useSettings('notify')
+	return isPushAllowed(settings)
+}
+
 // vim: ts=4

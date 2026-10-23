@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: MPL-2.0
 
-import type { TenantView } from '@cloudillo/core'
+import { errorMessage, type TenantView } from '@cloudillo/core'
 import {
 	ActionBar,
 	Alert,
@@ -39,7 +39,7 @@ import { useTranslation } from 'react-i18next'
 
 import { IcActive, IcAdmin, IcApiKey, IcPasskey, IcSchedule, IcSuspended } from '../icons.js'
 import { siteAdminPath } from '../routes.js'
-import { formatUnixTime } from '../utils.js'
+import { formatBytes, formatUnixTime } from '../utils.js'
 
 /** Login is refused once `expiresAt` (unix seconds) is reached */
 export function isTenantExpired(tenant: TenantView) {
@@ -177,6 +177,11 @@ function TenantRow({
 						})}
 					</Text>
 				)}
+			</TableCell>
+			<TableCell>
+				<Text size="sm" emphasis="muted">
+					{tenant.storageUsed !== undefined ? formatBytes(tenant.storageUsed) : '-'}
+				</Text>
 			</TableCell>
 			<TableCell align="end">
 				<Menu
@@ -358,7 +363,7 @@ export function Tenants() {
 			await api.admin.suspendTenant(idTag)
 			loadTenants(search || undefined)
 		} catch (err) {
-			await dialog.tell(t('Error'), err instanceof Error ? err.message : String(err))
+			await dialog.tell(t('Error'), errorMessage(err))
 		}
 	}
 
@@ -376,7 +381,7 @@ export function Tenants() {
 			await api.admin.resumeTenant(idTag)
 			loadTenants(search || undefined)
 		} catch (err) {
-			await dialog.tell(t('Error'), err instanceof Error ? err.message : String(err))
+			await dialog.tell(t('Error'), errorMessage(err))
 		}
 	}
 
@@ -387,7 +392,7 @@ export function Tenants() {
 			await api.admin.setTenantExpiry(idTag, expiresAt)
 			loadTenants(search || undefined)
 		} catch (err) {
-			await dialog.tell(t('Error'), err instanceof Error ? err.message : String(err))
+			await dialog.tell(t('Error'), errorMessage(err))
 		}
 	}
 
@@ -409,7 +414,7 @@ export function Tenants() {
 			)
 			loadTenants(search || undefined)
 		} catch (err) {
-			await dialog.tell(t('Delete failed'), err instanceof Error ? err.message : String(err))
+			await dialog.tell(t('Delete failed'), errorMessage(err))
 		}
 	}
 
@@ -433,7 +438,7 @@ export function Tenants() {
 					stack
 					variant="hoverable"
 					aria-label={t('Tenants')}
-					columns={[t('Tenant'), t('Email'), t('Status'), t('Actions')]}
+					columns={[t('Tenant'), t('Email'), t('Status'), t('Storage'), t('Actions')]}
 				>
 					{tenants.map((tenant) => (
 						<TenantRow

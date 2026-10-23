@@ -441,6 +441,44 @@ export class ApiClient {
 		deleteApiKey: (keyId: number) =>
 			this.request('DELETE', `/auth/api-keys/${keyId}`, T.nullValue),
 
+		// ====================================================================
+		// SIGNING KEYS (owner only)
+		// ====================================================================
+
+		/** GET /auth/keys - All profile signing keys, revoked ones too */
+		listSigningKeys: () => this.request('GET', '/auth/keys', Types.tSigningKeyList),
+
+		/** POST /auth/keys/rotate - New active key; the old one becomes verify-only */
+		rotateSigningKey: () => this.request('POST', '/auth/keys/rotate', Types.tAuthKey),
+
+		/** POST /auth/keys/{keyId}/revoke - 409 when it is the last active key */
+		revokeSigningKey: (keyId: string) =>
+			this.request('POST', `/auth/keys/${encodeURIComponent(keyId)}/revoke`, T.nullValue),
+
+		// ====================================================================
+		// DATA EXPORT (tenant itself)
+		// ====================================================================
+
+		/** POST /export - Start a full data export (409 if one is pending) */
+		requestExport: () => this.request('POST', '/export', Types.tExportStatus),
+
+		/** GET /export - Current export status; 404 when there is none */
+		getExport: () => this.request('GET', '/export', Types.tExportStatus),
+
+		/** GET /export/download - The ready export as a ZIP Blob; save with `downloadBlob` */
+		downloadExport: (opts?: { signal?: AbortSignal }): Promise<Blob> => {
+			// Raw fetch: the body is a Blob, which apiFetchHelper can't return
+			const url = `${getInstanceUrl(this.opts.idTag)}/api/export/download`
+			return this.withAuthRecovery(async (token) => {
+				const res = await fetch(url, {
+					headers: token ? { Authorization: `Bearer ${token}` } : {},
+					signal: opts?.signal
+				})
+				if (!res.ok) throw fetchErrorFromResponse(res.status, await res.text())
+				return res.blob()
+			}, opts)
+		},
+
 		/** GET /auth/audit - The caller's own audit log (owner only) */
 		listAudit: (query?: Types.AuditListQuery) =>
 			this.request('GET', '/auth/audit', Types.tAuditListResult, {

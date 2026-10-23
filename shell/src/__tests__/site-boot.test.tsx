@@ -77,7 +77,9 @@ async function bootAsSiteReader(siteSeed: SiteBootSeed | null) {
 		loadIdpEnabled: async () => false
 	}))
 	jest.unstable_mockModule('../manifest-registry.js', () => ({
-		applyMenuConfig: () => {}
+		applyMenuConfig: () => {},
+		disabledApps: new Set(),
+		withoutDisabledApps: (config: unknown) => config
 	}))
 	jest.unstable_mockModule('@cloudillo/core', () => ({
 		createApiClient: () => ({

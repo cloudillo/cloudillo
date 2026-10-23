@@ -28,6 +28,7 @@ import { shellEmbedAppName } from '../../app-name.js'
 import { appRequiresTrusted, appTrust } from '../../app-trust.js'
 // The leaf modules, not manifest-registry.ts: that one pulls in the icon registry and React
 import { bundledManifests } from '../../bundled-manifests.js'
+import { disabledApps } from '../../disabled-apps.js'
 import { shellManifests } from '../../shell-manifests.js'
 import { getAccessSuffix } from '../app-tracker.js'
 import type { ShellMessageBus } from '../shell-bus.js'
@@ -179,6 +180,19 @@ export function initEmbedHandlers(bus: ShellMessageBus): void {
 			// as `https://cl-o./apps/<name>/index.html`.
 			if (!api?.idTag) {
 				throw new Error('API client not available')
+			}
+
+			// Turned off by the administrator (filled at boot by `auth/boot.ts`)
+			if (appName && disabledApps.has(appName)) {
+				bus.sendResponse(
+					appWindow,
+					'embed:open.res',
+					msg.id,
+					false,
+					undefined,
+					'Not allowed'
+				)
+				return
 			}
 
 			// Derive the context idTag from the parent connection so embeds resolve

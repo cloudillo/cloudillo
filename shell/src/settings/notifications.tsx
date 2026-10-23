@@ -32,7 +32,7 @@ import {
 	useLocalNotifySettings
 } from '../notifications/useLocalNotifySettings.js'
 import type { UsePWA } from '../pwa.js'
-import { SwitchRow, useSettings } from './settings.js'
+import { isPushAllowed, SwitchRow, useSettings } from './settings.js'
 
 export async function subscribeNotifications(api: ApiClient | null, pwa: UsePWA) {
 	if (!api) throw new Error('Not authenticated')
@@ -174,68 +174,70 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 
 	return (
 		<>
-			<Panel title={t('Push notifications')}>
-				<List variant="divided">
-					<SwitchRow
-						name="notify.push"
-						checked={!!notificationSubscription}
-						onChange={onPushChange}
-						label={t('Enable push notifications on this device')}
-					/>
-					<SwitchRow
-						name="notify.push"
-						checked={!!settings['notify.push']}
-						onChange={onSettingChange}
-						label={t('Enable push notifications')}
-					/>
-				</List>
-				{!!settings['notify.push'] && (
+			{isPushAllowed(settings) && (
+				<Panel title={t('Push notifications')}>
 					<List variant="divided">
 						<SwitchRow
-							name="notify.push.message"
-							checked={!!settings['notify.push.message']}
-							onChange={onSettingChange}
-							label={t('Notify on direct messages')}
+							name="notify.push"
+							checked={!!notificationSubscription}
+							onChange={onPushChange}
+							label={t('Enable push notifications on this device')}
 						/>
 						<SwitchRow
-							name="notify.push.connection"
-							checked={!!settings['notify.push.connection']}
+							name="notify.push"
+							checked={!!settings['notify.push']}
 							onChange={onSettingChange}
-							label={t('Notify on connection requests')}
-						/>
-						<SwitchRow
-							name="notify.push.file_share"
-							checked={!!settings['notify.push.file_share']}
-							onChange={onSettingChange}
-							label={t('Notify when files are shared with you')}
-						/>
-						<SwitchRow
-							name="notify.push.follow"
-							checked={!!settings['notify.push.follow']}
-							onChange={onSettingChange}
-							label={t('Notify when someone follows you')}
-						/>
-						<SwitchRow
-							name="notify.push.comment"
-							checked={!!settings['notify.push.comment']}
-							onChange={onSettingChange}
-							label={t('Notify on comments to your posts')}
-						/>
-						<SwitchRow
-							name="notify.push.reaction"
-							checked={!!settings['notify.push.reaction']}
-							onChange={onSettingChange}
-							label={t('Notify on reactions to your posts')}
-						/>
-						<SwitchRow
-							name="notify.push.post"
-							checked={!!settings['notify.push.post']}
-							onChange={onSettingChange}
-							label={t('Notify on new posts from people you follow')}
+							label={t('Enable push notifications')}
 						/>
 					</List>
-				)}
-			</Panel>
+					{!!settings['notify.push'] && (
+						<List variant="divided">
+							<SwitchRow
+								name="notify.push.message"
+								checked={!!settings['notify.push.message']}
+								onChange={onSettingChange}
+								label={t('Notify on direct messages')}
+							/>
+							<SwitchRow
+								name="notify.push.connection"
+								checked={!!settings['notify.push.connection']}
+								onChange={onSettingChange}
+								label={t('Notify on connection requests')}
+							/>
+							<SwitchRow
+								name="notify.push.file_share"
+								checked={!!settings['notify.push.file_share']}
+								onChange={onSettingChange}
+								label={t('Notify when files are shared with you')}
+							/>
+							<SwitchRow
+								name="notify.push.follow"
+								checked={!!settings['notify.push.follow']}
+								onChange={onSettingChange}
+								label={t('Notify when someone follows you')}
+							/>
+							<SwitchRow
+								name="notify.push.comment"
+								checked={!!settings['notify.push.comment']}
+								onChange={onSettingChange}
+								label={t('Notify on comments to your posts')}
+							/>
+							<SwitchRow
+								name="notify.push.reaction"
+								checked={!!settings['notify.push.reaction']}
+								onChange={onSettingChange}
+								label={t('Notify on reactions to your posts')}
+							/>
+							<SwitchRow
+								name="notify.push.post"
+								checked={!!settings['notify.push.post']}
+								onChange={onSettingChange}
+								label={t('Notify on new posts from people you follow')}
+							/>
+						</List>
+					)}
+				</Panel>
+			)}
 
 			<Panel title={t('Email notifications')}>
 				<List variant="divided">

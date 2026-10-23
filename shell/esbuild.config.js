@@ -81,7 +81,7 @@ function copyIcons(version) {
 		mkdirSync(iconDest, { recursive: true })
 	}
 
-	for (const icon of ['icon-192.png', 'icon-512.png']) {
+	for (const icon of ['icon-192.png', 'icon-512.png', 'favicon.svg']) {
 		const iconSource = join(__dirname, 'src', icon)
 		if (!existsSync(iconSource)) {
 			console.log(`${icon} not found in shell/src/`)

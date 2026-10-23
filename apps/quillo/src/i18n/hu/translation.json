@@ -1,0 +1,6 @@
+{
+	"Export as HTML": "Exportálás HTML-ként",
+	"Export as PDF": "Exportálás PDF-ként",
+	"Export as DOCX": "Exportálás DOCX-ként",
+	"Export failed: {{error}}": "Az exportálás sikertelen: {{error}}"
+}

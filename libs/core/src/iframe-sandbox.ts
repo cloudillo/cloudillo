@@ -29,8 +29,11 @@ export const APP_SANDBOX =
  *
  * This origin holds only as long as the API host never serves active user content (SVG, HTML)
  * without `Content-Security-Policy: sandbox` (cloudillo-rs `cloudillo-file` `handler.rs`, `apkg.rs`).
+ *
+ * 'allow-modals' is needed for `window.print()` (the quillo PDF export); it also unblocks
+ * alert/confirm/prompt. Untrusted apps deliberately don't get it.
  */
-export const APP_SANDBOX_TRUSTED = `${APP_SANDBOX} allow-same-origin`
+export const APP_SANDBOX_TRUSTED = `${APP_SANDBOX} allow-same-origin allow-modals`
 
 /** The sandbox value for an app the shell has (or has not) marked trusted */
 export function appSandbox(trusted: boolean): string {

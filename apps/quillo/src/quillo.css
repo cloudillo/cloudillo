@@ -1140,5 +1140,37 @@ body.quillo-embed {
 	font-family: 'JetBrains Mono', monospace;
 }
 
+/* PDF export: the browser's print dialog, with the app chrome hidden and the page
+ * flowing instead of scrolling inside #editor-canvas. */
+@media print {
+	#docbar,
+	#toolbar,
+	.ql-toolbar,
+	#ws-bus-status,
+	#popper-container,
+	.ql-cursors {
+		display: none !important;
+	}
+
+	body {
+		display: block;
+		height: auto;
+		background: none;
+	}
+
+	#editor-canvas {
+		overflow: visible;
+		padding: 0;
+	}
+
+	#editor {
+		--page-pad-x: 0;
+		--page-pad-y: 0;
+		background: none;
+		box-shadow: none;
+		backdrop-filter: none;
+	}
+}
+
 /* vim: ts=4
  */

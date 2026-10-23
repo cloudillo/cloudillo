@@ -3,8 +3,8 @@
 
 const _APP_NAME = 'quillo'
 
-// Quillo has no i18next instance yet, so this only marks keys for extraction
-// (interpolating `{{name}}` like i18next); swap for a real `i18n.t` when quillo gets translations.
+// Only marks keys for extraction (interpolating `{{name}}` like i18next); the i18next instance
+// (`./i18n.js`) so far translates the React doc bar only. Swap for `i18n.t` once these keys get hu entries.
 const t = (key: string, o?: Record<string, string>): string =>
 	key.replace(/\{\{(\w+)\}\}/g, (_, n) => o?.[n] ?? '')
 
@@ -42,7 +42,17 @@ import 'quill/dist/quill.snow.css'
 
 //import 'quill/dist/quill.bubble.css'
 
-import { docRef, type EmbedViewReportPayload, getAppBus, idAccent, parseNav } from '@cloudillo/core'
+import {
+	docBaseName,
+	docRef,
+	downloadBlob,
+	type EmbedViewReportPayload,
+	getAppBus,
+	getFileUrl,
+	idAccent,
+	parseNav,
+	sanitizeFilename
+} from '@cloudillo/core'
 import { initPresence, openYDoc } from '@cloudillo/crdt'
 import {
 	FONTS,
@@ -61,6 +71,9 @@ import {
 	registerBlockIdPasteMatcher
 } from './block-ids.js'
 import { mountDocBar } from './docbar.js'
+import type { DocxImage } from './export/docx.js'
+import { exportHtml } from './export/html.js'
+import i18n from './i18n.js'
 import { importMarkdown } from './import-markdown.js'
 import { registerTablePasteNormalizer } from './normalize-table-paste.js'
 import {
@@ -404,6 +417,7 @@ function updatePairingBadges(
 
 	const bus = getAppBus()
 	const state = await bus.init('quillo')
+	if (state.language) i18n.changeLanguage(state.language)
 	// Pick-view (the shell's view picker) is the normal scrolling read-only editor, so it
 	// does not get the reflow-embed layout
 	const pickView = bus.pickView
@@ -437,6 +451,33 @@ function updatePairingBadges(
 	// because `bus.onThemeChange` keeps it current for the life of the document.
 	let caretsDark = bus.darkMode
 
+	/** Fetch a `cl-image` and re-encode it as PNG, the one format `docx` takes from any source. */
+	async function loadDocxImage(img: {
+		fileId: string
+		width?: string
+	}): Promise<DocxImage | null> {
+		const url = getFileUrl(
+			ownerTag,
+			img.fileId,
+			'vis.sd',
+			ClImageBlot.token ? { token: ClImageBlot.token } : undefined
+		)
+		if (!url) return null
+		try {
+			const res = await fetch(url)
+			if (!res.ok) return null
+			const bmp = await createImageBitmap(await res.blob())
+			const canvas = new OffscreenCanvas(bmp.width, bmp.height)
+			canvas.getContext('2d')?.drawImage(bmp, 0, 0)
+			const data = await (await canvas.convertToBlob({ type: 'image/png' })).arrayBuffer()
+			// Page text width is ~600px; the editor's own width wins when set
+			const width = Math.min(Number.parseInt(img.width ?? '', 10) || bmp.width, 600)
+			return { data, width, height: Math.round((bmp.height * width) / bmp.width) }
+		} catch {
+			return null // a missing image must not abort the export
+		}
+	}
+
 	// Quillo's one React island. `AppDocBar` renders null in an embed anyway;
 	// this second guard keeps the React root from being created at all there.
 	if (!bus.embedded) {
@@ -459,6 +500,15 @@ function updatePairingBadges(
 					getSectionLink: () => {
 						const bid = currentSectionBid(editor)
 						return bid ? docRef('quillo', docId, `sec:${bid}`) : null
+					},
+					onExportHtml: () => exportHtml(editor.getSemanticHTML()),
+					onExportPdf: () => window.print(),
+					// Failures are toasted by the DocBar
+					onExportDocx: async () => {
+						// Loaded on demand: `docx` is large and only this action needs it
+						const { exportDocx } = await import('./export/docx.js')
+						const blob = await exportDocx(editor.getContents().ops, loadDocxImage)
+						downloadBlob(blob, `${sanitizeFilename(docBaseName() || 'document')}.docx`)
 					}
 				}
 			})

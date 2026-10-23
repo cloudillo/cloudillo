@@ -14,7 +14,7 @@
  * be in scope — hence the namespace import below.
  */
 
-import { getAppBus } from '@cloudillo/core'
+import { errorMessage, getAppBus } from '@cloudillo/core'
 import {
 	AppDocBar,
 	DocBarMenu,
@@ -25,7 +25,7 @@ import {
 	useLibTranslation,
 	useToast
 } from '@cloudillo/react/doc-bar'
-import { IcCopyLink, IcImport, IcSettings } from '@cloudillo/react/icons'
+import { IcCopyLink, IcDownload, IcImport, IcSettings } from '@cloudillo/react/icons'
 import * as React from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import type { Awareness } from 'y-protocols/awareness'
@@ -37,6 +37,10 @@ export interface DocBarActions {
 	onOpenSettings?: () => void
 	/** Embed link of the section at the cursor; null when there is none. Shown to readers too. */
 	getSectionLink?: () => string | null
+	/** Download the document as HTML / print it (PDF) / download as DOCX. Shown to readers too. */
+	onExportHtml?: () => void
+	onExportPdf?: () => void
+	onExportDocx?: () => Promise<void>
 }
 
 export interface MountDocBarOptions {
@@ -71,6 +75,11 @@ function QuilloDocBar({ awareness, actions }: MountDocBarOptions) {
 	const copyEmbedLink = useCopyEmbedLink()
 
 	const getSectionLink = actions?.getSectionLink
+	const exports = [
+		{ label: t('Export as HTML'), onClick: actions?.onExportHtml },
+		{ label: t('Export as PDF'), onClick: actions?.onExportPdf },
+		{ label: t('Export as DOCX'), onClick: actions?.onExportDocx }
+	].filter((e) => e.onClick)
 	function copySectionLink() {
 		const link = getSectionLink?.()
 		if (link) copyEmbedLink(link)
@@ -80,7 +89,7 @@ function QuilloDocBar({ awareness, actions }: MountDocBarOptions) {
 	return (
 		<React.Fragment>
 			<AppDocBar awareness={awareness}>
-				{(hasActions || getSectionLink) && (
+				{(hasActions || getSectionLink || exports.length > 0) && (
 					<DocBarMenu>
 						{getSectionLink && (
 							<MenuItem
@@ -89,7 +98,27 @@ function QuilloDocBar({ awareness, actions }: MountDocBarOptions) {
 								onClick={copySectionLink}
 							/>
 						)}
-						{getSectionLink && hasActions && <MenuDivider />}
+						{getSectionLink && (exports.length > 0 || hasActions) && <MenuDivider />}
+						{exports.map((e) => (
+							<MenuItem
+								key={e.label}
+								icon={<IcDownload />}
+								label={e.label}
+								onClick={() =>
+									Promise.resolve()
+										.then(() => e.onClick?.())
+										.catch((err) => {
+											console.error('[quillo] export failed:', err)
+											toast.error(
+												t('Export failed: {{error}}', {
+													error: errorMessage(err)
+												})
+											)
+										})
+								}
+							/>
+						))}
+						{exports.length > 0 && hasActions && <MenuDivider />}
 						{hasActions && actions?.onImportMarkdown && (
 							<MenuItem
 								icon={<IcImport />}

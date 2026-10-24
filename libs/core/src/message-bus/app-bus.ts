@@ -544,6 +544,8 @@ export class AppMessageBus extends MessageBusBase {
 	private docInfoCallbacks = new Set<(info: DocInfo) => void>()
 	private identityCallbacks = new Set<() => void>()
 	private themeCallbacks = new Set<(darkMode: boolean) => void>()
+	private tokenCallbacks = new Set<(token: string | undefined) => void>()
+	private lastNotifiedToken: string | undefined
 
 	constructor(config: Partial<MessageBusConfig> = {}) {
 		super({ ...config, contextName: config.contextName || 'AppBus' })
@@ -913,8 +915,8 @@ export class AppMessageBus extends MessageBusBase {
 	 * without the rounding.
 	 */
 	private syncApiToken(): void {
-		if (!this.state.idTag) return
-		setApiToken(this.state.idTag, this.state.accessToken)
+		if (this.state.idTag) setApiToken(this.state.idTag, this.state.accessToken)
+		this.emitTokenChange()
 	}
 
 	/**
@@ -1151,6 +1153,33 @@ export class AppMessageBus extends MessageBusBase {
 		this.themeCallbacks.add(cb)
 		return () => {
 			this.themeCallbacks.delete(cb)
+		}
+	}
+
+	/**
+	 * Subscribe to access-token rotations (React: `useCloudillo().token`). Silent when an identity
+	 * re-push carries the same token. The callback gets a raw bearer token: never log it or
+	 * forward it outside the app.
+	 *
+	 * @returns Unsubscribe function
+	 */
+	onTokenChange(cb: (token: string | undefined) => void): () => void {
+		this.tokenCallbacks.add(cb)
+		return () => {
+			this.tokenCallbacks.delete(cb)
+		}
+	}
+
+	private emitTokenChange(): void {
+		const token = this.state.accessToken
+		if (token === this.lastNotifiedToken) return
+		this.lastNotifiedToken = token
+		for (const cb of this.tokenCallbacks) {
+			try {
+				cb(token)
+			} catch (err) {
+				this.logWarn('Token callback failed:', (err as Error).message)
+			}
 		}
 	}
 

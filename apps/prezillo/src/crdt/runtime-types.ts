@@ -348,7 +348,6 @@ export interface ViewNode {
 		duration?: number
 		direction?: 'left' | 'right' | 'up' | 'down'
 	}
-	notes?: string
 	hidden?: boolean
 	duration?: number
 	// Template support

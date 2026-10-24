@@ -14,6 +14,7 @@ import {
 	getAbsolutePositionStored,
 	getObjectIdsInView,
 	getObjectsInViewInZOrder,
+	getViewOrigin,
 	resolveObject
 } from '../crdt'
 
@@ -30,7 +31,7 @@ function resolveGlobalPosition(
 	if (stored.vi) {
 		// For template instances without local xy, use resolved obj coordinates + view offset
 		if (!stored.xy) {
-			const view = doc.v.get(stored.vi)
+			const view = getViewOrigin(doc, stored.vi)
 			if (view) {
 				return { ...obj, x: obj.x + view.x, y: obj.y + view.y }
 			}
@@ -52,6 +53,7 @@ function resolveGlobalPosition(
 export function useViewObjects(doc: YPrezilloDocument, viewId: ViewId | null): PrezilloObject[] {
 	const objects = useY(doc.o)
 	const views = useY(doc.v) // Subscribe to view changes (affects page-relative objects)
+	const viewOrder = useY(doc.vo) // Page origins follow vo order
 	const containers = useY(doc.c)
 	const rootChildren = useY(doc.r)
 	const containerChildren = useY(doc.ch)
@@ -67,7 +69,7 @@ export function useViewObjects(doc: YPrezilloDocument, viewId: ViewId | null): P
 			if (!stored) return obj
 			return resolveGlobalPosition(doc, obj, stored)
 		})
-	}, [doc, objects, views, containers, rootChildren, containerChildren, viewId])
+	}, [doc, objects, views, viewOrder, containers, rootChildren, containerChildren, viewId])
 }
 
 /**
@@ -94,6 +96,7 @@ export function useVisibleViewObjects(
 ): PrezilloObject[] {
 	const objects = useY(doc.o)
 	const views = useY(doc.v)
+	const viewOrder = useY(doc.vo)
 	const containers = useY(doc.c)
 	const rootChildren = useY(doc.r)
 	const containerChildren = useY(doc.ch)
@@ -113,8 +116,10 @@ export function useVisibleViewObjects(
 		const allObjects: PrezilloObject[] = []
 		const seenIds = new Set<string>()
 
-		// Get objects from all visible views in z-order
-		for (const viewId of visibleViewIds) {
+		// Get objects from all visible views in z-order. Slides never overlap, so the paint order
+		// between them is free: iterating by id keeps a slide reorder from moving DOM nodes, which
+		// would re-insert (and so reload) embed iframes
+		for (const viewId of [...visibleViewIds].sort()) {
 			const objectsInView = getObjectsInViewInZOrder(doc, viewId)
 
 			// Compute global positions for rendering using centralized helper
@@ -151,6 +156,7 @@ export function useVisibleViewObjects(
 		doc,
 		objects,
 		views,
+		viewOrder,
 		containers,
 		rootChildren,
 		containerChildren,

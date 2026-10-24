@@ -263,19 +263,16 @@ export function detachInstance(yDoc: Y.Doc, doc: YPrezilloDocument, objectId: Ob
 	yDoc.transact(() => {
 		const obj = doc.o.get(objectId)
 		if (!obj) return
-
-		if (protoStored) {
-			// Merge prototype values into instance (prototype as base, instance overrides)
-			const merged = { ...protoStored, ...obj } as StoredObject
-			delete merged.proto
-			doc.o.set(objectId, merged)
-		} else {
-			// Prototype not found - just remove the reference
-			const updated = { ...obj }
-			delete updated.proto
-			doc.o.set(objectId, updated as StoredObject)
-		}
+		doc.o.set(objectId, detachedObject(obj, protoStored))
 	}, yDoc.clientID)
+}
+
+/** An instance as a plain object: prototype fields as base, instance overrides, its own parent kept */
+export function detachedObject(obj: StoredObject, proto: StoredObject | undefined): StoredObject {
+	const merged = { ...proto, ...obj } as StoredObject
+	delete merged.proto
+	if (obj.p === undefined) delete merged.p
+	return merged
 }
 
 // ============================================================================

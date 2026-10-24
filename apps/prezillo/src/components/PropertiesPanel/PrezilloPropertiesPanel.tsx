@@ -5,7 +5,7 @@ import { PropertyPanel, Tab, Tabs } from '@cloudillo/react'
 import type Quill from 'quill'
 import * as React from 'react'
 
-import type { ContainerId, ObjectId } from '../../crdt'
+import type { ContainerId, ObjectId, TemplateId } from '../../crdt'
 import type { UsePrezilloDocumentResult } from '../../hooks/usePrezilloDocument'
 import { TemplatePanel } from '../'
 import { LayerBrowser } from './LayerBrowser'
@@ -29,6 +29,8 @@ export interface PrezilloPropertiesPanelProps {
 	quillRef?: React.MutableRefObject<Quill | null>
 	/** ID of the text object currently being edited */
 	editingTextId?: ObjectId | null
+	/** Template list selection (explicit navigation); defaults to `prezillo.selectTemplate` */
+	onSelectTemplate?: (id: TemplateId | null) => void
 }
 
 export function PrezilloPropertiesPanel({
@@ -37,7 +39,8 @@ export function PrezilloPropertiesPanel({
 	selectedContainerId,
 	onSelectContainer,
 	quillRef,
-	editingTextId
+	editingTextId,
+	onSelectTemplate = prezillo.selectTemplate
 }: PrezilloPropertiesPanelProps) {
 	const {
 		doc,
@@ -47,8 +50,7 @@ export function PrezilloPropertiesPanel({
 		activeViewId,
 		isViewFocused,
 		isTemplateFocused,
-		selectedTemplateId,
-		selectTemplate: onSelectTemplate
+		selectedTemplateId
 	} = prezillo
 	const [activeTab, setActiveTab] = React.useState<'properties' | 'layers' | 'templates'>(
 		'properties'
@@ -71,6 +73,7 @@ export function PrezilloPropertiesPanel({
 						yDoc={yDoc}
 						selectedIds={selectedIds}
 						activeViewId={activeViewId ?? undefined}
+						synced={prezillo.cloudillo.synced}
 						isViewFocused={isViewFocused}
 						selectedTemplateId={selectedTemplateId}
 						isTemplateFocused={isTemplateFocused}

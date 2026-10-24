@@ -25,6 +25,7 @@
  * - ti = textStyleId (reference to global text style)
  * - ch = children
  * - tpl = templateId (view's template reference)
+ * - vn = view notes (speaker notes, Y.Text keyed by view id)
  */
 
 import type * as Y from 'yjs'
@@ -378,8 +379,7 @@ export interface StoredPalette {
 // View (page/slide)
 export interface StoredView {
 	name: string
-	x: number
-	y: number
+	// No x/y: canvas position is derived from `vo` order (getViewPositions); old docs may still carry them
 	width: number
 	height: number
 	backgroundColor?: string
@@ -392,12 +392,16 @@ export interface StoredView {
 		duration?: number
 		direction?: 'left' | 'right' | 'up' | 'down'
 	}
+	/** @deprecated Speaker notes live in `YPrezilloDocument.vn`; read only by the migration and the PPTX fallback. */
 	notes?: string
 	hidden?: boolean
 	duration?: number
 	// Template support - background fields override template when present
 	tpl?: string // templateId reference
 }
+
+/** A view of a document not yet migrated off the free-form layout (see migrateLegacyViewLayout) */
+export type LegacyStoredView = StoredView & { x?: number; y?: number }
 
 // Document meta
 export interface StoredMeta {
@@ -448,6 +452,7 @@ export interface YPrezilloDocument {
 	vo: Y.Array<string> // viewOrder (ViewId strings)
 	m: Y.Map<unknown> // meta
 	rt: Y.Map<Y.Text> // richTexts (for textbox content)
+	vn: Y.Map<Y.Text> // view notes (speaker notes, keyed by ViewId)
 	st: Y.Map<StoredStyle> // styles (global definitions)
 	pl: Y.Map<StoredPalette> // palette (single entry keyed by 'default')
 	// Container children are stored separately

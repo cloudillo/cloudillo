@@ -11,7 +11,8 @@ import { boundsIntersectsView } from 'react-svg-canvas'
 import type { ObjectId, ViewId } from './ids'
 import { getResolvedWh, getResolvedXy } from './prototype-ops'
 import type { Bounds, Point } from './runtime-types'
-import type { StoredObject, StoredView, YPrezilloDocument } from './stored-types'
+import type { StoredObject, YPrezilloDocument } from './stored-types'
+import { getViewOrigin, getViewPositions } from './view-layout'
 
 // Re-export generic geometry utilities from react-svg-canvas
 export {
@@ -66,7 +67,7 @@ export function getAbsolutePositionStored(
 
 	// If object is page-relative, add view origin first
 	if (object.vi) {
-		const view = doc.v.get(object.vi)
+		const view = getViewOrigin(doc, object.vi)
 		if (view) {
 			x += view.x
 			y += view.y
@@ -107,14 +108,14 @@ export function findViewAtPoint(
 	canvasX: number,
 	canvasY: number
 ): ViewId | null {
-	for (const viewId of doc.vo.toArray()) {
+	for (const [viewId, { x, y }] of getViewPositions(doc)) {
 		const view = doc.v.get(viewId)
 		if (!view) continue
 		if (
-			canvasX >= view.x &&
-			canvasX <= view.x + view.width &&
-			canvasY >= view.y &&
-			canvasY <= view.y + view.height
+			canvasX >= x &&
+			canvasX <= x + view.width &&
+			canvasY >= y &&
+			canvasY <= y + view.height
 		) {
 			return viewId as ViewId
 		}
@@ -170,7 +171,7 @@ export function getAbsoluteBoundsStored(
 export function objectIntersectsView(
 	doc: YPrezilloDocument,
 	object: StoredObject,
-	view: StoredView
+	view: Bounds
 ): boolean {
 	const bounds = getAbsoluteBoundsStored(doc, object)
 	if (!bounds) return false

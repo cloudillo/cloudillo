@@ -44,6 +44,7 @@ import {
 	compactTextStyle,
 	expandObject
 } from './type-converters'
+import { getViewOrigin } from './view-layout'
 
 /**
  * Add a new object to the document.
@@ -726,7 +727,7 @@ export function updateObjectPageAssociation(
 
 			if (newPageId) {
 				// Converting to page-relative: subtract view origin
-				const newPage = doc.v.get(newPageId)
+				const newPage = getViewOrigin(doc, newPageId)
 				if (newPage) {
 					newX = globalPos.x - newPage.x
 					newY = globalPos.y - newPage.y
@@ -1228,7 +1229,7 @@ export function duplicateObject(
 
 // Helper functions
 
-function removeChildRef(array: Y.Array<ChildRef>, ref: ChildRef): void {
+export function removeChildRef(array: Y.Array<ChildRef>, ref: ChildRef): void {
 	const idx = findChildRefIndex(array, ref)
 	if (idx >= 0) {
 		array.delete(idx, 1)

@@ -42,6 +42,7 @@ export function useCanvasViewport({
 }: UseCanvasViewportOptions): UseCanvasViewportResult {
 	// Force zoom on the very first activeViewId (e.g. navState restore)
 	const firstViewRef = React.useRef(true)
+	const lastOriginRef = React.useRef<{ id: string | null; x: number; y: number }>(undefined)
 
 	// Track canvas readiness so centering effect can re-trigger when canvas becomes available
 	const [canvasReady, setCanvasReady] = React.useState(false)
@@ -106,11 +107,58 @@ export function useCanvasViewport({
 
 	const embedded = getAppBus().embedded
 
+	// Animate only nearby targets; a long pan just blurs past every slide in between.
+	// "Far" is measured in units of the target's size, from the current viewport centre.
+	const centerOn = (r: Bounds, instant = false) => {
+		const canvas = canvasRef.current
+		if (!canvas) return
+		const ctx = canvasContextRef.current
+		const box = canvasContainerRef.current?.getBoundingClientRect()
+		let far = instant || !ctx || !box
+		if (ctx && box && !far) {
+			const [cx, cy] = ctx.translateTo(box.width / 2, box.height / 2)
+			const dx = (cx - (r.x + r.width / 2)) / r.width
+			const dy = (cy - (r.y + r.height / 2)) / r.height
+			far = Math.hypot(dx, dy) > 2.5
+		}
+		if (far) canvas.centerOnRect(r.x, r.y, r.width, r.height)
+		else
+			canvas.centerOnRectAnimated(r.x, r.y, r.width, r.height, {
+				duration: 350,
+				zoomOutFactor: 0.15
+			})
+	}
+
 	// Center on active view when it changes (smart zoom - only if page is off-screen or explicit navigation)
 	const activeView = prezillo.activeViewId ? getView(prezillo.doc, prezillo.activeViewId) : null
 	const hasActiveView = !!activeView
+	const fitKey = activeView
+		? `${activeView.x},${activeView.y},${activeView.width},${activeView.height}`
+		: ''
 	React.useEffect(() => {
 		if (embedded || !canvasReady || !activeView || !canvasRef.current) return
+
+		const last = lastOriginRef.current
+		lastOriginRef.current = { id: prezillo.activeViewId, x: activeView.x, y: activeView.y }
+
+		// The active slide shifted (a slide above it resized or moved, e.g. by a collaborator):
+		// pan by the shift so it stays put on screen. A local reorder forces a zoom instead.
+		if (
+			!forceZoomRef.current &&
+			last?.id === prezillo.activeViewId &&
+			(last.x !== activeView.x || last.y !== activeView.y)
+		) {
+			const m = canvasRef.current.getMatrix()
+			canvasRef.current.setMatrix([
+				m[0],
+				m[1],
+				m[2],
+				m[3],
+				m[4] - (activeView.x - last.x) * m[0],
+				m[5] - (activeView.y - last.y) * m[3]
+			])
+			return
+		}
 
 		const isInView = canvasRef.current.isRectInView(
 			activeView.x,
@@ -120,20 +168,13 @@ export function useCanvasViewport({
 		)
 
 		// Zoom if: first view set (e.g. navState restore), explicit navigation, or page off-screen
-		const shouldZoom = firstViewRef.current || forceZoomRef.current || !isInView
+		const isFirst = firstViewRef.current
+		const shouldZoom = isFirst || forceZoomRef.current || !isInView
 		firstViewRef.current = false
 		forceZoomRef.current = false
 
-		if (shouldZoom) {
-			canvasRef.current.centerOnRectAnimated(
-				activeView.x,
-				activeView.y,
-				activeView.width,
-				activeView.height,
-				{ duration: 350, zoomOutFactor: 0.15 }
-			)
-		}
-	}, [prezillo.activeViewId, canvasReady, hasActiveView])
+		if (shouldZoom) centerOn(activeView, isFirst)
+	}, [prezillo.activeViewId, canvasReady, hasActiveView, fitKey])
 
 	// Embedded: fit the active view exactly to the iframe (the host sizes the frame to
 	// natural × scale, so this is zoom = layout.scale). Re-fit on layout and on resize.
@@ -145,9 +186,6 @@ export function useCanvasViewport({
 		window.addEventListener('resize', handleResize)
 		return () => window.removeEventListener('resize', handleResize)
 	}, [embedded])
-	const fitKey = activeView
-		? `${activeView.x},${activeView.y},${activeView.width},${activeView.height}`
-		: ''
 	React.useEffect(() => {
 		const container = canvasContainerRef.current
 		if (!embedded || !canvasReady || !activeView || !canvasRef.current || !container) return
@@ -164,7 +202,7 @@ export function useCanvasViewport({
 		])
 	}, [embedded, canvasReady, fitKey, embedLayout, resizeTick])
 
-	// Center on selected template (template frames above views)
+	// Center on selected template (template frames right of the views)
 	React.useEffect(() => {
 		if (!prezillo.selectedTemplateId || !canvasRef.current) return
 
@@ -182,15 +220,7 @@ export function useCanvasViewport({
 		const shouldZoom = forceZoomTemplateRef.current || !isInView
 		forceZoomTemplateRef.current = false
 
-		if (shouldZoom) {
-			canvasRef.current.centerOnRectAnimated(
-				layout.x,
-				layout.y,
-				layout.width,
-				layout.height,
-				{ duration: 350, zoomOutFactor: 0.15 }
-			)
-		}
+		if (shouldZoom) centerOn(layout)
 	}, [prezillo.selectedTemplateId, templateLayouts])
 
 	return {

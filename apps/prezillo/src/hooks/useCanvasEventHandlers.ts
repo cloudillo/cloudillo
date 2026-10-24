@@ -31,6 +31,10 @@ export interface UseCanvasEventHandlersOptions {
 	setActiveDocumentId?: (id: ObjectId | null) => void
 	justFinishedInteractionRef: React.MutableRefObject<boolean>
 	objectMenuRef: React.RefObject<HTMLDivElement | null>
+	/** PageUp on the focused canvas */
+	onPrevView?: () => void
+	/** PageDown on the focused canvas */
+	onNextView?: () => void
 }
 
 export interface UseCanvasEventHandlersResult {
@@ -54,7 +58,9 @@ export function useCanvasEventHandlers({
 	setEditingTextId,
 	setActiveDocumentId,
 	justFinishedInteractionRef,
-	objectMenuRef
+	objectMenuRef,
+	onPrevView,
+	onNextView
 }: UseCanvasEventHandlersOptions): UseCanvasEventHandlersResult {
 	// Context menu state for object actions (Duplicate/Delete)
 	const [objectMenu, setObjectMenu] = React.useState<{ x: number; y: number } | null>(null)
@@ -270,6 +276,14 @@ export function useCanvasEventHandlers({
 					prezillo.setActiveTool(null)
 					setEditingTextId(null)
 					setActiveDocumentId?.(null)
+					break
+				case 'PageUp':
+					onPrevView?.()
+					evt.preventDefault()
+					break
+				case 'PageDown':
+					onNextView?.()
+					evt.preventDefault()
 					break
 			}
 		} else if (!evt.altKey && !evt.shiftKey && (evt.ctrlKey || evt.metaKey)) {

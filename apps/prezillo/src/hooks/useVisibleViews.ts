@@ -9,14 +9,18 @@
 import * as React from 'react'
 import { useY } from 'react-yjs'
 
-import type { Bounds, ViewNode, YPrezilloDocument } from '../crdt'
+import type { Bounds, ViewId, ViewNode, YPrezilloDocument } from '../crdt'
 import { boundsIntersect, getAllViews } from '../crdt'
 
 /**
- * Get all views that intersect with the given viewport bounds.
+ * Get all views that intersect with the given viewport bounds, plus the pinned view.
  * Returns views in presentation order.
  */
-export function useVisibleViews(doc: YPrezilloDocument, viewportBounds: Bounds | null): ViewNode[] {
+export function useVisibleViews(
+	doc: YPrezilloDocument,
+	viewportBounds: Bounds | null,
+	pinnedViewId?: ViewId | null
+): ViewNode[] {
 	const views = useY(doc.v)
 	const viewOrder = useY(doc.vo)
 
@@ -25,14 +29,17 @@ export function useVisibleViews(doc: YPrezilloDocument, viewportBounds: Bounds |
 
 		const allViews = getAllViews(doc)
 
-		// Filter to only views that intersect the viewport
-		return allViews.filter((view) =>
-			boundsIntersect(
-				{ x: view.x, y: view.y, width: view.width, height: view.height },
-				viewportBounds
-			)
+		// The pinned (active) slide stays mounted while the camera catches up with a reorder:
+		// bounds update an effect later, and unmounting would reload its embeds
+		return allViews.filter(
+			(view) =>
+				view.id === pinnedViewId ||
+				boundsIntersect(
+					{ x: view.x, y: view.y, width: view.width, height: view.height },
+					viewportBounds
+				)
 		)
-	}, [doc, views, viewOrder, viewportBounds])
+	}, [doc, views, viewOrder, viewportBounds, pinnedViewId])
 }
 
 // vim: ts=4

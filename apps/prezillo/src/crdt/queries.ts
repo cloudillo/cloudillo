@@ -11,6 +11,7 @@ import { resolveObject } from './prototype-ops'
 import type { PrezilloObject } from './runtime-types'
 import type { ChildRef, YPrezilloDocument } from './stored-types'
 import { getAbsoluteBoundsStored, objectIntersectsView } from './transforms'
+import { getView } from './view-ops'
 
 /**
  * Get all prototype object IDs (objects that are templates for instances).
@@ -31,7 +32,7 @@ function getAllPrototypeIds(doc: YPrezilloDocument): Set<string> {
  * Uses the same combined logic as getObjectsInView.
  */
 export function getObjectIdsInView(doc: YPrezilloDocument, viewId: ViewId): ObjectId[] {
-	const view = doc.v.get(viewId)
+	const view = getView(doc, viewId)
 	if (!view) return []
 
 	const protoIds = getAllPrototypeIds(doc)
@@ -64,9 +65,9 @@ export function getObjectIdsInView(doc: YPrezilloDocument, viewId: ViewId): Obje
  * Uses the same combined logic as getObjectsInView.
  */
 export function getObjectsInViewInZOrder(doc: YPrezilloDocument, viewId: ViewId): PrezilloObject[] {
-	const storedView = doc.v.get(viewId)
-	if (!storedView) return []
-	const view = storedView // Non-null for use in closure
+	const foundView = getView(doc, viewId)
+	if (!foundView) return []
+	const view = foundView // Non-null for use in closure
 
 	const protoIds = getAllPrototypeIds(doc)
 	const result: PrezilloObject[] = []

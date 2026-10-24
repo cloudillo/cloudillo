@@ -7,31 +7,34 @@
 
 import { presenceColor } from '@cloudillo/core'
 import {
+	Button,
+	Dialog,
 	IcAdd,
-	IcCheck,
-	IcClose,
-	IcDelete,
 	IcDropdown,
-	IcDuplicate,
 	IcFullscreen,
 	IcLink,
 	IcNext,
 	IcPrev,
 	IcShare,
+	IcSidebar,
 	monogramFor,
 	useDarkMode,
+	useNearSet,
 	useOutsideClick
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
-import type { PresenterInfo } from '../awareness'
 import { getFollowerCount } from '../awareness'
-import type { TemplateId, ViewId, ViewNode } from '../crdt'
+import type { ViewId, ViewNode } from '../crdt'
 import type { UsePrezilloDocumentResult } from '../hooks/usePrezilloDocument'
 import type { TemplateWithUsage } from '../hooks/useTemplates'
-import { IcAudience, IcOwner, IcPlay, IcStop } from '../icons.js'
+import { IcAudience, IcOwner, IcPlay, IcStop } from '../icons'
 import { mergeClasses } from '../utils'
+import type { SlideMenuCmds } from './SlideMenu'
+import type { ViewOccupants } from './SlideThumbnail'
+import { SlideMenu, useSlideMenu } from './SlideMenu'
+import { SlideThumbnail } from './SlideThumbnail'
 
 /** View navigation commands */
 export interface ViewPickerCmds {
@@ -39,9 +42,6 @@ export interface ViewPickerCmds {
 	onAddView: () => void
 	onPrevView: () => void
 	onNextView: () => void
-	onReorderView?: (viewId: ViewId, newIndex: number) => void
-	onDuplicateView?: (viewId: ViewId) => void
-	onDeleteView?: (viewId: ViewId) => void
 }
 
 /** Presentation commands */
@@ -54,110 +54,99 @@ export interface ViewPickerPresentCmds {
 	onShareFollow?: () => void
 }
 
-export interface ViewPickerProps {
+export interface ViewPickerProps extends SlideMenuCmds {
 	prezillo: UsePrezilloDocumentResult
 	views: ViewNode[]
 	cmds: ViewPickerCmds
 	presentCmds: ViewPickerPresentCmds
 	readOnly?: boolean
-	/** Whether the device is mobile - shows compact counter instead of tabs */
+	/** Whether the device is mobile - the counter opens the slide picker popup */
 	isMobile?: boolean
-	/** Templates for template tabs */
+	/** Whether the slides rail is shown (desktop) */
+	railOpen?: boolean
+	/** Toggle the slides rail; absent = no toggle button */
+	onToggleRail?: () => void
+	/** DOM id of the slides rail (`aria-controls`) */
+	railId?: string
+	/** Some slide is not skipped (default: any slide) */
+	canPresent?: boolean
+	/** Template markers in the mobile slide picker */
 	templates?: TemplateWithUsage[]
-	/** Callback when a template tab is clicked */
-	onTemplateSelect?: (id: TemplateId) => void
+	/** Collaborators per slide, for the mobile slide picker */
+	viewOccupants?: ReadonlyMap<ViewId, ViewOccupants>
 }
 
 /**
- * PagePickerPopup - Mobile slide picker overlay
+ * SlidePickerPopup - Mobile slide picker: a 2-column thumbnail grid
  */
-interface PagePickerPopupProps {
+interface SlidePickerPopupProps extends SlideMenuCmds {
+	prezillo: UsePrezilloDocumentResult
 	views: ViewNode[]
-	activeIndex: number
-	activePresenters: PresenterInfo[]
+	activeViewId: ViewId | null
+	templates: TemplateWithUsage[]
+	viewOccupants?: ReadonlyMap<ViewId, ViewOccupants>
+	readOnly?: boolean
 	onSelect: (id: ViewId) => void
 	onClose: () => void
 }
 
-function PagePickerPopup({
+function SlidePickerPopup({
+	prezillo,
 	views,
-	activeIndex,
-	activePresenters,
+	activeViewId,
+	templates,
+	viewOccupants,
+	readOnly,
 	onSelect,
-	onClose
-}: PagePickerPopupProps) {
-	// Its own subscription: `PagePickerPopup` is a separate component from
-	// `ViewPicker`, and the dots below are coloured in JS.
-	const dark = useDarkMode()
-	const containerRef = React.useRef<HTMLDivElement>(null)
-
-	// Close on outside click
-	useOutsideClick(containerRef, onClose)
-
-	// Get presenter badges for a slide
-	const getPresenterBadges = (viewId: ViewId): PresenterInfo[] => {
-		return activePresenters.filter((p) => p.viewId === viewId)
-	}
+	onClose,
+	...menuCmds
+}: SlidePickerPopupProps) {
+	const { t } = useTranslation()
+	const gridRef = React.useRef<HTMLElement>(null)
+	const slideMenu = useSlideMenu(gridRef, readOnly)
+	const near = useNearSet(gridRef, '.c-slide-thumb[data-view-id]', 'viewId', [views])
 
 	return (
-		<>
-			<div className="c-page-picker-backdrop" onClick={onClose} />
-			<div ref={containerRef} className="c-page-picker-popup">
-				<div className="c-page-picker-header">
-					<span className="c-page-picker-title">Go to page</span>
-					<button className="c-button icon" onClick={onClose}>
-						<IcClose />
-					</button>
-				</div>
-				<div className="c-page-picker-list">
-					{views.map((view, index) => {
-						const presenters = getPresenterBadges(view.id)
-						const isActive = index === activeIndex
-
-						return (
-							<button
-								key={view.id}
-								className={mergeClasses('c-page-picker-item', isActive && 'active')}
-								onClick={() => onSelect(view.id)}
-							>
-								<span className="c-page-picker-item__number">{index + 1}</span>
-								{presenters.length > 0 && (
-									<span className="c-page-picker-item__presenters">
-										{presenters.map((p) => (
-											<span
-												key={p.clientId}
-												className="c-page-picker-item__presenter-dot"
-												style={{
-													backgroundColor: presenceColor(
-														p.user.idTag,
-														p.clientId,
-														dark
-													)
-												}}
-												title={p.user.name}
-											/>
-										))}
-									</span>
-								)}
-								{isActive && <IcCheck className="c-page-picker-item__check" />}
-							</button>
-						)
-					})}
-				</div>
-			</div>
-		</>
+		<Dialog open title={t('Go to slide')} onClose={onClose}>
+			<nav ref={gridRef} className="c-slide-picker-grid" aria-label={t('Slides')}>
+				{views.map((view, index) => (
+					<SlideThumbnail
+						key={view.id}
+						view={view}
+						index={index}
+						doc={prezillo.doc}
+						templates={templates}
+						active={view.id === activeViewId}
+						near={near.has(view.id)}
+						ownerTag={prezillo.cloudillo.ownerTag}
+						token={prezillo.cloudillo.token}
+						onSelect={onSelect}
+						onKeyDown={readOnly ? undefined : (e) => slideMenu.onMenuKey(e, view.id)}
+						onContextMenu={
+							readOnly
+								? undefined
+								: (e) => {
+										// Anchored, not at the pointer: a pointer-placed menu
+										// portals outside the modal, where it is inert
+										e.preventDefault()
+										slideMenu.open(view.id, e.currentTarget)
+									}
+						}
+						onMore={readOnly ? undefined : (anchor) => slideMenu.open(view.id, anchor)}
+						occupants={viewOccupants?.get(view.id)}
+					/>
+				))}
+			</nav>
+			{slideMenu.menu && (
+				<SlideMenu
+					menu={slideMenu.menu}
+					views={views}
+					onClose={slideMenu.close}
+					{...menuCmds}
+				/>
+			)}
+		</Dialog>
 	)
-}
-
-// Drag state types
-interface ViewDragData {
-	viewId: ViewId
-	originalIndex: number
-}
-
-interface ViewDropTarget {
-	viewId: ViewId
-	position: 'before' | 'after'
 }
 
 export function ViewPicker({
@@ -167,40 +156,25 @@ export function ViewPicker({
 	presentCmds,
 	readOnly,
 	isMobile = false,
+	railOpen = false,
+	onToggleRail,
+	railId,
+	canPresent = views.length > 0,
 	templates = [],
-	onTemplateSelect
+	viewOccupants,
+	...menuCmds
 }: ViewPickerProps) {
-	const {
-		activeViewId,
-		isPresenting,
-		activePresenters,
-		followingClientId,
-		selectedTemplateId,
-		awareness
-	} = prezillo
-	const {
-		onViewSelect,
-		onAddView,
-		onPrevView,
-		onNextView,
-		onReorderView,
-		onDuplicateView,
-		onDeleteView
-	} = cmds
+	const { activeViewId, isPresenting, activePresenters, followingClientId, awareness } = prezillo
+	const { onViewSelect, onAddView, onPrevView, onNextView } = cmds
 	const { onPresent, onStopPresenting, onFollow, onUnfollow, onSharePresent, onShareFollow } =
 		presentCmds
 	const { t } = useTranslation()
 	const dark = useDarkMode()
 	const activeIndex = views.findIndex((v) => v.id === activeViewId)
+	const counter = views.length > 0 ? `${activeIndex + 1} / ${views.length}` : '0 / 0'
 
-	// Mobile page picker popup state
-	const [showPagePicker, setShowPagePicker] = React.useState(false)
-
-	// View context menu state
-	const [viewMenu, setViewMenu] = React.useState<{ x: number; y: number; viewId: ViewId } | null>(
-		null
-	)
-	const viewMenuRef = React.useRef<HTMLDivElement>(null)
+	// Mobile slide picker popup state
+	const [showSlidePicker, setShowSlidePicker] = React.useState(false)
 
 	// Presenter dropdown state
 	const [showPresenterDropdown, setShowPresenterDropdown] = React.useState(false)
@@ -208,48 +182,6 @@ export function ViewPicker({
 
 	// Close presenter dropdown on outside click
 	useOutsideClick(presenterRef, () => setShowPresenterDropdown(false), showPresenterDropdown)
-
-	// Close view context menu on outside click or Escape key
-	React.useEffect(() => {
-		if (!viewMenu) return
-		const handlePointerDown = (e: PointerEvent) => {
-			// Don't close if clicking inside the menu
-			if (viewMenuRef.current?.contains(e.target as Node)) return
-			// Close menu and consume the click
-			e.stopPropagation()
-			e.preventDefault()
-			setViewMenu(null)
-		}
-		const handleContextMenu = (e: MouseEvent) => {
-			// Prevent new context menu from opening while closing this one
-			if (viewMenuRef.current?.contains(e.target as Node)) return
-			e.stopPropagation()
-			e.preventDefault()
-			setViewMenu(null)
-		}
-		const handleKeyDown = (e: KeyboardEvent) => {
-			if (e.key === 'Escape') setViewMenu(null)
-		}
-		// Use capture phase to catch events before they reach other elements
-		document.addEventListener('pointerdown', handlePointerDown, true)
-		document.addEventListener('contextmenu', handleContextMenu, true)
-		document.addEventListener('keydown', handleKeyDown)
-		return () => {
-			document.removeEventListener('pointerdown', handlePointerDown, true)
-			document.removeEventListener('contextmenu', handleContextMenu, true)
-			document.removeEventListener('keydown', handleKeyDown)
-		}
-	}, [viewMenu])
-
-	// Handle view context menu
-	const handleViewContextMenu = React.useCallback(
-		(e: React.MouseEvent, viewId: ViewId) => {
-			e.preventDefault()
-			if (readOnly) return
-			setViewMenu({ x: e.clientX, y: e.clientY, viewId })
-		},
-		[readOnly]
-	)
 
 	// Handle follow/unfollow
 	const handleFollowClick = React.useCallback(
@@ -264,101 +196,6 @@ export function ViewPicker({
 		[followingClientId, onFollow, onUnfollow]
 	)
 
-	// Get presenter badges for each slide
-	const getPresenterBadges = (viewId: ViewId): PresenterInfo[] => {
-		return activePresenters.filter((p) => p.viewId === viewId)
-	}
-
-	// Drag-and-drop state
-	const [draggedView, setDraggedView] = React.useState<ViewDragData | null>(null)
-	const [dropTarget, setDropTarget] = React.useState<ViewDropTarget | null>(null)
-
-	// Check if drag-drop is enabled
-	const isDragEnabled = !readOnly && !!onReorderView
-
-	// Cleanup helper
-	const clearDragState = React.useCallback(() => {
-		setDraggedView(null)
-		setDropTarget(null)
-	}, [])
-
-	// Drag start handler
-	const handleDragStart = React.useCallback(
-		(e: React.DragEvent, viewId: ViewId, index: number) => {
-			if (!isDragEnabled) return
-
-			e.dataTransfer.effectAllowed = 'move'
-			e.dataTransfer.setData('text/plain', viewId)
-			setDraggedView({ viewId, originalIndex: index })
-		},
-		[isDragEnabled]
-	)
-
-	// Drag over handler - calculate drop position
-	const handleDragOver = React.useCallback(
-		(e: React.DragEvent, targetViewId: ViewId) => {
-			e.preventDefault()
-			e.stopPropagation()
-
-			// Don't allow dropping on self
-			if (!draggedView || draggedView.viewId === targetViewId) {
-				setDropTarget(null)
-				return
-			}
-
-			// Calculate position based on mouse X within the target element
-			const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-			const x = e.clientX - rect.left
-			const position: 'before' | 'after' = x < rect.width * 0.5 ? 'before' : 'after'
-
-			e.dataTransfer.dropEffect = 'move'
-			setDropTarget({ viewId: targetViewId, position })
-		},
-		[draggedView]
-	)
-
-	// Drag leave handler
-	const handleDragLeave = React.useCallback((e: React.DragEvent) => {
-		// Only clear if leaving the tabs container entirely
-		const relatedTarget = e.relatedTarget as Element | null
-		if (!relatedTarget?.closest?.('.c-view-picker-tabs')) {
-			setDropTarget(null)
-		}
-	}, [])
-
-	// Drop handler - execute reorder
-	const handleDrop = React.useCallback(
-		(e: React.DragEvent, _targetViewId: ViewId, targetIndex: number) => {
-			e.preventDefault()
-			e.stopPropagation()
-
-			if (!draggedView || !dropTarget || !onReorderView) {
-				clearDragState()
-				return
-			}
-
-			// Calculate new index based on drop position
-			// Note: reorderView() handles the adjustment for removing the source item
-			let newIndex = targetIndex
-			if (dropTarget.position === 'after') {
-				newIndex = targetIndex + 1
-			}
-
-			// Only reorder if position actually changed
-			if (newIndex !== draggedView.originalIndex) {
-				onReorderView(draggedView.viewId, newIndex)
-			}
-
-			clearDragState()
-		},
-		[draggedView, dropTarget, onReorderView, clearDragState]
-	)
-
-	// Drag end handler - cleanup
-	const handleDragEnd = React.useCallback(() => {
-		clearDragState()
-	}, [clearDragState])
-
 	// Present dropdown state
 	const [showPresentDropdown, setShowPresentDropdown] = React.useState(false)
 	const presentDropdownRef = React.useRef<HTMLDivElement>(null)
@@ -366,22 +203,37 @@ export function ViewPicker({
 	// Close present dropdown on outside click
 	useOutsideClick(presentDropdownRef, () => setShowPresentDropdown(false), showPresentDropdown)
 
-	// Handle page picker selection
-	const handlePageSelect = React.useCallback(
+	// Handle slide picker selection
+	const handleSlideSelect = React.useCallback(
 		(id: ViewId) => {
 			onViewSelect(id)
-			setShowPagePicker(false)
+			setShowSlidePicker(false)
 		},
 		[onViewSelect]
 	)
 
 	return (
 		<div className="c-nav c-hbox p-1 gap-1">
+			{!isMobile && onToggleRail && (
+				<Button
+					variant="filled"
+					icon={<IcSidebar />}
+					active={railOpen}
+					immediate
+					onClick={onToggleRail}
+					title={railOpen ? t('Hide slides (Ctrl+Alt+1)') : t('Show slides (Ctrl+Alt+1)')}
+					aria-label={t('Slides')}
+					aria-expanded={railOpen}
+					aria-controls={railId}
+					aria-keyshortcuts="Control+Alt+1"
+				/>
+			)}
+
 			{isPresenting ? (
 				<button
 					onClick={onStopPresenting}
 					className="c-button icon me-2 presenting"
-					title="Stop presenting"
+					title={t('Stop presenting')}
 				>
 					<IcStop />
 				</button>
@@ -390,15 +242,18 @@ export function ViewPicker({
 					<button
 						onClick={() => onPresent(false)}
 						className="c-button icon c-present-split__main"
-						title="Present in window"
-						disabled={views.length === 0}
+						title={t('Present in window')}
+						disabled={!canPresent}
 					>
 						<IcPlay />
 					</button>
 					<button
 						onClick={() => setShowPresentDropdown(!showPresentDropdown)}
 						className="c-button icon c-present-split__caret"
-						disabled={views.length === 0}
+						title={t('Presentation options')}
+						aria-label={t('Presentation options')}
+						aria-expanded={showPresentDropdown}
+						disabled={!canPresent}
 					>
 						<IcDropdown />
 					</button>
@@ -464,107 +319,35 @@ export function ViewPicker({
 				onClick={onPrevView}
 				className="c-button icon"
 				disabled={activeIndex <= 0}
-				title="Previous page"
+				title={t('Previous slide')}
 			>
 				<IcPrev />
 			</button>
 
-			{/* Mobile: compact counter with tap-to-expand */}
+			{/* Mobile: the counter opens the slide picker; desktop: the rail navigates */}
 			{isMobile ? (
 				<button
-					className="c-button c-view-picker-counter flex-fill"
-					onClick={() => setShowPagePicker(true)}
-					title="Tap to select page"
+					className="c-button view-picker-counter flex-fill"
+					onClick={() => setShowSlidePicker(true)}
+					title={t('Tap to select slide')}
 				>
-					{views.length > 0 ? `${activeIndex + 1}/${views.length}` : '0/0'}
+					{counter}
 				</button>
 			) : (
-				/* Desktop: full tab list with drag-and-drop */
-				<div className="c-hbox gap-1 flex-fill c-view-picker-tabs">
-					{/* Template tabs */}
-					{templates.length > 0 && (
-						<>
-							{templates.map((template, index) => (
-								<button
-									key={template.id}
-									onClick={() => onTemplateSelect?.(template.id)}
-									className={mergeClasses(
-										'c-button c-view-picker-tab c-view-picker-tab--template',
-										selectedTemplateId === template.id && 'active'
-									)}
-									title={`Template: ${template.name}`}
-								>
-									T{index + 1}
-								</button>
-							))}
-							<div className="c-view-picker-separator" />
-						</>
-					)}
-
-					{/* Page tabs */}
-					{views.map((view, index) => {
-						const presenters = getPresenterBadges(view.id)
-
-						return (
-							<button
-								key={view.id}
-								onClick={() => onViewSelect(view.id)}
-								onContextMenu={(e) => handleViewContextMenu(e, view.id)}
-								className={mergeClasses(
-									'c-button c-view-picker-tab',
-									view.id === activeViewId && !selectedTemplateId && 'active',
-									draggedView?.viewId === view.id && 'dragging',
-									dropTarget?.viewId === view.id &&
-										dropTarget.position === 'before' &&
-										'drop-before',
-									dropTarget?.viewId === view.id &&
-										dropTarget.position === 'after' &&
-										'drop-after',
-									presenters.length > 0 && 'has-presenter'
-								)}
-								draggable={isDragEnabled}
-								onDragStart={(e) => handleDragStart(e, view.id, index)}
-								onDragOver={(e) => handleDragOver(e, view.id)}
-								onDragLeave={handleDragLeave}
-								onDrop={(e) => handleDrop(e, view.id, index)}
-								onDragEnd={handleDragEnd}
-							>
-								{index + 1}
-								{presenters.length > 0 && (
-									<span className="c-view-picker-tab__presenter-badge">
-										{presenters.map((p) => (
-											<span
-												key={p.clientId}
-												className="c-view-picker-tab__presenter-dot"
-												style={{
-													backgroundColor: presenceColor(
-														p.user.idTag,
-														p.clientId,
-														dark
-													)
-												}}
-												title={p.user.name}
-											/>
-										))}
-									</span>
-								)}
-							</button>
-						)
-					})}
-				</div>
+				<span className="view-picker-counter">{counter}</span>
 			)}
 
 			<button
 				onClick={onNextView}
 				className="c-button icon"
 				disabled={activeIndex >= views.length - 1}
-				title="Next page"
+				title={t('Next slide')}
 			>
 				<IcNext />
 			</button>
 
 			{!readOnly && (
-				<button onClick={onAddView} className="c-button icon" title="Add page">
+				<button onClick={onAddView} className="c-button icon" title={t('Add slide')}>
 					<IcAdd />
 				</button>
 			)}
@@ -663,44 +446,19 @@ export function ViewPicker({
 				</div>
 			)}
 
-			{/* Mobile page picker popup */}
-			{isMobile && showPagePicker && (
-				<PagePickerPopup
+			{/* Mobile slide picker popup */}
+			{isMobile && showSlidePicker && (
+				<SlidePickerPopup
+					prezillo={prezillo}
 					views={views}
-					activeIndex={activeIndex}
-					activePresenters={activePresenters}
-					onSelect={handlePageSelect}
-					onClose={() => setShowPagePicker(false)}
+					activeViewId={prezillo.selectedTemplateId ? null : activeViewId}
+					templates={templates}
+					viewOccupants={viewOccupants}
+					readOnly={readOnly}
+					onSelect={handleSlideSelect}
+					onClose={() => setShowSlidePicker(false)}
+					{...menuCmds}
 				/>
-			)}
-
-			{/* View context menu */}
-			{viewMenu && !readOnly && (
-				<div
-					ref={viewMenuRef}
-					className="c-context-menu"
-					style={{ position: 'fixed', left: viewMenu.x, top: viewMenu.y, zIndex: 1000 }}
-				>
-					<button
-						className="c-context-menu__item"
-						onClick={() => {
-							onDuplicateView?.(viewMenu.viewId)
-							setViewMenu(null)
-						}}
-					>
-						<IcDuplicate /> Duplicate
-					</button>
-					<button
-						className="c-context-menu__item danger"
-						onClick={() => {
-							onDeleteView?.(viewMenu.viewId)
-							setViewMenu(null)
-						}}
-						disabled={views.length <= 1}
-					>
-						<IcDelete /> Delete
-					</button>
-				</div>
 			)}
 		</div>
 	)

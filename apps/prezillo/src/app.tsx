@@ -47,6 +47,7 @@ import {
 	Toasts,
 	useCopyEmbedLink,
 	useDialog,
+	useDocPresence,
 	useDocumentEmbedHandlers,
 	useEmbedLayout,
 	useExportProgress,
@@ -63,6 +64,8 @@ import {
 	type PropertyPreview
 } from './components/PropertiesPanel'
 import { RemotePresenceOverlay } from './components/RemotePresenceOverlay'
+import { SlidesRail } from './components/SlidesRail'
+import { splitViewOccupants } from './components/SlideThumbnail'
 import { TemplateFrame } from './components/TemplateFrame'
 import { TemplateGuideRenderer } from './components/TemplateGuideRenderer'
 import { TemplateZoneEmptyState } from './components/TemplateZoneEmptyState'
@@ -183,6 +186,8 @@ export function PrezilloApp() {
 	})
 
 	const views = useViews(prezillo.doc)
+	// Slides not marked "skip in presentation": what presentation and PDF show
+	const presentedViews = React.useMemo(() => views.filter((v) => !v.hidden), [views])
 
 	// Active view objects (for snapping - within active page only)
 	const activeViewObjects = useViewObjects(prezillo.doc, prezillo.activeViewId)
@@ -270,13 +275,6 @@ export function PrezilloApp() {
 		if (autoStartedRef.current || !prezillo.cloudillo.synced) return
 
 		const mode = prezillo.cloudillo.parsedParams.get('mode')
-		console.log(
-			'[Prezillo] Auto-start check: mode=%s, params=%s, synced=%s',
-			mode,
-			prezillo.cloudillo.params,
-			prezillo.cloudillo.synced
-		)
-
 		if (mode === 'present') {
 			autoStartedRef.current = true
 			console.log('[Prezillo] Auto-starting presentation mode')
@@ -380,6 +378,36 @@ export function PrezilloApp() {
 	// Properties panel visibility (desktop)
 	const [isPanelVisible, setIsPanelVisible] = React.useState(true)
 
+	// Slides rail (desktop): viewer-local, persisted, open by default
+	const railId = React.useId()
+	const [railOpen, setRailOpen] = React.useState(() => {
+		try {
+			return localStorage.getItem('prezillo.railOpen') !== 'false'
+		} catch {
+			return true
+		}
+	})
+	React.useEffect(() => {
+		try {
+			localStorage.setItem('prezillo.railOpen', String(railOpen))
+		} catch {
+			// Storage unavailable: the state just isn't persisted
+		}
+	}, [railOpen])
+	const toggleRail = React.useCallback(() => setRailOpen((open) => !open), [])
+	// Ctrl+Alt+1 toggles the rail. `key`, not `code`: AltGr is Ctrl+Alt on Windows, and
+	// AltGr+1 types `~` on the Hungarian layout.
+	React.useEffect(() => {
+		const onKeyDown = (e: KeyboardEvent) => {
+			if (e.ctrlKey && e.altKey && e.key === '1') {
+				e.preventDefault()
+				toggleRail()
+			}
+		}
+		window.addEventListener('keydown', onKeyDown)
+		return () => window.removeEventListener('keydown', onKeyDown)
+	}, [toggleRail])
+
 	// Export state
 	// PDF export progress: percent, plus embed renders while those run
 	const pdfExport = useExportProgress()
@@ -406,28 +434,34 @@ export function PrezilloApp() {
 
 	const handleExportPDF = React.useCallback(async () => {
 		const doc = prezillo.doc
-		if (!doc || !views.length) return
+		if (!doc || !presentedViews.length) return
 		const fileId = prezillo.cloudillo.fileId
 		try {
 			await runPdfExport(({ signal, setProgress }) =>
-				downloadPDF(doc, views, prezillo.cloudillo.ownerTag, prezillo.cloudillo.token, {
-					signal,
-					onProgress: (pct) => setProgress({ pct }),
-					embeds: fileId
-						? {
-								bus: getAppBus(),
-								sourceFileId: fileId,
-								onProgress: (done, total) => setProgress({ done, total })
-							}
-						: undefined
-				})
+				downloadPDF(
+					doc,
+					presentedViews,
+					prezillo.cloudillo.ownerTag,
+					prezillo.cloudillo.token,
+					{
+						signal,
+						onProgress: (pct) => setProgress({ pct }),
+						embeds: fileId
+							? {
+									bus: getAppBus(),
+									sourceFileId: fileId,
+									onProgress: (done, total) => setProgress({ done, total })
+								}
+							: undefined
+					}
+				)
 			)
 		} catch (error) {
 			console.error('PDF export failed:', error)
 		}
 	}, [
 		prezillo.doc,
-		views,
+		presentedViews,
 		prezillo.cloudillo.ownerTag,
 		prezillo.cloudillo.token,
 		prezillo.cloudillo.fileId,
@@ -594,17 +628,37 @@ export function PrezilloApp() {
 		handlePrevView,
 		handleNextView,
 		handleAddView,
+		handleAddViewAfter,
 		handleDuplicate,
 		handleReorderView,
 		handleDuplicateView,
-		handleDeleteView
-	} = useViewNavigation({ prezillo, viewsLength: views.length, isReadOnly, forceZoomRef })
+		handleDeleteView,
+		handleToggleSkip
+	} = useViewNavigation({
+		prezillo,
+		viewsLength: views.length,
+		isReadOnly,
+		forceZoomRef
+	})
 
-	// Calculate template frame positions (above the views)
+	// Explicit slide navigation (rail, bottom bar picker)
+	const handleViewSelect = (id: ViewId) => {
+		// When following and user clicks a view, stop following
+		if (prezillo.followingClientId) {
+			prezillo.unfollowPresenter()
+		}
+		// Explicit navigation should always zoom to the page
+		forceZoomRef.current = true
+		prezillo.setActiveViewId(id)
+		// Clear template selection when selecting a page
+		prezillo.clearTemplateSelection()
+	}
+
+	// Calculate template frame positions (right of the views)
 	const templateLayoutResult = useTemplateLayout(views, templatesWithUsage)
 	const {
 		layouts: templateLayouts,
-		dividerY,
+		dividerX,
 		viewBounds: templateZoneBounds,
 		emptyStatePosition
 	} = templateLayoutResult
@@ -621,7 +675,7 @@ export function PrezilloApp() {
 	})
 
 	// Multi-page rendering: get all visible views and their objects
-	const visibleViews = useVisibleViews(prezillo.doc, viewportBounds)
+	const visibleViews = useVisibleViews(prezillo.doc, viewportBounds, prezillo.activeViewId)
 	const visibleViewIds = React.useMemo(() => visibleViews.map((v) => v.id), [visibleViews])
 	const visibleViewObjects = useVisibleViewObjects(prezillo.doc, visibleViewIds)
 
@@ -930,7 +984,9 @@ export function PrezilloApp() {
 		setEditingTextId,
 		setActiveDocumentId,
 		justFinishedInteractionRef,
-		objectMenuRef
+		objectMenuRef,
+		onPrevView: handlePrevView,
+		onNextView: handleNextView
 	})
 
 	// Get selection bounds (use tempObjectState for immediate visual feedback during drag/resize)
@@ -996,15 +1052,28 @@ export function PrezilloApp() {
 		}
 	}, [prezillo.selectedIds, prezillo.doc.o, tempObjectState])
 
+	// The wire `viewIndex` counts every slide; map the presenter's slide by id instead
+	const followedIndex = followedPresenter
+		? presentedViews.findIndex((v) => v.id === followedPresenter.viewId)
+		: -1
+
+	const { entries: presenceEntries } = useDocPresence(prezillo.awareness)
+	const viewOccupants = React.useMemo(
+		() => splitViewOccupants(presenceEntries),
+		[presenceEntries]
+	)
+
 	// Render mode: usePrezilloDocument answers the host's render requests; nothing to show
 	if (getAppBus().embedMode === 'render') return null
 
 	// Embedded view: show the referenced slide as presented, not the editor canvas.
 	// Interact + write keeps the editor for in-place editing ("Allow editing").
-	const presentation = isPresentationMode && (
+	// Nothing to show when every slide is skipped (Present is disabled then;
+	// only a launch-mode auto-start gets here)
+	const presentation = isPresentationMode && presentedViews.length > 0 && (
 		<PresentationMode
 			prezillo={prezillo}
-			views={views}
+			views={presentedViews}
 			initialViewId={prezillo.activeViewId}
 			onExit={stopPresenting}
 			fullscreen={presentationFullscreen}
@@ -1035,7 +1104,7 @@ export function PrezilloApp() {
 						canWrite={!isReadOnly}
 					/>
 				)}
-				{slide && embedLayout?.interactive && (
+				{slide && embedLayout?.interactive && presentedViews.length > 0 && (
 					<div className="c-embed-present">
 						<Button icon={<IcPlay />} onClick={() => startPresenting(false)}>
 							{t('Present')}
@@ -1197,6 +1266,25 @@ export function PrezilloApp() {
 			)}
 
 			<div className="c-hbox flex-fill" style={{ overflow: 'hidden' }}>
+				{!isMobile && railOpen && (
+					<SlidesRail
+						id={railId}
+						doc={prezillo.doc}
+						views={views}
+						activeViewId={prezillo.selectedTemplateId ? null : prezillo.activeViewId}
+						templates={templatesWithUsage}
+						ownerTag={prezillo.cloudillo.ownerTag}
+						token={prezillo.cloudillo.token}
+						onSelect={handleViewSelect}
+						readOnly={isReadOnly}
+						onMoveView={handleReorderView}
+						onAddAfter={handleAddViewAfter}
+						onDuplicate={handleDuplicateView}
+						onDelete={handleDeleteView}
+						onToggleSkip={handleToggleSkip}
+						viewOccupants={viewOccupants}
+					/>
+				)}
 				<div
 					ref={canvasContainerRef}
 					className="c-panel flex-fill"
@@ -1393,11 +1481,11 @@ export function PrezilloApp() {
 								})}
 
 								{/* Zone divider between templates and views */}
-								{dividerY !== null && templateZoneBounds && (
+								{dividerX !== null && templateZoneBounds && (
 									<ZoneDivider
-										y={dividerY}
-										leftX={templateZoneBounds.left}
-										rightX={templateZoneBounds.right}
+										x={dividerX}
+										topY={templateZoneBounds.top}
+										bottomY={templateZoneBounds.bottom}
 									/>
 								)}
 							</>
@@ -1629,6 +1717,10 @@ export function PrezilloApp() {
 						onSelectContainer={setSelectedContainerId}
 						quillRef={quillRef}
 						editingTextId={editingTextId}
+						onSelectTemplate={(id) => {
+							forceZoomTemplateRef.current = true
+							prezillo.selectTemplate(id)
+						}}
 					/>
 				)}
 			</div>
@@ -1648,23 +1740,10 @@ export function PrezilloApp() {
 					prezillo={prezillo}
 					views={views}
 					cmds={{
-						onViewSelect: (id) => {
-							// When following and user clicks a view, stop following
-							if (prezillo.followingClientId) {
-								prezillo.unfollowPresenter()
-							}
-							// Explicit ViewPicker navigation should always zoom to the page
-							forceZoomRef.current = true
-							prezillo.setActiveViewId(id)
-							// Clear template selection when selecting a page
-							prezillo.clearTemplateSelection()
-						},
+						onViewSelect: handleViewSelect,
 						onAddView: handleAddView,
 						onPrevView: handlePrevView,
-						onNextView: handleNextView,
-						onReorderView: handleReorderView,
-						onDuplicateView: handleDuplicateView,
-						onDeleteView: handleDeleteView
+						onNextView: handleNextView
 					}}
 					presentCmds={{
 						onPresent: startPresenting,
@@ -1676,12 +1755,17 @@ export function PrezilloApp() {
 					}}
 					readOnly={isReadOnly}
 					isMobile={isMobile}
+					railOpen={railOpen}
+					onToggleRail={toggleRail}
+					railId={railId}
+					canPresent={presentedViews.length > 0}
 					templates={templatesWithUsage}
-					onTemplateSelect={(id) => {
-						// Explicit template selection should always zoom
-						forceZoomTemplateRef.current = true
-						prezillo.selectTemplate(id)
-					}}
+					viewOccupants={viewOccupants}
+					onMoveView={handleReorderView}
+					onAddAfter={handleAddViewAfter}
+					onDuplicate={handleDuplicateView}
+					onDelete={handleDeleteView}
+					onToggleSkip={handleToggleSkip}
 				/>
 			</div>
 
@@ -1689,17 +1773,17 @@ export function PrezilloApp() {
 			{presentation}
 
 			{/* Fullscreen following mode */}
-			{isFullscreenFollowing && followedPresenter && (
+			{isFullscreenFollowing && followedPresenter && presentedViews.length > 0 && (
 				<PresentationMode
 					prezillo={prezillo}
-					views={views}
+					views={presentedViews}
 					initialViewId={followedPresenter.viewId}
 					onExit={handleExitFullscreenFollowing}
 					ownerTag={prezillo.cloudillo.ownerTag}
 					token={prezillo.cloudillo.token}
 					sourceFileId={prezillo.cloudillo.fileId}
 					isFollowing={true}
-					followingViewIndex={followedPresenter.viewIndex}
+					followingViewIndex={followedIndex >= 0 ? followedIndex : undefined}
 					followingPresenterClientId={followedPresenter.clientId}
 				/>
 			)}

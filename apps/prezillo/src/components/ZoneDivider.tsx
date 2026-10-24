@@ -3,27 +3,27 @@
 
 import * as React from 'react'
 /**
- * ZoneDivider component - Renders a subtle horizontal line
+ * ZoneDivider component - Renders a subtle vertical line
  * separating the template zone from the view zone.
  */
 
 export interface ZoneDividerProps {
-	y: number
-	leftX: number
-	rightX: number
+	x: number
+	topY: number
+	bottomY: number
 }
 
-export function ZoneDivider({ y, leftX, rightX }: ZoneDividerProps) {
+export function ZoneDivider({ x, topY, bottomY }: ZoneDividerProps) {
 	// Extend slightly beyond the view bounds
 	const padding = 50
 
 	return (
 		<line
 			className="c-zone-divider"
-			x1={leftX - padding}
-			y1={y}
-			x2={rightX + padding}
-			y2={y}
+			x1={x}
+			y1={topY - padding}
+			x2={x}
+			y2={bottomY + padding}
 			stroke="#d0d0d0"
 			strokeWidth={1}
 			strokeDasharray="8,4"

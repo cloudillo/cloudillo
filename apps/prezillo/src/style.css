@@ -244,46 +244,252 @@ body,
 	width: 50px;
 }
 
-/* View picker */
-.c-view-picker-tabs {
-	overflow-x: auto;
-	padding-left: 6px; /* Space for drop indicator before first tab */
-	margin-left: -6px; /* Compensate for padding */
+/* Slides rail (left, desktop) */
+.c-slides-rail {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+	flex-shrink: 0;
+	width: 200px;
+	overflow-y: auto;
+	padding: var(--space-2);
+	background: var(--col-container);
+	border-right: 1px solid var(--col-outline);
 }
 
-.c-view-picker-tab {
+.c-slide-thumb {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--space-1);
+	flex-shrink: 0;
+	width: 100%;
+	padding: 0;
+	border: none;
+	background: none;
+	color: var(--col-on-container);
+	cursor: pointer;
+	font: inherit;
+}
+
+/* SortableList inside the rail: no glass surface */
+.c-slides-rail__list {
+	--auto-bg: transparent;
+	--auto-bg-blur: none;
+	border: none;
+	flex-shrink: 0;
+	gap: var(--space-2);
+}
+
+.c-slide-thumb-wrap {
 	position: relative;
-	min-width: 60px;
-	cursor: grab;
+	flex-shrink: 0;
 }
 
-.c-view-picker-tab:active {
-	cursor: grabbing;
-}
-
-/* Drag-and-drop states */
-.c-view-picker-tab.dragging {
-	opacity: 0.5;
-	cursor: grabbing;
-}
-
-.c-view-picker-tab.drop-before::before,
-.c-view-picker-tab.drop-after::after {
-	content: '';
+/* "⋯" menu button: on hover / focus, always on touch */
+.c-slide-thumb__more {
 	position: absolute;
-	top: 0;
-	bottom: 0;
-	width: 3px;
-	background: var(--col-primary);
-	border-radius: 1.5px;
+	right: 2px;
+	bottom: 2px;
+	opacity: 0;
 }
 
-.c-view-picker-tab.drop-before::before {
-	left: -3px;
+.c-slide-thumb-wrap:hover .c-slide-thumb__more,
+.c-slide-thumb-wrap:focus-within .c-slide-thumb__more {
+	opacity: 1;
 }
 
-.c-view-picker-tab.drop-after::after {
-	right: -3px;
+@media (hover: none) {
+	.c-slide-thumb__more {
+		opacity: 1;
+	}
+}
+
+/* Dashed "+ New slide" tile after the last thumbnail */
+/* .c-button doubled: wins over the ghost Button look */
+.c-button.c-slide-thumb-add {
+	gap: var(--space-1);
+	flex-shrink: 0;
+	align-self: flex-end;
+	width: 160px;
+	height: auto;
+	padding: 0;
+	aspect-ratio: 16 / 9;
+	border: 1px dashed var(--col-outline);
+	border-radius: 2px;
+	color: var(--col-secondary);
+	font-size: 0.875rem;
+}
+
+.c-button.c-slide-thumb-add:hover:not([disabled]) {
+	border-color: var(--col-primary);
+	color: var(--col-primary);
+}
+
+.c-button.c-slide-thumb-add:focus-visible {
+	outline: 2px solid var(--col-accent);
+	outline-offset: 2px;
+}
+
+.c-slide-thumb__number {
+	flex: 1;
+	text-align: right;
+	font-size: 0.75rem;
+	font-variant-numeric: tabular-nums;
+	color: var(--col-secondary);
+}
+
+.c-slide-thumb__box {
+	position: relative;
+	display: block;
+	width: 160px;
+	flex-shrink: 0;
+	overflow: hidden;
+	border-radius: 2px;
+	outline: 1px solid var(--col-outline);
+}
+
+.c-slide-thumb:hover .c-slide-thumb__box {
+	outline-color: var(--col-secondary);
+}
+
+.c-slide-thumb.active .c-slide-thumb__box {
+	outline: 2px solid var(--col-primary);
+}
+
+.c-slide-thumb.active .c-slide-thumb__number {
+	color: var(--col-primary);
+	font-weight: 600;
+}
+
+.c-slide-thumb:focus-visible {
+	outline: none;
+}
+
+.c-slide-thumb:focus-visible .c-slide-thumb__box {
+	outline: 2px solid var(--col-accent);
+	outline-offset: 2px;
+}
+
+.c-slide-thumb__svg {
+	display: block;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+}
+
+.c-slide-thumb__tpl {
+	position: absolute;
+	top: 2px;
+	right: 2px;
+	padding: 0 4px;
+	border-radius: 2px;
+	font-size: 0.625rem;
+	line-height: 1.4;
+	background: var(--col-container-high, var(--col-container));
+	color: var(--col-on-container);
+}
+
+/* Skipped in presentation: dim the slide, keep the badges legible */
+.c-slide-thumb.skipped .c-slide-thumb__svg {
+	opacity: 0.45;
+}
+
+.c-slide-thumb__skip {
+	position: absolute;
+	top: 2px;
+	left: 2px;
+	display: flex;
+	padding: 1px 3px;
+	border-radius: 2px;
+	font-size: 0.75rem;
+	background: var(--col-container-high, var(--col-container));
+	color: var(--col-on-container);
+}
+
+/* Who is on this slide: bottom-left of the thumbnail, never clickable */
+.c-slide-thumb__presence {
+	position: absolute;
+	left: 2px;
+	bottom: 2px;
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	pointer-events: none;
+}
+
+.c-slide-thumb__presence .c-avatar {
+	border-width: 0.0625rem;
+	font-size: 0.625rem;
+}
+
+.c-slide-thumb__presence .c-avatar.id-ring {
+	outline-width: 0.0625rem;
+}
+
+/* The `+N` chip carries no identity, so it gets none of the identity colours. */
+.c-slide-thumb__presence .c-avatar:not(.c-id-color) {
+	--avatar-bg: var(--col-container-high);
+	--avatar-color: var(--col-on-container);
+}
+
+/* Presenter: primary-colour ring plus one play glyph before the group */
+.c-slide-thumb__presence .c-avatar.presenting {
+	box-shadow: 0 0 0 2px var(--col-primary);
+}
+
+.c-slide-thumb__presenting {
+	font-size: 0.75rem;
+	color: var(--col-primary);
+}
+
+/* Has speaker notes: bottom-right of the slide box, left of the "⋯" button */
+.c-slide-thumb__notes {
+	position: absolute;
+	right: 28px;
+	bottom: 2px;
+	display: flex;
+	padding: 1px 3px;
+	border-radius: 2px;
+	font-size: 0.75rem;
+	background: var(--col-container-high, var(--col-container));
+	color: var(--col-on-container);
+}
+
+/* Speaker notes editor (ViewPropertiesPanel) */
+h3.c-property-section-header {
+	margin: 0;
+}
+
+.c-notes-editor {
+	min-height: 5rem;
+	padding: var(--space-2, 0.5rem);
+	border: 1px solid var(--col-outline, var(--col-container-high));
+	border-radius: 4px;
+	background: var(--col-surface);
+	color: var(--col-on-surface, inherit);
+	cursor: text;
+}
+
+.c-notes-editor:focus-within {
+	outline: 2px solid var(--col-accent);
+	outline-offset: -1px;
+}
+
+.c-notes-editor .ql-editor {
+	min-height: 4rem;
+	white-space: pre-wrap;
+}
+
+/* No Quill theme CSS is loaded, so the placeholder needs its own rule */
+.c-notes-editor .ql-editor.ql-blank::before {
+	content: attr(data-placeholder);
+	position: absolute;
+	pointer-events: none;
+	opacity: 0.6;
+}
+
+.c-notes-editor > div {
+	position: relative;
 }
 
 /* Presentation mode */
@@ -746,26 +952,6 @@ body,
 	color: var(--col-on-error);
 }
 
-/* View picker - presenter badges */
-.c-view-picker-tab.has-presenter {
-	position: relative;
-}
-
-.c-view-picker-tab__presenter-badge {
-	position: absolute;
-	top: -4px;
-	right: -4px;
-	display: flex;
-	gap: 2px;
-}
-
-.c-view-picker-tab__presenter-dot {
-	width: 8px;
-	height: 8px;
-	border-radius: 50%;
-	border: 1px solid var(--col-surface);
-}
-
 /* Presenting button state */
 .c-nav .c-button.presenting {
 	background: var(--col-error);
@@ -924,115 +1110,44 @@ body,
    ========================================================================== */
 
 /* View Picker - Mobile Counter */
-.c-view-picker-counter {
+.view-picker-counter {
 	min-width: 60px;
 	justify-content: center;
 	font-weight: 500;
 	font-variant-numeric: tabular-nums;
 }
 
-/* Page Picker Popup - Mobile slide selector */
-.c-page-picker-backdrop {
-	position: fixed;
-	inset: 0;
-	background: rgba(0, 0, 0, 0.4);
-	z-index: 99;
-}
-
-.c-page-picker-popup {
-	position: fixed;
-	bottom: 0;
-	left: 0;
-	right: 0;
-	max-height: 60vh;
-	background: var(--col-surface);
-	border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-	box-shadow: var(--shadow-lg);
-	z-index: 100;
-	display: flex;
-	flex-direction: column;
-	padding-bottom: env(safe-area-inset-bottom);
-	animation: page-picker-slide-up 0.2s ease-out;
-}
-
-@keyframes page-picker-slide-up {
-	from {
-		transform: translateY(100%);
-	}
-	to {
-		transform: translateY(0);
-	}
-}
-
-.c-page-picker-header {
-	display: flex;
+/* Desktop: plain counter between prev/next */
+span.view-picker-counter {
+	display: inline-flex;
 	align-items: center;
-	justify-content: space-between;
+	padding: 0 var(--space-1);
+	color: var(--col-secondary);
+}
+
+/* Slide picker - mobile slide selector (thumbnail grid in a Dialog) */
+.c-slide-picker-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: var(--space-3) var(--space-2);
 	padding: var(--space-2) var(--space-3);
-	border-bottom: 1px solid var(--col-outline);
-	flex-shrink: 0;
-}
-
-.c-page-picker-title {
-	font-size: 14px;
-	font-weight: 500;
-}
-
-.c-page-picker-list {
 	overflow-y: auto;
 	-webkit-overflow-scrolling: touch;
 }
 
-.c-page-picker-item {
-	display: flex;
-	align-items: center;
-	gap: var(--space-2);
-	width: 100%;
-	min-height: 48px;
-	padding: var(--space-2) var(--space-3);
-	background: transparent;
-	border: none;
-	border-bottom: 1px solid var(--col-outline);
-	cursor: pointer;
-	transition: background 0.15s;
+/* Number above a full-width box; at least a 44px touch target */
+.c-slide-picker-grid .c-slide-thumb {
+	flex-direction: column;
+	align-items: stretch;
+	min-height: 44px;
+}
+
+.c-slide-picker-grid .c-slide-thumb__number {
 	text-align: left;
 }
 
-.c-page-picker-item:hover {
-	background: var(--col-container-low);
-}
-
-.c-page-picker-item:active {
-	background: var(--col-container-high);
-}
-
-.c-page-picker-item.active {
-	background: var(--col-container-primary);
-}
-
-.c-page-picker-item__number {
-	min-width: 32px;
-	font-size: 14px;
-	font-weight: 500;
-	font-variant-numeric: tabular-nums;
-}
-
-.c-page-picker-item__presenters {
-	display: flex;
-	gap: 2px;
-	margin-left: auto;
-}
-
-.c-page-picker-item__presenter-dot {
-	width: 8px;
-	height: 8px;
-	border-radius: 50%;
-}
-
-.c-page-picker-item__check {
-	margin-left: auto;
-	color: var(--col-primary);
-	font-size: 16px;
+.c-slide-picker-grid .c-slide-thumb__box {
+	width: 100%;
 }
 
 /* Presenter Indicator - Mobile Pill */
@@ -2119,32 +2234,6 @@ body,
 }
 
 .c-template-warning-banner svg {
-	flex-shrink: 0;
-}
-
-/* ViewPicker template tabs */
-.c-view-picker-tab--template {
-	background: rgba(155, 89, 182, 0.1);
-	color: #9b59b6;
-	border: 1px dashed #9b59b6;
-}
-
-.c-view-picker-tab--template:hover {
-	background: rgba(155, 89, 182, 0.2);
-}
-
-.c-view-picker-tab--template.active {
-	background: #9b59b6;
-	color: white;
-	border-style: solid;
-}
-
-/* Separator between template tabs and page tabs */
-.c-view-picker-separator {
-	width: 1px;
-	height: 20px;
-	background: var(--col-outline);
-	margin: 0 var(--space-2);
 	flex-shrink: 0;
 }
 

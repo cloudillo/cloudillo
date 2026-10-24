@@ -19,6 +19,7 @@ import {
 	SegmentedItem
 } from '@cloudillo/react'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import { useY } from 'react-yjs'
 import type * as Y from 'yjs'
 
@@ -46,6 +47,7 @@ export function TemplateViewPropertiesPanel({
 	yDoc,
 	templateId
 }: TemplateViewPropertiesPanelProps) {
+	const { t } = useTranslation()
 	useY(doc.tpl)
 
 	const template = getTemplate(doc, templateId)
@@ -203,7 +205,7 @@ export function TemplateViewPropertiesPanel({
 					size="sm"
 					fill
 					className="mb-2"
-					aria-label="Background type"
+					aria-label={t('Background type')}
 					value={activeType}
 					onChange={(v) => handleTypeSwitch(v as BackgroundType)}
 				>
@@ -294,6 +296,7 @@ function SnapGuideEditor({
 	onChange,
 	onDelete
 }: SnapGuideEditorProps) {
+	const { t } = useTranslation()
 	const displayValue = guide.absolute ? guide.position : Math.round(guide.position * 100)
 
 	const handleValueChange = (value: number) => {
@@ -330,6 +333,7 @@ function SnapGuideEditor({
 			</button>
 			<div className="c-snap-guide-editor__value">
 				<NumberInput
+					aria-label={t('Guide position')}
 					value={displayValue}
 					onChange={handleValueChange}
 					min={0}

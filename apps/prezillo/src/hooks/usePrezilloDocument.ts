@@ -28,6 +28,7 @@ import {
 	isLocalPresenting,
 	setFollowing,
 	setPresenting,
+	setViewPresence,
 	updatePresentingView
 } from '../awareness'
 import type { ContainerId, ObjectId, TemplateId, ViewId, YPrezilloDocument } from '../crdt'
@@ -123,9 +124,9 @@ export function usePrezilloDocument(): UsePrezilloDocumentResult {
 	// This ensures we don't overwrite server data
 	React.useEffect(() => {
 		if (cloudillo.synced) {
-			getOrCreateDocument(cloudillo.yDoc, true)
+			getOrCreateDocument(cloudillo.yDoc, true, cloudillo.access === 'write')
 		}
-	}, [cloudillo.yDoc, cloudillo.synced])
+	}, [cloudillo.yDoc, cloudillo.synced, cloudillo.access])
 
 	// Observe reactive CRDT data
 	const objects = useY(doc.o)
@@ -241,9 +242,12 @@ export function usePrezilloDocument(): UsePrezilloDocumentResult {
 
 	// Undo manager
 	const undoManager = React.useMemo(() => {
-		return new Y.UndoManager([doc.o, doc.c, doc.r, doc.v, doc.vo, doc.st, doc.ch], {
-			trackedOrigins: new Set([cloudillo.yDoc.clientID])
-		})
+		return new Y.UndoManager(
+			[doc.o, doc.c, doc.r, doc.v, doc.vo, doc.vn, doc.st, doc.ch, doc.tpl, doc.tpo],
+			{
+				trackedOrigins: new Set([cloudillo.yDoc.clientID])
+			}
+		)
 	}, [cloudillo.yDoc, doc])
 
 	// After sync, clientID may change (reused clientId assigned post-sync in openYDoc).
@@ -415,6 +419,12 @@ export function usePrezilloDocument(): UsePrezilloDocumentResult {
 			authenticated: cloudillo.authenticated
 		})
 	}, [awareness, renderMode, cloudillo.idTag, cloudillo.displayName, cloudillo.authenticated])
+
+	// Publish the slide we are on (following a presenter updates it too); none while editing a template
+	React.useEffect(() => {
+		if (!awareness || renderMode) return
+		setViewPresence(awareness, selectedTemplateId ? null : activeViewId)
+	}, [awareness, renderMode, activeViewId, selectedTemplateId])
 
 	// Listen for awareness changes from remote clients
 	React.useEffect(() => {

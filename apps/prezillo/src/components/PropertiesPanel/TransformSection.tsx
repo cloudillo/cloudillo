@@ -3,6 +3,7 @@
 
 import { NumberInput, PropertyField, PropertySection } from '@cloudillo/react'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import type * as Y from 'yjs'
 
 import type { ObjectId, PrezilloObject, YPrezilloDocument } from '../../crdt'
@@ -24,6 +25,7 @@ export interface TransformSectionProps {
 }
 
 export function TransformSection({ doc, yDoc, object, onPreview }: TransformSectionProps) {
+	const { t } = useTranslation()
 	const objectId = object.id as ObjectId
 
 	// Use centralized hook for lockable property groups
@@ -173,6 +175,7 @@ export function TransformSection({ doc, yDoc, object, onPreview }: TransformSect
 					/>
 					<div className={rotation.isDisabled ? 'c-property-field--locked' : ''}>
 						<NumberInput
+							aria-label={t('Rotation')}
 							value={Math.round(object.rotation)}
 							onChange={handleRotationChange}
 							min={0}
@@ -196,6 +199,7 @@ export function TransformSection({ doc, yDoc, object, onPreview }: TransformSect
 					/>
 					<div className={opacity.isDisabled ? 'c-property-field--locked' : ''}>
 						<NumberInput
+							aria-label={t('Opacity')}
 							value={Math.round(object.opacity * 100)}
 							onChange={handleOpacityChange}
 							onScrub={handleOpacityScrub}

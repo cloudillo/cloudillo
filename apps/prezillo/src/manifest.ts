@@ -8,9 +8,9 @@ import pkg from '../package.json'
 /**
  * How the server should index a prezillo document for full-text search.
  *
- * Two emitting parts, both keyed by Yjs roots `src/crdt/document.ts` opens. The
- * backend namespaces `partId` by kind, so `rt/<objectId>` and `v/<viewId>` cannot
- * collide.
+ * Three emitting parts, all keyed by Yjs roots `src/crdt/document.ts` opens. The
+ * backend namespaces `partId` by kind, so `rt/<objectId>`, `v/<viewId>` and
+ * `vn/<viewId>` cannot collide.
  *
  * `rt` (`yDoc.getMap('rt')`) is rich text box content, keyed by object id — one
  * index row per text object. The empty `field` selects the whole document, which
@@ -20,10 +20,12 @@ import pkg from '../package.json'
  * does), so without a title every hit would render as "Untitled" and without a
  * body there would be no snippet.
  *
- * `v` (`yDoc.getMap('v')`) is the slides; `StoredView` carries `name` and
- * `notes`, making named slides and speaker notes findable. Default slide names
- * ("Page 1", …) produce low-value rows — accepted, in exchange for real slide
- * titles being searchable.
+ * `v` (`yDoc.getMap('v')`) is the slides; `StoredView` carries `name`, making
+ * named slides findable. Default slide names ("Page 1", …) produce low-value
+ * rows — accepted, in exchange for real slide titles being searchable.
+ *
+ * `vn` (`yDoc.getMap('vn')`) is the speaker notes, a `Y.Map<Y.Text>` keyed by
+ * view id, indexed the same way as `rt` (whole text as title and body).
  *
  * Text objects cannot be folded into their slide with `attachTo`: that needs a
  * field on the *attached* document naming its owner, and an `rt` entry is a bare
@@ -40,7 +42,8 @@ const SEARCH_INDEX_RULES: IndexRules = {
 	v: 1,
 	parts: [
 		{ kind: 'rt', title: [''], body: [''] },
-		{ kind: 'v', title: ['name'], body: ['notes'] }
+		{ kind: 'v', title: ['name'] },
+		{ kind: 'vn', title: [''], body: [''] }
 	]
 }
 
@@ -69,7 +72,7 @@ export const manifest: AppManifest = {
 			embed: { view: 'fixed', namedViews: true, render: ['svg'] },
 			// Major.minor is the document-format contract itself; patch counts
 			// compatible tweaks to the rules above.
-			formatVersion: '1.0.0',
+			formatVersion: '1.1.0',
 			search: SEARCH_INDEX_RULES
 		}
 	],

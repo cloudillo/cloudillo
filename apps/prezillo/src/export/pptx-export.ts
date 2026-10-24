@@ -151,9 +151,11 @@ export async function exportToPPTX(
 			slide.background = { color: hexToColor(view.backgroundColor) }
 		}
 
-		// Slide notes
-		if (view.notes) {
-			slide.addNotes(view.notes)
+		// Slide notes; `||` falls back past an empty (lazily created) entry to a `notes` string an
+		// old client wrote after the migration, or one a read-only client's local migration left
+		const notes = doc.vn.get(view.id)?.toString() || doc.v.get(view.id)?.notes
+		if (notes) {
+			slide.addNotes(notes)
 		}
 
 		// Hidden slide

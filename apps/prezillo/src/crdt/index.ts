@@ -24,6 +24,7 @@ export * from './style-ops'
 export * from './template-ops'
 export * from './transforms'
 export * from './type-converters'
+export * from './view-layout'
 export * from './view-ops'
 
 // vim: ts=4

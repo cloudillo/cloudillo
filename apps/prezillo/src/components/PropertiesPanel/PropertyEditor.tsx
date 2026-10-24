@@ -30,6 +30,8 @@ export interface PropertyEditorProps {
 	yDoc: Y.Doc
 	selectedIds: Set<ObjectId>
 	activeViewId?: ViewId
+	/** Document synced */
+	synced: boolean
 	/** True when view background was explicitly clicked */
 	isViewFocused?: boolean
 	/** Currently selected template ID */
@@ -48,6 +50,7 @@ export function PropertyEditor({
 	yDoc,
 	selectedIds,
 	activeViewId,
+	synced,
 	isViewFocused,
 	selectedTemplateId,
 	isTemplateFocused,
@@ -86,7 +89,12 @@ export function PropertyEditor({
 		return (
 			<div className="c-vbox">
 				<div className="c-property-editor-header">Page {viewIndex}</div>
-				<ViewPropertiesPanel doc={doc} yDoc={yDoc} activeViewId={activeViewId} />
+				<ViewPropertiesPanel
+					doc={doc}
+					yDoc={yDoc}
+					activeViewId={activeViewId}
+					synced={synced}
+				/>
 			</div>
 		)
 	}

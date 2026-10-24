@@ -103,7 +103,12 @@ export function MobilePropertyPanel({
 			return (
 				<div className="c-mobile-property-content">
 					<div className="c-mobile-property-tab-content">
-						<ViewPropertiesPanel doc={doc} yDoc={yDoc} activeViewId={activeViewId} />
+						<ViewPropertiesPanel
+							doc={doc}
+							yDoc={yDoc}
+							activeViewId={activeViewId}
+							synced={prezillo.cloudillo.synced}
+						/>
 					</div>
 				</div>
 			)

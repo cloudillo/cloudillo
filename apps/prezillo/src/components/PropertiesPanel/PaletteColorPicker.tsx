@@ -7,6 +7,7 @@
 
 import { ColorInput } from '@cloudillo/react'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 
 import type { Palette, PaletteSlotName, StoredPaletteRef } from '../../crdt'
 import {
@@ -68,6 +69,7 @@ export function PaletteColorPicker({
 	disabled = false,
 	className = ''
 }: PaletteColorPickerProps) {
+	const { t } = useTranslation()
 	// Check if value is transparent/none
 	const isTransparent = value === 'none'
 
@@ -210,6 +212,7 @@ export function PaletteColorPicker({
 				) : (
 					<div className="c-palette-color-picker-custom">
 						<ColorInput
+							aria-label={t('Custom color')}
 							value={resolvedColor}
 							onChange={handleCustomColorChange}
 							onPreview={onPreview}

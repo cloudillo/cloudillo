@@ -16,6 +16,7 @@ import {
 	findViewAtPoint,
 	getAbsoluteBounds,
 	getStackedObjects,
+	getViewOrigin,
 	isInstance,
 	isPropertyGroupLocked,
 	removeObjectFromTemplate,
@@ -189,10 +190,7 @@ export function useObjectDrag({
 
 			// Check if this is a page-relative object (needs offset conversion when saving)
 			if (obj.vi) {
-				const view = prezillo.doc.v.get(obj.vi)
-				if (view) {
-					pageOffset = { x: view.x, y: view.y }
-				}
+				pageOffset = getViewOrigin(prezillo.doc, obj.vi)
 			}
 
 			// Get SVG element and canvas context for zoom-aware coordinate transformation
@@ -233,10 +231,7 @@ export function useObjectDrag({
 					// Calculate page offset for stacked object if it's page-relative
 					let stackedPageOffset: { x: number; y: number } | undefined
 					if (stackedObj?.vi) {
-						const view = prezillo.doc.v.get(stackedObj.vi)
-						if (view) {
-							stackedPageOffset = { x: view.x, y: view.y }
-						}
+						stackedPageOffset = getViewOrigin(prezillo.doc, stackedObj.vi)
 					}
 					stackedObjects.push({
 						id,

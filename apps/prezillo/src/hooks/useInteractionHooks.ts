@@ -27,6 +27,7 @@ import { clearEditingState, setEditingState } from '../awareness'
 import type { ObjectId, PrezilloObject, TemplateId } from '../crdt'
 import {
 	getResolvedWh,
+	getViewOrigin,
 	isInstance,
 	isPropertyGroupLocked,
 	updateObjectBounds,
@@ -139,10 +140,7 @@ export function useInteractionHooks({
 		// Check for page-relative object
 		const stored = prezillo.doc.o.get(id)
 		if (stored?.vi) {
-			const view = prezillo.doc.v.get(stored.vi)
-			if (view) {
-				pageOffset = { x: view.x, y: view.y }
-			}
+			pageOffset = getViewOrigin(prezillo.doc, stored.vi)
 		}
 
 		return {

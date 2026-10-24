@@ -3,7 +3,7 @@
 
 /**
  * Hook for computing template frame positions on the canvas.
- * Templates are positioned above regular views in a "template zone".
+ * Templates are positioned right of the regular views in a "template zone".
  */
 
 import * as React from 'react'
@@ -24,6 +24,7 @@ export interface ViewBounds {
 	left: number
 	right: number
 	top: number
+	bottom: number
 }
 
 /** Empty state position for when no templates exist */
@@ -36,7 +37,7 @@ export interface EmptyStatePosition {
 /** Complete result from the template layout hook */
 export interface TemplateLayoutResult {
 	layouts: Map<TemplateId, TemplateLayout>
-	dividerY: number | null
+	dividerX: number | null
 	viewBounds: ViewBounds | null
 	emptyStatePosition: EmptyStatePosition | null
 }
@@ -48,8 +49,8 @@ export const TEMPLATE_ZONE_GAP = 150
 const TEMPLATE_GAP = 100
 
 /**
- * Compute layout positions for template frames above the views.
- * Templates are arranged horizontally, centered above the views.
+ * Compute layout positions for template frames right of the views.
+ * Templates are stacked in a column, top-aligned with the first view.
  * Also computes zone divider position and empty state position.
  */
 export function useTemplateLayout(
@@ -59,85 +60,49 @@ export function useTemplateLayout(
 	return React.useMemo(() => {
 		const layoutMap = new Map<TemplateId, TemplateLayout>()
 
-		// Find the topmost view Y position and view bounds
-		let topViewY = Infinity
-		let leftmostViewX = Infinity
-		let rightmostViewX = -Infinity
+		let left = Infinity
+		let right = -Infinity
+		let top = Infinity
+		let bottom = -Infinity
 
 		for (const view of views) {
-			topViewY = Math.min(topViewY, view.y)
-			leftmostViewX = Math.min(leftmostViewX, view.x)
-			rightmostViewX = Math.max(rightmostViewX, view.x + view.width)
+			left = Math.min(left, view.x)
+			right = Math.max(right, view.x + view.width)
+			top = Math.min(top, view.y)
+			bottom = Math.max(bottom, view.y + view.height)
 		}
 
 		// Default to origin if no views
-		if (!Number.isFinite(topViewY)) {
-			topViewY = 0
-			leftmostViewX = 0
-			rightmostViewX = 1920
-		}
-
-		const viewBounds: ViewBounds = {
-			left: leftmostViewX,
-			right: rightmostViewX,
-			top: topViewY
+		if (!Number.isFinite(top)) {
+			left = 0
+			right = 1920
+			top = 0
+			bottom = 1080
 		}
 
 		// If no templates, return empty state position
 		if (templates.length === 0) {
-			const viewsCenterX = (leftmostViewX + rightmostViewX) / 2
-			const viewsWidth = rightmostViewX - leftmostViewX
-
 			return {
 				layouts: layoutMap,
-				dividerY: null,
-				viewBounds,
-				emptyStatePosition: {
-					x: viewsCenterX,
-					y: topViewY - 200,
-					width: Math.min(viewsWidth, 600)
-				}
+				dividerX: null,
+				viewBounds: { left, right, top, bottom },
+				emptyStatePosition: { x: right + TEMPLATE_ZONE_GAP + 200, y: top + 40, width: 400 }
 			}
 		}
 
-		// Find the tallest template to determine template zone Y
-		const maxTemplateHeight = Math.max(...templates.map((t) => t.height))
-
-		// Template zone Y position (above views)
-		const templateZoneY = topViewY - TEMPLATE_ZONE_GAP - maxTemplateHeight
-
-		// Divider Y is in the middle of the gap between templates and views
-		const dividerY = topViewY - TEMPLATE_ZONE_GAP / 2
-
-		// Calculate total width of all templates with gaps
-		const totalTemplateWidth = templates.reduce(
-			(sum, t, i) => sum + t.width + (i < templates.length - 1 ? TEMPLATE_GAP : 0),
-			0
-		)
-
-		// Center templates above the views
-		const viewsCenterX = (leftmostViewX + rightmostViewX) / 2
-		let currentX = viewsCenterX - totalTemplateWidth / 2
-
-		// Position each template
+		// One left-aligned column right of the views, top-aligned with the first view
+		const x = right + TEMPLATE_ZONE_GAP
+		let y = top
 		for (const template of templates) {
-			// Vertically align template bottom with template zone bottom
-			const templateY = templateZoneY + maxTemplateHeight - template.height
-
-			layoutMap.set(template.id, {
-				x: currentX,
-				y: templateY,
-				width: template.width,
-				height: template.height
-			})
-
-			currentX += template.width + TEMPLATE_GAP
+			layoutMap.set(template.id, { x, y, width: template.width, height: template.height })
+			y += template.height + TEMPLATE_GAP
 		}
 
 		return {
 			layouts: layoutMap,
-			dividerY,
-			viewBounds,
+			dividerX: right + TEMPLATE_ZONE_GAP / 2,
+			// Bottom covers the template column too, so the divider spans both zones
+			viewBounds: { left, right, top, bottom: Math.max(bottom, y - TEMPLATE_GAP) },
 			emptyStatePosition: null
 		}
 	}, [views, templates])

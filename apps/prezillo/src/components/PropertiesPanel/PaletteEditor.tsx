@@ -146,6 +146,7 @@ export function PaletteEditor({
 									)}
 								</div>
 								<ColorInput
+									aria-label={getSlotDisplayName(slotName)}
 									value={color}
 									onChange={(newColor) => handleColorChange(slotName, newColor)}
 									showHex={true}

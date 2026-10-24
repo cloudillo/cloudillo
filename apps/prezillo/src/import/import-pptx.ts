@@ -12,7 +12,7 @@
 import { getInstanceUrl } from '@cloudillo/core'
 import { XMLParser } from 'fast-xml-parser'
 import JSZip from 'jszip'
-import type * as Y from 'yjs'
+import * as Y from 'yjs'
 
 import type { ObjectId, ShapeStyle, TextStyle, YPrezilloDocument } from '../crdt'
 import { generateObjectId, generateViewId, getOrCreateRichText, toViewId } from '../crdt'
@@ -143,19 +143,16 @@ export async function importPptx(
 
 		// Create view
 		const viewId = generateViewId()
-		const viewX = i * (slideW + 100)
-
 		yDoc.transact(() => {
 			doc.v.set(viewId, {
 				name: `Slide ${i + 1}`,
-				x: viewX,
-				y: 0,
 				width: slideW,
 				height: slideH,
 				backgroundColor: resolveBackground(slide.background, theme),
 				showBorder: true
 			})
 			doc.vo.push([viewId])
+			if (slide.notes) doc.vn.set(viewId, new Y.Text(slide.notes))
 		}, yDoc.clientID)
 
 		// Create objects for each shape on the slide

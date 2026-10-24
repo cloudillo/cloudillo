@@ -14,7 +14,7 @@ import {
 	VERT_ALIGN_CODE
 } from '@cloudillo/canvas-tools'
 
-import { toContainerId, toObjectId, toStyleId, toViewId } from './ids'
+import { toContainerId, toObjectId, toStyleId, toTemplateId, toViewId } from './ids'
 import type * as Runtime from './runtime-types'
 import type * as Stored from './stored-types'
 
@@ -774,12 +774,16 @@ export function compactBackgroundGradient(
 }
 
 // View conversion
-export function expandView(id: string, stored: Stored.StoredView): Runtime.ViewNode {
+export function expandView(
+	id: string,
+	stored: Stored.StoredView,
+	origin: { x: number; y: number }
+): Runtime.ViewNode {
 	return {
 		id: toViewId(id),
 		name: stored.name,
-		x: stored.x,
-		y: stored.y,
+		x: origin.x,
+		y: origin.y,
 		width: stored.width,
 		height: stored.height,
 		backgroundColor: stored.backgroundColor,
@@ -788,17 +792,15 @@ export function expandView(id: string, stored: Stored.StoredView): Runtime.ViewN
 		backgroundFit: stored.backgroundFit,
 		showBorder: stored.showBorder,
 		transition: stored.transition,
-		notes: stored.notes,
 		hidden: stored.hidden,
-		duration: stored.duration
+		duration: stored.duration,
+		templateId: stored.tpl ? toTemplateId(stored.tpl) : undefined
 	}
 }
 
 export function compactView(runtime: Runtime.ViewNode): Stored.StoredView {
 	const result: Stored.StoredView = {
 		name: runtime.name,
-		x: runtime.x,
-		y: runtime.y,
 		width: runtime.width,
 		height: runtime.height
 	}
@@ -810,9 +812,9 @@ export function compactView(runtime: Runtime.ViewNode): Stored.StoredView {
 	if (runtime.backgroundFit) result.backgroundFit = runtime.backgroundFit
 	if (runtime.showBorder !== undefined) result.showBorder = runtime.showBorder
 	if (runtime.transition) result.transition = runtime.transition
-	if (runtime.notes) result.notes = runtime.notes
 	if (runtime.hidden) result.hidden = runtime.hidden
 	if (runtime.duration) result.duration = runtime.duration
+	if (runtime.templateId) result.tpl = runtime.templateId
 
 	return result
 }

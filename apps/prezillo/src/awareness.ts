@@ -37,6 +37,8 @@ export interface PrezilloPresence {
 		height?: number
 		rotation?: number
 	}
+	// Slide the user is on (shown on the rail thumbnails)
+	view?: ViewId
 	// Presentation state - broadcasted when user is presenting
 	presenting?: {
 		viewId: ViewId
@@ -142,6 +144,13 @@ export function setPresenting(
  */
 export function clearPresenting(awareness: Awareness): void {
 	awareness.setLocalStateField('presenting', undefined)
+}
+
+/**
+ * Publish the slide the user is on (null = none, e.g. a template is selected)
+ */
+export function setViewPresence(awareness: Awareness, viewId: ViewId | null): void {
+	awareness.setLocalStateField('view', viewId ?? undefined)
 }
 
 /**

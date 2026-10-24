@@ -88,7 +88,9 @@ function PresentationObjectShape({
 	onPollClick,
 	isFocused = false,
 	userCount = 1,
-	canWrite = false
+	canWrite = false,
+	thumbnail = false,
+	imageScale = 1
 }: {
 	object: PrezilloObject
 	doc: YPrezilloDocument
@@ -106,6 +108,10 @@ function PresentationObjectShape({
 	userCount?: number
 	/** Host presentation is writable — gates embed write access */
 	canWrite?: boolean
+	/** Rail thumbnail: no live embeds, no links */
+	thumbnail?: boolean
+	/** Image variant scale (thumbnails fetch a small variant) */
+	imageScale?: number
 }) {
 	// Hidden objects are not rendered in presentation mode
 	if (object.hidden) return null
@@ -202,7 +208,7 @@ function PresentationObjectShape({
 							listBullet: textStyle.listBullet
 						}}
 						bulletIconUrl={presBulletIconUrl}
-						linksClickable={true}
+						linksClickable={!thumbnail}
 					/>
 				)
 			} else {
@@ -226,7 +232,7 @@ function PresentationObjectShape({
 						object={object as ImageObject}
 						ownerTag={ownerTag}
 						token={token}
-						scale={1}
+						scale={imageScale}
 					/>
 					<rect
 						x={object.x}
@@ -241,7 +247,15 @@ function PresentationObjectShape({
 			break
 		case 'document': {
 			const docObj = object as DocumentObject
-			content = (
+			content = thumbnail ? (
+				<rect
+					x={object.x}
+					y={object.y}
+					width={object.width}
+					height={object.height}
+					fill="var(--col-container-low)"
+				/>
+			) : (
 				<SvgViewEmbed
 					x={object.x}
 					y={object.y}
@@ -379,7 +393,12 @@ interface PresentationSlideProps {
 	// State variable props
 	userCount?: number
 	canWrite?: boolean
+	/** Rail thumbnail: non-interactive, aria-hidden, no live embeds or poll votes */
+	thumbnail?: boolean
 }
+
+/** Thumbnail width in CSS px (`.c-slide-thumb__box` in style.css): picks the image variant */
+const THUMB_W = 160
 
 export const PresentationSlide = React.memo(function PresentationSlide({
 	view,
@@ -396,8 +415,11 @@ export const PresentationSlide = React.memo(function PresentationSlide({
 	onPollClick,
 	focusedPollId,
 	userCount = 1,
-	canWrite
+	canWrite,
+	thumbnail = false
 }: PresentationSlideProps) {
+	// Thumbnails may exist several times per slide (rail, drag overlay, mobile grid): unique id
+	const instanceId = React.useId().replace(/[^\w-]/g, '')
 	// Each slide fetches its own objects - this keeps the component stable
 	// Only fetch when renderContent is true to avoid unnecessary work
 	const objects = useViewObjects(doc, renderContent ? view.id : null)
@@ -406,7 +428,7 @@ export const PresentationSlide = React.memo(function PresentationSlide({
 	// Compute gradient background
 	const gradient = view.backgroundGradient
 	const hasGradient = gradient && gradient.type !== 'solid' && (gradient.stops?.length ?? 0) >= 2
-	const gradientId = `pres-bg-${view.id}`
+	const gradientId = thumbnail ? `thumb-bg-${instanceId}` : `pres-bg-${view.id}`
 
 	const gradientDef = React.useMemo(() => {
 		if (!hasGradient || !gradient?.stops) return null
@@ -434,11 +456,20 @@ export const PresentationSlide = React.memo(function PresentationSlide({
 	return (
 		<svg
 			viewBox={`${view.x} ${view.y} ${view.width} ${view.height}`}
-			className={`c-presentation-svg${isVisible ? '' : ' c-presentation-svg--hidden'}`}
-			style={{
-				maxWidth: `calc(100vh * ${viewAspect})`,
-				maxHeight: `calc(100vw / ${viewAspect})`
-			}}
+			aria-hidden={thumbnail || undefined}
+			className={
+				thumbnail
+					? 'c-slide-thumb__svg'
+					: `c-presentation-svg${isVisible ? '' : ' c-presentation-svg--hidden'}`
+			}
+			style={
+				thumbnail
+					? { width: '100%', pointerEvents: 'none' }
+					: {
+							maxWidth: `calc(100vh * ${viewAspect})`,
+							maxHeight: `calc(100vw / ${viewAspect})`
+						}
+			}
 		>
 			{/* Gradient definitions */}
 			{gradientDef && (
@@ -479,8 +510,8 @@ export const PresentationSlide = React.memo(function PresentationSlide({
 				const style = storedObj ? resolveShapeStyle(doc, storedObj) : DEFAULT_SHAPE_STYLE
 				const textStyle = storedObj ? resolveTextStyle(doc, storedObj) : DEFAULT_TEXT_STYLE
 
-				// Poll-specific props
-				const isPollFrame = object.type === 'pollframe'
+				// Poll-specific props (none on thumbnails)
+				const isPollFrame = !thumbnail && object.type === 'pollframe'
 				const voteCount = isPollFrame && voteCounts ? voteCounts.get(object.id) || 0 : 0
 				const isWinner =
 					isPollFrame && winningFrames ? winningFrames.includes(object.id) : false
@@ -498,19 +529,39 @@ export const PresentationSlide = React.memo(function PresentationSlide({
 						token={token}
 						sourceFileId={sourceFileId}
 						voteCount={voteCount}
-						totalVotes={totalVotes}
+						totalVotes={isPollFrame ? totalVotes : undefined}
 						isWinner={isWinner}
 						hasMyVote={hasMyVote}
 						onPollClick={isPollFrame ? onPollClick : undefined}
 						isFocused={isFocused}
 						userCount={userCount}
 						canWrite={canWrite}
+						thumbnail={thumbnail}
+						imageScale={thumbnail ? THUMB_W / view.width : 1}
 					/>
 				)
 			})}
 		</svg>
 	)
 })
+
+/**
+ * Starting index into `views` (the presented slides). Started on a skipped slide: the next
+ * presented slide after it in `order` (all slides), else the first.
+ */
+export function initialPresentedIndex(
+	order: string[],
+	views: ViewNode[],
+	initialViewId?: ViewId | null
+): number {
+	const idx = views.findIndex((v) => v.id === initialViewId)
+	if (idx >= 0 || !initialViewId) return Math.max(idx, 0)
+	for (const id of order.slice(order.indexOf(initialViewId) + 1)) {
+		const i = views.findIndex((v) => v.id === id)
+		if (i >= 0) return i
+	}
+	return 0
+}
 
 export function PresentationMode({
 	prezillo,
@@ -528,10 +579,35 @@ export function PresentationMode({
 }: PresentationModeProps) {
 	const { doc, awareness } = prezillo
 	const containerRef = React.useRef<HTMLDivElement>(null)
-	const [currentIndex, setCurrentIndex] = React.useState(() => {
-		const idx = views.findIndex((v) => v.id === initialViewId)
-		return idx >= 0 ? idx : 0
+	// Tracked by id: a skip toggle or reorder mid-show shifts indexes under us
+	const [current, setCurrent] = React.useState<{ id: ViewId | undefined; index: number }>(() => {
+		const index = initialPresentedIndex(doc.vo.toArray(), views, initialViewId)
+		return { id: views[index]?.id, index }
 	})
+	const setCurrentIndex = React.useCallback(
+		(index: number) => setCurrent({ id: views[index]?.id, index }),
+		[views]
+	)
+	const foundIndex = views.findIndex((v) => v.id === current.id)
+	const currentIndex =
+		foundIndex >= 0 ? foundIndex : Math.max(0, Math.min(current.index, views.length - 1))
+
+	// Current slide got skipped or deleted: adopt the neighbour and move the editor along
+	React.useEffect(() => {
+		const view = views[currentIndex]
+		if (!view || view.id === current.id) return
+		setCurrent({ id: view.id, index: currentIndex })
+		onViewChange?.(currentIndex, view.id)
+	}, [views, currentIndex, current.id, onViewChange])
+
+	// Started off a skipped slide: move the editor and the presenter broadcast along, once
+	const startedOffRef = React.useRef(false)
+	React.useEffect(() => {
+		if (startedOffRef.current) return
+		startedOffRef.current = true
+		const view = views[currentIndex]
+		if (view && view.id !== initialViewId) onViewChange?.(currentIndex, view.id)
+	}, [views, currentIndex, initialViewId, onViewChange])
 
 	// Sync with presenter when following
 	React.useEffect(() => {
@@ -545,7 +621,7 @@ export function PresentationMode({
 			setCurrentIndex(followingViewIndex)
 			setFocusedPollIndex(-1) // Reset poll focus when slide changes
 		}
-	}, [isFollowing, followingViewIndex, currentIndex, awareness])
+	}, [isFollowing, followingViewIndex, currentIndex, awareness, setCurrentIndex])
 
 	// Notify when view changes (for presenting mode)
 	const handleIndexChange = React.useCallback(
@@ -558,7 +634,7 @@ export function PresentationMode({
 				onViewChange(newIndex, views[newIndex].id)
 			}
 		},
-		[awareness, onViewChange, views]
+		[awareness, onViewChange, views, setCurrentIndex]
 	)
 
 	const [showControls, setShowControls] = React.useState(true)

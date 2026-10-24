@@ -52,6 +52,33 @@ function isOwnApp(appName: string | undefined): boolean {
 }
 
 /**
+ * Scoped token for `scope` through the source document `srcFileId`: with the via instance's
+ * token for a nested embed (`viaKey`), else the host connection's (its own document), else the
+ * shell's api. Tokens are read at call time, so a re-mint uses renewed ones.
+ */
+async function mintEmbedToken(
+	bus: ShellMessageBus,
+	appWindow: Window,
+	contextIdTag: string,
+	srcFileId: string,
+	scope: string,
+	viaKey?: string
+): Promise<{ token: string; access: 'read' | 'write' }> {
+	const tracker = bus.getAppTracker()
+	const authToken = viaKey
+		? tracker.getEmbedToken(appWindow, viaKey)?.token
+		: tracker.getApp(appWindow)?.token
+	if (viaKey && !authToken) throw new Error('Embed source closed')
+	const api = authToken ? createApiClient({ idTag: contextIdTag, authToken }) : bus.getApi()
+	const result = await api?.auth.getAccessTokenVia(srcFileId, scope)
+	if (!result?.token) {
+		throw new Error('Failed to obtain scoped token')
+	}
+	// What the backend granted, not what was asked: it downgrades silently.
+	return { token: result.token, access: result.accessLevel === 'write' ? 'write' : 'read' }
+}
+
+/**
  * Initialize embed message handlers on the shell bus
  */
 export function initEmbedHandlers(bus: ShellMessageBus): void {
@@ -199,25 +226,13 @@ export function initEmbedHandlers(bus: ShellMessageBus): void {
 			// against the active (community) node, not the viewer's home node.
 			const contextIdTag = idTagFromResId(connection.resId) || connection.idTag || api.idTag
 
-			// For guest/anonymous access: use the stored embed token for sourceFileId
-			// if available (handles nested embeds), otherwise fall back to the
-			// connection's token (handles first-level embeds).
-			let viaApi = api
-			if (via) {
-				viaApi = createApiClient({ idTag: contextIdTag, authToken: via.token })
-			} else if (connection.token) {
-				viaApi = createApiClient({ idTag: contextIdTag, authToken: connection.token })
-			}
-
-			// Get scoped token via cross-document token exchange
-			const tokenResult = await viaApi.auth.getAccessTokenVia(
-				srcFileId,
-				`file:${tgtFileId}:${getAccessSuffix(requestedAccess)}`
-			)
-
-			if (!tokenResult?.token) {
-				throw new Error('Failed to obtain scoped token')
-			}
+			// Through the via instance for a nested embed, else through the host's own document.
+			// Re-run by `handlers/auth.ts` when a late reload finds the token stale.
+			const viaKey = via ? msg.relayedFrom : undefined
+			const scope = `file:${tgtFileId}:${getAccessSuffix(requestedAccess)}`
+			const remint = () =>
+				mintEmbedToken(bus, appWindow, contextIdTag, srcFileId, scope, viaKey)
+			const minted = await remint()
 
 			// Generate nonce for pending registration
 			const nonce = `embed-${Date.now()}-${Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => b.toString(16).padStart(2, '0')).join('')}`
@@ -225,10 +240,12 @@ export function initEmbedHandlers(bus: ShellMessageBus): void {
 			// Store the token per instance so nested embeds within this one can use it
 			bus.getAppTracker().storeEmbedToken(appWindow, `_embed:${nonce}`, {
 				fileId: tgtFileId,
-				token: tokenResult.token,
-				access: tokenResult.accessLevel === 'write' ? 'write' : 'read',
+				token: minted.token,
+				access: minted.access,
 				ancestors: nextAncestorChain,
-				appName
+				appName,
+				via: viaKey,
+				remint
 			})
 
 			const idTag = contextIdTag
@@ -242,9 +259,8 @@ export function initEmbedHandlers(bus: ShellMessageBus): void {
 			// Key includes _embed: prefix to match the resId the app reads from hash
 			// Include navState so it can be delivered to the embedded app
 			bus.setPendingRegistration(`_embed:${nonce}`, {
-				token: tokenResult.token,
-				// What the backend granted, not what was asked: it downgrades silently.
-				access: tokenResult.accessLevel === 'write' ? 'write' : 'read',
+				token: minted.token,
+				access: minted.access,
 				resId: `${idTag}:${tgtFileId}`,
 				idTag,
 				// Validated against the bundle-name pattern above — never taken from the
@@ -257,7 +273,8 @@ export function initEmbedHandlers(bus: ShellMessageBus): void {
 				params,
 				mode,
 				ancestors: nextAncestorChain,
-				origin: framed ? new URL(embedUrl).origin : undefined
+				origin: framed ? new URL(embedUrl).origin : undefined,
+				relayed: true
 			})
 
 			bus.sendResponse(appWindow, 'embed:open.res', msg.id, true, {

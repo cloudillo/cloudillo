@@ -112,6 +112,12 @@ export interface PendingRegistration {
 	embed?: boolean
 	/** See {@link AppConnection.origin} */
 	origin?: string
+	/**
+	 * Opened by an app (`embed:open.req`) and served only through its relay. Not consumed, so
+	 * it outlives the first init; the direct init path must refuse it, or the child (which reads
+	 * the key from its own URL) could claim it as a first-class connection.
+	 */
+	relayed?: boolean
 }
 
 /**
@@ -126,6 +132,10 @@ export interface EmbedTokenEntry {
 	ancestors: string[]
 	/** The app framing `fileId`; a nested embed's host trust is read off it */
 	appName?: string
+	/** The key ('_embed:<nonce>') of the instance this embed was relayed through */
+	via?: string
+	/** Mints a fresh token for this instance, for a re-init after `token` went stale */
+	remint?: () => Promise<{ token: string; access: 'read' | 'write' }>
 }
 
 // ============================================
@@ -188,8 +198,8 @@ export class AppTracker {
 		}
 		this.connections.set(options.window, connection)
 		this.activeWindows.add(options.window)
-		// A re-registration (reload) of this window reopens its embeds, so drop its old tokens
-		this.embedTokens.delete(options.window)
+		// A re-registration (reload) of this window reopens its embeds with new nonces
+		this.dropEmbedTokens(options.window)
 		this.log('Registered app:', options.appName, options.resId)
 		return connection
 	}
@@ -255,10 +265,19 @@ export class AppTracker {
 		}
 
 		this.connections.delete(window)
+		this.dropEmbedTokens(window)
 		this.activeWindows.delete(window)
 		this.connectionCount = Math.max(0, this.connectionCount - 1)
 		this.log('Unregistered app:', connection.appName)
 		return true
+	}
+
+	/** Drop a window's embed tokens and their pending registrations */
+	private dropEmbedTokens(window: Window) {
+		for (const key of this.embedTokens.get(window)?.keys() ?? []) {
+			this.pendingRegistrations.delete(key)
+		}
+		this.embedTokens.delete(window)
 	}
 
 	/**
@@ -356,13 +375,18 @@ export class AppTracker {
 	}
 
 	/**
-	 * Drop the token of the embed instance `key` of the `window` connection (`embed:close.notify`).
+	 * Drop the token and pending registration of the embed instance `key` of the `window`
+	 * connection (`embed:close.notify`), and those of every embed relayed through it: an iframe
+	 * destroyed outright never closes its own children.
 	 */
-	// An iframe destroyed outright (e.g. its whole host removed) runs no cleanup, so its
-	// descendants' tokens stay until the host window re-registers; evict by `ancestors` prefix if
-	// that matters
 	removeEmbedToken(window: Window, key: string): void {
-		this.embedTokens.get(window)?.delete(key)
+		const tokens = this.embedTokens.get(window)
+		// Only the owning window can drop the pending entry
+		if (!tokens?.delete(key)) return
+		this.pendingRegistrations.delete(key)
+		for (const [childKey, entry] of tokens) {
+			if (entry.via === key) this.removeEmbedToken(window, childKey)
+		}
 	}
 
 	/**

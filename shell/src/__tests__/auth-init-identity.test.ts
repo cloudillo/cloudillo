@@ -23,6 +23,13 @@ interface PendingRegistration {
 	token?: string
 	displayName?: string
 	resId?: string
+	relayed?: boolean
+}
+
+interface EmbedToken {
+	token?: string
+	access?: 'read' | 'write'
+	remint?: () => Promise<{ token: string; access: 'read' | 'write' }>
 }
 
 interface Response {
@@ -39,9 +46,14 @@ interface BusOpts {
 	/** What `getApp()` reports — an initialised connection is what routes an
 	 *  `_embed:` resId down the relayed-embed branch. */
 	connection?: Record<string, unknown>
+	/** The embed keys each host window holds open (`storeEmbedToken`). */
+	embeds?: Map<Window, Map<string, EmbedToken>>
 }
 
-function createBus({ pending = new Map(), authState, connection }: BusOpts) {
+/** The source window `init()` sends from unless told otherwise. */
+const HOST = {} as Window
+
+function createBus({ pending = new Map(), authState, connection, embeds = new Map() }: BusOpts) {
 	const responses: Response[] = []
 	const getAccessTokenCalls: string[] = []
 	const registered: Record<string, unknown>[] = []
@@ -54,6 +66,8 @@ function createBus({ pending = new Map(), authState, connection }: BusOpts) {
 		},
 		getAppTracker: () => ({
 			getApp: () => connection,
+			getEmbedToken: (win: Window, key: string) => embeds.get(win)?.get(key),
+			getPendingRegistration: (resId: string) => pending.get(resId),
 			consumePendingRegistration: (resId: string) => {
 				const entry = pending.get(resId)
 				pending.delete(resId)
@@ -91,8 +105,11 @@ function createBus({ pending = new Map(), authState, connection }: BusOpts) {
 		responses,
 		getAccessTokenCalls,
 		registered,
-		async init(resId: string, appName = 'quillo') {
-			await handler?.({ id: 1, payload: { appName, resId } }, {} as Window)
+		removeEmbedToken(win: Window, key: string) {
+			if (embeds.get(win)?.delete(key)) pending.delete(key)
+		},
+		async init(resId: string, appName = 'quillo', source: Window = HOST) {
+			await handler?.({ id: 1, payload: { appName, resId } }, source)
 		}
 	}
 }
@@ -122,9 +139,91 @@ describe('auth:init.res identity — relayed embed', () => {
 				['_embed:n1', { idTag: '@team.example.com', token: 'embed-token', access: 'read' }]
 			]),
 			authState,
-			connection: { initialized: true }
+			connection: { initialized: true },
+			embeds: new Map([[HOST, new Map([['_embed:n1', {}]])]])
 		})
 	}
+
+	// The iframe reloads with the same src when its DOM node moves (a canvas reorder)
+	it('serves a reload of the same embed again', async () => {
+		const bus = embedBus(SIGNED_IN)
+
+		await bus.init('_embed:n1')
+		await bus.init('_embed:n1')
+
+		expect(bus.responses).toHaveLength(2)
+		for (const res of bus.responses) {
+			expect(res).toMatchObject({ ok: true, data: { token: 'embed-token' } })
+		}
+	})
+
+	it('refuses an embed its host closed', async () => {
+		const bus = embedBus(SIGNED_IN)
+
+		bus.removeEmbedToken(HOST, '_embed:n1')
+		await bus.init('_embed:n1')
+
+		expect(bus.responses[0]).toMatchObject({
+			ok: false,
+			error: 'No pending registration for embed'
+		})
+	})
+
+	it('refuses an app-opened embed key from a child initing directly', async () => {
+		const pending = new Map([['_embed:n1', { token: 'embed-token', relayed: true }]])
+		const bus = createBus({ pending, authState: SIGNED_IN })
+
+		await bus.init('_embed:n1')
+
+		expect(bus.responses[0]).toMatchObject({ ok: false, error: 'App not registered' })
+		expect(bus.registered).toHaveLength(0)
+		expect(pending.has('_embed:n1')).toBe(true)
+	})
+
+	it('re-mints a stale token on reload, for both entries', async () => {
+		const now = Math.floor(Date.now() / 1000)
+		const claims = btoa(JSON.stringify({ iat: now - 600, exp: now - 1 }))
+		const pending = { token: `x.${claims}.y`, access: 'read' as const }
+		const entry: EmbedToken = {
+			token: pending.token,
+			remint: async () => ({ token: 'fresh-token', access: 'read' })
+		}
+		const bus = createBus({
+			pending: new Map([['_embed:n1', pending]]),
+			authState: SIGNED_IN,
+			connection: { initialized: true },
+			embeds: new Map([[HOST, new Map([['_embed:n1', entry]])]])
+		})
+
+		await bus.init('_embed:n1')
+
+		expect(bus.responses[0]).toMatchObject({ ok: true, data: { token: 'fresh-token' } })
+		expect(pending.token).toBe('fresh-token')
+		expect(entry.token).toBe('fresh-token')
+	})
+
+	it('does not re-mint a token without exp/iat', async () => {
+		const remint = jest.fn(async () => ({ token: 'fresh-token', access: 'read' as const }))
+		const bus = createBus({
+			pending: new Map([['_embed:n1', { token: 'embed-token', access: 'read' as const }]]),
+			authState: SIGNED_IN,
+			connection: { initialized: true },
+			embeds: new Map([[HOST, new Map([['_embed:n1', { token: 'embed-token', remint }]])]])
+		})
+
+		await bus.init('_embed:n1')
+
+		expect(remint).not.toHaveBeenCalled()
+		expect(bus.responses[0]).toMatchObject({ ok: true, data: { token: 'embed-token' } })
+	})
+
+	it('refuses the key from a window that did not open it', async () => {
+		const bus = embedBus(SIGNED_IN)
+
+		await bus.init('_embed:n1', 'quillo', {} as Window)
+
+		expect(bus.responses[0]).toMatchObject({ ok: false })
+	})
 
 	it('flags a signed-in viewer and hands them their own idTag', async () => {
 		const bus = embedBus(SIGNED_IN)

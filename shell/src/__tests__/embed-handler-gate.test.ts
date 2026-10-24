@@ -94,6 +94,7 @@ function createBus(connection: Partial<AppConnection>, api: unknown = null, win 
 		},
 		getAppTracker: () => ({
 			validateSource: () => ({ access: 'write', initialized: true, ...connection }),
+			getApp: () => ({ access: 'write', initialized: true, ...connection }),
 			// The embed-token store is real, so `resetAppTracker` clears it between tests.
 			getEmbedToken: (window: Window, key: string) =>
 				getAppTracker().getEmbedToken(window, key),
@@ -389,7 +390,8 @@ describe('the embed guard on the picker and nested-embed handlers', () => {
 			token: 't',
 			access: 'write',
 			ancestors: ['f1'],
-			appName: 'quillo'
+			appName: 'quillo',
+			remint: expect.any(Function)
 		})
 	})
 

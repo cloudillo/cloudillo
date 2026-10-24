@@ -47,6 +47,7 @@ function createBus(pending: Map<string, PendingRegistration>) {
 		},
 		getAppTracker: () => ({
 			getApp: () => undefined,
+			getPendingRegistration: (resId: string) => pending.get(resId),
 			consumePendingRegistration: (resId: string) => {
 				const entry = pending.get(resId)
 				pending.delete(resId)

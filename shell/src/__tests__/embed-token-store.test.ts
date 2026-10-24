@@ -40,9 +40,36 @@ describe('the embed token store', () => {
 		const win = {} as Window
 		tracker.storeEmbedToken(win, '_embed:n1', entry('t', 'read'))
 
+		tracker.setPendingRegistration('_embed:n1', { token: 't' })
+
+		tracker.removeEmbedToken({} as Window, '_embed:n1')
+		expect(tracker.getPendingRegistration('_embed:n1')).toBeDefined()
+
 		tracker.removeEmbedToken(win, '_embed:n1')
 
 		expect(tracker.hasEmbed(win, 'f2')).toBe(false)
+		expect(tracker.getPendingRegistration('_embed:n1')).toBeUndefined()
+	})
+
+	it('forgets the embeds relayed through a removed one, transitively', () => {
+		const tracker = getAppTracker()
+		const win = {} as Window
+		tracker.storeEmbedToken(win, '_embed:n1', entry('t1', 'read'))
+		tracker.storeEmbedToken(win, '_embed:n2', { ...entry('t2', 'read'), via: '_embed:n1' })
+		tracker.storeEmbedToken(win, '_embed:n3', { ...entry('t3', 'read'), via: '_embed:n2' })
+		tracker.storeEmbedToken(win, '_embed:n4', entry('t4', 'read'))
+		for (const n of ['n1', 'n2', 'n3', 'n4']) {
+			tracker.setPendingRegistration(`_embed:${n}`, { token: n })
+		}
+
+		tracker.removeEmbedToken(win, '_embed:n1')
+
+		for (const n of ['n1', 'n2', 'n3']) {
+			expect(tracker.getEmbedToken(win, `_embed:${n}`)).toBeUndefined()
+			expect(tracker.getPendingRegistration(`_embed:${n}`)).toBeUndefined()
+		}
+		expect(tracker.getEmbedToken(win, '_embed:n4')).toBeDefined()
+		expect(tracker.getPendingRegistration('_embed:n4')).toBeDefined()
 	})
 
 	it('answers hasEmbed only for the direct parent when one is given', () => {
@@ -61,10 +88,25 @@ describe('the embed token store', () => {
 		const tracker = getAppTracker()
 		const win = {} as Window
 		tracker.storeEmbedToken(win, '_embed:n1', entry('t', 'read'))
+		tracker.setPendingRegistration('_embed:n1', { token: 't' })
 
 		tracker.registerApp({ resId: 'h:f1', window: win })
 
 		expect(tracker.getEmbedToken(win, '_embed:n1')).toBeUndefined()
+		expect(tracker.getPendingRegistration('_embed:n1')).toBeUndefined()
+	})
+
+	it('drops tokens when the window unregisters', () => {
+		const tracker = getAppTracker()
+		const win = {} as Window
+		tracker.registerApp({ resId: 'h:f1', window: win })
+		tracker.storeEmbedToken(win, '_embed:n1', entry('t', 'read'))
+		tracker.setPendingRegistration('_embed:n1', { token: 't' })
+
+		tracker.unregisterApp(win)
+
+		expect(tracker.getEmbedToken(win, '_embed:n1')).toBeUndefined()
+		expect(tracker.getPendingRegistration('_embed:n1')).toBeUndefined()
 	})
 
 	it("a second window on the same resId keeps the first window's tokens", () => {

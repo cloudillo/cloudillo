@@ -10,7 +10,7 @@
  */
 
 import type { AuthInitReq, AuthTokenRefreshReq, EmbedMode } from '@cloudillo/core'
-import { jwtRemainingSeconds } from '@cloudillo/core/jwt'
+import { getJwtTimes, jwtRemainingSeconds, renewalDelayMs } from '@cloudillo/core/jwt'
 
 import { type ShellMessageBus, themeFields } from '../shell-bus.js'
 
@@ -33,12 +33,17 @@ export function initAuthHandlers(bus: ShellMessageBus): void {
 		let mode: EmbedMode | undefined
 
 		// Relayed embed init: the parent app is already initialized and the
-		// child's resId starts with "_embed:". Consume the pending registration
-		// and respond with the embed token directly.
+		// child's resId starts with "_embed:". Respond with the embed token directly.
 		const isRelayedEmbed = connection?.initialized && msg.payload.resId?.startsWith('_embed:')
 
 		if (isRelayedEmbed) {
-			const pending = bus.getAppTracker().consumePendingRegistration(msg.payload.resId!)
+			const key = msg.payload.resId!
+			// Not consumed: the embed's iframe reloads (a DOM move does it) with the same src and
+			// key, and must init again. Bound to the host window that opened it, and gone once it
+			// closes it (embed:close.notify) or re-registers.
+			const tracker = bus.getAppTracker()
+			const embedToken = tracker.getEmbedToken(appWindow, key)
+			const pending = embedToken ? tracker.getPendingRegistration(key) : undefined
 			if (!pending) {
 				bus.sendResponse(
 					appWindow,
@@ -49,6 +54,24 @@ export function initAuthHandlers(bus: ShellMessageBus): void {
 					'No pending registration for embed'
 				)
 				return
+			}
+
+			// A reload long after the open: past the renewal point, mint a fresh token for both
+			// entries, so the reload neither boots on an expired one nor hands it to the next.
+			// An unparseable token has no renewal point: re-minting it would happen every reload
+			if (
+				embedToken?.remint &&
+				pending.token &&
+				getJwtTimes(pending.token) &&
+				!renewalDelayMs(pending.token)
+			) {
+				try {
+					const fresh = await embedToken.remint()
+					pending.token = embedToken.token = fresh.token
+					pending.access = embedToken.access = fresh.access
+				} catch (err) {
+					console.warn('[Auth] Embed token re-mint failed, serving the old one:', err)
+				}
 			}
 
 			const authState = bus.getAuthState()
@@ -89,7 +112,12 @@ export function initAuthHandlers(bus: ShellMessageBus): void {
 		// This handles the race condition where app sends init.req before load event
 		if (!connection && msg.payload.resId) {
 			// Check for pending registration (set before iframe loaded)
-			const pending = bus.getAppTracker().consumePendingRegistration(msg.payload.resId)
+			// Never an app-opened embed's entry: it is only served through its host's relay
+			// (above), and the child knows the key from its own URL
+			const tracker = bus.getAppTracker()
+			const pending = tracker.getPendingRegistration(msg.payload.resId)?.relayed
+				? undefined
+				: tracker.consumePendingRegistration(msg.payload.resId)
 			if (!pending) {
 				// `auth:init.req` is exempt from `validateSource`, so `resId` here is
 				// whatever the app claimed. The container sets a pending registration

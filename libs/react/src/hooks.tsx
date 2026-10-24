@@ -225,7 +225,7 @@ export function useCloudillo(appNameArg?: string): UseCloudillo {
 								idTag: hashOwnerTag,
 								tnId: 0,
 								roles: undefined,
-								token: undefined
+								token: partialState.accessToken
 							})
 							bus.notifyReady('auth')
 						}
@@ -251,6 +251,19 @@ export function useCloudillo(appNameArg?: string): UseCloudillo {
 	const [themeVersion, setThemeVersion] = React.useState(0)
 	React.useEffect(() => getAppBus().onThemeChange(() => setThemeVersion((v) => v + 1)), [])
 
+	// The shell renews the token behind our back; `auth.token` feeds every `?token=` URL.
+	// `auth` null means init hasn't settled; dropping the rotation then is safe because both
+	// init paths read the bus's current token when they `setAuth`.
+	React.useEffect(
+		() =>
+			getAppBus().onTokenChange((token) =>
+				setAuth((a) => (a && a.token !== token ? { ...a, token } : a))
+			),
+		[]
+	)
+
+	// `token` rotates (every renewal yields a new struct): read it through a ref in effects
+	// that refetch or re-init, rather than keying them on it.
 	const struct = React.useMemo(() => {
 		const bus = getAppBus()
 		return {

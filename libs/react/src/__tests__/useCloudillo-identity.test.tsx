@@ -149,6 +149,30 @@ describe('useCloudillo identity', () => {
 		expect(result.current.displayName).toBe('Ada')
 	})
 
+	it('follows a pushed token rotation', async () => {
+		stopShell = actAsShell({
+			idTag: '@alice.example',
+			authenticated: true,
+			theme: 'default',
+			token: 'tok-1'
+		})
+
+		const { result } = renderHook(() => useCloudillo('testapp'), { wrapper })
+		await waitFor(() => expect(result.current.token).toBe('tok-1'))
+
+		await act(async () => {
+			postAsShell({
+				cloudillo: true,
+				v: PROTOCOL_VERSION,
+				type: 'auth:token.push',
+				payload: { token: 'tok-2' }
+			})
+			await flush()
+		})
+
+		expect(result.current.token).toBe('tok-2')
+	})
+
 	it('drops the subscription on unmount', async () => {
 		stopShell = actAsShell({ idTag: '@alice.example', authenticated: true, theme: 'default' })
 

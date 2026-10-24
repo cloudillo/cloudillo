@@ -233,6 +233,7 @@ export const GradientPicker = createComponent<HTMLDivElement, GradientPickerProp
 								<div className="c-gradient-stop-color">
 									<label className="c-label">Color</label>
 									<ColorInput
+										aria-label="Stop color"
 										value={selectedStop.color}
 										onChange={handleStopColorChange}
 										onPreview={handleStopColorPreview}

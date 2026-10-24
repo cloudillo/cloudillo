@@ -914,10 +914,14 @@ export function ScanilloApp() {
 		}
 	}, [])
 
-	// Failsafe: resolve stale temp IDs on page load via direct API
+	// Failsafe: resolve stale temp IDs on page load via direct API. The token is read through a
+	// ref so a rotation doesn't re-list every pending file; only its arrival re-runs this.
+	const tokenRef = React.useRef(scanillo.token)
+	tokenRef.current = scanillo.token
+	const hasToken = !!scanillo.token
 	React.useEffect(() => {
 		if (pagesLoading || pages.length === 0) return
-		if (!scanillo.ownerTag || !scanillo.token) return
+		if (!scanillo.ownerTag || !hasToken) return
 
 		const tempIdEntries: Array<{
 			tempId: string
@@ -938,7 +942,7 @@ export function ScanilloApp() {
 		}
 		if (tempIdEntries.length === 0) return
 
-		const api = createApiClient({ idTag: scanillo.ownerTag, authToken: scanillo.token })
+		const api = createApiClient({ idTag: scanillo.ownerTag, authToken: tokenRef.current })
 
 		for (const entry of tempIdEntries) {
 			api.files
@@ -958,7 +962,7 @@ export function ScanilloApp() {
 				})
 				.catch(console.error)
 		}
-	}, [pages, pagesLoading, scanillo.ownerTag, scanillo.token])
+	}, [pages, pagesLoading, scanillo.ownerTag, hasToken])
 
 	const selectedPage = selectedPageId ? pages.find((p) => p.id === selectedPageId) : undefined
 	const selectedPageIndex = selectedPage ? pages.indexOf(selectedPage) : -1

@@ -9,15 +9,22 @@
  * changes, not when a zoom picks a different rendition of it.
  */
 
-import { renderHook } from '@testing-library/react'
+import { act, renderHook } from '@testing-library/react'
 
 const { useFileImage } = await import('../useFileImage.js')
 
 /** URLs the stubbed browser cache reports as already decoded. */
 const cached = new Set<string>()
 
+/** The most recent probe, so a test can fail it. */
+let lastProbe: StubImage | undefined
+
 class StubImage {
 	src = ''
+	onerror: (() => void) | null = null
+	constructor() {
+		lastProbe = this
+	}
 	get complete(): boolean {
 		return cached.has(this.src)
 	}
@@ -74,6 +81,36 @@ describe('useFileImage', () => {
 
 		rerender({ fileId: 'file-2' })
 		expect(result.current.state).toBe('loading')
+	})
+
+	it('keeps the painted href across a token rotation', () => {
+		cached.add('https://cl-o.alice.example/api/files/file-1?variant=vis.sd&token=tok-1')
+		const { result, rerender } = renderHook(
+			({ token }: { token: string }) =>
+				useFileImage('alice.example', 'file-1', 300, 200, token),
+			{ initialProps: { token: 'tok-1' } }
+		)
+		expect(result.current.state).toBe('loaded')
+		const url = result.current.url
+
+		rerender({ token: 'tok-2' })
+		expect(result.current.url).toBe(url)
+		expect(result.current.state).toBe('loaded')
+	})
+
+	it('retries a failed load with the rotated token', () => {
+		const { result, rerender } = renderHook(
+			({ token }: { token: string }) =>
+				useFileImage('alice.example', 'file-1', 300, 200, token),
+			{ initialProps: { token: 'tok-1' } }
+		)
+		act(() => {
+			lastProbe?.onerror?.()
+		})
+		expect(result.current.state).toBe('error')
+
+		rerender({ token: 'tok-2' })
+		expect(result.current.url).toContain('token=tok-2')
 	})
 })
 

@@ -29,20 +29,38 @@ export function useFileImage(
 		[displayWidth, displayHeight]
 	)
 
+	// The token in `url` is pinned while the same rendition is on screen: a rotation alone would
+	// hand the <image> a fresh, uncached href and refetch every image on the canvas. Re-pin when
+	// the rendition changes, when there was no token yet, or to retry a failed load.
+	const renditionKey = `${ownerTag ?? ''}|${fileId}|${variant}`
+	const [pinned, setPinned] = React.useState({ key: renditionKey, token })
+	if (
+		pinned.key !== renditionKey ||
+		(pinned.token !== token && (pinned.token === undefined || loadState === 'error'))
+	) {
+		setPinned({ key: renditionKey, token })
+	}
+	const pinnedToken = pinned.token
+
 	// No owner tag, no URL. A root-relative `/api/files/…` would now resolve against
 	// `cl-o.<home idTag>` — a live API on the *viewer's* node, where a node-local fileId
 	// can name an unrelated file of theirs. Better a visible error box.
 	const url = React.useMemo(
 		() =>
 			ownerTag
-				? getFileUrl(ownerTag, fileId, variant, token ? { token } : undefined)
+				? getFileUrl(
+						ownerTag,
+						fileId,
+						variant,
+						pinnedToken ? { token: pinnedToken } : undefined
+					)
 				: undefined,
-		[fileId, ownerTag, token, variant]
+		[fileId, ownerTag, pinnedToken, variant]
 	)
 
 	// Which *file* is on screen, as opposed to which rendition of it. A zoom that crosses a
 	// variant threshold rewrites `url` but not this, and the rendition already painted holds.
-	const fileKey = `${ownerTag ?? ''}|${fileId}|${token ?? ''}`
+	const fileKey = `${ownerTag ?? ''}|${fileId}`
 	const lastFileKey = React.useRef<string | undefined>(undefined)
 
 	// ponytail: the probe and the SVG <image> are two requests for one URL. They share a

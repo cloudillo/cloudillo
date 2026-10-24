@@ -44,6 +44,7 @@ export {
 	Avatar,
 	AvatarGroup,
 	AvatarStatus,
+	displayName as presenceDisplayName,
 	InitialsAvatar,
 	initialsFor,
 	monogramFor,

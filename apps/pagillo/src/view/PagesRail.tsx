@@ -10,7 +10,15 @@
  * draggable (they follow the text).
  */
 
-import { Button, Menu, MenuItem, SortableList, useDebouncedValue } from '@cloudillo/react'
+import {
+	Button,
+	isKeyboardContextMenu,
+	Menu,
+	MenuItem,
+	SortableList,
+	useDebouncedValue,
+	useNearSet
+} from '@cloudillo/react'
 import { FX } from '@cloudillo/typeset'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -68,38 +76,21 @@ export function PagesRail({
 	railRef
 }: PagesRailProps) {
 	const { t } = useTranslation()
-	const [menu, setMenu] = React.useState<{ n: number; x: number; y: number }>()
-	// Keys of thumbnails within one screen of the rail's view: only those mount a `PageCanvas`.
-	const [near, setNear] = React.useState<ReadonlySet<string>>(() => new Set())
+	const [menu, setMenu] = React.useState<{
+		n: number
+		position?: { x: number; y: number }
+		anchor?: HTMLElement
+	}>()
 	const sortable = !!(onSection && onMoveSection)
 	// Thumbnails repaint once typing pauses, not on every layout snapshot.
 	const pages = useDebouncedValue(layout.pages, THUMB_DEBOUNCE_MS)
 	const laying = useDelayed(layout.pending, 500)
-	React.useEffect(() => {
-		const el = railRef.current
-		if (!el) return
-		const io = new IntersectionObserver(
-			(es) => {
-				setNear((prev) => {
-					const next = new Set(prev)
-					for (const e of es) {
-						const k = (e.target as HTMLElement).dataset.key
-						if (!k) continue
-						if (e.isIntersecting) next.add(k)
-						else next.delete(k)
-					}
-					return next
-				})
-			},
-			{ root: el, rootMargin: '100% 0px' }
-		)
-		for (const th of el.querySelectorAll('.pagillo-thumb[data-key]')) io.observe(th)
-		return () => io.disconnect()
-	}, [layout.sections, sortable])
+	// Keys of thumbnails within one screen of the rail's view: only those mount a `PageCanvas`.
+	const near = useNearSet(railRef, '.pagillo-thumb[data-key]', 'key', [layout.sections, sortable])
 
 	React.useEffect(() => {
-		document
-			.querySelector('.pagillo-rail [aria-current="page"]')
+		railRef.current
+			?.querySelector('[aria-current="page"]')
 			?.scrollIntoView({ block: 'nearest' })
 	}, [current])
 
@@ -167,14 +158,12 @@ export function PagesRail({
 							onAddPage
 								? (e) => {
 										e.preventDefault()
-										const r = e.currentTarget.getBoundingClientRect()
-										// Keyboard (Shift+F10) opens at 0,0: anchor to the thumbnail.
-										const kb = e.clientX === 0 && e.clientY === 0
-										setMenu({
-											n,
-											x: kb ? r.right : e.clientX,
-											y: kb ? r.top : e.clientY
-										})
+										// Keyboard (Shift+F10): anchor to the thumbnail
+										setMenu(
+											isKeyboardContextMenu(e)
+												? { n, anchor: e.currentTarget }
+												: { n, position: { x: e.clientX, y: e.clientY } }
+										)
 									}
 								: undefined
 						}
@@ -226,7 +215,11 @@ export function PagesRail({
 				))
 			)}
 			{menu && onAddPage && (
-				<Menu position={{ x: menu.x, y: menu.y }} onClose={() => setMenu(undefined)}>
+				<Menu
+					position={menu.position}
+					anchor={menu.anchor}
+					onClose={() => setMenu(undefined)}
+				>
 					<MenuItem label={t('+ Add page')} onClick={() => onAddPage(menu.n)} />
 					{onDeletePage && (
 						<MenuItem

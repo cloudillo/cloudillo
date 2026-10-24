@@ -11,6 +11,7 @@ import {
 	EmptyState,
 	IcExport,
 	IcPagillo,
+	isContextMenuKey,
 	LoadingSpinner,
 	MenuItem,
 	PropertyPanel,
@@ -126,7 +127,7 @@ export function PagilloApp() {
 		canInput,
 		label: t('Document text'),
 		onKey: (e) =>
-			((e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) && openTextMenu()) ||
+			(isContextMenuKey(e) && openTextMenu()) ||
 			(e.key === 'Escape' &&
 				!!keyCtx.current &&
 				(leaveTable(keyCtx.current) || leaveFootnote(keyCtx.current))) ||

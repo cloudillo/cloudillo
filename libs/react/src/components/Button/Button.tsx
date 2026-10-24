@@ -121,7 +121,8 @@ export const Button = createComponent<HTMLButtonElement, ButtonProps>(
 		async function handleClick(evt: React.MouseEvent<HTMLButtonElement, MouseEvent>) {
 			evt.preventDefault()
 			if (blocked) return
-			const form = (evt.currentTarget as HTMLButtonElement).form
+			const el = evt.currentTarget
+			const form = el.form
 
 			// Synchronous path: keep the call inside the user-activation window.
 			if (immediate && type !== 'submit' && onClick) {
@@ -137,11 +138,12 @@ export const Button = createComponent<HTMLButtonElement, ButtonProps>(
 				form?.requestSubmit()
 			} else if (onClick && !immediate) {
 				// Original event is stale after await — synthesize a minimal event object.
+				// It keeps the button as `currentTarget` so anchor-taking handlers still work.
 				const syntheticEvent = {
 					preventDefault: () => {},
 					stopPropagation: () => {},
 					target: form,
-					currentTarget: form
+					currentTarget: el
 				} as unknown as React.MouseEvent<HTMLButtonElement, MouseEvent>
 				onClick(syntheticEvent)
 			}

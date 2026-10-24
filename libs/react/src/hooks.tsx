@@ -726,6 +726,57 @@ export function useInfiniteScroll<T>(
 	}
 }
 
+// Context menu keys //
+///////////////////////
+
+/** A contextmenu fired from the keyboard (Shift+F10 / Menu key) reports 0,0 */
+export function isKeyboardContextMenu(e: { clientX: number; clientY: number }): boolean {
+	return e.clientX === 0 && e.clientY === 0
+}
+
+/** Shift+F10 / Menu key */
+export function isContextMenuKey(e: { key: string; shiftKey: boolean }): boolean {
+	return e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')
+}
+
+// useNearSet() //
+//////////////////
+
+/**
+ * Keys (`dataset[dataKey]`) of the `selector` elements inside `rootRef` that are within one root
+ * height of its viewport. Re-observes when `deps` change.
+ */
+export function useNearSet(
+	rootRef: React.RefObject<HTMLElement | null>,
+	selector: string,
+	dataKey: string,
+	deps: React.DependencyList
+): ReadonlySet<string> {
+	const [near, setNear] = React.useState<ReadonlySet<string>>(() => new Set())
+	React.useEffect(() => {
+		const el = rootRef.current
+		if (!el) return
+		const io = new IntersectionObserver(
+			(es) => {
+				setNear((prev) => {
+					const next = new Set(prev)
+					for (const e of es) {
+						const k = (e.target as HTMLElement).dataset[dataKey]
+						if (!k) continue
+						if (e.isIntersecting) next.add(k)
+						else next.delete(k)
+					}
+					return next
+				})
+			},
+			{ root: el, rootMargin: '100% 0px' }
+		)
+		for (const th of el.querySelectorAll(selector)) io.observe(th)
+		return () => io.disconnect()
+	}, deps)
+	return near
+}
+
 // useThrottledCallback() //
 ////////////////////////////
 

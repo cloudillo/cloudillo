@@ -51,6 +51,12 @@ p {
 	}
 }
 
+/* Profile About editor: an empty column's drop target */
+.profile-about-drop {
+	border: 1px dashed var(--col-outline);
+	border-radius: var(--border-radius-lg);
+}
+
 /* Quill (profile About editor) — vendor overrides */
 .ql-container {
 	font-size: 1rem;

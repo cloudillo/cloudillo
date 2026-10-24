@@ -352,7 +352,7 @@ function AboutEditMode({
 				)}
 				<SortableList
 					group={colGroup(layoutIndex, col)}
-					className={ids.length ? 'g-1' : 'p-4'}
+					className={ids.length ? 'g-1' : 'p-4 profile-about-drop'}
 					items={ids}
 					getKey={(id) => id}
 					getLabel={sectionLabel}

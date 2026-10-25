@@ -13,8 +13,17 @@
  * after `PROFILE_RETRY_MS`; a blip must not blank a face for the session.
  */
 
-import { createApiClient, getAppBus, type PublicProfile } from '@cloudillo/core'
+import {
+	createApiClient,
+	decodeBadges,
+	getAppBus,
+	type ProfileBadge,
+	type PublicProfile
+} from '@cloudillo/core'
+import { isLiveBadge } from '@cloudillo/types'
 import * as React from 'react'
+
+import { PersonActionsContext } from './components/Person/PersonActionsContext.js'
 
 /**
  * `GET /profiles/batch` rejects (400) beyond this many distinct tags rather than
@@ -51,6 +60,12 @@ const cache = new Map<string, Map<string, PublicProfile | null>>()
 // `${nodeTag}\0${idTag}` keys. In flight: without this, a roster change during
 // the round trip re-asks for everything already being asked about.
 const inFlight = new Set<string>()
+/** In-flight keys invalidated before their answer landed: that answer is dropped. */
+const stale = new Set<string>()
+// nodeTag -> tags queued for the next microtask flush. Every card on a feed asks
+// for its own one tag from its own effect; this turns a render's worth of those
+// into one batch call per node instead of one per card.
+const pending = new Map<string, { node: ProfileNode; tags: Set<string> }>()
 // Earliest time we may ask again after a FAILED lookup.
 const retryAt = new Map<string, number>()
 // The back-off map only says "not yet"; without a timer nothing ever asks again
@@ -115,8 +130,28 @@ function request(idTags: readonly string[], node: ProfileNode) {
 	]
 	if (!unknown.length) return
 	for (const idTag of unknown) inFlight.add(key(nodeTag, idTag))
-	const gen = generation
 
+	let batch = pending.get(nodeTag)
+	if (!batch) {
+		const b = { node, tags: new Set<string>() }
+		batch = b
+		pending.set(nodeTag, b)
+		const gen = generation
+		// A promise job, not `queueMicrotask`: jest's fake timers stub the latter.
+		void Promise.resolve().then(() => {
+			// A reset in between already dropped the queue and its in-flight marks.
+			if (gen !== generation) return
+			pending.delete(nodeTag)
+			fetchProfiles(nodeTag, b.node, [...b.tags], gen)
+		})
+	}
+	// The latest caller's token: it may have rotated since the first one queued.
+	batch.node = node
+	for (const idTag of unknown) batch.tags.add(idTag)
+}
+
+/** One batch round trip for `unknown` (already marked in flight), chunked at the server cap. */
+function fetchProfiles(nodeTag: string, node: ProfileNode, unknown: string[], gen: number) {
 	void (async function () {
 		const resolved: Record<string, PublicProfile> = {}
 		const answered = new Set<string>() // tags whose chunk got a reply
@@ -155,7 +190,10 @@ function request(idTags: readonly string[], node: ProfileNode) {
 			}
 		}
 		if (gen !== generation) return
-		for (const idTag of failed) retryAt.set(key(nodeTag, idTag), Date.now() + PROFILE_RETRY_MS)
+		for (const idTag of failed) {
+			stale.delete(key(nodeTag, idTag))
+			retryAt.set(key(nodeTag, idTag), Date.now() + PROFILE_RETRY_MS)
+		}
 		if (failed.length && !retryTimer) scheduleRetry(PROFILE_RETRY_MS)
 		if (answered.size) {
 			let byTag = cache.get(nodeTag)
@@ -163,7 +201,11 @@ function request(idTags: readonly string[], node: ProfileNode) {
 				byTag = new Map()
 				cache.set(nodeTag, byTag)
 			}
-			for (const idTag of answered) byTag.set(idTag, resolved[idTag] ?? null)
+			for (const idTag of answered) {
+				// Left uncached: `notify()` makes its subscribers request it again.
+				if (stale.delete(key(nodeTag, idTag))) continue
+				byTag.set(idTag, resolved[idTag] ?? null)
+			}
 			notify()
 		}
 	})()
@@ -216,17 +258,71 @@ export function useProfile(
 	return idTag ? profiles[idTag] : undefined
 }
 
+const NO_BADGES: ProfileBadge[] = []
+const NO_NODE: ProfileNode = {}
+
+/** The catalog-valid badges in a batch-served profile, expired ones included. */
+function profileBadges(profile: PublicProfile | null | undefined): ProfileBadge[] {
+	return profile?.badges ? decodeBadges(profile.badges) : NO_BADGES
+}
+
+/**
+ * The unexpired subset. Filtered here, not by the server alone: the cache lives
+ * for the whole session. `NO_BADGES` when none, so the reference is stable.
+ */
+function unexpired(badges: ProfileBadge[]): ProfileBadge[] {
+	const live = badges.filter((b) => isLiveBadge(b))
+	return live.length ? live : NO_BADGES
+}
+
+/** The unexpired, catalog-valid badges in a batch-served profile. */
+export function liveBadges(profile: PublicProfile | null | undefined): ProfileBadge[] {
+	return unexpired(profileBadges(profile))
+}
+
+/**
+ * Community badges of `idTag`, as the viewer's home node has accepted them.
+ *
+ * Reads the node (and its token) from `PersonActionsContext`. Apps have no node
+ * there, nor do guests, so they get `[]` and nothing is fetched — deliberately no
+ * fallback to the app bus's node: badges are only meaningful from the home node.
+ * Badges are never read from the `ProfileInfo` embedded in actions.
+ */
+export function useProfileBadges(idTag: string | undefined): ProfileBadge[] {
+	const { node } = React.useContext(PersonActionsContext)
+	const nodeTag = node?.tag
+	const tags = React.useMemo(() => (idTag && nodeTag ? [idTag] : []), [idTag, nodeTag])
+	const profiles = useProfiles(tags, node ?? NO_NODE)
+	const profile = idTag && nodeTag ? profiles[idTag] : undefined
+	const badges = React.useMemo(() => profileBadges(profile), [profile])
+	// Per render, not memoized: a badge expiring mid-session drops out on the next one.
+	return unexpired(badges)
+}
+
 /**
  * Drop everything, including the retry timer and any answer still in the air.
- * Exists for tests: the store is module-level and outlives a test.
+ * Public for one shell use — the logged-in identity changed (badges are per
+ * viewer, `person-actions.tsx`) — and for tests. To refresh one profile, use
+ * `invalidateProfile`.
  */
 export function resetProfileCache() {
 	if (retryTimer) clearTimeout(retryTimer)
 	retryTimer = undefined
 	cache.clear()
 	inFlight.clear()
+	stale.clear()
+	pending.clear()
 	retryAt.clear()
 	generation++
+	notify()
+}
+
+/** Forget `idTag` on every node, so subscribers showing it fetch it again. */
+export function invalidateProfile(idTag: string) {
+	for (const byTag of cache.values()) byTag.delete(idTag)
+	// An answer already in flight may predate the change: drop it when it lands.
+	for (const k of inFlight) if (k.endsWith(`\0${idTag}`)) stale.add(k)
+	for (const k of retryAt.keys()) if (k.endsWith(`\0${idTag}`)) retryAt.delete(k)
 	notify()
 }
 

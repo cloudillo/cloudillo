@@ -97,7 +97,7 @@ export function ProfileMultiSelect({
 						getData={filtered}
 						itemToId={(p) => p.idTag}
 						itemToString={(p) => p?.idTag || ''}
-						renderItem={(p) => <ProfileCard profile={p} />}
+						renderItem={(p) => <ProfileCard profile={p} badges={false} />}
 						onSelect={pick}
 					/>
 				</div>
@@ -135,7 +135,7 @@ export function ProfileMultiSelect({
 						) : (
 							<div key={profile.idTag} className="c-hbox g-2 align-items-center p-2">
 								<div className="flex-fill text-truncate">
-									<ProfileCard profile={profile} />
+									<ProfileCard profile={profile} badges={false} />
 								</div>
 								{renderActions ? (
 									renderActions(profile)

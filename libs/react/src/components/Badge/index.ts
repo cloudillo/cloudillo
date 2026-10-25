@@ -3,5 +3,6 @@
 
 export * from './Badge.js'
 export * from './BadgeAnchor.js'
+export * from './CommunityBadge.js'
 
 // vim: ts=4

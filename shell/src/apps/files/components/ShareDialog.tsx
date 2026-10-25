@@ -600,6 +600,7 @@ export function ShareDialog({
 						<ProfileCard
 							profile={ownerProfile ?? { idTag: ownerIdTag, name: ownerIdTag }}
 							srcTag={profileSrcTag}
+							badges={false}
 						/>
 						{ownerIdTag === auth?.idTag && <Text emphasis="muted">({t('you')})</Text>}
 					</HBox>
@@ -701,6 +702,7 @@ export function ShareDialog({
 														<ProfileCard
 															profile={profile}
 															srcTag={profileSrcTag}
+															badges={false}
 														/>
 													}
 													trailing={

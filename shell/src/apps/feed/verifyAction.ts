@@ -17,7 +17,7 @@
  * Framework-free; mirrors the WebCrypto usage in `shell/src/cache/crypto.ts`.
  */
 
-import type { ProfileKeys } from '@cloudillo/core'
+import type { ProfileKeys, VerifyTokenResult } from '@cloudillo/core'
 import { base64UrlToBytes, bytesToBase64Url } from '@cloudillo/core/base64'
 
 const textEncoder = new TextEncoder()
@@ -148,6 +148,32 @@ export interface VerifyExpect {
 }
 
 /**
+ * Cross-check a token's claims against what the caller expected it to assert.
+ * Used on its own when the signature was verified elsewhere (the home node).
+ */
+export function claimsMatch(token: string, expect: VerifyExpect): boolean {
+	const payload = decodeJws(token)?.payload
+	if (!payload) return false
+	if (expect.issuerIdTag && payload.iss !== expect.issuerIdTag) return false
+	if (expect.subjectActionId && payload.sub !== expect.subjectActionId) return false
+	// An expected audience requires `aud` present AND matching, like issuer/subject.
+	// Signed REACT/REPOST tokens always carry `aud`.
+	if (expect.audienceTag && payload.aud !== expect.audienceTag) return false
+	return true
+}
+
+/** A home-node `POST /actions/verify` result: the signature checked there, the claims here on the
+ * same token bytes, and the server's issuer must be the token's. */
+export function homeVerified(
+	res: VerifyTokenResult | undefined,
+	token: string,
+	expect: VerifyExpect
+): boolean {
+	if (res?.status !== 'verified' || !claimsMatch(token, expect)) return false
+	return !res.issuer || !expect.issuerIdTag || res.issuer.idTag === expect.issuerIdTag
+}
+
+/**
  * Verify an action's JWS against a profile's published keys.
  *
  *  - `verified` — signature checks out and any provided claim expectations match
@@ -185,36 +211,29 @@ export async function verifyActionToken(
 		}
 		if (!ok) return { status: 'invalid', issuer, keyId }
 
-		// Cross-check claims against what the caller expected this token to assert.
-		if (expect?.issuerIdTag && issuer !== expect.issuerIdTag) {
-			return { status: 'invalid', issuer, keyId }
-		}
-		if (expect?.subjectActionId && payload.sub !== expect.subjectActionId) {
-			return { status: 'invalid', issuer, keyId }
-		}
-		// Symmetric with the issuer/subject checks above: when an audience is
-		// expected, require the claim to be present AND to match (a missing `aud`
-		// is not a free pass). Signed REACT/REPOST tokens always carry `aud`.
-		if (expect?.audienceTag && payload.aud !== expect.audienceTag) {
-			return { status: 'invalid', issuer, keyId }
-		}
+		if (expect && !claimsMatch(token, expect)) return { status: 'invalid', issuer, keyId }
 		return { status: 'verified', issuer, keyId }
 	} catch {
 		return { status: 'error', issuer, keyId }
 	}
 }
 
-// Module-level, session-lifetime cache of fetched public keys, keyed by idTag.
-// A persistent IndexedDB-backed cache is a possible later upgrade but is out of
-// scope now (no second consumer yet).
-const keyCache = new Map<string, ProfileKeys>()
+// Module-level cache of fetched public keys, keyed by idTag. Entries expire after
+// KEY_CACHE_TTL_MS so a rotated key is picked up within a session.
+const KEY_CACHE_TTL_MS = 10 * 60_000
+const keyCache = new Map<string, { keys: ProfileKeys; at: number }>()
 
 export function getCachedProfileKeys(idTag: string): ProfileKeys | undefined {
-	return keyCache.get(idTag)
+	const entry = keyCache.get(idTag)
+	if (entry && Date.now() - entry.at > KEY_CACHE_TTL_MS) {
+		keyCache.delete(idTag)
+		return
+	}
+	return entry?.keys
 }
 
 export function cacheProfileKeys(idTag: string, keys: ProfileKeys): void {
-	keyCache.set(idTag, keys)
+	keyCache.set(idTag, { keys, at: Date.now() })
 }
 
 // vim: ts=4

@@ -6,6 +6,8 @@ import type { Profile, ProfileInfo } from '@cloudillo/types'
 import * as React from 'react'
 
 import { useAuth } from '../../hooks.js'
+import { useProfileBadges } from '../../profile-cache.js'
+import { CommunityBadgeRow } from '../Badge/CommunityBadge.js'
 import { Text } from '../Text/Text.js'
 import { mergeClasses } from '../utils.js'
 import { HatVia } from './HatVia.js'
@@ -21,10 +23,21 @@ export interface ProfileCardProps {
 	alt?: string
 	/** The community the actor speaks for: rings the picture and adds "via ▣ Name". */
 	hat?: ProfileInfo
+	/** Show the person's community badges (home node only; nothing inside apps). Default true. */
+	badges?: boolean
 }
 
-export function ProfileCard({ className, profile, srcTag, alt = '', hat }: ProfileCardProps) {
+export function ProfileCard({
+	className,
+	profile,
+	srcTag,
+	alt = '',
+	hat,
+	badges = true
+}: ProfileCardProps) {
 	const [auth] = useAuth()
+	// Hook unconditionally; an opted-out card asks for no tag.
+	const profileBadges = useProfileBadges(badges ? profile.idTag : undefined)
 	// Gate on the resolved source tag, not on `auth` — an anonymous guest has no
 	// auth but an explicit `srcTag` still resolves a perfectly fetchable URL.
 	const idTag = srcTag ?? auth?.idTag
@@ -48,6 +61,7 @@ export function ProfileCard({ className, profile, srcTag, alt = '', hat }: Profi
 					{profile.name}
 				</Text>
 				{hat && <HatVia hat={hat} srcTag={srcTag} />}
+				<CommunityBadgeRow badges={profileBadges} max={3} size={18} srcTag={auth?.idTag} />
 				<div className="tag">
 					<IdentityTag idTag={profile.idTag} />
 				</div>

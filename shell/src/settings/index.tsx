@@ -22,7 +22,7 @@ import {
 	useCurrentContextIdTag
 } from '../context/index.js'
 import type { UsePWA } from '../pwa.js'
-import { feedPath, roomsPath, sectionMatch, settingsPath } from '../routes.js'
+import { feedPath, HOME_BASE, roomsPath, sectionMatch, settingsPath } from '../routes.js'
 import { AppearanceSettings } from './appearance.js'
 import { NotificationSettings } from './notifications.js'
 import { SecuritySettings } from './security.js'
@@ -42,9 +42,11 @@ import {
 	IcRoom,
 	IcSecurity,
 	IcSite,
-	IcTrust
+	IcTrust,
+	IcTrusted
 } from '../icons.js'
 import { AppMenuSettings } from './apps.js'
+import { BadgeSettings } from './badges.js'
 import { AuditLogSettings } from './audit-log.js'
 import { CalendarSettings } from './calendar.js'
 import { CommunityGeneralSettings } from './community-general.js'
@@ -64,6 +66,7 @@ const PERSONAL_PAGES = [
 	'audit-log',
 	'privacy',
 	'trust',
+	'badges',
 	'notifications',
 	'appearance',
 	'calendar',
@@ -94,6 +97,7 @@ const PAGE_ICONS: Record<string, React.ReactNode> = {
 	'audit-log': <IcHistory />,
 	privacy: <IcPrivacy />,
 	trust: <IcTrust />,
+	badges: <IcTrusted />,
 	notifications: <IcNotifications />,
 	appearance: <IcAppearance />,
 	calendar: <IcCalendar />,
@@ -177,6 +181,8 @@ function settingsTitle(t: (key: string) => string, page: string | undefined): st
 			return t('Privacy')
 		case 'trust':
 			return t('Trusted profiles')
+		case 'badges':
+			return t('Badges')
 		case 'notifications':
 			return t('Notifications')
 		case 'appearance':
@@ -213,7 +219,9 @@ function SettingsLayout() {
 
 	// A page this context does not offer (`~/settings/partners`, a moderator on `general`)
 	if (settled && page && !allowedPages(community, auth?.idTag).includes(page)) {
-		return <Navigate to={settingsPath(base)} replace />
+		// Badges are personal: a community path goes to the home page, not this context's settings
+		const to = page === 'badges' ? settingsPath(HOME_BASE, 'badges') : settingsPath(base)
+		return <Navigate to={to} replace />
 	}
 
 	return (
@@ -258,6 +266,7 @@ export function settingsRoutes(pwa: UsePWA) {
 			<Route path="audit-log" element={<AuditLogSettings />} />
 			<Route path="privacy" element={<PrivacySettings />} />
 			<Route path="trust" element={<TrustSettings />} />
+			<Route path="badges" element={<BadgeSettings />} />
 			<Route path="notifications" element={<NotificationSettings pwa={pwa} />} />
 			<Route path="appearance" element={<AppearanceSettings />} />
 			<Route path="calendar" element={<CalendarSettings />} />

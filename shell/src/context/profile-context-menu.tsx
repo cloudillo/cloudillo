@@ -12,6 +12,8 @@ import {
 	Menu,
 	MenuDivider,
 	MenuItem,
+	IcRefresh,
+	invalidateProfile,
 	useApi,
 	useAuth,
 	useIsMobile,
@@ -97,6 +99,8 @@ export function ProfileContextMenu({
 	const navigate = useNavigate()
 	const { api } = useApi()
 	const [auth] = useAuth()
+	// Mirrored profiles live on the home node, and refresh is owner-only.
+	const { api: homeApi } = useApi(auth?.idTag)
 	const toast = useToast()
 	const ctx = useCtx()
 	const {
@@ -160,6 +164,22 @@ export function ProfileContextMenu({
 		}
 	}
 
+	const handleRefresh = async () => {
+		if (!homeApi) {
+			toast.error(t('Failed to refresh profile'))
+			return
+		}
+		try {
+			await homeApi.profiles.refresh(target.idTag)
+			invalidateProfile(target.idTag)
+			toast.success(t('Profile refreshed'))
+			onRestored?.(target.idTag)
+		} catch (err) {
+			console.error('Failed to refresh profile', err)
+			toast.error(t('Failed to refresh profile'))
+		}
+	}
+
 	const handleTogglePin = () => {
 		if (target.pinKey) toggleFavorite(target.pinKey)
 		else togglePinCommunity(target.idTag)
@@ -199,6 +219,13 @@ export function ProfileContextMenu({
 				label={t('Copy identity tag')}
 				onClick={handleAction(handleCopyTag)}
 			/>
+			{!isOwnProfile && !!auth?.idTag && (
+				<Item
+					icon={<IcRefresh />}
+					label={t('Refresh profile')}
+					onClick={handleAction(handleRefresh)}
+				/>
+			)}
 			{onChangeIdentity && (
 				<Item
 					icon={<IcSwitchIdentity />}

@@ -1,12 +1,21 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: MPL-2.0
 
-import { getFileUrl, getInstanceUrl, idHue, type ProfilePatch } from '@cloudillo/core'
+import {
+	decodeBadgeTokens,
+	getFileUrl,
+	getInstanceUrl,
+	idHue,
+	type ProfilePatch
+} from '@cloudillo/core'
 import {
 	Avatar,
 	Badge,
 	Button,
+	badgeLabel,
 	Center,
+	CommunityBadge,
+	CommunityBadgeRow,
 	FAB,
 	Fcd,
 	FileButton,
@@ -39,13 +48,21 @@ import {
 	SkeletonText,
 	Tab,
 	Tabs,
+	Text,
+	Tooltip,
 	useApi,
 	useAuth,
 	useDialog,
 	useToast,
 	VBox
 } from '@cloudillo/react'
-import { type ActionView, type CommunityRole, type NewAction, ROLE_LEVELS } from '@cloudillo/types'
+import {
+	type ActionView,
+	type BadgeSlot,
+	type CommunityRole,
+	type NewAction,
+	ROLE_LEVELS
+} from '@cloudillo/types'
 import type { TFunction } from 'i18next'
 import { useAtom, useSetAtom } from 'jotai'
 import React from 'react'
@@ -81,9 +98,19 @@ import type { CtxBase } from '../routes.js'
 import { ctxBase, messagesPath, profilePath, roomsPath } from '../routes.js'
 import { useConnectCommunity } from '../settings/partners.js'
 import { DrawerToggle } from '../ui/DrawerToggle.js'
+import { formatUnixTime } from '../utils.js'
 import { useWsBus } from '../ws-bus.js'
+import { AwardBadgeDialog } from './AwardBadgeDialog.js'
 import { ProfileAbout } from './about/ProfileAbout.js'
 import { getEffectiveTabs, parseTabConfig, type TabEntry } from './about/types.js'
+import {
+	latestBadges,
+	listBadgeActions,
+	type ReceivedBadge,
+	shortExpiry,
+	shownBadgeEvents,
+	useVerifiedBadges
+} from './badges.js'
 import { CreateCommunity } from './community.js'
 import { InvitationsList } from './community-invitations.js'
 import { PendingRequestsList } from './community-requests.js'
@@ -143,6 +170,8 @@ interface FullProfile {
 		allowFollowers?: boolean
 	}
 	partners?: unknown
+	/** Raw JWS tokens of the badges the owner shows, in owner order; read with `decodeBadgeTokens` */
+	badges?: unknown
 }
 
 /* Old x shape for reference:
@@ -442,6 +471,12 @@ export function ProfilePage({
 	const location = useLocation()
 	const [activeContext, setActiveContext] = useAtom(activeContextAtom)
 	const { getClientFor } = useApiContext()
+	const badgeTokens = React.useMemo(() => decodeBadgeTokens(profile.badges), [profile.badges])
+	const {
+		badges: verifiedBadges,
+		pending: pendingBadges,
+		verifyAll: verifyAllBadges
+	} = useVerifiedBadges(profile.idTag, badgeTokens)
 	const setCommunities = useSetAtom(communitiesAtom)
 	const setCommunityProfilePic = React.useCallback(
 		(idTag: string, profilePic?: string) => {
@@ -920,7 +955,26 @@ export function ProfilePage({
 							roomCount={roomCount}
 						/>
 					}
-				/>
+				>
+					{(verifiedBadges.length > 0 || pendingBadges > 0) && (
+						<HBox gap={2} align="center" wrap>
+							<CommunityBadgeRow badges={verifiedBadges} labelled size={32} />
+							{pendingBadges > 0 && (
+								<Tooltip
+									content={t(
+										"Checks badges from communities you don't know by contacting them"
+									)}
+								>
+									<Button variant="ghost" size="sm" onClick={verifyAllBadges}>
+										{t('Verify {{count}} more badges', {
+											count: pendingBadges
+										})}
+									</Button>
+								</Tooltip>
+							)}
+						</HBox>
+					)}
+				</ProfileHero>
 				{profile.profilePic && (
 					<Lightbox
 						open={picOpen}
@@ -1114,7 +1168,14 @@ interface MemberCardProps {
 	actorRoleLevel: number
 	/** Tooltip / accessible name of the role dropdown */
 	roleHint?: string
+	/** The member's current badges from this community */
+	badges?: readonly ReceivedBadge[]
+	/** Set for moderators+: opens the award dialog (`slot` = renew that badge) */
+	onAward?: (member: Profile, slot?: BadgeSlot) => void
 }
+
+/** Badges expiring within this get a warning outline in the member list */
+const BADGE_EXPIRY_WARN_SECS = 7 * 24 * 3600
 
 function MemberCard({
 	member,
@@ -1124,7 +1185,9 @@ function MemberCard({
 	onRoleChange,
 	onRemove,
 	actorRoleLevel,
-	roleHint
+	roleHint,
+	badges,
+	onAward
 }: MemberCardProps) {
 	const { t } = useTranslation()
 	const dialog = useDialog()
@@ -1170,7 +1233,8 @@ function MemberCard({
 			onClick={handleRemove}
 		/>
 	)
-	const hasMenu = canChangeRole || (showRoleControls && !!onRemove)
+	const hasMenu = canChangeRole || (showRoleControls && !!onRemove) || !!onAward
+	const now = Math.floor(Date.now() / 1000)
 
 	return (
 		<ListItem
@@ -1180,6 +1244,29 @@ function MemberCard({
 			href={profilePath(ctx.base, member.idTag)}
 			trailing={
 				<>
+					{!!badges?.length && (
+						<HBox gap={1}>
+							{badges.map((b) => (
+								<HBox key={b.key} gap={1} align="center">
+									<CommunityBadge
+										community={b.community}
+										slot={b.slot}
+										level={b.level}
+										exp={b.exp}
+										srcTag={srcTag}
+										className={
+											b.exp - now < BADGE_EXPIRY_WARN_SECS
+												? 'c-community-badge--expiring'
+												: undefined
+										}
+									/>
+									<Text size="sm" emphasis="muted" title={formatUnixTime(b.exp)}>
+										{shortExpiry(b.exp, t)}
+									</Text>
+								</HBox>
+							))}
+						</HBox>
+					)}
 					<ProfileStatusBadge profile={member} />
 					{hasMenu ? (
 						<Menu
@@ -1204,7 +1291,24 @@ function MemberCard({
 										onClick={() => onRoleChange?.(member.idTag, role.value)}
 									/>
 								))}
-							{canChangeRole && onRemove && <MenuDivider />}
+							{canChangeRole && (onAward || onRemove) && <MenuDivider />}
+							{onAward && (
+								<MenuItem
+									label={t('Award badge…')}
+									onClick={() => onAward(member)}
+								/>
+							)}
+							{onAward &&
+								badges?.map((b) => (
+									<MenuItem
+										key={b.key}
+										label={t('Renew {{badge}}', {
+											badge: badgeLabel(b.slot, b.level, t)
+										})}
+										onClick={() => onAward(member, b.slot)}
+									/>
+								))}
+							{onAward && onRemove && <MenuDivider />}
 							{removeItem}
 						</Menu>
 					) : (
@@ -1252,8 +1356,42 @@ export function ProfileConnections({
 	const userRoleLevel = userRole ? ROLE_LEVELS[userRole] : 0
 	const canManageMembers = isCommunity && userRoleLevel >= ROLE_LEVELS.moderator
 	const canChangeRoles = isCommunity && userRoleLevel >= ROLE_LEVELS.moderator
+	const canAward = isCommunity && userRoleLevel >= ROLE_LEVELS.moderator
+	const [memberBadges, setMemberBadges] = React.useState<Map<string, ReceivedBadge[]>>(
+		() => new Map()
+	)
+	const [awardTarget, setAwardTarget] = React.useState<{ member: Profile; slot?: BadgeSlot }>()
+	const openAward = React.useCallback((member: Profile, slot?: BadgeSlot) => {
+		setAwardTarget({ member, slot })
+	}, [])
 
 	const triggerRefresh = React.useCallback(() => setRefreshTick((n) => n + 1), [])
+
+	React.useEffect(
+		function loadBadges() {
+			if (!canAward) return
+			// Explicit: BDG is visibility 'C'; moderators list what the community issued.
+			const client = getClientFor(profile.idTag, { explicit: true })
+			if (!client) return
+			let cancelled = false
+			;(async function () {
+				try {
+					const actions = await listBadgeActions(client, { issuer: profile.idTag })
+					const byMember = new Map<string, ReceivedBadge[]>()
+					for (const [tag, byKey] of latestBadges(actions)) {
+						byMember.set(tag, [...byKey.values()])
+					}
+					if (!cancelled) setMemberBadges(byMember)
+				} catch (err) {
+					console.error('Failed to load member badges', err)
+				}
+			})()
+			return () => {
+				cancelled = true
+			}
+		},
+		[canAward, profile.idTag, refreshTick, getClientFor]
+	)
 
 	// `connected === true` is the membership signal; 'R' (request pending) and
 	// undefined/false are NOT members. The /profiles list also includes
@@ -1424,6 +1562,8 @@ export function ProfileConnections({
 							canManageMembers && canManageThisMember ? handleRemoveMember : undefined
 						}
 						actorRoleLevel={userRoleLevel}
+						badges={memberBadges.get(p.idTag)}
+						onAward={canAward ? openAward : undefined}
 					/>
 				)
 			})}
@@ -1528,6 +1668,18 @@ export function ProfileConnections({
 					communityName={profile.name}
 					onSent={triggerRefresh}
 				/>
+
+				{awardTarget && (
+					<AwardBadgeDialog
+						open
+						onClose={() => setAwardTarget(undefined)}
+						communityIdTag={profile.idTag}
+						member={awardTarget.member}
+						current={memberBadges.get(awardTarget.member.idTag) ?? []}
+						slot={awardTarget.slot}
+						onAwarded={triggerRefresh}
+					/>
+				)}
 			</>
 		)
 
@@ -1693,11 +1845,24 @@ function ProfileView() {
 			}
 
 			let cancelled = false
+			let offChanged: (() => void) | undefined
 
 			if (own) {
-				api!.profiles.getOwnFull().then((p) => {
-					if (!cancelled) setProfile(p as unknown as FullProfile)
-				})
+				// Only the latest load lands: a slow reload must not overwrite a newer one.
+				let seq = 0
+				const loadOwn = () => {
+					const n = ++seq
+					api!.profiles
+						.getOwnFull()
+						.then((p) => {
+							if (!cancelled && n === seq) setProfile(p as unknown as FullProfile)
+						})
+						.catch((err) => console.warn('Profile: failed to load own profile', err))
+				}
+				loadOwn()
+				// The shown badges changed (Settings → Badges, or a notification).
+				shownBadgeEvents.addEventListener('changed', loadOwn)
+				offChanged = () => shownBadgeEvents.removeEventListener('changed', loadOwn)
 			} else {
 				// Trust-gated: ask getTokenFor for a proxy token. The gate returns
 				// null for 'never' / 'X' / no decision and a fresh token for
@@ -1707,7 +1872,14 @@ function ProfileView() {
 				getTokenFor(idTag!)
 					.then((result) => api!.profiles.getRemoteFull(idTag!, result?.token))
 					.then((p) => {
-						if (!cancelled) setProfile(p as unknown as FullProfile)
+						if (cancelled) return
+						// Bound to the routed idTag, so badge `aud` checks the identity in the URL.
+						if (p.idTag.toLowerCase() !== idTag!.toLowerCase()) {
+							console.warn('Profile: remote returned another idTag', p.idTag, idTag)
+							setProfile(undefined)
+							return
+						}
+						setProfile(p as unknown as FullProfile)
 					})
 					.catch(() => {
 						if (!cancelled) setProfile(undefined)
@@ -1735,6 +1907,7 @@ function ProfileView() {
 
 			return () => {
 				cancelled = true
+				offChanged?.()
 			}
 		},
 		[api, idTag, profile?.idTag, auth?.idTag, trustTick, own, rememberStoredTrust, getTokenFor]

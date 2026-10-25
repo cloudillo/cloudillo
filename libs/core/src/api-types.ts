@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: MPL-2.0
 
+import { type BadgeLevel, type BadgeSlot, isBadge } from '@cloudillo/types'
 import * as T from '@symbion/runtype'
 
 // ============================================================================
@@ -1219,9 +1220,32 @@ export const tProfileKeys = T.struct({
 	),
 	x: T.optional(T.record(T.string)),
 	// A community's contracted (public) partners; decode per entry with `decodePartners`
-	partners: T.optional(T.array(T.nullable(T.unknown)))
+	partners: T.optional(T.array(T.nullable(T.unknown))),
+	// Raw JWS tokens of the badges the owner shows, in owner order; omitted when none.
+	// Unchecked so one bad entry can't fail the whole profile; read with `decodeBadgeTokens`.
+	badges: T.optional(T.unknown)
 })
 export type ProfileKeys = T.TypeOf<typeof tProfileKeys>
+
+/** The string entries of `ProfileKeys.badges`; `[]` when it is not an array. */
+export function decodeBadgeTokens(v: unknown): string[] {
+	return Array.isArray(v) ? v.filter((s): s is string => typeof s === 'string') : []
+}
+
+/** One `POST /actions/verify` result, in request order. `status`: `verified | invalid | error |
+ * unknown` (issuer not known on the home node, no `sync`); anything else counts as `error`. */
+export const tVerifyTokenResult = T.struct({
+	status: T.string,
+	issuer: T.optional(
+		T.struct({
+			idTag: T.string,
+			name: T.string,
+			type: T.literal('person', 'community'),
+			profilePic: T.optional(T.string)
+		})
+	)
+})
+export type VerifyTokenResult = T.TypeOf<typeof tVerifyTokenResult>
 
 export const tImageVariants = T.struct({
 	hd: T.optional(T.string),
@@ -1268,14 +1292,52 @@ export type ProfileRefreshResult = T.TypeOf<typeof tProfileRefreshResult>
  * a file-scoped token. Deliberately carries none of the tenant's relationship
  * state (`status`, `connected`, `following`, `follower`, `trust`, read
  * watermarks) — see the batch route's doc comment in `cloudillo-rs`.
+ *
+ * The one exception is `badges`: the community badges this node has accepted for
+ * the profile, sent only to the authenticated tenant owner (absent otherwise).
+ * Decode per entry with `decodeBadges`.
  */
 export const tPublicProfile = T.struct({
 	idTag: T.string,
 	name: T.optional(T.string),
 	type: T.optional(T.literal('person', 'community')),
-	profilePic: T.optional(T.string)
+	profilePic: T.optional(T.string),
+	badges: T.optional(T.unknown)
 })
 export type PublicProfile = T.TypeOf<typeof tPublicProfile>
+
+const tProfileBadge = T.struct({
+	// Not `tPartnerProfile`: a community without a name or type must not drop the badge
+	community: T.struct({
+		idTag: T.string,
+		name: T.optional(T.string),
+		profilePic: T.optional(T.string)
+	}),
+	slot: T.string,
+	level: T.string,
+	exp: T.number // unix seconds
+})
+
+/** One batch-served badge (cloudillo-rs `BadgeView`). */
+export interface ProfileBadge {
+	community: { idTag: string; name?: string; profilePic?: string }
+	slot: BadgeSlot
+	level: BadgeLevel
+	/** Unix seconds */
+	exp: number
+}
+
+/**
+ * Decode `PublicProfile.badges` per entry, dropping malformed entries and
+ * slots/levels outside the catalog — one bad entry must not fail the batch.
+ */
+export function decodeBadges(v: unknown): ProfileBadge[] {
+	if (!Array.isArray(v)) return []
+	return v.flatMap((b) => {
+		const r = T.decode(tProfileBadge, b, { unknownFields: 'drop' })
+		return T.isOk(r) && isBadge(r.ok.slot, r.ok.level) ? [r.ok as ProfileBadge] : []
+	})
+}
 
 /** Result of GET /profiles/batch — only the idTags this node has mirrored. */
 export const tPublicProfileList = T.array(tPublicProfile)

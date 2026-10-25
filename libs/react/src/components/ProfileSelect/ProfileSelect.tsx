@@ -33,7 +33,7 @@ export function ProfileSelect({
 	}
 
 	function renderItem(profile: Profile) {
-		return <ProfileCard profile={profile} />
+		return <ProfileCard profile={profile} badges={false} />
 	}
 
 	if (value) {
@@ -41,7 +41,7 @@ export function ProfileSelect({
 			<div className={className}>
 				<div className="c-input">
 					<div className="c-hbox g-2 align-items-center">
-						<ProfileCard className="flex-fill" profile={value} />
+						<ProfileCard className="flex-fill" profile={value} badges={false} />
 						<Button
 							variant="ghost"
 							size="sm"

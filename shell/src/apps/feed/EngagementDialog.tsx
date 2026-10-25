@@ -4,8 +4,9 @@
 /**
  * Unified engagement dialog: lists the individual users behind a post's
  * reaction chips and repost counter, loaded from the audience tenant. Each row
- * shows a signature-verification status; connections/followed identities are
- * verified automatically in the background, everyone else gets a Verify button.
+ * shows a signature-verification status. Logged in, the home node verifies every
+ * row whose issuer it already knows in one batch (`POST /actions/verify`); the rest, and
+ * every row for a guest, get a Verify button (a guest verifies in the browser).
  */
 
 import {
@@ -31,6 +32,7 @@ import {
 	useApi,
 	useAuth
 } from '@cloudillo/react'
+import type { VerifyTokenResult } from '@cloudillo/core'
 import type { ActionView } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -45,11 +47,13 @@ import {
 } from '../../icons.js'
 import { profilePath } from '../../routes.js'
 import { getReactionEmoji, getReactionLabel } from './reactions.js'
-import { useAutoVerifySet, useEngagement } from './useEngagement.js'
+import { useEngagement } from './useEngagement.js'
 import {
 	cacheProfileKeys,
 	getCachedProfileKeys,
+	homeVerified,
 	tokenMatchesAction,
+	type VerifyExpect,
 	type VerifyStatus,
 	verifyActionToken
 } from './verifyAction.js'
@@ -59,6 +63,32 @@ import {
 // 'pending'     — verification in progress.
 // the rest mirror VerifyStatus.
 type RowStatus = 'unavailable' | 'unchecked' | 'pending' | VerifyStatus
+
+/** Most tokens per `POST /actions/verify` (backend cap). */
+const VERIFY_CHUNK = 100
+
+/**
+ * A home-node result as a row status: the signature checked there, the claims here on the
+ * same token bytes. An issuer the node doesn't know yet keeps the Verify button.
+ */
+function serverStatus(
+	res: VerifyTokenResult | undefined,
+	token: string,
+	expect: VerifyExpect
+): RowStatus {
+	switch (res?.status) {
+		case undefined:
+			return 'error'
+		case 'unknown':
+			return 'unchecked'
+		case 'verified':
+			return homeVerified(res, token, expect) ? 'verified' : 'invalid'
+		case 'invalid':
+			return 'invalid'
+		default:
+			return 'error'
+	}
+}
 
 export interface EngagementDialogProps {
 	subjectActionId: string
@@ -79,13 +109,15 @@ export function EngagementDialog({
 	const { api } = useApi()
 	const [auth] = useAuth()
 	const { getTokenFor } = useApiContext()
+	const homeTag = auth?.idTag
+	// Home client explicitly: plain useApi() follows apiAtom, which may name a community.
+	const { api: homeApi } = useApi(homeTag ?? null)
 
 	const { reactions, reactionGroups, reposts, loading, error, reload } = useEngagement(
 		subjectActionId,
 		audienceTag,
 		open
 	)
-	const autoVerifySet = useAutoVerifySet(open)
 
 	const [activeTab, setActiveTab] = React.useState<string>(initialTab)
 	const [statuses, setStatuses] = React.useState<Map<string, RowStatus>>(new Map())
@@ -94,6 +126,17 @@ export function EngagementDialog({
 	React.useEffect(() => {
 		if (open) setActiveTab(initialTab)
 	}, [open, initialTab])
+
+	// REACT tokens carry the subject post's audience (the `audienceTag` prop); REPOST tokens
+	// their OWN explicit audience (boost → reposter, wall-repost → community).
+	const expectFor = React.useCallback(
+		(action: ActionView): VerifyExpect => ({
+			issuerIdTag: action.issuer.idTag,
+			subjectActionId,
+			audienceTag: action.type === 'REPOST' ? actionContextTag(action) : audienceTag
+		}),
+		[subjectActionId, audienceTag]
+	)
 
 	// Fetch the issuer's published keys (cached for the session) and verify the
 	// action's signature. `subjectActionId` is cross-checked against payload.sub.
@@ -107,87 +150,105 @@ export function EngagementDialog({
 			let keys = getCachedProfileKeys(issuerIdTag)
 			if (!keys) {
 				try {
-					if (auth?.idTag && issuerIdTag === auth.idTag) {
-						// Own identity: a tenant's own keys live in its auth store,
-						// not in any federated remote-profile cache, and the browser
-						// reaches its own node through the authenticated profile path
-						// rather than the cross-tenant "remote" fetch. Read them
-						// directly so the viewer can verify their own actions.
-						keys = await api!.profiles.getOwnFull()
-					} else {
-						const tok = await getTokenFor(issuerIdTag, { explicit: true })
-						keys = await api!.profiles.getRemoteFull(issuerIdTag, tok?.token)
-					}
+					const tok = await getTokenFor(issuerIdTag, { explicit: true })
+					keys = await api!.profiles.getRemoteFull(issuerIdTag, tok?.token)
 					cacheProfileKeys(issuerIdTag, keys)
 				} catch {
 					return 'error'
 				}
 			}
-			// REACT tokens carry the subject post's audience (the `audienceTag` prop).
-			// REPOST tokens carry the repost's OWN explicitly-set audience (boost →
-			// reposter, wall-repost → community), so verify each repost against its
-			// own audience.
-			const expectedAudienceTag =
-				action.type === 'REPOST' ? actionContextTag(action) : audienceTag
-			const result = await verifyActionToken(token, keys, {
-				issuerIdTag,
-				subjectActionId,
-				audienceTag: expectedAudienceTag
-			})
+			const result = await verifyActionToken(token, keys, expectFor(action))
 			return result.status
 		},
-		[api, getTokenFor, subjectActionId, audienceTag, auth?.idTag]
+		[api, getTokenFor, expectFor]
 	)
 
-	// Background auto-verify: after the lists load, walk rows whose issuer is in
-	// the auto-verify set sequentially (one remote key fetch at a time). The list
-	// renders immediately; statuses fill in. Aborts on close/unmount.
+	// Logged in, forced: sync the issuer's profile on the home node, then verify there.
+	const syncAndVerify = React.useCallback(
+		async (action: ActionView): Promise<RowStatus> => {
+			const token = action.token
+			if (!token) return 'unavailable'
+			if (!(await tokenMatchesAction(token, action.actionId))) return 'invalid'
+			try {
+				const [res] = await homeApi!.actions.verify([token], { sync: true })
+				return serverStatus(res, token, expectFor(action))
+			} catch {
+				return 'error'
+			}
+		},
+		[homeApi, expectFor]
+	)
+
+	// Logged in: every row with a token goes to the home node in batches; it verifies
+	// those whose issuer it knows and answers `unknown` (→ Verify button) for the rest.
 	React.useEffect(() => {
-		if (!open || loading) return
-		if (autoVerifySet === undefined) return
+		if (!open || loading || !homeTag || !homeApi) return
 		const all = [...reactions, ...reposts]
 		if (!all.length) return
 
-		const init = new Map<string, RowStatus>()
-		for (const a of all) {
-			init.set(
-				a.actionId,
-				!a.token
-					? 'unavailable'
-					: autoVerifySet.has(a.issuer.idTag)
-						? 'pending'
-						: 'unchecked'
-			)
-		}
-		setStatuses(init)
+		setStatuses(new Map(all.map((a) => [a.actionId, a.token ? 'pending' : 'unavailable'])))
 
-		// Per-run flag captured in this closure: when deps change, the old run's
-		// cleanup flips its own `cancelled`, leaving the new run's untouched (a
-		// shared ref would get reset to false by the re-run and let a stale loop
-		// resume). Mirrors the pattern in useEngagement.ts.
 		let cancelled = false
 		;(async () => {
+			const rows: ActionView[] = []
+			const bad: string[] = []
 			for (const a of all) {
+				if (!a.token) continue
+				if (await tokenMatchesAction(a.token, a.actionId)) rows.push(a)
+				else bad.push(a.actionId)
+			}
+			if (cancelled) return
+			if (bad.length) {
+				setStatuses((prev) => {
+					const next = new Map(prev)
+					for (const id of bad) next.set(id, 'invalid')
+					return next
+				})
+			}
+			for (let i = 0; i < rows.length; i += VERIFY_CHUNK) {
+				const chunk = rows.slice(i, i + VERIFY_CHUNK)
+				let res: VerifyTokenResult[] = []
+				try {
+					res = await homeApi.actions.verify(chunk.map((a) => a.token!))
+				} catch {
+					// Every row of the chunk falls back to 'error' (Verify button).
+				}
 				if (cancelled) return
-				if (!a.token || !autoVerifySet.has(a.issuer.idTag)) continue
-				const status = await fetchKeysAndVerify(a)
-				if (cancelled) return
-				setStatuses((prev) => new Map(prev).set(a.actionId, status))
+				setStatuses((prev) => {
+					const next = new Map(prev)
+					chunk.forEach((a, j) => {
+						next.set(a.actionId, serverStatus(res[j], a.token!, expectFor(a)))
+					})
+					return next
+				})
 			}
 		})()
 
 		return () => {
 			cancelled = true
 		}
-	}, [open, loading, reactions, reposts, autoVerifySet, fetchKeysAndVerify])
+	}, [open, loading, reactions, reposts, homeTag, homeApi, expectFor])
+
+	// Guest: every row with a token gets a Verify button.
+	React.useEffect(() => {
+		if (!open || loading || homeTag) return
+		setStatuses(
+			new Map(
+				[...reactions, ...reposts].map((a) => [
+					a.actionId,
+					a.token ? 'unchecked' : 'unavailable'
+				])
+			)
+		)
+	}, [open, loading, reactions, reposts, homeTag])
 
 	const onVerify = React.useCallback(
 		async (action: ActionView) => {
 			setStatuses((prev) => new Map(prev).set(action.actionId, 'pending'))
-			const status = await fetchKeysAndVerify(action)
+			const status = homeTag ? await syncAndVerify(action) : await fetchKeysAndVerify(action)
 			setStatuses((prev) => new Map(prev).set(action.actionId, status))
 		},
-		[fetchKeysAndVerify]
+		[homeTag, syncAndVerify, fetchKeysAndVerify]
 	)
 
 	if (!open) return null

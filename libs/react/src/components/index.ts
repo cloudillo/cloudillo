@@ -50,9 +50,24 @@ export {
 	monogramFor,
 	PresenceAvatar
 } from './Avatar/index.js'
-export type { BadgeAnchorPosition, BadgeAnchorProps, BadgeProps } from './Badge/index.js'
+export type {
+	BadgeAnchorPosition,
+	BadgeAnchorProps,
+	BadgeProps,
+	CommunityBadgeData,
+	CommunityBadgeProps,
+	CommunityBadgeRowProps
+} from './Badge/index.js'
 // Badge Component
-export { Badge, BadgeAnchor } from './Badge/index.js'
+export {
+	Badge,
+	BadgeAnchor,
+	BadgeGlyph,
+	badgeLabel,
+	CommunityBadge,
+	CommunityBadgeRow,
+	communityText
+} from './Badge/index.js'
 export type {
 	BottomSheetProps,
 	BottomSheetSnapConfig,
@@ -593,8 +608,8 @@ export {
 	normalizeEmbedSettings,
 	positiveNumber,
 	resizeSettings,
-	storableNatural,
 	SvgViewEmbed,
+	storableNatural,
 	ViewEmbed,
 	ViewEmbedFrame
 } from './ViewEmbed/index.js'

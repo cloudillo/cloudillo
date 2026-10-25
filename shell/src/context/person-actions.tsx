@@ -10,6 +10,7 @@ import {
 	type PersonActions,
 	PersonActionsContext,
 	type ProfileNode,
+	resetProfileCache,
 	useAuth,
 	useProfile
 } from '@cloudillo/react'
@@ -62,7 +63,24 @@ export function PersonActionsProvider({ children }: { children: React.ReactNode 
 		}
 	}, [navigate, base])
 
-	const node = React.useMemo<ProfileNode>(() => ({ tag: authTag }), [authTag])
+	// With the home token: /profiles/batch refuses an unauthenticated request, and
+	// badges are served to the authenticated owner only. The cache is keyed by tag,
+	// so a token rotation re-renders consumers without refetching.
+	const authToken = auth?.token
+	// Badges are served per viewer: a new identity must not see the previous one's
+	// cache, nor a profile fetched before the token existed (the key has no token).
+	const resetKey = `${authTag}|${!!authToken}`
+	const prevKey = React.useRef(resetKey)
+	// Runs before children's passive effects: the generation bump can't discard their first batch.
+	React.useLayoutEffect(() => {
+		if (prevKey.current === resetKey) return
+		prevKey.current = resetKey
+		resetProfileCache()
+	}, [resetKey])
+	const node = React.useMemo<ProfileNode>(
+		() => ({ tag: authTag, token: authToken }),
+		[authTag, authToken]
+	)
 
 	const value = React.useMemo<PersonActions>(
 		() => ({

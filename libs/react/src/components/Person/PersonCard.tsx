@@ -5,10 +5,13 @@ import type { PublicProfile } from '@cloudillo/core'
 import * as React from 'react'
 
 import { useLibTranslation } from '../../i18n.js'
+import { liveBadges } from '../../profile-cache.js'
+import { CommunityBadgeRow } from '../Badge/CommunityBadge.js'
 import { Badge } from '../Badge/index.js'
 import { IdentityTag } from '../Profile/IdentityTag.js'
 import { ProfilePicture } from '../Profile/ProfilePicture.js'
 import { mergeClasses } from '../utils.js'
+import { PersonActionsContext } from './PersonActionsContext.js'
 
 export interface PersonCardProps {
 	profile: PublicProfile
@@ -24,6 +27,10 @@ export interface PersonCardProps {
 /** Who someone is: picture, name, identity tag, optional context and actions. Presentational. */
 export function PersonCard({ profile, extra, actions, srcTag, className }: PersonCardProps) {
 	const { t } = useLibTranslation()
+	// Batch-served (home node, owner only): already in the cached profile PersonHover passes.
+	// Only where a provider names the home node — never inside apps.
+	const homeTag = React.useContext(PersonActionsContext).node?.tag
+	const badges = homeTag ? liveBadges(profile) : []
 
 	return (
 		<div className={mergeClasses('c-person-card', className)}>
@@ -39,6 +46,7 @@ export function PersonCard({ profile, extra, actions, srcTag, className }: Perso
 							</Badge>
 						</span>
 					)}
+					<CommunityBadgeRow badges={badges} size={20} srcTag={homeTag} />
 				</div>
 			</div>
 			{extra && <div className="c-person-card__extra">{extra}</div>}

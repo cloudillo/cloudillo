@@ -12,7 +12,15 @@ export * from './hooks.js'
 export { LibTrans, type LibTransProps, useLibTranslation } from './i18n.js'
 export * from './icons.js'
 export * from './presence.js'
-export { type ProfileNode, profileNode, useProfile, useProfiles } from './profile-cache.js'
+export {
+	invalidateProfile,
+	type ProfileNode,
+	profileNode,
+	resetProfileCache,
+	useProfile,
+	useProfileBadges,
+	useProfiles
+} from './profile-cache.js'
 export * from './useFileImage.js'
 export type { RtdbDocumentResult, UseRtdbDocumentOptions } from './useRtdbDocument.js'
 export { useRtdbDocument } from './useRtdbDocument.js'

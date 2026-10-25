@@ -24,6 +24,7 @@ let getBatchImpl: (idTags: string[]) => Promise<NodeProfile[]> = answerFromNode
 
 // `profile-cache.ts` imports nothing else from core, so a two-name mock links.
 jest.unstable_mockModule('@cloudillo/core', async () => ({
+	decodeBadges: (await import('../../../core/lib/api-types.js')).decodeBadges,
 	getAppBus: () => ({ idTag: 'node.example', ownerTag: undefined, accessToken: undefined }),
 	createApiClient: () => ({
 		profiles: {
@@ -35,7 +36,9 @@ jest.unstable_mockModule('@cloudillo/core', async () => ({
 	})
 }))
 
-const { useProfile, useProfiles, resetProfileCache } = await import('../profile-cache.js')
+const { invalidateProfile, liveBadges, useProfile, useProfiles, resetProfileCache } = await import(
+	'../profile-cache.js'
+)
 
 const NODE = { tag: 'node.example' }
 
@@ -79,6 +82,94 @@ describe('profile cache', () => {
 		await act(async () => {})
 		expect(batchCalls).toHaveLength(1)
 		expect(c.result.current?.name).toBe('Ada Lovelace')
+	})
+
+	it('batches the tags of two hooks in one render into one call', async () => {
+		nodeProfiles.set('@ada.example', { idTag: '@ada.example', name: 'Ada Lovelace' })
+		nodeProfiles.set('@bob.example', { idTag: '@bob.example', name: 'Bob' })
+
+		const { result } = renderHook(() => [
+			useProfile('@ada.example', NODE),
+			useProfile('@bob.example', NODE)
+		])
+		await act(async () => {})
+
+		expect(batchCalls).toEqual([['@ada.example', '@bob.example']])
+		expect(result.current.map((p) => p?.name)).toEqual(['Ada Lovelace', 'Bob'])
+	})
+
+	it('fetches nothing queued before a reset', async () => {
+		// Queued for the next microtask; unmounted so nothing asks again after the reset.
+		const { unmount } = renderHook(() => useProfile('@ada.example', NODE))
+		unmount()
+		resetProfileCache()
+		await act(async () => {})
+
+		expect(batchCalls).toEqual([])
+	})
+
+	it('keeps only unexpired, catalog-valid badges', () => {
+		const now = Date.now() / 1000
+		const community = { idTag: 'comm.example', name: 'Comm', type: 'community' }
+		const live = { community, slot: 'STD', level: 'verified', exp: now + 3600 }
+		const badges = liveBadges({
+			idTag: '@ada.example',
+			badges: [
+				live,
+				{ community, slot: 'PAT', level: 'gold', exp: now - 1 },
+				{ community, slot: 'PAT', level: 'platinum', exp: now + 3600 },
+				{ community, slot: 'XYZ', level: 'verified', exp: now + 3600 }
+			]
+		})
+		// The unread `type` is dropped, not a reason to reject the badge.
+		expect(badges).toEqual([{ ...live, community: { idTag: 'comm.example', name: 'Comm' } }])
+		expect(liveBadges({ idTag: '@ada.example' })).toEqual([])
+	})
+
+	it('keeps a badge whose community has no name or type', () => {
+		const live = {
+			community: { idTag: 'comm.example' },
+			slot: 'STD',
+			level: 'verified',
+			exp: Date.now() / 1000 + 3600
+		}
+		expect(liveBadges({ idTag: '@ada.example', badges: [live] })).toEqual([live])
+	})
+
+	it('invalidateProfile refetches only that tag', async () => {
+		nodeProfiles.set('@ada.example', { idTag: '@ada.example', name: 'Ada' })
+		nodeProfiles.set('@bob.example', { idTag: '@bob.example', name: 'Bob' })
+		const { result } = renderHook(() => useProfiles(['@ada.example', '@bob.example'], NODE))
+		await act(async () => {})
+		expect(batchCalls).toEqual([['@ada.example', '@bob.example']])
+
+		nodeProfiles.set('@ada.example', { idTag: '@ada.example', name: 'Ada Lovelace' })
+		await act(async () => {
+			invalidateProfile('@ada.example')
+		})
+		await act(async () => {})
+
+		expect(batchCalls).toEqual([['@ada.example', '@bob.example'], ['@ada.example']])
+		expect(result.current['@ada.example']?.name).toBe('Ada Lovelace')
+		expect(result.current['@bob.example']?.name).toBe('Bob')
+	})
+
+	it('drops an answer that was in flight when the tag was invalidated', async () => {
+		let release: (p: NodeProfile[]) => void = () => {}
+		getBatchImpl = () => new Promise((resolve) => (release = resolve))
+		const { result } = renderHook(() => useProfile('@ada.example', NODE))
+		await act(async () => {})
+		expect(batchCalls).toEqual([['@ada.example']])
+
+		getBatchImpl = async () => [{ idTag: '@ada.example', name: 'Ada Lovelace' }]
+		await act(async () => {
+			invalidateProfile('@ada.example')
+			release([{ idTag: '@ada.example', name: 'Ada' }])
+		})
+		await act(async () => {})
+
+		expect(batchCalls).toEqual([['@ada.example'], ['@ada.example']])
+		expect(result.current?.name).toBe('Ada Lovelace')
 	})
 
 	it('answers null for a tag the node does not know', async () => {

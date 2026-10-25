@@ -3,6 +3,7 @@
 
 import * as T from '@symbion/runtype'
 
+export * from './badges.js'
 export * from './format-version.js'
 
 /** A fileId as it may appear in a resId: one path segment, and nothing that could be

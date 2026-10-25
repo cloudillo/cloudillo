@@ -586,6 +586,12 @@ export class ApiClient {
 		create: (data: Types.NewAction) =>
 			this.request('POST', '/actions', Types.tActionView, { data }),
 
+		/** POST /actions/verify - Verify action tokens with the home node's cached issuer keys */
+		verify: (tokens: string[], opts?: { sync?: boolean }) =>
+			this.request('POST', '/actions/verify', T.array(Types.tVerifyTokenResult), {
+				data: { tokens, ...opts }
+			}),
+
 		/** GET /actions/:actionId - Get single action */
 		get: (actionId: string) => this.request('GET', `/actions/${actionId}`, Types.tActionView),
 

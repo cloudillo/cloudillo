@@ -4032,6 +4032,173 @@ a:is(.c-menu-item, .c-action-sheet-item):is(.danger, .error):is(:link, :visited)
 	width: auto;
 }
 
+/* ==========================================================================
+   Community badge — a tinted pill with a level-coloured glyph (patron tiers by
+   shape: medal, star, crown, gem; shield = standing) and the community's avatar
+   as a small dot. Patron chips are metallic: light fill, darker "ink" for glyph
+   and border. Size via `--cb-size`.
+   ========================================================================== */
+
+body {
+	--cb-verified: var(--col-info);
+	--cb-trusted: var(--col-success);
+	--cb-bronze: #cd7f32;
+	--cb-bronze-ink: #8a4b1c;
+	--cb-silver: #c9ccd1;
+	--cb-silver-ink: #6b7280;
+	--cb-gold: #e6c04a;
+	--cb-gold-ink: #8a6a00;
+	--cb-diamond: #67e8f9;
+	--cb-diamond-ink: #0e7490;
+}
+body.dark {
+	--cb-bronze-ink: #e0995a;
+	--cb-silver-ink: #e5e7eb;
+	--cb-gold-ink: #f0cf6a;
+	--cb-diamond-ink: #67e8f9;
+}
+
+.c-community-badge {
+	--cb-color: var(--cb-verified);
+	display: inline-flex;
+	align-items: center;
+	gap: calc(var(--cb-size, 18px) * 0.15);
+	box-sizing: border-box;
+	height: var(--cb-size, 18px);
+	padding-inline: calc(var(--cb-size, 18px) * 0.2);
+	border-radius: 999px;
+	flex-shrink: 0;
+	vertical-align: middle;
+	line-height: 0;
+	background: color-mix(in srgb, var(--cb-color) 18%, transparent);
+	border: 1px solid color-mix(in srgb, var(--cb-ink, var(--cb-color)) 45%, transparent);
+}
+.c-community-badge--trusted {
+	--cb-color: var(--cb-trusted);
+}
+.c-community-badge--bronze {
+	--cb-color: var(--cb-bronze);
+	--cb-ink: var(--cb-bronze-ink);
+}
+.c-community-badge--silver {
+	--cb-color: var(--cb-silver);
+	--cb-ink: var(--cb-silver-ink);
+}
+.c-community-badge--gold {
+	--cb-color: var(--cb-gold);
+	--cb-ink: var(--cb-gold-ink);
+}
+.c-community-badge--diamond {
+	--cb-color: var(--cb-diamond);
+	--cb-ink: var(--cb-diamond-ink);
+}
+.c-community-badge--bronze,
+.c-community-badge--silver,
+.c-community-badge--gold,
+.c-community-badge--diamond {
+	background: linear-gradient(
+		135deg,
+		color-mix(in srgb, var(--cb-color) 15%, transparent),
+		color-mix(in srgb, var(--cb-color) 45%, transparent) 50%,
+		color-mix(in srgb, var(--cb-color) 15%, transparent)
+	);
+}
+/* After the tiers so it wins at equal specificity */
+.c-community-badge--unknown {
+	--cb-color: currentColor;
+	--cb-ink: currentColor;
+	opacity: 0.6;
+	background: none;
+	border-style: dashed;
+}
+.c-community-badge--expiring {
+	outline: 2px solid var(--col-warning);
+	outline-offset: 1px;
+}
+
+.c-community-badge__glyph {
+	display: inline-flex;
+	color: var(--cb-ink, var(--cb-color));
+
+	svg {
+		width: calc(var(--cb-size, 18px) * 0.72);
+		height: calc(var(--cb-size, 18px) * 0.72);
+	}
+}
+
+/* Full chip height plus the border: the avatar caps the chip's end, covering its border */
+.c-community-badge__avatar {
+	display: inline-flex;
+	flex-shrink: 0;
+	width: calc(var(--cb-size, 18px) + 2px);
+	height: calc(var(--cb-size, 18px) + 2px);
+	margin-inline-end: calc(var(--cb-size, 18px) * -0.2 - 2px);
+	border-radius: 50%;
+	box-shadow: 0 0 0 1px color-mix(in srgb, var(--cb-color) 45%, transparent);
+
+	.c-profile-card,
+	.c-avatar {
+		width: 100%;
+		height: 100%;
+	}
+	.c-avatar {
+		font-size: calc(var(--cb-size, 18px) * 0.45);
+	}
+}
+
+.c-community-badge-row {
+	display: inline-flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-1);
+	vertical-align: middle;
+}
+
+.c-community-badge-row--labelled {
+	gap: var(--space-2) var(--space-3);
+}
+
+.c-community-badge-row--popover {
+	flex-direction: column;
+	align-items: flex-start;
+	padding: var(--space-2);
+}
+
+.c-community-badge-item {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+	min-width: 0;
+}
+
+.c-community-badge-item__text {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	line-height: 1.2;
+}
+
+.c-community-badge-item__label {
+	font-weight: 600;
+}
+
+.c-community-badge-item__community {
+	font-size: 0.875em;
+	color: color-mix(in lch, currentColor, transparent 35%);
+}
+
+.c-community-badge-more {
+	padding: 0 0.3em;
+	border: none;
+	border-radius: 999px;
+	background: var(--col-container);
+	color: inherit;
+	font: inherit;
+	font-size: 0.75em;
+	line-height: 1.5;
+	cursor: pointer;
+}
+
 /*
  vim: ts=4
  */

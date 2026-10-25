@@ -51,6 +51,8 @@ function getActionText(
 			return t('Mentioned you')
 		case 'POST':
 			return t('Published a new post')
+		case 'BDG':
+			return t('Gave you a badge')
 		default:
 			return t('New notification')
 	}

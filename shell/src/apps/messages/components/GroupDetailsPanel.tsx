@@ -159,7 +159,11 @@ export function GroupDetailsPanel({
 									key={member.profile.idTag}
 									disabled={isInvited}
 									title={
-										<ProfileCard profile={member.profile} className="small" />
+										<ProfileCard
+											profile={member.profile}
+											className="small"
+											badges={false}
+										/>
 									}
 									trailing={
 										<>

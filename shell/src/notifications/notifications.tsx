@@ -3,12 +3,15 @@
 
 import {
 	Button,
+	badgeLabel,
+	communityText,
 	EmptyState,
 	Fcd,
 	HBox,
 	Heading,
 	IcClose,
 	IcConnection,
+	invalidateProfile,
 	Link,
 	List,
 	ListItem,
@@ -23,6 +26,7 @@ import {
 	TimeFormat,
 	useApi,
 	useAuth,
+	useToast,
 	VBox
 } from '@cloudillo/react'
 import { type ActionView, tFileShareAction } from '@cloudillo/types'
@@ -41,8 +45,16 @@ import {
 	IcReject,
 	IcUnread
 } from '../icons.js'
-import { communityCreatePath, messagesPath, profilePath } from '../routes.js'
+import { addShownBadge, badgeFromAction, MAX_SHOWN } from '../profile/badges.js'
+import {
+	communityCreatePath,
+	HOME_BASE,
+	messagesPath,
+	profilePath,
+	settingsPath
+} from '../routes.js'
 import { DrawerToggle } from '../ui/DrawerToggle.js'
+import { formatUnixTime } from '../utils.js'
 import { inviteMessage } from './NotificationItem.js'
 import { useNotifications } from './state'
 
@@ -88,7 +100,7 @@ const FILTER_TYPE_MAP: Record<NotificationFilter, string[] | undefined> = {
 	unread: undefined,
 	connections: ['CONN', 'PRINVT'],
 	messages: ['MSG', 'INVT'],
-	social: ['FLLW', 'CMNT', 'REACT', 'MNTN', 'POST'],
+	social: ['FLLW', 'CMNT', 'REACT', 'MNTN', 'POST', 'BDG'],
 	files: ['FSHR']
 }
 
@@ -217,6 +229,81 @@ function GenericNotification({
 			title={getNotificationDescription(action.type, t)}
 			actions={onDismiss && <DismissAction onDismiss={() => onDismiss(action)} />}
 		/>
+	)
+}
+
+/** A received badge: "Show on profile" appends it to `profile.badges`, or links to Settings → Badges when full. */
+function BadgeNotification({
+	action,
+	onDismiss
+}: {
+	action: ActionView
+	onDismiss?: (action: ActionView) => void
+}) {
+	const { t } = useTranslation()
+	const [auth] = useAuth()
+	const { api } = useApi(auth?.idTag)
+	const { error: toastError } = useToast()
+	const [result, setResult] = React.useState<'added' | 'present' | 'full' | 'gone'>()
+	const [busy, setBusy] = React.useState(false)
+	const badge = badgeFromAction(action)
+
+	async function show() {
+		if (!api || !auth?.idTag || !badge) return
+		setBusy(true)
+		try {
+			const res = await addShownBadge(api, auth.idTag, badge.key)
+			if (res === 'added') invalidateProfile(auth.idTag)
+			setResult(res)
+		} catch (err) {
+			console.error('Failed to show badge:', err)
+			toastError(t('Failed to save setting. Please try again.'))
+		} finally {
+			setBusy(false)
+		}
+	}
+
+	return (
+		<NotificationCard
+			action={action}
+			title={
+				badge
+					? t('{{community}} gave you the {{badge}} badge', {
+							community: communityText(action.issuer),
+							badge: badgeLabel(badge.slot, badge.level, t)
+						})
+					: t('Gave you a badge')
+			}
+			actions={
+				<>
+					{badge &&
+						(result === 'full' ? (
+							<Link href={settingsPath(HOME_BASE, 'badges')}>
+								{t('{{count}} badges already shown. Manage badges', {
+									count: MAX_SHOWN
+								})}
+							</Link>
+						) : result === 'gone' ? (
+							<Text emphasis="muted">{t('This badge is no longer current')}</Text>
+						) : result ? (
+							<Text emphasis="muted">{t('Shown on profile')}</Text>
+						) : (
+							<Button color="primary" disabled={busy} onClick={show}>
+								{t('Show on profile')}
+							</Button>
+						))}
+					{onDismiss && <DismissAction onDismiss={() => onDismiss(action)} />}
+				</>
+			}
+		>
+			{badge && (
+				<Text size="sm" emphasis="muted">
+					{t('Expires {{date}}', {
+						date: formatUnixTime(badge.exp)
+					})}
+				</Text>
+			)}
+		</NotificationCard>
 	)
 }
 
@@ -514,6 +601,8 @@ function Notification({
 		case 'MNTN':
 		case 'POST':
 			return <GenericNotification action={action} onDismiss={onDismiss} />
+		case 'BDG':
+			return <BadgeNotification action={action} onDismiss={onDismiss} />
 		default:
 			return null
 	}

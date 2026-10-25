@@ -12,8 +12,8 @@
  */
 
 import type { ApiClient, ListActionsQuery } from '@cloudillo/core'
-import { useApi, useAuth } from '@cloudillo/react'
-import type { ActionView, Profile } from '@cloudillo/types'
+import { useApi } from '@cloudillo/react'
+import type { ActionView } from '@cloudillo/types'
 import * as React from 'react'
 
 import { useApiContext } from '../../context/index.js'
@@ -149,59 +149,6 @@ export function useEngagement(
 	const reload = React.useCallback(() => setReloadTick((t) => t + 1), [])
 
 	return { reactions, reactionGroups, reposts, loading, error, reload }
-}
-
-// The viewer's connections/followed set is fetched at most once per session per
-// logged-in identity. These identities' keys we trust enough to fetch & verify
-// automatically; everyone else gets a manual Verify button.
-let autoVerifyPromise: Promise<Set<string>> | null = null
-let autoVerifyOwner: string | undefined
-
-function loadAutoVerifySet(
-	listConnected: () => Promise<Profile[]>,
-	listFollowing: () => Promise<Profile[]>,
-	ownIdTag: string
-): Promise<Set<string>> {
-	return Promise.all([listConnected(), listFollowing()]).then(([connected, following]) => {
-		const set = new Set<string>()
-		// We implicitly trust our own key, so auto-verify our own actions too.
-		set.add(ownIdTag)
-		for (const p of connected) set.add(p.idTag)
-		for (const p of following) set.add(p.idTag)
-		return set
-	})
-}
-
-/**
- * The set of idTags whose action signatures we auto-verify in the background
- * (the viewer's connections + followed). `undefined` until first resolved.
- */
-export function useAutoVerifySet(enabled: boolean): Set<string> | undefined {
-	const { api } = useApi()
-	const [auth] = useAuth()
-	const [set, setSet] = React.useState<Set<string> | undefined>(undefined)
-
-	React.useEffect(() => {
-		if (!enabled || !api || !auth?.idTag) return
-		let cancelled = false
-		if (!autoVerifyPromise || autoVerifyOwner !== auth.idTag) {
-			autoVerifyOwner = auth.idTag
-			const ownIdTag = auth.idTag
-			autoVerifyPromise = loadAutoVerifySet(
-				() => api.profiles.list({ connected: true }),
-				() => api.profiles.list({ following: true }),
-				ownIdTag
-			).catch(() => new Set<string>([ownIdTag]))
-		}
-		autoVerifyPromise.then((s) => {
-			if (!cancelled) setSet(s)
-		})
-		return () => {
-			cancelled = true
-		}
-	}, [enabled, api, auth?.idTag])
-
-	return set
 }
 
 // vim: ts=4

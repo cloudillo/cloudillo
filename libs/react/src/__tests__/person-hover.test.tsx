@@ -31,6 +31,7 @@ jest.unstable_mockModule('@cloudillo/core', async () => {
 		...fileUtils,
 		...presence,
 		docBaseName: () => undefined,
+		decodeBadges: (await import('../../../core/lib/api-types.js')).decodeBadges,
 		getAppBus: () => ({ idTag: 'node.example', ownerTag: undefined, accessToken: undefined }),
 		createApiClient: () => ({
 			profiles: {

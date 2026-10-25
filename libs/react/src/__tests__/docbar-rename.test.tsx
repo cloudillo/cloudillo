@@ -79,6 +79,7 @@ jest.unstable_mockModule('@cloudillo/core', async () => {
 		idHue,
 		// Imported by `@cloudillo/crdt`'s export utils, which `presence.tsx` pulls in.
 		docBaseName: () => undefined,
+		decodeBadges: (await import('../../../core/lib/api-types.js')).decodeBadges,
 		getAppBus: () => bus,
 		// The bar only renders outside an embed; these tests are never embedded.
 		parseAppHash: () => ({ isEmbed: false }),

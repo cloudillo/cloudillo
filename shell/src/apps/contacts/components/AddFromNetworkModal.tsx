@@ -161,7 +161,7 @@ export function AddFromNetworkModal({
 					{results.map((profile) => (
 						<ListItem
 							key={profile.idTag}
-							title={<ProfileCard profile={profile} />}
+							title={<ProfileCard profile={profile} badges={false} />}
 							trailing={
 								<Button
 									size="sm"

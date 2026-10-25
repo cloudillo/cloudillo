@@ -9,6 +9,7 @@ import {
 	Badge,
 	Button,
 	Card,
+	CommunityBadgeRow,
 	Divider,
 	DocBar,
 	EmptyState,
@@ -49,6 +50,7 @@ import {
 	TimeFormat,
 	useApi,
 	useAuth,
+	useProfileBadges,
 	VBox
 } from '@cloudillo/react'
 import type { ActionView, NewAction } from '@cloudillo/types'
@@ -140,6 +142,9 @@ interface CommentProps {
 }
 function Comment({ className, action, srcTag }: CommentProps) {
 	const urlContext = useCtx().base
+	const [auth] = useAuth()
+	// Home node, by the issuer's tag — never from the embedded `ProfileInfo`.
+	const badges = useProfileBadges(action.issuer.idTag)
 	if (typeof action.content != 'string') return null
 	const to = profilePath(urlContext, action.issuer.idTag)
 
@@ -165,7 +170,8 @@ function Comment({ className, action, srcTag }: CommentProps) {
 								{action.issuer.name || action.issuer.idTag}
 							</Link>
 						}
-					/>
+					/>{' '}
+					<CommunityBadgeRow badges={badges} max={1} size={18} srcTag={auth?.idTag} />
 					<Text emphasis="muted">
 						{' · '}
 						<TimeFormat time={action.createdAt} />
@@ -587,6 +593,8 @@ function Post({
 	// tenant yet. Override every other idTag source for that case.
 	const fileIdTag = action.status === 'P' ? action.issuer.idTag : (srcTag ?? contextIdTag)
 	const [tab, setTab] = React.useState<undefined | 'CMNT' | 'LIKE' | 'SHRE'>(undefined)
+	// Home node (`auth.idTag`), by the issuer's tag — never from the embedded `ProfileInfo`.
+	const issuerBadges = useProfileBadges(action.issuer.idTag)
 	// Engagement info dialog (who reacted / reposted). `undefined` = closed.
 	const [engagementTab, setEngagementTab] = React.useState<string | undefined>(undefined)
 	// `POST:LDOC` carries an object in `content`: a live-document reference plus the
@@ -814,7 +822,14 @@ function Post({
 									<Link to={issuerTo} className="font-semibold">
 										{issuerName}
 									</Link>
-								)}
+								)}{' '}
+								{/* The issuer's, even when the hover card targets the community */}
+								<CommunityBadgeRow
+									badges={issuerBadges}
+									max={3}
+									size={18}
+									srcTag={auth?.idTag}
+								/>
 								<Text size="sm" emphasis="muted" className="text-nowrap">
 									{' · '}
 									<TimeFormat time={action.createdAt} />

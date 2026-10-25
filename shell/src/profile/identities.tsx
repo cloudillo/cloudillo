@@ -6,6 +6,7 @@ import {
 	Avatar,
 	Badge,
 	Button,
+	EmptyState,
 	FAB,
 	Fcd,
 	IcAdd,
@@ -40,6 +41,9 @@ import { ProfileContextMenu, useProfileContextMenu } from '../context/profile-co
 import { IcBlock, IcFollowing, IcMute, IcMutual, IcPeople, IcSuspended } from '../icons.js'
 import { communityCreatePath, profilePath } from '../routes.js'
 import { DrawerToggle } from '../ui/DrawerToggle.js'
+import { PartnerCommunityPage } from './partner-communities.js'
+import { PeopleHeader } from './people-header.js'
+import { parseRelFilter, type RelFilter } from './rel-filter.js'
 import { describeRelationship } from './relationship.js'
 
 type ProfileStatusCode = 'A' | 'B' | 'M' | 'S'
@@ -103,20 +107,14 @@ const getStatusFilters = (t: TFunction) =>
 		{ value: 'all', label: t('All statuses'), icon: IcAll }
 	] as const
 
-function FilterBar() {
+function FilterBar({ variant }: { variant: 'person' | 'community' }) {
 	const { t } = useTranslation()
 	const statusFilters = getStatusFilters(t)
 	const location = useLocation()
 	const qs = parseQS(location.search)
+	const defaultRel: RelFilter = variant === 'person' ? 'connected' : 'all'
 
-	const relFilter: 'connected' | 'followed' | 'followers' | 'all' =
-		qs.connected === '1'
-			? 'connected'
-			: qs.filter === 'followed'
-				? 'followed'
-				: qs.filter === 'followers'
-					? 'followers'
-					: 'all'
+	const relFilter = parseRelFilter(qs, variant)
 	const statusList = parseStatusList(qs.status)
 	const statusFilter: string =
 		statusList.length === 0
@@ -132,13 +130,14 @@ function FilterBar() {
 		const s = sp.toString()
 		return s ? `${location.pathname}?${s}` : location.pathname
 	}
-	function relHref(v: 'connected' | 'followed' | 'followers' | 'all'): string {
+	function relHref(v: RelFilter): string {
 		const sp = new URLSearchParams(location.search)
 		sp.delete('connected')
 		sp.delete('filter')
-		if (v === 'connected') sp.set('connected', '1')
-		else if (v === 'followed') sp.set('filter', 'followed')
-		else if (v === 'followers') sp.set('filter', 'followers')
+		if (v !== defaultRel) {
+			if (v === 'connected') sp.set('connected', '1')
+			else sp.set('filter', v)
+		}
 		return withSearch(sp)
 	}
 	function statusHref(v: string): string {
@@ -156,7 +155,7 @@ function FilterBar() {
 			<Nav.Section label={t('Relationship')}>
 				<Nav.Item
 					icon={<IcConnection />}
-					label={t('Connected')}
+					label={variant === 'person' ? t('Connected') : t('Member of')}
 					href={relHref('connected')}
 					active={relFilter === 'connected'}
 				/>
@@ -166,12 +165,14 @@ function FilterBar() {
 					href={relHref('followed')}
 					active={relFilter === 'followed'}
 				/>
-				<Nav.Item
-					icon={<IcFollowers />}
-					label={t('Followers')}
-					href={relHref('followers')}
-					active={relFilter === 'followers'}
-				/>
+				{variant === 'person' && (
+					<Nav.Item
+						icon={<IcFollowers />}
+						label={t('Followers')}
+						href={relHref('followers')}
+						active={relFilter === 'followers'}
+					/>
+				)}
 				<Nav.Item
 					icon={<IcAll />}
 					label={t('All')}
@@ -309,46 +310,14 @@ export function CommunityListCard({
 	)
 }
 
-interface PeopleHeaderProps {
-	variant: 'person' | 'community'
-	title: string
-	subtitle: string
-	profilePic?: string
-	srcTag?: string
-	actions?: React.ReactNode
-}
-
-/** Goes in `Fcd.Content header`; in a community `leading` is the community avatar. */
-export function PeopleHeader({
-	variant,
-	title,
-	subtitle,
-	profilePic,
-	srcTag,
-	actions
-}: PeopleHeaderProps) {
-	return (
-		<PageHeader
-			title={title}
-			subtitle={subtitle}
-			actions={actions}
-			leading={
-				variant === 'community' ? (
-					<ProfilePicture profile={{ profilePic }} srcTag={srcTag} size="sm" />
-				) : (
-					<Avatar size="sm" fallback={<IcPeople />} />
-				)
-			}
-		/>
-	)
-}
-
 export function PersonListPage({ idTag }: { idTag?: string }) {
 	const { t } = useTranslation()
 	const location = useLocation()
 	const { api } = useApi()
 	const [auth] = useAuth()
-	const [profiles, setProfiles] = React.useState<Profile[]>([])
+	// `undefined` while loading
+	const [profiles, setProfiles] = React.useState<Profile[]>()
+	const [error, setError] = React.useState(false)
 	const [refreshTick, setRefreshTick] = React.useState(0)
 	const [, setQrScannerOpen] = useQrScanner()
 	const [showFilter, setShowFilter] = React.useState(false)
@@ -356,27 +325,45 @@ export function PersonListPage({ idTag }: { idTag?: string }) {
 	// The tenant the route names when there is one (this page is also rendered without a
 	// route, from `PeoplePage`).
 	const contextIdTag = useCtx().idTag || idTag
+	const qs = parseQS(location.search)
+	const rel = parseRelFilter(qs, 'person')
+	const relLabel = {
+		connected: t('Connected'),
+		followed: t('Following'),
+		followers: t('Followers'),
+		all: t('All')
+	}[rel]
+	const unfiltered = rel === 'connected' && !qs.status
 
 	React.useEffect(
 		function loadPersonList() {
 			if (!auth) return
+			let cancelled = false
+			setError(false)
 			;(async function () {
-				const qs = parseQS(location.search)
-				const statusList = parseStatusList(qs.status)
-				const connected = qs.connected === '1' ? true : undefined
-				const following = qs.filter === 'followed' ? true : undefined
-				const follower = qs.filter === 'followers' ? true : undefined
-				const profiles = await api!.profiles.list({
-					type: 'person',
-					...(statusList.length ? { status: statusList } : {}),
-					...(connected !== undefined ? { connected } : {}),
-					...(following !== undefined ? { following } : {}),
-					...(follower !== undefined ? { follower } : {})
-				})
-				setProfiles(profiles)
+				try {
+					const statusList = parseStatusList(parseQS(location.search).status)
+					const profiles = await api!.profiles.list({
+						type: 'person',
+						...(statusList.length ? { status: statusList } : {}),
+						...(rel === 'connected' ? { connected: true } : {}),
+						...(rel === 'followed' ? { following: true } : {}),
+						...(rel === 'followers' ? { follower: true } : {})
+					})
+					if (!cancelled) setProfiles(profiles)
+				} catch (err) {
+					console.error('Failed to load people', err)
+					if (!cancelled) {
+						setProfiles([])
+						setError(true)
+					}
+				}
 			})()
+			return () => {
+				cancelled = true
+			}
 		},
-		[auth, location.search, contextIdTag, refreshTick]
+		[auth, rel, location.search, contextIdTag, refreshTick]
 	)
 
 	return (
@@ -384,7 +371,7 @@ export function PersonListPage({ idTag }: { idTag?: string }) {
 			<Fcd.Container className="g-1">
 				<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
 					<VBox gap={2} padding={2}>
-						<FilterBar />
+						<FilterBar variant="person" />
 					</VBox>
 				</Fcd.Filter>
 				<Fcd.Content
@@ -393,7 +380,7 @@ export function PersonListPage({ idTag }: { idTag?: string }) {
 						<PeopleHeader
 							variant="person"
 							title={t('People')}
-							subtitle={`${t('Your connections')} · ${profiles.length}`}
+							subtitle={`${relLabel} · ${profiles?.length ?? 0}`}
 							actions={
 								<>
 									<DrawerToggle onClick={() => setShowFilter(true)} />
@@ -412,8 +399,28 @@ export function PersonListPage({ idTag }: { idTag?: string }) {
 						/>
 					}
 				>
+					{error ? (
+						<EmptyState fill icon={<IcPeople />} title={t('Something went wrong')} />
+					) : (
+						profiles?.length === 0 && (
+							<EmptyState
+								fill
+								icon={<IcPeople />}
+								title={unfiltered ? t('No connections yet') : t('No results found')}
+								action={
+									<Button
+										color="primary"
+										icon={<IcScan />}
+										onClick={() => setQrScannerOpen(true)}
+									>
+										{t('Scan QR code')}
+									</Button>
+								}
+							/>
+						)
+					)}
 					<List variant="divided" aria-label={t('People')}>
-						{profiles.map((profile) => (
+						{(profiles ?? []).map((profile) => (
 							<ProfileListCard
 								key={profile.idTag}
 								profile={profile}
@@ -454,37 +461,58 @@ export function PersonListPage({ idTag }: { idTag?: string }) {
 	)
 }
 
+/** `/~/communities` lists my communities; a community context shows its partners instead. */
 export function CommunityListPage() {
+	const [auth] = useAuth()
+	const ctx = useCtx()
+	const isHomeContext = ctx.isHome || ctx.idTag === auth?.idTag
+	return isHomeContext ? <HomeCommunityListPage /> : <PartnerCommunityPage />
+}
+
+function HomeCommunityListPage() {
 	const { t } = useTranslation()
 	const location = useLocation()
 	const navigate = useNavigate()
 	const { api } = useApi()
 	const [auth] = useAuth()
-	const [profiles, setProfiles] = React.useState<Profile[]>([])
+	// `undefined` while loading
+	const [profiles, setProfiles] = React.useState<Profile[]>()
+	const [error, setError] = React.useState(false)
 	const [refreshTick, setRefreshTick] = React.useState(0)
 	const [showFilter, setShowFilter] = React.useState(false)
 	const { menuState, closeMenu, getTriggerProps, wrapClick } = useProfileContextMenu()
 	// The tenant the route names; the effect below re-runs when it changes.
 	const ctx = useCtx()
+	const rel = parseRelFilter(parseQS(location.search), 'community')
 
 	React.useEffect(
 		function loadCommunities() {
 			if (!auth) return
+			let cancelled = false
+			setError(false)
 			;(async function () {
-				const qs = parseQS(location.search)
-				const statusList = parseStatusList(qs.status)
-				const connected = qs.connected === '1' ? true : undefined
-				const following = qs.filter === 'followed' ? true : undefined
-				const profiles = await api!.profiles.list({
-					type: 'community',
-					...(statusList.length ? { status: statusList } : {}),
-					...(connected !== undefined ? { connected } : {}),
-					...(following !== undefined ? { following } : {})
-				})
-				setProfiles(profiles)
+				try {
+					const statusList = parseStatusList(parseQS(location.search).status)
+					const profiles = await api!.profiles.list({
+						type: 'community',
+						...(statusList.length ? { status: statusList } : {}),
+						...(rel === 'connected' ? { connected: true } : {}),
+						...(rel === 'followed' ? { following: true } : {})
+					})
+					if (!cancelled) setProfiles(profiles)
+				} catch (err) {
+					console.error('Failed to load communities', err)
+					if (!cancelled) {
+						setProfiles([])
+						setError(true)
+					}
+				}
 			})()
+			return () => {
+				cancelled = true
+			}
 		},
-		[auth, location.search, ctx.idTag, refreshTick]
+		[auth, rel, location.search, ctx.idTag, refreshTick]
 	)
 
 	return (
@@ -492,7 +520,7 @@ export function CommunityListPage() {
 			<Fcd.Container className="g-1">
 				<Fcd.Filter isVisible={showFilter} hide={() => setShowFilter(false)}>
 					<VBox gap={2} padding={2}>
-						<FilterBar />
+						<FilterBar variant="community" />
 					</VBox>
 				</Fcd.Filter>
 				<Fcd.Content
@@ -501,7 +529,7 @@ export function CommunityListPage() {
 						<PageHeader
 							leading={<Avatar size="sm" fallback={<IcCommunity />} />}
 							title={t('Communities')}
-							subtitle={`${t('Your communities')} · ${profiles.length}`}
+							subtitle={`${t('Your communities')} · ${profiles?.length ?? 0}`}
 							actions={
 								<>
 									<DrawerToggle onClick={() => setShowFilter(true)} />
@@ -518,8 +546,32 @@ export function CommunityListPage() {
 						/>
 					}
 				>
+					{error ? (
+						<EmptyState fill icon={<IcCommunity />} title={t('Something went wrong')} />
+					) : (
+						profiles?.length === 0 && (
+							<EmptyState
+								fill
+								icon={<IcCommunity />}
+								title={
+									location.search
+										? t('No results found')
+										: t('No communities yet')
+								}
+								action={
+									<Button
+										color="primary"
+										icon={<IcAdd />}
+										onClick={() => navigate(communityCreatePath(ctx.base))}
+									>
+										{t('Create new community')}
+									</Button>
+								}
+							/>
+						)
+					)}
 					<List variant="divided" aria-label={t('Communities')}>
-						{profiles.map((profile) => (
+						{(profiles ?? []).map((profile) => (
 							<CommunityListCard
 								key={profile.idTag}
 								profile={profile}

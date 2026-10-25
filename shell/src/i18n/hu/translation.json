@@ -1353,6 +1353,7 @@
 	"Send a partnership request to {{name}}?": "Partnerségi kérelmet küldesz ide: {{name}}?",
 	"Only leaders can manage partner communities.": "Csak vezetők kezelhetik a partnerközösségeket.",
 	"No partner communities yet": "Még nincsenek partnerközösségek",
+	"No partner communities shared": "Nincsenek megosztott partnerközösségek",
 	"Partners' members can act here with the role you grant them.": "A partnerek tagjai az általad megadott szerepkörrel léphetnek itt.",
 	"Their members here: {{roles}}": "Az ő tagjaik nálunk: {{roles}}",
 	"Our members there: {{roles}}": "A mi tagjaink náluk: {{roles}}",
@@ -1972,7 +1973,6 @@
 	"You have already reposted this to {{name}}.": "Ezt már megosztottad ide: {{name}}.",
 	"Image {{n}}": "{{n}}. kép",
 	"Document preview": "Dokumentum előnézete",
-	"Your connections": "Kapcsolataid",
 	"Your communities": "Közösségeid",
 	"Too many attempts. Please try again in about {{count}} minute_one": "Túl sok próbálkozás. Kérlek, próbáld újra körülbelül {{count}} perc múlva.",
 	"Too many attempts. Please try again in about {{count}} minute_other": "Túl sok próbálkozás. Kérlek, próbáld újra körülbelül {{count}} perc múlva.",
@@ -2720,5 +2720,9 @@
 	"Custom date": "Egyéni dátum",
 	"Badges can't be revoked; they expire.": "A jelvények nem vonhatók vissza; lejárnak.",
 	"Badge awarded": "Jelvény adományozva",
-	"Failed to award badge": "A jelvény adományozása sikertelen"
+	"Failed to award badge": "A jelvény adományozása sikertelen",
+	"Member of": "Tagja",
+	"No connections yet": "Még nincsenek kapcsolataid",
+	"No communities yet": "Még nincsenek közösségeid",
+	"Manage partners": "Partnerek kezelése"
 }

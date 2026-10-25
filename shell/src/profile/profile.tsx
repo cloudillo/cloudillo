@@ -20,6 +20,7 @@ import {
 	Fcd,
 	FileButton,
 	HBox,
+	Heading,
 	IcAdd,
 	IcCamera,
 	IcCancel,
@@ -116,7 +117,6 @@ import { InvitationsList } from './community-invitations.js'
 import { PendingRequestsList } from './community-requests.js'
 import {
 	CommunityListPage,
-	PeopleHeader,
 	PersonListPage,
 	ProfileListCard,
 	ProfileStatusBadge
@@ -124,6 +124,7 @@ import {
 import { InviteMembersDialog } from './invite-members-dialog.js'
 import { ProfileHero } from './ProfileHero.js'
 import { PartnerCommunities } from './partner-communities.js'
+import { PeopleHeader } from './people-header.js'
 import { describeRelationship } from './relationship.js'
 import { roleLabels } from './role-labels.js'
 import { TrustBanner } from './TrustBanner.js'
@@ -1602,11 +1603,16 @@ export function ProfileConnections({
 		</VBox>
 	)
 
+	const partnersHeading = (
+		<Heading level={3} className="mt-3 mb-1">
+			{t('Partner communities')}
+		</Heading>
+	)
 	const pageHeader = (actions?: React.ReactNode) => (
 		<PeopleHeader
 			variant="community"
-			title={t('Members')}
-			subtitle={`${profile.name || profile.idTag} · ${memberProfiles.length}`}
+			title={profile.name || profile.idTag}
+			subtitle={`${t('Members')} · ${memberProfiles.length}`}
 			profilePic={profile.profilePic}
 			srcTag={profile.idTag}
 			actions={actions}
@@ -1687,7 +1693,7 @@ export function ProfileConnections({
 			return (
 				<>
 					{communityContent}
-					<PartnerCommunities community={profile} />
+					<PartnerCommunities community={profile} title={partnersHeading} />
 				</>
 			)
 		}
@@ -1735,7 +1741,7 @@ export function ProfileConnections({
 			return (
 				<>
 					{activeMembersList}
-					<PartnerCommunities community={profile} />
+					<PartnerCommunities community={profile} title={partnersHeading} />
 				</>
 			)
 		}

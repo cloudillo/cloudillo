@@ -13,11 +13,16 @@
 import { decodePartners } from '@cloudillo/core'
 import {
 	Button,
-	Heading,
+	Center,
+	EmptyState,
+	Fcd,
+	IcCommunity,
 	IdentityTag,
 	List,
 	ListItem,
+	LoadingSpinner,
 	ProfilePicture,
+	useApi,
 	useAuth
 } from '@cloudillo/react'
 import { useAtomValue } from 'jotai'
@@ -25,13 +30,24 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { enterViaLabel, useEnterContext } from '../context/hat-entry.js'
-import { communitiesAtom } from '../context/index.js'
+import {
+	activeContextAtom,
+	canAdminContext,
+	communitiesAtom,
+	useApiContext,
+	useCtx
+} from '../context/index.js'
 import { IcEnter } from '../icons.js'
+import { settingsPath } from '../routes.js'
+import { PeopleHeader } from './people-header.js'
 
+/** `title` renders above the list, so it disappears with it when there are no partners. */
 export function PartnerCommunities({
-	community
+	community,
+	title
 }: {
 	community: { idTag: string; name?: string; partners?: unknown }
+	title?: React.ReactNode
 }) {
 	const { t } = useTranslation()
 	const [auth] = useAuth()
@@ -50,9 +66,7 @@ export function PartnerCommunities({
 
 	return (
 		<>
-			<Heading level={3} className="mt-3 mb-1">
-				{t('Partner communities')}
-			</Heading>
+			{title}
 			<List variant="divided" aria-label={t('Partner communities')}>
 				{partners.map((p) => {
 					const name = p.name || p.idTag
@@ -91,6 +105,112 @@ export function PartnerCommunities({
 				})}
 			</List>
 		</>
+	)
+}
+
+/**
+ * `/@comm/communities`: the current community's partner communities, each with
+ * "Enter as <community> member".
+ */
+// `/me/full` partners honour `partners_public`, so a community hiding them shows
+// members an empty list. Upgrade: `getClientFor(idTag).profiles.list({ type: 'community',
+// connected: true })` once the backend lets members read it.
+export function PartnerCommunityPage() {
+	const { t } = useTranslation()
+	const { api } = useApi()
+	const [auth] = useAuth()
+	const ctx = useCtx()
+	const activeContext = useAtomValue(activeContextAtom)
+	const { getTokenFor } = useApiContext()
+	// `undefined` while loading
+	const [profile, setProfile] = React.useState<{
+		name?: string
+		profilePic?: string
+		partners?: unknown
+	}>()
+	const [error, setError] = React.useState(false)
+	const idTag = ctx.idTag
+
+	React.useEffect(
+		function loadPartners() {
+			if (!api || !idTag) return
+			let cancelled = false
+			setProfile(undefined)
+			setError(false)
+			getTokenFor(idTag)
+				.then((r) => api.profiles.getRemoteFull(idTag, r?.token))
+				.then((p) => {
+					if (!cancelled) setProfile(p as typeof profile)
+				})
+				.catch((err) => {
+					console.error('Failed to load partner communities', err)
+					if (!cancelled) {
+						setProfile({})
+						setError(true)
+					}
+				})
+			return () => {
+				cancelled = true
+			}
+		},
+		[api, idTag, getTokenFor]
+	)
+
+	const count = React.useMemo(
+		() => decodePartners(profile?.partners).filter((p) => p.type === 'community').length,
+		[profile?.partners]
+	)
+
+	if (!idTag || profile === undefined) {
+		return (
+			<Center className="w-100 h-100">
+				<LoadingSpinner size="lg" label={t('Loading...')} />
+			</Center>
+		)
+	}
+
+	const name = profile.name || idTag
+	const canManage =
+		activeContext?.idTag === idTag && canAdminContext(activeContext, auth?.idTag, 'partners')
+	const manage = canManage ? (
+		<Button color="primary" href={settingsPath(ctx.base, 'partners')}>
+			{t('Manage partners')}
+		</Button>
+	) : undefined
+
+	return (
+		<Fcd.Container className="g-1">
+			<Fcd.Content
+				width="reading"
+				header={
+					<PeopleHeader
+						variant="community"
+						title={name}
+						subtitle={`${t('Partner communities')} · ${count}`}
+						profilePic={profile.profilePic}
+						srcTag={idTag}
+						actions={error ? undefined : manage}
+					/>
+				}
+			>
+				{error ? (
+					<EmptyState fill icon={<IcCommunity />} title={t('Something went wrong')} />
+				) : count ? (
+					<PartnerCommunities community={{ idTag, name, partners: profile.partners }} />
+				) : (
+					<EmptyState
+						fill
+						icon={<IcCommunity />}
+						title={
+							canManage
+								? t('No partner communities yet')
+								: t('No partner communities shared')
+						}
+						action={manage}
+					/>
+				)}
+			</Fcd.Content>
+		</Fcd.Container>
 	)
 }
 

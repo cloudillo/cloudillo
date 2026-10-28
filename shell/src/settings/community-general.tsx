@@ -49,30 +49,34 @@ export function CommunityGeneralSettings() {
 						return
 					}
 
-					const [response, profile] = await Promise.all([
-						fetch(`${getInstanceUrl(idTag)}/api/settings?prefix=profile`, {
+					const fetchPrefix = (prefix: string) =>
+						fetch(`${getInstanceUrl(idTag)}/api/settings?prefix=${prefix}`, {
 							headers: {
 								Authorization: `Bearer ${proxyResult.token}`,
 								'Content-Type': 'application/json'
 							}
-						}),
+						})
+					const [profileRes, convRes, profile] = await Promise.all([
+						fetchPrefix('profile'),
+						fetchPrefix('conv'),
 						api.profiles.getRemoteFull(idTag, proxyResult.token)
 					])
 					if (cancelled) return
 
-					if (response.ok) {
+					const loaded: [string, string | number | boolean][] = []
+					for (const response of [profileRes, convRes]) {
+						if (!response.ok) continue
 						const data = await response.json()
 						// API response wraps array in 'data' field (ApiResponse<Vec<SettingResponse>>)
-						const settingsArray = data.data || []
-						setSettings(
-							Object.fromEntries(
-								settingsArray.map((s: { key: string; value?: unknown }) => [
-									s.key,
-									s.value
-								])
-							)
-						)
+						for (const s of (data.data || []) as {
+							key: string
+							value: string | number | boolean
+						}[]) {
+							loaded.push([s.key, s.value])
+						}
 					}
+					if (cancelled) return
+					setSettings(Object.fromEntries(loaded))
 					setX((profile as { x?: Record<string, string> }).x ?? {})
 				} catch (err) {
 					console.error('Failed to load community settings:', err)
@@ -255,6 +259,27 @@ export function CommunityGeneralSettings() {
 						<option value="P">{t('Public (no limit)')}</option>
 						<option value="F">{t('Followers')}</option>
 						<option value="C">{t('Connected')}</option>
+					</NativeSelect>
+				</Field>
+			</Panel>
+
+			<Panel padding={3} className="mb-2" title={t('Group chats')} headingLevel={4}>
+				<Field
+					orientation="horizontal"
+					label={t('Minimum role to create group chats')}
+					hint={t(
+						'Members with this role and above can create group chats owned by this community.'
+					)}
+				>
+					<NativeSelect
+						name="conv.create_min_role"
+						value={(settings['conv.create_min_role'] as string) ?? 'contributor'}
+						onChange={onSettingChange}
+					>
+						<option value="supporter">{t('Supporter')}</option>
+						<option value="contributor">{t('Contributor')}</option>
+						<option value="moderator">{t('Moderator')}</option>
+						<option value="leader">{t('Leader')}</option>
 					</NativeSelect>
 				</Field>
 			</Panel>

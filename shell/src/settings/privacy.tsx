@@ -23,6 +23,8 @@ import { formatBytes } from '../utils.js'
 import { SwitchRow, useSettings } from './settings.js'
 
 const EXPORT_POLL_MS = 5000
+// `msg.send_read_receipts` lives under the `msg` prefix (backend `cloudillo-profile` settings.rs)
+const PRIVACY_PREFIXES = ['profile', 'msg']
 
 /** "Download my data": request → poll while pending → download the ZIP. Tenant-only on the server. */
 export function DataExportPanel() {
@@ -140,7 +142,7 @@ export function DataExportPanel() {
 export function PrivacySettings() {
 	const { t } = useTranslation()
 	useApi()
-	const { settings, onSettingChange } = useSettings('profile')
+	const { settings, onSettingChange } = useSettings(PRIVACY_PREFIXES)
 
 	if (!settings) return <LoadingSpinner className="auto-bg" />
 
@@ -216,6 +218,20 @@ export function PrivacySettings() {
 						label={t('Auto-approve incoming actions')}
 						description={t(
 							'When enabled, posts and messages from trusted sources are automatically approved without manual review.'
+						)}
+					/>
+				</List>
+			</Panel>
+
+			<Panel title={t('Messages')}>
+				<List variant="divided">
+					<SwitchRow
+						name="msg.send_read_receipts"
+						checked={settings['msg.send_read_receipts'] !== false}
+						onChange={onSettingChange}
+						label={t('Send read receipts')}
+						description={t(
+							'Others see when you have read their messages. If you turn this off, you won’t see their read receipts either.'
 						)}
 					/>
 				</List>

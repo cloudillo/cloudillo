@@ -116,11 +116,14 @@ function VolumeSlider({
 	)
 }
 
+// `msg.ignore_all` lives under the `msg` prefix (backend `cloudillo-profile` settings.rs)
+const NOTIFY_PREFIXES = ['notify', 'msg']
+
 export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 	const { t } = useTranslation()
 	const { api } = useApi()
 	const { error: toastError } = useToast()
-	const { settings, onSettingChange } = useSettings('notify')
+	const { settings, onSettingChange } = useSettings(NOTIFY_PREFIXES)
 	const { settings: localSettings, updateSetting } = useLocalNotifySettings()
 	const { muted: mutedRooms, unmute: unmuteRoom } = useMutedRooms()
 	const [notificationSubscription, setNotificationSubscription] = React.useState<
@@ -411,6 +414,20 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 					updateSetting={updateSetting}
 					t={t}
 				/>
+			</Panel>
+
+			<Panel title={t('Group chats')}>
+				<List variant="divided">
+					<SwitchRow
+						name="msg.ignore_all"
+						checked={!!settings['msg.ignore_all']}
+						onChange={onSettingChange}
+						label={t('Ignore @all mentions in all group chats')}
+						description={t(
+							'@all messages notify you like any other message. You can also ignore @all in one group from its Mute menu.'
+						)}
+					/>
+				</List>
 			</Panel>
 
 			<Panel title={t('Toast notifications')}>

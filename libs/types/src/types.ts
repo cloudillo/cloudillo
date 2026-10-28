@@ -202,6 +202,91 @@ export interface SkillsContent {
 }
 
 // ============================================================================
+// READER STATE
+// ============================================================================
+
+// The reader's own follow state about one thing (`reader_state` row, owner-only,
+// never federated). `kind` is `P:MSG` / `P:POST` (ref = idTag) or `A:<type>`
+// (ref = actionId). Timestamps are ISO 8601 (epoch seconds accepted too).
+// `profile` is only present on `GET /reader-state?include=ref` for `P:*` rows.
+export interface ReaderState {
+	kind: string
+	ref: string
+	readAt?: string | number
+	lastAt?: string | number
+	lastId?: string
+	unread?: number
+	mentionedAt?: string | number
+	/** 'W' all | 'T' mentions | 'M' none; unknown → treat as 'W' */
+	notify?: string
+	notifyUntil?: string | number
+	pinned?: boolean
+	archived?: boolean
+	ignoreAll?: boolean
+	unreadFlag?: boolean
+	createdAt?: string | number
+	updatedAt?: string | number
+	profile?: Profile
+	action?: ActionView
+	last?: ActionView
+}
+const tTimestamp = T.union(T.string, T.number)
+// `kind` (open-ended `A:<type>`) and `notify` stay `T.string` on purpose: a literal union would
+// fail the whole row when the backend adds a value. Consumers must default unknown values.
+export const tReaderState: T.Type<ReaderState> = T.struct({
+	kind: T.string,
+	ref: T.string,
+	readAt: T.optional(tTimestamp),
+	lastAt: T.optional(tTimestamp),
+	lastId: T.optional(T.string),
+	unread: T.optional(T.number),
+	mentionedAt: T.optional(tTimestamp),
+	notify: T.optional(T.string),
+	notifyUntil: T.optional(tTimestamp),
+	pinned: T.optional(T.boolean),
+	archived: T.optional(T.boolean),
+	ignoreAll: T.optional(T.boolean),
+	unreadFlag: T.optional(T.boolean),
+	createdAt: T.optional(tTimestamp),
+	updatedAt: T.optional(tTimestamp),
+	profile: T.optional(T.lazy((): T.Type<Profile> => tProfile)),
+	action: T.optional(T.lazy((): T.Type<ActionView> => tActionView)),
+	last: T.optional(T.lazy((): T.Type<ActionView> => tActionView))
+})
+
+// An embedded reader state is advisory: a malformed one (backend skew) drops to
+// absent instead of failing the decode of the profile/action that carries it.
+class EmbeddedReaderStateType extends T.Type<ReaderState | undefined> {
+	print(): string {
+		return 'EmbeddedReaderState'
+	}
+
+	decode(u: unknown, opts: T.DecoderOpts): T.Result<ReaderState | undefined, T.RTError> {
+		if (u === undefined || u === null) return T.ok(undefined)
+		const r = T.decode(tReaderState, u, opts)
+		if (T.isOk(r)) return r
+		console.warn('[types] dropping malformed reader state', u, r)
+		return T.ok(undefined)
+	}
+
+	async validate(
+		v: ReaderState | undefined,
+		opts: T.DecoderOpts
+	): Promise<T.Result<ReaderState | undefined, T.RTError>> {
+		return this.validateBase(v, opts)
+	}
+
+	validateSync(
+		v: ReaderState | undefined,
+		opts: T.DecoderOpts
+	): T.Result<ReaderState | undefined, T.RTError> {
+		return this.validateBaseSync(v, opts)
+	}
+}
+
+const tEmbeddedReaderState = T.optional(new EmbeddedReaderStateType())
+
+// ============================================================================
 // PROFILE
 // ============================================================================
 
@@ -216,11 +301,10 @@ export const tProfile = T.struct({
 	follower: T.optional(T.boolean),
 	trust: T.optional(tProfileTrust),
 	roles: T.optional(T.array(T.string)), // Community roles (e.g., ['leader'], ['moderator'])
-	// profiles.feed_read_at / msg_read_at — read watermarks. Served as ISO 8601
-	// strings (like createdAt); older payloads / direct writes may be numeric
-	// epoch seconds, so accept both and normalize on the client (createdAtToSeconds).
-	feedReadAt: T.optional(T.union(T.string, T.number)),
-	msgReadAt: T.optional(T.union(T.string, T.number)),
+	// The owner's own `P:MSG` / `P:POST` reader-state rows for this profile
+	// (owner-only; absent for other callers or when no row exists).
+	msgState: tEmbeddedReaderState,
+	feedState: tEmbeddedReaderState,
 	// Composition control for the home feed (community profiles): true = hidden
 	// from the merged home feed; absent/false = shown (the default).
 	hiddenInHome: T.optional(T.boolean),
@@ -347,12 +431,11 @@ export interface ActionView {
 	stat?: {
 		ownReaction?: string
 		reactions?: string
-		// Last-comment timestamp and reader's comment-read watermark. Served as
-		// ISO 8601 strings (like createdAt); accept numeric epoch seconds too and
-		// normalize on the client (createdAtToSeconds). The unread comment dot is
-		// `lastCommentAt > commentsReadAt`.
+		// Last-comment timestamp. Served as ISO 8601 strings (like createdAt);
+		// accept numeric epoch seconds too and normalize on the client
+		// (createdAtToSeconds). The unread comment dot is
+		// `lastCommentAt > readerState.readAt`.
 		lastCommentAt?: string | number
-		commentsReadAt?: string | number
 		commentCount?: number // Total comment count, federated as STAT `c`
 		reposts?: number // Total active reposts of this action
 		// Map keyed by audienceTag → repostActionId, listing every active REPOST
@@ -364,9 +447,9 @@ export interface ActionView {
 	// Action flags string serialized by the backend (e.g. CONV 'O' = open group,
 	// joinable without invitation). `is_open` = flags.contains('O').
 	flags?: string
-	// Reader's own thread-subscription level on this thread root, backed by
-	// actions.sub_level (private, never federated). Absent = not subscribed.
-	subLevel?: 'W' | 'T' | 'M'
+	// Reader's own `A:<type>` reader-state row (read watermark, notify level,
+	// …; private, never federated). Absent = no row (not subscribed).
+	readerState?: ReaderState
 	x?: unknown // Extensible metadata (x.role for SUBS, etc.)
 }
 export const tActionView: T.Type<ActionView> = T.struct({
@@ -401,7 +484,6 @@ export const tActionView: T.Type<ActionView> = T.struct({
 			ownReaction: T.optional(T.string),
 			reactions: T.optional(T.string),
 			lastCommentAt: T.optional(T.union(T.string, T.number)),
-			commentsReadAt: T.optional(T.union(T.string, T.number)),
 			commentCount: T.optional(T.number),
 			reposts: T.optional(T.number),
 			ownRepostIds: T.optional(T.record(T.string))
@@ -409,7 +491,7 @@ export const tActionView: T.Type<ActionView> = T.struct({
 	),
 	visibility: T.optional(T.string),
 	flags: T.optional(T.string),
-	subLevel: T.optional(T.literal('W', 'T', 'M')),
+	readerState: tEmbeddedReaderState,
 	x: T.optional(T.unknown),
 	token: T.optional(T.string)
 })
@@ -1047,6 +1129,9 @@ export const tSearchQuery = T.struct({
 	// rather than to its results, so a text+tag query cannot lose a hit that
 	// ranks below the relevance cut. With `tags` set, `q` may be empty.
 	tags: T.optional(T.string),
+	// Confine the search to one conversation: a CONV action id (group) or a
+	// peer idTag (DM).
+	conv: T.optional(T.string),
 	limit: T.optional(T.number),
 	offset: T.optional(T.number)
 })

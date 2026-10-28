@@ -87,6 +87,7 @@ function searchQueryParams(query: Types.SearchQuery) {
 		fileId: query.fileId,
 		contentType: query.contentType,
 		tags: query.tags,
+		conv: query.conv,
 		limit: query.limit,
 		offset: query.offset
 	}
@@ -632,23 +633,39 @@ export class ApiClient {
 		cancel: (actionId: string) =>
 			this.request('POST', `/actions/${actionId}/cancel`, Types.tActionView, {
 				data: {}
-			}),
-
-		/** PUT /actions/:actionId/subscribe - Set the reader's thread-subscription */
-		subscribe: (actionId: string, level: 'W' | 'T' | 'M' | null) =>
-			this.request('PUT', `/actions/${actionId}/subscribe`, T.struct({}), {
-				data: { level }
-			}),
-
-		/** PUT /read-marker - Forward-only read watermark on the reader's own node. */
-		setReadMarker: (m: { scope: 'feed' | 'msg' | 'thread'; key: string; position: number }) =>
-			this.request('PUT', '/read-marker', T.struct({}), {
-				data: {
-					scope: m.scope,
-					key: m.key,
-					position: new Date(m.position * 1000).toISOString()
-				}
 			})
+	}
+
+	// ========================================================================
+	// READER STATE ENDPOINTS
+	// ========================================================================
+
+	/** The reader's own follow state (owner-only) */
+	readerState = {
+		/** GET /reader-state - List rows, newest activity first, with cursor pagination */
+		list: async (query?: Types.ListReaderStateQuery) => {
+			const result = await this.requestWithMeta(
+				'GET',
+				'/reader-state',
+				Types.tListReaderStateResult,
+				{
+					query: query as Record<string, string | number | boolean | string[] | undefined>
+				}
+			)
+			return {
+				data: result.data,
+				cursorPagination: result.meta.cursorPagination
+			}
+		},
+
+		/** PATCH /reader-state/:kind/:ref - Upsert the row; 204. `kind` = 'A' | 'A:<TYPE>' | 'P:<TYPE>' */
+		patch: (kind: string, ref: string, patch: Types.ReaderStatePatch) =>
+			this.request(
+				'PATCH',
+				`/reader-state/${encodeURIComponent(kind)}/${encodeURIComponent(ref)}`,
+				T.nullValue,
+				{ data: patch }
+			)
 	}
 
 	// ========================================================================

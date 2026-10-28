@@ -11,22 +11,30 @@ import {
 	List,
 	ListItem,
 	LoadingSpinner,
+	Panel,
 	roomTitleHint
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
+import {
+	CommunityGroupsBrowser,
+	useIsCommunityMember
+} from '../apps/messages/details/CommunityGroupsBrowser.js'
 import { IcRoom } from '../icons.js'
-import { feedPath, filesPath, roomsPath } from '../routes.js'
+import { feedPath, filesPath, messagesPath, roomsPath } from '../routes.js'
 import { useRoomsOutlet } from './layout.js'
 import { useRoomActions } from './room-home.js'
 
 /** `/<ctx>/rooms`: the context's porch, with open / mute / leave / ask-to-join per row. */
 export function RoomsDirectory() {
 	const { t } = useTranslation()
+	const navigate = useNavigate()
 	const { idTag, base, rooms, error, reload, create } = useRoomsOutlet()
 	const membershipActions = useRoomActions(idTag, rooms, reload)
+	// Community members (above follower) also see the community's listed group chats.
+	const showGroups = useIsCommunityMember(idTag)
 
 	function rowActions(room: PorchEntry) {
 		return (
@@ -102,7 +110,19 @@ export function RoomsDirectory() {
 		)
 	}
 
-	return <Fcd.Content width="wide">{body}</Fcd.Content>
+	return (
+		<Fcd.Content width="wide">
+			{body}
+			{showGroups && idTag && (
+				<Panel variant="plain" className="mt-3" title={t('Group chats')} headingLevel={3}>
+					<CommunityGroupsBrowser
+						communityTag={idTag}
+						onJoined={(convId) => navigate(messagesPath(base, convId))}
+					/>
+				</Panel>
+			)}
+		</Fcd.Content>
+	)
 }
 
 // vim: ts=4

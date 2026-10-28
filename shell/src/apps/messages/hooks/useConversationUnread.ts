@@ -6,106 +6,167 @@ import type { ActionView } from '@cloudillo/types'
 import { useAtomValue, useSetAtom } from 'jotai'
 import * as React from 'react'
 
-import { createdAtToSeconds, readPositionAtom, unreadCountAtom } from '../../../read-position.js'
-import { useWsBus } from '../../../ws-bus.js'
-import type { Conversation } from '../types.js'
 import {
-	directIncomingTsAtom,
+	createdAtToSeconds,
+	liveEdgeConvAtom,
+	nowSeconds,
+	readPositionAtom,
+	unreadCountAtom
+} from '../../../read-position.js'
+import { useWsBus } from '../../../ws-bus.js'
+import type { Conversation, MsgAction } from '../types.js'
+import {
+	conversationsAtom,
+	sortByRecency,
 	useConversations,
-	useConversationsLoader
+	useConversationsLoader,
+	useConversationsReload
 } from './useConversations.js'
+import { applyConvPatch } from './useConvPrefs.js'
 
-// Cap on retained per-peer incoming-DM timestamps. Live WS arrivals prepend to the
-// loader's seed array; bound the tail so a long-lived session doesn't accumulate an
-// unbounded list (only the newest matter for the `> read` unread compare).
-const DM_TS_CAP = 100
+// Messages seen live over the WS bus for conversations not in the list yet (they
+// trigger a reload): count + newest ts.
+type LiveMap = Record<string, { n: number; ts: number }>
 
-// Populate `unreadCountAtom` under `msg:<convId>` keys from two generic sources:
-//  - Group unread from each CONV's `stat` (lastCommentAt > commentsReadAt),
-//    mirroring the feed's comment dot.
-//  - DM unread from the loader's per-peer incoming timestamps (directIncomingTsAtom),
-//    compared against profiles.msgReadAt — no second involved:me MSG scan.
-// The open conversation's count zeroes automatically as its read marker advances
-// (readPositionAtom is a dependency of the recompute).
+// Group comment → CONV; DM → the peer (the audience of an own message).
+export function liveMsgConvId(a: ActionView, myIdTag: string | undefined): string | undefined {
+	return a.parentId ?? (a.issuer.idTag === myIdTag ? a.audience?.idTag : a.issuer.idTag)
+}
+
+/** The inbox with a live MSG applied to its row, re-sorted; undefined if the row is unknown. */
+export function applyLiveMsg(
+	list: Conversation[],
+	a: ActionView,
+	myIdTag: string | undefined,
+	liveEdgeConvId?: string
+): Conversation[] | undefined {
+	const id = liveMsgConvId(a, myIdTag)
+	if (!id || !list.some((c) => c.id === id)) return
+	// Seen at the open conversation's live edge: no unread bump.
+	const own = a.issuer.idTag === myIdTag || id === liveEdgeConvId
+	return sortByRecency(
+		list.map((c) =>
+			c.id === id
+				? {
+						...c,
+						lastMessage: a as MsgAction,
+						lastMessageAt: a.createdAt,
+						unreadCount: own ? c.unreadCount : (c.unreadCount ?? 0) + 1
+					}
+				: c
+		)
+	)
+}
+
+// Populate `unreadCountAtom` per conversation (`<id>` = peer idTag or CONV id):
+//  - `msg:<id>`      — counts toward the header badge (layout.tsx counts entries > 0):
+//                      the effective unread, or 0 when muted and not mentioned;
+//  - `msgMuted:<id>` — the effective unread of a muted conversation (grey row count).
+// Effective unread = the backend count (`Conversation.unreadCount`) plus live arrivals,
+// zeroed once the local read marker (readPositionAtom `msg:<peer>` / `thread:<convId>`)
+// moves past the newest message.
 export function useConversationUnread(conversations: Conversation[] | undefined): void {
 	const [auth] = useAuth()
 	const setUnread = useSetAtom(unreadCountAtom)
+	const setConversations = useSetAtom(conversationsAtom)
 	const readPositions = useAtomValue(readPositionAtom)
-	// peer idTag → incoming DM timestamps (epoch seconds), newest-first. Seeded by the
-	// loader's DM scan; live WS arrivals append here (no extra network round trip).
-	const dmTs = useAtomValue(directIncomingTsAtom)
-	const setDmTs = useSetAtom(directIncomingTsAtom)
-	// convId → newest incoming (non-own) group-comment ts seen live over the WS bus.
-	// Folded into the group-unread compare so a new comment lights the badge without a
-	// conversations reload (stat.lastCommentAt is fetched once and otherwise frozen).
-	const [liveGroupTs, setLiveGroupTs] = React.useState<Record<string, number>>({})
+	const liveEdgeConvId = useAtomValue(liveEdgeConvAtom)
+	const reload = useConversationsReload()
+	// Conversation id → the live `ts` it was last reloaded for.
+	const reloadedForRef = React.useRef(new Map<string, number>())
+	const [live, setLive] = React.useState<LiveMap>({})
+	// Bumped when the next timed mute runs out, so its count reaches the badge again.
+	const [tick, setTick] = React.useState(0)
 
-	// Per-peer DM read watermark seed from the loaded direct-conversation profiles.
-	const peerReadAt = React.useMemo(() => {
-		const map: Record<string, number> = {}
-		for (const c of conversations || []) {
-			if (c.type !== 'direct') continue
-			map[c.id] = createdAtToSeconds(c.profiles[0]?.msgReadAt)
+	React.useEffect(() => {
+		const now = nowSeconds()
+		let next = Number.POSITIVE_INFINITY
+		for (const c of conversations ?? []) {
+			if (c.muteUntil && c.muteUntil > now) next = Math.min(next, c.muteUntil)
 		}
-		return map
-	}, [conversations])
+		if (next === Number.POSITIVE_INFINITY) return
+		const timer = setTimeout(
+			() => setTick((n) => n + 1),
+			Math.min((next - now) * 1000 + 500, 2 ** 31 - 1)
+		)
+		return () => clearTimeout(timer)
+	}, [conversations, tick])
 
-	// Live overlay for both channels. Incoming group comments fold into liveGroupTs;
-	// incoming DMs append to the shared directIncomingTsAtom (capped tail). The reader's
-	// own message never creates unread, so short-circuit it up front.
 	useWsBus({ cmds: ['ACTION'] }, function handleAction(m) {
 		const a = m.data as ActionView
-		if (a.type !== 'MSG') return
-		if (a.issuer.idTag === auth?.idTag) return
-		const ts = createdAtToSeconds(a.createdAt)
-		if (a.parentId) {
-			// Group comment: fold its timestamp into the live overlay.
-			const convId = a.parentId
-			setLiveGroupTs((prev) => (ts > (prev[convId] ?? 0) ? { ...prev, [convId]: ts } : prev))
+		if (a.type === 'CONV' && a.subType === 'UPD') {
+			if (conversations?.some((c) => c.id === a.subject)) reload()
 			return
 		}
-		// DM: prepend to this peer's timestamp array, bounded to a recent tail (L3).
-		const peer = a.issuer.idTag
-		setDmTs((prev) => {
-			const arr = prev[peer] ?? []
-			return { ...prev, [peer]: [ts, ...arr].slice(0, DM_TS_CAP) }
-		})
+		if (a.type !== 'MSG' || a.subType === 'DEL' || a.subType === 'UPD') return
+		const id = liveMsgConvId(a, auth?.idTag)
+		if (!id) return
+		// A known row takes the message directly (preview, order, unread).
+		if (conversations?.some((c) => c.id === id)) {
+			setConversations(
+				(prev) => (prev && applyLiveMsg(prev, a, auth?.idTag, liveEdgeConvId)) || prev
+			)
+			return
+		}
+		// The reader's own message never creates unread.
+		if (a.issuer.idTag === auth?.idTag) return
+		const ts = createdAtToSeconds(a.createdAt)
+		setLive((prev) => ({
+			...prev,
+			[id]: { n: (prev[id]?.n ?? 0) + 1, ts: Math.max(prev[id]?.ts ?? 0, ts) }
+		}))
 	})
 
-	// Recompute the msg: unread map whenever inputs or watermarks change.
 	React.useEffect(() => {
-		const groupIds = new Set<string>()
+		if (!conversations) return // loading — keep the previous counts, no badge flicker
+		const now = nowSeconds()
+		const byId = new Map(conversations.map((c) => [c.id, c]))
 		const patch: Record<string, number> = {}
-		for (const c of conversations || []) {
-			// Left/archived groups live under the collapsed "Archived" section and have no
-			// clearable card — never feed the nav badge (M1). The zeroing pass below drops
-			// any entry a group carried before it became `left`.
-			if (c.type !== 'group' || c.left) continue
-			groupIds.add(c.id)
-			const last = Math.max(createdAtToSeconds(c.stat?.lastCommentAt), liveGroupTs[c.id] ?? 0)
-			const read = Math.max(
-				createdAtToSeconds(c.stat?.commentsReadAt),
-				readPositions[`thread:${c.id}`] ?? 0
+		// Conversations read past their newest message locally: their row in
+		// `conversationsAtom` gets the read too, so a later live MSG counts from 0.
+		const readThrough: Record<string, number> = {}
+		for (const c of conversations) {
+			// Left groups have no reader-state row and never feed the badge.
+			if (c.left) continue
+			const lastAt = createdAtToSeconds(c.lastMessageAt)
+			const l = live[c.id]
+			const serverRead = createdAtToSeconds(c.readerState?.readAt)
+			const localRead =
+				readPositions[`${c.type === 'direct' ? 'msg' : 'thread'}:${c.id}`] ?? 0
+			// a partial local read keeps the loaded count until the next load;
+			// only reading past the newest message (1s tolerance, as the feed's comment
+			// dot) zeroes it.
+			const readLocally =
+				localRead > serverRead && localRead + 1 >= Math.max(lastAt, l?.ts ?? 0)
+			let count = readLocally ? 0 : (c.unreadCount ?? 0) + (l && l.ts > lastAt ? l.n : 0)
+			// A manual unread flag outlives older local reads. The server clears it once
+			// `readAt` strictly advances, so a local read past both the server read and the
+			// flag's own stamp (`updatedAt`, set by "Mark unread") wins.
+			if (
+				c.readerState?.unreadFlag &&
+				localRead <= Math.max(serverRead, createdAtToSeconds(c.readerState.updatedAt))
 			)
-			// 1s tolerance mirrors the feed's comment dot (feed.tsx), guarding an
-			// off-by-one between the federated comments_ts and a locally advanced
-			// commentsReadAt.
-			patch[`msg:${c.id}`] = last > read + 1 ? 1 : 0
-		}
-		for (const [peer, tsList] of Object.entries(dmTs)) {
-			// No direct-conversation card for this peer → don't badge (the nav sum must
-			// equal the sum of visible card badges; non-connected senders render no card).
-			if (!(peer in peerReadAt)) continue
-			const read = Math.max(peerReadAt[peer] ?? 0, readPositions[`msg:${peer}`] ?? 0)
-			patch[`msg:${peer}`] = tsList.filter((ts) => ts > read).length
+				count = Math.max(count, 1)
+			// count === 0: never clears an outstanding "Mark unread" flag.
+			if (readLocally && count === 0) readThrough[c.id] = localRead
+			const mentioned =
+				!!c.mentioned &&
+				createdAtToSeconds(c.readerState?.mentionedAt) > Math.max(serverRead, localRead)
+			const muted = !!c.muteLevel && (!c.muteUntil || c.muteUntil > now)
+			patch[`msg:${c.id}`] = muted && !mentioned ? 0 : count
+			patch[`msgMuted:${c.id}`] = muted ? count : 0
 		}
 		setUnread((prev) => {
 			let changed = false
 			const next = { ...prev }
-			// Zero any msg: entry we no longer compute (conv/peer dropped out) so the
-			// nav badge never counts a conversation that has no visible card.
+			// Zero any entry we no longer compute (conversation dropped out) so the
+			// badge never counts a conversation that has no row.
 			for (const k of Object.keys(next)) {
-				if (k.startsWith('msg:') && !(k in patch) && next[k] !== 0) {
+				if (
+					(k.startsWith('msg:') || k.startsWith('msgMuted:')) &&
+					!(k in patch) &&
+					next[k]
+				) {
 					next[k] = 0
 					changed = true
 				}
@@ -118,19 +179,44 @@ export function useConversationUnread(conversations: Conversation[] | undefined)
 			}
 			return changed ? next : prev
 		})
-		// Prune liveGroupTs entries for groups no longer present (left/removed) so the
-		// live overlay doesn't grow unbounded over a long session (L3). Guard the write
-		// so an unchanged map returns `prev` and doesn't re-trigger this effect.
-		setLiveGroupTs((prev) => {
-			let changed = false
-			const nextTs: Record<string, number> = {}
-			for (const [id, ts] of Object.entries(prev)) {
-				if (groupIds.has(id)) nextTs[id] = ts
-				else changed = true
-			}
-			return changed ? nextTs : prev
-		})
-	}, [conversations, dmTs, liveGroupTs, readPositions, peerReadAt, setUnread])
+		// unreadCount forced to 0: applyConvPatch only zeroes it when readAt >= lastAt,
+		// the check above allows 1s tolerance.
+		if (Object.keys(readThrough).length)
+			setConversations((prev) =>
+				prev?.map((c) =>
+					c.id in readThrough
+						? {
+								...applyConvPatch(c, {
+									readAt: new Date(readThrough[c.id] * 1000).toISOString()
+								}),
+								unreadCount: 0
+							}
+						: c
+				)
+			)
+		// Drop live entries the loaded data already covers or that have no conversation.
+		// A message from a conversation not in the list (first DM, new group) reloads it.
+		const stale = (id: string, l: { ts: number }) => {
+			const c = byId.get(id)
+			return !c || l.ts <= createdAtToSeconds(c.lastMessageAt)
+		}
+		if (Object.entries(live).some(([id, l]) => stale(id, l))) {
+			setLive((prev) => {
+				const nextLive: LiveMap = {}
+				for (const [id, l] of Object.entries(prev)) if (!stale(id, l)) nextLive[id] = l
+				return nextLive
+			})
+		}
+		// Once per live arrival from an unlisted conversation, not once per message: a
+		// failed reload retries on the next arrival, and a reload can't loop (it leaves `ts`).
+		const missing = Object.keys(live).filter(
+			(id) => !byId.has(id) && reloadedForRef.current.get(id) !== live[id].ts
+		)
+		if (missing.length) {
+			for (const id of missing) reloadedForRef.current.set(id, live[id].ts)
+			reload()
+		}
+	}, [conversations, live, readPositions, setUnread, setConversations, reload, tick])
 }
 
 // Root-level probe: load all conversations (unfiltered) and keep the msg: unread

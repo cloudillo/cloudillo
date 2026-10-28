@@ -801,6 +801,84 @@
 	--fcd-rail-w: 18rem;
 }
 
+/* Group chat avatar: two xs avatars on the diagonal of a md (2.5rem) square */
+.group-avatar {
+	position: relative;
+	width: 2.5rem;
+	height: 2.5rem;
+	flex-shrink: 0;
+}
+
+.group-avatar > .c-avatar {
+	position: absolute;
+	border: 2px solid var(--col-container);
+}
+
+.group-avatar > .c-avatar:first-child {
+	inset-block-start: 0;
+	inset-inline-start: 0;
+}
+
+.group-avatar > .c-avatar:nth-child(2) {
+	inset-block-end: 0;
+	inset-inline-end: 0;
+}
+
+/* "+N" overflow pill, bottom-left in the free corner */
+.group-avatar > .group-avatar-more {
+	inset-block-end: 0;
+	inset-inline-start: 0;
+	width: auto;
+	min-width: 1rem;
+	height: 1rem;
+	padding-inline: 0.2rem;
+	font-size: 0.625rem;
+	border-radius: 999px;
+	z-index: 1;
+}
+
+/* Inbox rows: master-detail list, so no chevron; time never wraps; line-2 icons text-sized */
+.inbox-list .c-list-item {
+	gap: var(--space-2);
+}
+
+.inbox-list .c-list-item-chevron {
+	display: none;
+}
+
+.inbox-row-time {
+	flex-shrink: 0;
+	white-space: nowrap;
+}
+
+.inbox-row-ind,
+.inbox-row-ind svg {
+	flex-shrink: 0;
+	width: 1rem;
+	height: 1rem;
+}
+
+/* Fine pointers: the hover ⋯ floats over the row end instead of reserving a column.
+   Opaque over the time/indicators beneath it: container, + frost on hover, selected colour. */
+@media (pointer: fine) {
+	.inbox-list .c-list-item-actions {
+		position: absolute;
+		inset-inline-end: var(--space-2);
+		inset-block-start: 50%;
+		transform: translateY(-50%);
+		border-radius: var(--radius, 0.5rem);
+		background: var(--col-container);
+	}
+
+	.inbox-list .c-list-item.interactive:not(.selected):hover .c-list-item-actions {
+		background: linear-gradient(var(--col-frost), var(--col-frost)), var(--col-container);
+	}
+
+	.inbox-list .c-list-item.selected .c-list-item-actions {
+		background: var(--col-selected);
+	}
+}
+
 /* Calendar toolbar: range title and view switcher never shrink; the search
    input yields width and the row wraps when the three can't share it */
 .calendar-toolbar {

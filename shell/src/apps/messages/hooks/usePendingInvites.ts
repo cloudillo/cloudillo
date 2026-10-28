@@ -9,18 +9,24 @@ import { useWsBus } from '../../../ws-bus.js'
 
 export interface UsePendingInvites {
 	pendingInvites: ActionView[] | undefined
-	// Accept an invite; resolves to the invite's subject (CONV id) on success so
-	// the caller can navigate to the new group.
+	// The last load failed (`pendingInvites` is then `[]`); `reload` retries.
+	error: boolean
+	reload: () => void
+	// Accept an invite; resolves to the invite's subject (CONV id) so the caller can
+	// navigate to the new group. Rejects on failure — the caller reports it.
 	acceptInvite: (invite: ActionView) => Promise<string | undefined>
+	// Rejects on failure — the caller reports it.
 	rejectInvite: (invite: ActionView) => Promise<void>
 }
 
 // Incoming group invitations where the current user is the invitee (INVT
-// status 'C', audience = me).
+// status 'C', audience = me), with the CONV embedded (`subjectAction`) when known.
 export function usePendingInvites(): UsePendingInvites {
 	const { api } = useApi()
 	const [auth] = useAuth()
 	const [pendingInvites, setPendingInvites] = React.useState<ActionView[] | undefined>()
+	const [error, setError] = React.useState(false)
+	const [reloadKey, setReloadKey] = React.useState(0)
 
 	React.useEffect(
 		function loadPendingInvites() {
@@ -33,19 +39,23 @@ export function usePendingInvites(): UsePendingInvites {
 					const invites = await api.actions.list({
 						type: 'INVT',
 						status: 'C', // Only pending confirmations
-						audience: auth.idTag
+						audience: auth.idTag,
+						includeSubject: true
 					})
 					if (ac.signal.aborted) return
 					setPendingInvites(invites as ActionView[])
+					setError(false)
 				} catch (err) {
 					if (ac.signal.aborted) return
 					console.error('Failed to load pending invites', err)
 					setPendingInvites([])
+					setError(true)
 				}
 			})()
 			return () => ac.abort()
 		},
-		[auth, api]
+		// `auth?.idTag`, not `auth`: a token renewal replaces the auth object.
+		[auth?.idTag, api, reloadKey]
 	)
 
 	// Live incoming invites: the initial load fires once per (auth, api), so mirror
@@ -69,14 +79,9 @@ export function usePendingInvites(): UsePendingInvites {
 	const acceptInvite = React.useCallback(
 		async function acceptInvite(invite: ActionView): Promise<string | undefined> {
 			if (!api || !auth) return undefined
-			try {
-				await api.actions.accept(invite.actionId)
-				setPendingInvites((prev) => prev?.filter((i) => i.actionId !== invite.actionId))
-				return invite.subject
-			} catch (err) {
-				console.error('Failed to accept invite', err)
-				return undefined
-			}
+			await api.actions.accept(invite.actionId)
+			setPendingInvites((prev) => prev?.filter((i) => i.actionId !== invite.actionId))
+			return invite.subject
 		},
 		[api, auth]
 	)
@@ -84,17 +89,15 @@ export function usePendingInvites(): UsePendingInvites {
 	const rejectInvite = React.useCallback(
 		async function rejectInvite(invite: ActionView): Promise<void> {
 			if (!api) return
-			try {
-				await api.actions.reject(invite.actionId)
-				setPendingInvites((prev) => prev?.filter((i) => i.actionId !== invite.actionId))
-			} catch (err) {
-				console.error('Failed to reject invite', err)
-			}
+			await api.actions.reject(invite.actionId)
+			setPendingInvites((prev) => prev?.filter((i) => i.actionId !== invite.actionId))
 		},
 		[api]
 	)
 
-	return { pendingInvites, acceptInvite, rejectInvite }
+	const reload = React.useCallback(() => setReloadKey((k) => k + 1), [])
+
+	return { pendingInvites, error, reload, acceptInvite, rejectInvite }
 }
 
 // vim: ts=4

@@ -38,7 +38,7 @@ export type ErrorCode =
 export * from '@cloudillo/types'
 
 // Import types used locally by the validators below
-import { type ProfileTrust, tActionView, tProfile } from '@cloudillo/types'
+import { type ProfileTrust, tActionView, tProfile, tReaderState } from '@cloudillo/types'
 
 // ============================================================================
 // SHARED ENUMS
@@ -586,9 +586,12 @@ export interface ListActionsQuery {
 	involved?: string
 	parentId?: string
 	rootId?: string
+	container?: string // a conversation's rows: children, actions naming it, and itself
 	subject?: string | string[]
 	count?: boolean // when true, /actions returns only cursorPagination.count (pre-visibility aggregate)
-	createdAfter?: string | number
+	createdAfter?: string | number // strict `>` bound
+	createdBefore?: string | number // strict `<` bound
+	attachments?: boolean // only actions that carry attachments
 	sortDir?: 'asc' | 'desc' // sort order (default 'desc'); 'asc' for the Unread tab
 	// Ordering column: 'created' (default, author time) or 'received' (local
 	// ingestion time). The home feed passes 'received' so late-federated posts
@@ -626,6 +629,34 @@ export const tListActionsResult = T.struct({
 */
 export const tListActionsResult = T.array(tActionView)
 export type ListActionsResult = T.TypeOf<typeof tListActionsResult>
+
+// ============================================================================
+// READER STATE ENDPOINTS
+// ============================================================================
+
+export interface ListReaderStateQuery {
+	kind?: string | string[] // e.g. 'P:MSG', 'A:CONV' (comma-joined on the wire)
+	sort?: 'lastAt'
+	limit?: number // 1..200, default 50
+	cursor?: string // opaque `nextCursor` from the previous page
+	include?: string | string[] // 'ref' (profile/action), 'last' (last activity)
+}
+
+// Items carry `profile` (P:* rows, include=ref) and `action` / `last` when included.
+export const tListReaderStateResult = T.array(tReaderState)
+export type ListReaderStateResult = T.TypeOf<typeof tListReaderStateResult>
+
+// PATCH body: absent = unchanged, null = reset. `readAt` is forward-only and
+// never null (ISO 8601 or epoch seconds). Unknown fields are rejected (400).
+export interface ReaderStatePatch {
+	readAt?: string | number
+	pinned?: boolean | null
+	archived?: boolean | null
+	ignoreAll?: boolean | null
+	unreadFlag?: boolean | null
+	notify?: 'W' | 'T' | 'M' | null
+	notifyUntil?: string | number | null
+}
 
 export const tInboundAction = T.struct({
 	token: T.string,

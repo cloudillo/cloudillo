@@ -4,12 +4,12 @@
 /**
  * Shared read-marker primitive for the feed (Pillar A) and messages (Pillar G).
  *
- * Watermarks live on the reader's own home node, as columns on the entity row:
- * `profiles.feed_read_at` (feed) and `profiles.msg_read_at` (DM peer). The
- * frontend seeds from values already on the loaded profile objects and writes
- * forward-only via the own-node endpoint `PUT /read-marker { scope, key, position }`.
- * Thread/comment read state uses this same hook with a `thread:<actionId>` scope
- * key, writing the `actions.comments_read_at` watermark (see `feed.tsx`'s `Comments`).
+ * Watermarks live on the reader's own home node as `reader_state` rows: `P:POST`
+ * (feed, ref = context idTag) and `P:MSG` (DM peer). The frontend seeds from the
+ * `feedState` / `msgState` already on the loaded profile objects and writes
+ * forward-only via `PATCH /reader-state/{kind}/{ref} { readAt }`. Thread/comment
+ * read state uses this same hook with a `thread:<actionId>` scope key, writing the
+ * action's `A:<type>` row (bare kind `A`; see `feed.tsx`'s `Comments`).
  *
  * `scopeKey` is `"<scope>:<key>"` — `feed:<ctxIdTag>`, `msg:<peerIdTag>` or
  * `thread:<actionId>`.
@@ -87,6 +87,10 @@ export const readPositionAtom: PrimitiveAtom<Record<string, number>> = atom<Reco
 	{}
 )
 
+// The conversation open and scrolled to its live edge, if any: a live MSG there is read
+// as it arrives, so the inbox doesn't count it as unread.
+export const liveEdgeConvAtom = atom<string | undefined>(undefined)
+
 // Unread counts keyed by a bare entity id (feed/community dot) or a `msg:<convId>`
 // key for per-conversation message unread (the nav badge sums all `msg:` entries).
 export const unreadCountAtom: PrimitiveAtom<Record<string, number>> = atom<Record<string, number>>(
@@ -94,7 +98,7 @@ export const unreadCountAtom: PrimitiveAtom<Record<string, number>> = atom<Recor
 )
 
 // bare entity id → true once the global probe has fetched its profile
-// (and seeded readPositionAtom from feedReadAt). Lets FeedApp's bootstrap
+// (and seeded readPositionAtom from feedState.readAt). Lets FeedApp's bootstrap
 // distinguish "server confirmed no watermark" from "still loading".
 export const feedSeedLoadedAtom: PrimitiveAtom<Record<string, boolean>> = atom<
 	Record<string, boolean>
@@ -111,24 +115,32 @@ export function seedCommunityFromHome(
 ): void {
 	if (!idTag || !ownIdTag) return
 	const home = store.get(readPositionAtom)[`feed:${ownIdTag}`] ?? 0
-	if (home <= 0) return // nothing to carry; community keeps its own/bootstrap watermark
+	if (!Number.isFinite(home) || home <= 0) return // nothing to carry; community keeps its own/bootstrap watermark
 	const k = `feed:${idTag}`
 	store.set(readPositionAtom, (prev) => {
 		const cur = prev[k] ?? 0
 		return home > cur ? { ...prev, [k]: home } : prev
 	})
 	// Persist forward-only so the carryover survives reload (the probe otherwise
-	// re-seeds feed:<idTag> from the community's backend feedReadAt). Backend marker
-	// is itself forward-only, so a redundant lower write is a harmless no-op.
-	api?.actions.setReadMarker({ scope: 'feed', key: idTag, position: home }).catch(() => {})
+	// re-seeds feed:<idTag> from the community's backend feedState.readAt). Backend
+	// readAt is itself forward-only, so a redundant lower write is a harmless no-op.
+	api?.readerState.patch('P:POST', idTag, { readAt: toIso(home) }).catch(() => {})
 }
 
-type ReadScope = 'feed' | 'msg' | 'thread'
+function toIso(seconds: number): string {
+	return new Date(seconds * 1000).toISOString()
+}
 
-function parseScopeKey(scopeKey: string): { scope: ReadScope; key: string } {
+// scope prefix → reader_state kind (`thread` = bare `A`, resolved server-side to `A:<type>`)
+const SCOPE_KIND: Record<string, string> = { feed: 'P:POST', msg: 'P:MSG', thread: 'A' }
+
+export function parseScopeKey(scopeKey: string): { kind: string; key: string } {
 	const i = scopeKey.indexOf(':')
-	if (i < 0) return { scope: 'feed', key: scopeKey }
-	return { scope: scopeKey.slice(0, i) as ReadScope, key: scopeKey.slice(i + 1) }
+	if (i < 0) return { kind: 'P:POST', key: scopeKey }
+	// Scope keys are code literals, so an unknown prefix is a programming error.
+	const kind = SCOPE_KIND[scopeKey.slice(0, i)]
+	if (!kind) throw new Error(`Unknown read scope: ${scopeKey}`)
+	return { kind, key: scopeKey.slice(i + 1) }
 }
 
 export interface UseReadMarker {
@@ -158,14 +170,14 @@ function useFlushOnLeave(flush: () => void): void {
 
 /**
  * Read/advance the watermark for `scopeKey`. `seed` is the server value already
- * in hand (profile.feedReadAt / profile.msgReadAt / action.stat.commentsReadAt);
+ * in hand (profile.feedState / profile.msgState / action.readerState `.readAt`);
  * it seeds the atom forward-only without a write-back.
  */
 export function useReadMarker(scopeKey: string, seed?: number): UseReadMarker {
 	const { api } = useApi()
 	const [auth] = useAuth()
 	const [positions, setPositions] = useAtom(readPositionAtom)
-	const { scope, key } = React.useMemo(() => parseScopeKey(scopeKey), [scopeKey])
+	const { kind, key } = React.useMemo(() => parseScopeKey(scopeKey), [scopeKey])
 
 	const readPosition = positions[scopeKey] ?? 0
 	const readPositionRef = React.useRef(readPosition)
@@ -173,16 +185,17 @@ export function useReadMarker(scopeKey: string, seed?: number): UseReadMarker {
 
 	const writeMarker = React.useCallback(
 		(position: number) => {
-			// The backend keys every watermark to the reader's own row
-			// (profiles.feed_read_at / msg_read_at, actions.comments_read_at). A
-			// guest has no row on this node, so the write can't be attributed to
-			// anyone — don't issue it.
+			// `toIso` throws synchronously on NaN/Infinity, past the `.catch` below.
+			if (!Number.isFinite(position) || position <= 0) return
+			// The backend keys every watermark to the reader's own `reader_state`
+			// row. A guest has no row on this node, so the write can't be
+			// attributed to anyone — don't issue it.
 			if (!api || !key || !auth?.idTag) return
-			api.actions.setReadMarker({ scope, key, position }).catch(() => {
+			api.readerState.patch(kind, key, { readAt: toIso(position) }).catch(() => {
 				/* own-node write is best-effort; the watermark also lives in-memory */
 			})
 		},
-		[api, scope, key, auth?.idTag]
+		[api, kind, key, auth?.idTag]
 	)
 
 	const [throttledWrite, flushNow] = useThrottledCallback(writeMarker, 1500)
@@ -458,6 +471,27 @@ export function useBottomDwell(options: UseBottomDwellOptions): void {
 }
 
 /**
+ * Debounced live re-probe targets: own home + known communities only. Any other
+ * audience (e.g. a person a SUBS was routed to) is skipped. A shown-in-Home
+ * community's posts are represented by the Home dot, so only its knocks are probed.
+ * An empty `showInHome` means the communities list hasn't loaded yet (fresh login):
+ * every non-own target is then probed as a full community rather than dropped.
+ */
+export function liveProbeTargets(
+	targets: Iterable<string>,
+	ownIdTag: string | undefined,
+	showInHome: Map<string, boolean>
+): { idTag: string; isCommunity: boolean; knocksOnly: boolean }[] {
+	const out: { idTag: string; isCommunity: boolean; knocksOnly: boolean }[] = []
+	for (const t of targets) {
+		if (t === ownIdTag) out.push({ idTag: t, isCommunity: false, knocksOnly: false })
+		else if (showInHome.size === 0 || showInHome.has(t))
+			out.push({ idTag: t, isCommunity: true, knocksOnly: showInHome.get(t) === true })
+	}
+	return out
+}
+
+/**
  * App-wide unread probe (Pillar D coverage). Mounted once at the layout level so
  * the nav/sidebar dots populate for every context — home + each community —
  * regardless of which page is open.
@@ -501,14 +535,21 @@ export function useGlobalUnreadProbe(): void {
 
 	// Probe a single target (own home or one community) and store its count.
 	const probeTarget = React.useCallback(
-		async (idTag: string, community: boolean, opts?: { force?: boolean }) => {
+		async (
+			idTag: string,
+			community: boolean,
+			opts?: { force?: boolean; knocksOnly?: boolean }
+		) => {
 			if (!api || !idTag) return
+			// A shown-in-Home community probes knocks only, under its own TTL key, so a
+			// later shown→hidden toggle still re-probes posts immediately.
+			const ttlKey = opts?.knocksOnly ? `${idTag}:knocks` : idTag
 			try {
 				// Skip if probed recently, unless a live ACTION push forces it.
-				const last = lastProbedRef.current.get(idTag) ?? 0
+				const last = lastProbedRef.current.get(ttlKey) ?? 0
 				if (!opts?.force && Date.now() - last < PROBE_TTL_MS) return
 				const profile = await api.profiles.get(idTag)
-				let since = createdAtToSeconds(profile?.feedReadAt)
+				let since = createdAtToSeconds(profile?.feedState?.readAt)
 				// Seed FeedApp's watermark (forward-only) so it needn't re-fetch the
 				// same profile when the context is opened, and mark it ready.
 				const seedTs = since
@@ -545,18 +586,32 @@ export function useGlobalUnreadProbe(): void {
 				// probe on the own node, minus the proxy token and audience — no
 				// audience = the merged home feed, so the server's hidden-community
 				// exclusion applies.
-				const res = await client.actions.listPaginated({
-					type: ['POST', 'REPOST'],
-					status: ['A'],
-					...(community ? { audience: idTag } : {}),
-					createdAfter: new Date(since * 1000).toISOString(),
-					excludeOwnIssuer: true,
-					sort: 'received',
-					sortDir: 'asc',
-					limit: 1
-				})
-				const count = res.data.length > 0 || res.cursorPagination?.hasMore === true ? 1 : 0
-				lastProbedRef.current.set(idTag, Date.now())
+				const res = opts?.knocksOnly
+					? undefined
+					: await client.actions.listPaginated({
+							type: ['POST', 'REPOST'],
+							status: ['A'],
+							...(community ? { audience: idTag } : {}),
+							createdAfter: new Date(since * 1000).toISOString(),
+							excludeOwnIssuer: true,
+							sort: 'received',
+							sortDir: 'asc',
+							limit: 1
+						})
+				// Pending knocks (SUBS 'C') the member can answer
+				// keep the community dot lit until handled, whatever the feed watermark.
+				const knocks = community
+					? await client.actions
+							.listPaginated({ type: 'SUBS', status: ['C'], limit: 1 })
+							.catch(() => null)
+					: undefined
+				const found = (r?: typeof res | null) =>
+					!!r && (r.data.length > 0 || r.cursorPagination?.hasMore === true)
+				// A failed knock query is unknown, not zero: keep the prior value and
+				// leave lastProbed unset so the next probe retries.
+				if (knocks === null && !found(res)) return
+				const count = found(res) || found(knocks) ? 1 : 0
+				lastProbedRef.current.set(ttlKey, Date.now())
 				setUnread((prev) => (prev[idTag] === count ? prev : { ...prev, [idTag]: count }))
 			} catch {
 				/* best-effort; leave the prior value */
@@ -570,18 +625,17 @@ export function useGlobalUnreadProbe(): void {
 		await probeTarget(ownIdTag, false)
 		const communityTasks = communities.map((c) => () => {
 			if (c.showInHome) {
-				// Shown in Home → no dedicated dot: its posts are already
-				// represented by the Home dot. Actively zero any stale count so a
-				// hidden→shown toggle drops the dot, and clear lastProbed so a
-				// later shown→hidden toggle re-probes immediately (not TTL-suppressed).
-				setUnread((prev) => (prev[c.idTag] ? { ...prev, [c.idTag]: 0 } : prev))
+				// Shown in Home → its posts are already represented by the Home
+				// dot, so only knocks light its own dot (the knocks-only probe sets
+				// it, so a hidden→shown toggle drops a posts-only dot). Clear the
+				// posts lastProbed so a later shown→hidden toggle re-probes immediately.
 				lastProbedRef.current.delete(c.idTag)
-				return Promise.resolve()
+				return probeTarget(c.idTag, true, { knocksOnly: true })
 			}
 			return probeTarget(c.idTag, true)
 		})
 		await runWithLimit(communityTasks, 3)
-	}, [api, ownIdTag, communities, probeTarget, setUnread])
+	}, [api, ownIdTag, communities, probeTarget])
 
 	React.useEffect(() => {
 		probeAll()
@@ -601,7 +655,10 @@ export function useGlobalUnreadProbe(): void {
 	const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
 	useWsBus({ cmds: ['ACTION'] }, function handleAction(msg) {
 		const action = msg.data as ActionView
-		if (action.type !== 'POST' && action.type !== 'REPOST') return
+		// SUBS: a join/knock routed to a community (audience) may change its knock dot.
+		if (action.type === 'SUBS') {
+			if (!action.audience?.idTag || action.audience.idTag === ownIdTagRef.current) return
+		} else if (action.type !== 'POST' && action.type !== 'REPOST') return
 		const aud = action.audience?.idTag ?? ownIdTagRef.current
 		// '*' = no audience and no own id yet → fall back to a full probe.
 		pendingAudiencesRef.current.add(aud || '*')
@@ -617,18 +674,16 @@ export function useGlobalUnreadProbe(): void {
 				probeAllRef.current()
 				return
 			}
-			for (const t of targets) {
-				// community = anything that isn't the reader's own home id. A live
-				// POST/REPOST is real new content → bypass the TTL.
-				const isCommunity = t !== ownIdTagRef.current
-				if (isCommunity && showInHomeRef.current.get(t) === true) {
-					// Shown-in-Home community → no dedicated dot (its content is
-					// represented by the Home dot, which the home audience push also
-					// re-probes). Zero any stale count instead of probing.
-					setUnread((prev) => (prev[t] ? { ...prev, [t]: 0 } : prev))
-					continue
-				}
-				probeTargetRef.current(t, isCommunity, { force: true })
+			// A live POST/REPOST is real new content → bypass the TTL.
+			for (const { idTag, isCommunity, knocksOnly } of liveProbeTargets(
+				targets,
+				ownIdTagRef.current,
+				showInHomeRef.current
+			)) {
+				probeTargetRef.current(idTag, isCommunity, {
+					force: true,
+					...(knocksOnly && { knocksOnly: true })
+				})
 			}
 		}, 4000)
 	})

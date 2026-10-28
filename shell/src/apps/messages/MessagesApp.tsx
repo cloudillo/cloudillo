@@ -2,463 +2,175 @@
 // SPDX-License-Identifier: MPL-2.0
 
 import {
-	Alert,
-	Button,
-	Divider,
 	EmptyState,
 	FAB,
 	Fcd,
-	IcInfo,
-	Icon,
-	IdentityTag,
-	LoadMoreTrigger,
+	Heading,
 	PageHeader,
-	ProfilePicture,
-	SkeletonList,
-	useApi,
 	useAuth,
-	VBox
+	useIsDesktop,
+	useIsMobile
 } from '@cloudillo/react'
+import { useAtomValue } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
 import { useCtx } from '../../context/index.js'
-import {
-	createdAtToSeconds,
-	useBottomDwell,
-	useReadPositionTracker,
-	useScrollEngaged
-} from '../../read-position.js'
 import { messagesPath } from '../../routes.js'
-import { DrawerToggle } from '../../ui/DrawerToggle.js'
 import '@cloudillo/react/components.css'
 
-import { IcGroup, IcMessages, IcScrollToBottom } from '../../icons.js'
-import { ContactPickerDialog } from './components/ContactPickerDialog.js'
-import { ConversationBar, type ConversationFilter } from './components/ConversationBar.js'
-import { CreateGroupDialog } from './components/CreateGroupDialog.js'
-import { GroupDetailsPanel } from './components/GroupDetailsPanel.js'
-import { InviteMemberDialog } from './components/InviteMemberDialog.js'
-import { Msg } from './components/Msg.js'
-import { NewMsg } from './components/NewMsg.js'
-import { useConversationMembersEnrichment, useConversations } from './hooks/useConversations.js'
+import { IcCompose, IcMessages } from '../../icons.js'
+import { NewChatDialog } from './components/NewChatDialog.js'
+import { ConversationView } from './conversation/ConversationView.js'
+import { DetailsPanel } from './details/DetailsPanel.js'
+import { useCommunityMemberRoles } from './hooks/useCommunityMemberRoles.js'
+import {
+	conversationsAtom,
+	useConversationMembersEnrichment,
+	useConversationsReload
+} from './hooks/useConversations.js'
 import { useMessages } from './hooks/useMessages.js'
+import { useTypingReceiver } from './hooks/useTyping.js'
 import { usePendingInvites } from './hooks/usePendingInvites.js'
-import { groupMessages } from './utils.js'
+import { InboxList } from './inbox/InboxList.js'
 
-// Distance (px) from the bottom within which we consider the user "at the
-// bottom" and auto-stick to new messages.
-const SCROLL_BOTTOM_THRESHOLD = 120
-
+// Layout host:
+// - below md: a stack — list (/messages), conversation (/messages/:convId, Back),
+//   details (?panel=details) — every level is a URL, so browser back works;
+// - md: list rail + conversation, details as an overlay sheet;
+// - lg+: rail + conversation + details, docked when it fits (Fcd), toggleable.
 export function MessagesApp() {
 	const { convId } = useParams()
+	const [searchParams] = useSearchParams()
 	const navigate = useNavigate()
 	const { t } = useTranslation()
-	const { api } = useApi()
 	const [auth] = useAuth()
 	const urlContext = useCtx().base
+	const isMobile = useIsMobile('md')
+	const isDesktop = useIsDesktop('lg')
 
-	// Below md the rail is a drawer; with no conversation the list renders in the
-	// content column instead, so the drawer starts closed.
-	const [showFilter, setShowFilter] = React.useState(false)
-	const [showDetails, setShowDetails] = React.useState(false)
-	const [showCreateGroup, setShowCreateGroup] = React.useState(false)
-	const [showContactPicker, setShowContactPicker] = React.useState(false)
-	const [showInviteMember, setShowInviteMember] = React.useState(false)
-	const [filter, setFilter] = React.useState<ConversationFilter>({ tab: 'all' })
-	const [scrollBottom, setScrollBottom] = React.useState(true)
-	// True only AFTER the initial scroll has been positioned for the current
-	// conversation. Gates the scroll-driven read trackers so the programmatic init
-	// scroll can't trip the engagement gate and mark the thread read on open.
-	const [positioned, setPositioned] = React.useState(false)
+	const [showNewChat, setShowNewChat] = React.useState(false)
+	// Saved scroll position per conversation, for restoration on switch. Lives here so
+	// it survives the ConversationView unmounting (stack navigation below md).
+	const scrollPositions = React.useRef<Map<string, number>>(new Map()).current
 
-	const convRef = React.useRef<HTMLDivElement>(null)
-	// The scroll container is also tracked as state: the read-position trackers
-	// need it reactively as their IntersectionObserver `root` / scroll target.
-	const [scrollEl, setScrollEl] = React.useState<HTMLDivElement | null>(null)
-	const setConvEl = React.useCallback((el: HTMLDivElement | null) => {
-		convRef.current = el
-		setScrollEl(el)
-	}, [])
-	const unreadDividerRef = React.useRef<HTMLDivElement>(null)
-	const topSentinelRef = React.useRef<HTMLDivElement>(null)
-	// Saved scroll position per conversation, for restoration on switch.
-	const scrollPositions = React.useRef<Map<string, number>>(new Map())
-	// scrollHeight captured just before an older-page prepend, to preserve viewport.
-	const prevScrollHeightRef = React.useRef(0)
-
-	const { conversations, reload: reloadConversations } = useConversations(filter.q)
+	const reloadConversations = useConversationsReload()
 	// Cosmetic group-member avatars/counts — only enriched while Messages is open.
 	useConversationMembersEnrichment()
-	const {
-		msg,
-		conversation,
-		members,
-		hasMore,
-		loadingOlder,
-		loadOlder,
-		send,
-		retry,
-		markRead,
-		unreadBoundaryTs,
-		newestListIncomingTs,
-		newestListTs,
-		reload: reloadMessages,
-		lastChangeRef
-	} = useMessages(convId)
-	const { pendingInvites, acceptInvite, rejectInvite } = usePendingInvites()
+	// Typing state for the inbox rows and the open conversation.
+	useTypingReceiver()
+	// Called once here: the conversation column and the details panel share it.
+	const messages = useMessages(convId)
+	const { conversation, members, refreshGroupMeta } = messages
+	const listed = useAtomValue(conversationsAtom)?.find((c) => c.id === convId)
+	// Shared by the `@all` gate (conversation) and the members list (details).
+	const memberRoles = useCommunityMemberRoles(
+		conversation?.communityTag ?? listed?.communityTag,
+		members
+	)
+	// Kept here, not in InboxList: the list unmounts below md while a conversation is open.
+	const invites = usePendingInvites()
 
 	const isGroup = conversation?.type === 'group'
-	// The user has left the group when the members list has resolved and doesn't
-	// include them (their only status-A SUBS is the DEL tombstone, filtered out of
-	// `members`). History stays readable, but compose is hidden.
-	const isLeftGroup =
-		isGroup &&
-		members !== undefined &&
-		!!auth &&
-		!members.some((m) => m.profile.idTag === auth.idTag)
+	const detailsOpen = !!convId && searchParams.get('panel') === 'details'
 
-	async function handleRejoin() {
-		if (!api || !convId || !conversation?.ownerTag) return
-		try {
-			await api.actions.create({
-				type: 'SUBS',
-				subject: convId,
-				audienceTag: conversation.ownerTag
-			})
-			reloadMessages()
-			reloadConversations()
-		} catch (err) {
-			console.error('Failed to rejoin group', err)
-		}
-	}
-
-	// Scroll-driven mark-read. `enabled` toggles false→true on each conversation
-	// switch (useMessages sets `msg` to undefined then repopulates), which resets
-	// the engagement gate so a passive landing never advances the marker.
-	const trackerEnabled = !!convId && msg !== undefined && positioned
-	const { engagedRef } = useScrollEngaged(trackerEnabled, scrollEl)
-	// Cap the marker at `newestListIncomingTs` so a WS message's future createdAt can't
-	// push a timestamp the backend rejects (see useMessages.newestListIncomingTs).
-	const { register } = useReadPositionTracker({
-		enabled: trackerEnabled,
-		onReach: (ts) => markRead(Math.min(ts, newestListIncomingTs)),
-		mode: 'above',
-		engagedRef,
-		root: scrollEl
-	})
-	// Reaching/dwelling at the bottom of the newest page means the user has seen the
-	// newest message (own or not), so advance to the own-inclusive newestListTs — this
-	// clears an own-last-message group phantom that the incoming cap can never reach.
-	useBottomDwell({
-		scrollEl,
-		enabled: trackerEnabled,
-		delayMs: 3000,
-		recheckKey: newestListTs,
-		onDwell: () => {
-			if (newestListTs > 0) markRead(newestListTs)
-		}
-	})
-
-	// A fresh load (conv switch or reload) sets msg→undefined; re-arm initial
-	// positioning so trackers stay gated until the new conversation is positioned.
+	// Stack level: 0 list, 1 conversation, 2 details. "Up" pops the history entry when
+	// the previous one was the parent level (the usual way in), else replaces the
+	// current entry with the parent, so a deep link never leaves the app on Back.
+	const level = !convId ? 0 : detailsOpen ? 2 : 1
+	const prevLevelRef = React.useRef<{ level: number; convId?: string } | undefined>(undefined)
+	const upIsBackRef = React.useRef(false)
 	React.useEffect(() => {
-		if (msg === undefined) setPositioned(false)
-	}, [msg])
+		const prev = prevLevelRef.current
+		upIsBackRef.current =
+			!!prev && prev.level === level - 1 && (level === 1 || prev.convId === convId)
+		prevLevelRef.current = { level, convId }
+	}, [level, convId])
 
-	React.useEffect(() => {
-		if (convId) setShowFilter(false)
-	}, [convId])
-
-	const conversationBarProps = {
-		filter,
-		setFilter,
-		conversations,
-		activeId: convId,
-		onCreateGroup: () => setShowCreateGroup(true),
-		onNewMessage: () => setShowContactPicker(true),
-		pendingInvites,
-		onAcceptInvite: handleAcceptInvite,
-		onRejectInvite: rejectInvite
+	function goUp() {
+		if (upIsBackRef.current) navigate(-1)
+		else navigate(messagesPath(urlContext, level === 2 ? convId : undefined), { replace: true })
 	}
 
-	const grouped = React.useMemo(() => groupMessages(msg || []), [msg])
-
-	// Index of the first unread message (indices align with `msg`).
-	const firstUnreadIdx = React.useMemo(() => {
-		// undefined boundary = still loading → no divider. A 0 boundary is real (a
-		// never-opened conversation has no read marker), making every message unread.
-		if (!msg || unreadBoundaryTs === undefined) return -1
-		// First incoming message newer than the boundary. Skipping own messages
-		// avoids a spurious divider when the only un-marked messages are ours.
-		return msg.findIndex(
-			(m) =>
-				m.issuer.idTag !== auth?.idTag && createdAtToSeconds(m.createdAt) > unreadBoundaryTs
-		)
-	}, [msg, unreadBoundaryTs, auth?.idTag])
-
-	function onLoadOlder() {
-		if (convRef.current) prevScrollHeightRef.current = convRef.current.scrollHeight
-		loadOlder()
-	}
-	const onLoadOlderRef = React.useRef(onLoadOlder)
-	onLoadOlderRef.current = onLoadOlder
-
-	// Top-sentinel IntersectionObserver: load the next older page on scroll-up.
-	React.useEffect(() => {
-		const root = convRef.current
-		const sentinel = topSentinelRef.current
-		if (!root || !sentinel || !hasMore) return
-		const ob = new IntersectionObserver(
-			(entries) => {
-				if (entries[0]?.isIntersecting) onLoadOlderRef.current()
-			},
-			{ root, threshold: 0 }
-		)
-		ob.observe(sentinel)
-		return () => ob.disconnect()
-	}, [convId, hasMore])
-
-	function onConvScroll() {
-		const el = convRef.current
-		if (!el) return
-		const bottom = el.scrollHeight - (el.scrollTop + el.clientHeight)
-		if (scrollBottom && bottom > SCROLL_BOTTOM_THRESHOLD) setScrollBottom(false)
-		if (!scrollBottom && bottom <= SCROLL_BOTTOM_THRESHOLD) setScrollBottom(true)
-		if (convId) scrollPositions.current.set(convId, el.scrollTop)
+	function toggleDetails() {
+		if (detailsOpen) goUp()
+		else if (convId) navigate(messagesPath(urlContext, convId, { panel: 'details' }))
 	}
 
-	function onConvScrollBottomClick() {
-		setScrollBottom(true)
-		convRef.current?.scrollTo({ top: convRef.current.scrollHeight, behavior: 'smooth' })
-	}
-
-	// Scroll management on message changes (init positioning, prepend preservation, append stick).
-	React.useLayoutEffect(() => {
-		const el = convRef.current
-		if (!el || msg === undefined) return
-		const kind = lastChangeRef.current
-		if (kind === 'prepend') {
-			// Older page prepended: keep the same content under the viewport.
-			el.scrollTop += el.scrollHeight - prevScrollHeightRef.current
-			lastChangeRef.current = 'append'
-		} else if (kind === 'init') {
-			// Defer initial positioning until the unread boundary has resolved, so the
-			// "New messages" divider has rendered and we can scroll to it instead of
-			// falling through to the bottom. Keep kind === 'init' so this effect re-runs
-			// (via the unreadBoundaryTs dep) once the boundary lands.
-			if (unreadBoundaryTs === undefined) return
-			const saved = convId ? scrollPositions.current.get(convId) : undefined
-			if (saved != null) {
-				el.scrollTop = saved
-			} else if (unreadDividerRef.current) {
-				const d = unreadDividerRef.current
-				const top =
-					d.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop
-				el.scrollTop = Math.max(0, top - 8)
-			} else {
-				el.scrollTo({ top: el.scrollHeight, behavior: 'instant' })
-			}
-			const bottom = el.scrollHeight - (el.scrollTop + el.clientHeight)
-			setScrollBottom(bottom <= SCROLL_BOTTOM_THRESHOLD)
-			lastChangeRef.current = 'append'
-			// Unlock the scroll-driven trackers only AFTER the programmatic init scroll,
-			// with a freshly-reset engagement gate, so the init scroll cannot mark read.
-			setPositioned(true)
-		} else if (kind === 'append' && scrollBottom) {
-			// New/own message while at the bottom: stick to the bottom. The read
-			// marker is advanced by the bottom-dwell timer, not here.
-			el.scrollTo({ top: el.scrollHeight, behavior: 'instant' })
-		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [msg, unreadBoundaryTs])
-
-	async function handleAcceptInvite(invite: Parameters<typeof acceptInvite>[0]) {
-		const subject = await acceptInvite(invite)
-		reloadConversations()
-		if (subject) navigate(messagesPath(urlContext, subject))
-	}
+	// New chat: list header icon + empty state (InboxList), FAB below md.
+	const inbox = (
+		<InboxList activeId={convId} invites={invites} onNewChat={() => setShowNewChat(true)} />
+	)
 
 	return (
 		<>
-			<Fcd.Container className="g-1">
+			{/* md: details always overlays; lg+: Fcd docks it when the container fits */}
+			<Fcd.Container className="g-1" detailsMode={isDesktop ? undefined : 'overlay'}>
 				{!!auth && (
 					<>
-						<Fcd.Filter
-							className="messages-rail"
-							isVisible={showFilter}
-							hide={() => setShowFilter(false)}
-						>
-							<ConversationBar {...conversationBarProps} />
-						</Fcd.Filter>
-						<Fcd.Content
-							ref={setConvEl}
-							onScroll={onConvScroll}
-							width="wide"
-							surface="raised"
-							header={
-								<PageHeader
-									title={
-										!conversation
-											? t('Messages')
-											: isGroup
-												? conversation.name || t('Unnamed Group')
-												: conversation.profiles[0]?.name ||
-													conversation.profiles[0]?.idTag
-									}
-									leading={
-										!conversation ? undefined : isGroup ? (
-											<Icon as={IcGroup} />
-										) : (
-											conversation.profiles[0] && (
-												<ProfilePicture
-													profile={conversation.profiles[0]}
-													size="sm"
-												/>
-											)
-										)
-									}
-									subtitle={
-										!conversation ? undefined : isGroup ? (
-											t('{{count}} members', {
-												count: conversation.memberCount
-											})
-										) : conversation.profiles[0] ? (
-											<IdentityTag idTag={conversation.profiles[0].idTag} />
-										) : undefined
-									}
-									actions={
-										<>
-											{!!convId && (
-												<DrawerToggle
-													nav
-													onClick={() => setShowFilter(true)}
-												/>
-											)}
-											{isGroup && (
-												<Button
-													variant="ghost"
-													icon={<IcInfo />}
-													aria-label={t('Group details')}
-													className="lg-hide"
-													onClick={() => setShowDetails(true)}
-												/>
-											)}
-										</>
-									}
-								/>
-							}
-						>
-							{!scrollBottom && (
-								<FAB
-									size="sm"
-									color="secondary"
-									icon={<IcScrollToBottom />}
-									aria-label={t('Scroll to bottom')}
-									onClick={onConvScrollBottomClick}
-								/>
-							)}
-							{!convId ? (
-								<>
-									<ConversationBar
-										{...conversationBarProps}
-										className="md-hide lg-hide"
-									/>
+						{!isMobile && <Fcd.Filter className="messages-rail">{inbox}</Fcd.Filter>}
+						{convId ? (
+							<ConversationView
+								key={convId}
+								convId={convId}
+								messages={messages}
+								memberRoles={memberRoles}
+								scrollPositions={scrollPositions}
+								onBack={isMobile ? goUp : undefined}
+								onToggleDetails={toggleDetails}
+								detailsOpen={detailsOpen}
+							/>
+						) : (
+							<Fcd.Content
+								width="wide"
+								surface="raised"
+								header={<PageHeader title={t('Messages')} />}
+							>
+								{isMobile ? (
+									<>
+										{inbox}
+										<FAB
+											icon={<IcCompose />}
+											aria-label={t('New chat')}
+											onClick={() => setShowNewChat(true)}
+										/>
+									</>
+								) : (
 									<EmptyState
 										fill
-										className="sm-hide"
 										icon={<IcMessages />}
 										title={t('Select a conversation')}
 										description={t(
 											'Choose a contact from the list to start messaging'
 										)}
 									/>
-								</>
-							) : msg === undefined ? (
-								<SkeletonList count={5} showAvatar />
-							) : msg.length === 0 ? (
-								<EmptyState
-									fill
-									icon={isGroup ? <IcGroup /> : <IcMessages />}
-									title={t('No messages yet')}
-									description={t('Start the conversation by sending a message!')}
-								/>
-							) : (
-								<>
-									{hasMore && (
-										<LoadMoreTrigger
-											ref={topSentinelRef}
-											hasMore
-											isLoading={loadingOlder}
-										/>
-									)}
-									{grouped.map((g, i) => {
-										const local = g.action.issuer.idTag === auth?.idTag
-										return (
-											<React.Fragment
-												key={g.action.tempId ?? g.action.actionId}
-											>
-												{i === firstUnreadIdx && (
-													<Divider
-														ref={unreadDividerRef}
-														label={t('New messages')}
-														color="primary"
-														className="my-2"
-													/>
-												)}
-												<Msg
-													register={register}
-													action={g.action}
-													local={local}
-													showSender={g.showSender && !local}
-													showTimestamp={
-														grouped[i + 1]?.showSender ?? true
-													}
-													onRetry={retry}
-												/>
-											</React.Fragment>
-										)
-									})}
-								</>
-							)}
-							{/* Composer / left-group banner: sticky at the bottom of the message column */}
-							{!!convId && conversation && (
-								<VBox className="pos-sticky bottom-0 mt-auto pt-1">
-									{isLeftGroup ? (
-										<Alert
-											color="neutral"
-											compact
-											actions={
-												conversation.isOpen ? (
-													<Button color="primary" onClick={handleRejoin}>
-														{t('Rejoin')}
-													</Button>
-												) : undefined
-											}
-										>
-											{t('You left this group')}
-											{!conversation.isOpen &&
-												` — ${t('This group is invite-only')}`}
-										</Alert>
-									) : (
-										<NewMsg onSend={send} />
-									)}
-								</VBox>
-							)}
-						</Fcd.Content>
+								)}
+							</Fcd.Content>
+						)}
 
-						{/* Group Details Panel */}
-						<Fcd.Details isVisible={showDetails} hide={() => setShowDetails(false)}>
-							{isGroup && conversation && auth.idTag && (
-								<GroupDetailsPanel
+						{/* Details: stack level 2 below md, overlay sheet at md, docked at lg+ */}
+						<Fcd.Details
+							isVisible={detailsOpen}
+							hide={goUp}
+							header={
+								<Heading level={4}>
+									{isGroup ? t('Group details') : t('Conversation details')}
+								</Heading>
+							}
+						>
+							{conversation && (
+								<DetailsPanel
 									conversation={conversation}
 									members={members}
-									currentUserIdTag={auth.idTag}
-									onClose={() => setShowDetails(false)}
-									onInvite={() => setShowInviteMember(true)}
-									onLeave={() => {
-										setShowDetails(false)
+									memberRoles={memberRoles}
+									onJump={(actionId, createdAt) => {
+										messages.jumpTo(actionId, createdAt)
+										// Only the docked panel leaves the conversation visible.
+										if (!isDesktop) goUp()
+									}}
+									onChanged={() => {
+										refreshGroupMeta()
 										reloadConversations()
 									}}
 								/>
@@ -468,37 +180,17 @@ export function MessagesApp() {
 				)}
 			</Fcd.Container>
 
-			{/* Create Group Dialog */}
-			<CreateGroupDialog
-				open={showCreateGroup}
-				onClose={() => setShowCreateGroup(false)}
-				onCreated={(newConvId) => {
-					setShowCreateGroup(false)
-					reloadConversations()
-					navigate(messagesPath(urlContext, newConvId))
-				}}
-			/>
-
-			{/* New-message contact picker */}
-			<ContactPickerDialog
-				open={showContactPicker}
-				onClose={() => setShowContactPicker(false)}
-				onPick={(idTag) => {
-					setShowContactPicker(false)
-					navigate(messagesPath(urlContext, idTag))
-				}}
-			/>
-
-			{/* Invite Member Dialog */}
-			{conversation && (
-				<InviteMemberDialog
-					open={showInviteMember}
-					onClose={() => setShowInviteMember(false)}
-					conversation={conversation}
-					members={members}
-					onInvited={() => {
-						setShowInviteMember(false)
-						reloadMessages()
+			{showNewChat && (
+				<NewChatDialog
+					onClose={() => setShowNewChat(false)}
+					onOpenDirect={(idTag) => {
+						setShowNewChat(false)
+						navigate(messagesPath(urlContext, idTag))
+					}}
+					onCreated={(newConvId) => {
+						setShowNewChat(false)
+						reloadConversations()
+						navigate(messagesPath(urlContext, newConvId))
 					}}
 				/>
 			)}

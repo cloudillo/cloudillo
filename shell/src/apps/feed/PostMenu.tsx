@@ -20,6 +20,12 @@ import { IcMute, IcTrack, IcWatch } from '../../icons.js'
 
 type SubLevel = 'W' | 'T' | 'M'
 
+/** A stored notify level; an unknown (newer) one reads as 'W' */
+function subLevel(notify: string | undefined): SubLevel | null {
+	if (!notify) return null
+	return notify === 'T' || notify === 'M' ? notify : 'W'
+}
+
 export interface PostMenuProps {
 	action: ActionView
 	onDelete?: () => void
@@ -32,23 +38,25 @@ export function PostMenu({ action, onDelete }: PostMenuProps) {
 	const dialog = useDialog()
 
 	const isOwn = action.issuer.idTag === auth?.idTag
-	const [subLevel, setSubLevel] = React.useState<SubLevel | null>(action.subLevel ?? null)
+	const [notifyLevel, setSubLevel] = React.useState<SubLevel | null>(
+		subLevel(action.readerState?.notify)
+	)
 	const pendingRef = React.useRef(false)
 
 	// Keep in sync if the action refreshes with a server-provided level.
 	React.useEffect(() => {
 		if (pendingRef.current) return // don't clobber an in-flight optimistic toggle
-		setSubLevel(action.subLevel ?? null)
-	}, [action.subLevel])
+		setSubLevel(subLevel(action.readerState?.notify))
+	}, [action.readerState?.notify])
 
 	async function handleSubscribe(level: SubLevel) {
 		if (!api) return
-		const newLevel = level === subLevel ? null : level // toggle off when re-selected
-		const prev = subLevel
+		const newLevel = level === notifyLevel ? null : level // toggle off when re-selected
+		const prev = notifyLevel
 		pendingRef.current = true
 		setSubLevel(newLevel)
 		try {
-			await api.actions.subscribe(action.actionId, newLevel)
+			await api.readerState.patch('A', action.actionId, { notify: newLevel })
 		} catch (e) {
 			console.error('Failed to update subscription', e)
 			setSubLevel(prev) // revert on failure
@@ -86,19 +94,19 @@ export function PostMenu({ action, onDelete }: PostMenuProps) {
 			<MenuItem
 				icon={<IcWatch />}
 				label={t('Watching')}
-				selected={subLevel === 'W'}
+				selected={notifyLevel === 'W'}
 				onClick={() => handleSubscribe('W')}
 			/>
 			<MenuItem
 				icon={<IcTrack />}
 				label={t('Tracking')}
-				selected={subLevel === 'T'}
+				selected={notifyLevel === 'T'}
 				onClick={() => handleSubscribe('T')}
 			/>
 			<MenuItem
 				icon={<IcMute />}
 				label={t('Muted')}
-				selected={subLevel === 'M'}
+				selected={notifyLevel === 'M'}
 				onClick={() => handleSubscribe('M')}
 			/>
 			{isOwn && <MenuDivider />}

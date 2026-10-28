@@ -57,6 +57,7 @@ import type { ActionView, NewAction } from '@cloudillo/types'
 import * as T from '@symbion/runtype'
 import type { TFunction } from 'i18next'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
+import { selectAtom } from 'jotai/utils'
 import * as React from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
@@ -79,6 +80,7 @@ import {
 	feedSeedLoadedAtom,
 	INITIAL_UNREAD_WINDOW_SEC,
 	nowSeconds,
+	readPositionAtom,
 	unreadCountAtom,
 	useBottomDwell,
 	useReadMarker,
@@ -125,7 +127,6 @@ interface PostAction extends ActionView {
 		ownReaction?: string
 		reactions?: string
 		lastCommentAt?: string | number
-		commentsReadAt?: string | number
 		commentCount?: number
 	}
 }
@@ -282,7 +283,6 @@ function SubComments({
 
 interface CommentsProps {
 	parentAction: ActionView
-	onCommentsRead?: (read: number) => void
 	onCommentAdded?: () => void
 	className?: string
 	style?: React.CSSProperties
@@ -358,7 +358,7 @@ function CommentsTrustPrompt({
 	)
 }
 
-function Comments({ parentAction, onCommentsRead, onCommentAdded, ...props }: CommentsProps) {
+function Comments({ parentAction, onCommentAdded, ...props }: CommentsProps) {
 	// `contextAuthenticated` is a dep of the comment-load effect below: on the
 	// same-node path `readApi` is `contextApi`, whose identity is stable per
 	// idTag, so this flag is what changes when a context token lands.
@@ -418,20 +418,10 @@ function Comments({ parentAction, onCommentsRead, onCommentAdded, ...props }: Co
 	const showTrustPrompt =
 		isCrossNode && !!audienceIdTag && isGated && tokenStatus === 'unauthenticated'
 
-	// Thread comment read-watermark (actions.comments_read_at), seeded from the
-	// server value and advanced forward-only via PUT /read-marker { scope:'thread' }.
-	const seedReadAt = createdAtToSeconds(parentAction.stat?.commentsReadAt)
-	const { readPosition, advanceTo } = useReadMarker(`thread:${parentAction.actionId}`, seedReadAt)
-
-	// Optimistically clear the dot upstream as the watermark advances (forward-only;
-	// readPosition only moves forward). Patches stat.commentsReadAt without a refetch.
-	const onCommentsReadRef = React.useRef(onCommentsRead)
-	React.useEffect(() => {
-		onCommentsReadRef.current = onCommentsRead
-	}, [onCommentsRead])
-	React.useEffect(() => {
-		if (readPosition > 0) onCommentsReadRef.current?.(readPosition)
-	}, [readPosition])
+	// Thread comment read-watermark (the action's `A:<type>` reader-state row), seeded
+	// from the server value and advanced forward-only via PATCH /reader-state/A/<id>.
+	const seedReadAt = createdAtToSeconds(parentAction.readerState?.readAt)
+	const { advanceTo } = useReadMarker(`thread:${parentAction.actionId}`, seedReadAt)
 
 	React.useEffect(() => {
 		if (!readApi) return
@@ -597,6 +587,18 @@ function Post({
 	const issuerBadges = useProfileBadges(action.issuer.idTag)
 	// Engagement info dialog (who reacted / reposted). `undefined` = closed.
 	const [engagementTab, setEngagementTab] = React.useState<string | undefined>(undefined)
+	// Thread read-watermark advanced locally by `Comments` (epoch seconds), layered over
+	// the server's `readerState.readAt` so the unread dot clears without a refetch.
+	// Shared atom, so it survives this Post remounting. Keyed like `engageAction` below
+	// (a pure boost engages its original), which is derived after an early return.
+	const threadKey = `thread:${
+		action.type === 'REPOST' && !action.content && action.subjectAction
+			? action.subjectAction.actionId
+			: action.actionId
+	}`
+	const threadReadAt = useAtomValue(
+		React.useMemo(() => selectAtom(readPositionAtom, (p) => p[threadKey] ?? 0), [threadKey])
+	)
 	// `POST:LDOC` carries an object in `content`: a live-document reference plus the
 	// author's commentary. Anything else non-string is still unrenderable.
 	// A fresh object every render would re-fire LiveDocCard's row fetch each time.
@@ -683,12 +685,6 @@ function Post({
 		}
 	}
 
-	// `readAt` is the thread read-watermark (epoch seconds); optimistically clear
-	// the unread dot by advancing stat.commentsReadAt without a refetch.
-	function onCommentsRead(readAt: number) {
-		patchEngageStat({ commentsReadAt: readAt })
-	}
-
 	// Optimistically bump the total comment count when the reader posts their own
 	// comment, so the badge ticks up immediately; the authoritative WS STAT (`c`)
 	// reconciles shortly after.
@@ -699,13 +695,13 @@ function Post({
 	// Unread comment dot: newest comment is newer than the reader's watermark.
 	// Pure timestamp comparison, identical on authoritative and mirror nodes.
 	// 1s tolerance: lastCommentAt (federated STAT `ct`, whole seconds) and the
-	// locally advanced commentsReadAt can differ by rounding; don't let that pin
-	// the dot lit. Needs a viewer whose commentsReadAt this node actually stores:
+	// locally advanced readAt can differ by rounding; don't let that pin
+	// the dot lit. Needs a viewer whose reader state this node actually stores:
 	// a guest has no row here, so there is no watermark to be newer than.
 	const commentUnread =
 		!!auth?.idTag &&
 		createdAtToSeconds(engageAction.stat?.lastCommentAt) >
-			createdAtToSeconds(engageAction.stat?.commentsReadAt) + 1
+			Math.max(createdAtToSeconds(engageAction.readerState?.readAt), threadReadAt) + 1
 	// Federated total comment count (STAT `c`); the unread state stays a boolean dot.
 	const commentCount = engageAction.stat?.commentCount ?? 0
 	const commentLabel =
@@ -936,11 +932,7 @@ function Post({
 					{tab == 'CMNT' && (
 						<>
 							<Divider />
-							<Comments
-								parentAction={engageAction}
-								onCommentsRead={onCommentsRead}
-								onCommentAdded={onCommentAdded}
-							/>
+							<Comments parentAction={engageAction} onCommentAdded={onCommentAdded} />
 						</>
 					)}
 					{engagementTab !== undefined && (
@@ -1407,7 +1399,7 @@ export function FeedApp() {
 	}, [contextIdTag])
 
 	// Feed read-position watermark for this context (Pillar A). The watermark is
-	// seeded from the context profile's feedReadAt by the global probe (which
+	// seeded from the context profile's feedState.readAt by the global probe (which
 	// already fetches every context's profile at the layout level), so FeedApp no
 	// longer re-fetches it here — it just reads readPositionAtom via useReadMarker.
 	// Each surface has ONE fully-independent watermark: home/personal feeds key off
@@ -1431,7 +1423,7 @@ export function FeedApp() {
 	const seedReady = useAtomValue(feedSeedLoadedAtom)[ctxKey] ?? false
 
 	// First-run bootstrap: nothing ever seeds the very first watermark, so a fresh
-	// context would have feedReadAt = null → since = 0 → no unread is ever counted
+	// context would have no feedState.readAt → since = 0 → no unread is ever counted
 	// and the Unread tab can never be scrolled to advance it (chicken-and-egg).
 	// Once the probe confirms no watermark (seedReady && readPosition === 0), seed
 	// it to a week ago so recent posts surface as unread and a real marker gets
@@ -1680,7 +1672,7 @@ export function FeedApp() {
 			// nested as a repost's subjectAction, never as a top-level entry).
 			// `c` is the comment count; `ct` is the last-comment timestamp (overlaid
 			// as lastCommentAt so the dot updates live). Never touch
-			// ownReaction/commentsReadAt/ownRepostIds, so optimistic per-user fields
+			// ownReaction/ownRepostIds, so optimistic per-user fields
 			// under the same key survive an incoming STAT.
 			setStatOverlay((prev) => {
 				const parentId = action.parentId!
@@ -1782,8 +1774,8 @@ export function FeedApp() {
 	// Merge feed posts with local updates, filtering out deleted posts.
 	// The engaged-id stat overlay is layered onto every occurrence of an id in
 	// the tree (top-level post AND a repost's subjectAction), merging federated
-	// fields while preserving per-user fields (ownReaction/commentsReadAt/
-	// ownRepostIds) that a pure STAT update doesn't carry. The POST
+	// fields while preserving per-user fields (ownReaction/ownRepostIds)
+	// that a pure STAT update doesn't carry. The POST
 	// branch of `feedUpdates` carries attachment/subType overlays, the APRV branch a status.
 	const mergedFeed = React.useMemo(() => {
 		// Layer the engaged-id stat overlay onto one action.

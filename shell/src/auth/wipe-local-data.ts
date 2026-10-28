@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 import { APP_STORAGE_DB, CRDT_DB, DATA_CACHE_DB, deleteDatabase } from '../../shared/idb.js'
+import { DRAFT_PREFIX } from '../apps/messages/composer/drafts.js'
 import { clearCache, getCachedFileByFileId, resetKeyErrorState } from '../cache/index.js'
 import { getDirtyDocIds } from '../message-bus/handlers/crdt.js'
 import { closeAppStorage } from '../message-bus/handlers/storage.js'
@@ -12,7 +13,7 @@ function clearLocalStorageKeys(): void {
 	localStorage.removeItem('notify.local')
 	localStorage.removeItem('notify.pushSubscriptionId')
 	for (const key of Object.keys(localStorage)) {
-		if (key.startsWith('form.')) localStorage.removeItem(key)
+		if (key.startsWith('form.') || key.startsWith(DRAFT_PREFIX)) localStorage.removeItem(key)
 	}
 }
 

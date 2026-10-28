@@ -1,12 +1,13 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: MPL-2.0
 
-import { useToast } from '@cloudillo/react'
+import { useAuth, useToast } from '@cloudillo/react'
 import type { ActionView } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation } from 'react-router-dom'
 
+import { liveMsgConvId } from '../apps/messages/hooks/useConversationUnread.js'
 import { useWsBus } from '../ws-bus.js'
 import { NOTIFICATION_SOUNDS } from './sounds.js'
 import { type LocalNotifySettings, useLocalNotifySettings } from './useLocalNotifySettings.js'
@@ -90,6 +91,34 @@ function getNotificationMessage(
 	}
 }
 
+// MSG toast/sound key from the backend gate stamp (`notify`), or undefined to stay silent:
+// muted, own echo, edit/delete, or the conversation is open in a visible tab. The backend
+// stamps only inbound non-UPD/DEL MSGs, so no stamp on a plain inbound MSG means a legacy
+// server → 'message'.
+export function msgNotifyKey(
+	a: ActionView & { notify?: string },
+	openConvId: string | undefined,
+	convId: string | undefined,
+	myIdTag: string | undefined
+): 'message' | 'mention' | undefined {
+	if (a.subType === 'UPD' || a.subType === 'DEL' || (myIdTag && a.issuer?.idTag === myIdTag))
+		return
+	if (a.notify === 'none' || (convId && convId === openConvId)) return
+	return a.notify === 'mention' ? 'mention' : 'message'
+}
+
+// The conversation id in `/<ctx>/app/messages/<convId>`, if any.
+function openMsgConvId(pathname: string): string | undefined {
+	const seg = pathname.split('/')
+	const i = seg.indexOf('app')
+	if (i < 0 || seg[i + 1] !== 'messages' || !seg[i + 2]) return
+	try {
+		return decodeURIComponent(seg[i + 2])
+	} catch {
+		return undefined // malformed escape (URIError)
+	}
+}
+
 /**
  * Hook for handling action notifications (sound + toast).
  * Should be called once in Layout to enable global notification handling.
@@ -97,6 +126,7 @@ function getNotificationMessage(
 export function useActionNotifications() {
 	const { t } = useTranslation()
 	const location = useLocation()
+	const [auth] = useAuth()
 	const { settings } = useLocalNotifySettings()
 	const { toast } = useToast()
 	const audioRefs = React.useRef<Record<string, HTMLAudioElement>>({})
@@ -143,7 +173,22 @@ export function useActionNotifications() {
 
 	const notify = React.useCallback(
 		(action: ActionView) => {
-			const settingKey = getSettingKey(action.type)
+			let type = action.type
+			if (type === 'MSG') {
+				const open =
+					document.visibilityState === 'visible'
+						? openMsgConvId(location.pathname)
+						: undefined
+				const key = msgNotifyKey(
+					action,
+					open,
+					liveMsgConvId(action, auth?.idTag),
+					auth?.idTag
+				)
+				if (!key) return
+				if (key === 'mention') type = 'MNTN'
+			}
+			const settingKey = getSettingKey(type)
 			if (!settingKey) return
 
 			const currentSettings = settingsRef.current
@@ -160,13 +205,13 @@ export function useActionNotifications() {
 				currentSettings.toast &&
 				currentSettings[`toast.${settingKey}` as keyof LocalNotifySettings]
 			if (toastEnabled) {
-				const title = getNotificationTitle(t, action.type)
-				const message = getNotificationMessage(t, action)
-				const duration = ACTIONABLE_TYPES.has(action.type) ? 7000 : 5000
+				const title = getNotificationTitle(t, type)
+				const message = getNotificationMessage(t, { ...action, type })
+				const duration = ACTIONABLE_TYPES.has(type) ? 7000 : 5000
 				toast({ variant: 'info', title, message, duration })
 			}
 		},
-		[t, playSound, toast]
+		[t, playSound, toast, location.pathname, auth?.idTag]
 	)
 
 	useWsBus({ cmds: ['ACTION'] }, (msg) => {

@@ -38,6 +38,7 @@ import {
 } from '../icons.js'
 import { profilePath } from '../routes.js'
 import { ContextColorPicker } from '../ui/ContextColorPicker.js'
+import { LONG_PRESS_MS } from '../ui/touch-gestures.js'
 import { contextColorsAtom, pinKeyFor, previewCommunityAtom } from './atoms'
 import { resolveContextColor } from './context-colors.js'
 import { useCtx } from './ctx'
@@ -56,8 +57,6 @@ interface MenuState {
 	target: ProfileMenuTarget
 	position: { x: number; y: number }
 }
-
-const LONG_PRESS_MS = 500
 
 export interface ProfileContextMenuProps {
 	target: ProfileMenuTarget

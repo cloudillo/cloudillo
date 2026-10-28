@@ -1209,6 +1209,15 @@ body.theme-glass.dark {
 	white-space: nowrap;
 }
 
+/* Mention pill (RichText): follows the surrounding text colour, so it reads on any
+   bubble in either mode (the plain tag's on-secondary text is white on dark) */
+.c-tag.mention {
+	color: inherit;
+	background-color: color-mix(in srgb, currentColor 15%, transparent);
+	border-color: color-mix(in srgb, currentColor 35%, transparent);
+	box-shadow: none;
+}
+
 /* Chips in a toolbar share one height, with or without an icon */
 .c-toolbar .c-tag {
 	height: var(--size-xs);

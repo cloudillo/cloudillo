@@ -1,18 +1,18 @@
 packages:
-  - 'shell'
-  - 'storybook'
-  - 'libs/*'
-  - 'apps/*'
-  - 'local/*'
+    - "shell"
+    - "storybook"
+    - "libs/*"
+    - "apps/*"
+    - "local/*"
 overrides:
-  react: 19.3.1
-  react-dom: 19.3.1
+    react: 19.3.1
+    react-dom: 19.3.1
 allowBuilds:
-  '@enzedonline/quill-blot-formatter2': false
-  '@parcel/watcher': true
-  canvas: false
-  core-js: false
-  esbuild: false
-  unrs-resolver: false
+    "@enzedonline/quill-blot-formatter2": false
+    "@parcel/watcher": true
+    canvas: false
+    core-js: false
+    esbuild: false
+    unrs-resolver: false
 minimumReleaseAgeExclude:
-  - '@symbion/opalui@0.16.1'
+    - "@symbion/opalui@0.16.1"

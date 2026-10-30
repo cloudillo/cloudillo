@@ -60,6 +60,8 @@ export interface ViewEmbedFrameProps {
 	onDelete?: () => void
 	/** Lets the embed present fullscreen from its own click */
 	allowFullscreen?: boolean
+	/** Container tab index; canvas hosts pass -1 so the canvas, not the embed, owns the pointer gesture */
+	tabIndex?: number
 	className?: string
 	/** Overlay (chrome) rendered inside the frame container */
 	children?: React.ReactNode
@@ -98,6 +100,7 @@ export const ViewEmbedFrame = React.forwardRef<ViewEmbedFrameHandle, ViewEmbedFr
 			onResize,
 			onDelete,
 			allowFullscreen,
+			tabIndex = 0,
 			className,
 			children
 		},
@@ -357,7 +360,7 @@ export const ViewEmbedFrame = React.forwardRef<ViewEmbedFrameHandle, ViewEmbedFr
 					style={{ width: frame.w }}
 					role="group"
 					aria-label={name}
-					tabIndex={0}
+					tabIndex={tabIndex}
 					data-editable={canInteract || undefined}
 					data-bar={barBelow ? 'below' : undefined}
 					onDoubleClick={active ? undefined : activate}

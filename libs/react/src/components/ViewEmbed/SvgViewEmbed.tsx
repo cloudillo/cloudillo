@@ -24,6 +24,7 @@ export function SvgViewEmbed({ x, y, width, height, settings, ...props }: SvgVie
 				{...props}
 				settings={{ ...settings, sizing: 'box' }}
 				box={{ w: width, h: height }}
+				tabIndex={-1}
 			/>
 		</foreignObject>
 	)

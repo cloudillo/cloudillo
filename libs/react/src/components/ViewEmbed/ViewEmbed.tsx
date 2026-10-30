@@ -53,6 +53,8 @@ export interface ViewEmbedProps {
 	stalled?: boolean
 	/** Lets the embed present fullscreen from its own click */
 	allowFullscreen?: boolean
+	/** Container tab index; canvas hosts pass -1 so the canvas, not the embed, owns the pointer gesture */
+	tabIndex?: number
 	className?: string
 	/** Extra host controls in the chrome bar */
 	children?: React.ReactNode
@@ -82,6 +84,7 @@ export function ViewEmbed({
 	onFrameLoad,
 	stalled,
 	allowFullscreen,
+	tabIndex,
 	className,
 	children
 }: ViewEmbedProps) {
@@ -172,6 +175,7 @@ export function ViewEmbed({
 			allowFullscreen={allowFullscreen}
 			onResize={onResize}
 			onDelete={actions.onRemove}
+			tabIndex={tabIndex}
 			className={className}
 		>
 			{report?.missing && (

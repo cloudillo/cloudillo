@@ -141,8 +141,16 @@ describe('deltaToDocx', () => {
 		const walk = (v: unknown) => {
 			if (!v || typeof v !== 'object' || seen.has(v)) return
 			seen.add(v)
-			const o = v as { reference?: unknown; instance?: unknown }
-			if (o.reference === 'ordered' && typeof o.instance === 'number') found.push(o.instance)
+			// Read the paragraph properties' own copy: the options object it came from is
+			// reachable too, so matching any `{ reference, instance }` would count each twice
+			const o = v as {
+				numberProperties?: unknown
+				numbering?: { reference?: unknown; instance?: unknown }
+			}
+			const n = o.numberProperties ? o.numbering : undefined
+			if (n && n.reference === 'ordered' && typeof n.instance === 'number') {
+				found.push(n.instance)
+			}
 			for (const c of Object.values(v)) walk(c)
 		}
 		walk(await deltaToDocx(ops))

@@ -7,9 +7,49 @@ import { isRefusal, recoverHattedAuth, registerHattedRecovery } from '../context
 import {
 	effectiveHatRoles,
 	formatHatRoles,
+	HAT_PRESETS,
+	hatPresetOf,
 	hatRoleRanges,
+	hatRolesChanged,
 	parseHatRoles
 } from '../settings/hat-roles.js'
+
+describe('hatRolesChanged', () => {
+	it('is false with nothing chosen', () => {
+		expect(hatRolesChanged(null, 'supporter:supporter')).toBe(false)
+	})
+
+	it('is true for a new agreement', () => {
+		expect(hatRolesChanged('supporter:supporter', null)).toBe(true)
+		expect(hatRolesChanged('supporter:supporter', undefined)).toBe(true)
+	})
+
+	it('ignores spacing and order', () => {
+		expect(
+			hatRolesChanged(
+				' supporter:supporter , contributor:contributor',
+				'contributor:contributor,supporter:supporter'
+			)
+		).toBe(false)
+	})
+
+	it('is true for a different map', () => {
+		expect(hatRolesChanged('supporter:supporter', 'contributor:contributor')).toBe(true)
+	})
+})
+
+describe('hatPresetOf', () => {
+	it('round-trips every preset, normalized', () => {
+		for (const p of HAT_PRESETS) expect(hatPresetOf(p.map)).toBe(p.id)
+		expect(hatPresetOf(' contributor:contributor , supporter:supporter')).toBe('mirror')
+	})
+
+	it('tells a custom map from no agreement', () => {
+		expect(hatPresetOf('leader:contributor')).toBe('custom')
+		expect(hatPresetOf(null)).toBeNull()
+		expect(hatPresetOf(undefined)).toBeNull()
+	})
+})
 
 describe('parseHatRoles / formatHatRoles', () => {
 	it('parses a map, trimming and dropping incomplete pairs and unknown keys', () => {

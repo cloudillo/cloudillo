@@ -84,11 +84,14 @@ import { CommunityMap } from '../communities/CommunityMap.js'
 import {
 	activeContextAtom,
 	communitiesAtom,
+	fromPerson,
+	partnerRequestsVersionAtom,
 	useApiContext,
 	useCommunitiesList,
 	useContextSwitch,
 	useCtx,
 	useCurrentContextIdTag,
+	usePendingConnRequests,
 	useProfileTrust
 } from '../context/index.js'
 import { IcBlock, IcConnect, IcFollow, IcMessage, IcMutual, IcRemovePerson } from '../icons.js'
@@ -97,7 +100,7 @@ import { usePorch } from '../lib/porch.js'
 import { buildRef } from '../refs.js'
 import type { CtxBase } from '../routes.js'
 import { ctxBase, messagesPath, profilePath, roomsPath } from '../routes.js'
-import { useConnectCommunity } from '../settings/partners.js'
+import { PartnershipChip, ProposePartnershipButton } from '../communities/partners.js'
 import { DrawerToggle } from '../ui/DrawerToggle.js'
 import { formatUnixTime } from '../utils.js'
 import { useWsBus } from '../ws-bus.js'
@@ -186,12 +189,10 @@ interface ProfileConnectionCmds {
 	onDisconnect: () => void
 	onBlock: () => void
 	onUnblock: () => void
-	/** Set when a community I lead (the active context) may connect with this community. */
-	connectAs?: { name: string; run: () => void }
 }
 
-// The existing relation as a read-only Badge next to the name.
-// Its actions live in the Follow button and the ⋯ menu.
+// My own relation as a read-only "You: …" Badge next to the name (a community's
+// partnership state is `PartnershipChip`). Its actions live in the Follow button and the ⋯ menu.
 function RelationshipBadge({
 	localProfile,
 	profileType
@@ -222,7 +223,7 @@ function RelationshipBadge({
 	if (!label) return null
 	return (
 		<Badge color={color} icon={icon}>
-			{label}
+			{t('You: {{relation}}', { relation: label })}
 		</Badge>
 	)
 }
@@ -851,6 +852,9 @@ export function ProfilePage({
 												localProfile={localProfile}
 												profileType={profile.type}
 											/>
+											{isCommunity && (
+												<PartnershipChip target={profile.idTag} />
+											)}
 										</>
 									)}
 								</HBox>
@@ -900,6 +904,9 @@ export function ProfilePage({
 												profileType={profile.type}
 												cmds={profileCmds}
 											/>
+											{isCommunity && (
+												<ProposePartnershipButton target={profile} />
+											)}
 										</>
 									)}
 									<Menu
@@ -924,16 +931,6 @@ export function ProfilePage({
 												profile.type,
 												profileCmds
 											)}
-										{profileCmds.connectAs && (
-											<MenuItem
-												icon={<IcConnect />}
-												label={t('Connect {{community}} with {{name}}', {
-													community: profileCmds.connectAs.name,
-													name: profile.name || profile.idTag
-												})}
-												onClick={profileCmds.connectAs.run}
-											/>
-										)}
 										{canBlock && (
 											<MenuItem
 												icon={<IcBlock />}
@@ -1166,6 +1163,8 @@ interface MemberCardProps {
 	canChangeRole?: boolean
 	onRoleChange?: (idTag: string, role: CommunityRole) => void
 	onRemove?: (idTag: string) => void
+	/** Set for leaders: lifts a Suspended (unreachable) member back to Active */
+	onUnsuspend?: (idTag: string) => void
 	actorRoleLevel: number
 	/** Tooltip / accessible name of the role dropdown */
 	roleHint?: string
@@ -1185,6 +1184,7 @@ function MemberCard({
 	canChangeRole,
 	onRoleChange,
 	onRemove,
+	onUnsuspend,
 	actorRoleLevel,
 	roleHint,
 	badges,
@@ -1234,7 +1234,11 @@ function MemberCard({
 			onClick={handleRemove}
 		/>
 	)
-	const hasMenu = canChangeRole || (showRoleControls && !!onRemove) || !!onAward
+	const unsuspendItem = onUnsuspend && member.status === 'S' && (
+		<MenuItem label={t('Unsuspend')} onClick={() => onUnsuspend(member.idTag)} />
+	)
+	const hasMenu =
+		canChangeRole || (showRoleControls && !!onRemove) || !!onAward || !!unsuspendItem
 	const now = Math.floor(Date.now() / 1000)
 
 	return (
@@ -1292,7 +1296,9 @@ function MemberCard({
 										onClick={() => onRoleChange?.(member.idTag, role.value)}
 									/>
 								))}
-							{canChangeRole && (onAward || onRemove) && <MenuDivider />}
+							{canChangeRole && (onAward || unsuspendItem || onRemove) && (
+								<MenuDivider />
+							)}
 							{onAward && (
 								<MenuItem
 									label={t('Award badge…')}
@@ -1309,7 +1315,9 @@ function MemberCard({
 										onClick={() => onAward(member, b.slot)}
 									/>
 								))}
-							{onAward && onRemove && <MenuDivider />}
+							{onAward && (unsuspendItem || onRemove) && <MenuDivider />}
+							{unsuspendItem}
+							{unsuspendItem && onRemove && <MenuDivider />}
 							{removeItem}
 						</Menu>
 					) : (
@@ -1339,7 +1347,6 @@ export function ProfileConnections({
 	const [activeContext] = useAtom(activeContextAtom)
 	const [profiles, setProfiles] = React.useState<Profile[]>([])
 	const [subTab, setSubTab] = React.useState<'active' | 'requests' | 'invitations'>('active')
-	const [requestCount, setRequestCount] = React.useState(0)
 	const [invitationCount, setInvitationCount] = React.useState(0)
 	const [inviteOpen, setInviteOpen] = React.useState(false)
 	const [refreshTick, setRefreshTick] = React.useState(0)
@@ -1358,6 +1365,11 @@ export function ProfileConnections({
 	const canManageMembers = isCommunity && userRoleLevel >= ROLE_LEVELS.moderator
 	const canChangeRoles = isCommunity && userRoleLevel >= ROLE_LEVELS.moderator
 	const canAward = isCommunity && userRoleLevel >= ROLE_LEVELS.moderator
+	const requestCount = usePendingConnRequests(
+		canManageMembers ? profile.idTag : undefined,
+		fromPerson
+	)
+	const bumpRequests = useSetAtom(partnerRequestsVersionAtom)
 	const [memberBadges, setMemberBadges] = React.useState<Map<string, ReceivedBadge[]>>(
 		() => new Map()
 	)
@@ -1366,7 +1378,10 @@ export function ProfileConnections({
 		setAwardTarget({ member, slot })
 	}, [])
 
-	const triggerRefresh = React.useCallback(() => setRefreshTick((n) => n + 1), [])
+	const triggerRefresh = React.useCallback(() => {
+		setRefreshTick((n) => n + 1)
+		bumpRequests((n) => n + 1)
+	}, [bumpRequests])
 
 	React.useEffect(
 		function loadBadges() {
@@ -1398,9 +1413,11 @@ export function ProfileConnections({
 	// undefined/false are NOT members. The /profiles list also includes
 	// invited-but-unaccepted people, so the Active tab and the Invitations
 	// "accepted" derivation must filter on this.
+	// Suspended rows only for the leader, who alone can unsuspend; don't trust the server's filter.
+	const isLeader = userRoleLevel === ROLE_LEVELS.leader
 	const memberProfiles = React.useMemo(
-		() => profiles.filter((p) => p.connected === true),
-		[profiles]
+		() => profiles.filter((p) => p.connected === true && (isLeader || p.status !== 'S')),
+		[profiles, isLeader]
 	)
 	const connectedMemberTags = React.useMemo(
 		() => new Set(memberProfiles.map((p) => p.idTag)),
@@ -1439,7 +1456,12 @@ export function ProfileConnections({
 			let cancelled = false
 			;(async function () {
 				try {
-					const profiles = await client.profiles.list({ type: 'person' })
+					// `status` only takes effect for the leader (owner tier) — everyone
+					// else still gets A/M, so suspended members stay hidden from them.
+					const profiles = await client.profiles.list({
+						type: 'person',
+						status: ['A', 'M', 'S']
+					})
 					if (!cancelled) setProfiles(profiles as Profile[])
 				} catch (err) {
 					console.error('Failed to load member profiles', err)
@@ -1461,22 +1483,10 @@ export function ProfileConnections({
 			const client = getClientFor(profile.idTag, { explicit: true })
 			if (!client) return
 			let cancelled = false
-			client.actions
-				.list({ type: 'CONN', audience: profile.idTag, status: ['C', 'P'] })
-				.then((rs) => {
-					if (!cancelled) setRequestCount((rs as ActionView[]).length)
-				})
-				.catch((err) => {
-					console.error('Failed to load CONN counts', err)
-					if (!cancelled) setRequestCount(0)
-				})
-			// Home-side INVT copies rest at 'A' (the community keeps them on
-			// record for the SUBS/CONN invitation lookup) and INVT acceptance
-			// never changes that status, so a status:['C','P'] filter under-counts.
-			// Instead, list INVTs for this community (status:['C','P','A']
-			// excludes revoked/declined 'D'/'R' server-side) and count as
-			// pending those whose invitee is not yet a connected member. This
-			// mirrors the Invitations list.
+			// The CONN half is `usePendingConnRequests`. Home-side INVT copies rest at 'A' (kept for
+			// the SUBS/CONN invitation lookup; acceptance never changes it), so a ['C','P'] filter
+			// under-counts: list ['C','P','A'] (revoked/declined drop out server-side) and count
+			// those whose invitee isn't a connected member yet, as the Invitations list does.
 			client.actions
 				.list({ type: 'INVT', subject: '@' + profile.idTag, status: ['C', 'P', 'A'] })
 				.then((rs) => {
@@ -1522,6 +1532,22 @@ export function ProfileConnections({
 		}
 	}
 
+	async function handleUnsuspend(memberIdTag: string) {
+		try {
+			// Explicit: a user-initiated administrative change.
+			const client = getClientFor(profile.idTag, { explicit: true })
+			if (!client) throw new Error('No API client for community')
+			await client.profiles.adminUpdate(memberIdTag, { status: 'A' })
+			setProfiles((prev) =>
+				prev.map((p) => (p.idTag === memberIdTag ? { ...p, status: 'A' } : p))
+			)
+			toast.success(t('Member unsuspended'))
+		} catch (err) {
+			console.error('Failed to unsuspend member:', err)
+			toast.error(t('Failed to unsuspend member'))
+		}
+	}
+
 	// Handle member removal
 	async function handleRemoveMember(memberIdTag: string) {
 		try {
@@ -1561,6 +1587,9 @@ export function ProfileConnections({
 						}
 						onRemove={
 							canManageMembers && canManageThisMember ? handleRemoveMember : undefined
+						}
+						onUnsuspend={
+							userRoleLevel === ROLE_LEVELS.leader ? handleUnsuspend : undefined
 						}
 						actorRoleLevel={userRoleLevel}
 						badges={memberBadges.get(p.idTag)}
@@ -1656,6 +1685,8 @@ export function ProfileConnections({
 						communityIdTag={profile.idTag}
 						getClientFor={getClientFor}
 						onChange={triggerRefresh}
+						// Partnership requests are answered on the communities page
+						filter={fromPerson}
 					/>
 				)}
 				{subTab === 'invitations' && (
@@ -1799,10 +1830,9 @@ function ProfileView() {
 	const [auth] = useAuth()
 	const [activeContext] = useAtom(activeContextAtom)
 	const { api } = useApi()
-	const { getTokenFor, getClientFor } = useApiContext()
+	const { getTokenFor } = useApiContext()
 	const { rememberStoredTrust } = useProfileTrust()
 	const dialog = useDialog()
-	const connectCommunity = useConnectCommunity()
 	const params = useParams()
 	const idTag = params.idTag == 'me' ? (auth?.idTag ?? api?.idTag) : params.idTag || auth?.idTag
 	const own = idTag == auth?.idTag
@@ -2031,23 +2061,6 @@ function ProfileView() {
 		setLocalProfile((p) => (p ? { ...p, connected: 'R' } : p))
 	}
 
-	// A leader acting as community A connects A with community B through A's context token;
-	// the request is A's, so the page's own relation (`localProfile.connected`) stays as is.
-	const actingCommunity =
-		activeContext?.type === 'community' &&
-		!activeContext.hat &&
-		activeContext.roles.includes('leader') &&
-		profile?.type === 'community' &&
-		profile.idTag !== activeContext.idTag
-			? activeContext
-			: undefined
-
-	async function onConnectAs() {
-		if (!profile || !actingCommunity) return
-		const client = getClientFor(actingCommunity.idTag, { explicit: true })
-		if (client) await connectCommunity(client, profile)
-	}
-
 	async function onDisconnect() {
 		if (!profile || !localProfile?.connected) return
 		if (
@@ -2097,8 +2110,7 @@ function ProfileView() {
 				onConnect,
 				onDisconnect,
 				onBlock,
-				onUnblock,
-				connectAs: actingCommunity && { name: actingCommunity.name, run: onConnectAs }
+				onUnblock
 			}}
 			communityRoles={communityRoles}
 			getTokenFor={getTokenFor}

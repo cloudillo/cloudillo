@@ -28,13 +28,22 @@ interface PendingRequestsListProps {
 	onChange: () => void
 	/** Narrows the listed requests, e.g. to community issuers on the partners page. */
 	filter?: (action: ActionView) => boolean
+	/** Renders above the list; when set, an empty list renders nothing instead of an empty state. */
+	title?: React.ReactNode
+	/** Takes over Approve (no confirm, no accept here); bump `version` to show the result. */
+	onApprove?: (action: ActionView) => void
+	/** Bump to reload in place, without a remount */
+	version?: number
 }
 
 export function PendingRequestsList({
 	communityIdTag,
 	getClientFor,
 	onChange,
-	filter
+	filter,
+	title,
+	onApprove,
+	version
 }: PendingRequestsListProps) {
 	const { t } = useTranslation()
 	const dialog = useDialog()
@@ -61,13 +70,14 @@ export function PendingRequestsList({
 			toast.error(t('Failed to load requests'))
 			setRequests([])
 		}
-	}, [communityIdTag, getClientFor, filter, toast, t])
+	}, [communityIdTag, getClientFor, filter, toast, t, version])
 
 	React.useEffect(() => {
 		reload()
 	}, [reload])
 
 	async function handleApprove(action: ActionView) {
+		if (onApprove) return onApprove(action)
 		const confirmed = await dialog.confirm(
 			t('Approve'),
 			t('Are you sure you want to approve this request?'),
@@ -115,36 +125,40 @@ export function PendingRequestsList({
 
 	if (requests === undefined) return null
 	if (requests.length === 0) {
+		if (title) return null
 		return <EmptyState className="auto-bg" size="sm" title={t('No pending requests')} />
 	}
 
 	return (
-		<List variant="divided" aria-label={t('Pending requests')}>
-			{requests.map((action) => {
-				const message = inviteMessage(action)
-				const busy = busyId === action.actionId
-				return (
-					<ListItem
-						key={action.actionId}
-						leading={<ProfilePicture profile={action.issuer} />}
-						title={action.issuer.name || action.issuer.idTag}
-						subtitle={message ?? <IdentityTag idTag={action.issuer.idTag} />}
-						meta={<TimeFormat time={action.createdAt} />}
-						trailing={
-							/* Consent decision, both options carry equal weight */
-							<>
-								<Button disabled={busy} onClick={() => handleReject(action)}>
-									{t('Reject')}
-								</Button>
-								<Button disabled={busy} onClick={() => handleApprove(action)}>
-									{t('Approve')}
-								</Button>
-							</>
-						}
-					/>
-				)
-			})}
-		</List>
+		<>
+			{title}
+			<List variant="divided" aria-label={t('Pending requests')}>
+				{requests.map((action) => {
+					const message = inviteMessage(action)
+					const busy = busyId === action.actionId
+					return (
+						<ListItem
+							key={action.actionId}
+							leading={<ProfilePicture profile={action.issuer} />}
+							title={action.issuer.name || action.issuer.idTag}
+							subtitle={message ?? <IdentityTag idTag={action.issuer.idTag} />}
+							meta={<TimeFormat time={action.createdAt} />}
+							trailing={
+								/* Consent decision, both options carry equal weight */
+								<>
+									<Button disabled={busy} onClick={() => handleReject(action)}>
+										{t('Reject')}
+									</Button>
+									<Button disabled={busy} onClick={() => handleApprove(action)}>
+										{t('Approve')}
+									</Button>
+								</>
+							}
+						/>
+					)
+				})}
+			</List>
+		</>
 	)
 }
 

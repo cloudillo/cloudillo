@@ -12,6 +12,8 @@ const resources = {
 		translation: {
 			'Uploaded {{count}} file_one': 'Uploaded {{count}} file',
 			'Uploaded {{count}} file_other': 'Uploaded {{count}} files',
+			'{{count}} partnership requests_one': '{{count}} partnership request',
+			'{{count}} partnership requests_other': '{{count}} partnership requests',
 			'Too many attempts. Please try again in about {{count}} minute_one':
 				'Too many attempts. Please try again in about {{count}} minute',
 			'Too many attempts. Please try again in about {{count}} minute_other':

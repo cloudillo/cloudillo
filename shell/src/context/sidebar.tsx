@@ -8,7 +8,7 @@
  * (`layout/CommunitySheet.tsx`), so the rail is hidden by CSS.
  */
 
-import { mergeClasses, Nav, Text, useAuth, VBox } from '@cloudillo/react'
+import { Badge, mergeClasses, Nav, Text, useAuth, VBox } from '@cloudillo/react'
 import { useAtomValue } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -19,7 +19,13 @@ import { CONTEXT_MENU } from '../manifest-registry.js'
 import { scopePath } from '../routes.js'
 import { activeContextAtom, contextIdpEnabledAtom, contextSwitchingAtom } from './atoms'
 import { useCtx } from './ctx'
-import { contextToolAllowed, useSidebar } from './hooks'
+import {
+	contextToolAllowed,
+	fromCommunity,
+	isContextLeader,
+	usePendingConnRequests,
+	useSidebar
+} from './hooks'
 
 /**
  * The bottom block: what acts on the **active context** rather than being an app in it.
@@ -36,6 +42,13 @@ export function ContextTools({ onNavigate }: { onNavigate?: () => void }) {
 	const ctx = useCtx()
 	const activeContext = useAtomValue(activeContextAtom)
 	const contextIdpEnabled = useAtomValue(contextIdpEnabledAtom)
+	// Pending partnership requests to the active community, for its leaders
+	const partnerRequests = usePendingConnRequests(
+		activeContext?.type === 'community' && isContextLeader(activeContext, auth?.idTag)
+			? activeContext.idTag
+			: undefined,
+		fromCommunity
+	)
 
 	const items = CONTEXT_MENU.filter((item) => {
 		if (!contextToolAllowed(item.id, activeContext, auth?.idTag, contextIdpEnabled))
@@ -75,6 +88,16 @@ export function ContextTools({ onNavigate }: { onNavigate?: () => void }) {
 					>
 						{item.icon && React.createElement(item.icon)}
 						<Text className="c-nav-label">{isCtxSettings ? contextName : label}</Text>
+						{item.id === 'communities' && partnerRequests > 0 && (
+							<Badge
+								color="error"
+								aria-label={t('{{count}} partnership requests', {
+									count: partnerRequests
+								})}
+							>
+								{partnerRequests}
+							</Badge>
+						)}
 					</NavLink>
 				)
 			})}

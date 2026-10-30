@@ -22,7 +22,14 @@ import {
 	useCurrentContextIdTag
 } from '../context/index.js'
 import type { UsePWA } from '../pwa.js'
-import { feedPath, HOME_BASE, roomsPath, sectionMatch, settingsPath } from '../routes.js'
+import {
+	contextPath,
+	feedPath,
+	HOME_BASE,
+	roomsPath,
+	sectionMatch,
+	settingsPath
+} from '../routes.js'
 import { AppearanceSettings } from './appearance.js'
 import { NotificationSettings } from './notifications.js'
 import { SecuritySettings } from './security.js'
@@ -36,7 +43,6 @@ import {
 	IcGeneral,
 	IcHistory,
 	IcNotifications,
-	IcPartner,
 	IcPrivacy,
 	IcProfile,
 	IcRoom,
@@ -52,7 +58,6 @@ import { CalendarSettings } from './calendar.js'
 import { CommunityGeneralSettings } from './community-general.js'
 import { FilesSettings } from './files.js'
 import { SettingsOverview } from './overview.js'
-import { PartnersSettings } from './partners.js'
 import { PrivacySettings } from './privacy.js'
 import { ProfileTabSettings } from './profile-tabs.js'
 import { RoomsSettings } from './rooms.js'
@@ -81,7 +86,7 @@ const PERSONAL_PAGES = [
  * entry here, a `settingsTitle` case, a `PAGE_ICONS` entry and a route in `settingsRoutes`;
  * who may see it is `canAdminContext` in `context/hooks.ts`.
  */
-const COMMUNITY_ADMIN_PAGES = ['general', 'privacy', 'files', 'rooms', 'partners', 'site']
+const COMMUNITY_ADMIN_PAGES = ['general', 'privacy', 'files', 'rooms', 'site']
 
 /** The settings pages the user may open: the admin pages they hold in a community, else all. */
 export function allowedPages(community: ActiveContext | undefined, authIdTag: string | undefined) {
@@ -104,8 +109,7 @@ const PAGE_ICONS: Record<string, React.ReactNode> = {
 	apps: <IcApps />,
 	files: <IcFilesApp />,
 	site: <IcSite />,
-	rooms: <IcRoom />,
-	partners: <IcPartner />
+	rooms: <IcRoom />
 }
 
 interface SettingsProps {
@@ -197,8 +201,6 @@ function settingsTitle(t: (key: string) => string, page: string | undefined): st
 			return t('Site')
 		case 'rooms':
 			return t('Rooms')
-		case 'partners':
-			return t('Partner communities')
 		default:
 			return t('Settings')
 	}
@@ -217,10 +219,16 @@ function SettingsLayout() {
 	// so `allowedPages` would still be judging home.
 	const settled = idTag === useCurrentContextIdTag()
 
-	// A page this context does not offer (`~/settings/partners`, a moderator on `general`)
+	// A page this context does not offer (`~/settings/general`, a moderator on `general`)
 	if (settled && page && !allowedPages(community, auth?.idTag).includes(page)) {
-		// Badges are personal: a community path goes to the home page, not this context's settings
-		const to = page === 'badges' ? settingsPath(HOME_BASE, 'badges') : settingsPath(base)
+		// Badges are personal: a community path goes to the home page, not this context's settings.
+		// Partners moved to the community's Communities section; old links follow.
+		const to =
+			page === 'badges'
+				? settingsPath(HOME_BASE, 'badges')
+				: page === 'partners' && community
+					? contextPath(base, 'communities')
+					: settingsPath(base)
 		return <Navigate to={to} replace />
 	}
 
@@ -275,7 +283,6 @@ export function settingsRoutes(pwa: UsePWA) {
 			<Route path="site" element={<SiteSettings />} />
 			<Route path="rooms" element={<RoomsSettings />} />
 			<Route path="rooms/:name" element={<OldRoomRedirect />} />
-			<Route path="partners" element={<PartnersSettings />} />
 		</Route>
 	)
 }

@@ -67,4 +67,30 @@ export function formatHatRoles(map: Record<string, string | undefined>): string 
 		.join(',')
 }
 
+/** The named maps the access picker offers; labels are translated by the caller. */
+export const HAT_PRESETS = [
+	{ id: 'none', map: '' },
+	{ id: 'follow', map: 'supporter:follower' },
+	{ id: 'participate', map: 'supporter:supporter' },
+	{ id: 'mirror', map: 'supporter:supporter,contributor:contributor' }
+] as const
+
+export type HatPresetId = (typeof HAT_PRESETS)[number]['id']
+
+/** The preset `s` spells (compared normalized), `'custom'` for any other map, `null` for none. */
+export function hatPresetOf(s: string | null | undefined): HatPresetId | 'custom' | null {
+	if (s == null) return null
+	const norm = formatHatRoles(parseHatRoles(s))
+	return HAT_PRESETS.find((p) => p.map === norm)?.id ?? 'custom'
+}
+
+/** Whether `map` is worth saving over `saved`: chosen, and new or different once normalized. */
+export function hatRolesChanged(map: string | null, saved: string | null | undefined): boolean {
+	return (
+		map != null &&
+		(saved == null ||
+			formatHatRoles(parseHatRoles(map)) !== formatHatRoles(parseHatRoles(saved)))
+	)
+}
+
 // vim: ts=4

@@ -57,7 +57,7 @@ export function useMapActions() {
 			},
 			/** Enter a partner community wearing the `hat` membership's hat. */
 			enterVia(idTag: string, hat: string) {
-				enterContext(idTag, { hat }).catch((err) =>
+				enterContext(idTag, { hat, feed: true }).catch((err) =>
 					console.error('Failed to enter community', err)
 				)
 			}

@@ -16,6 +16,7 @@ import {
 	setApiToken
 } from '@cloudillo/core'
 import { apiAtom, authAtom, useApi, useAuth, useIsDesktop, useToast } from '@cloudillo/react'
+import type { ActionView } from '@cloudillo/types'
 import { useAtom, useAtomValue, useSetAtom, useStore } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -25,6 +26,7 @@ import { crossContextApps } from '../manifest-registry.js'
 import { installHatToken } from '../pwa.js'
 import { seedCommunityFromHome } from '../read-position.js'
 import { CTX_SECTION_MATCH, ctxBase, feedPath, isContextSegment, switchPath } from '../routes.js'
+import { useWsBus } from '../ws-bus.js'
 import {
 	activeContextAtom,
 	activeContextDisplayAtom,
@@ -39,12 +41,15 @@ import {
 	favoritesAtom,
 	lastContextSwitchAtom,
 	partnerCommunitiesAtom,
+	partnerRequestsVersionAtom,
 	pinKeyFor,
 	recentCommunitiesAtom,
 	recentContextsAtom,
 	refFromActive,
+	sessionTrustAtom,
 	sidebarAtom,
 	sidebarOpenAtom,
+	storedTrustAtom,
 	totalUnreadCountAtom,
 	withoutPins
 } from './atoms'
@@ -1174,10 +1179,131 @@ export function useContextName(): string {
 	return name || idTag || ''
 }
 
+/**
+ * The joined (not pending) communities I lead, read off their proxy tokens' roles; `[]` while
+ * loading. Passive `getTokenFor`, so a community the trust gate keeps anonymous is left out
+ * rather than told who I am; rechecked when a trust decision changes.
+ */
+export function useLedCommunities(): CommunityRef[] {
+	const communities = useAtomValue(communitiesAtom)
+	// The gate reads these; not `contextRolesAtom`, which `getTokenFor` writes (would loop)
+	const sessionTrust = useAtomValue(sessionTrustAtom)
+	const storedTrust = useAtomValue(storedTrustAtom)
+	const { getTokenFor } = useApiContext()
+	const [led, setLed] = React.useState<CommunityRef[]>([])
+
+	React.useEffect(
+		function loadLed() {
+			let cancelled = false
+			const joined = communities.filter((c) => !c.isPending)
+			Promise.all(
+				joined.map((c) =>
+					getTokenFor(c.idTag)
+						.then((r) => !!r?.roles.includes('leader'))
+						.catch(() => false)
+				)
+			).then((flags) => {
+				if (!cancelled) setLed(joined.filter((_c, i) => flags[i]))
+			})
+			return () => {
+				cancelled = true
+			}
+		},
+		[communities, getTokenFor, sessionTrust, storedTrust]
+	)
+
+	return led
+}
+
 /** The active context when it is a community, else `undefined` (home). */
 export function useActiveCommunity() {
 	const ctx = useAtomValue(activeContextAtom)
 	return ctx?.type === 'community' ? ctx : undefined
+}
+
+/** Partnership requests (from another community) vs. membership requests (from a person). */
+export const fromCommunity = (a: ActionView) => a.issuer.type === 'community'
+export const fromPerson = (a: ActionView) => !fromCommunity(a)
+/** Order-independent identity of a request list, for the change check. */
+export const connIdsKey = (l: ActionView[]) =>
+	l
+		.map((a) => a.actionId)
+		.sort()
+		.join(',')
+
+/**
+ * Pending CONN requests to community `idTag` that `pick` keeps (partnerships, membership
+ * requests); 0 while `idTag` is unset. Read on the community's own node.
+ */
+export function usePendingConnRequests(
+	idTag: string | undefined,
+	pick: (a: ActionView) => boolean
+): number {
+	const version = useAtomValue(partnerRequestsVersionAtom)
+	const bumpVersion = useSetAtom(partnerRequestsVersionAtom)
+	const { getClientFor, getTokenFor } = useApiContext()
+	// Keyed by community, so a poll doesn't blank the count and a switch doesn't show the old one
+	const [requests, setRequests] = React.useState<{ of?: string; list: ActionView[] }>({
+		list: []
+	})
+	// Mirror of `requests` for the change check below, read outside any state updater
+	const last = React.useRef(requests)
+	const [tick, setTick] = React.useState(0)
+
+	useWsBus({ cmds: ['ACTION'] }, (msg) => {
+		if ((msg.data as ActionView).type === 'CONN') setTick((n) => n + 1)
+	})
+
+	// Requests to a community node never reach the home WsBus
+	// ponytail: polling; switch to a per-context bus subscription if one appears
+	React.useEffect(
+		function pollRequests() {
+			if (!idTag) return
+			const bump = () => setTick((n) => n + 1)
+			const timer = setInterval(bump, 60_000)
+			window.addEventListener('focus', bump)
+			return () => {
+				clearInterval(timer)
+				window.removeEventListener('focus', bump)
+			}
+		},
+		[idTag]
+	)
+
+	React.useEffect(
+		function loadRequests() {
+			if (!idTag) return
+			let cancelled = false
+			;(async () => {
+				// Passive: a community the trust gate keeps anonymous shows no badge
+				const client = (await getTokenFor(idTag)) && getClientFor(idTag)
+				if (!client || cancelled) return
+				const rs = await client.actions.list({
+					type: 'CONN',
+					audience: idTag,
+					status: ['C', 'P']
+				})
+				if (cancelled) return
+				const next = { of: idTag, list: rs as ActionView[] }
+				const prev = last.current
+				last.current = next
+				setRequests(next)
+				// New or gone requests: the hub's lists reload on the version, not on this poll.
+				// The bump refetches once, finds the same ids, and stops.
+				if (prev.of === idTag && connIdsKey(prev.list) !== connIdsKey(next.list)) {
+					bumpVersion((n) => n + 1)
+				}
+			})()
+				// Keep the last list: a failed poll must not blank the badge
+				.catch((err) => console.warn('Failed to count CONN requests', err))
+			return () => {
+				cancelled = true
+			}
+		},
+		[idTag, getClientFor, getTokenFor, version, tick, bumpVersion]
+	)
+
+	return idTag && requests.of === idTag ? requests.list.filter(pick).length : 0
 }
 
 // vim: ts=4

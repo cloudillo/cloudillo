@@ -17,7 +17,7 @@ import type { ActiveContext } from '../context/types.js'
 import { inviteMessage } from '../notifications/NotificationItem.js'
 import { floorText } from '../profile/role-labels.js'
 import { allowedPages } from '../settings/index.js'
-import { rangeSentences } from '../settings/partners.js'
+import { rangeSentences } from '../communities/partners.js'
 
 const t = ((s: string) => s) as unknown as TFunction
 
@@ -53,14 +53,7 @@ describe('canAdminContext / allowedPages', () => {
 	it('a leader may open every admin page', () => {
 		const c = community(['leader'])
 		expect(canAdminContext(c, 'me.tld')).toBe(true)
-		expect(allowedPages(c, 'me.tld')).toEqual([
-			'general',
-			'privacy',
-			'files',
-			'rooms',
-			'partners',
-			'site'
-		])
+		expect(allowedPages(c, 'me.tld')).toEqual(['general', 'privacy', 'files', 'rooms', 'site'])
 	})
 
 	it('a moderator may open rooms only', () => {

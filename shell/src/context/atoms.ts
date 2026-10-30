@@ -75,6 +75,9 @@ export const contextRolesAtom = atom<Map<string, string[]>>(new Map())
 /** Capped role a hatted proxy token grants, keyed by `contextKey(B, A)`. Hatted keys only. */
 export const contextHatRoleAtom = atom<Map<string, string>>(new Map())
 
+/** Bumped when a partnership request is answered or sent, so its counters reload. */
+export const partnerRequestsVersionAtom = atom(0)
+
 /**
  * Communities list
  * All communities the user is a member of

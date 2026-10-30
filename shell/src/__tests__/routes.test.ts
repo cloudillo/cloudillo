@@ -264,15 +264,18 @@ describe('switchPath', () => {
 		)
 	})
 
-	it('keeps profiles, remapping the old context own page', () => {
+	it('keeps the viewed profile, the old context own page included', () => {
 		expect(switchPath('/~/profile/alice.org/feed', 'comm.tld', HOME, kept)).toBe(
 			'/@comm.tld/profile/alice.org/feed'
 		)
 		expect(switchPath('/@a.tld/profile/a.tld/about', 'comm.tld', HOME, kept)).toBe(
-			'/@comm.tld/profile/comm.tld/about'
+			'/@comm.tld/profile/a.tld/about'
 		)
 		expect(switchPath('/~/profile/home.tld', 'comm.tld', HOME, kept)).toBe(
-			'/@comm.tld/profile/comm.tld'
+			'/@comm.tld/profile/home.tld'
+		)
+		expect(switchPath('/@comm.tld/profile/comm.tld', HOME, HOME, kept)).toBe(
+			'/~/profile/comm.tld'
 		)
 	})
 })

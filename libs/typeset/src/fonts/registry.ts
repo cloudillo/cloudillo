@@ -52,7 +52,6 @@ function face(family: string, weight: number, italic: boolean): FontRef | undefi
 		weight: file.includes('-Bold') ? 700 : 400,
 		italic: file.endsWith('Italic.ttf'),
 		file,
-		sha256: m.sha256,
 		upem: m.unitsPerEm
 	}
 }

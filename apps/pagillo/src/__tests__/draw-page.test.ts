@@ -47,7 +47,6 @@ const font = {
 	weight: 400,
 	italic: false,
 	file: 'f/F.ttf',
-	sha256: 'abc',
 	upem: 1000
 }
 
@@ -92,7 +91,11 @@ const expectMatrix = (got: unknown[], want: number[]) => {
 describe('drawPage', () => {
 	it('fills each glyph at base · translate(pen) · scale(s, -s)', () => {
 		const { ctx, calls } = fakeCtx()
-		const res = drawPage(ctx, page([run([1, 2])]), opts({ 'g-abc-1': 'M1', 'g-abc-2': 'M2' }))
+		const res = drawPage(
+			ctx,
+			page([run([1, 2])]),
+			opts({ 'g-f_F_ttf-1': 'M1', 'g-f_F_ttf-2': 'M2' })
+		)
 		expect(res.missingGlyphs).toBe(false)
 		expect(calls).toContainEqual(['=fillStyle', '#123'])
 		const sets = calls.filter((c) => c[0] === 'setTransform').map((c) => c.slice(1))
@@ -153,7 +156,7 @@ describe('drawPage', () => {
 
 	it('skips a missing outline and reports it', () => {
 		const { ctx, calls } = fakeCtx()
-		const res = drawPage(ctx, page([run([1, 2])]), opts({ 'g-abc-1': 'M1' }))
+		const res = drawPage(ctx, page([run([1, 2])]), opts({ 'g-f_F_ttf-1': 'M1' }))
 		expect(res.missingGlyphs).toBe(true)
 		expect(calls.filter((c) => c[0] === 'fill')).toHaveLength(1)
 	})

@@ -2,14 +2,13 @@
 	"name": "@cloudillo/fonts",
 	"version": "0.8.22",
 	"private": true,
-	"description": "Curated open-source font collection for web apps — variable fonts with auto-download script",
+	"description": "Curated open-source font collection for web apps — static TTF fonts with auto-download script",
 	"keywords": [
 		"cloudillo",
 		"fonts",
 		"web-fonts",
-		"variable-fonts",
-		"google-fonts",
-		"woff2"
+		"ttf",
+		"google-fonts"
 	],
 	"homepage": "https://cloudillo.org",
 	"repository": {
@@ -42,9 +41,9 @@
 	],
 	"scripts": {
 		"postinstall": "node scripts/download-fonts.js",
-		"download": "node scripts/download-fonts.js && node scripts/hash-fonts.js",
-		"download:force": "node scripts/download-fonts.js --force && node scripts/hash-fonts.js",
-		"hash": "node scripts/hash-fonts.js",
+		"download": "node scripts/download-fonts.js && node scripts/font-metrics.js",
+		"download:force": "node scripts/download-fonts.js --force && node scripts/font-metrics.js",
+		"metrics": "node scripts/font-metrics.js",
 		"ts-test": "tsgo --noEmit -p tsconfig.test.json",
 		"test": "NODE_OPTIONS=\"--experimental-vm-modules\" jest",
 		"test:watch": "NODE_OPTIONS=\"--experimental-vm-modules\" jest --watch",
@@ -57,7 +56,6 @@
 		"jest": "^30.5.2",
 		"jest-environment-jsdom": "^30.5.2",
 		"ts-jest": "^29.4.15",
-		"typescript": "npm:@typescript/typescript6@^6.0.2",
-		"wawoff2": "^2.0.1"
+		"typescript": "npm:@typescript/typescript6@^6.0.2"
 	}
 }

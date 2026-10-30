@@ -5,7 +5,10 @@ import type { Font } from 'harfbuzzjs'
 import type { FontRef } from '../display-list.js'
 import { harfBuzz } from '../shape/hb.js'
 
-/** Injectable byte source: node tests read from disk, browsers `fetch`. */
+/**
+ * Injectable byte source: node tests read from disk, browsers `fetch`. The bytes are not
+ * verified; callers must serve them from a trusted (same-origin) source.
+ */
 export type FetchBytes = (url: string) => Promise<ArrayBuffer>
 
 const pending = new Map<string, Promise<Font>>()
@@ -17,36 +20,33 @@ export function fontUrl(ref: FontRef): string {
 	return `/fonts/${ref.file}`
 }
 
-/** Load a face once per sha256; concurrent callers share the same promise. */
+/** Load a face once per file; concurrent callers share the same promise. */
 export function loadFace(ref: FontRef, fetchBytes: FetchBytes): Promise<Font> {
-	let p = pending.get(ref.sha256)
+	let p = pending.get(ref.file)
 	if (!p) {
-		p = fetchBytes(fontUrl(ref)).then(async (bytes) => {
-			const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))
-			const hex = [...digest].map((b) => b.toString(16).padStart(2, '0')).join('')
-			if (hex !== ref.sha256) throw new Error(`typeset: sha256 mismatch for ${ref.file}`)
+		p = fetchBytes(fontUrl(ref)).then((bytes) => {
 			const hb = harfBuzz()
 			// Variations are never applied: residual fvar axes stay at the default instance.
 			const font = new hb.Font(new hb.Face(new hb.Blob(bytes)))
-			loaded.set(ref.sha256, font)
+			loaded.set(ref.file, font)
 			return font
 		})
-		p.catch(() => pending.delete(ref.sha256))
-		pending.set(ref.sha256, p)
+		p.catch(() => pending.delete(ref.file))
+		pending.set(ref.file, p)
 	}
 	return p
 }
 
 /** The hb font for an already loaded face; throws if `loadFace` has not resolved yet. */
 export function loadedFont(ref: FontRef): Font {
-	const font = loaded.get(ref.sha256)
+	const font = loaded.get(ref.file)
 	if (!font) throw new Error(`typeset: font not loaded: ${ref.file}`)
 	return font
 }
 
 /** SVG path of a glyph in font units, y up (the renderer flips it). Cached. */
 export function glyphPath(ref: FontRef, gid: number): string {
-	const key = `${ref.sha256}:${gid}`
+	const key = `${ref.file}:${gid}`
 	let d = paths.get(key)
 	if (d === undefined) {
 		d = loadedFont(ref).glyphToPath(gid)

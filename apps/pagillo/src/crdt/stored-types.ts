@@ -135,7 +135,7 @@ export type StyleMap = Partial<Record<StyleMapKey, string>>
 
 /**
  * Keys of the `m` map (each its own entry, so concurrent edits of different keys merge).
- * `page` = default page size; `engine` = `ENGINE_VERSION` semver; `fonts` = font hashes;
+ * `page` = default page size; `engine` = `ENGINE_VERSION` semver;
  * `pdf` = last export options; `exportedAt` = ISO date written by export.
  */
 export interface StoredMeta {
@@ -143,6 +143,7 @@ export interface StoredMeta {
 	page?: { w: number; h: number }
 	facing?: boolean
 	engine?: string
+	/** @deprecated legacy font hashes; ignored */
 	fonts?: Record<string, string>
 	pdf?: Record<string, unknown>
 	lang?: string

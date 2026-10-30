@@ -376,7 +376,6 @@ export function PagilloApp() {
 		said,
 		layout.readOnlyReason &&
 			t('This document is read-only: it needs a newer version of Pagillo'),
-		layout.fontsChanged && t('Fonts changed since this document was laid out'),
 		layout.overset.length > 0 && t('Some text does not fit on the pages'),
 		layoutEdit && t('Editing page layout')
 	].filter((n): n is string => typeof n === 'string')
@@ -659,7 +658,7 @@ export function PagilloApp() {
 					/>
 				</div>
 			)}
-			<Banners readOnlyReason={layout.readOnlyReason} fontsChanged={layout.fontsChanged} />
+			<Banners readOnlyReason={layout.readOnlyReason} />
 			{canLayout && layoutEdit && (
 				<LayoutBanner
 					doc={doc}

@@ -1,6 +1,8 @@
 # @cloudillo/fonts
 
-Curated open-source font collection for [Cloudillo](https://cloudillo.org) and other web apps — variable fonts with an auto-download script.
+Curated open-source font collection for [Cloudillo](https://cloudillo.org) and other web apps — static TTF fonts with an auto-download script.
+
+Each face is a single static TTF built from the full upstream `google/fonts` file (no subsetting), used by browser CSS, text layout and PDF export alike. Serve them precompressed (brotli/gzip); the Cloudillo shell build does.
 
 The package ships with fonts pre-downloaded under `fonts/`. A `postinstall` step re-runs the downloader (idempotent — skips fonts already present).
 

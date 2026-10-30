@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 // Display list → SVG string. Builds strings only (no `document`), so it also runs in a worker.
-// Glyphs are outlines: one `<path id="g-<sha256>-<gid>">` per used glyph (font units, y flipped),
+// Glyphs are outlines: one `<path id="g-<file>-<gid>">` per used glyph (font units, y flipped),
 // each glyph run a `<g transform="translate(x y) scale(size/upem)">` of `<use>`s. No `<text>`.
 // SVG user units are points; the display list is Fx (1/1024 pt).
 // The static export/embed renderer; keep it visually in step with its interactive counterpart,
@@ -19,9 +19,10 @@ export interface RenderOptions {
 	glyphHref: (font: FontRef, gid: number) => string
 }
 
-/** Id of a glyph's `<path>`: `g-<sha256>-<gid>`. */
+/** Id of a glyph's `<path>`: `g-<file>-<gid>`, the file sanitized to a valid XML id; distinct files must stay
+ * distinct after sanitizing (true for `<kebab-dir>/<File>.ttf`). */
 export function glyphId(font: FontRef, gid: number): string {
-	return `g-${font.sha256}-${gid}`
+	return `g-${font.file.replace(/[^A-Za-z0-9_-]/g, '_')}-${gid}`
 }
 
 /** Used glyphs per face (order of first use, gids ascending), for requesting outlines. */
@@ -29,10 +30,10 @@ export function collectGlyphs(dl: PageDL): { font: FontRef; gids: number[] }[] {
 	const byFont = new Map<string, { font: FontRef; set: Set<number> }>()
 	for (const it of dl.items) {
 		if (it.k !== 'glyphs') continue
-		let e = byFont.get(it.font.sha256)
+		let e = byFont.get(it.font.file)
 		if (!e) {
 			e = { font: it.font, set: new Set() }
-			byFont.set(it.font.sha256, e)
+			byFont.set(it.font.file, e)
 		}
 		for (const g of it.glyphs) e.set.add(g)
 	}

@@ -8,7 +8,7 @@ import { renderPageSvgStandalone } from '../svg/render.js'
 import { CORPUS, dlJson, glyphPath, layoutCase, sha256 } from './corpus.js'
 
 // Fresh registries and shape caches per run. The loader's face cache is module-global
-// (keyed by sha256), so loaded faces are shared — by design, faces are immutable.
+// (keyed by font file), so loaded faces are shared — by design, faces are immutable.
 describe('determinism', () => {
 	it.each(CORPUS.map((c) => [c.name, c] as const))(
 		'%s lays out identically twice',

@@ -28,13 +28,13 @@ export class LruCache<K, V> {
 }
 
 /**
- * `shapeRun` behind an LRU keyed `(sha256, size, features, lang, direction, text)`.
+ * `shapeRun` behind an LRU keyed `(file, size, features, lang, direction, text)`.
  * The returned arrays are shared between hits — callers must not mutate them.
  */
 export function createShapeCache(max = 16384): typeof shapeRun {
 	const cache = new LruCache<string, ShapedRun>(max)
 	return (ref: FontRef, sizeFx: Fx, text: string, opts: ShapeOptions = {}) => {
-		const key = `${ref.sha256}|${sizeFx}|${(opts.features ?? []).join(',')}|${opts.lang ?? ''}|${opts.direction ?? ''}|${text}`
+		const key = `${ref.file}|${sizeFx}|${(opts.features ?? []).join(',')}|${opts.lang ?? ''}|${opts.direction ?? ''}|${text}`
 		let run = cache.get(key)
 		if (!run) {
 			run = shapeRun(ref, sizeFx, text, opts)

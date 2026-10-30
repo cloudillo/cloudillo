@@ -31,7 +31,6 @@ export interface PublicationMeta {
 	page: PageSize
 	facing: boolean
 	engine?: string
-	fonts?: Record<string, string>
 	pdf?: Record<string, unknown>
 	lang: string
 	styleMap: StyleMap

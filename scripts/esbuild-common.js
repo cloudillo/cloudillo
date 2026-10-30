@@ -19,7 +19,7 @@ export const isWatch = process.argv.includes('--watch') || process.argv.includes
 export const shouldCompress = process.env.COMPRESS === 'true' && !isWatch
 
 // Compression settings
-const COMPRESSIBLE_EXTENSIONS = ['.js', '.css', '.html', '.json', '.svg', '.xml']
+const COMPRESSIBLE_EXTENSIONS = ['.js', '.css', '.html', '.json', '.svg', '.xml', '.ttf']
 const MIN_SIZE = 1024
 
 function shouldCompressFile(filename) {
@@ -164,7 +164,6 @@ const defaultLoaders = {
 	'.jpeg': 'file',
 	'.gif': 'file',
 	'.woff': 'file',
-	'.woff2': 'file',
 	'.ttf': 'file',
 	'.eot': 'file'
 }

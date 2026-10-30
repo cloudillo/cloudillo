@@ -79,7 +79,7 @@ export async function loadParagraphFaces(
 			registry.resolveFace(c.font, c.weight, c.italic),
 			registry.fallbackFace(c.weight, c.italic)
 		])
-			refs.set(ref.sha256, ref)
+			refs.set(ref.file, ref)
 	}
 	const visit = (ps: Paragraph[]) => {
 		for (const p of ps) {
@@ -188,7 +188,7 @@ function pushWithFallback(
 	const shaped = shapeSeg(env, font, text, from, to, b)
 	const fallback = env.registry.fallbackFace(b.char.weight, b.char.italic)
 	// Already on the fallback face → its .notdef box is drawn.
-	if (!shaped.glyphs.includes(0) || fallback.sha256 === font.sha256) {
+	if (!shaped.glyphs.includes(0) || fallback.file === font.file) {
 		out.push({ ...b, from, to, font, shaped })
 		return
 	}

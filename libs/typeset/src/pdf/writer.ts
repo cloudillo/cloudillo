@@ -53,7 +53,7 @@ export interface PdfEmbed {
 }
 
 export interface PdfEnv {
-	/** TTF source, as for `loadFace`: called with `fontUrl(ref)`, bytes checked against `sha256`. */
+	/** TTF source, as for `loadFace` (bytes unverified): called with `fontUrl(ref)`. */
 	fonts: FetchBytes
 	/**
 	 * Image bytes of a file, original or downsampled; must be JPEG or PNG. A failing fetch or
@@ -144,7 +144,7 @@ export async function writePdf(
 					// Transparent text stays selectable; writeGlyphRun's own fillColor keeps the opacity.
 					const [color, alpha] = pdfColor(it.color) ?? ['#000000', 0]
 					doc.fillColor(color, alpha)
-					writeGlyphRun(doc, faces.get(it.font.sha256)!, { ...it, color })
+					writeGlyphRun(doc, faces.get(it.font.file)!, { ...it, color })
 					break
 				}
 				case 'rect':
@@ -202,10 +202,10 @@ async function svgEnvOf(
 		registry: new FontRegistry(),
 		async face(ref) {
 			await loadFace(ref, fonts)
-			let f = faces.get(ref.sha256)
+			let f = faces.get(ref.file)
 			if (!f) {
 				f = await embedOneFace(doc, ref, fonts)
-				faces.set(ref.sha256, f)
+				faces.set(ref.file, f)
 			}
 			return f
 		}

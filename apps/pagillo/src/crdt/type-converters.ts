@@ -67,14 +67,12 @@ function collection(m: Y.Map<unknown>, name: string): Record<string, unknown> | 
 export function readMeta(m: Y.Map<unknown>): PublicationMeta {
 	const g = <K extends keyof StoredMeta>(k: K) => m.get(k) as StoredMeta[K]
 	const lang: unknown = g('lang')
-	const fonts = collection(m, 'fonts')
 	const spellIgnore = collection(m, 'spellIgnore')
 	return {
 		title: optStr(g('title')),
 		page: g('page') ?? PAGE_SIZES.A4,
 		facing: g('facing') === true,
 		engine: g('engine'),
-		fonts: fonts as PublicationMeta['fonts'],
 		pdf: g('pdf'),
 		lang: typeof lang === 'string' && lang ? lang : 'en',
 		styleMap: (collection(m, 'styleMap') ?? {}) as PublicationMeta['styleMap'],

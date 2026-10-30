@@ -14,28 +14,28 @@
 	font-style: normal;
 	font-weight: 400;
 	font-display: swap;
-	src: url('/fonts/roboto/Roboto-Regular.woff2') format('woff2');
+	src: url('/fonts/roboto/Roboto-Regular.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'Roboto';
 	font-style: italic;
 	font-weight: 400;
 	font-display: swap;
-	src: url('/fonts/roboto/Roboto-RegularItalic.woff2') format('woff2');
+	src: url('/fonts/roboto/Roboto-RegularItalic.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'Roboto';
 	font-style: normal;
 	font-weight: 700;
 	font-display: swap;
-	src: url('/fonts/roboto/Roboto-Bold.woff2') format('woff2');
+	src: url('/fonts/roboto/Roboto-Bold.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'Roboto';
 	font-style: italic;
 	font-weight: 700;
 	font-display: swap;
-	src: url('/fonts/roboto/Roboto-BoldItalic.woff2') format('woff2');
+	src: url('/fonts/roboto/Roboto-BoldItalic.ttf') format('truetype');
 }
 
 /* Open Sans */
@@ -44,28 +44,28 @@
 	font-style: normal;
 	font-weight: 400;
 	font-display: swap;
-	src: url('/fonts/open-sans/OpenSans-Regular.woff2') format('woff2');
+	src: url('/fonts/open-sans/OpenSans-Regular.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'Open Sans';
 	font-style: italic;
 	font-weight: 400;
 	font-display: swap;
-	src: url('/fonts/open-sans/OpenSans-RegularItalic.woff2') format('woff2');
+	src: url('/fonts/open-sans/OpenSans-RegularItalic.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'Open Sans';
 	font-style: normal;
 	font-weight: 700;
 	font-display: swap;
-	src: url('/fonts/open-sans/OpenSans-Bold.woff2') format('woff2');
+	src: url('/fonts/open-sans/OpenSans-Bold.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'Open Sans';
 	font-style: italic;
 	font-weight: 700;
 	font-display: swap;
-	src: url('/fonts/open-sans/OpenSans-BoldItalic.woff2') format('woff2');
+	src: url('/fonts/open-sans/OpenSans-BoldItalic.ttf') format('truetype');
 }
 
 /* Montserrat */
@@ -74,28 +74,28 @@
 	font-style: normal;
 	font-weight: 400;
 	font-display: swap;
-	src: url('/fonts/montserrat/Montserrat-Regular.woff2') format('woff2');
+	src: url('/fonts/montserrat/Montserrat-Regular.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'Montserrat';
 	font-style: italic;
 	font-weight: 400;
 	font-display: swap;
-	src: url('/fonts/montserrat/Montserrat-RegularItalic.woff2') format('woff2');
+	src: url('/fonts/montserrat/Montserrat-RegularItalic.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'Montserrat';
 	font-style: normal;
 	font-weight: 700;
 	font-display: swap;
-	src: url('/fonts/montserrat/Montserrat-Bold.woff2') format('woff2');
+	src: url('/fonts/montserrat/Montserrat-Bold.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'Montserrat';
 	font-style: italic;
 	font-weight: 700;
 	font-display: swap;
-	src: url('/fonts/montserrat/Montserrat-BoldItalic.woff2') format('woff2');
+	src: url('/fonts/montserrat/Montserrat-BoldItalic.ttf') format('truetype');
 }
 
 /* Lato */
@@ -104,28 +104,28 @@
 	font-style: normal;
 	font-weight: 400;
 	font-display: swap;
-	src: url('/fonts/lato/Lato-Regular.woff2') format('woff2');
+	src: url('/fonts/lato/Lato-Regular.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'Lato';
 	font-style: italic;
 	font-weight: 400;
 	font-display: swap;
-	src: url('/fonts/lato/Lato-RegularItalic.woff2') format('woff2');
+	src: url('/fonts/lato/Lato-RegularItalic.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'Lato';
 	font-style: normal;
 	font-weight: 700;
 	font-display: swap;
-	src: url('/fonts/lato/Lato-Bold.woff2') format('woff2');
+	src: url('/fonts/lato/Lato-Bold.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'Lato';
 	font-style: italic;
 	font-weight: 700;
 	font-display: swap;
-	src: url('/fonts/lato/Lato-BoldItalic.woff2') format('woff2');
+	src: url('/fonts/lato/Lato-BoldItalic.ttf') format('truetype');
 }
 
 /* Poppins */
@@ -134,28 +134,28 @@
 	font-style: normal;
 	font-weight: 400;
 	font-display: swap;
-	src: url('/fonts/poppins/Poppins-Regular.woff2') format('woff2');
+	src: url('/fonts/poppins/Poppins-Regular.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'Poppins';
 	font-style: italic;
 	font-weight: 400;
 	font-display: swap;
-	src: url('/fonts/poppins/Poppins-RegularItalic.woff2') format('woff2');
+	src: url('/fonts/poppins/Poppins-RegularItalic.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'Poppins';
 	font-style: normal;
 	font-weight: 700;
 	font-display: swap;
-	src: url('/fonts/poppins/Poppins-Bold.woff2') format('woff2');
+	src: url('/fonts/poppins/Poppins-Bold.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'Poppins';
 	font-style: italic;
 	font-weight: 700;
 	font-display: swap;
-	src: url('/fonts/poppins/Poppins-BoldItalic.woff2') format('woff2');
+	src: url('/fonts/poppins/Poppins-BoldItalic.ttf') format('truetype');
 }
 
 /* Inter */
@@ -164,28 +164,28 @@
 	font-style: normal;
 	font-weight: 400;
 	font-display: swap;
-	src: url('/fonts/inter/Inter-Regular.woff2') format('woff2');
+	src: url('/fonts/inter/Inter-Regular.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'Inter';
 	font-style: italic;
 	font-weight: 400;
 	font-display: swap;
-	src: url('/fonts/inter/Inter-RegularItalic.woff2') format('woff2');
+	src: url('/fonts/inter/Inter-RegularItalic.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'Inter';
 	font-style: normal;
 	font-weight: 700;
 	font-display: swap;
-	src: url('/fonts/inter/Inter-Bold.woff2') format('woff2');
+	src: url('/fonts/inter/Inter-Bold.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'Inter';
 	font-style: italic;
 	font-weight: 700;
 	font-display: swap;
-	src: url('/fonts/inter/Inter-BoldItalic.woff2') format('woff2');
+	src: url('/fonts/inter/Inter-BoldItalic.ttf') format('truetype');
 }
 
 /* Nunito Sans */
@@ -194,28 +194,28 @@
 	font-style: normal;
 	font-weight: 400;
 	font-display: swap;
-	src: url('/fonts/nunito-sans/NunitoSans-Regular.woff2') format('woff2');
+	src: url('/fonts/nunito-sans/NunitoSans-Regular.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'Nunito Sans';
 	font-style: italic;
 	font-weight: 400;
 	font-display: swap;
-	src: url('/fonts/nunito-sans/NunitoSans-RegularItalic.woff2') format('woff2');
+	src: url('/fonts/nunito-sans/NunitoSans-RegularItalic.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'Nunito Sans';
 	font-style: normal;
 	font-weight: 700;
 	font-display: swap;
-	src: url('/fonts/nunito-sans/NunitoSans-Bold.woff2') format('woff2');
+	src: url('/fonts/nunito-sans/NunitoSans-Bold.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'Nunito Sans';
 	font-style: italic;
 	font-weight: 700;
 	font-display: swap;
-	src: url('/fonts/nunito-sans/NunitoSans-BoldItalic.woff2') format('woff2');
+	src: url('/fonts/nunito-sans/NunitoSans-BoldItalic.ttf') format('truetype');
 }
 
 /* Work Sans */
@@ -224,28 +224,28 @@
 	font-style: normal;
 	font-weight: 400;
 	font-display: swap;
-	src: url('/fonts/work-sans/WorkSans-Regular.woff2') format('woff2');
+	src: url('/fonts/work-sans/WorkSans-Regular.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'Work Sans';
 	font-style: italic;
 	font-weight: 400;
 	font-display: swap;
-	src: url('/fonts/work-sans/WorkSans-RegularItalic.woff2') format('woff2');
+	src: url('/fonts/work-sans/WorkSans-RegularItalic.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'Work Sans';
 	font-style: normal;
 	font-weight: 700;
 	font-display: swap;
-	src: url('/fonts/work-sans/WorkSans-Bold.woff2') format('woff2');
+	src: url('/fonts/work-sans/WorkSans-Bold.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'Work Sans';
 	font-style: italic;
 	font-weight: 700;
 	font-display: swap;
-	src: url('/fonts/work-sans/WorkSans-BoldItalic.woff2') format('woff2');
+	src: url('/fonts/work-sans/WorkSans-BoldItalic.ttf') format('truetype');
 }
 
 /* Raleway */
@@ -254,28 +254,28 @@
 	font-style: normal;
 	font-weight: 400;
 	font-display: swap;
-	src: url('/fonts/raleway/Raleway-Regular.woff2') format('woff2');
+	src: url('/fonts/raleway/Raleway-Regular.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'Raleway';
 	font-style: italic;
 	font-weight: 400;
 	font-display: swap;
-	src: url('/fonts/raleway/Raleway-RegularItalic.woff2') format('woff2');
+	src: url('/fonts/raleway/Raleway-RegularItalic.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'Raleway';
 	font-style: normal;
 	font-weight: 700;
 	font-display: swap;
-	src: url('/fonts/raleway/Raleway-Bold.woff2') format('woff2');
+	src: url('/fonts/raleway/Raleway-Bold.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'Raleway';
 	font-style: italic;
 	font-weight: 700;
 	font-display: swap;
-	src: url('/fonts/raleway/Raleway-BoldItalic.woff2') format('woff2');
+	src: url('/fonts/raleway/Raleway-BoldItalic.ttf') format('truetype');
 }
 
 /* DM Sans */
@@ -284,28 +284,28 @@
 	font-style: normal;
 	font-weight: 400;
 	font-display: swap;
-	src: url('/fonts/dm-sans/DmSans-Regular.woff2') format('woff2');
+	src: url('/fonts/dm-sans/DmSans-Regular.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'DM Sans';
 	font-style: italic;
 	font-weight: 400;
 	font-display: swap;
-	src: url('/fonts/dm-sans/DmSans-RegularItalic.woff2') format('woff2');
+	src: url('/fonts/dm-sans/DmSans-RegularItalic.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'DM Sans';
 	font-style: normal;
 	font-weight: 700;
 	font-display: swap;
-	src: url('/fonts/dm-sans/DmSans-Bold.woff2') format('woff2');
+	src: url('/fonts/dm-sans/DmSans-Bold.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'DM Sans';
 	font-style: italic;
 	font-weight: 700;
 	font-display: swap;
-	src: url('/fonts/dm-sans/DmSans-BoldItalic.woff2') format('woff2');
+	src: url('/fonts/dm-sans/DmSans-BoldItalic.ttf') format('truetype');
 }
 
 /* Source Sans 3 */
@@ -314,28 +314,28 @@
 	font-style: normal;
 	font-weight: 400;
 	font-display: swap;
-	src: url('/fonts/source-sans-3/SourceSans3-Regular.woff2') format('woff2');
+	src: url('/fonts/source-sans-3/SourceSans3-Regular.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'Source Sans 3';
 	font-style: italic;
 	font-weight: 400;
 	font-display: swap;
-	src: url('/fonts/source-sans-3/SourceSans3-RegularItalic.woff2') format('woff2');
+	src: url('/fonts/source-sans-3/SourceSans3-RegularItalic.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'Source Sans 3';
 	font-style: normal;
 	font-weight: 700;
 	font-display: swap;
-	src: url('/fonts/source-sans-3/SourceSans3-Bold.woff2') format('woff2');
+	src: url('/fonts/source-sans-3/SourceSans3-Bold.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'Source Sans 3';
 	font-style: italic;
 	font-weight: 700;
 	font-display: swap;
-	src: url('/fonts/source-sans-3/SourceSans3-BoldItalic.woff2') format('woff2');
+	src: url('/fonts/source-sans-3/SourceSans3-BoldItalic.ttf') format('truetype');
 }
 
 /* ===========================================
@@ -348,28 +348,28 @@
 	font-style: normal;
 	font-weight: 400;
 	font-display: swap;
-	src: url('/fonts/playfair-display/PlayfairDisplay-Regular.woff2') format('woff2');
+	src: url('/fonts/playfair-display/PlayfairDisplay-Regular.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'Playfair Display';
 	font-style: italic;
 	font-weight: 400;
 	font-display: swap;
-	src: url('/fonts/playfair-display/PlayfairDisplay-RegularItalic.woff2') format('woff2');
+	src: url('/fonts/playfair-display/PlayfairDisplay-RegularItalic.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'Playfair Display';
 	font-style: normal;
 	font-weight: 700;
 	font-display: swap;
-	src: url('/fonts/playfair-display/PlayfairDisplay-Bold.woff2') format('woff2');
+	src: url('/fonts/playfair-display/PlayfairDisplay-Bold.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'Playfair Display';
 	font-style: italic;
 	font-weight: 700;
 	font-display: swap;
-	src: url('/fonts/playfair-display/PlayfairDisplay-BoldItalic.woff2') format('woff2');
+	src: url('/fonts/playfair-display/PlayfairDisplay-BoldItalic.ttf') format('truetype');
 }
 
 /* Merriweather */
@@ -378,28 +378,28 @@
 	font-style: normal;
 	font-weight: 400;
 	font-display: swap;
-	src: url('/fonts/merriweather/Merriweather-Regular.woff2') format('woff2');
+	src: url('/fonts/merriweather/Merriweather-Regular.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'Merriweather';
 	font-style: italic;
 	font-weight: 400;
 	font-display: swap;
-	src: url('/fonts/merriweather/Merriweather-RegularItalic.woff2') format('woff2');
+	src: url('/fonts/merriweather/Merriweather-RegularItalic.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'Merriweather';
 	font-style: normal;
 	font-weight: 700;
 	font-display: swap;
-	src: url('/fonts/merriweather/Merriweather-Bold.woff2') format('woff2');
+	src: url('/fonts/merriweather/Merriweather-Bold.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'Merriweather';
 	font-style: italic;
 	font-weight: 700;
 	font-display: swap;
-	src: url('/fonts/merriweather/Merriweather-BoldItalic.woff2') format('woff2');
+	src: url('/fonts/merriweather/Merriweather-BoldItalic.ttf') format('truetype');
 }
 
 /* Lora */
@@ -408,28 +408,28 @@
 	font-style: normal;
 	font-weight: 400;
 	font-display: swap;
-	src: url('/fonts/lora/Lora-Regular.woff2') format('woff2');
+	src: url('/fonts/lora/Lora-Regular.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'Lora';
 	font-style: italic;
 	font-weight: 400;
 	font-display: swap;
-	src: url('/fonts/lora/Lora-RegularItalic.woff2') format('woff2');
+	src: url('/fonts/lora/Lora-RegularItalic.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'Lora';
 	font-style: normal;
 	font-weight: 700;
 	font-display: swap;
-	src: url('/fonts/lora/Lora-Bold.woff2') format('woff2');
+	src: url('/fonts/lora/Lora-Bold.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'Lora';
 	font-style: italic;
 	font-weight: 700;
 	font-display: swap;
-	src: url('/fonts/lora/Lora-BoldItalic.woff2') format('woff2');
+	src: url('/fonts/lora/Lora-BoldItalic.ttf') format('truetype');
 }
 
 /* Crimson Pro */
@@ -438,28 +438,28 @@
 	font-style: normal;
 	font-weight: 400;
 	font-display: swap;
-	src: url('/fonts/crimson-pro/CrimsonPro-Regular.woff2') format('woff2');
+	src: url('/fonts/crimson-pro/CrimsonPro-Regular.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'Crimson Pro';
 	font-style: italic;
 	font-weight: 400;
 	font-display: swap;
-	src: url('/fonts/crimson-pro/CrimsonPro-RegularItalic.woff2') format('woff2');
+	src: url('/fonts/crimson-pro/CrimsonPro-RegularItalic.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'Crimson Pro';
 	font-style: normal;
 	font-weight: 700;
 	font-display: swap;
-	src: url('/fonts/crimson-pro/CrimsonPro-Bold.woff2') format('woff2');
+	src: url('/fonts/crimson-pro/CrimsonPro-Bold.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'Crimson Pro';
 	font-style: italic;
 	font-weight: 700;
 	font-display: swap;
-	src: url('/fonts/crimson-pro/CrimsonPro-BoldItalic.woff2') format('woff2');
+	src: url('/fonts/crimson-pro/CrimsonPro-BoldItalic.ttf') format('truetype');
 }
 
 /* Source Serif 4 */
@@ -468,28 +468,28 @@
 	font-style: normal;
 	font-weight: 400;
 	font-display: swap;
-	src: url('/fonts/source-serif-4/SourceSerif4-Regular.woff2') format('woff2');
+	src: url('/fonts/source-serif-4/SourceSerif4-Regular.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'Source Serif 4';
 	font-style: italic;
 	font-weight: 400;
 	font-display: swap;
-	src: url('/fonts/source-serif-4/SourceSerif4-RegularItalic.woff2') format('woff2');
+	src: url('/fonts/source-serif-4/SourceSerif4-RegularItalic.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'Source Serif 4';
 	font-style: normal;
 	font-weight: 700;
 	font-display: swap;
-	src: url('/fonts/source-serif-4/SourceSerif4-Bold.woff2') format('woff2');
+	src: url('/fonts/source-serif-4/SourceSerif4-Bold.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'Source Serif 4';
 	font-style: italic;
 	font-weight: 700;
 	font-display: swap;
-	src: url('/fonts/source-serif-4/SourceSerif4-BoldItalic.woff2') format('woff2');
+	src: url('/fonts/source-serif-4/SourceSerif4-BoldItalic.ttf') format('truetype');
 }
 
 /* DM Serif Display */
@@ -498,14 +498,14 @@
 	font-style: normal;
 	font-weight: 400;
 	font-display: swap;
-	src: url('/fonts/dm-serif-display/DmSerifDisplay-Regular.woff2') format('woff2');
+	src: url('/fonts/dm-serif-display/DmSerifDisplay-Regular.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'DM Serif Display';
 	font-style: italic;
 	font-weight: 400;
 	font-display: swap;
-	src: url('/fonts/dm-serif-display/DmSerifDisplay-RegularItalic.woff2') format('woff2');
+	src: url('/fonts/dm-serif-display/DmSerifDisplay-RegularItalic.ttf') format('truetype');
 }
 
 /* ===========================================
@@ -518,14 +518,14 @@
 	font-style: normal;
 	font-weight: 400;
 	font-display: swap;
-	src: url('/fonts/oswald/Oswald-Regular.woff2') format('woff2');
+	src: url('/fonts/oswald/Oswald-Regular.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'Oswald';
 	font-style: normal;
 	font-weight: 700;
 	font-display: swap;
-	src: url('/fonts/oswald/Oswald-Bold.woff2') format('woff2');
+	src: url('/fonts/oswald/Oswald-Bold.ttf') format('truetype');
 }
 
 /* Bebas Neue */
@@ -534,7 +534,7 @@
 	font-style: normal;
 	font-weight: 400;
 	font-display: swap;
-	src: url('/fonts/bebas-neue/BebasNeue-Regular.woff2') format('woff2');
+	src: url('/fonts/bebas-neue/BebasNeue-Regular.ttf') format('truetype');
 }
 
 /* Abril Fatface */
@@ -543,7 +543,7 @@
 	font-style: normal;
 	font-weight: 400;
 	font-display: swap;
-	src: url('/fonts/abril-fatface/AbrilFatface-Regular.woff2') format('woff2');
+	src: url('/fonts/abril-fatface/AbrilFatface-Regular.ttf') format('truetype');
 }
 
 /* Permanent Marker */
@@ -552,7 +552,7 @@
 	font-style: normal;
 	font-weight: 400;
 	font-display: swap;
-	src: url('/fonts/permanent-marker/PermanentMarker-Regular.woff2') format('woff2');
+	src: url('/fonts/permanent-marker/PermanentMarker-Regular.ttf') format('truetype');
 }
 
 /* ===========================================
@@ -565,26 +565,26 @@
 	font-style: normal;
 	font-weight: 400;
 	font-display: swap;
-	src: url('/fonts/jetbrains-mono/JetbrainsMono-Regular.woff2') format('woff2');
+	src: url('/fonts/jetbrains-mono/JetbrainsMono-Regular.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'JetBrains Mono';
 	font-style: italic;
 	font-weight: 400;
 	font-display: swap;
-	src: url('/fonts/jetbrains-mono/JetbrainsMono-RegularItalic.woff2') format('woff2');
+	src: url('/fonts/jetbrains-mono/JetbrainsMono-RegularItalic.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'JetBrains Mono';
 	font-style: normal;
 	font-weight: 700;
 	font-display: swap;
-	src: url('/fonts/jetbrains-mono/JetbrainsMono-Bold.woff2') format('woff2');
+	src: url('/fonts/jetbrains-mono/JetbrainsMono-Bold.ttf') format('truetype');
 }
 @font-face {
 	font-family: 'JetBrains Mono';
 	font-style: italic;
 	font-weight: 700;
 	font-display: swap;
-	src: url('/fonts/jetbrains-mono/JetbrainsMono-BoldItalic.woff2') format('woff2');
+	src: url('/fonts/jetbrains-mono/JetbrainsMono-BoldItalic.ttf') format('truetype');
 }

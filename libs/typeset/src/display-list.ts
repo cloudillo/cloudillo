@@ -7,14 +7,13 @@
 import type { Fx } from './fixed.js'
 import type { Box, Crop, ImageFrameData } from './model.js'
 
-/** A resolved font face. Identity is `sha256` of the TTF bytes. */
+/** A resolved font face. Identity is `file`. */
 export interface FontRef {
 	family: string
 	weight: number
 	italic: boolean
-	/** `<dir>/<File>.ttf` under `@cloudillo/fonts` `fonts/`. */
+	/** `<dir>/<File>.ttf` under `@cloudillo/fonts` `fonts/`; unique per face. */
 	file: string
-	sha256: string
 	upem: number
 }
 

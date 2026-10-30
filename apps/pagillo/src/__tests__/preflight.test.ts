@@ -49,7 +49,6 @@ describe('preflightRows', () => {
 			overset: [],
 			sections: [{ id: 's1', pages: 2 }],
 			pages: new Map(),
-			fontsChanged: false,
 			...l
 		}) as unknown as LayoutState
 	const input = (i: Partial<PreflightInput> = {}): PreflightInput => ({
@@ -105,9 +104,6 @@ describe('preflightRows', () => {
 		expect(preflightRows(input({ layout: l }), t)).toEqual([
 			{ key: 'alt', label: expect.any(String), page: 's1/0', frame: 'f5' }
 		])
-	})
-	it('changed fonts', () => {
-		expect(keys(input({ layout: layout({ fontsChanged: true }) }))).toEqual(['fonts'])
 	})
 })
 

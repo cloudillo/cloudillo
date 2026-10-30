@@ -2,10 +2,8 @@
 
 /**
  * Font Download Script
- * Downloads Google Fonts and converts variable fonts to static fonts:
- * - WOFF2 from Google Fonts API (for browser CSS)
- * - TTF from the full (non-subset) upstream files in github.com/google/fonts, made static using
- *   fonttools. The CSS API woff2 files are latin-only subsets, so they are not used for TTFs.
+ * Downloads the full (non-subset) upstream TTFs from github.com/google/fonts and makes them static
+ * with fonttools. The same TTFs serve browser CSS (precompressed by the build), typeset and PDF.
  *
  * Usage:
  *   node download-fonts.js          # Download missing fonts
@@ -13,16 +11,7 @@
  */
 
 import { execFileSync } from 'child_process'
-import { createHash } from 'crypto'
-import {
-	existsSync,
-	mkdirSync,
-	readdirSync,
-	readFileSync,
-	rmdirSync,
-	unlinkSync,
-	writeFileSync
-} from 'fs'
+import { existsSync, mkdirSync, readdirSync, rmdirSync, unlinkSync, writeFileSync } from 'fs'
 import { dirname, join } from 'path'
 import { fileURLToPath } from 'url'
 
@@ -30,24 +19,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const FONTS_DIR = join(__dirname, '..', 'fonts')
 const CONVERT_SCRIPT = join(__dirname, 'convert-to-static.py')
 
-/**
- * Expected sha256 per '<dir>/<File>.ttf', read from the generated `src/font-metrics.ts`. Empty
- * under --force, which regenerates them (`download:force` runs hash-fonts.js afterwards).
- */
-const EXPECTED_SHA256 = process.argv.includes('--force') ? {} : readExpectedHashes()
-
-function readExpectedHashes() {
-	try {
-		const src = readFileSync(join(__dirname, '..', 'src', 'font-metrics.ts'), 'utf-8')
-		const re = /'([^']+\.ttf)': \{\s*sha256: '([0-9a-f]{64})'/g
-		return Object.fromEntries([...src.matchAll(re)].map(([, file, hash]) => [file, hash]))
-	} catch {
-		return {}
-	}
-}
-
 // Font definitions
-// All fonts now support PDF embedding via variable→static conversion
 const FONT_SPECS = [
 	// Sans-serif
 	{ family: 'Lato', weights: [400, 700], italic: true, dir: 'lato' },
@@ -93,23 +65,13 @@ const WEIGHT_NAMES = {
 	900: 'Black'
 }
 
-// User agent for Google Fonts API (WOFF2)
-const USER_AGENT_WOFF2 =
-	'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-
 /**
  * Fetch with retry logic
  */
 async function fetchWithRetry(url, options = {}, retries = 3, delay = 1000) {
 	for (let i = 0; i < retries; i++) {
 		try {
-			const response = await fetch(url, {
-				...options,
-				headers: {
-					'User-Agent': USER_AGENT_WOFF2,
-					...options.headers
-				}
-			})
+			const response = await fetch(url, options)
 			if (!response.ok) {
 				throw new Error(`HTTP ${response.status}: ${response.statusText}`)
 			}
@@ -120,44 +82,6 @@ async function fetchWithRetry(url, options = {}, retries = 3, delay = 1000) {
 			await new Promise((r) => setTimeout(r, delay * (i + 1)))
 		}
 	}
-}
-
-/**
- * Parse Google Fonts CSS to extract WOFF2 URLs
- */
-function parseGoogleFontsCss(css) {
-	const fontMap = new Map()
-	const fontFaceRegex = /@font-face\s*\{([^}]+)\}/g
-	let match = fontFaceRegex.exec(css)
-
-	while (match) {
-		const block = match[1]
-
-		const familyMatch = block.match(/font-family:\s*['"]?([^'";\n]+)['"]?/)
-		const styleMatch = block.match(/font-style:\s*(\w+)/)
-		const weightMatch = block.match(/font-weight:\s*(\d+)/)
-		const urlMatch = block.match(/src:\s*url\(([^)]+\.woff2)\)/)
-		const rangeMatch = block.match(/unicode-range:\s*([^;]+)/)
-
-		if (familyMatch && urlMatch) {
-			const style = styleMatch ? styleMatch[1] : 'normal'
-			const weight = weightMatch ? parseInt(weightMatch[1], 10) : 400
-			const key = `${weight}-${style}`
-			const isLatin = rangeMatch?.[1].includes('U+0000')
-
-			if (!fontMap.has(key) || isLatin) {
-				fontMap.set(key, {
-					family: familyMatch[1],
-					style,
-					weight,
-					url: urlMatch[1]
-				})
-			}
-		}
-		match = fontFaceRegex.exec(css)
-	}
-
-	return Array.from(fontMap.values())
 }
 
 /**
@@ -239,9 +163,9 @@ function convertVariableToStatic(inputTTF, outputTTF, weight, isItalic) {
 }
 
 /**
- * Download WOFF2 fonts from Google Fonts API and convert to static TTF
+ * Download upstream TTFs and convert them to static TTF
  */
-async function downloadAndConvertFonts(spec, hasPython) {
+async function downloadAndConvertFonts(spec) {
 	const { family, weights, italic, dir } = spec
 	const fontDir = join(FONTS_DIR, dir)
 	const tempDir = join(fontDir, '.temp')
@@ -254,25 +178,6 @@ async function downloadAndConvertFonts(spec, hasPython) {
 		mkdirSync(tempDir, { recursive: true })
 	}
 
-	// Build variant list for Google Fonts API
-	const variants = []
-	for (const weight of weights) {
-		variants.push(`0,${weight}`)
-	}
-	if (italic) {
-		for (const weight of weights) {
-			variants.push(`1,${weight}`)
-		}
-	}
-
-	const familyParam = `${family.replace(/ /g, '+')}:ital,wght@${variants.join(';')}`
-	const cssUrl = `https://fonts.googleapis.com/css2?family=${familyParam}&display=swap`
-
-	// The CSS API can't be pinned, so the WOFF2 files stay unverified; self-host them from
-	// UPSTREAM_REV (woff2 compress) if that matters.
-	const response = await fetchWithRetry(cssUrl)
-	const css = await response.text()
-	const fonts = parseGoogleFontsCss(css)
 	let upstream = null
 
 	const baseName = dir
@@ -280,47 +185,27 @@ async function downloadAndConvertFonts(spec, hasPython) {
 		.map((s) => s.charAt(0).toUpperCase() + s.slice(1))
 		.join('')
 
-	for (const font of fonts) {
-		const isItalic = font.style === 'italic'
-		const woff2Filename = getLocalFilename(baseName, font.weight, isItalic, 'woff2')
-		const ttfFilename = getLocalFilename(baseName, font.weight, isItalic, 'ttf')
-		const woff2Path = join(fontDir, woff2Filename)
-		const ttfPath = join(fontDir, ttfFilename)
+	for (const weight of weights) {
+		for (const isItalic of italic ? [false, true] : [false]) {
+			const ttfFilename = getLocalFilename(baseName, weight, isItalic, 'ttf')
+			const ttfPath = join(fontDir, ttfFilename)
+			if (existsSync(ttfPath)) continue
 
-		// Download WOFF2 if needed
-		if (!existsSync(woff2Path)) {
-			await downloadFile(font.url, woff2Path)
-			console.log(`  Downloaded WOFF2: ${woff2Filename}`)
-		}
-
-		// Static TTF from the full upstream file (variable → instanced, static → re-saved)
-		if (!existsSync(ttfPath) && hasPython) {
+			// Static TTF from the full upstream file (variable → instanced, static → re-saved)
 			upstream ??= await fetchUpstreamFonts(family)
 			const style = isItalic ? 'italic' : 'normal'
 			const src =
-				upstream.find(
-					(u) => u.style === style && !u.variable && u.weight === font.weight
-				) ?? upstream.find((u) => u.style === style && u.variable)
-			if (!src) throw new Error(`no upstream TTF for ${family} ${font.weight} ${style}`)
+				upstream.find((u) => u.style === style && !u.variable && u.weight === weight) ??
+				upstream.find((u) => u.style === style && u.variable)
+			if (!src) throw new Error(`no upstream TTF for ${family} ${weight} ${style}`)
 
 			const tempTTFPath = join(tempDir, `upstream-${ttfFilename}`)
 			await downloadFile(src.url, tempTTFPath)
-			if (!convertVariableToStatic(tempTTFPath, ttfPath, font.weight, isItalic)) {
+			if (!convertVariableToStatic(tempTTFPath, ttfPath, weight, isItalic)) {
 				throw new Error(`static conversion failed for ${ttfFilename}`)
 			}
 			unlinkSync(tempTTFPath)
-			const want = EXPECTED_SHA256[`${dir}/${ttfFilename}`]
-			const got = createHash('sha256').update(readFileSync(ttfPath)).digest('hex')
-			if (want && got !== want) {
-				console.warn(
-					`  WARNING: sha256 mismatch for ${ttfFilename}: got ${got}, want ${want} ` +
-						'(different fonttools version? layout will refuse this face; run ' +
-						'`pnpm -C libs/fonts download:force` with the pinned fonttools or re-hash)'
-				)
-			}
 			console.log(`  Created static TTF: ${ttfFilename}`)
-		} else if (!existsSync(ttfPath)) {
-			console.log(`  Skipping TTF (Python fonttools not available)`)
 		}
 	}
 
@@ -338,13 +223,13 @@ async function downloadAndConvertFonts(spec, hasPython) {
 /**
  * Process a single font family
  */
-async function processFont(spec, hasPython) {
+async function processFont(spec) {
 	const { family } = spec
 
 	console.log(`Processing ${family}...`)
 
 	try {
-		await downloadAndConvertFonts(spec, hasPython)
+		await downloadAndConvertFonts(spec)
 		return true
 	} catch (error) {
 		console.error(`  Error processing ${family}: ${error.message}`)
@@ -355,20 +240,12 @@ async function processFont(spec, hasPython) {
 /**
  * Check if a font directory has all expected files
  */
-function isFontComplete(spec, requireTTF) {
+function isFontComplete(spec) {
 	const fontDir = join(FONTS_DIR, spec.dir)
 	if (!existsSync(fontDir)) return false
 
-	const files = readdirSync(fontDir)
 	const expectedCount = spec.weights.length * (spec.italic ? 2 : 1)
-	const woff2Count = files.filter((f) => f.endsWith('.woff2')).length
-	const ttfCount = files.filter((f) => f.endsWith('.ttf')).length
-
-	if (requireTTF) {
-		return woff2Count >= expectedCount && ttfCount >= expectedCount
-	}
-
-	return woff2Count >= expectedCount
+	return readdirSync(fontDir).filter((f) => f.endsWith('.ttf')).length >= expectedCount
 }
 
 /**
@@ -422,25 +299,33 @@ async function main() {
 	console.log(`Force re-download: ${force}`)
 	console.log('')
 
-	// Check for tools
-	const hasPython = checkPython()
-
-	console.log('Tool availability:')
-	console.log(
-		`  Python fonttools: ${hasPython ? 'OK' : 'NOT FOUND (static font conversion disabled)'}`
-	)
-	console.log('')
-
-	if (!hasPython) {
-		console.log('To enable static TTF generation for PDF export:')
-		console.log('  Install fonttools: pip install fonttools brotli')
-		console.log('')
+	// WOFF2 is no longer generated: drop leftovers from older installs so they don't ship
+	for (const spec of FONT_SPECS) {
+		const dir = join(FONTS_DIR, spec.dir)
+		if (!existsSync(dir)) continue
+		for (const file of readdirSync(dir)) {
+			if (file.endsWith('.woff2')) unlinkSync(join(dir, file))
+		}
 	}
 
-	console.log('Sources:')
-	console.log('  WOFF2: Google Fonts API (for browser CSS)')
+	const todo = force || cleanOld ? FONT_SPECS : FONT_SPECS.filter((spec) => !isFontComplete(spec))
+	if (!todo.length) {
+		console.log('All fonts present.')
+		return
+	}
+
+	// fonttools is the only source of the TTFs: check before --force/--clean deletes anything
+	if (!checkPython()) {
+		console.error(`Python fonttools not found; ${todo.length} font families need it.`)
+		console.error('  Install it: pip install fonttools brotli')
+		console.error(
+			'  NixOS: nix-shell -p python3Packages.fonttools python3Packages.brotli --run "pnpm -C libs/fonts download"'
+		)
+		process.exit(1)
+	}
+
 	console.log(
-		'  TTF:   Full upstream files from github.com/google/fonts, made static with fonttools'
+		'Source: full upstream TTFs from github.com/google/fonts, made static with fonttools'
 	)
 	console.log('')
 
@@ -458,16 +343,14 @@ async function main() {
 	let skipped = 0
 	let failed = 0
 
-	const requireTTF = hasPython
-
 	for (const spec of FONT_SPECS) {
-		if (!force && isFontComplete(spec, requireTTF)) {
+		if (!todo.includes(spec)) {
 			console.log(`Skipping ${spec.family} (complete)`)
 			skipped++
 			continue
 		}
 
-		const success = await processFont(spec, hasPython)
+		const success = await processFont(spec)
 		if (success) {
 			processed++
 		} else {

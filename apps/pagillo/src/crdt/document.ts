@@ -13,7 +13,10 @@ import type * as Y from 'yjs'
 
 import type { StoredMeta, YPagilloDocument } from './stored-types'
 
-/** `m` collections stored flat as `<name>/<entry>` keys (`spellIgnore/<word>`: 1). */
+/**
+ * `m` collections stored flat as `<name>/<entry>` keys (`spellIgnore/<word>`: 1). `fonts` is legacy
+ * (no longer written or read), kept so old `fonts/<file>` keys stay a collection.
+ */
 const META_COLLECTIONS = new Set(['fonts', 'styleMap', 'spellIgnore'])
 
 export function openPublication(yDoc: Y.Doc): YPagilloDocument {
@@ -35,7 +38,7 @@ export function isEmptyPublication(doc: YPagilloDocument): boolean {
 }
 
 /**
- * Write meta keys; `undefined` deletes the key. `fonts`/`styleMap`/`spellIgnore` **merge** as
+ * Write meta keys; `undefined` deletes the key. `styleMap`/`spellIgnore` (and legacy `fonts`) **merge** as
  * flat `<name>/<entry>` keys on `m` (no nested types, which concurrent creators would race to
  * create): each given entry is set (a `spellIgnore` word sets `spellIgnore/<word>` to 1), an
  * `undefined` entry value deletes that entry, unlisted entries stay. An `undefined` collection

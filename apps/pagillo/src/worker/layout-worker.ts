@@ -54,7 +54,7 @@ const TAIL_DELAY_MS = 400
 let tail: ReturnType<typeof setTimeout> | undefined
 /** What the next pass is: an edit (up to viewport end + 2 pages), the first one, or the tail. */
 let pass: 'edit' | 'init' | 'tail' = 'edit'
-/** sha256 → gids whose outlines main already has. */
+/** font file → gids whose outlines main already has. */
 const sent = new Map<string, Set<number>>()
 
 function post(msg: WorkerToMain, transfer: Transferable[] = []): void {
@@ -84,18 +84,18 @@ function newGlyphs(pages: PageDL[]): FaceGlyphs[] {
 	const faces = new Map<string, FaceGlyphs>()
 	for (const pg of pages) {
 		for (const { font, gids } of collectGlyphs(pg)) {
-			let have = sent.get(font.sha256)
+			let have = sent.get(font.file)
 			if (!have) {
 				have = new Set()
-				sent.set(font.sha256, have)
+				sent.set(font.file, have)
 			}
 			for (const gid of gids) {
 				if (have.has(gid)) continue
 				have.add(gid)
-				let f = faces.get(font.sha256)
+				let f = faces.get(font.file)
 				if (!f) {
 					f = { ref: font, unitsPerEm: font.upem, glyphs: {} }
-					faces.set(font.sha256, f)
+					faces.set(font.file, f)
 				}
 				f.glyphs[gid] = glyphPath(font, gid)
 			}

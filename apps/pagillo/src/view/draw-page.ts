@@ -36,7 +36,7 @@ export interface DrawOptions {
 	embeds: Map<string, HTMLImageElement>
 }
 
-// Unbounded; keys are content-addressed (font sha256 + gid), so it only grows with the
+// Unbounded; keys are per face file + gid, so it only grows with the
 // distinct glyphs ever drawn. Add an LRU if memory shows up in profiles.
 const pathCache = new Map<string, Path2D>()
 

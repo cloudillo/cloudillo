@@ -3,17 +3,15 @@
 
 /**
  * React binding of the layout worker, plus the determinism meta: a newer running engine
- * writes `m.engine`, an older one reports `readOnlyReason: 'engine'`; `m.fonts` (font file →
- * sha256 of every face laid out) differing from the bundled fonts latches `fontsChanged`.
+ * writes `m.engine`, an older one reports `readOnlyReason: 'engine'`. Font updates reflow
+ * silently.
  */
 
-import { FONT_METRICS } from '@cloudillo/fonts/font-metrics'
 import { ENGINE_VERSION, type EngineLayout, glyphId, type PageDL } from '@cloudillo/typeset'
 import * as React from 'react'
 import type * as Y from 'yjs'
 
 import { openPublication, setMeta } from '../crdt/document'
-import { readMeta } from '../crdt/type-converters'
 import type { YPagilloDocument } from '../crdt/stored-types'
 import { type Composition, pageKey, type SpellRange, type WorkerToMain } from '../worker/protocol'
 import { type LayoutHost, startLayoutWorker } from './worker-host'
@@ -35,8 +33,6 @@ export interface LayoutState {
 	failed?: string
 	/** `'engine'`: a newer engine wrote `m.engine`; editing must stop until reload. */
 	readOnlyReason?: 'engine'
-	/** Bundled font hashes differ from `m.fonts` (dismissible banner); latched. */
-	fontsChanged: boolean
 	/** Global page indices `[from, to)` on screen, laid out / sent first. */
 	setViewport(pages: [number, number]): void
 	/** Show (`text: ''` clears) a local IME composition in the layout (worker `compose`). */
@@ -90,10 +86,6 @@ export function useLayout(
 	const [pending, setPending] = React.useState(true)
 	const [failed, setFailed] = React.useState<string>()
 	const [readOnlyReason, setReadOnlyReason] = React.useState<'engine'>()
-	const [fontsChanged, setFontsChanged] = React.useState(false)
-	/** Faces laid out so far: file → sha256 (to record in `m.fonts`). */
-	const usedFonts = React.useRef(new Map<string, string>())
-	const [fontsSeen, setFontsSeen] = React.useState(0)
 	const host = React.useRef<LayoutHost | undefined>(undefined)
 	const [spell, setSpellMap] = React.useState(() => new Map<string, Map<string, SpellRange[]>>())
 	/** Last spell config, sent to each new worker. */
@@ -104,7 +96,6 @@ export function useLayout(
 		setSnap(EMPTY)
 		setPending(true)
 		setFailed(undefined)
-		usedFonts.current = new Map()
 		setSpellMap(new Map())
 		let spellMap = new Map<string, Map<string, SpellRange[]>>()
 		let spellFlush: ReturnType<typeof setTimeout> | undefined
@@ -118,14 +109,10 @@ export function useLayout(
 				case 'fonts': {
 					if (!glyphsCopied) glyphs = new Map(glyphs)
 					glyphsCopied = true
-					let newFace = false
 					for (const f of msg.faces) {
-						if (!usedFonts.current.has(f.ref.file)) newFace = true
-						usedFonts.current.set(f.ref.file, f.ref.sha256)
 						for (const [gid, d] of Object.entries(f.glyphs))
 							glyphs.set(glyphId(f.ref, Number(gid)), d)
 					}
-					if (newFace) setFontsSeen((n) => n + 1)
 					break
 				}
 				case 'pages':
@@ -202,27 +189,11 @@ export function useLayout(
 			const cmp = stored ? compareVersions(ENGINE_VERSION, stored) : 1
 			setReadOnlyReason(cmp < 0 ? 'engine' : undefined)
 			if (cmp > 0 && canWrite) setMeta(yDoc, doc, { engine: ENGINE_VERSION })
-			const fonts = readMeta(doc.m).fonts ?? {}
-			if (Object.entries(fonts).some(([file, sha]) => FONT_METRICS[file]?.sha256 !== sha))
-				setFontsChanged(true)
 		}
 		check()
 		doc.m.observe(check)
 		return () => doc.m.unobserve(check)
 	}, [yDoc, synced, canWrite])
-
-	// Record the hashes of the faces laid out (`fontsSeen` signals new `usedFonts` entries).
-	// Declared after the check so a mismatch latches before our own write hides it.
-	React.useEffect(() => {
-		if (!yDoc || !synced || !canWrite || readOnlyReason) return
-		const doc = openPublication(yDoc)
-		// `readOnlyReason` is only queued on first sync, so re-check the skew synchronously.
-		if (newerEngine(doc)) return
-		const stored = readMeta(doc.m).fonts ?? {}
-		const add = [...usedFonts.current].filter(([file, sha]) => stored[file] !== sha)
-		// `setMeta` merges entries into the `fonts/<file>` keys.
-		if (add.length) setMeta(yDoc, doc, { fonts: Object.fromEntries(add) })
-	}, [yDoc, synced, canWrite, readOnlyReason, fontsSeen])
 
 	const setViewport = React.useCallback((p: [number, number]) => {
 		host.current?.setViewport(p)
@@ -246,7 +217,6 @@ export function useLayout(
 		pending,
 		failed,
 		readOnlyReason,
-		fontsChanged,
 		setViewport,
 		compose,
 		spell,

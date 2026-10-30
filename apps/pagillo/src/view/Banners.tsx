@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: MPL-2.0
 
-/** Determinism banners and the engine-failure panel. */
+/** Engine banner and the engine-failure panel. */
 
 import { Alert, Button, EmptyState, IcError } from '@cloudillo/react'
 import * as React from 'react'
@@ -9,35 +9,13 @@ import { useTranslation } from 'react-i18next'
 
 const reload = () => window.location.reload()
 
-export function Banners({
-	readOnlyReason,
-	fontsChanged
-}: {
-	readOnlyReason?: 'engine'
-	fontsChanged: boolean
-}) {
+export function Banners({ readOnlyReason }: { readOnlyReason?: 'engine' }) {
 	const { t } = useTranslation()
-	// `fontsChanged` is latched in useLayout; dismissing is UI state only.
-	const [fontsDismissed, setFontsDismissed] = React.useState(false)
+	if (readOnlyReason !== 'engine') return null
 	return (
-		<>
-			{readOnlyReason === 'engine' && (
-				<Alert
-					color="warning"
-					compact
-					actions={<Button onClick={reload}>{t('Reload')}</Button>}
-				>
-					{t(
-						'A newer version of Pagillo is in use on this publication. Reload to keep editing'
-					)}
-				</Alert>
-			)}
-			{fontsChanged && !fontsDismissed && (
-				<Alert color="info" compact onDismiss={() => setFontsDismissed(true)}>
-					{t('Fonts were updated — line breaks may have changed')}
-				</Alert>
-			)}
-		</>
+		<Alert color="warning" compact actions={<Button onClick={reload}>{t('Reload')}</Button>}>
+			{t('A newer version of Pagillo is in use on this publication. Reload to keep editing')}
+		</Alert>
 	)
 }
 

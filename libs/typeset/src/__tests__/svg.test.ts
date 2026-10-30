@@ -13,10 +13,9 @@ const FONT: FontRef = {
 	weight: 400,
 	italic: false,
 	file: 'x/X.ttf',
-	sha256: 'abc',
 	upem: 1000
 }
-const FONT2: FontRef = { ...FONT, file: 'x/Y.ttf', sha256: 'def' }
+const FONT2: FontRef = { ...FONT, file: 'x/Y.ttf' }
 
 function page(): PageDL {
 	return {
@@ -89,11 +88,11 @@ describe('renderPageSvg', () => {
 	it('places glyph runs with one <use> per glyph in font units', () => {
 		expect(svg).toContain(
 			'<g fill="#112233" transform="translate(10 20) scale(0.01)">' +
-				'<use href="/glyphs.svg#g-abc-7" x="0"/><use href="/glyphs.svg#g-abc-5" x="500"/>' +
-				'<use href="/glyphs.svg#g-abc-7" x="1000"/></g>'
+				'<use href="/glyphs.svg#g-x_X_ttf-7" x="0"/><use href="/glyphs.svg#g-x_X_ttf-5" x="500"/>' +
+				'<use href="/glyphs.svg#g-x_X_ttf-7" x="1000"/></g>'
 		)
 		// [dx, dy] offsets are Fx, y down: 1pt at 10pt/1000upem = 100 font units.
-		expect(svg).toContain('<use href="/glyphs.svg#g-def-3" x="0" y="100"/>')
+		expect(svg).toContain('<use href="/glyphs.svg#g-x_Y_ttf-3" x="0" y="100"/>')
 	})
 
 	it('never uses SVG text or inline outlines in shared mode', () => {
@@ -116,11 +115,11 @@ describe('renderPageSvgStandalone', () => {
 	it('inlines each used outline once, flipped to y down', () => {
 		const svg = renderPageSvgStandalone(page(), (f, gid) => `M0 0L${gid} ${f.upem}Z`)
 		expect(svg).toContain(
-			'<defs><path id="g-abc-5" transform="scale(1 -1)" d="M0 0L5 1000Z"/>' +
-				'<path id="g-abc-7" transform="scale(1 -1)" d="M0 0L7 1000Z"/>' +
-				'<path id="g-def-3" transform="scale(1 -1)" d="M0 0L3 1000Z"/></defs>'
+			'<defs><path id="g-x_X_ttf-5" transform="scale(1 -1)" d="M0 0L5 1000Z"/>' +
+				'<path id="g-x_X_ttf-7" transform="scale(1 -1)" d="M0 0L7 1000Z"/>' +
+				'<path id="g-x_Y_ttf-3" transform="scale(1 -1)" d="M0 0L3 1000Z"/></defs>'
 		)
-		expect(svg).toContain('<use href="#g-abc-5" x="500"/>')
+		expect(svg).toContain('<use href="#g-x_X_ttf-5" x="500"/>')
 	})
 
 	it('carries the page text, escaped, in <title>/<desc>', () => {

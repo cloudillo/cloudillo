@@ -77,13 +77,13 @@ export interface HyphenGlyph {
 
 const hyphenGlyphs = new Map<string, HyphenGlyph>()
 
-/** The face's `-` glyph, shaped once per font (sha256). The face must be loaded. */
+/** The face's `-` glyph, shaped once per font (file). The face must be loaded. */
 export function hyphenGlyph(ref: FontRef, shape: typeof shapeRun): HyphenGlyph {
-	let g = hyphenGlyphs.get(ref.sha256)
+	let g = hyphenGlyphs.get(ref.file)
 	if (!g) {
 		const run = shape(ref, 0, '-')
 		g = { gid: run.glyphs[0], advance: run.advances[0] }
-		hyphenGlyphs.set(ref.sha256, g)
+		hyphenGlyphs.set(ref.file, g)
 	}
 	return g
 }

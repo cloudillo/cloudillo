@@ -66,7 +66,7 @@ export interface PreflightInput {
 	emptyImages: Map<string, EmptyImage[]>
 }
 
-/** Export warnings: overset text, empty image frames, low dpi, missing alt text, changed fonts. */
+/** Export warnings: overset text, empty image frames, low dpi, missing alt text. */
 export function preflightRows(
 	{ layout, frames, emptyImages }: PreflightInput,
 	t: Translate
@@ -117,8 +117,6 @@ export function preflightRows(
 			label: t('{{n}} images have no alt text', { n: noAlt.length }),
 			...noAlt[0]
 		})
-	if (layout.fontsChanged)
-		rows.push({ key: 'fonts', label: t('Fonts changed since this document was laid out') })
 	return rows
 }
 

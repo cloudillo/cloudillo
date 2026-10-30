@@ -80,7 +80,9 @@ function placeMonthEvents(
 		for (let w = 0; w < 6; w++) {
 			const [wStart, wEnd] = weekRanges[w]
 			if (eDate < wStart || sDate > wEnd) continue
+			// biome-ignore lint/complexity/useMathMinMax: YYYY-MM-DD strings; Math.min/max would coerce to NaN
 			const segStart = sDate > wStart ? sDate : wStart
+			// biome-ignore lint/complexity/useMathMinMax: same, string comparison
 			const segEnd = eDate < wEnd ? eDate : wEnd
 			const startCol = (dayToIndex.get(segStart) ?? 0) - w * 7 + 1
 			const endCol = (dayToIndex.get(segEnd) ?? 0) - w * 7 + 1

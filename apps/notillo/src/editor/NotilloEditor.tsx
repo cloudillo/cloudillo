@@ -159,6 +159,18 @@ function CommentBlockMenuItem({
 	)
 }
 
+// The stock toolbar plus the `index` block's settings controls, which render
+// themselves away unless a single `index` block is selected. Module-level so its
+// identity is stable: one that changed every render would re-render `BlockNoteView`
+// mid-transaction, which `NotilloEditor`'s `React.memo` comparator exists to prevent.
+function NotilloFormattingToolbar() {
+	return (
+		<FormattingToolbar>
+			{[...getFormattingToolbarItems(), <IndexToolbarItems key="indexToolbarItems" />]}
+		</FormattingToolbar>
+	)
+}
+
 interface NotilloEditorProps {
 	client: RtdbClient
 	/** Absent until the socket is up, or on a document with no presence channel. */
@@ -670,6 +682,7 @@ export const NotilloEditor = React.memo(
 		// Custom DragHandleMenu with "Comment on block" item
 		const customDragHandleMenu = React.useMemo(() => {
 			if (!onCommentBlock) return undefined
+			// biome-ignore lint/correctness/noComponentHookFactories: useMemo keeps identity stable across renders
 			return function NotilloDragHandleMenu() {
 				return (
 					<DragHandleMenu>
@@ -685,28 +698,11 @@ export const NotilloEditor = React.memo(
 
 		const customSideMenu = React.useMemo(() => {
 			if (!customDragHandleMenu) return undefined
+			// biome-ignore lint/correctness/noComponentHookFactories: useMemo keeps identity stable across renders
 			return function NotilloSideMenu() {
 				return <SideMenu dragHandleMenu={customDragHandleMenu} />
 			}
 		}, [customDragHandleMenu])
-
-		// The stock toolbar plus the `index` block's settings controls, which render
-		// themselves away unless a single `index` block is selected. Memoised like the
-		// side menu above: a component identity that changed every render would
-		// re-render `BlockNoteView` mid-transaction, which is what this file's
-		// `React.memo` comparator exists to prevent.
-		const customFormattingToolbar = React.useMemo(() => {
-			return function NotilloFormattingToolbar() {
-				return (
-					<FormattingToolbar>
-						{[
-							...getFormattingToolbarItems(),
-							<IndexToolbarItems key="indexToolbarItems" />
-						]}
-					</FormattingToolbar>
-				)
-			}
-		}, [])
 
 		/**
 		 * `pages` as `selectListing`'s input, once per snapshot.
@@ -779,7 +775,7 @@ export const NotilloEditor = React.memo(
 						sideMenu={!customSideMenu}
 					>
 						{customSideMenu && <SideMenuController sideMenu={customSideMenu} />}
-						<FormattingToolbarController formattingToolbar={customFormattingToolbar} />
+						<FormattingToolbarController formattingToolbar={NotilloFormattingToolbar} />
 						<SuggestionMenuController
 							triggerCharacter="/"
 							getItems={async (query) =>

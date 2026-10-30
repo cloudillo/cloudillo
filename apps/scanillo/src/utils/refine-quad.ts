@@ -75,7 +75,7 @@ const AREA_MIN_RATIO = 0.7
 const AREA_MAX_RATIO = 1.4
 
 function clamp(v: number, lo: number, hi: number): number {
-	return v < lo ? lo : v > hi ? hi : v
+	return Math.min(Math.max(v, lo), hi)
 }
 
 /** Half-width of the perpendicular search band, in pixels — scale-relative, 16 @1024. */

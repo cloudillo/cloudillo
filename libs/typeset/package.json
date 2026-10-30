@@ -1,6 +1,6 @@
 {
 	"name": "@cloudillo/typeset",
-	"version": "0.8.21",
+	"version": "0.8.22",
 	"description": "Deterministic, DOM-free typesetting engine for Cloudillo — HarfBuzz shaping, line breaking, pagination and SVG display lists",
 	"keywords": [
 		"cloudillo",

@@ -1,6 +1,6 @@
 {
 	"name": "@cloudillo/calcillo-app",
-	"version": "0.8.21",
+	"version": "0.8.22",
 	"private": true,
 	"description": "Calcillo spreadsheet application",
 	"type": "module",

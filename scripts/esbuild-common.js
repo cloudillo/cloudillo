@@ -20,6 +20,9 @@ export const shouldCompress = process.env.COMPRESS === 'true' && !isWatch
 
 // Compression settings
 const COMPRESSIBLE_EXTENSIONS = ['.js', '.css', '.html', '.json', '.svg', '.xml', '.ttf']
+// Fonts are large and every client fetching them speaks brotli; tower-http `ServeDir`
+// (cloudillo-rs static_files.rs) falls back to the plain .ttf
+const BROTLI_ONLY_EXTENSIONS = ['.ttf']
 const MIN_SIZE = 1024
 
 function shouldCompressFile(filename) {
@@ -30,8 +33,10 @@ function compressFile(filePath) {
 	const content = readFileSync(filePath)
 	if (content.length < MIN_SIZE) return
 
-	const gzipped = gzipSync(content, { level: 9 })
-	writeFileSync(`${filePath}.gz`, gzipped)
+	if (!BROTLI_ONLY_EXTENSIONS.includes(extname(filePath))) {
+		const gzipped = gzipSync(content, { level: 9 })
+		writeFileSync(`${filePath}.gz`, gzipped)
+	}
 
 	const brotlied = brotliCompressSync(content, {
 		params: {

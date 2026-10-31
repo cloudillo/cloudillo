@@ -6,11 +6,14 @@ import type { FontMetadata } from './types.js'
 /** Bundled fallback face for glyphs the style's family lacks (deterministic layout) */
 export const FALLBACK_FACE_FAMILY = 'Noto Sans'
 
+/** Second fallback face, for Han/kana/bopomofo; ~10 MB, so loaded only for text that needs it */
+export const CJK_FALLBACK_FAMILY = 'Noto Sans SC'
+
 /**
  * Curated font collection metadata
  * All fonts are from Google Fonts, licensed under OFL or Apache 2.0
  */
-export const FONTS: FontMetadata[] = [
+export const BUNDLED_FONTS: FontMetadata[] = [
 	// Sans-serif fonts
 	{
 		family: 'Roboto',
@@ -168,6 +171,20 @@ export const FONTS: FontMetadata[] = [
 		license: 'OFL',
 		directory: 'noto-sans'
 	},
+	{
+		family: 'Noto Sans SC',
+		displayName: 'Noto Sans SC',
+		category: 'sans-serif',
+		roles: [],
+		weights: [
+			{ value: 400, label: 'Regular' },
+			{ value: 700, label: 'Bold' }
+		],
+		hasItalic: false,
+		license: 'OFL',
+		directory: 'noto-sans-sc',
+		fallbackOnly: true
+	},
 
 	// Serif fonts
 	{
@@ -306,6 +323,9 @@ export const FONTS: FontMetadata[] = [
 		directory: 'jetbrains-mono'
 	}
 ]
+
+/** User-selectable fonts; `BUNDLED_FONTS` adds fallback-only faces */
+export const FONTS = BUNDLED_FONTS.filter((f) => !f.fallbackOnly)
 
 /**
  * Get fonts filtered by category

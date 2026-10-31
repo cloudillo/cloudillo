@@ -5,7 +5,7 @@ import bidiFactory from 'bidi-js'
 import type { FontRef } from '../display-list.js'
 import type { Fx } from '../fixed.js'
 import { type FetchBytes, loadFace } from '../fonts/loader.js'
-import type { FontRegistry } from '../fonts/registry.js'
+import { type FontRegistry, needsCjkFallback } from '../fonts/registry.js'
 import type { CharProps, InlineEmbed, Paragraph, Run, StyleDef } from '../model.js'
 import type { ShapedRun, shapeRun } from '../shape/hb.js'
 import { type ResolvedParagraphStyle, resolveCharStyle, resolveParagraphStyle } from './styles.js'
@@ -66,6 +66,8 @@ function featuresFor(c: CharProps): string[] {
 /**
  * Load every face `itemizeParagraph` can touch for these paragraphs (style faces plus their
  * fallback faces), so itemizing and shaping can stay synchronous. Call after `initHarfBuzz()`.
+ * Embed captions count as text. If any text has CJK, every `registry.cjkFaces()` loads, since
+ * the same text may be itemized in another style (TOC entries).
  */
 export async function loadParagraphFaces(
 	paragraphs: Paragraph[],
@@ -74,31 +76,35 @@ export async function loadParagraphFaces(
 	fetchBytes: FetchBytes
 ): Promise<void> {
 	const refs = new Map<string, FontRef>()
+	let cjk = false
 	const add = (c: CharProps) => {
 		for (const ref of [
 			registry.resolveFace(c.font, c.weight, c.italic),
-			registry.fallbackFace(c.weight, c.italic)
+			...registry.fallbackFaces(c.weight, c.italic, false)
 		])
 			refs.set(ref.file, ref)
 	}
 	const visit = (ps: Paragraph[]) => {
 		for (const p of ps) {
 			const st = resolveParagraphStyle(styles, p.style, p.overrides)
+			const b = p.runs
+			const text = !Array.isArray(b) && b.k === 'emb' ? (b.caption ?? '') : paragraphText(p)
+			if (needsCjkFallback(text)) cjk = true
 			add(st)
 			for (const r of textRuns(p)) add(resolveCharStyle(styles, st, r.marks))
-			const b = p.runs
 			if (!Array.isArray(b) && b.k === 'table') {
 				for (const row of b.rows) for (const c of row.cells) visit(c.paragraphs)
 			}
 		}
 	}
 	visit(paragraphs)
+	if (cjk) for (const ref of registry.cjkFaces()) refs.set(ref.file, ref)
 	await Promise.all([...refs.values()].map((ref) => loadFace(ref, fetchBytes)))
 }
 
 /**
  * Paragraph → shaped runs, split at source runs, bidi level changes and missing glyphs (gid 0
- * falls back to `registry.fallbackFace`). Faces must be loaded (`loadParagraphFaces`).
+ * falls back along `registry.fallbackFaces`). Faces must be loaded (`loadParagraphFaces`).
  * Table/embed blocks itemize to no runs; a table's cell paragraphs go in `cells`.
  */
 export function itemizeParagraph(
@@ -129,6 +135,7 @@ export function itemizeParagraph(
 
 	bidi ??= bidiFactory()
 	const { levels } = bidi.getEmbeddingLevels(text, 'ltr')
+	const cjk = needsCjkFallback(text)
 
 	let pos = 0
 	// Source runs are never merged, so kerning across a colour/link change is lost;
@@ -137,6 +144,9 @@ export function itemizeParagraph(
 		const end = pos + run.text.length
 		const char = resolveCharStyle(styles, style, run.marks)
 		const font = env.registry.resolveFace(char.font, char.weight, char.italic)
+		const chain = env.registry
+			.fallbackFaces(char.weight, char.italic, cjk)
+			.filter((f) => f.file !== font.file)
 		const features = featuresFor(char)
 		for (let from = pos; from < end; ) {
 			let to = from + 1
@@ -150,7 +160,7 @@ export function itemizeParagraph(
 				link: run.marks.link,
 				embed: run.embed
 			}
-			pushWithFallback(out.runs, text, from, to, font, base, env)
+			pushWithFallback(out.runs, text, from, to, font, chain, base, env)
 			from = to
 		}
 		pos = end
@@ -175,20 +185,23 @@ function shapeSeg(
 	})
 }
 
-/** Shape `[from,to)` with `font`; reshape the character spans it has no glyph for on the fallback face. */
+/**
+ * Shape `[from,to)` with `font`; reshape the character spans it has no glyph for on the next face
+ * of `chain`, recursively. `chain`: remaining fallback faces after `font`.
+ */
 function pushWithFallback(
 	out: ItemRun[],
 	text: string,
 	from: number,
 	to: number,
 	font: FontRef,
+	chain: FontRef[],
 	b: RunBase,
 	env: ItemizeEnv
 ): void {
 	const shaped = shapeSeg(env, font, text, from, to, b)
-	const fallback = env.registry.fallbackFace(b.char.weight, b.char.italic)
-	// Already on the fallback face → its .notdef box is drawn.
-	if (!shaped.glyphs.includes(0) || fallback.file === font.file) {
+	// End of the chain → the last face's .notdef box is drawn.
+	if (!shaped.glyphs.includes(0) || !chain.length) {
 		out.push({ ...b, from, to, font, shaped })
 		return
 	}
@@ -205,10 +218,12 @@ function pushWithFallback(
 	for (let s = 0; s < len; ) {
 		let e = s + 1
 		while (e < len && missing[e] === missing[s]) e++
-		const f = missing[s] ? fallback : font
-		// Still missing on the fallback face → its .notdef box is drawn.
-		const seg = shapeSeg(env, f, text, from + s, from + e, b)
-		out.push({ ...b, from: from + s, to: from + e, font: f, shaped: seg })
+		if (missing[s]) {
+			pushWithFallback(out, text, from + s, from + e, chain[0], chain.slice(1), b, env)
+		} else {
+			const seg = shapeSeg(env, font, text, from + s, from + e, b)
+			out.push({ ...b, from: from + s, to: from + e, font, shaped: seg })
+		}
 		s = e
 	}
 }

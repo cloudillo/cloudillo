@@ -34,6 +34,7 @@ const FONT_SPECS = [
 	{ family: 'DM Sans', weights: [400, 700], italic: true, dir: 'dm-sans' },
 	{ family: 'Source Sans 3', weights: [400, 700], italic: true, dir: 'source-sans-3' },
 	{ family: 'Noto Sans', weights: [400, 700], italic: true, dir: 'noto-sans' },
+	{ family: 'Noto Sans SC', weights: [400, 700], italic: false, dir: 'noto-sans-sc' },
 
 	// Serif
 	{ family: 'DM Serif Display', weights: [400], italic: true, dir: 'dm-serif-display' },
@@ -117,6 +118,26 @@ async function fetchUpstreamFonts(family) {
 		})
 	}
 	throw new Error(`no upstream METADATA.pb for ${family}`)
+}
+
+const LICENSE_FILES = { ofl: 'OFL.txt', apache: 'LICENSE.txt', ufl: 'UFL.txt' }
+
+/**
+ * Fetch a family's upstream license file into its font dir (npm ships `fonts/`), unless present
+ */
+async function ensureLicense(spec) {
+	const fontDir = join(FONTS_DIR, spec.dir)
+	if (Object.values(LICENSE_FILES).some((f) => existsSync(join(fontDir, f)))) return
+	const famDir = spec.family.toLowerCase().replace(/ /g, '')
+	for (const [lic, file] of Object.entries(LICENSE_FILES)) {
+		const res = await fetch(`${UPSTREAM_BASE}/${lic}/${famDir}/${file}`)
+		if (!res.ok) continue
+		mkdirSync(fontDir, { recursive: true })
+		writeFileSync(join(fontDir, file), Buffer.from(await res.arrayBuffer()))
+		console.log(`  ${spec.dir}/${file}`)
+		return
+	}
+	throw new Error(`no upstream license for ${spec.family}`)
 }
 
 /**
@@ -306,6 +327,14 @@ async function main() {
 		for (const file of readdirSync(dir)) {
 			if (file.endsWith('.woff2')) unlinkSync(join(dir, file))
 		}
+	}
+
+	// Licenses don't need fonttools, so existing installs get them without re-downloading TTFs
+	// Best effort: an offline install must not fail on a missing license file
+	for (const spec of FONT_SPECS) {
+		await ensureLicense(spec).catch((e) =>
+			console.warn(`  license for ${spec.family}: ${e.message}`)
+		)
 	}
 
 	const todo = force || cleanOld ? FONT_SPECS : FONT_SPECS.filter((spec) => !isFontComplete(spec))

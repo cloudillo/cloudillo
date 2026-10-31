@@ -253,6 +253,18 @@ export const FONT_METRICS: Record<string, FontMetrics> = {
 		descender: -293,
 		lineGap: 0
 	},
+	'noto-sans-sc/NotoSansSc-Bold.ttf': {
+		unitsPerEm: 1000,
+		ascender: 1160,
+		descender: -288,
+		lineGap: 0
+	},
+	'noto-sans-sc/NotoSansSc-Regular.ttf': {
+		unitsPerEm: 1000,
+		ascender: 1160,
+		descender: -288,
+		lineGap: 0
+	},
 	'nunito-sans/NunitoSans-Bold.ttf': {
 		unitsPerEm: 1000,
 		ascender: 1011,

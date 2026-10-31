@@ -37,7 +37,12 @@ const FONTS_DIR = fileURLToPath(new URL('../../../fonts/fonts', import.meta.url)
 
 /** Node `FetchBytes`: `/fonts/<dir>/<File>.ttf` → bytes from `libs/fonts/fonts`. */
 export const fetchBytes: FetchBytes = async (url) => {
-	const buf = await readFile(FONTS_DIR + url.slice('/fonts'.length))
+	const buf = await readFile(FONTS_DIR + url.slice('/fonts'.length)).catch((e) => {
+		if (e?.code === 'ENOENT') {
+			throw new Error(`${url} not found; run \`pnpm -C libs/fonts download\``)
+		}
+		throw e
+	})
 	return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer
 }
 

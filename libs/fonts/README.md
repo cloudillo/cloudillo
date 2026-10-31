@@ -18,12 +18,15 @@ import '@cloudillo/fonts/fonts.css'
 
 ## Included families
 
-Sans-serif: Lato, Poppins, Roboto, Open Sans, Montserrat, Inter, Nunito Sans, Work Sans, Raleway, DM Sans, Source Sans 3.
+Sans-serif: Noto Sans, Lato, Poppins, Roboto, Open Sans, Montserrat, Inter, Nunito Sans, Work Sans, Raleway, DM Sans, Source Sans 3.
 Serif: DM Serif Display, Playfair Display, Merriweather, Lora, Crimson Pro, Source Serif 4.
 Display: Bebas Neue, Abril Fatface, Permanent Marker, Oswald.
 Monospace: JetBrains Mono.
 
 See `scripts/download-fonts.js` for the canonical list.
+
+Fallback faces: Noto Sans (selectable) covers glyphs a family lacks; Noto Sans SC (~10 MB per face,
+not selectable) covers Han/kana/bopomofo and is loaded only for CJK text.
 
 ## Links
 
@@ -33,4 +36,5 @@ See `scripts/download-fonts.js` for the canonical list.
 
 ## License
 
-MPL-2.0
+The package code is MPL-2.0. The fonts are under their upstream licenses (OFL or Apache-2.0); the
+license file sits in each font directory.

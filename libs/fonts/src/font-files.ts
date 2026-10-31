@@ -6,7 +6,7 @@
  * `/fonts/<dir>/<Base>-<Regular|Bold>[Italic].ttf` (app-relative absolute path, no origin).
  */
 
-import { FONTS } from './metadata.js'
+import { BUNDLED_FONTS } from './metadata.js'
 
 export type FontFileWeight = 'normal' | 'bold'
 export type FontFileStyle = 'normal' | 'italic'
@@ -18,9 +18,9 @@ export interface FontFaceRef {
 	style: FontFileStyle
 }
 
-/** Family → directory under `fonts/` and the faces it ships, derived from `FONTS` */
+/** Family → directory under `fonts/` and the faces it ships, derived from `BUNDLED_FONTS` */
 const FONT_DIRS = new Map(
-	FONTS.map((f) => [
+	BUNDLED_FONTS.map((f) => [
 		f.family,
 		{
 			dir: f.directory,

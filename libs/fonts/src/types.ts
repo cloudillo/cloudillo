@@ -40,6 +40,8 @@ export interface FontMetadata {
 	license: 'OFL' | 'Apache-2.0'
 	/** Directory name in fonts/ folder */
 	directory: string
+	/** Glyph fallback only: kept out of `FONTS` (font pickers) */
+	fallbackOnly?: boolean
 }
 
 /**

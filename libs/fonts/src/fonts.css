@@ -338,6 +338,22 @@
 	src: url('/fonts/source-sans-3/SourceSans3-BoldItalic.ttf') format('truetype');
 }
 
+/* Noto Sans SC */
+@font-face {
+	font-family: 'Noto Sans SC';
+	font-style: normal;
+	font-weight: 400;
+	font-display: swap;
+	src: url('/fonts/noto-sans-sc/NotoSansSc-Regular.ttf') format('truetype');
+}
+@font-face {
+	font-family: 'Noto Sans SC';
+	font-style: normal;
+	font-weight: 700;
+	font-display: swap;
+	src: url('/fonts/noto-sans-sc/NotoSansSc-Bold.ttf') format('truetype');
+}
+
 /* ===========================================
    SERIF FONTS
    =========================================== */

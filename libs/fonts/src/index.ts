@@ -15,6 +15,8 @@ export {
 export { FONT_METRICS, type FontMetrics } from './font-metrics.js'
 // Font metadata
 export {
+	BUNDLED_FONTS,
+	CJK_FALLBACK_FAMILY,
 	FALLBACK_FACE_FAMILY,
 	FONTS,
 	getFontsByCategory,

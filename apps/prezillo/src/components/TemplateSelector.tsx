@@ -10,6 +10,7 @@
 
 import { IcCheck, IcDropdown, IcRemove, useOutsideClick } from '@cloudillo/react'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import { useY } from 'react-yjs'
 import type * as Y from 'yjs'
 
@@ -32,6 +33,7 @@ export interface TemplateSelectorProps {
 }
 
 export function TemplateSelector({ doc, yDoc, viewId, disabled }: TemplateSelectorProps) {
+	const { t } = useTranslation()
 	// Subscribe to templates and views for reactivity
 	useY(doc.tpl)
 	useY(doc.v)
@@ -76,7 +78,7 @@ export function TemplateSelector({ doc, yDoc, viewId, disabled }: TemplateSelect
 		return (
 			<div className="c-template-selector c-template-selector--empty">
 				<IcTemplate className="c-template-selector__icon" />
-				<span className="c-template-selector__label">No templates available</span>
+				<span className="c-template-selector__label">{t('No templates available')}</span>
 			</div>
 		)
 	}
@@ -98,7 +100,7 @@ export function TemplateSelector({ doc, yDoc, viewId, disabled }: TemplateSelect
 				>
 					<IcTemplate className="c-template-selector__icon" />
 					<span className="c-template-selector__label">
-						{currentTemplate ? currentTemplate.name : 'No template'}
+						{currentTemplate ? currentTemplate.name : t('No template')}
 					</span>
 					{!currentTemplate && (
 						<IcDropdown
@@ -111,7 +113,7 @@ export function TemplateSelector({ doc, yDoc, viewId, disabled }: TemplateSelect
 						type="button"
 						className="c-template-selector__remove"
 						onClick={handleRemoveTemplate}
-						title="Remove template"
+						title={t('Remove template')}
 					>
 						<IcRemove />
 					</button>
@@ -120,7 +122,7 @@ export function TemplateSelector({ doc, yDoc, viewId, disabled }: TemplateSelect
 
 			{isOpen && (
 				<div className="c-template-selector__dropdown">
-					<div className="c-template-selector__header">Select Template</div>
+					<div className="c-template-selector__header">{t('Select Template')}</div>
 					<div className="c-template-selector__list">
 						{templates.map((template) => (
 							<button
@@ -162,7 +164,7 @@ export function TemplateSelector({ doc, yDoc, viewId, disabled }: TemplateSelect
 								onClick={handleRemoveTemplate}
 							>
 								<IcRemove />
-								Remove template
+								{t('Remove template')}
 							</button>
 						</div>
 					)}

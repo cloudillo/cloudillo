@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 /**
  * Renders QR code objects on the canvas
  *
@@ -46,6 +47,7 @@ const MIN_SCANNABLE_SIZE = 50
 const QUIET_ZONE_PERCENT = 0.08
 
 export function QRCodeRenderer({ object, bounds }: QRCodeRendererProps) {
+	const { t } = useTranslation()
 	// Use bounds if provided, otherwise use object properties
 	const x = bounds?.x ?? object.x
 	const y = bounds?.y ?? object.y
@@ -121,7 +123,7 @@ export function QRCodeRenderer({ object, bounds }: QRCodeRendererProps) {
 						fontSize={10}
 						fontFamily="system-ui, sans-serif"
 					>
-						Too small to scan
+						{t('Too small to scan')}
 					</text>
 				</g>
 			)}

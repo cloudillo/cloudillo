@@ -657,7 +657,7 @@ h3.c-property-section-header {
 	}
 
 	/* Hide toolbar panel toggle on mobile (using bottom sheet instead) */
-	.c-nav .c-button[aria-label='Toggle Panel'] {
+	.c-nav .c-panel-toggle {
 		display: none;
 	}
 }
@@ -2691,4 +2691,151 @@ span.view-picker-counter {
 	content: attr(data-index) '. ';
 	display: inline-block;
 	margin-right: 0.3em;
+}
+
+/* Keyboard focus on the canvas. SvgCanvas sets an inline outline: none on its svg, so the ring
+   goes on the container instead. */
+.prezillo-canvas:has(> svg:focus-visible) {
+	outline: var(--focus-ring-width, 3px) solid var(--col-focus);
+	outline-offset: calc(-1 * var(--focus-ring-width, 3px));
+}
+
+/* Touch presenting: one-finger swipes reach pointer events; pinch zoom stays */
+.c-presentation-container {
+	touch-action: pinch-zoom;
+}
+
+.c-presentation-controls {
+	transition: opacity 0.3s ease;
+}
+
+.c-controls-hidden .c-presentation-controls {
+	opacity: 0;
+	pointer-events: none;
+}
+
+/* Speaker notes drawer (N) inside the audience view */
+.c-presentation-notes {
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	z-index: 11;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	cursor: default;
+	touch-action: pan-y;
+}
+
+.c-presentation-notes.open {
+	max-height: 40%;
+	background: rgba(0, 0, 0, 0.85);
+	color: #fff;
+}
+
+.windowed .c-presentation-notes {
+	bottom: 3rem;
+}
+
+.c-presentation-notes__toggle {
+	background: rgba(0, 0, 0, 0.6);
+	border: none;
+	border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+	color: rgba(255, 255, 255, 0.8);
+	cursor: pointer;
+	padding: var(--space-1) var(--space-3);
+	font-size: 13px;
+}
+
+.c-presentation-notes .c-presenter-notes {
+	align-self: stretch;
+	padding: var(--space-2) var(--space-3);
+}
+
+/* Presenter popup (PresenterView) */
+.c-presenter {
+	position: fixed;
+	inset: 0;
+	display: grid;
+	grid-template-columns: 3fr 2fr;
+	grid-template-rows: minmax(0, 1fr) auto;
+	gap: var(--space-3);
+	padding: var(--space-3);
+	background: var(--col-surface);
+	color: var(--col-on-surface);
+}
+
+.c-presenter__current {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 0;
+	background: #000;
+}
+
+.c-presenter__current .c-presentation-svg {
+	max-width: 100% !important;
+	max-height: 100% !important;
+}
+
+.c-presenter__side {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+	min-height: 0;
+}
+
+.c-presenter__next {
+	width: 60%;
+	min-height: 2rem;
+}
+
+.c-presenter__label {
+	font-size: 12px;
+	opacity: 0.7;
+}
+
+.c-presenter__row,
+.c-presenter__bar {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+.c-presenter__bar {
+	grid-column: 1 / -1;
+}
+
+.c-presenter__spacer {
+	flex: 1;
+}
+
+.c-presenter__timer {
+	font-size: 28px;
+	font-variant-numeric: tabular-nums;
+}
+
+.c-presenter__counter {
+	font-variant-numeric: tabular-nums;
+}
+
+.c-presenter-notes {
+	flex: 1;
+	overflow-y: auto;
+	white-space: pre-wrap;
+	font-size: 20px;
+	line-height: 1.4;
+}
+
+.c-presenter-notes__empty {
+	opacity: 0.5;
+	font-style: italic;
+}
+
+.c-present-split__hint {
+	padding: var(--space-1) var(--space-3);
+	font-size: 12px;
+	opacity: 0.75;
+	max-width: 16rem;
 }

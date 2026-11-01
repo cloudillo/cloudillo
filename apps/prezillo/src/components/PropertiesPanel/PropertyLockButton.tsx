@@ -3,6 +3,7 @@
 
 import { IcLocked, IcReset } from '@cloudillo/react'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 
 export interface PropertyLockButtonProps {
 	/** Whether this object is an instance of a template */
@@ -32,6 +33,7 @@ export function PropertyLockButton({
 	onReset,
 	label
 }: PropertyLockButtonProps) {
+	const { t } = useTranslation()
 	// Don't show anything for non-instance objects
 	if (!isInstance) {
 		return null
@@ -45,7 +47,7 @@ export function PropertyLockButton({
 					type="button"
 					className="c-property-lock__btn c-property-lock__btn--locked"
 					onClick={onUnlock}
-					title="Click to unlock and edit"
+					title={t('Click to unlock and edit')}
 				>
 					<IcLocked />
 				</button>
@@ -54,7 +56,7 @@ export function PropertyLockButton({
 					type="button"
 					className="c-property-lock__btn c-property-lock__btn--reset"
 					onClick={onReset}
-					title="Reset to template value"
+					title={t('Reset to template value')}
 				>
 					<IcReset />
 				</button>

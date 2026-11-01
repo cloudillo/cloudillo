@@ -6,6 +6,7 @@
  */
 
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import type * as Y from 'yjs'
 
 import type { Palette, PalettePreset, YPrezilloDocument } from '../../crdt'
@@ -47,6 +48,7 @@ function isPaletteMatchingPreset(current: Palette, preset: PalettePreset): boole
 }
 
 export function ThemePicker({ doc, yDoc, currentPalette }: ThemePickerProps) {
+	const { t } = useTranslation()
 	const scrollRef = React.useRef<HTMLDivElement>(null)
 
 	// Find which preset matches current palette (if any)
@@ -76,7 +78,7 @@ export function ThemePicker({ doc, yDoc, currentPalette }: ThemePickerProps) {
 							key={preset.id}
 							className={`c-theme-picker-card ${isActive ? 'c-theme-picker-card--active' : ''}`}
 							onClick={() => handlePresetClick(preset)}
-							title={preset.name}
+							title={t(preset.name)}
 						>
 							{/* Preview area with gradient accent bar */}
 							<div
@@ -103,7 +105,7 @@ export function ThemePicker({ doc, yDoc, currentPalette }: ThemePickerProps) {
 							</div>
 
 							{/* Name */}
-							<span className="c-theme-picker-name">{preset.name}</span>
+							<span className="c-theme-picker-name">{t(preset.name)}</span>
 
 							{/* Active indicator */}
 							{isActive && <span className="c-theme-picker-check">✓</span>}

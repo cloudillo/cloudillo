@@ -55,6 +55,8 @@ export const manifest: AppManifest = {
 	url: '/apps/prezillo/index.html',
 	icon: 'presentation',
 	description: 'Collaborative presentations',
+	// "Present on…" starts a Presentation API session
+	presentation: true,
 	contentTypes: [
 		{
 			mimeType: 'cloudillo/prezillo',

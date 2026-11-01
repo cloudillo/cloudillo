@@ -100,10 +100,10 @@ export function TransformSection({ doc, yDoc, object, onPreview }: TransformSect
 	)
 
 	return (
-		<PropertySection title="Transform" defaultExpanded>
+		<PropertySection title={t('Transform')} defaultExpanded>
 			{/* Position group (X, Y) */}
 			<PropertyGroupHeader
-				label="Position"
+				label={t('Position')}
 				isInstance={position.isInstance}
 				isLocked={position.isLocked}
 				onUnlock={position.handleUnlock}
@@ -132,7 +132,7 @@ export function TransformSection({ doc, yDoc, object, onPreview }: TransformSect
 
 			{/* Size group (W, H) */}
 			<PropertyGroupHeader
-				label="Size"
+				label={t('Size')}
 				isInstance={size.isInstance}
 				isLocked={size.isLocked}
 				onUnlock={size.handleUnlock}

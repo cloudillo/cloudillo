@@ -3,6 +3,7 @@
 
 import { NumberInput, PropertyField, PropertySection } from '@cloudillo/react'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import type * as Y from 'yjs'
 
 import type { ObjectId, PrezilloObject, RectObject, YPrezilloDocument } from '../../crdt'
@@ -22,6 +23,7 @@ export interface ShapeSectionProps {
 }
 
 export function ShapeSection({ doc, yDoc, object }: ShapeSectionProps) {
+	const { t } = useTranslation()
 	const objectId = object.id as ObjectId
 
 	// Check if this object is an instance of a template prototype
@@ -64,9 +66,9 @@ export function ShapeSection({ doc, yDoc, object }: ShapeSectionProps) {
 	if (object.type !== 'rect') return null
 
 	return (
-		<PropertySection title="Shape" defaultExpanded>
+		<PropertySection title={t('Shape')} defaultExpanded>
 			<div className={isDisabled ? 'c-property-field--locked' : ''}>
-				<PropertyField label="Radius" labelWidth={45}>
+				<PropertyField label={t('Radius')} labelWidth={45}>
 					<div className="c-hbox ai-center g-1 f-1">
 						<NumberInput
 							value={cornerRadius}

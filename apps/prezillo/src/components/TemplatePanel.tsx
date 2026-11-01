@@ -10,6 +10,7 @@
 
 import { IcAdd, IcDelete, IcDuplicate, IcEdit, IcMore } from '@cloudillo/react'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import { useY } from 'react-yjs'
 import type * as Y from 'yjs'
 
@@ -49,6 +50,7 @@ export function TemplatePanel({
 	onEditTemplate,
 	readOnly
 }: TemplatePanelProps) {
+	const { t } = useTranslation()
 	// Subscribe to templates for reactivity
 	useY(doc.tpl)
 	useY(doc.v)
@@ -98,13 +100,14 @@ export function TemplatePanel({
 	// Handle create new template
 	const handleCreate = React.useCallback(() => {
 		const templateId = createTemplate(yDoc, doc, {
-			name: `Template ${templates.length + 1}`,
+			// Persisted into Yjs in the creator's language (calcillo default sheet name precedent)
+			name: `${t('Template')} ${templates.length + 1}`,
 			width: 1920,
 			height: 1080,
 			backgroundColor: '#ffffff'
 		})
 		onSelectTemplate(templateId)
-	}, [yDoc, doc, templates.length, onSelectTemplate])
+	}, [yDoc, doc, templates.length, onSelectTemplate, t])
 
 	// Handle template click (select on canvas)
 	const handleClick = React.useCallback(
@@ -176,14 +179,14 @@ export function TemplatePanel({
 			<div className="c-template-panel__header">
 				<span className="c-template-panel__title">
 					<IcTemplate />
-					Templates
+					{t('Templates')}
 				</span>
 				{!readOnly && (
 					<button
 						type="button"
 						className="c-button icon xs"
 						onClick={handleCreate}
-						title="Create template"
+						title={t('Create template')}
 					>
 						<IcAdd />
 					</button>
@@ -192,11 +195,11 @@ export function TemplatePanel({
 
 			{templates.length === 0 ? (
 				<div className="c-template-panel__empty">
-					<p>No templates yet</p>
+					<p>{t('No templates yet')}</p>
 					{!readOnly && (
 						<button type="button" className="c-button xs" onClick={handleCreate}>
 							<IcAdd />
-							Create Template
+							{t('Create Template')}
 						</button>
 					)}
 				</div>
@@ -234,10 +237,8 @@ export function TemplatePanel({
 									</span>
 									<span className="c-template-panel__item-usage">
 										{usageCount === 0
-											? 'Not used'
-											: usageCount === 1
-												? '1 page'
-												: `${usageCount} pages`}
+											? t('Not used')
+											: t('{{count}} pages', { count: usageCount })}
 									</span>
 								</div>
 								{!readOnly && (
@@ -276,7 +277,7 @@ export function TemplatePanel({
 						}}
 					>
 						<IcEdit />
-						Edit
+						{t('Edit')}
 					</button>
 					<button
 						type="button"
@@ -284,7 +285,7 @@ export function TemplatePanel({
 						onClick={() => handleDuplicate(menuState.templateId)}
 					>
 						<IcDuplicate />
-						Duplicate
+						{t('Duplicate')}
 					</button>
 					<button
 						type="button"
@@ -292,7 +293,7 @@ export function TemplatePanel({
 						onClick={() => handleDeleteConfirm(menuState.templateId)}
 					>
 						<IcDelete />
-						Delete
+						{t('Delete')}
 					</button>
 				</div>
 			)}
@@ -301,11 +302,12 @@ export function TemplatePanel({
 			{deleteConfirm && (
 				<div className="c-template-panel__confirm-overlay">
 					<div className="c-template-panel__confirm">
-						<h3>Delete Template?</h3>
+						<h3>{t('Delete Template?')}</h3>
 						<p>
-							This template is used by{' '}
-							{getViewsUsingTemplate(doc, deleteConfirm).length} page(s). What should
-							happen to those pages?
+							{t(
+								'This template is used by {{count}} pages. What should happen to those pages?',
+								{ count: getViewsUsingTemplate(doc, deleteConfirm).length }
+							)}
 						</p>
 						<div className="c-template-panel__confirm-options">
 							<button
@@ -313,21 +315,21 @@ export function TemplatePanel({
 								className="c-button"
 								onClick={() => handleDelete('keep-background')}
 							>
-								Keep Background
+								{t('Keep Background')}
 							</button>
 							<button
 								type="button"
 								className="c-button"
 								onClick={() => handleDelete('detach')}
 							>
-								Detach Objects
+								{t('Detach Objects')}
 							</button>
 							<button
 								type="button"
 								className="c-button danger"
 								onClick={() => handleDelete('remove-instances')}
 							>
-								Remove All
+								{t('Remove All')}
 							</button>
 						</div>
 						<button
@@ -335,7 +337,7 @@ export function TemplatePanel({
 							className="c-button secondary"
 							onClick={() => setDeleteConfirm(null)}
 						>
-							Cancel
+							{t('Cancel')}
 						</button>
 					</div>
 				</div>

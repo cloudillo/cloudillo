@@ -8,6 +8,7 @@
 import { presenceColor } from '@cloudillo/core'
 import { useDarkMode } from '@cloudillo/react'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 
 import type { PrezilloPresence } from '../awareness'
 import type { PrezilloObject } from '../crdt'
@@ -24,6 +25,7 @@ export function RemotePresenceOverlay({
 	remotePresence,
 	canvasObjects
 }: RemotePresenceOverlayProps) {
+	const { t } = useTranslation()
 	// Subscribed here so a theme flip recolours the ghosts regardless of any memo
 	// boundary above this component.
 	const dark = useDarkMode()
@@ -116,7 +118,7 @@ export function RemotePresenceOverlay({
 					<g key={`ghost-${clientId}`} opacity={0.4} pointerEvents="none">
 						{ghostShape}
 						<text x={x} y={y - 5} fill={color} fontSize={10}>
-							{user?.name || 'Unknown'}
+							{user?.name || t('Unknown')}
 						</text>
 					</g>
 				)

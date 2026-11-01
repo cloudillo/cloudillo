@@ -7,6 +7,7 @@
 
 import { NumberInput, PropertyField, PropertySection } from '@cloudillo/react'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import type * as Y from 'yjs'
 
 import type { ObjectId, TableGridObject, YPrezilloDocument } from '../../crdt'
@@ -19,6 +20,7 @@ export interface TableGridSectionProps {
 }
 
 export function TableGridSection({ doc, yDoc, object }: TableGridSectionProps) {
+	const { t } = useTranslation()
 	const objectId = object.id as ObjectId
 
 	const handleColsChange = React.useCallback(
@@ -38,8 +40,8 @@ export function TableGridSection({ doc, yDoc, object }: TableGridSectionProps) {
 	)
 
 	return (
-		<PropertySection title="Grid" defaultExpanded>
-			<PropertyField label="Columns" labelWidth={60}>
+		<PropertySection title={t('Grid')} defaultExpanded>
+			<PropertyField label={t('Columns')} labelWidth={60}>
 				<NumberInput
 					value={object.cols}
 					onChange={handleColsChange}
@@ -48,7 +50,7 @@ export function TableGridSection({ doc, yDoc, object }: TableGridSectionProps) {
 					step={1}
 				/>
 			</PropertyField>
-			<PropertyField label="Rows" labelWidth={60}>
+			<PropertyField label={t('Rows')} labelWidth={60}>
 				<NumberInput
 					value={object.rows}
 					onChange={handleRowsChange}

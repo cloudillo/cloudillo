@@ -42,7 +42,7 @@ const OBJECT_TYPE_MAP: Record<Stored.ObjectTypeCode, Runtime.ObjectType> = {
 	V: 'statevar'
 }
 
-const OBJECT_TYPE_REVERSE: Record<Runtime.ObjectType, Stored.ObjectTypeCode> = {
+export const OBJECT_TYPE_REVERSE: Record<Runtime.ObjectType, Stored.ObjectTypeCode> = {
 	rect: 'R',
 	ellipse: 'E',
 	line: 'L',

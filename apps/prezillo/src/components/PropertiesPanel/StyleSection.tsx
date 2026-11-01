@@ -3,6 +3,7 @@
 
 import { NumberInput, PropertyField, PropertySection } from '@cloudillo/react'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import type * as Y from 'yjs'
 
 import type { ObjectId, PrezilloObject, YPrezilloDocument } from '../../crdt'
@@ -26,6 +27,7 @@ export interface StyleSectionProps {
 }
 
 export function StyleSection({ doc, yDoc, object }: StyleSectionProps) {
+	const { t } = useTranslation()
 	const objectId = object.id as ObjectId
 
 	// Get palette for color picker
@@ -133,10 +135,10 @@ export function StyleSection({ doc, yDoc, object }: StyleSectionProps) {
 	if (!resolvedShapeStyle && !resolvedTextStyle) return null
 
 	return (
-		<PropertySection title="Style" defaultExpanded>
+		<PropertySection title={t('Style')} defaultExpanded>
 			<div className={styleDisabled ? 'c-property-field--locked' : ''}>
 				{/* Fill (text color for text objects) */}
-				<PropertyField label={isTextObject ? 'Color' : 'Fill'} labelWidth={40}>
+				<PropertyField label={isTextObject ? t('Color') : t('Fill')} labelWidth={40}>
 					<PaletteColorPicker
 						value={rawFillValue ?? fillColor ?? 'none'}
 						onChange={handleFillColorChange}
@@ -156,7 +158,7 @@ export function StyleSection({ doc, yDoc, object }: StyleSectionProps) {
 				{/* Stroke - only show for non-text objects */}
 				{!isTextObject && resolvedShapeStyle && (
 					<>
-						<PropertyField label="Stroke" labelWidth={40}>
+						<PropertyField label={t('Stroke')} labelWidth={40}>
 							<PaletteColorPicker
 								value={rawStrokeValue ?? resolvedShapeStyle.stroke ?? 'none'}
 								onChange={handleStrokeColorChange}
@@ -167,7 +169,7 @@ export function StyleSection({ doc, yDoc, object }: StyleSectionProps) {
 							/>
 						</PropertyField>
 						{hasStroke && (
-							<PropertyField label="Width" labelWidth={40}>
+							<PropertyField label={t('Width')} labelWidth={40}>
 								<NumberInput
 									value={resolvedShapeStyle.strokeWidth}
 									onChange={handleStrokeWidthChange}

@@ -12,6 +12,7 @@ import {
 	SegmentedItem
 } from '@cloudillo/react'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import type * as Y from 'yjs'
 
 import type { ViewNode, YPrezilloDocument } from '../../crdt'
@@ -32,6 +33,7 @@ export interface BackgroundSectionProps {
 }
 
 export function BackgroundSection({ doc, yDoc, view }: BackgroundSectionProps) {
+	const { t } = useTranslation()
 	// Check if view has a template
 	const templateId = getViewTemplate(doc, view.id)
 	const hasTemplate = !!templateId
@@ -198,10 +200,10 @@ export function BackgroundSection({ doc, yDoc, view }: BackgroundSectionProps) {
 	}, [activeType, resolvedBackground.backgroundColor, resolvedBackground.backgroundGradient])
 
 	return (
-		<PropertySection title="Background" defaultExpanded>
+		<PropertySection title={t('Background')} defaultExpanded>
 			{/* Template inheritance indicator */}
 			{hasTemplate && !isOverridden && (
-				<div className="c-background-inherited-badge">From template</div>
+				<div className="c-background-inherited-badge">{t('From template')}</div>
 			)}
 
 			{/* Reset to template button when overridden */}
@@ -211,10 +213,10 @@ export function BackgroundSection({ doc, yDoc, view }: BackgroundSectionProps) {
 						type="button"
 						className="c-button xs"
 						onClick={handleResetToTemplate}
-						title="Reset to template background"
+						title={t('Reset to template background')}
 					>
 						<IcReset />
-						Reset to Template
+						{t('Reset to Template')}
 					</button>
 				</div>
 			)}
@@ -224,17 +226,17 @@ export function BackgroundSection({ doc, yDoc, view }: BackgroundSectionProps) {
 				size="sm"
 				fill
 				className="mb-2"
-				aria-label="Background type"
+				aria-label={t('Background type')}
 				value={activeType}
 				onChange={(v) => handleTypeSwitch(v as BackgroundType)}
 			>
-				<SegmentedItem value="solid">Solid</SegmentedItem>
-				<SegmentedItem value="gradient">Gradient</SegmentedItem>
+				<SegmentedItem value="solid">{t('Solid')}</SegmentedItem>
+				<SegmentedItem value="gradient">{t('Gradient')}</SegmentedItem>
 			</Segmented>
 
 			{/* Solid color picker */}
 			{activeType === 'solid' && (
-				<PropertyField label="Color">
+				<PropertyField label={t('Color')}>
 					<ColorInput
 						value={resolvedBackground.backgroundColor ?? '#ffffff'}
 						onChange={handleSolidColorChange}

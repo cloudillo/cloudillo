@@ -3,6 +3,7 @@
 
 import type Quill from 'quill'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import { useY } from 'react-yjs'
 import type * as Y from 'yjs'
 
@@ -58,6 +59,7 @@ export function PropertyEditor({
 	quillRef,
 	editingTextId
 }: PropertyEditorProps) {
+	const { t } = useTranslation()
 	// Subscribe to object changes - useY returns a version number that changes on updates
 	useY(doc.o)
 
@@ -101,7 +103,7 @@ export function PropertyEditor({
 
 	// No selection and no view to show
 	if (selectedIds.size === 0) {
-		return <div className="c-empty-message">No selection</div>
+		return <div className="c-empty-message">{t('No selection')}</div>
 	}
 
 	// Multiple selection
@@ -111,7 +113,7 @@ export function PropertyEditor({
 
 	// Single selection but object not found
 	if (!selectedObject) {
-		return <div className="c-empty-message">Object not found</div>
+		return <div className="c-empty-message">{t('Object not found')}</div>
 	}
 
 	// Check if object is a text type (includes statevar which displays text)

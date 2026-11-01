@@ -1,4 +1,4 @@
 {
 	"extends": "../tsconfig-app-base.json",
-	"files": ["src/index.tsx"]
+	"files": ["src/index.tsx", "src/receiver.tsx"]
 }

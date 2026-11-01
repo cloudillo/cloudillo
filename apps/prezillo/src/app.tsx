@@ -4,11 +4,16 @@
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
+	boundsFromPoints,
+	getObjectsIntersectingRect,
+	getRotatedBoundsProjection,
 	type SnapSpatialObject,
 	SvgCanvas,
 	type SvgCanvasContext,
 	type SvgCanvasHandle,
-	useSnapping
+	type ToolEvent,
+	useSnapping,
+	useSvgCanvas
 } from 'react-svg-canvas'
 
 import {
@@ -27,6 +32,16 @@ import '@cloudillo/canvas-tools/components.css'
 import './style.css'
 
 import { RichTextEditor } from '@cloudillo/canvas-text'
+import {
+	canvasPasteOffset,
+	clipboardImageFile,
+	clipboardSource,
+	decodeCanvasClipboard,
+	encodeCanvasClipboard,
+	isBounds,
+	resolveForeignPaste,
+	uploadPastedImage
+} from '@cloudillo/canvas-tools'
 import { docRef, getAppBus } from '@cloudillo/core'
 import { downloadYDocExport } from '@cloudillo/crdt'
 import {
@@ -35,12 +50,15 @@ import {
 	Button,
 	DialogContainer,
 	DocBarMenu,
+	EmptyState,
 	ExportProgressDialog,
 	IcCopyLink,
+	IcError,
 	IcExport,
 	IcFullscreen,
 	IcPdf,
 	IcShare,
+	LoadingSpinner,
 	MenuDivider,
 	MenuHeader,
 	MenuItem,
@@ -56,7 +74,7 @@ import {
 } from '@cloudillo/react'
 
 import { ContextMenu } from './components/ContextMenu'
-import { ObjectShape } from './components/ObjectShape'
+import { ObjectShape, objectLabel } from './components/ObjectShape'
 import { PresentationMode, PresentationSlide } from './components/PresentationMode'
 import {
 	MobilePropertyPanel,
@@ -82,7 +100,12 @@ import type {
 	TemplateId,
 	ViewId
 } from './crdt'
-import { updateDocumentAspect, updateDocumentEditable, updateDocumentNavState } from './crdt'
+import {
+	getObject,
+	updateDocumentAspect,
+	updateDocumentEditable,
+	updateDocumentNavState
+} from './crdt'
 import { getBulletIcon, migrateBullet } from './data/bullet-icons'
 import {
 	type TempObjectState,
@@ -117,6 +140,33 @@ declare const __APP_VERSION__: string
  * Extended type for canvas objects that may include template metadata
  * Used when rendering prototype objects on template frames
  */
+/** Screen px a no-tool press must travel before it is a marquee rather than a click */
+const MARQUEE_SLOP_PX = 3
+
+/** Rubber band in the fixed layer; nothing until the press passes MARQUEE_SLOP_PX */
+function FixedMarquee({ band }: { band: ToolEvent }) {
+	const { translateFrom } = useSvgCanvas()
+	const [x1, y1] = translateFrom(band.startX, band.startY)
+	const [x2, y2] = translateFrom(band.x, band.y)
+	if (Math.hypot(x2 - x1, y2 - y1) <= MARQUEE_SLOP_PX) return null
+	return (
+		<rect
+			x={Math.min(x1, x2)}
+			y={Math.min(y1, y2)}
+			width={Math.abs(x2 - x1)}
+			height={Math.abs(y2 - y1)}
+			style={{
+				fill: 'var(--col-primary, #3b82f6)',
+				fillOpacity: 0.1,
+				stroke: 'var(--col-primary, #3b82f6)',
+				strokeDasharray: '4 3'
+			}}
+			strokeWidth={1}
+			pointerEvents="none"
+		/>
+	)
+}
+
 type CanvasObject = PrezilloObject & {
 	/** Template ID if this is a prototype rendered on a template frame */
 	_templateId?: TemplateId
@@ -125,6 +175,7 @@ type CanvasObject = PrezilloObject & {
 }
 
 import {
+	addObject as addCrdtObject,
 	addObjectToTemplate,
 	bringForward,
 	bringToFront,
@@ -140,8 +191,18 @@ import {
 	updateObjectPosition,
 	updateObjectRotation
 } from './crdt'
+import {
+	CLIPBOARD_APP,
+	clipboardFileRef,
+	collectClipboard,
+	type PrezilloClipboard,
+	pasteClipboard
+} from './clipboard'
 import { downloadPDF, downloadPPTX } from './export'
+import { registerPendingImageTempId } from './hooks'
 import { IcAudience, IcDebug, IcPlay, IcPptx, IcRepair } from './icons.js'
+import { openPresenterWindow } from './presenter'
+import { isEditableTarget } from './utils/editable-target'
 
 //////////////
 // Main App //
@@ -213,21 +274,30 @@ export function PrezilloApp() {
 	const {
 		isPresentationMode,
 		presentationFullscreen,
+		presentationWithNotes,
+		presenterWindow,
 		isFullscreenFollowing,
 		followedPresenter,
+		castSend,
 		handleStartPresenting,
+		handlePresentOn,
 		handleStopPresenting,
 		handleExitFullscreenFollowing
 	} = usePresentationMode({ prezillo, toast })
 
 	// Embedded presentation returns to the embedded slide, so the host sees no drift
 	const presentFromRef = React.useRef<ViewId | null>(null)
+	const isMobile = useIsMobile()
 	const startPresenting = React.useCallback(
-		(fullscreen?: boolean) => {
+		(fullscreen?: boolean, withNotes?: boolean) => {
 			presentFromRef.current = prezillo.activeViewId
-			handleStartPresenting(fullscreen)
+			// The presenter popup must open here, inside the click (popup blocker); phones and a
+			// blocked popup fall back to the notes drawer in PresentationMode
+			const win =
+				withNotes && !isMobile ? openPresenterWindow(t('Presenter view — Prezillo')) : null
+			handleStartPresenting(fullscreen, withNotes, win)
 		},
-		[prezillo.activeViewId, handleStartPresenting]
+		[prezillo.activeViewId, handleStartPresenting, isMobile, t]
 	)
 	const stopPresenting = React.useCallback(() => {
 		handleStopPresenting()
@@ -372,9 +442,6 @@ export function PrezilloApp() {
 		return cleanup
 	}, [])
 
-	// Mobile detection
-	const isMobile = useIsMobile()
-
 	// Properties panel visibility (desktop)
 	const [isPanelVisible, setIsPanelVisible] = React.useState(true)
 
@@ -505,6 +572,11 @@ export function PrezilloApp() {
 
 	// Track if we just finished an interaction (resize/rotate/pivot) to prevent canvas click from clearing selection
 	const justFinishedInteractionRef = React.useRef(false)
+
+	// Marquee (canvas coords, `shiftKey` from the press = additive). The ref is written
+	// eagerly so pointerup sees the last move even before React re-renders.
+	const [marquee, setMarquee] = React.useState<ToolEvent | null>(null)
+	const marqueeRef = React.useRef<ToolEvent | null>(null)
 
 	// Text editing (extracted hook)
 	const {
@@ -802,21 +874,123 @@ export function PrezilloApp() {
 		}
 	}, [prezillo.activeTool, insertCenter?.[0], insertCenter?.[1], documentHandler])
 
-	// Pasting a `cl:` embed link embeds it at the insert centre (as quillo/notillo do)
-	const pasteRef = React.useRef({ insertCenter, documentHandler })
-	pasteRef.current = { insertCenter, documentHandler }
+	// Last canvas-space pointer position (from SvgCanvas onMove): where a paste lands
+	const lastPointerRef = React.useRef<[number, number] | null>(null)
+	const handleCanvasMove = React.useCallback((e: ToolEvent) => {
+		lastPointerRef.current = [e.x, e.y]
+	}, [])
+
+	// Paste: our own payload → on the active slide at the pointer; an image file → upload +
+	// image object; a `cl:` embed link → embedded at the insert centre (as quillo/notillo do).
+	// Payload and image paste skip template pages (prototypes need template-relative coords).
+	const pasteRef = React.useRef({ insertCenter, documentHandler, activeView, prezillo })
+	pasteRef.current = { insertCenter, documentHandler, activeView, prezillo }
 	React.useEffect(() => {
 		const bus = getAppBus()
 		const fileId = prezillo.cloudillo.fileId
 		if (isReadOnly || bus.embedded || !fileId) return
-		const onPaste = (e: ClipboardEvent) => {
-			const target = e.target as HTMLElement | null
-			if (
-				target?.closest?.(
-					'input, textarea, select, [contenteditable], [data-rich-text-editor], [role="dialog"]'
+
+		const pasteImage = async (file: File, cx: number, cy: number) => {
+			// Read at paste time: the token renews while the effect stays mounted
+			const { yDoc, doc, cloudillo, selectObject } = pasteRef.current.prezillo
+			try {
+				const res = await uploadPastedImage(
+					{ ownerTag: cloudillo.ownerTag, token: cloudillo.token, fileId },
+					file,
+					300
 				)
+				const { width, height } = res
+				const id = addCrdtObject(yDoc, doc, {
+					type: 'image',
+					x: cx - width / 2,
+					y: cy - height / 2,
+					width,
+					height,
+					fileId: res.fileId,
+					rotation: 0,
+					pivotX: 0.5,
+					pivotY: 0.5,
+					opacity: 1,
+					visible: true,
+					locked: false,
+					hidden: false
+				} as PrezilloObject)
+				if (res.fileId.startsWith('@')) {
+					registerPendingImageTempId(res.fileId, yDoc, doc, id)
+				}
+				selectObject(id)
+			} catch (err) {
+				console.error('[prezillo] image paste failed:', err)
+				toast({ variant: 'error', message: t('Could not paste the image') })
+			}
+		}
+
+		const onPaste = (e: ClipboardEvent) => {
+			if (isEditableTarget(e.target)) return
+			const { activeView, prezillo: p } = pasteRef.current
+			const onSlide = activeView && !p.selectedTemplateId
+			// A pointer last seen off the slide (toolbar, another view) is stale for placement
+			const inView = (pt: [number, number]) =>
+				!!activeView &&
+				pt[0] >= activeView.x &&
+				pt[0] <= activeView.x + activeView.width &&
+				pt[1] >= activeView.y &&
+				pt[1] <= activeView.y + activeView.height
+			const decoded = decodeCanvasClipboard<PrezilloClipboard>(
+				e.clipboardData?.getData('text/plain') ?? '',
+				CLIPBOARD_APP
 			)
+			if (decoded && onSlide) {
+				e.preventDefault()
+				// Untrusted clipboard text: a malformed source counts as missing (foreign)
+				const payload = { ...decoded, source: clipboardSource(decoded.source) }
+				// Pasted objects are page-relative; the pointer is in canvas space
+				const pointer = lastPointerRef.current
+				const at: [number, number] =
+					pointer && inView(pointer)
+						? [pointer[0] - activeView.x, pointer[1] - activeView.y]
+						: [activeView.width / 2, activeView.height / 2]
+				const [dx, dy] = canvasPasteOffset(
+					isBounds(payload.bounds) ? payload.bounds : undefined,
+					at
+				)
+				const viewId = activeView.id
+				const paste = (pl: PrezilloClipboard) => {
+					const ids = pasteClipboard(p.yDoc, p.doc, pl, dx, dy, viewId)
+					if (ids.length) p.selectObjects(ids)
+				}
+				// From another presentation: its images and embeds must be linked to this one first.
+				// One claiming this deck is trusted only for files it already references.
+				const known = new Set<unknown>()
+				for (const o of p.doc.o.values()) {
+					if ('fid' in o && typeof o.fid === 'string') known.add(o.fid)
+				}
+				void resolveForeignPaste(
+					payload,
+					fileId,
+					clipboardFileRef,
+					(ref) => bus.linkDocument(ref, fileId),
+					known,
+					p.cloudillo.ownerTag
+				).then(({ payload: pl, failed }) => {
+					if (failed) {
+						toast({
+							variant: 'error',
+							message: t('Some pasted items could not be linked')
+						})
+					}
+					paste(pl)
+				})
 				return
+			}
+			const image = clipboardImageFile(e.clipboardData)
+			if (image && onSlide) {
+				e.preventDefault()
+				const pointer = lastPointerRef.current
+				const at = pointer && inView(pointer) ? pointer : pasteRef.current.insertCenter
+				if (at) void pasteImage(image, ...at)
+				return
+			}
 			const center = pasteRef.current.insertCenter
 			if (!center) return
 			bus.linkFromPaste(e, fileId)?.then((res) => {
@@ -964,6 +1138,63 @@ export function PrezilloApp() {
 		setEditingTextId
 	})
 
+	// With no tool armed, a press on the svg is empty canvas (objects stopPropagation): mouse and
+	// pen start a marquee, touch declines so one-finger pan keeps working
+	function handleCanvasToolStart(evt: ToolEvent): undefined | false {
+		if (prezillo.activeTool) {
+			handleToolStart(evt)
+			return
+		}
+		if (evt.pointerType === 'touch') return false
+		marqueeRef.current = evt
+		setMarquee(evt)
+	}
+
+	function handleCanvasToolMove(evt: ToolEvent) {
+		if (prezillo.activeTool) {
+			handleToolMove(evt)
+			return
+		}
+		const band = marqueeRef.current
+		if (!band) return
+		marqueeRef.current = { ...evt, shiftKey: band.shiftKey }
+		setMarquee(marqueeRef.current)
+	}
+
+	function handleCanvasToolEnd() {
+		if (prezillo.activeTool) {
+			handleToolEnd()
+			return
+		}
+		const band = marqueeRef.current
+		marqueeRef.current = null
+		setMarquee(null)
+		// No travel: a click, and handleCanvasClick clears the selection
+		if (
+			!band ||
+			Math.hypot(band.x - band.startX, band.y - band.startY) * canvasScale <= MARQUEE_SLOP_PX
+		)
+			return
+		const rect = boundsFromPoints({ x: band.startX, y: band.startY }, { x: band.x, y: band.y })
+		// Active view only; drawn (rotated) bounds
+		const hits = getObjectsIntersectingRect(
+			activeViewObjects.map((obj) => {
+				const p = getRotatedBoundsProjection(obj)
+				return {
+					id: obj.id,
+					bounds: { x: p.left, y: p.top, width: p.width, height: p.height }
+				}
+			}),
+			rect
+		)
+		prezillo.selectObjects(
+			hits.map((hit) => hit.id),
+			!!band.shiftKey
+		)
+		// The click that follows this pointerup must not clear the new selection
+		justFinishedInteractionRef.current = true
+	}
+
 	// Canvas event handlers (click, keyboard, context menu, delete, document check)
 	const {
 		handleObjectClick,
@@ -978,6 +1209,7 @@ export function PrezilloApp() {
 	} = useCanvasEventHandlers({
 		prezillo,
 		canvasObjects,
+		viewObjects: activeViewObjects,
 		isReadOnly,
 		dialog,
 		handleDuplicate,
@@ -988,6 +1220,93 @@ export function PrezilloApp() {
 		onPrevView: handlePrevView,
 		onNextView: handleNextView
 	})
+
+	// Editor shortcuts on `window` (bubble phase), so they work after a click on an object
+	// leaves focus outside the canvas. PresentationMode has its own window listener.
+	const keyDownRef = React.useRef(handleKeyDown)
+	keyDownRef.current = handleKeyDown
+	React.useEffect(() => {
+		if (isPresentationMode || isFullscreenFollowing) return
+		const onKeyDown = (e: KeyboardEvent) => keyDownRef.current(e)
+		window.addEventListener('keydown', onKeyDown)
+		return () => window.removeEventListener('keydown', onKeyDown)
+	}, [isPresentationMode, isFullscreenFollowing])
+
+	// The selection, for screen readers (the sr-only status beside the canvas): Tab cycling
+	// moves it without moving anything they can see
+	const [announcement, setAnnouncement] = React.useState('')
+	React.useEffect(() => {
+		if (prezillo.selectedIds.size > 1) {
+			setAnnouncement(t('{{count}} objects selected', { count: prezillo.selectedIds.size }))
+			return
+		}
+		const [id] = prezillo.selectedIds
+		const obj = id ? getObject(prezillo.doc, id) : undefined
+		if (!obj) return
+		setAnnouncement(
+			t('{{name}}, {{w}}×{{h}}, selected', {
+				name: objectLabel(t, prezillo.doc, obj),
+				w: Math.round(obj.width),
+				h: Math.round(obj.height)
+			})
+		)
+	}, [prezillo.selectedIds, prezillo.doc, t])
+
+	// Keyboard / screen-reader identity of the canvas svg. SvgCanvas takes no aria props, so they
+	// go on its element - once per element, not on every pan frame. role=application lets a
+	// screen reader pass Tab and the arrows through to useCanvasEventHandlers.
+	const labelledSvgRef = React.useRef<Element | null>(null)
+	const handleCanvasContextReadyA11y = React.useCallback(
+		(context: Parameters<typeof handleCanvasContextReady>[0]) => {
+			handleCanvasContextReady(context)
+			const svg = context.svg
+			if (svg && labelledSvgRef.current !== svg) {
+				labelledSvgRef.current = svg
+				svg.setAttribute('role', 'application')
+				svg.setAttribute('aria-roledescription', t('canvas'))
+				svg.setAttribute('aria-label', t('Slide canvas'))
+			}
+		},
+		[handleCanvasContextReady, t]
+	)
+
+	// Ctrl+C / Ctrl+X put the selection on the system clipboard as a prezillo payload. Its own
+	// effect, because copy must work read-only, where the paste effect bails. Cut deletes through
+	// handleDelete, so prototypes get the same confirmation as the Delete key.
+	const deleteRef = React.useRef(handleDelete)
+	deleteRef.current = handleDelete
+	React.useEffect(() => {
+		const { doc, selectedIds } = prezillo
+		if (!doc || !selectedIds.size || isPresentationMode) return
+		const ids = Array.from(selectedIds)
+		const onCopy = (e: ClipboardEvent) => {
+			const cut = e.type === 'cut'
+			if ((cut && isReadOnly) || isEditableTarget(e.target) || !e.clipboardData) return
+			// A real text selection elsewhere on the page copies as text, as usual
+			const sel = document.getSelection()
+			if (sel && !sel.isCollapsed) return
+			const payload = collectClipboard(doc, ids)
+			if (!payload) return
+			const { fileId, ownerTag } = pasteRef.current.prezillo.cloudillo
+			if (fileId) payload.source = { fileId, ownerTag }
+			e.clipboardData.setData('text/plain', encodeCanvasClipboard(CLIPBOARD_APP, payload))
+			e.preventDefault()
+			if (cut) void deleteRef.current()
+		}
+		document.addEventListener('copy', onCopy)
+		document.addEventListener('cut', onCopy)
+		return () => {
+			document.removeEventListener('copy', onCopy)
+			document.removeEventListener('cut', onCopy)
+		}
+	}, [prezillo.doc, prezillo.selectedIds, isReadOnly, isPresentationMode])
+
+	// Bigger handles with a 44px hit area on touch screens
+	const [coarsePointer] = React.useState(
+		() =>
+			typeof window.matchMedia === 'function' &&
+			window.matchMedia('(pointer: coarse)').matches
+	)
 
 	// Get selection bounds (use tempObjectState for immediate visual feedback during drag/resize)
 	const selectionBounds = React.useMemo(() => {
@@ -1077,6 +1396,9 @@ export function PrezilloApp() {
 			initialViewId={prezillo.activeViewId}
 			onExit={stopPresenting}
 			fullscreen={presentationFullscreen}
+			withNotes={presentationWithNotes}
+			presenterWindow={presenterWindow}
+			castSend={castSend}
 			ownerTag={prezillo.cloudillo.ownerTag}
 			token={prezillo.cloudillo.token}
 			sourceFileId={prezillo.cloudillo.fileId}
@@ -1123,6 +1445,26 @@ export function PrezilloApp() {
 			</div>
 		)
 	}
+
+	const loadError = prezillo.cloudillo.error
+	if (loadError) {
+		return (
+			<EmptyState
+				fill
+				color="error"
+				icon={<IcError />}
+				title={
+					loadError.code === 4401 || loadError.code === 4403
+						? t('You no longer have access')
+						: loadError.code === 4404
+							? t('Document not found')
+							: t('Connection error')
+				}
+				actions={<Button onClick={() => location.reload()}>{t('Retry')}</Button>}
+			/>
+		)
+	}
+	if (!prezillo.cloudillo.synced) return <LoadingSpinner />
 
 	return (
 		<>
@@ -1285,22 +1627,25 @@ export function PrezilloApp() {
 						viewOccupants={viewOccupants}
 					/>
 				)}
+				<div className="sr-only" role="status" aria-live="polite">
+					{announcement}
+				</div>
 				<div
 					ref={canvasContainerRef}
-					className="c-panel flex-fill"
-					tabIndex={0}
-					onKeyDown={handleKeyDown}
+					className="c-panel flex-fill prezillo-canvas"
 					onClick={handleCanvasClick}
 					onContextMenu={handleObjectContextMenu}
-					style={{ outline: 'none', minWidth: 0 }}
+					style={{ minWidth: 0 }}
 				>
 					<SvgCanvas
 						ref={canvasRef}
 						className="w-100 h-100"
-						onToolStart={prezillo.activeTool ? handleToolStart : undefined}
-						onToolMove={prezillo.activeTool ? handleToolMove : undefined}
-						onToolEnd={prezillo.activeTool ? handleToolEnd : undefined}
-						onContextReady={handleCanvasContextReady}
+						tabIndex={0}
+						onToolStart={handleCanvasToolStart}
+						onToolMove={handleCanvasToolMove}
+						onToolEnd={handleCanvasToolEnd}
+						onMove={handleCanvasMove}
+						onContextReady={handleCanvasContextReadyA11y}
 						fixed={
 							<>
 								<FixedSnapGuides
@@ -1324,6 +1669,7 @@ export function PrezilloApp() {
 											: undefined
 									}
 								/>
+								{marquee && <FixedMarquee band={marquee} />}
 								{/* Selection box - fixed layer for constant screen size */}
 								{selectionBounds && (
 									<FixedSelectionBox
@@ -1332,6 +1678,8 @@ export function PrezilloApp() {
 										pivotX={selectedObjectTransform?.pivotX ?? 0.5}
 										pivotY={selectedObjectTransform?.pivotY ?? 0.5}
 										onResizeStart={handleResizeStart}
+										handleSize={coarsePointer ? 12 : 8}
+										handleHitSize={coarsePointer ? 44 : undefined}
 									/>
 								)}
 								{/* Rotation and pivot handles - fixed layer for constant screen size */}
@@ -1442,7 +1790,7 @@ export function PrezilloApp() {
 												prezillo.yDoc,
 												prezillo.doc,
 												{
-													name: 'Template 1',
+													name: `${t('Template')} 1`,
 													width: 1920,
 													height: 1080,
 													backgroundColor: '#ffffff'
@@ -1747,6 +2095,12 @@ export function PrezilloApp() {
 					}}
 					presentCmds={{
 						onPresent: startPresenting,
+						onPresentOn: handlePresentOn
+							? () => {
+									presentFromRef.current = prezillo.activeViewId
+									handlePresentOn()
+								}
+							: undefined,
 						onStopPresenting: stopPresenting,
 						onFollow: prezillo.followPresenter,
 						onUnfollow: prezillo.unfollowPresenter,

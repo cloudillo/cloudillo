@@ -7,6 +7,7 @@
  */
 
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 
 // Template color scheme (matches TemplateFrame)
 const TEMPLATE_COLOR = '#9b59b6'
@@ -26,6 +27,7 @@ export function TemplateZoneEmptyState({
 	readOnly,
 	onCreateTemplate
 }: TemplateZoneEmptyStateProps) {
+	const { t } = useTranslation()
 	const [isHovered, setIsHovered] = React.useState(false)
 
 	const boxWidth = Math.min(width, 400)
@@ -78,14 +80,14 @@ export function TemplateZoneEmptyState({
 				fontWeight={500}
 				opacity={0.8}
 			>
-				No templates yet
+				{t('No templates yet')}
 			</text>
 
 			{/* Description text */}
 			<text x={boxX + 56} y={boxY + 52} fill={TEMPLATE_COLOR} fontSize={12} opacity={0.6}>
 				{readOnly
-					? 'Templates define reusable page layouts'
-					: 'Click to create a template for reusable layouts'}
+					? t('Templates define reusable page layouts')
+					: t('Click to create a template for reusable layouts')}
 			</text>
 		</g>
 	)

@@ -7,6 +7,7 @@
 
 import { measureTextWidth } from '@cloudillo/canvas-text'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 
 import type { PrezilloObject, ResolvedTextStyle } from '../crdt'
 import { getBulletIcon, migrateBullet } from '../data/bullet-icons'
@@ -73,6 +74,7 @@ export function TextEditOverlay({
 	shouldIgnoreBlur,
 	onSetDragFlag
 }: TextEditOverlayProps) {
+	const { t } = useTranslation()
 	const inputRef = React.useRef<HTMLTextAreaElement>(null)
 	// For instances inheriting text, start with empty to show placeholder
 	// For instances with local text or non-instances, use the object's text
@@ -81,7 +83,7 @@ export function TextEditOverlay({
 	const [text, setText] = React.useState(initialText)
 
 	// Placeholder: use prototype text if inheriting, otherwise default
-	const placeholder = isInheritingText ? prototypeText : 'Type here...'
+	const placeholder = isInheritingText ? prototypeText : t('Type here...')
 
 	// Notify parent of initial text and any changes
 	React.useEffect(() => {

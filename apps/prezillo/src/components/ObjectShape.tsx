@@ -14,7 +14,9 @@ import type { Gradient } from '@cloudillo/canvas-tools'
 import { createLinearGradientDef, createRadialGradientDef } from '@cloudillo/canvas-tools'
 import { type EmbedViewReportPayload, getAppBus } from '@cloudillo/core'
 import { SvgViewEmbed } from '@cloudillo/react'
+import type { TFunction } from 'i18next'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 
 import type {
 	ObjectId,
@@ -184,6 +186,29 @@ function toBaseTextStyle(ts: ResolvedTextStyle): BaseTextStyle {
 	}
 }
 
+/** Screen-reader name of an object: its type, plus its name or text if it has one */
+export function objectLabel(t: TFunction, doc: YPrezilloDocument, object: PrezilloObject): string {
+	const types: Record<PrezilloObject['type'], string> = {
+		rect: t('Rectangle'),
+		ellipse: t('Ellipse'),
+		line: t('Line'),
+		path: t('Path'),
+		polygon: t('Polygon'),
+		text: t('Text'),
+		image: t('Image'),
+		embed: t('Embed'),
+		document: t('Embedded document'),
+		connector: t('Connector'),
+		qrcode: t('QR code'),
+		pollframe: t('Poll frame'),
+		tablegrid: t('Table'),
+		symbol: t('Symbol'),
+		statevar: t('Live value')
+	}
+	const text = (object.name || doc.rt.get(object.id)?.toString() || '').trim()
+	return text ? `${types[object.type]}, ${text.slice(0, 120)}` : types[object.type]
+}
+
 export const ObjectShape = React.memo(function ObjectShape({
 	object,
 	doc,
@@ -211,6 +236,12 @@ export const ObjectShape = React.memo(function ObjectShape({
 	onDocumentEditable,
 	onDocumentActivate
 }: ObjectShapeProps) {
+	const { t } = useTranslation()
+	// keyed on text length; same-length edits leave the aria-label stale until next change
+	const label = React.useMemo(
+		() => objectLabel(t, doc, object),
+		[t, doc, object, doc.rt.get(object.id)?.length]
+	)
 	// Use temp bounds if provided, otherwise use object bounds
 	const x = tempBounds?.x ?? object.x
 	const y = tempBounds?.y ?? object.y
@@ -238,7 +269,11 @@ export const ObjectShape = React.memo(function ObjectShape({
 	const finalOpacity = baseOpacity * hiddenMultiplier
 	const objectOpacity = finalOpacity !== 1 ? finalOpacity : undefined
 
+	// Role and name ride on the element that carries the handlers: the outer <g> for most types,
+	// the shape itself for rect / ellipse / line / path
 	const commonProps = {
+		role: 'img',
+		'aria-label': label,
 		onClick,
 		onDoubleClick,
 		onContextMenu,
@@ -471,7 +506,7 @@ export const ObjectShape = React.memo(function ObjectShape({
 									fontSize: textStyle.fontSize
 								}}
 							>
-								Click to add text
+								{t('Click to add text')}
 							</div>
 						</foreignObject>
 					)}

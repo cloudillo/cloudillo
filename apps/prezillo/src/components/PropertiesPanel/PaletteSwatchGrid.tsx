@@ -8,6 +8,7 @@
 import { gradientToCSS } from '@cloudillo/canvas-tools'
 import { getContrastColor } from '@cloudillo/core'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 
 import type {
 	Palette,
@@ -61,6 +62,7 @@ export function PaletteSwatchGrid({
 	onTransparentSelect,
 	className = ''
 }: PaletteSwatchGridProps) {
+	const { t } = useTranslation()
 	const colorSlots = getColorSlotNames()
 	const gradientSlots = getGradientSlotNames()
 
@@ -121,7 +123,7 @@ export function PaletteSwatchGrid({
 
 	const renderSwatch = (slot: PaletteSlotName, slots: PaletteSlotName[]) => {
 		const isSelected = selectedSlot === slot
-		const label = getPaletteSlotDisplayName(slot)
+		const label = t(getPaletteSlotDisplayName(slot))
 
 		return (
 			<button
@@ -151,8 +153,8 @@ export function PaletteSwatchGrid({
 			type="button"
 			className={`c-palette-swatch c-palette-swatch--${size} c-palette-swatch--transparent${isTransparentSelected ? ' c-palette-swatch--selected' : ''}`}
 			onClick={onTransparentSelect}
-			title="Transparent"
-			aria-label="Transparent"
+			title={t('Transparent')}
+			aria-label={t('Transparent')}
 			aria-pressed={isTransparentSelected}
 		>
 			{isTransparentSelected && (
@@ -160,7 +162,7 @@ export function PaletteSwatchGrid({
 					✓
 				</span>
 			)}
-			{showLabels && <span className="c-palette-swatch-label">Transparent</span>}
+			{showLabels && <span className="c-palette-swatch-label">{t('Transparent')}</span>}
 		</button>
 	)
 

@@ -18,6 +18,7 @@ import {
 	TreeView
 } from '@cloudillo/react'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import { useY } from 'react-yjs'
 import type * as Y from 'yjs'
 
@@ -93,6 +94,7 @@ export function LayerBrowser({
 	selectedContainerId,
 	onSelectContainer
 }: LayerBrowserProps) {
+	const { t } = useTranslation()
 	// Subscribe to changes in objects and containers
 	const _objectsMap = useY(doc.o)
 	const _containersMap = useY(doc.c)
@@ -177,11 +179,11 @@ export function LayerBrowser({
 	// Create new layer (container)
 	const handleCreateLayer = React.useCallback(() => {
 		const containerId = createContainer(yDoc, doc, 'layer', {
-			name: `Layer ${doc.r.length + 1}`
+			name: `${t('Layer')} ${doc.r.length + 1}`
 		})
 		// Auto-expand the new layer
 		setExpandedContainers((prev) => new Set(prev).add(containerId))
-	}, [yDoc, doc])
+	}, [yDoc, doc, t])
 
 	// Drag-drop handlers
 	const handleDragStart = React.useCallback(
@@ -377,7 +379,7 @@ export function LayerBrowser({
 				expanded={isExpanded}
 				selected={isSelected}
 				icon={isExpanded ? <IcFolderOpen size={14} /> : <IcFolder size={14} />}
-				label={container.name || 'Layer'}
+				label={container.name || t('Layer')}
 				dragging={isDragging}
 				dropTarget={isDropTarget}
 				dropPosition={dropPos}
@@ -407,7 +409,7 @@ export function LayerBrowser({
 							onClick={(e) =>
 								handleToggleContainerVisibility(e, containerId as ContainerId)
 							}
-							title={isVisible ? 'Hide' : 'Show'}
+							title={isVisible ? t('Hide') : t('Show')}
 						>
 							{isVisible ? <IcShow size={12} /> : <IcHide size={12} />}
 						</button>
@@ -417,7 +419,7 @@ export function LayerBrowser({
 							onClick={(e) =>
 								handleToggleContainerLock(e, containerId as ContainerId)
 							}
-							title={isLocked ? 'Unlock' : 'Lock'}
+							title={isLocked ? t('Unlock') : t('Lock')}
 						>
 							{isLocked ? <IcLocked size={12} /> : <IcUnlocked size={12} />}
 						</button>
@@ -477,7 +479,7 @@ export function LayerBrowser({
 							type="button"
 							className="c-button icon xs"
 							onClick={(e) => handleToggleObjectVisibility(e, objectId as ObjectId)}
-							title={isVisible ? 'Hide' : 'Show'}
+							title={isVisible ? t('Hide') : t('Show')}
 						>
 							{isVisible ? <IcShow size={12} /> : <IcHide size={12} />}
 						</button>
@@ -485,7 +487,7 @@ export function LayerBrowser({
 							type="button"
 							className="c-button icon xs"
 							onClick={(e) => handleToggleObjectLock(e, objectId as ObjectId)}
-							title={isLocked ? 'Unlock' : 'Lock'}
+							title={isLocked ? t('Unlock') : t('Lock')}
 						>
 							{isLocked ? <IcLocked size={12} /> : <IcUnlocked size={12} />}
 						</button>
@@ -502,7 +504,7 @@ export function LayerBrowser({
 					type="button"
 					className="c-button icon sm"
 					onClick={handleCreateLayer}
-					title="New Layer"
+					title={t('New Layer')}
 				>
 					<IcCreateFolder size={14} />
 				</button>
@@ -515,7 +517,7 @@ export function LayerBrowser({
 						return renderContainer(item.id, 0, undefined)
 					}
 				})}
-				{rootItems.length === 0 && <div className="c-empty-message">No objects</div>}
+				{rootItems.length === 0 && <div className="c-empty-message">{t('No objects')}</div>}
 			</TreeView>
 		</div>
 	)

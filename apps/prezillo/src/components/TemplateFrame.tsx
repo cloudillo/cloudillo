@@ -8,6 +8,7 @@
 
 import { createLinearGradientDef, createRadialGradientDef } from '@cloudillo/canvas-tools'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 
 import type { TemplateLayout } from '../hooks/useTemplateLayout'
 import type { TemplateWithUsage } from '../hooks/useTemplates'
@@ -35,6 +36,7 @@ export function TemplateFrame({
 	onDoubleClick,
 	readOnly
 }: TemplateFrameProps) {
+	const { t } = useTranslation()
 	// Generate unique gradient ID for this template
 	const gradientId = `template-bg-${template.id}`
 
@@ -76,10 +78,10 @@ export function TemplateFrame({
 	// Usage badge text
 	const usageText =
 		template.usageCount === 0
-			? 'Not used'
+			? t('Not used')
 			: template.usageCount === 1
-				? 'Used by 1 page'
-				: `Used by ${template.usageCount} pages`
+				? t('Used by {{count}} pages', { count: 1 })
+				: t('Used by {{count}} pages', { count: template.usageCount })
 
 	return (
 		<g

@@ -30,6 +30,7 @@ import type { ViewId, ViewNode } from '../crdt'
 import type { UsePrezilloDocumentResult } from '../hooks/usePrezilloDocument'
 import type { TemplateWithUsage } from '../hooks/useTemplates'
 import { IcAudience, IcOwner, IcPlay, IcStop } from '../icons'
+import { detectExternalDisplay } from '../presenter'
 import { mergeClasses } from '../utils'
 import type { SlideMenuCmds } from './SlideMenu'
 import type { ViewOccupants } from './SlideThumbnail'
@@ -46,7 +47,9 @@ export interface ViewPickerCmds {
 
 /** Presentation commands */
 export interface ViewPickerPresentCmds {
-	onPresent: (fullscreen?: boolean) => void
+	onPresent: (fullscreen?: boolean, withNotes?: boolean) => void
+	/** "Present on…" (Presentation API); called synchronously in the click */
+	onPresentOn?: () => void
 	onStopPresenting?: () => void
 	onFollow?: (clientId: number) => void
 	onUnfollow?: () => void
@@ -166,8 +169,15 @@ export function ViewPicker({
 }: ViewPickerProps) {
 	const { activeViewId, isPresenting, activePresenters, followingClientId, awareness } = prezillo
 	const { onViewSelect, onAddView, onPrevView, onNextView } = cmds
-	const { onPresent, onStopPresenting, onFollow, onUnfollow, onSharePresent, onShareFollow } =
-		presentCmds
+	const {
+		onPresent,
+		onPresentOn,
+		onStopPresenting,
+		onFollow,
+		onUnfollow,
+		onSharePresent,
+		onShareFollow
+	} = presentCmds
 	const { t } = useTranslation()
 	const dark = useDarkMode()
 	const activeIndex = views.findIndex((v) => v.id === activeViewId)
@@ -199,6 +209,8 @@ export function ViewPicker({
 	// Present dropdown state
 	const [showPresentDropdown, setShowPresentDropdown] = React.useState(false)
 	const presentDropdownRef = React.useRef<HTMLDivElement>(null)
+	// Checked each time the dropdown opens (displays come and go)
+	const [secondScreen, setSecondScreen] = React.useState(false)
 
 	// Close present dropdown on outside click
 	useOutsideClick(presentDropdownRef, () => setShowPresentDropdown(false), showPresentDropdown)
@@ -248,7 +260,12 @@ export function ViewPicker({
 						<IcPlay />
 					</button>
 					<button
-						onClick={() => setShowPresentDropdown(!showPresentDropdown)}
+						onClick={() => {
+							if (!showPresentDropdown) {
+								detectExternalDisplay().then(setSecondScreen, () => {})
+							}
+							setShowPresentDropdown(!showPresentDropdown)
+						}}
 						className="c-button icon c-present-split__caret"
 						title={t('Presentation options')}
 						aria-label={t('Presentation options')}
@@ -280,6 +297,37 @@ export function ViewPicker({
 									<IcFullscreen />
 									<span>{t('Present fullscreen')}</span>
 								</button>
+							)}
+							<button
+								className="c-present-split__option"
+								onClick={() => {
+									// Opens the presenter popup: must stay synchronous in this click
+									onPresent(!!document.fullscreenEnabled, true)
+									setShowPresentDropdown(false)
+								}}
+							>
+								<IcPlay />
+								<span>{t('Present with notes')}</span>
+							</button>
+							{onPresentOn && 'PresentationRequest' in window && (
+								<button
+									className="c-present-split__option"
+									onClick={() => {
+										// Opens the browser's display picker: must stay synchronous in this click
+										onPresentOn()
+										setShowPresentDropdown(false)
+									}}
+								>
+									<IcFullscreen />
+									<span>{t('Present on…')}</span>
+								</button>
+							)}
+							{secondScreen && (
+								<div className="c-present-split__hint" role="note">
+									{t(
+										'Second screen detected — the audience view will open there'
+									)}
+								</div>
 							)}
 							{(onSharePresent || onShareFollow) && (
 								<>

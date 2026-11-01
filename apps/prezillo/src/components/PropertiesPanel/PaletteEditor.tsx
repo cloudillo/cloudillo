@@ -10,6 +10,7 @@ import { GradientPicker } from '@cloudillo/canvas-tools'
 import { getContrastColor } from '@cloudillo/core'
 import { ColorInput, PropertySection } from '@cloudillo/react'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import type * as Y from 'yjs'
 
 import type { PaletteColorSlotName, PaletteGradientSlotName, YPrezilloDocument } from '../../crdt'
@@ -82,6 +83,7 @@ export function PaletteEditor({
 	onClose,
 	className = ''
 }: PaletteEditorProps) {
+	const { t } = useTranslation()
 	const palette = usePaletteValue(doc)
 	const usageCounts = React.useMemo(() => getPaletteUsageCounts(doc), [doc])
 
@@ -128,7 +130,7 @@ export function PaletteEditor({
 		<div className={`c-palette-editor ${className}`}>
 			{/* Color slots */}
 			<div className="c-palette-editor-section">
-				<div className="c-palette-editor-section-title">Colors</div>
+				<div className="c-palette-editor-section-title">{t('Colors')}</div>
 				<div className="c-palette-editor-grid">
 					{COLOR_SLOT_NAMES.map((slotName) => {
 						const color = palette[slotName]?.color ?? '#cccccc'
@@ -139,14 +141,14 @@ export function PaletteEditor({
 							<div key={slotName} className="c-palette-editor-slot">
 								<div className="c-palette-editor-slot-header">
 									<span className="c-palette-editor-slot-name">
-										{getSlotDisplayName(slotName)}
+										{t(getSlotDisplayName(slotName))}
 									</span>
 									{count > 0 && (
 										<span className="c-palette-editor-slot-count">{count}</span>
 									)}
 								</div>
 								<ColorInput
-									aria-label={getSlotDisplayName(slotName)}
+									aria-label={t(getSlotDisplayName(slotName))}
 									value={color}
 									onChange={(newColor) => handleColorChange(slotName, newColor)}
 									showHex={true}
@@ -159,7 +161,7 @@ export function PaletteEditor({
 
 			{/* Gradient slots */}
 			<div className="c-palette-editor-section">
-				<div className="c-palette-editor-section-title">Gradients</div>
+				<div className="c-palette-editor-section-title">{t('Gradients')}</div>
 				<div className="c-palette-editor-grid c-palette-editor-grid--gradients">
 					{GRADIENT_SLOT_NAMES.map((slotName) => {
 						// Get valid gradient (fallback to default if undefined/solid)
@@ -173,7 +175,7 @@ export function PaletteEditor({
 							>
 								<div className="c-palette-editor-slot-header">
 									<span className="c-palette-editor-slot-name">
-										{getSlotDisplayName(slotName)}
+										{t(getSlotDisplayName(slotName))}
 									</span>
 									{count > 0 && (
 										<span className="c-palette-editor-slot-count">{count}</span>
@@ -199,7 +201,7 @@ export function PaletteEditor({
 					className="c-palette-editor-reset"
 					onClick={handleResetToDefault}
 				>
-					Reset to Default
+					{t('Reset to Default')}
 				</button>
 			</div>
 		</div>
@@ -207,7 +209,7 @@ export function PaletteEditor({
 
 	if (mode === 'section') {
 		return (
-			<PropertySection title="Palette" defaultExpanded={true}>
+			<PropertySection title={t('Palette')} defaultExpanded={true}>
 				{content}
 			</PropertySection>
 		)
@@ -218,7 +220,7 @@ export function PaletteEditor({
 		<div className="c-palette-editor-modal-backdrop" onClick={onClose}>
 			<div className="c-palette-editor-modal" onClick={(e) => e.stopPropagation()}>
 				<div className="c-palette-editor-modal-header">
-					<h2>Edit Palette</h2>
+					<h2>{t('Edit Palette')}</h2>
 					<button
 						type="button"
 						className="c-palette-editor-modal-close"

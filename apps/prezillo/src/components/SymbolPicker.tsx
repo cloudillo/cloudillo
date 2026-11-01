@@ -10,6 +10,7 @@
 
 import { useEscapeKey, useOutsideClick } from '@cloudillo/react'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 
 import {
 	CATEGORY_NAMES,
@@ -40,13 +41,14 @@ function SymbolButton({
 	isSelected: boolean
 	onClick: () => void
 }) {
+	const { t } = useTranslation()
 	const [vbX, vbY, vbWidth, vbHeight] = symbol.viewBox
 
 	return (
 		<button
 			className={mergeClasses('c-symbol-btn', isSelected ? 'active' : '')}
 			onClick={onClick}
-			title={symbol.name}
+			title={t(symbol.name)}
 			type="button"
 		>
 			<svg viewBox={`${vbX} ${vbY} ${vbWidth} ${vbHeight}`} className="c-symbol-icon">
@@ -62,6 +64,7 @@ export function SymbolPicker({
 	onSelectSymbol,
 	onClose
 }: SymbolPickerProps) {
+	const { t } = useTranslation()
 	const [isOpen, setIsOpen] = React.useState(false)
 	const [activeCategory, setActiveCategory] = React.useState<SymbolCategory>('status')
 	const containerRef = React.useRef<HTMLDivElement>(null)
@@ -97,7 +100,7 @@ export function SymbolPicker({
 			<button
 				onClick={handleToggle}
 				className={mergeClasses('c-button icon', isActive ? 'active' : '')}
-				title="Symbol"
+				title={t('Symbol')}
 				type="button"
 			>
 				<IcSymbol />
@@ -117,7 +120,7 @@ export function SymbolPicker({
 								onClick={() => setActiveCategory(cat)}
 								type="button"
 							>
-								{CATEGORY_NAMES[cat]}
+								{t(CATEGORY_NAMES[cat])}
 							</button>
 						))}
 					</div>

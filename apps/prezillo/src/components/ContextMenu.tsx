@@ -7,6 +7,7 @@
 
 import { IcDelete, IcDuplicate, IcHide, IcShow, IcUnlink } from '@cloudillo/react'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { detachInstance, getObject, isInstance, toggleObjectHidden } from '../crdt'
 import type { UsePrezilloDocumentResult } from '../hooks/usePrezilloDocument'
@@ -28,6 +29,7 @@ export function ContextMenu({
 	onDelete,
 	menuRef
 }: ContextMenuProps) {
+	const { t } = useTranslation()
 	const { doc, yDoc, selectedIds } = prezillo
 	// Get the first selected object for single-object operations
 	const singleSelectedId = selectedIds.size === 1 ? [...selectedIds][0] : null
@@ -53,7 +55,7 @@ export function ContextMenu({
 					onClose()
 				}}
 			>
-				<IcDuplicate /> Duplicate
+				<IcDuplicate /> {t('Duplicate')}
 			</button>
 
 			{/* Hide/Show toggle - only for single selection */}
@@ -67,11 +69,11 @@ export function ContextMenu({
 				>
 					{isHidden ? (
 						<>
-							<IcShow /> Show
+							<IcShow /> {t('Show')}
 						</>
 					) : (
 						<>
-							<IcHide /> Hide
+							<IcHide /> {t('Hide')}
 						</>
 					)}
 				</button>
@@ -86,7 +88,7 @@ export function ContextMenu({
 						onClose()
 					}}
 				>
-					<IcUnlink /> Detach from template
+					<IcUnlink /> {t('Detach from template')}
 				</button>
 			)}
 
@@ -97,7 +99,7 @@ export function ContextMenu({
 					onClose()
 				}}
 			>
-				<IcDelete /> Delete
+				<IcDelete /> {t('Delete')}
 			</button>
 		</div>
 	)

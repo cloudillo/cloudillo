@@ -86,7 +86,7 @@ export function TemplateViewPropertiesPanel({
 	}, [activeType, template?.backgroundColor, template?.backgroundGradient])
 
 	if (!template) {
-		return <div className="c-empty-message">Template not found</div>
+		return <div className="c-empty-message">{t('Template not found')}</div>
 	}
 
 	const handleNameChange = (name: string) => {
@@ -172,15 +172,15 @@ export function TemplateViewPropertiesPanel({
 	return (
 		<div className="c-vbox g-2">
 			{/* General Section */}
-			<PropertySection title="General" defaultExpanded>
-				<PropertyField label="Name">
+			<PropertySection title={t('General')} defaultExpanded>
+				<PropertyField label={t('Name')}>
 					<Input
 						value={template.name}
 						onChange={(e) => handleNameChange(e.target.value)}
 					/>
 				</PropertyField>
 				<div className="c-hbox g-2">
-					<PropertyField label="Width">
+					<PropertyField label={t('Width')}>
 						<NumberInput
 							value={template.width}
 							onChange={handleWidthChange}
@@ -188,7 +188,7 @@ export function TemplateViewPropertiesPanel({
 							max={7680}
 						/>
 					</PropertyField>
-					<PropertyField label="Height">
+					<PropertyField label={t('Height')}>
 						<NumberInput
 							value={template.height}
 							onChange={handleHeightChange}
@@ -200,7 +200,7 @@ export function TemplateViewPropertiesPanel({
 			</PropertySection>
 
 			{/* Background Section */}
-			<PropertySection title="Background" defaultExpanded>
+			<PropertySection title={t('Background')} defaultExpanded>
 				<Segmented
 					size="sm"
 					fill
@@ -209,12 +209,12 @@ export function TemplateViewPropertiesPanel({
 					value={activeType}
 					onChange={(v) => handleTypeSwitch(v as BackgroundType)}
 				>
-					<SegmentedItem value="solid">Solid</SegmentedItem>
-					<SegmentedItem value="gradient">Gradient</SegmentedItem>
+					<SegmentedItem value="solid">{t('Solid')}</SegmentedItem>
+					<SegmentedItem value="gradient">{t('Gradient')}</SegmentedItem>
 				</Segmented>
 
 				{activeType === 'solid' && (
-					<PropertyField label="Color">
+					<PropertyField label={t('Color')}>
 						<ColorInput
 							value={template.backgroundColor ?? '#ffffff'}
 							onChange={handleSolidColorChange}
@@ -234,7 +234,10 @@ export function TemplateViewPropertiesPanel({
 			</PropertySection>
 
 			{/* Snap Guides Section */}
-			<PropertySection title="Snap Guides" defaultExpanded={template.snapGuides.length > 0}>
+			<PropertySection
+				title={t('Snap Guides')}
+				defaultExpanded={template.snapGuides.length > 0}
+			>
 				<div className="c-template-properties__guides">
 					{template.snapGuides.length === 0 ? (
 						<p className="c-template-properties__guides-empty">
@@ -259,7 +262,7 @@ export function TemplateViewPropertiesPanel({
 							type="button"
 							className="c-button xs flex-1"
 							onClick={() => handleAddGuide('horizontal')}
-							title="Add horizontal guide"
+							title={t('Add horizontal guide')}
 						>
 							<IcHorizontalGuide />H
 						</button>
@@ -267,7 +270,7 @@ export function TemplateViewPropertiesPanel({
 							type="button"
 							className="c-button xs flex-1"
 							onClick={() => handleAddGuide('vertical')}
-							title="Add vertical guide"
+							title={t('Add vertical guide')}
 						>
 							<IcVerticalGuide />V
 						</button>
@@ -327,7 +330,11 @@ function SnapGuideEditor({
 				type="button"
 				className={mergeClasses('c-snap-guide-editor__direction', guide.direction)}
 				onClick={handleDirectionToggle}
-				title={`${guide.direction === 'horizontal' ? 'Horizontal' : 'Vertical'} (click to toggle)`}
+				title={
+					guide.direction === 'horizontal'
+						? t('Horizontal (click to toggle)')
+						: t('Vertical (click to toggle)')
+				}
 			>
 				{guide.direction === 'horizontal' ? <IcHorizontalGuide /> : <IcVerticalGuide />}
 			</button>
@@ -353,7 +360,7 @@ function SnapGuideEditor({
 						guide.absolute && 'absolute'
 					)}
 					onClick={handleModeToggle}
-					title={guide.absolute ? 'Absolute (px)' : 'Percentage (%)'}
+					title={guide.absolute ? t('Absolute (px)') : t('Percentage (%)')}
 				>
 					{guide.absolute ? 'px' : '%'}
 				</button>
@@ -362,7 +369,7 @@ function SnapGuideEditor({
 				type="button"
 				className="c-snap-guide-editor__delete"
 				onClick={onDelete}
-				title="Delete guide"
+				title={t('Delete guide')}
 			>
 				<IcDelete />
 			</button>

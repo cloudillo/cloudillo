@@ -3,6 +3,7 @@
 
 import { BottomSheet, type BottomSheetSnapPoint, Tab, Tabs } from '@cloudillo/react'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import { useY } from 'react-yjs'
 
 import type { PrezilloObject } from '../../crdt'
@@ -30,6 +31,7 @@ export function MobilePropertyPanel({
 	onSnapChange,
 	onPreview
 }: MobilePropertyPanelProps) {
+	const { t } = useTranslation()
 	const { doc, yDoc, selectedIds, activeViewId, isViewFocused } = prezillo
 	// Subscribe to object changes
 	useY(doc.o)
@@ -52,23 +54,23 @@ export function MobilePropertyPanel({
 
 	// Get object label for header
 	const objectLabel = React.useMemo(() => {
-		if (showViewProperties) return 'Page Properties'
-		if (selectedIds.size === 0) return 'No selection'
-		if (selectedIds.size > 1) return `${selectedIds.size} objects`
-		if (!selectedObject) return 'Unknown'
+		if (showViewProperties) return t('Page Properties')
+		if (selectedIds.size === 0) return t('No selection')
+		if (selectedIds.size > 1) return t('{{count}} objects', { count: selectedIds.size })
+		if (!selectedObject) return t('Unknown')
 
 		const typeLabels: Record<string, string> = {
-			rect: 'Rectangle',
-			ellipse: 'Ellipse',
-			text: 'Text',
-			textbox: 'Text Box',
-			line: 'Line',
-			image: 'Image',
-			group: 'Group',
-			layer: 'Layer'
+			rect: t('Rectangle'),
+			ellipse: t('Ellipse'),
+			text: t('Text'),
+			textbox: t('Text Box'),
+			line: t('Line'),
+			image: t('Image'),
+			group: t('Group'),
+			layer: t('Layer')
 		}
 		return typeLabels[selectedObject.type] || selectedObject.type
-	}, [showViewProperties, selectedIds.size, selectedObject])
+	}, [showViewProperties, selectedIds.size, selectedObject, t])
 
 	// Determine available tabs
 	const availableTabs = React.useMemo(() => {
@@ -117,13 +119,15 @@ export function MobilePropertyPanel({
 		// Multi-selection not supported
 		if (selectedIds.size > 1) {
 			return (
-				<div className="c-mobile-property-empty">Multi-selection editing not supported</div>
+				<div className="c-mobile-property-empty">
+					{t('Multi-selection editing not supported')}
+				</div>
 			)
 		}
 
 		// No selection
 		if (selectedIds.size === 0 || !selectedObject) {
-			return <div className="c-mobile-property-empty">Select an object to edit</div>
+			return <div className="c-mobile-property-empty">{t('Select an object to edit')}</div>
 		}
 
 		// Single selection - show property editor
@@ -136,14 +140,14 @@ export function MobilePropertyPanel({
 							active={activeTab === 'transform'}
 							onClick={() => setActiveTab('transform')}
 						>
-							Transform
+							{t('Transform')}
 						</Tab>
 						<Tab active={activeTab === 'style'} onClick={() => setActiveTab('style')}>
-							Style
+							{t('Style')}
 						</Tab>
 						{isTextObject && (
 							<Tab active={activeTab === 'text'} onClick={() => setActiveTab('text')}>
-								Text
+								{t('Text')}
 							</Tab>
 						)}
 					</Tabs>

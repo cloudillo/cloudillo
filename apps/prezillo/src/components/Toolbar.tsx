@@ -3,9 +3,14 @@
 
 /**
  * Toolbar component - Main toolbar with drawing tools, formatting, and actions
+ *
+ * Desktop shows every tool in one row. Mobile (useIsMobile) collapses into
+ * Undo/Redo · Select · Insert ▾ · Shapes ▾ · Symbol · Snapping ▾ · More ▾ · Theme.
  */
 
 import {
+	Checkbox,
+	IcAdd,
 	IcAlignBottom,
 	IcAlignCenter,
 	IcAlignJustify,
@@ -23,6 +28,7 @@ import {
 	IcImage,
 	IcItalic,
 	IcLine,
+	IcMore,
 	IcPoll,
 	IcQrCode,
 	IcRectangle,
@@ -33,7 +39,12 @@ import {
 	IcSidebar,
 	IcText,
 	IcUnderline,
-	IcUndo
+	IcUndo,
+	Menu,
+	MenuDivider,
+	MenuItem,
+	Popover,
+	useIsMobile
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -112,6 +123,15 @@ export interface ToolbarProps {
 	onSelectSymbol?: (symbolId: string) => void
 }
 
+interface Item {
+	id: string
+	Icon: React.ComponentType
+	label: string
+	/** Highlighted (tool armed, toggle on, alignment current) */
+	on?: boolean
+	run?: () => void
+}
+
 export function Toolbar({
 	className,
 	doc,
@@ -132,177 +152,341 @@ export function Toolbar({
 	onSelectSymbol
 }: ToolbarProps) {
 	const { t } = useTranslation()
-	return (
-		<div className={mergeClasses('c-nav c-hbox p-1 mb-1', className)}>
-			{/* Undo/Redo */}
+	const isMobile = useIsMobile()
+
+	const toolItem = (id: string, Icon: React.ComponentType, label: string): Item => ({
+		id,
+		Icon,
+		label,
+		on: tool === id,
+		run: () => setTool(id)
+	})
+	const shapeTools = [
+		toolItem('rect', IcRectangle, t('Rectangle')),
+		toolItem('ellipse', IcEllipse, t('Ellipse')),
+		toolItem('line', IcLine, t('Line'))
+	]
+	const insertTools = [
+		toolItem('text', IcText, t('Text')),
+		toolItem('image', IcImage, t('Insert Image')),
+		toolItem('document', IcDocument, t('Embed Document')),
+		toolItem('qrcode', IcQrCode, t('QR Code')),
+		toolItem('pollframe', IcPoll, t('Poll Frame')),
+		toolItem('tablegrid', IcTable, t('Table Grid')),
+		toolItem('statevar', IcAudience, t('Live Users Count'))
+	]
+	const snapToggles: Item[] = [
+		{
+			id: 'grid',
+			Icon: IcSnapGrid,
+			label: t('Snap to grid'),
+			on: snap.settings.snapToGrid,
+			run: snap.toggleSnapToGrid
+		},
+		{
+			id: 'objects',
+			Icon: IcSnapObjects,
+			label: t('Snap to objects'),
+			on: snap.settings.snapToObjects,
+			run: snap.toggleSnapToObjects
+		},
+		{
+			id: 'sizes',
+			Icon: IcSnapSizes,
+			label: t('Snap to sizes'),
+			on: snap.settings.snapToSizes,
+			run: snap.toggleSnapToSizes
+		},
+		{
+			id: 'spacing',
+			Icon: IcSnapSpacing,
+			label: t('Snap to equal spacing'),
+			on: snap.settings.snapToDistribution,
+			run: snap.toggleSnapToDistribution
+		}
+	]
+	const zOrder: Item[] = [
+		{
+			id: 'front',
+			Icon: IcBringToFront,
+			label: t('Bring to front'),
+			run: zCmds.onBringToFront
+		},
+		{
+			id: 'forward',
+			Icon: IcBringForward,
+			label: t('Bring forward'),
+			run: zCmds.onBringForward
+		},
+		{
+			id: 'backward',
+			Icon: IcSendBackward,
+			label: t('Send backward'),
+			run: zCmds.onSendBackward
+		},
+		{ id: 'back', Icon: IcSendToBack, label: t('Send to back'), run: zCmds.onSendToBack }
+	]
+	const align = (
+		id: 'left' | 'center' | 'right' | 'justify',
+		Icon: React.ComponentType,
+		label: string
+	): Item => ({
+		id,
+		Icon,
+		label,
+		on: textStyle?.align === id,
+		run: () => textCmds.onAlignChange?.(id)
+	})
+	const hAlign = [
+		align('left', IcAlignLeft, t('Align left')),
+		align('center', IcAlignCenter, t('Align center')),
+		align('right', IcAlignRight, t('Align right')),
+		align('justify', IcAlignJustify, t('Justify'))
+	]
+	const vAlign = (
+		id: 'top' | 'middle' | 'bottom',
+		Icon: React.ComponentType,
+		label: string
+	): Item => ({
+		id,
+		Icon,
+		label,
+		on: textStyle?.verticalAlign === id,
+		run: () => textCmds.onVerticalAlignChange?.(id)
+	})
+	const vAligns = [
+		vAlign('top', IcAlignTop, t('Align top')),
+		vAlign('middle', IcAlignMiddle, t('Align middle')),
+		vAlign('bottom', IcAlignBottom, t('Align bottom'))
+	]
+	const textToggles: Item[] = [
+		{
+			id: 'b',
+			Icon: IcBold,
+			label: t('Bold'),
+			on: textStyle?.bold,
+			run: textCmds.onBoldToggle
+		},
+		{
+			id: 'i',
+			Icon: IcItalic,
+			label: t('Italic'),
+			on: textStyle?.italic,
+			run: textCmds.onItalicToggle
+		},
+		{
+			id: 'u',
+			Icon: IcUnderline,
+			label: t('Underline'),
+			on: textStyle?.underline,
+			run: textCmds.onUnderlineToggle
+		}
+	]
+
+	/** `pressed` adds aria-pressed: set for toggles, left off for one-shot actions */
+	const button = (item: Item, pressed?: boolean) => (
+		<button
+			key={item.id}
+			type="button"
+			onClick={item.run}
+			className={mergeClasses('c-button icon', item.on ? 'active' : '')}
+			title={item.label}
+			aria-label={item.label}
+			aria-pressed={pressed ? !!item.on : undefined}
+		>
+			<item.Icon />
+		</button>
+	)
+	const menuItem = (item: Item, mode?: 'checked' | 'selected') => (
+		<MenuItem
+			key={item.id}
+			icon={<item.Icon />}
+			label={item.label}
+			checked={mode === 'checked' ? !!item.on : undefined}
+			selected={mode === 'selected' ? !!item.on : undefined}
+			onClick={item.run}
+		/>
+	)
+
+	const undoRedo = (
+		<>
 			<button
+				type="button"
 				onClick={cmds.onUndo}
 				className="c-button icon"
 				disabled={!canUndo}
-				title="Undo"
+				title={t('Undo')}
+				aria-label={t('Undo')}
 			>
 				<IcUndo />
 			</button>
 			<button
+				type="button"
 				onClick={cmds.onRedo}
 				className="c-button icon"
 				disabled={!canRedo}
-				title="Redo"
+				title={t('Redo')}
+				aria-label={t('Redo')}
 			>
 				<IcRedo />
 			</button>
+		</>
+	)
+	const selectButton = button(
+		{
+			id: 'select',
+			Icon: IcSelect,
+			label: t('Select'),
+			on: tool === null,
+			run: () => setTool(null)
+		},
+		true
+	)
+	const symbolPicker = (
+		<SymbolPicker
+			isActive={tool === 'symbol'}
+			selectedSymbolId={selectedSymbolId ?? null}
+			onSelectSymbol={(symbolId) => {
+				onSelectSymbol?.(symbolId)
+				setTool('symbol')
+			}}
+			onClose={() => {
+				if (tool === 'symbol') setTool(null)
+			}}
+		/>
+	)
+	// One popover on all widths; checkboxes rather than menu items so it stays open across toggles
+	const snapping = (
+		<Popover
+			trigger={
+				<button
+					type="button"
+					className={mergeClasses(
+						'c-button icon',
+						snapToggles.some((s) => s.on) ? 'active' : ''
+					)}
+					title={t('Snapping')}
+					aria-label={t('Snapping')}
+				>
+					<IcSnapGrid />
+				</button>
+			}
+		>
+			<div className="c-vbox g-2 p-2">
+				{snapToggles.map((s) => (
+					<Checkbox key={s.id} label={s.label} checked={!!s.on} onChange={s.run} />
+				))}
+			</div>
+		</Popover>
+	)
+	const theme = doc && yDoc && <ThemeDropdown doc={doc} yDoc={yDoc} />
 
-			<div className="c-toolbar-divider" />
-
-			{/* Select tool */}
-			<button
-				onClick={() => setTool(null)}
-				className={mergeClasses('c-button icon', tool === null ? 'active' : '')}
-				title="Select"
-			>
-				<IcSelect />
-			</button>
-
-			<div className="c-toolbar-divider" />
-
-			{/* Shape tools */}
-			<button
-				onClick={() => setTool('rect')}
-				className={mergeClasses('c-button icon', tool === 'rect' ? 'active' : '')}
-				title="Rectangle"
-			>
-				<IcRectangle />
-			</button>
-			<button
-				onClick={() => setTool('ellipse')}
-				className={mergeClasses('c-button icon', tool === 'ellipse' ? 'active' : '')}
-				title="Ellipse"
-			>
-				<IcEllipse />
-			</button>
-			<button
-				onClick={() => setTool('line')}
-				className={mergeClasses('c-button icon', tool === 'line' ? 'active' : '')}
-				title="Line"
-			>
-				<IcLine />
-			</button>
-
-			<div className="c-toolbar-divider" />
-
-			{/* Text tool */}
-			<button
-				onClick={() => setTool('text')}
-				className={mergeClasses('c-button icon', tool === 'text' ? 'active' : '')}
-				title="Text"
-			>
-				<IcText />
-			</button>
-
-			{/* Image tool */}
-			<button
-				onClick={() => setTool('image')}
-				className={mergeClasses('c-button icon', tool === 'image' ? 'active' : '')}
-				title={t('Insert Image')}
-			>
-				<IcImage />
-			</button>
-
-			{/* Document embed tool */}
-			<button
-				onClick={() => setTool('document')}
-				className={mergeClasses('c-button icon', tool === 'document' ? 'active' : '')}
-				title={t('Embed Document')}
-			>
-				<IcDocument />
-			</button>
-
-			{/* QR Code tool */}
-			<button
-				onClick={() => setTool('qrcode')}
-				className={mergeClasses('c-button icon', tool === 'qrcode' ? 'active' : '')}
-				title="QR Code"
-			>
-				<IcQrCode />
-			</button>
-
-			{/* Poll Frame tool */}
-			<button
-				onClick={() => setTool('pollframe')}
-				className={mergeClasses('c-button icon', tool === 'pollframe' ? 'active' : '')}
-				title="Poll Frame"
-			>
-				<IcPoll />
-			</button>
-
-			{/* Table Grid tool */}
-			<button
-				onClick={() => setTool('tablegrid')}
-				className={mergeClasses('c-button icon', tool === 'tablegrid' ? 'active' : '')}
-				title="Table Grid"
-			>
-				<IcTable />
-			</button>
-
-			{/* State Variable tool (live user count) */}
-			<button
-				onClick={() => setTool('statevar')}
-				className={mergeClasses('c-button icon', tool === 'statevar' ? 'active' : '')}
-				title="Live Users Count"
-			>
-				<IcAudience />
-			</button>
-
-			{/* Symbol tool */}
-			<SymbolPicker
-				isActive={tool === 'symbol'}
-				selectedSymbolId={selectedSymbolId ?? null}
-				onSelectSymbol={(symbolId) => {
-					onSelectSymbol?.(symbolId)
-					setTool('symbol')
-				}}
-				onClose={() => {
-					if (tool === 'symbol') setTool(null)
-				}}
-			/>
-
-			<div className="c-toolbar-divider" />
-
-			{/* Snap settings */}
-			<button
-				onClick={snap.toggleSnapToGrid}
-				className={mergeClasses('c-button icon', snap.settings.snapToGrid ? 'active' : '')}
-				title="Snap to grid"
-			>
-				<IcSnapGrid />
-			</button>
-			<button
-				onClick={snap.toggleSnapToObjects}
-				className={mergeClasses(
-					'c-button icon',
-					snap.settings.snapToObjects ? 'active' : ''
+	if (isMobile) {
+		const activeShape = shapeTools.find((s) => s.on)
+		const ShapeIcon = activeShape?.Icon ?? IcRectangle
+		return (
+			<div className={mergeClasses('c-nav c-hbox p-1 mb-1', className)}>
+				{undoRedo}
+				{selectButton}
+				<Menu
+					trigger={
+						<button
+							type="button"
+							className={mergeClasses(
+								'c-button icon',
+								insertTools.some((i) => i.on) ? 'active' : ''
+							)}
+							title={t('Insert')}
+							aria-label={t('Insert')}
+						>
+							<IcAdd />
+						</button>
+					}
+				>
+					{insertTools.map((item) => menuItem(item, 'selected'))}
+				</Menu>
+				<Menu
+					trigger={
+						<button
+							type="button"
+							className={mergeClasses('c-button icon', activeShape ? 'active' : '')}
+							title={t('Shapes')}
+							aria-label={t('Shapes')}
+						>
+							<ShapeIcon />
+						</button>
+					}
+				>
+					{shapeTools.map((item) => menuItem(item, 'selected'))}
+				</Menu>
+				{symbolPicker}
+				{snapping}
+				{hasSelection && (
+					<Menu
+						trigger={
+							<button
+								type="button"
+								className="c-button icon"
+								title={t('More')}
+								aria-label={t('More')}
+							>
+								<IcMore />
+							</button>
+						}
+					>
+						{zOrder.map((item) => menuItem(item))}
+						{textStyle?.hasSelection && (
+							<>
+								<MenuDivider />
+								{hAlign.map((item) => menuItem(item, 'selected'))}
+								<MenuDivider />
+								{vAligns.map((item) => menuItem(item, 'selected'))}
+								<MenuDivider />
+								{textToggles.map((item) => menuItem(item, 'checked'))}
+							</>
+						)}
+						<MenuDivider />
+						{menuItem({
+							id: 'duplicate',
+							Icon: IcDuplicate,
+							label: t('Duplicate'),
+							run: cmds.onDuplicate
+						})}
+						{menuItem({
+							id: 'delete',
+							Icon: IcDelete,
+							label: t('Delete'),
+							run: cmds.onDelete
+						})}
+					</Menu>
 				)}
-				title="Snap to objects"
-			>
-				<IcSnapObjects />
-			</button>
-			<button
-				onClick={snap.toggleSnapToSizes}
-				className={mergeClasses('c-button icon', snap.settings.snapToSizes ? 'active' : '')}
-				title="Snap to sizes"
-			>
-				<IcSnapSizes />
-			</button>
-			<button
-				onClick={snap.toggleSnapToDistribution}
-				className={mergeClasses(
-					'c-button icon',
-					snap.settings.snapToDistribution ? 'active' : ''
-				)}
-				title="Snap to equal spacing"
-			>
-				<IcSnapSpacing />
-			</button>
+				<div className="flex-fill" />
+				{/* The panel toggle is omitted: the properties panel never renders on mobile */}
+				{theme}
+			</div>
+		)
+	}
+
+	return (
+		<div className={mergeClasses('c-nav c-hbox p-1 mb-1', className)}>
+			{undoRedo}
+
+			<div className="c-toolbar-divider" />
+
+			{selectButton}
+
+			<div className="c-toolbar-divider" />
+
+			{shapeTools.map((item) => button(item, true))}
+
+			<div className="c-toolbar-divider" />
+
+			{insertTools.map((item) => button(item, true))}
+			{symbolPicker}
+
+			<div className="c-toolbar-divider" />
+
+			{snapping}
 
 			<div className="flex-fill" />
 
@@ -311,117 +495,15 @@ export function Toolbar({
 				<>
 					<div className="c-toolbar-divider" />
 
-					{/* Z-order controls */}
-					<button
-						onClick={zCmds.onBringToFront}
-						className="c-button icon"
-						title="Bring to front"
-					>
-						<IcBringToFront />
-					</button>
-					<button
-						onClick={zCmds.onBringForward}
-						className="c-button icon"
-						title="Bring forward"
-					>
-						<IcBringForward />
-					</button>
-					<button
-						onClick={zCmds.onSendBackward}
-						className="c-button icon"
-						title="Send backward"
-					>
-						<IcSendBackward />
-					</button>
-					<button
-						onClick={zCmds.onSendToBack}
-						className="c-button icon"
-						title="Send to back"
-					>
-						<IcSendToBack />
-					</button>
+					{zOrder.map((item) => button(item))}
 
 					{/* Contextual: Text selection */}
 					{textStyle?.hasSelection && (
 						<>
 							<div className="c-toolbar-divider" />
-
-							{/* Horizontal alignment */}
-							<button
-								onClick={() => textCmds.onAlignChange?.('left')}
-								className={mergeClasses(
-									'c-button icon',
-									textStyle?.align === 'left' ? 'active' : ''
-								)}
-								title="Align left"
-							>
-								<IcAlignLeft />
-							</button>
-							<button
-								onClick={() => textCmds.onAlignChange?.('center')}
-								className={mergeClasses(
-									'c-button icon',
-									textStyle?.align === 'center' ? 'active' : ''
-								)}
-								title="Align center"
-							>
-								<IcAlignCenter />
-							</button>
-							<button
-								onClick={() => textCmds.onAlignChange?.('right')}
-								className={mergeClasses(
-									'c-button icon',
-									textStyle?.align === 'right' ? 'active' : ''
-								)}
-								title="Align right"
-							>
-								<IcAlignRight />
-							</button>
-							<button
-								onClick={() => textCmds.onAlignChange?.('justify')}
-								className={mergeClasses(
-									'c-button icon',
-									textStyle?.align === 'justify' ? 'active' : ''
-								)}
-								title="Justify"
-							>
-								<IcAlignJustify />
-							</button>
-
+							{hAlign.map((item) => button(item, true))}
 							<div className="c-toolbar-divider" />
-
-							{/* Vertical alignment */}
-							<button
-								onClick={() => textCmds.onVerticalAlignChange?.('top')}
-								className={mergeClasses(
-									'c-button icon',
-									textStyle?.verticalAlign === 'top' ? 'active' : ''
-								)}
-								title="Align top"
-							>
-								<IcAlignTop />
-							</button>
-							<button
-								onClick={() => textCmds.onVerticalAlignChange?.('middle')}
-								className={mergeClasses(
-									'c-button icon',
-									textStyle?.verticalAlign === 'middle' ? 'active' : ''
-								)}
-								title="Align middle"
-							>
-								<IcAlignMiddle />
-							</button>
-							<button
-								onClick={() => textCmds.onVerticalAlignChange?.('bottom')}
-								className={mergeClasses(
-									'c-button icon',
-									textStyle?.verticalAlign === 'bottom' ? 'active' : ''
-								)}
-								title="Align bottom"
-							>
-								<IcAlignBottom />
-							</button>
-
+							{vAligns.map((item) => button(item, true))}
 							<div className="c-toolbar-divider" />
 
 							{/* Font size */}
@@ -431,7 +513,7 @@ export function Toolbar({
 									textCmds.onFontSizeChange?.(Number(e.target.value))
 								}
 								className="c-input c-font-size-select"
-								title="Font size"
+								title={t('Font size')}
 							>
 								{FONT_SIZES.map((size) => (
 									<option key={size} value={size}>
@@ -441,69 +523,45 @@ export function Toolbar({
 							</select>
 
 							<div className="c-toolbar-divider" />
-
-							{/* Text style */}
-							<button
-								onClick={textCmds.onBoldToggle}
-								className={mergeClasses(
-									'c-button icon',
-									textStyle?.bold ? 'active' : ''
-								)}
-								title="Bold"
-							>
-								<IcBold />
-							</button>
-							<button
-								onClick={textCmds.onItalicToggle}
-								className={mergeClasses(
-									'c-button icon',
-									textStyle?.italic ? 'active' : ''
-								)}
-								title="Italic"
-							>
-								<IcItalic />
-							</button>
-							<button
-								onClick={textCmds.onUnderlineToggle}
-								className={mergeClasses(
-									'c-button icon',
-									textStyle?.underline ? 'active' : ''
-								)}
-								title="Underline"
-							>
-								<IcUnderline />
-							</button>
+							{textToggles.map((item) => button(item, true))}
 						</>
 					)}
 
 					<div className="c-toolbar-divider" />
 
-					{/* Duplicate */}
 					<button
+						type="button"
 						onClick={cmds.onDuplicate}
 						className="c-button icon"
-						title="Duplicate (Ctrl+D)"
+						title={`${t('Duplicate')} (Ctrl+D)`}
+						aria-label={t('Duplicate')}
 					>
 						<IcDuplicate />
 					</button>
-
-					{/* Delete */}
-					<button onClick={cmds.onDelete} className="c-button icon" title="Delete">
-						<IcDelete />
-					</button>
+					{button({
+						id: 'delete',
+						Icon: IcDelete,
+						label: t('Delete'),
+						run: cmds.onDelete
+					})}
 				</>
 			)}
 
-			{/* Theme dropdown */}
-			{doc && yDoc && <ThemeDropdown doc={doc} yDoc={yDoc} />}
+			{theme}
 
 			<div className="c-toolbar-divider" />
 
-			{/* Panel toggle */}
+			{/* Panel toggle; style.css hides it below 48rem by its class (the label is translated) */}
 			<button
+				type="button"
 				onClick={onTogglePanel}
-				className={mergeClasses('c-button icon', isPanelVisible ? 'active' : '')}
-				title="Toggle properties panel"
+				className={mergeClasses(
+					'c-button icon c-panel-toggle',
+					isPanelVisible ? 'active' : ''
+				)}
+				title={t('Toggle properties panel')}
+				aria-label={t('Toggle Panel')}
+				aria-pressed={!!isPanelVisible}
 			>
 				<IcSidebar />
 			</button>

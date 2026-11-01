@@ -8,6 +8,7 @@
 
 import { IcAppearance, useOutsideClick } from '@cloudillo/react'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import type * as Y from 'yjs'
 
 import type { YPrezilloDocument } from '../crdt'
@@ -23,6 +24,7 @@ export interface ThemeDropdownProps {
 }
 
 export function ThemeDropdown({ doc, yDoc }: ThemeDropdownProps) {
+	const { t } = useTranslation()
 	const currentPalette = usePaletteValue(doc)
 	const [isOpen, setIsOpen] = React.useState(false)
 	const dropdownRef = React.useRef<HTMLDivElement>(null)
@@ -36,7 +38,7 @@ export function ThemeDropdown({ doc, yDoc }: ThemeDropdownProps) {
 				type="button"
 				className="c-button icon"
 				onClick={() => setIsOpen(!isOpen)}
-				title="Theme"
+				title={t('Theme')}
 			>
 				<IcAppearance />
 			</button>
@@ -44,8 +46,10 @@ export function ThemeDropdown({ doc, yDoc }: ThemeDropdownProps) {
 			{isOpen && (
 				<div className="c-theme-dropdown-popover">
 					<div className="c-theme-dropdown-header">
-						<span className="c-theme-dropdown-title">Presentation Theme</span>
-						<span className="c-theme-dropdown-subtitle">Applies to all pages</span>
+						<span className="c-theme-dropdown-title">{t('Presentation Theme')}</span>
+						<span className="c-theme-dropdown-subtitle">
+							{t('Applies to all pages')}
+						</span>
 					</div>
 					<ThemePicker doc={doc} yDoc={yDoc} currentPalette={currentPalette} />
 					<PaletteEditor doc={doc} yDoc={yDoc} mode="section" />

@@ -7,6 +7,7 @@
 
 import { ColorInput, Input, NativeSelect, PropertyField, PropertySection } from '@cloudillo/react'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import type * as Y from 'yjs'
 
 import type {
@@ -39,6 +40,7 @@ const ERROR_CORRECTION_OPTIONS: { value: QrErrorCorrection; label: string }[] = 
 ]
 
 export function QRCodeSection({ doc, yDoc, object }: QRCodeSectionProps) {
+	const { t } = useTranslation()
 	const objectId = object.id as ObjectId
 
 	const qrObject = object as QrCodeObject
@@ -161,7 +163,7 @@ export function QRCodeSection({ doc, yDoc, object }: QRCodeSectionProps) {
 	if (object.type !== 'qrcode') return null
 
 	return (
-		<PropertySection title="QR Code" defaultExpanded>
+		<PropertySection title={t('QR Code')} defaultExpanded>
 			{/* URL with lock */}
 			<PropertyGroupHeader
 				label="URL"
@@ -183,7 +185,7 @@ export function QRCodeSection({ doc, yDoc, object }: QRCodeSectionProps) {
 
 			{/* Error correction level with lock */}
 			<PropertyGroupHeader
-				label="Level"
+				label={t('Level')}
 				isInstance={objectIsInstance}
 				isLocked={errorCorrectionLocked}
 				onUnlock={handleUnlockErrorCorrection}
@@ -198,7 +200,7 @@ export function QRCodeSection({ doc, yDoc, object }: QRCodeSectionProps) {
 				>
 					{ERROR_CORRECTION_OPTIONS.map((opt) => (
 						<option key={opt.value} value={opt.value}>
-							{opt.label}
+							{t(opt.label)}
 						</option>
 					))}
 				</NativeSelect>
@@ -206,7 +208,7 @@ export function QRCodeSection({ doc, yDoc, object }: QRCodeSectionProps) {
 
 			{/* Colors with lock */}
 			<PropertyGroupHeader
-				label="Colors"
+				label={t('Colors')}
 				isInstance={objectIsInstance}
 				isLocked={colorsLocked}
 				onUnlock={handleUnlockColors}

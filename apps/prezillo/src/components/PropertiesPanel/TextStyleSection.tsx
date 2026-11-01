@@ -23,6 +23,7 @@ import {
 } from '@cloudillo/react'
 import type Quill from 'quill'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import type * as Y from 'yjs'
 
 import type { ObjectId, PrezilloObject, TextStyleField, YPrezilloDocument } from '../../crdt'
@@ -81,6 +82,7 @@ export function TextStyleSection({
 	quillRef,
 	isEditing
 }: TextStyleSectionProps) {
+	const { t } = useTranslation()
 	const objectId = object.id as ObjectId
 	const [showBulletPicker, setShowBulletPicker] = React.useState(false)
 
@@ -257,9 +259,9 @@ export function TextStyleSection({
 	const lineHeightLocked = objectIsInstance && !isLineHeightOverridden
 
 	return (
-		<PropertySection title="Text" defaultExpanded>
+		<PropertySection title={t('Text')} defaultExpanded>
 			{/* Font Family */}
-			<PropertyField label="Font" labelWidth={40}>
+			<PropertyField label={t('Font')} labelWidth={40}>
 				<div className="c-hbox ai-center g-1 f-1">
 					<FontPicker
 						value={resolvedStyle.fontFamily}
@@ -276,7 +278,7 @@ export function TextStyleSection({
 			</PropertyField>
 
 			{/* Font Size */}
-			<PropertyField label="Size" labelWidth={40}>
+			<PropertyField label={t('Size')} labelWidth={40}>
 				<div className="c-hbox ai-center g-1 f-1">
 					<NativeSelect
 						value={resolvedStyle.fontSize}
@@ -301,7 +303,7 @@ export function TextStyleSection({
 
 			{/* Inline Formatting (visible when editing) */}
 			{isEditing && (
-				<PropertyField label="Style" labelWidth={40}>
+				<PropertyField label={t('Style')} labelWidth={40}>
 					<div className="c-hbox">
 						<button
 							className={mergeClasses(
@@ -309,7 +311,7 @@ export function TextStyleSection({
 								selectionFormat.bold ? 'active' : ''
 							)}
 							onClick={handleInlineBold}
-							title="Bold (Ctrl+B)"
+							title={t('Bold (Ctrl+B)')}
 						>
 							<IcBold size={14} />
 						</button>
@@ -319,7 +321,7 @@ export function TextStyleSection({
 								selectionFormat.italic ? 'active' : ''
 							)}
 							onClick={handleInlineItalic}
-							title="Italic (Ctrl+I)"
+							title={t('Italic (Ctrl+I)')}
 						>
 							<IcItalic size={14} />
 						</button>
@@ -329,7 +331,7 @@ export function TextStyleSection({
 								selectionFormat.underline ? 'active' : ''
 							)}
 							onClick={handleInlineUnderline}
-							title="Underline (Ctrl+U)"
+							title={t('Underline (Ctrl+U)')}
 						>
 							<IcUnderline size={14} />
 						</button>
@@ -339,7 +341,7 @@ export function TextStyleSection({
 								selectionFormat.strike ? 'active' : ''
 							)}
 							onClick={handleInlineStrikethrough}
-							title="Strikethrough"
+							title={t('Strikethrough')}
 						>
 							<IcStrikethrough size={14} />
 						</button>
@@ -350,7 +352,7 @@ export function TextStyleSection({
 								selectionFormat.list === 'bullet' ? 'active' : ''
 							)}
 							onClick={handleListBullet}
-							title="Bullet list"
+							title={t('Bullet list')}
 						>
 							<IcList size={14} />
 						</button>
@@ -360,7 +362,7 @@ export function TextStyleSection({
 								selectionFormat.list === 'ordered' ? 'active' : ''
 							)}
 							onClick={handleListOrdered}
-							title="Numbered list"
+							title={t('Numbered list')}
 						>
 							<IcListNumbers size={14} />
 						</button>
@@ -369,7 +371,7 @@ export function TextStyleSection({
 			)}
 
 			{/* Text Align */}
-			<PropertyField label="Align" labelWidth={40}>
+			<PropertyField label={t('Align')} labelWidth={40}>
 				<div className="c-hbox ai-center g-1 f-1">
 					<div className="c-hbox">
 						<button
@@ -378,7 +380,7 @@ export function TextStyleSection({
 								resolvedStyle.textAlign === 'left' ? 'active' : ''
 							)}
 							onClick={() => handleTextAlignChange('left')}
-							title="Align left"
+							title={t('Align left')}
 							disabled={alignLocked}
 						>
 							<IcAlignLeft size={14} />
@@ -389,7 +391,7 @@ export function TextStyleSection({
 								resolvedStyle.textAlign === 'center' ? 'active' : ''
 							)}
 							onClick={() => handleTextAlignChange('center')}
-							title="Align center"
+							title={t('Align center')}
 							disabled={alignLocked}
 						>
 							<IcAlignCenter size={14} />
@@ -400,7 +402,7 @@ export function TextStyleSection({
 								resolvedStyle.textAlign === 'right' ? 'active' : ''
 							)}
 							onClick={() => handleTextAlignChange('right')}
-							title="Align right"
+							title={t('Align right')}
 							disabled={alignLocked}
 						>
 							<IcAlignRight size={14} />
@@ -411,7 +413,7 @@ export function TextStyleSection({
 								resolvedStyle.textAlign === 'justify' ? 'active' : ''
 							)}
 							onClick={() => handleTextAlignChange('justify')}
-							title="Justify"
+							title={t('Justify')}
 							disabled={alignLocked}
 						>
 							<IcAlignJustify size={14} />
@@ -427,7 +429,7 @@ export function TextStyleSection({
 			</PropertyField>
 
 			{/* Vertical Align */}
-			<PropertyField label="V.Align" labelWidth={40}>
+			<PropertyField label={t('V.Align')} labelWidth={40}>
 				<div className="c-hbox ai-center g-1 f-1">
 					<div className="c-hbox">
 						<button
@@ -436,7 +438,7 @@ export function TextStyleSection({
 								resolvedStyle.verticalAlign === 'top' ? 'active' : ''
 							)}
 							onClick={() => handleVerticalAlignChange('top')}
-							title="Align top"
+							title={t('Align top')}
 							disabled={vAlignLocked}
 						>
 							<IcAlignTop size={14} />
@@ -447,7 +449,7 @@ export function TextStyleSection({
 								resolvedStyle.verticalAlign === 'middle' ? 'active' : ''
 							)}
 							onClick={() => handleVerticalAlignChange('middle')}
-							title="Align middle"
+							title={t('Align middle')}
 							disabled={vAlignLocked}
 						>
 							<IcAlignMiddle size={14} />
@@ -458,7 +460,7 @@ export function TextStyleSection({
 								resolvedStyle.verticalAlign === 'bottom' ? 'active' : ''
 							)}
 							onClick={() => handleVerticalAlignChange('bottom')}
-							title="Align bottom"
+							title={t('Align bottom')}
 							disabled={vAlignLocked}
 						>
 							<IcAlignBottom size={14} />
@@ -474,7 +476,7 @@ export function TextStyleSection({
 			</PropertyField>
 
 			{/* Line Height */}
-			<PropertyField label="Line" labelWidth={40}>
+			<PropertyField label={t('Line')} labelWidth={40}>
 				<div className="c-hbox ai-center g-1 f-1">
 					<NumberInput
 						value={resolvedStyle.lineHeight}
@@ -496,7 +498,7 @@ export function TextStyleSection({
 			</PropertyField>
 
 			{/* List Bullet */}
-			<PropertyField label="List" labelWidth={40}>
+			<PropertyField label={t('List')} labelWidth={40}>
 				<div className="c-hbox ai-center g-1 f-1">
 					<div className="c-bullet-picker">
 						<button
@@ -505,7 +507,7 @@ export function TextStyleSection({
 								currentBulletId ? 'active' : ''
 							)}
 							onClick={() => !bulletLocked && setShowBulletPicker(!showBulletPicker)}
-							title="List bullet"
+							title={t('List bullet')}
 							disabled={bulletLocked}
 						>
 							{currentBulletId ? (
@@ -525,7 +527,7 @@ export function TextStyleSection({
 											'c-bullet-none'
 										)}
 										onClick={() => handleBulletChange('')}
-										title="No bullets"
+										title={t('No bullets')}
 									>
 										<IcNone size={20} />
 									</button>
@@ -538,7 +540,7 @@ export function TextStyleSection({
 												currentBulletId === bullet.id ? 'active' : ''
 											)}
 											onClick={() => handleBulletChange(bullet.id)}
-											title={bullet.name}
+											title={t(bullet.name)}
 										>
 											<BulletIconPreview bulletId={bullet.id} size={20} />
 										</button>

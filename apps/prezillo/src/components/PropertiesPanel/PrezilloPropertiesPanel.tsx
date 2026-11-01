@@ -4,6 +4,7 @@
 import { PropertyPanel, Tab, Tabs } from '@cloudillo/react'
 import type Quill from 'quill'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 
 import type { ContainerId, ObjectId, TemplateId } from '../../crdt'
 import type { UsePrezilloDocumentResult } from '../../hooks/usePrezilloDocument'
@@ -42,6 +43,7 @@ export function PrezilloPropertiesPanel({
 	editingTextId,
 	onSelectTemplate = prezillo.selectTemplate
 }: PrezilloPropertiesPanelProps) {
+	const { t } = useTranslation()
 	const {
 		doc,
 		yDoc,
@@ -60,9 +62,9 @@ export function PrezilloPropertiesPanel({
 		<PropertyPanel width={280} data-properties-panel="true">
 			<div className="c-panel-tabs">
 				<Tabs value={activeTab} onTabChange={setActiveTab as (v: string) => void}>
-					<Tab value="properties">Properties</Tab>
-					<Tab value="layers">Layers</Tab>
-					<Tab value="templates">Templates</Tab>
+					<Tab value="properties">{t('Properties')}</Tab>
+					<Tab value="layers">{t('Layers')}</Tab>
+					<Tab value="templates">{t('Templates')}</Tab>
 				</Tabs>
 			</div>
 

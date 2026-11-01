@@ -1186,7 +1186,9 @@ export function duplicateObject(
 	const object = doc.o.get(objectId)
 	if (!object) return undefined
 
-	const expanded = expandObject(objectId, object)
+	// Instances resolve against their prototype; prototypes themselves are expanded directly
+	const expanded = object.proto ? resolveObject(doc, objectId) : expandObject(objectId, object)
+	if (!expanded) return undefined
 	const newId = generateObjectId()
 
 	// Use object's pageId if it has one, otherwise use targetViewId
@@ -1208,7 +1210,8 @@ export function duplicateObject(
 
 	// For text objects, copy the Y.Text content from the original
 	if (object.t === 'T') {
-		const originalYText = doc.rt.get(objectId)
+		const originalYText =
+			doc.rt.get(objectId) ?? (object.proto ? doc.rt.get(object.proto) : undefined)
 		if (originalYText) {
 			const newYText = doc.rt.get(resultId)
 			if (newYText) {

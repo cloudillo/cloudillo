@@ -9,6 +9,7 @@ import { RichTextDisplay } from '@cloudillo/canvas-text'
 import { createLinearGradientDef, createRadialGradientDef } from '@cloudillo/canvas-tools'
 import { IcClose, IcFullscreen, IcNext, IcPrev, SvgViewEmbed } from '@cloudillo/react'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 
 import {
 	clearVote,
@@ -42,9 +43,12 @@ import {
 import { getBulletIcon, migrateBullet } from '../data/bullet-icons'
 import type { UsePrezilloDocumentResult } from '../hooks/usePrezilloDocument'
 import { useViewObjects } from '../hooks/useViewObjects'
+import type { BlankMode, PresentationMsg } from '../presentation-channel'
+import { getExternalScreen, isSwipe, tapZone } from '../presenter'
 import { buildFillProps, buildStrokeProps, calculateRotationTransform } from '../utils'
 import { ImageRenderer } from './ImageRenderer'
 import { PollFrameRenderer } from './PollFrameRenderer'
+import { NotesText, PresenterView, PresenterWindow } from './PresenterWindow'
 import { QRCodeRenderer } from './QRCodeRenderer'
 import { StateVarRenderer } from './StateVarRenderer'
 import { SymbolRenderer } from './SymbolRenderer'
@@ -68,7 +72,16 @@ export interface PresentationModeProps {
 	onViewChange?: (viewIndex: number, viewId: ViewId) => void
 	/** Source file ID for document embeds */
 	sourceFileId?: string
+	/** "Present with notes": presenter popup, or the notes drawer when there is none */
+	withNotes?: boolean
+	/** Presenter popup opened in the start click (`openPresenterWindow`), rendered via portal */
+	presenterWindow?: Window | null
+	/** Presentation API session (`usePresentationMode` `castSend`): the iframe shows the presenter layout */
+	castSend?: ((msg: PresentationMsg) => void) | null
 }
+
+/** Fullscreen controls hide after this much inactivity */
+const CONTROLS_HIDE_MS = 3000
 
 /**
  * Simplified shape renderer for presentation mode (no interaction)
@@ -90,7 +103,8 @@ function PresentationObjectShape({
 	userCount = 1,
 	canWrite = false,
 	thumbnail = false,
-	imageScale = 1
+	imageScale = 1,
+	noEmbeds = false
 }: {
 	object: PrezilloObject
 	doc: YPrezilloDocument
@@ -112,6 +126,8 @@ function PresentationObjectShape({
 	thumbnail?: boolean
 	/** Image variant scale (thumbnails fetch a small variant) */
 	imageScale?: number
+	/** Document embeds as placeholders (the receiver has no app bus) */
+	noEmbeds?: boolean
 }) {
 	// Hidden objects are not rendered in presentation mode
 	if (object.hidden) return null
@@ -247,31 +263,32 @@ function PresentationObjectShape({
 			break
 		case 'document': {
 			const docObj = object as DocumentObject
-			content = thumbnail ? (
-				<rect
-					x={object.x}
-					y={object.y}
-					width={object.width}
-					height={object.height}
-					fill="var(--col-container-low)"
-				/>
-			) : (
-				<SvgViewEmbed
-					x={object.x}
-					y={object.y}
-					width={object.width}
-					height={object.height}
-					fileId={docObj.fileId}
-					contentType={docObj.contentType}
-					sourceFileId={sourceFileId || ''}
-					appId={docObj.appId}
-					access={docObj.editable && canWrite ? 'write' : 'read'}
-					nav={docObj.navState}
-					settings={{ sizing: 'box', lastNatural: docObj.aspectRatio }}
-					canInteract
-					active
-				/>
-			)
+			content =
+				thumbnail || noEmbeds ? (
+					<rect
+						x={object.x}
+						y={object.y}
+						width={object.width}
+						height={object.height}
+						fill="var(--col-container-low)"
+					/>
+				) : (
+					<SvgViewEmbed
+						x={object.x}
+						y={object.y}
+						width={object.width}
+						height={object.height}
+						fileId={docObj.fileId}
+						contentType={docObj.contentType}
+						sourceFileId={sourceFileId || ''}
+						appId={docObj.appId}
+						access={docObj.editable && canWrite ? 'write' : 'read'}
+						nav={docObj.navState}
+						settings={{ sizing: 'box', lastNatural: docObj.aspectRatio }}
+						canInteract
+						active
+					/>
+				)
 			break
 		}
 		case 'qrcode':
@@ -395,6 +412,8 @@ interface PresentationSlideProps {
 	canWrite?: boolean
 	/** Rail thumbnail: non-interactive, aria-hidden, no live embeds or poll votes */
 	thumbnail?: boolean
+	/** Document embeds as placeholders (the receiver has no app bus) */
+	noEmbeds?: boolean
 }
 
 /** Thumbnail width in CSS px (`.c-slide-thumb__box` in style.css): picks the image variant */
@@ -416,7 +435,8 @@ export const PresentationSlide = React.memo(function PresentationSlide({
 	focusedPollId,
 	userCount = 1,
 	canWrite,
-	thumbnail = false
+	thumbnail = false,
+	noEmbeds
 }: PresentationSlideProps) {
 	// Thumbnails may exist several times per slide (rail, drag overlay, mobile grid): unique id
 	const instanceId = React.useId().replace(/[^\w-]/g, '')
@@ -538,6 +558,7 @@ export const PresentationSlide = React.memo(function PresentationSlide({
 						canWrite={canWrite}
 						thumbnail={thumbnail}
 						imageScale={thumbnail ? THUMB_W / view.width : 1}
+						noEmbeds={noEmbeds}
 					/>
 				)
 			})}
@@ -575,10 +596,38 @@ export function PresentationMode({
 	followingViewIndex,
 	followingPresenterClientId,
 	onViewChange,
-	sourceFileId
+	sourceFileId,
+	withNotes,
+	presenterWindow,
+	castSend
 }: PresentationModeProps) {
+	const { t } = useTranslation()
 	const { doc, awareness } = prezillo
 	const containerRef = React.useRef<HTMLDivElement>(null)
+	const [coarse] = React.useState(
+		() =>
+			typeof window.matchMedia === 'function' &&
+			window.matchMedia('(pointer: coarse)').matches
+	)
+
+	// The presenter popup until it goes away (pagehide); the audience view keeps going without it
+	const [popup, setPopup] = React.useState<Window | null>(() =>
+		presenterWindow && !presenterWindow.closed ? presenterWindow : null
+	)
+	React.useEffect(() => {
+		if (!popup) return
+		const gone = () => setPopup(null)
+		const closePopup = () => popup.close()
+		popup.addEventListener('pagehide', gone)
+		window.addEventListener('pagehide', closePopup)
+		return () => {
+			popup.removeEventListener('pagehide', gone)
+			window.removeEventListener('pagehide', closePopup)
+		}
+	}, [popup])
+
+	// Notes drawer (N): open from the start when notes were asked for but no popup is there
+	const [notesOpen, setNotesOpen] = React.useState(() => !!withNotes && !popup)
 	// Tracked by id: a skip toggle or reorder mid-show shifts indexes under us
 	const [current, setCurrent] = React.useState<{ id: ViewId | undefined; index: number }>(() => {
 		const index = initialPresentedIndex(doc.vo.toArray(), views, initialViewId)
@@ -696,6 +745,27 @@ export function PresentationMode({
 		return () => awareness.off('change', updateVotes)
 	}, [awareness, currentView?.id, isFollowing, followingPresenterClientId])
 
+	// Presentation API receiver follows the slide, the poll results and the blank screen (B/W)
+	const [blank, setBlank] = React.useState<BlankMode | null>(null)
+	React.useEffect(() => {
+		castSend?.({ type: 'slide', index: currentIndex, step: 0 })
+	}, [castSend, currentIndex])
+	React.useEffect(() => {
+		castSend?.({ type: 'blank', mode: blank })
+	}, [castSend, blank])
+	React.useEffect(() => {
+		castSend?.({
+			type: 'poll',
+			counts: Object.fromEntries(voteCounts),
+			total: totalVotes,
+			winners: winningFrames
+		})
+	}, [castSend, voteCounts, totalVotes, winningFrames])
+	const handlePointer = React.useCallback(
+		(at: { x: number; y: number } | null) => castSend?.({ type: 'pointer', at }),
+		[castSend]
+	)
+
 	// Handle poll click - cast or toggle vote
 	const handlePollClick = React.useCallback(
 		(frameId: string) => {
@@ -715,37 +785,67 @@ export function PresentationMode({
 
 	// Track whether we're currently in browser fullscreen
 	const [isInFullscreen, setIsInFullscreen] = React.useState(false)
+	// Fullscreen asked for but refused (iOS, activation spent on the popup): use the windowed bar
+	const [fsFailed, setFsFailed] = React.useState(false)
+	const windowed = !fullscreen || fsFailed
+	// External display found at start; the "Go fullscreen" retry targets it too
+	const screenRef = React.useRef<Screen | null>(null)
+	const onExitRef = React.useRef(onExit)
+	onExitRef.current = onExit
 
-	// Enter fullscreen on mount (only in fullscreen mode)
+	const requestFullscreen = React.useCallback((container: HTMLElement) => {
+		const screen = screenRef.current
+		// `screen` (Window Management API) is not in lib.dom's FullscreenOptions yet
+		return container.requestFullscreen(
+			screen ? ({ screen } as unknown as FullscreenOptions) : undefined
+		)
+	}, [])
+
+	// Enter fullscreen on mount (only in fullscreen mode), on the external screen when found
 	React.useEffect(() => {
 		if (!fullscreen) return
+		let cancelled = false
+		let entered = false
 
-		const container = containerRef.current
-		if (container?.requestFullscreen) {
-			container.requestFullscreen().catch(() => {
-				// Fullscreen failed, continue anyway
-			})
-		}
-
-		// Exit presentation mode when leaving fullscreen
-		const handleFullscreenChange = () => {
-			if (!document.fullscreenElement) {
-				onExit()
+		const enter = async () => {
+			const container = containerRef.current
+			if (!container?.requestFullscreen) {
+				setFsFailed(true)
+				return
 			}
+			screenRef.current = await getExternalScreen()
+			if (cancelled) return
+			try {
+				await requestFullscreen(container)
+				if (cancelled) {
+					document.exitFullscreen().catch(() => {})
+					return
+				}
+				entered = true
+			} catch {
+				if (!cancelled) setFsFailed(true)
+			}
+		}
+		enter()
+
+		// Exit presentation mode when leaving the fullscreen we entered (not the fallback's)
+		const handleFullscreenChange = () => {
+			if (entered && !document.fullscreenElement) onExitRef.current()
 		}
 
 		document.addEventListener('fullscreenchange', handleFullscreenChange)
 		return () => {
+			cancelled = true
 			document.removeEventListener('fullscreenchange', handleFullscreenChange)
 			if (document.fullscreenElement) {
 				document.exitFullscreen().catch(() => {})
 			}
 		}
-	}, [fullscreen, onExit])
+	}, [fullscreen, requestFullscreen])
 
 	// Track fullscreen state changes for windowed mode's fullscreen toggle
 	React.useEffect(() => {
-		if (fullscreen) return
+		if (!windowed) return
 
 		const handleFullscreenChange = () => {
 			const inFS = !!document.fullscreenElement
@@ -757,7 +857,7 @@ export function PresentationMode({
 		return () => {
 			document.removeEventListener('fullscreenchange', handleFullscreenChange)
 		}
-	}, [fullscreen])
+	}, [windowed])
 
 	// Toggle fullscreen from windowed mode
 	const handleToggleFullscreen = React.useCallback(() => {
@@ -766,10 +866,10 @@ export function PresentationMode({
 
 		if (document.fullscreenElement) {
 			document.exitFullscreen().catch(() => {})
-		} else if (container.requestFullscreen) {
-			container.requestFullscreen().catch(() => {})
+		} else if (typeof container.requestFullscreen === 'function') {
+			requestFullscreen(container).catch(() => {})
 		}
-	}, [])
+	}, [requestFullscreen])
 
 	// Keyboard navigation (disabled when following)
 	React.useEffect(() => {
@@ -841,10 +941,28 @@ export function PresentationMode({
 				case 'f':
 				case 'F':
 					// Toggle fullscreen from windowed mode
-					if (!fullscreen && document.fullscreenEnabled) {
+					if (windowed && document.fullscreenEnabled) {
 						e.preventDefault()
 						handleToggleFullscreen()
 					}
+					break
+				case 'b':
+				case 'B':
+				case 'w':
+				case 'W': {
+					// Blank the receiver black / white; the same key again shows the slide
+					if (!castSend || e.ctrlKey || e.metaKey || e.altKey) break
+					e.preventDefault()
+					const mode: BlankMode = e.key === 'b' || e.key === 'B' ? 'black' : 'white'
+					setBlank((cur) => (cur === mode ? null : mode))
+					break
+				}
+				case 'n':
+				case 'N':
+					// Speaker notes drawer
+					if (e.ctrlKey || e.metaKey || e.altKey) break
+					e.preventDefault()
+					setNotesOpen((open) => !open)
 					break
 			}
 		}
@@ -860,52 +978,81 @@ export function PresentationMode({
 		pollFrames,
 		focusedPollIndex,
 		handlePollClick,
-		fullscreen,
-		handleToggleFullscreen
+		windowed,
+		handleToggleFullscreen,
+		castSend
 	])
 
-	// Auto-hide controls after inactivity (only in fullscreen mode)
+	// Show the controls; in fullscreen they hide again after CONTROLS_HIDE_MS
+	const revealControls = React.useCallback(() => {
+		setShowControls(true)
+		if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current)
+		if (!windowed) {
+			hideTimeoutRef.current = setTimeout(() => setShowControls(false), CONTROLS_HIDE_MS)
+		}
+	}, [windowed])
+
+	// Auto-hide controls after inactivity (only in fullscreen); a mouse move or a tap brings them back
 	React.useEffect(() => {
-		if (!fullscreen) {
-			setShowControls(true)
+		revealControls()
+		if (windowed) return
+		window.addEventListener('mousemove', revealControls)
+		window.addEventListener('pointerdown', revealControls)
+		return () => {
+			window.removeEventListener('mousemove', revealControls)
+			window.removeEventListener('pointerdown', revealControls)
+			if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current)
+		}
+	}, [windowed, revealControls])
+
+	const step = (delta: 1 | -1) =>
+		handleIndexChange(Math.max(0, Math.min(currentIndex + delta, views.length - 1)))
+
+	// Touch: swipe left/right navigates; the click that follows a swipe is swallowed
+	const pointerStartRef = React.useRef<{ x: number; y: number; shown: boolean } | null>(null)
+	const swipedRef = React.useRef(false)
+	const handlePointerDown = (e: React.PointerEvent) => {
+		swipedRef.current = false
+		pointerStartRef.current = { x: e.clientX, y: e.clientY, shown: showControls }
+	}
+	const handlePointerUp = (e: React.PointerEvent) => {
+		const start = pointerStartRef.current
+		if (!start || isFollowing || e.pointerType === 'mouse') return
+		const dir = isSwipe(e.clientX - start.x, e.clientY - start.y)
+		if (!dir) return
+		swipedRef.current = true
+		step(dir === 'next' ? 1 : -1)
+	}
+
+	// Click to advance (disabled when following): halves, or thirds on touch (middle toggles controls)
+	const handleClick = (e: React.MouseEvent) => {
+		if (swipedRef.current) {
+			swipedRef.current = false
 			return
 		}
-
-		const handleMouseMove = () => {
-			setShowControls(true)
-			if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current)
-			hideTimeoutRef.current = setTimeout(() => setShowControls(false), 1000)
-		}
-		handleMouseMove() // Start timer immediately
-		window.addEventListener('mousemove', handleMouseMove)
-		return () => {
-			window.removeEventListener('mousemove', handleMouseMove)
-			if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current)
-		}
-	}, [fullscreen])
-
-	// Click to advance (disabled when following)
-	const handleClick = (e: React.MouseEvent) => {
 		// When following, clicks do nothing (synced with presenter)
 		if (isFollowing) return
 
-		// Right side of screen = next, left side = previous
 		const rect = containerRef.current?.getBoundingClientRect()
-		if (rect) {
-			const clickX = e.clientX - rect.left
-			if (clickX > rect.width / 2) {
-				handleIndexChange(Math.min(currentIndex + 1, views.length - 1))
-			} else {
-				handleIndexChange(Math.max(currentIndex - 1, 0))
-			}
+		if (!rect) return
+		const zone = tapZone(e.clientX - rect.left, rect.width, coarse)
+		if (zone !== 'toggle') {
+			step(zone === 'next' ? 1 : -1)
+		} else if (pointerStartRef.current?.shown) {
+			if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current)
+			setShowControls(false)
+		} else {
+			revealControls()
 		}
 	}
 
 	if (!currentView) return null
 
+	const stopEvent = (e: React.SyntheticEvent) => e.stopPropagation()
+
 	const containerClass = [
 		'c-presentation-container',
-		!fullscreen && 'windowed',
+		windowed && 'windowed',
 		!showControls && 'c-controls-hidden',
 		isFollowing && 'following'
 	]
@@ -913,35 +1060,90 @@ export function PresentationMode({
 		.join(' ')
 
 	return (
-		<div ref={containerRef} onClick={handleClick} className={containerClass}>
-			{/* Render ALL slide containers (stable keys), but only populate nearby ones */}
-			{views.map((view, index) => {
-				const isCurrentSlide = index === currentIndex
-				const isNearby = Math.abs(index - currentIndex) <= 1
-				return (
-					<PresentationSlide
-						key={view.id}
-						view={view}
-						doc={doc}
-						ownerTag={ownerTag}
-						token={token}
-						sourceFileId={sourceFileId}
-						isVisible={isCurrentSlide}
-						renderContent={isNearby}
-						voteCounts={isCurrentSlide ? voteCounts : undefined}
-						totalVotes={isCurrentSlide ? totalVotes : undefined}
-						winningFrames={isCurrentSlide ? winningFrames : undefined}
-						myVote={isCurrentSlide ? myVote : undefined}
-						onPollClick={isCurrentSlide && awareness ? handlePollClick : undefined}
-						focusedPollId={isCurrentSlide ? focusedPollId : undefined}
-						userCount={userCount}
-						canWrite={prezillo.cloudillo.access === 'write'}
-					/>
-				)
-			})}
+		<div
+			ref={containerRef}
+			onClick={handleClick}
+			onPointerDown={handlePointerDown}
+			onPointerUp={handlePointerUp}
+			className={containerClass}
+		>
+			{castSend ? (
+				<PresenterView
+					doc={doc}
+					views={views}
+					currentIndex={currentIndex}
+					onIndexChange={handleIndexChange}
+					onExit={onExit}
+					ownerTag={ownerTag}
+					token={token}
+					sourceFileId={sourceFileId}
+					canWrite={prezillo.cloudillo.access === 'write'}
+					onPointer={handlePointer}
+				/>
+			) : (
+				/* Render ALL slide containers (stable keys), but only populate nearby ones */
+				views.map((view, index) => {
+					const isCurrentSlide = index === currentIndex
+					const isNearby = Math.abs(index - currentIndex) <= 1
+					return (
+						<PresentationSlide
+							key={view.id}
+							view={view}
+							doc={doc}
+							ownerTag={ownerTag}
+							token={token}
+							sourceFileId={sourceFileId}
+							isVisible={isCurrentSlide}
+							renderContent={isNearby}
+							voteCounts={isCurrentSlide ? voteCounts : undefined}
+							totalVotes={isCurrentSlide ? totalVotes : undefined}
+							winningFrames={isCurrentSlide ? winningFrames : undefined}
+							myVote={isCurrentSlide ? myVote : undefined}
+							onPollClick={isCurrentSlide && awareness ? handlePollClick : undefined}
+							focusedPollId={isCurrentSlide ? focusedPollId : undefined}
+							userCount={userCount}
+							canWrite={prezillo.cloudillo.access === 'write'}
+						/>
+					)
+				})
+			)}
 
-			{/* Windowed mode: persistent control bar */}
-			{!fullscreen && (
+			{/* Speaker notes drawer (N); a collapsed tab stays when notes were asked for */}
+			{!isFollowing && !castSend && (notesOpen || (withNotes && !popup)) && (
+				<div
+					className={`c-presentation-notes${notesOpen ? ' open' : ''}`}
+					onClick={stopEvent}
+					onPointerDown={stopEvent}
+					onPointerUp={stopEvent}
+				>
+					<button
+						className="c-presentation-notes__toggle"
+						onClick={() => setNotesOpen((open) => !open)}
+						aria-expanded={notesOpen}
+					>
+						{t('Speaker notes (N)')}
+					</button>
+					{notesOpen && <NotesText doc={doc} viewId={currentView.id} />}
+				</div>
+			)}
+
+			{popup && !isFollowing && (
+				<PresenterWindow
+					win={popup}
+					doc={doc}
+					views={views}
+					currentIndex={currentIndex}
+					onIndexChange={handleIndexChange}
+					onExit={onExit}
+					ownerTag={ownerTag}
+					token={token}
+					sourceFileId={sourceFileId}
+					canWrite={prezillo.cloudillo.access === 'write'}
+				/>
+			)}
+
+			{/* Windowed mode (or refused fullscreen): persistent control bar */}
+			{windowed && !castSend && (
 				<div className="c-presentation-controls" onClick={(e) => e.stopPropagation()}>
 					<button
 						className="c-presentation-controls__btn"
@@ -949,7 +1151,7 @@ export function PresentationMode({
 							!isFollowing && handleIndexChange(Math.max(currentIndex - 1, 0))
 						}
 						disabled={isFollowing || currentIndex <= 0}
-						title="Previous slide"
+						title={t('Previous slide')}
 					>
 						<IcPrev />
 					</button>
@@ -963,7 +1165,7 @@ export function PresentationMode({
 							handleIndexChange(Math.min(currentIndex + 1, views.length - 1))
 						}
 						disabled={isFollowing || currentIndex >= views.length - 1}
-						title="Next slide"
+						title={t('Next slide')}
 					>
 						<IcNext />
 					</button>
@@ -972,24 +1174,25 @@ export function PresentationMode({
 						<button
 							className="c-presentation-controls__btn"
 							onClick={handleToggleFullscreen}
-							title={isInFullscreen ? 'Exit fullscreen' : 'Fullscreen (F)'}
+							title={isInFullscreen ? t('Exit fullscreen') : t('Fullscreen (F)')}
 						>
 							<IcFullscreen />
+							{fsFailed && !isInFullscreen && <span>{t('Go fullscreen')}</span>}
 						</button>
 					)}
 					<button
 						className="c-presentation-controls__btn exit"
 						onClick={onExit}
-						title="Exit presentation (Esc)"
+						title={t('Exit presentation (Esc)')}
 					>
 						<IcClose />
-						<span>Exit</span>
+						<span>{t('Exit')}</span>
 					</button>
 				</div>
 			)}
 
 			{/* Fullscreen mode: overlay counter and exit button */}
-			{fullscreen && (
+			{!windowed && (
 				<>
 					<div className="c-presentation-counter">
 						{currentIndex + 1} / {views.length}
@@ -1000,7 +1203,7 @@ export function PresentationMode({
 							onExit()
 						}}
 						className="c-presentation-exit"
-						title="Exit presentation (Esc)"
+						title={t('Exit presentation (Esc)')}
 					>
 						<IcClose />
 					</button>

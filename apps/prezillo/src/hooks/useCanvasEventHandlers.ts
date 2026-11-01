@@ -5,8 +5,10 @@
  * Hook for canvas event handlers: click, double-click, keyboard, context menu, delete, document check
  */
 
+import { cycleIndex, selectionCycleIndex } from '@cloudillo/canvas-tools'
 import type { useDialog } from '@cloudillo/react'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 
 import type { ObjectId, PrezilloObject } from '../crdt'
 import {
@@ -15,8 +17,13 @@ import {
 	deletePrototypeWithInstances,
 	fixDocumentIssues,
 	getInstancesOfPrototype,
-	getTemplateIdForPrototype
+	getObject,
+	getTemplateIdForPrototype,
+	isInstance,
+	isPropertyGroupLocked,
+	updateObjectPosition
 } from '../crdt'
+import { isEditableTarget, POPOVER_TARGET_SELECTOR } from '../utils/editable-target'
 import type { UsePrezilloDocumentResult } from './usePrezilloDocument'
 
 type CanvasObject = PrezilloObject & { _templateId?: string; _isPrototype?: boolean }
@@ -24,6 +31,8 @@ type CanvasObject = PrezilloObject & { _templateId?: string; _isPrototype?: bool
 export interface UseCanvasEventHandlersOptions {
 	prezillo: UsePrezilloDocumentResult
 	canvasObjects: CanvasObject[]
+	/** The active view's objects in z-order, the Tab cycle (canvasObjects adds prototypes) */
+	viewObjects: PrezilloObject[]
 	isReadOnly: boolean
 	dialog: ReturnType<typeof useDialog>
 	handleDuplicate: () => void
@@ -43,7 +52,7 @@ export interface UseCanvasEventHandlersResult {
 	handleCanvasClick: (e: React.MouseEvent) => void
 	handleDelete: () => Promise<void>
 	handleCheckDocument: () => Promise<void>
-	handleKeyDown: (evt: React.KeyboardEvent) => void
+	handleKeyDown: (evt: KeyboardEvent) => void
 	handleObjectContextMenu: (evt: React.MouseEvent, objectId?: ObjectId) => void
 	objectMenu: { x: number; y: number } | null
 	setObjectMenu: React.Dispatch<React.SetStateAction<{ x: number; y: number } | null>>
@@ -52,6 +61,7 @@ export interface UseCanvasEventHandlersResult {
 export function useCanvasEventHandlers({
 	prezillo,
 	canvasObjects,
+	viewObjects,
 	isReadOnly,
 	dialog,
 	handleDuplicate,
@@ -62,6 +72,7 @@ export function useCanvasEventHandlers({
 	onPrevView,
 	onNextView
 }: UseCanvasEventHandlersOptions): UseCanvasEventHandlersResult {
+	const { t } = useTranslation()
 	// Context menu state for object actions (Duplicate/Delete)
 	const [objectMenu, setObjectMenu] = React.useState<{ x: number; y: number } | null>(null)
 
@@ -189,16 +200,19 @@ export function useCanvasEventHandlers({
 		if (totalInstances > 0) {
 			console.log('[handleDelete] showing dialog for prototypes with instances')
 			const confirmed = await dialog.confirm(
-				'Delete Prototype Objects?',
-				`This will also delete ${totalInstances} instance(s) that depend on these prototypes. Continue?`
+				t('Delete Prototype Objects?'),
+				t(
+					'This will also delete {{count}} instances that depend on these prototypes. Continue?',
+					{ count: totalInstances }
+				)
 			)
 			if (!confirmed) return
 		} else if (prototypesToDelete.length > 0) {
 			// Prototypes without instances - still confirm
 			console.log('[handleDelete] showing dialog for prototypes without instances')
 			const confirmed = await dialog.confirm(
-				'Delete Prototype Objects?',
-				'Delete these prototype objects from the template?'
+				t('Delete Prototype Objects?'),
+				t('Delete these prototype objects from the template?')
 			)
 			if (!confirmed) return
 		}
@@ -220,39 +234,100 @@ export function useCanvasEventHandlers({
 		const report = checkDocumentConsistency(prezillo.doc)
 
 		if (report.summary.total === 0) {
-			await dialog.tell('Document Check', 'No issues found. The document is consistent.')
+			await dialog.tell(
+				t('Document Check'),
+				t('No issues found. The document is consistent.')
+			)
 			return
 		}
 
 		// Build summary message
-		const lines: string[] = [`Found ${report.summary.total} issue(s):`]
+		const lines: string[] = [t('Found {{count}} issues:', { count: report.summary.total })]
 		if (report.summary.orphanedInstances > 0) {
 			lines.push(
-				`• ${report.summary.orphanedInstances} orphaned instance(s) (missing prototype)`
+				`• ${t('{{count}} orphaned instances (missing prototype)', { count: report.summary.orphanedInstances })}`
 			)
 		}
 		if (report.summary.orphanedChildRefs > 0) {
-			lines.push(`• ${report.summary.orphanedChildRefs} orphaned child reference(s)`)
+			lines.push(
+				`• ${t('{{count}} orphaned child references', { count: report.summary.orphanedChildRefs })}`
+			)
 		}
 		if (report.summary.missingViewRefs > 0) {
-			lines.push(`• ${report.summary.missingViewRefs} invalid view reference(s)`)
+			lines.push(
+				`• ${t('{{count}} invalid view references', { count: report.summary.missingViewRefs })}`
+			)
 		}
 		lines.push('')
-		lines.push('Would you like to fix these issues?')
+		lines.push(t('Would you like to fix these issues?'))
 
-		const confirmed = await dialog.confirm('Document Check', lines.join('\n'))
+		const confirmed = await dialog.confirm(t('Document Check'), lines.join('\n'))
 		if (confirmed) {
 			const result = fixDocumentIssues(prezillo.yDoc, prezillo.doc, report)
-			await dialog.tell('Document Fixed', `Fixed ${result.fixed} issue(s).`)
+			await dialog.tell(
+				t('Document Fixed'),
+				t('Fixed {{count}} issues.', { count: result.fixed })
+			)
 		}
 	}
 
 	// Handle keyboard
-	function handleKeyDown(evt: React.KeyboardEvent) {
+	// Registered on `window` (bubble phase) by app.tsx, so it works whatever holds focus
+	function handleKeyDown(evt: KeyboardEvent) {
+		if (evt.defaultPrevented || isEditableTarget(evt.target)) return
 		const hasModifier = evt.ctrlKey || evt.metaKey
-		// Allow modifier key combinations from any element (Ctrl+D, Ctrl+Z, etc.)
-		// but block regular keys (Delete, Escape) when focus is on child elements
-		if (!hasModifier && evt.target !== evt.currentTarget) return
+		// Modifier chords (Ctrl+D, Ctrl+Z, ...) stay live on buttons; plain keys (Delete,
+		// Enter, arrows) belong to the focused button / listbox
+		if (
+			!hasModifier &&
+			(evt.target as HTMLElement | null)?.closest?.('button, [role="listbox"]')
+		)
+			return
+
+		// Object navigation, only while the canvas svg itself holds focus (app.tsx gives it
+		// tabIndex 0) and no popover is open. Tab past either end is left alone, so focus walks
+		// out of the canvas - no keyboard trap (WCAG 2.1.2).
+		const onCanvas =
+			!hasModifier &&
+			!evt.altKey &&
+			((evt.target as Element | null)?.matches?.('.prezillo-canvas > svg') ?? false) &&
+			!document.querySelector(POPOVER_TARGET_SELECTOR)
+		if (onCanvas && evt.key === 'Tab') {
+			const dir = evt.shiftKey ? -1 : 1
+			const order = viewObjects.map((o) => o.id)
+			const next = cycleIndex(
+				order.length,
+				selectionCycleIndex(order, prezillo.selectedIds, dir),
+				dir
+			)
+			if (next !== null) {
+				prezillo.selectObject(order[next])
+				evt.preventDefault()
+			}
+			return
+		}
+		if (onCanvas && evt.key.startsWith('Arrow')) {
+			if (!isReadOnly && prezillo.selectedIds.size > 0) {
+				const step = evt.shiftKey ? 10 : 1
+				const dx = evt.key === 'ArrowLeft' ? -step : evt.key === 'ArrowRight' ? step : 0
+				const dy = evt.key === 'ArrowUp' ? -step : evt.key === 'ArrowDown' ? step : 0
+				const { yDoc, doc } = prezillo
+				// One transaction, so one undo step. Locked objects and position-locked template
+				// instances stay put, as they do for a drag (useObjectDrag). Runtime x/y are the
+				// stored (page-relative) coordinates updateObjectPosition takes.
+				yDoc.transact(() => {
+					for (const id of prezillo.selectedIds) {
+						if (doc.o.get(id)?.k) continue
+						if (isInstance(doc, id) && isPropertyGroupLocked(doc, id, 'position'))
+							continue
+						const obj = getObject(doc, id)
+						if (obj) updateObjectPosition(yDoc, doc, id, obj.x + dx, obj.y + dy)
+					}
+				}, yDoc.clientID)
+			}
+			evt.preventDefault()
+			return
+		}
 
 		if (!evt.altKey && !evt.shiftKey && !evt.ctrlKey && !evt.metaKey) {
 			switch (evt.key) {
@@ -263,10 +338,15 @@ export function useCanvasEventHandlers({
 					}
 					break
 				case 'Enter': {
-					// Enter on a single selected embed activates it
+					// Enter on a single selected embed activates it; on a text object it edits it
 					const [id] = prezillo.selectedIds
-					if (prezillo.selectedIds.size === 1 && prezillo.doc.o.get(id)?.t === 'D') {
+					const code =
+						prezillo.selectedIds.size === 1 ? prezillo.doc.o.get(id)?.t : undefined
+					if (code === 'D') {
 						setActiveDocumentId?.(id)
+						evt.preventDefault()
+					} else if (code === 'T' && !isReadOnly) {
+						setEditingTextId(id)
 						evt.preventDefault()
 					}
 					break

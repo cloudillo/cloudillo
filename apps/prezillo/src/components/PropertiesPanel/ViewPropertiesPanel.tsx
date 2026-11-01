@@ -33,7 +33,7 @@ export function ViewPropertiesPanel({ doc, yDoc, activeViewId, synced }: ViewPro
 	const view = getView(doc, activeViewId)
 
 	if (!view) {
-		return <div className="c-empty-message">View not found</div>
+		return <div className="c-empty-message">{t('View not found')}</div>
 	}
 
 	return (

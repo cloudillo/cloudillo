@@ -167,7 +167,7 @@ export function PaletteColorPicker({
 					aria-selected={activeTab === 'theme'}
 					disabled={disabled}
 				>
-					Theme
+					{t('Theme')}
 				</button>
 				<button
 					type="button"
@@ -177,7 +177,7 @@ export function PaletteColorPicker({
 					aria-selected={activeTab === 'custom'}
 					disabled={disabled}
 				>
-					Custom
+					{t('Custom')}
 				</button>
 			</div>
 
@@ -205,7 +205,7 @@ export function PaletteColorPicker({
 								onClick={handleDetach}
 								disabled={disabled}
 							>
-								Detach from theme
+								{t('Detach from theme')}
 							</button>
 						)}
 					</div>
@@ -225,7 +225,9 @@ export function PaletteColorPicker({
 				{/* Opacity slider (shown in both tabs if enabled) */}
 				{showOpacity && (
 					<div className="c-palette-color-picker-opacity">
-						<label className="c-palette-color-picker-opacity-label">Opacity</label>
+						<label className="c-palette-color-picker-opacity-label">
+							{t('Opacity')}
+						</label>
 						<input
 							type="range"
 							className="c-slider"
@@ -252,10 +254,10 @@ export function PaletteColorPicker({
 				style={isTransparent ? undefined : { backgroundColor: resolvedColor }}
 				title={
 					isTransparent
-						? 'Transparent'
+						? t('Transparent')
 						: isPaletteValue
-							? `Theme: ${selectedSlot}`
-							: `Custom: ${resolvedColor}`
+							? t('Theme: {{slot}}', { slot: selectedSlot })
+							: t('Custom: {{color}}', { color: resolvedColor })
 				}
 			>
 				{isPaletteValue && <span className="c-palette-color-picker-preview-badge">T</span>}

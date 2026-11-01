@@ -6,7 +6,7 @@
 	"type": "module",
 	"main": "src/index.js",
 	"scripts": {
-		"l-scan": "i18next-scanner --config src/i18n/scanner.config.cjs",
+		"l-scan": "i18next-scanner --config ../../scripts/i18n-scanner.base.cjs",
 		"ts": "tsgo --noEmit",
 		"ts-watch": "tsgo --noEmit --watch",
 		"ts-test": "tsgo --noEmit -p tsconfig.test.json",

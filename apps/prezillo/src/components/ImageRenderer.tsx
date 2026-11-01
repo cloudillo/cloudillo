@@ -14,6 +14,7 @@
 
 import { useFileImage } from '@cloudillo/react'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 
 import type { ImageObject } from '../crdt/index.js'
 
@@ -34,6 +35,7 @@ export interface ImageRendererProps {
 }
 
 export function ImageRenderer({ object, ownerTag, token, scale = 1, bounds }: ImageRendererProps) {
+	const { t } = useTranslation()
 	// Use bounds if provided, otherwise use object properties
 	const x = bounds?.x ?? object.x
 	const y = bounds?.y ?? object.y
@@ -108,7 +110,7 @@ export function ImageRenderer({ object, ownerTag, token, scale = 1, bounds }: Im
 						fontSize={12}
 						fontFamily="system-ui, sans-serif"
 					>
-						Failed to load
+						{t('Failed to load')}
 					</text>
 				</g>
 			)}

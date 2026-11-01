@@ -140,5 +140,28 @@ export {
 	findStackedObjectsForSelection,
 	zOrderTarget
 } from './utils/stacking'
+// Clipboard codec
+export {
+	CANVAS_CLIPBOARD_PREFIX,
+	type CanvasClipboardSource,
+	canvasPasteOffset,
+	clipboardFileIds,
+	clipboardImageFile,
+	clipboardSource,
+	decodeCanvasClipboard,
+	encodeCanvasClipboard,
+	hasValidFileRef,
+	isBounds,
+	isForeignClipboard,
+	linkClipboardFiles,
+	pastedImageName,
+	resolveForeignPaste,
+	uploadPastedImage,
+	withoutFileRefs
+} from './utils/clipboard'
+export { isEditableTarget } from './utils/editable-target'
+
+// Keyboard access
+export { cycleIndex, selectionCycleIndex } from './utils/a11y'
 
 // vim: ts=4

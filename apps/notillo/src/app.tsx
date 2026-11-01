@@ -1235,6 +1235,7 @@ export function NotilloApp() {
 			    filter and details panes lose their height. */}
 			<div className="c-vbox h-100">
 				<AppDocBar
+					connection={notillo.client}
 					start={
 						<Button
 							variant="link"

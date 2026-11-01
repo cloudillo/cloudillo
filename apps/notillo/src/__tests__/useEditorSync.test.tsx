@@ -89,8 +89,12 @@ function makeEditor(blocks: FakeBlock[]) {
 	}
 }
 
-/** Records the writes the hook makes; nothing here needs to come back. */
-function makeClient() {
+/**
+ * Records the writes the hook makes; nothing here needs to come back. With
+ * `fail`, every write rejects, as one does after the RTDB send queue gives up.
+ */
+function makeClient(fail?: Error) {
+	const settle = () => (fail ? Promise.reject(fail) : Promise.resolve())
 	const updates: Array<{ id: string; patch: Record<string, unknown> }> = []
 	const sets: string[] = []
 	const client = {
@@ -99,20 +103,24 @@ function makeClient() {
 				set: (data: unknown) => {
 					sets.push(id)
 					void data
-					return Promise.resolve()
+					return settle()
 				},
 				update: (patch: Record<string, unknown>) => {
 					updates.push({ id, patch })
-					return Promise.resolve()
+					return settle()
 				},
-				delete: () => Promise.resolve()
+				delete: () => settle()
 			})
 		})
 	} as unknown as RtdbClient
 	return { client, updates, sets }
 }
 
-function render(editor: BlockNoteEditor, client: RtdbClient) {
+function render(
+	editor: BlockNoteEditor,
+	client: RtdbClient,
+	onWriteError?: (err: unknown) => void
+) {
 	const root = createRoot(document.createElement('div'))
 	function Probe() {
 		useDocumentSync(
@@ -124,7 +132,8 @@ function render(editor: BlockNoteEditor, client: RtdbClient) {
 			false,
 			// The block already exists server-side, so the mount does not push it.
 			new Set([BLOCK_ID]),
-			new Map([[BLOCK_ID, 1]])
+			new Map([[BLOCK_ID, 1]]),
+			onWriteError
 		)
 		return null
 	}
@@ -233,6 +242,27 @@ describe('useDocumentSync content debounce', () => {
 		// And the flush is idempotent — unmount must not write it a second time.
 		view.unmount()
 		expect(updates).toHaveLength(1)
+	})
+
+	it('reports a rejected write to onWriteError', async () => {
+		const err = new Error('Not connected')
+		const { editor, type } = makeEditor([textBlock(BLOCK_ID, '')])
+		const { client, updates } = makeClient(err)
+		const onWriteError = jest.fn()
+		const logged = jest.spyOn(console, 'error').mockImplementation(() => {})
+		const view = render(editor, client, onWriteError)
+
+		type(BLOCK_ID, 'lost')
+		await act(async () => {
+			jest.advanceTimersByTime(400)
+		})
+
+		expect(updates).toHaveLength(1)
+		expect(onWriteError).toHaveBeenCalledWith(err)
+		expect(logged).toHaveBeenCalledWith(err)
+
+		logged.mockRestore()
+		view.unmount()
 	})
 })
 

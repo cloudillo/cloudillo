@@ -176,8 +176,14 @@ export function useDocumentSync(
 	ownerTag: string | undefined,
 	readOnly: boolean,
 	knownBlockIds: Set<string>,
-	knownBlockOrders: Map<string, number>
+	knownBlockOrders: Map<string, number>,
+	/** A write that still rejected after the RTDB send queue — logged, then reported here. */
+	onWriteError?: (err: unknown) => void
 ): DocumentSyncResult {
+	// A ref, not an effect dep: a new callback each render would re-run the effect,
+	// and its teardown flushes pending writes.
+	const onWriteErrorRef = useRef(onWriteError)
+	onWriteErrorRef.current = onWriteError
 	const blockStates = useRef(new Map<string, BlockState>())
 	const blockIdList = useRef<string[]>([])
 	// Each pending write keeps its `commit` alongside the timer so teardown can run
@@ -217,8 +223,13 @@ export function useDocumentSync(
 			const stored = buildFullStoredBlock(editor, id, pageId, userId, ownerTag, now, order)
 			if (stored) {
 				markLocal(id)
-				client.collection('b').doc(id).set(stored).catch(console.error)
+				client.collection('b').doc(id).set(stored).catch(onFail)
 			}
+		}
+
+		function onFail(err: unknown) {
+			console.error(err)
+			onWriteErrorRef.current?.(err)
 		}
 
 		function markLocal(blockId: string) {
@@ -228,7 +239,7 @@ export function useDocumentSync(
 
 		function sendUpdate(blockId: string, patch: Record<string, unknown>) {
 			markLocal(blockId)
-			client!.collection('b').doc(blockId).update(patch).catch(console.error)
+			client!.collection('b').doc(blockId).update(patch).catch(onFail)
 		}
 
 		function sendSet(blockId: string) {
@@ -245,11 +256,11 @@ export function useDocumentSync(
 			)
 			if (!stored) return
 			markLocal(blockId)
-			client!.collection('b').doc(blockId).set(stored).catch(console.error)
+			client!.collection('b').doc(blockId).set(stored).catch(onFail)
 		}
 
 		function sendDelete(blockId: string) {
-			client!.collection('b').doc(blockId).delete().catch(console.error)
+			client!.collection('b').doc(blockId).delete().catch(onFail)
 		}
 
 		function clearBlockDebounce(blockId: string) {

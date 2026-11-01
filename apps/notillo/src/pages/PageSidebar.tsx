@@ -19,7 +19,6 @@ import {
 	Modal,
 	PresenceAvatar,
 	TreeItem,
-	type TreeItemDragData,
 	TreeView,
 	useDialog,
 	useIsMobile,
@@ -208,12 +207,6 @@ export function PageSidebar({
 			if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current)
 		}
 	}, [])
-
-	const [draggedId, setDraggedId] = React.useState<string | null>(null)
-	const [dropTargetId, setDropTargetId] = React.useState<string | null>(null)
-	const [dropPosition, setDropPosition] = React.useState<'before' | 'after' | 'inside' | null>(
-		null
-	)
 
 	const rootPages = React.useMemo(() => {
 		const roots: PageWithId[] = []
@@ -460,9 +453,9 @@ export function PageSidebar({
 	// Close menu on click outside
 	useOutsideClick(menuRef, () => setMenuOpen(false), menuOpen)
 
-	// The menu carries the home actions as well as the import, so site mode alone is
-	// enough to make a row worth opening one on.
-	const hasRowMenu = !readOnly && (!!onImportMarkdown || siteMode)
+	// Every writable row has at least "Move to…", the supported way to move a page
+	// on touch (the tree's drag sensors have no TouchSensor).
+	const hasRowMenu = !readOnly
 
 	const handlePageContextMenu = React.useCallback(
 		(e: React.MouseEvent, pageId: string, pageTitle: string) => {
@@ -530,41 +523,16 @@ export function PageSidebar({
 		}
 	}, [])
 
-	// DnD callbacks
-	const handleDragStart = React.useCallback((_e: React.DragEvent, data: TreeItemDragData) => {
-		setDraggedId(data.id)
-	}, [])
-
-	const handleDragOver = React.useCallback(
-		(targetId: string, _e: React.DragEvent, position: 'before' | 'after' | 'inside') => {
-			// `planMove` is the same decision the drop will make, so a move it
-			// rejects (anything making the page its own ancestor) never gets a drop
-			// indicator painted for it.
-			if (!draggedId || !planMove(draggedId, targetId, position, pages)) return
-			setDropTargetId(targetId)
-			setDropPosition(position)
-		},
-		[draggedId, pages]
-	)
-
-	const handleDragLeave = React.useCallback(() => {
-		setDropTargetId(null)
-		setDropPosition(null)
-	}, [])
-
-	const handleDrop = React.useCallback(
-		(targetId: string, _e: React.DragEvent, position: 'before' | 'after' | 'inside') => {
-			// Bailing out still has to clear the drag state, or the rejected drag
-			// stays "in progress" and its row keeps rendering as dragged.
-			if (deleting || !draggedId || !planMove(draggedId, targetId, position, pages)) {
-				setDraggedId(null)
-				setDropTargetId(null)
-				setDropPosition(null)
-				return
-			}
+	// The tree's `onMove` (dnd-kit drag, pointer or keyboard) and the "Move to…"
+	// picker both land here.
+	const handleMove = React.useCallback(
+		(id: string, targetId: string, position: 'before' | 'after' | 'inside') => {
+			// `planMove` is the same decision `movePage` makes, so a move it rejects
+			// (anything making the page its own ancestor) is a no-op.
+			if (deleting || !planMove(id, targetId, position, pages)) return
 
 			// A rejected move snaps the row back with nothing to explain it, so say so.
-			movePage(client, draggedId, targetId, position, pages).catch((err) => {
+			movePage(client, id, targetId, position, pages).catch((err) => {
 				console.error('[Notillo] Move page failed:', err)
 				dialog.tell(
 					t('Move page'),
@@ -576,19 +544,12 @@ export function PageSidebar({
 			if (position === 'inside') {
 				onExpand(targetId)
 			}
-
-			setDraggedId(null)
-			setDropTargetId(null)
-			setDropPosition(null)
 		},
-		[draggedId, client, pages, deleting, onExpand, dialog, t]
+		[client, pages, deleting, onExpand, dialog, t]
 	)
 
-	const handleDragEnd = React.useCallback(() => {
-		setDraggedId(null)
-		setDropTargetId(null)
-		setDropPosition(null)
-	}, [])
+	// The page the "Move to…" picker is open for.
+	const [movePickerId, setMovePickerId] = React.useState<string | null>(null)
 
 	/**
 	 * One row of the tree. `opts` is what the home row needs and no ordinary page
@@ -656,10 +617,6 @@ export function PageSidebar({
 					</>
 				}
 				isDraggable={draggable}
-				dragData={{ id: page.id, type: hasChildren ? 'container' : 'object' }}
-				dragging={draggedId === page.id}
-				dropTarget={dropTargetId === page.id}
-				dropPosition={dropTargetId === page.id ? dropPosition : null}
 				onSelect={() => {
 					if (longPressTriggeredRef.current) {
 						longPressTriggeredRef.current = false
@@ -675,11 +632,6 @@ export function PageSidebar({
 				onTouchEnd={handleTouchEnd}
 				onTouchMove={handleTouchEnd}
 				onTouchCancel={handleTouchEnd}
-				onItemDragStart={handleDragStart}
-				onItemDragOver={(e, pos) => handleDragOver(page.id, e, pos)}
-				onItemDragLeave={handleDragLeave}
-				onItemDrop={(e, pos) => handleDrop(page.id, e, pos)}
-				onItemDragEnd={handleDragEnd}
 				actions={
 					deleteProgress ? (
 						// The cascade walks the subtree page by page, so beyond a
@@ -733,7 +685,7 @@ export function PageSidebar({
 	 * An ordinary row with four things swapped: the house icon and a `/` chip instead
 	 * of a slug, no dragging (there is nothing above it to drag to), a `+` that adds a
 	 * top-level page rather than one of its own subpages, and the top level as its
-	 * children. Everything else — the long-press guard, the touch and drop handlers,
+	 * children. Everything else — the long-press guard, the touch handlers,
 	 * the delete progress — is `renderPage`'s, once.
 	 */
 	function renderHomeRow(home: PageWithId) {
@@ -780,8 +732,8 @@ export function PageSidebar({
 	)
 
 	// The one home action the open row menu offers, if any. A subpage is not on the
-	// list: it would have to be moved to the top level first, and the drag that does
-	// that is the same gesture either way.
+	// list: it would have to be moved to the top level first ("Move to…" or a drag),
+	// and that is the same gesture either way.
 	const homeAction = React.useMemo(():
 		| { label: string; run: () => Promise<void> }
 		| undefined => {
@@ -919,7 +871,7 @@ export function PageSidebar({
 								{readOnly ? t('No pages yet.') : t('No pages yet. Create one!')}
 							</div>
 						) : (
-							<TreeView className="page-tree">
+							<TreeView className="page-tree" onMove={handleMove}>
 								{homePage
 									? renderHomeRow(homePage)
 									: topLevelPages.map((page) => renderPage(page, 0))}
@@ -975,6 +927,11 @@ export function PageSidebar({
 						onImportMarkdown && {
 							label: t('Import Markdown as child page'),
 							run: () => onImportMarkdown(ctxMenu.pageId)
+						},
+						// The home row cannot be dragged either: there is nothing above it.
+						ctxMenu.pageId !== homePage?.id && {
+							label: t('Move to…'),
+							run: () => setMovePickerId(ctxMenu.pageId)
 						},
 						homeAction && { label: homeAction.label, run: homeAction.run }
 					].filter((item) => !!item)
@@ -1055,6 +1012,86 @@ export function PageSidebar({
 					</div>
 				</Modal>
 			)}
+			{movePickerId &&
+				(() => {
+					const page = pages.get(movePickerId)
+					if (!page) return null
+					// Every page `movePage` would accept as the new parent. Its current
+					// parent is left out (a no-op), and so is the home page, whose children
+					// are the top level ("Top level" covers it).
+					// flat list sorted by title; show the hierarchy if it gets long.
+					const targets = [...pages.values()]
+						.filter(
+							(target) =>
+								target.id !== page.parentPageId &&
+								target.id !== homePage?.id &&
+								!!planMove(page.id, target.id, 'inside', pages)
+						)
+						.sort((a, b) => (a.title || '').localeCompare(b.title || ''))
+					const lastTop = topLevelPages[topLevelPages.length - 1]
+					const canTop =
+						!!lastTop &&
+						!topLevelPages.some((top) => top.id === page.id) &&
+						!!planMove(page.id, lastTop.id, 'after', pages)
+					const pick = (targetId: string, position: 'after' | 'inside') => {
+						setMovePickerId(null)
+						handleMove(page.id, targetId, position)
+					}
+					return (
+						<Modal open onClose={() => setMovePickerId(null)} className="p-0">
+							<div
+								className="c-dialog c-panel emph p-4 c-vbox g-3"
+								style={{ maxWidth: '24rem', width: '90vw' }}
+							>
+								<h2 className="m-0">
+									{t('Move “{{title}}” to…', {
+										title: page.title || t('Untitled')
+									})}
+								</h2>
+								<div
+									className="c-vbox g-1 overflow-y-auto"
+									style={{ maxHeight: '40vh' }}
+								>
+									{canTop && (
+										<Button
+											variant="link"
+											className="justify-content-start"
+											disabled={!!deleting}
+											onClick={() => pick(lastTop.id, 'after')}
+										>
+											<IcHome />
+											<span className="flex-fill">{t('Top level')}</span>
+										</Button>
+									)}
+									{targets.map((target) => (
+										<Button
+											key={target.id}
+											variant="link"
+											className="justify-content-start"
+											disabled={!!deleting}
+											onClick={() => pick(target.id, 'inside')}
+										>
+											{target.icon ? <span>{target.icon}</span> : <IcPage />}
+											<span className="flex-fill">
+												{target.title || t('Untitled')}
+											</span>
+										</Button>
+									))}
+									{!canTop && targets.length === 0 && (
+										<p className="c-hint m-0">
+											{t('There is nowhere to move this page.')}
+										</p>
+									)}
+								</div>
+								<div className="c-hbox justify-content-end g-2">
+									<Button onClick={() => setMovePickerId(null)}>
+										{t('Cancel')}
+									</Button>
+								</div>
+							</div>
+						</Modal>
+					)
+				})()}
 		</>
 	)
 }

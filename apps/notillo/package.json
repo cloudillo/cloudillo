@@ -14,6 +14,7 @@
 		"test": "cross-env NODE_OPTIONS=\"--experimental-vm-modules\" jest",
 		"test:watch": "cross-env NODE_OPTIONS=\"--experimental-vm-modules\" jest --watch",
 		"test:coverage": "cross-env NODE_OPTIONS=\"--experimental-vm-modules\" jest --coverage",
+		"l-scan": "i18next-scanner --config ../../scripts/i18n-scanner.base.cjs",
 		"clean": "rimraf .cache dist/assets-*"
 	},
 	"author": "Szilárd Hajba <szilu@cloudillo.org",
@@ -43,6 +44,8 @@
 		"cross-env": "^10.1.0",
 		"docx": "^9.15.0",
 		"esbuild": "^0.28.2",
+		"i18next-scanner": "^4.6.0",
+		"i18next-scanner-typescript": "^1.2.1",
 		"jest": "^30.5.2",
 		"jest-environment-jsdom": "^30.5.2",
 		"react": "19.3.1",

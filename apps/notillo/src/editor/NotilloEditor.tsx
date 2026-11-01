@@ -36,7 +36,7 @@ import {
 	getImageVariantForDisplaySize,
 	parseSiteFileRef
 } from '@cloudillo/core'
-import { usePresence } from '@cloudillo/react'
+import { friendlyError, usePresence, useToast } from '@cloudillo/react'
 import type { RtdbClient, RtdbPresence } from '@cloudillo/rtdb'
 
 import { useBlockLocks } from '../hooks/useBlockLocks.js'
@@ -383,6 +383,18 @@ export const NotilloEditor = React.memo(
 			onEditorReadyRef.current?.(editor)
 		}, [editor])
 
+		// A block write that still fails after the RTDB send queue is a real error.
+		// time throttle (one toast per 10 s, so a burst of block writes
+		// does not stack); a persistent Retry banner if users report repeated failures.
+		const { error: toastError } = useToast()
+		const lastWriteErrorAt = React.useRef(0)
+		const onWriteError = (err: unknown) => {
+			const now = Date.now()
+			if (now - lastWriteErrorAt.current < 10_000) return
+			lastWriteErrorAt.current = now
+			toastError(friendlyError(t, err))
+		}
+
 		// Local changes → RTDB (smart per-block sync with position tracking)
 		const { recentLocalUpdates, blockStates, flush } = useDocumentSync(
 			asBaseEditor(editor),
@@ -392,7 +404,8 @@ export const NotilloEditor = React.memo(
 			ownerTag,
 			readOnly,
 			knownBlockIds,
-			knownBlockOrders
+			knownBlockOrders,
+			onWriteError
 		)
 
 		// Editor → page tag sync (debounced, self-healing). Above the flush effect

@@ -19,9 +19,6 @@
 	"This publication has no pages yet": "Ennek a kiadványnak még nincsenek oldalai",
 	"View only on this device": "Ezen az eszközön csak megtekintés",
 	"Enable text editing on this device": "Szövegszerkesztés engedélyezése ezen az eszközön",
-	"Offline · changes saved on this device": "Offline · a változások ezen az eszközön mentve",
-	"Reconnecting…": "Újracsatlakozás…",
-	"Synced": "Szinkronizálva",
 	"Choose a template": "Válassz sablont",
 	"Simple page": "Egyszerű oldal",
 	"2 column": "Kéthasábos",
@@ -493,9 +490,9 @@
 	"not a document link": "nem dokumentumhivatkozás",
 	"no host document": "nincs befogadó dokumentum",
 	"empty render": "üres megjelenítés",
-	"Open profile": "Profil megnyitása",
-	"Message": "Üzenet",
-	"More": "Továbbiak",
-	"Community": "Közösség",
-	"Template": "Sablon"
+	"Template": "Sablon",
+	"{{count}} embeds could not be rendered: {{list}}_one": "",
+	"{{count}} embeds could not be rendered: {{list}}_other": "",
+	"{{count}} images could not be included and were left blank._one": "",
+	"{{count}} images could not be included and were left blank._other": ""
 }

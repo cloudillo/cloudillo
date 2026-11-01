@@ -13,6 +13,7 @@
 		"watch": "node esbuild.config.js --watch",
 		"test": "cross-env NODE_OPTIONS=\"--experimental-vm-modules\" jest",
 		"test:watch": "cross-env NODE_OPTIONS=\"--experimental-vm-modules\" jest --watch",
+		"l-scan": "i18next-scanner --config ../../scripts/i18n-scanner.base.cjs",
 		"clean": "rimraf .cache dist/assets-*"
 	},
 	"author": "Szilard Hajba <szilu@cloudillo.org",
@@ -39,6 +40,8 @@
 		"harfbuzzjs": "1.6.4",
 		"hunspell-wasm": "0.3.0",
 		"i18next": "^26.5.11",
+		"i18next-scanner": "^4.6.0",
+		"i18next-scanner-typescript": "^1.2.1",
 		"jest": "^30.5.2",
 		"jest-environment-jsdom": "^30.5.2",
 		"pdfkit": "0.20.2",

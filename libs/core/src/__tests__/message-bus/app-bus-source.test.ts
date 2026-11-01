@@ -172,6 +172,30 @@ describe('AppBus message source validation', () => {
 		expect(document.body.style.getPropertyValue('--color-neutral')).toBe('')
 	})
 
+	it('fires onLanguageChange from a theme:update only when the language changes', async () => {
+		const bus = await initBus()
+		const seen: string[] = []
+		bus.onLanguageChange((lng) => seen.push(lng))
+		const send = (language?: string) => {
+			window.dispatchEvent(
+				new MessageEvent('message', {
+					source: window.parent,
+					data: {
+						cloudillo: true,
+						v: PROTOCOL_VERSION,
+						type: 'theme:update',
+						payload: { darkMode: false, language }
+					}
+				})
+			)
+		}
+
+		send('hu')
+		send('hu')
+		send()
+		expect(seen).toEqual(['hu'])
+	})
+
 	it('ignores a doc:info.push from anything but the parent', async () => {
 		const bus = await initBus()
 		const seen: unknown[] = []

@@ -27,6 +27,7 @@ import {
 	type AuthInitPush,
 	type AuthInitRes,
 	type AuthTokenPush,
+	type AuthTokenReadRes,
 	type AuthTokenRefreshRes,
 	type CameraCaptureAck,
 	type CameraCaptureResultPush,
@@ -544,6 +545,7 @@ export class AppMessageBus extends MessageBusBase {
 	private docInfoCallbacks = new Set<(info: DocInfo) => void>()
 	private identityCallbacks = new Set<() => void>()
 	private themeCallbacks = new Set<(darkMode: boolean) => void>()
+	private languageCallbacks = new Set<(language: string) => void>()
 	private tokenCallbacks = new Set<(token: string | undefined) => void>()
 	private lastNotifiedToken: string | undefined
 
@@ -823,6 +825,7 @@ export class AppMessageBus extends MessageBusBase {
 
 			// The push rebuilds state wholesale, so it can carry a theme flip too.
 			if (before.darkMode !== this.state.darkMode) this.emitThemeChange()
+			if (before.language !== this.state.language) this.emitLanguageChange()
 
 			// Notify shell that auth initialization is complete
 			this.notifyReady('auth')
@@ -887,6 +890,11 @@ export class AppMessageBus extends MessageBusBase {
 			this.state.neutral = msg.payload.neutral
 			this.applyTheme()
 			if (before !== this.state.darkMode) this.emitThemeChange()
+			const { language } = msg.payload
+			if (language && language !== this.state.language) {
+				this.state.language = language
+				this.emitLanguageChange()
+			}
 			this.log('Theme updated, darkMode:', msg.payload.darkMode)
 		})
 
@@ -1018,6 +1026,24 @@ export class AppMessageBus extends MessageBusBase {
 
 		this.logWarn('Token refresh returned no token')
 		return undefined
+	}
+
+	/**
+	 * Request a READ-only token (`file:<fileId>:R`) for this app's own document,
+	 * e.g. for a Presentation API receiver. Does not replace the app's own token.
+	 * Unavailable to share-link guests and to embeds.
+	 *
+	 * @returns The token and its lifetime in seconds, or undefined on failure
+	 */
+	async requestReadToken(): Promise<{ token: string; tokenLifetime?: number } | undefined> {
+		if (!this.initialized) {
+			throw new Error('AppBus not initialized. Call init() first.')
+		}
+
+		const data = await this.sendRequest<AuthTokenReadRes['data']>((id) => {
+			this.sendToShell(this.createRequest('auth:token.read.req', id))
+		})
+		return data?.token ? data : undefined
 	}
 
 	// ============================================
@@ -1153,6 +1179,31 @@ export class AppMessageBus extends MessageBusBase {
 		this.themeCallbacks.add(cb)
 		return () => {
 			this.themeCallbacks.delete(cb)
+		}
+	}
+
+	/**
+	 * Subscribe to live UI-language changes — a `theme:update` or `auth:init.push` carrying a
+	 * different `language`. Does NOT fire for the initial `init()`.
+	 *
+	 * @returns Unsubscribe function
+	 */
+	onLanguageChange(cb: (language: string) => void): () => void {
+		this.languageCallbacks.add(cb)
+		return () => {
+			this.languageCallbacks.delete(cb)
+		}
+	}
+
+	private emitLanguageChange(): void {
+		const { language } = this.state
+		if (!language) return
+		for (const cb of this.languageCallbacks) {
+			try {
+				cb(language)
+			} catch (err) {
+				this.logWarn('Language callback failed:', (err as Error).message)
+			}
 		}
 	}
 

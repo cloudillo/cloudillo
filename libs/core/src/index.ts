@@ -19,6 +19,7 @@ export * from './site.js'
 export * from './site-islands.js'
 export * from './tile-sources.js'
 export * from './urls.js'
+export { isFileId, isIdTag } from '@cloudillo/types'
 export * from './utils.js'
 
 // vim: ts=4

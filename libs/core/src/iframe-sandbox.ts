@@ -32,12 +32,20 @@ export const APP_SANDBOX =
  *
  * 'allow-modals' is needed for `window.print()` (the quillo PDF export); it also unblocks
  * alert/confirm/prompt. Untrusted apps deliberately don't get it.
+ *
+ * 'allow-presentation' is not here: `appSandbox()` adds it per app, for a trusted app whose
+ * manifest sets `presentation` (prezillo's "Present on…" → wired display / Cast receiver).
  */
 export const APP_SANDBOX_TRUSTED = `${APP_SANDBOX} allow-same-origin allow-modals`
 
-/** The sandbox value for an app the shell has (or has not) marked trusted */
-export function appSandbox(trusted: boolean): string {
-	return trusted ? APP_SANDBOX_TRUSTED : APP_SANDBOX
+/**
+ * The sandbox value for an app the shell has (or has not) marked trusted. `presentation` adds
+ * 'allow-presentation' (the Presentation API) and is ignored for an untrusted app, so the
+ * untrusted list stays identical to the backend's CSP sandbox list.
+ */
+export function appSandbox(trusted: boolean, opts: { presentation?: boolean } = {}): string {
+	if (!trusted) return APP_SANDBOX
+	return opts.presentation ? `${APP_SANDBOX_TRUSTED} allow-presentation` : APP_SANDBOX_TRUSTED
 }
 
 // vim: ts=4

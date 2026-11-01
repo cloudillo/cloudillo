@@ -188,6 +188,34 @@ export const tAuthTokenRefreshRes = msg('auth:token.refresh.res', {
 export type AuthTokenRefreshRes = T.TypeOf<typeof tAuthTokenRefreshRes>
 
 /**
+ * App requests a READ-only token for its own document (`file:<fileId>:R`), e.g. to
+ * hand to a Presentation API receiver. Never relayed for embeds; share-link guests
+ * are refused (their token cannot be narrowed).
+ * Direction: app -> shell
+ */
+export const tAuthTokenReadReq = msg('auth:token.read.req', {
+	id: T.number
+})
+export type AuthTokenReadReq = T.TypeOf<typeof tAuthTokenReadReq>
+
+/**
+ * Shell responds with the read-only token
+ * Direction: shell -> app
+ */
+export const tAuthTokenReadRes = msg('auth:token.read.res', {
+	replyTo: T.number,
+	ok: T.boolean,
+	data: T.optional(
+		T.struct({
+			token: T.string,
+			tokenLifetime: T.optional(T.number)
+		})
+	),
+	error: T.optional(T.string)
+})
+export type AuthTokenReadRes = T.TypeOf<typeof tAuthTokenReadRes>
+
+/**
  * Shell proactively pushes token update to app
  * Direction: shell -> app (notification, no response expected)
  */
@@ -735,7 +763,9 @@ export const tThemeUpdate = msg('theme:update', {
 	payload: T.struct({
 		darkMode: T.boolean,
 		/** See `tAuthInitRes` */
-		neutral: T.optional(T.string)
+		neutral: T.optional(T.string),
+		/** UI language; optional so older shells still decode */
+		language: T.optional(T.string)
 	})
 })
 export type ThemeUpdate = T.TypeOf<typeof tThemeUpdate>
@@ -1528,6 +1558,8 @@ export const tCloudilloMessage = T.taggedUnion('type')({
 	'auth:init.push': tAuthInitPush,
 	'auth:token.refresh.req': tAuthTokenRefreshReq,
 	'auth:token.refresh.res': tAuthTokenRefreshRes,
+	'auth:token.read.req': tAuthTokenReadReq,
+	'auth:token.read.res': tAuthTokenReadRes,
 	'auth:token.push': tAuthTokenPush,
 
 	// App lifecycle messages
@@ -1668,6 +1700,7 @@ export type NotifyType = NotifyMessage['type']
 interface ResponseForMap {
 	'auth:init.req': 'auth:init.res'
 	'auth:token.refresh.req': 'auth:token.refresh.res'
+	'auth:token.read.req': 'auth:token.read.res'
 	'storage:op.req': 'storage:op.res'
 	'media:pick.req': 'media:pick.ack'
 	'doc:pick.req': 'doc:pick.ack'

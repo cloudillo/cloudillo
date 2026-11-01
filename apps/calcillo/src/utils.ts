@@ -119,13 +119,16 @@ export function createDebouncedThrottle(
 }
 
 /**
- * Show an error notification to the user.
- * Currently logs to console, can be extended with toast UI.
+ * Log an error, then show `message` (already translated, user-facing) through `notify`,
+ * e.g. `toast.error`. Developer detail belongs in `context`, which only reaches the console.
  */
-export function showUserError(message: string, context?: unknown): void {
+export function showUserError(
+	notify: (msg: string) => void,
+	message: string,
+	context?: unknown
+): void {
 	console.error(`[Calcillo Error] ${message}`, context)
-	// TODO: Add toast notification UI
-	// For now, we at least ensure errors are visible
+	notify(message)
 }
 
 // vim: ts=4

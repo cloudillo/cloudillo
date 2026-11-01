@@ -123,7 +123,7 @@ export function PdfExportDialog({ yDoc, sheetId, selection, onClose }: PdfExport
 						onChange={(e) => setPaper(e.target.value as PdfPaper)}
 					>
 						<option value="a4">A4</option>
-						<option value="letter">Letter</option>
+						<option value="letter">{t('Letter')}</option>
 					</NativeSelect>
 				</Field>
 				<Field label={t('Orientation')}>

@@ -20,13 +20,17 @@ import './style.css'
 
 import { docRef, type EmbedViewReportPayload, getAppBus } from '@cloudillo/core'
 import {
+	Alert,
 	AppDocBar,
+	Button,
 	DialogContainer,
 	DocBarMenu,
 	IcCopyLink,
 	IcExport,
 	IcList,
 	IcTag,
+	LoadError,
+	LoadingSpinner,
 	MenuDivider,
 	MenuHeader,
 	MenuItem,
@@ -182,6 +186,11 @@ function normalizeLegacyFonts(yDoc: Y.Doc): void {
 
 installCalcFonts()
 
+/** Without the document after this long, the sheet area swaps its spinner for a load error. */
+const LOAD_TIMEOUT_MS = 10_000
+
+const reload = () => window.location.reload()
+
 export function CalcilloApp() {
 	const { t } = useTranslation()
 	const cloudillo = useCloudilloEditor(APP_NAME)
@@ -196,6 +205,8 @@ export function CalcilloApp() {
 	const [loaded, setLoaded] = React.useState(false)
 	const [initialized, setInitialized] = React.useState(false)
 	const [origCellData, setOrigCellData] = React.useState<FortuneSheet[] | undefined>()
+	const [loadTimedOut, setLoadTimedOut] = React.useState(false)
+	const [syncBroken, setSyncBroken] = React.useState(false)
 	const [fontsReady, setFontsReady] = React.useState(false)
 	const [workbookKey, setWorkbookKey] = React.useState(0)
 	const workbookRef = React.useRef<WorkbookInstance>(null)
@@ -352,6 +363,18 @@ export function CalcilloApp() {
 
 	const dialog = useDialog()
 	const toast = useToast()
+	// one per-op error toast per 10 s, so a failing batch does not stack dozens;
+	// each op still logs. A persistent banner if users report repeated failures.
+	const lastOpErrorAt = React.useRef(0)
+	const throttledToast = React.useCallback(
+		(m: string) => {
+			const now = Date.now()
+			if (now - lastOpErrorAt.current < 10_000) return
+			lastOpErrorAt.current = now
+			toast.error(m)
+		},
+		[toast]
+	)
 	const copyLink = useCopyEmbedLink()
 	const [showNames, setShowNames] = React.useState(false)
 	const [pdfExport, setPdfExport] = React.useState<Pick<
@@ -620,7 +643,14 @@ export function CalcilloApp() {
 						const sheet = getOrCreateSheet(cloudillo.yDoc, sheetId)
 						needsRecalc ||= applySheetYEvent(sheetId, sheet, workbookRef.current!, evt)
 					} catch (error) {
-						showUserError(`Failed to apply remote change for sheet ${sheetId}`, error)
+						showUserError(
+							throttledToast,
+							t("Couldn't apply a change from another user"),
+							{
+								sheetId,
+								error
+							}
+						)
 					}
 				}
 			})
@@ -714,13 +744,13 @@ export function CalcilloApp() {
 				console.error('[Import] Import failed:', err)
 				bus.notifyImportComplete(
 					false,
-					err instanceof Error ? err.message : 'Import failed'
+					err instanceof Error ? err.message : t('Import failed')
 				)
 			}
 		})
 
 		return cleanup
-	}, [cloudillo.synced, cloudillo.yDoc])
+	}, [cloudillo.synced, cloudillo.yDoc, t])
 
 	// Load workbook data - MUST wait for sync to complete before checking for sheets
 	// Otherwise race condition: multiple clients see empty sheets and each creates their own
@@ -758,6 +788,15 @@ export function CalcilloApp() {
 		}
 		setInitialized(true)
 	}, [loaded, cloudillo.synced, origCellData])
+
+	// The init effect above needs both `loaded` and `synced`, so the clock runs until it has
+	// produced `origCellData`, not until either flag arrives
+	const hasCellData = !!origCellData
+	React.useEffect(() => {
+		if (hasCellData || renderMode || embedded) return
+		const timerId = setTimeout(() => setLoadTimedOut(true), LOAD_TIMEOUT_MS)
+		return () => clearTimeout(timerId)
+	}, [hasCellData, renderMode, embedded])
 
 	// Fortune measures and paints with whatever font is loaded at mount, so load the sheets' fonts first
 	React.useEffect(() => {
@@ -817,7 +856,10 @@ export function CalcilloApp() {
 						}
 					}
 				} catch (error) {
-					showUserError(`Failed to apply frozen panes for sheet ${sheetId}`, error)
+					showUserError(toast.error, t("Couldn't restore frozen rows and columns"), {
+						sheetId,
+						error
+					})
 				}
 			}
 		}, FROZEN_PANE_APPLY_DELAY_MS)
@@ -879,15 +921,23 @@ export function CalcilloApp() {
 							const sheet = getOrCreateSheet(cloudillo.yDoc, op.id as SheetId)
 							transformOp(sheet, op)
 						} catch (error) {
-							showUserError(`Failed to process operation: ${op.op}`, { op, error })
+							showUserError(throttledToast, t("Couldn't save your last change"), {
+								op,
+								error
+							})
 						}
 					}
 				})
 			} catch (error) {
-				showUserError('Failed to sync changes. Please refresh the page.', error)
+				setSyncBroken(true)
+				showUserError(
+					toast.error,
+					t("Couldn't save your changes. Reload to keep editing."),
+					error
+				)
 			}
 		},
-		[initialized, localEchoGuard]
+		[initialized, localEchoGuard, toast, throttledToast, t]
 	)
 
 	const combinedRef = React.useCallback((instance: WorkbookInstance | null) => {
@@ -930,77 +980,90 @@ export function CalcilloApp() {
 	}
 
 	return (
-		origCellData && (
-			// FortuneSheet measures its own container, so the DocBar has to be a
-			// SIBLING of a properly sized flex child — never an overlay on top of
-			// the workbook, which would leave it measuring the wrong height.
-			<div className="c-vbox h-100">
-				<AppDocBar awareness={cloudillo.provider?.awareness}>
-					<DocBarMenu>
+		// FortuneSheet measures its own container, so the DocBar has to be a
+		// SIBLING of a properly sized flex child — never an overlay on top of
+		// the workbook, which would leave it measuring the wrong height.
+		<div className="c-vbox h-100">
+			<AppDocBar awareness={cloudillo.provider?.awareness} provider={cloudillo.provider}>
+				<DocBarMenu>
+					<MenuItem
+						icon={<IcExport />}
+						label={t('Export to JSON')}
+						onClick={() => downloadExport(cloudillo.yDoc)}
+					/>
+					<MenuItem
+						icon={<IcExport />}
+						label={t('Export to XLSX')}
+						onClick={() => downloadXlsxExport(cloudillo.yDoc)}
+					/>
+					<MenuItem
+						icon={<IcExport />}
+						label={t('Export to PDF')}
+						onClick={openPdfExport}
+					/>
+					<MenuDivider />
+					{!isReadOnly && (
 						<MenuItem
-							icon={<IcExport />}
-							label={t('Export to JSON')}
-							onClick={() => downloadExport(cloudillo.yDoc)}
-						/>
-						<MenuItem
-							icon={<IcExport />}
-							label={t('Export to XLSX')}
-							onClick={() => downloadXlsxExport(cloudillo.yDoc)}
-						/>
-						<MenuItem
-							icon={<IcExport />}
-							label={t('Export to PDF')}
-							onClick={openPdfExport}
-						/>
-						<MenuDivider />
-						{!isReadOnly && (
-							<MenuItem
-								icon={<IcTag />}
-								label={t('Name selection…')}
-								onClick={nameSelection}
-							/>
-						)}
-						<MenuItem
-							icon={<IcCopyLink />}
-							label={t('Copy embed link to selection')}
-							onClick={copySelectionLink}
-						/>
-						<MenuItem
-							icon={<IcList />}
-							label={t('Named ranges')}
-							checked={showNames}
-							onClick={() => setShowNames((v) => !v)}
-						/>
-						<MenuDivider />
-						<MenuHeader>v{__APP_VERSION__}</MenuHeader>
-					</DocBarMenu>
-				</AppDocBar>
-				<div className="c-hbox flex-fill" style={{ minHeight: 0 }}>
-					<div className="flex-fill calcillo-sheet" style={{ minWidth: 0 }}>
-						{workbook}
-					</div>
-					{showNames && (
-						<NamedRangesPanel
-							yDoc={cloudillo.yDoc}
-							readOnly={isReadOnly}
-							getSelectionAnchor={getSelectionAnchor}
-							onSelect={selectNamedRange}
-							onCopyLink={copyEmbedLink}
-							onClose={() => setShowNames(false)}
+							icon={<IcTag />}
+							label={t('Name selection…')}
+							onClick={nameSelection}
 						/>
 					)}
+					<MenuItem
+						icon={<IcCopyLink />}
+						label={t('Copy embed link to selection')}
+						onClick={copySelectionLink}
+					/>
+					<MenuItem
+						icon={<IcList />}
+						label={t('Named ranges')}
+						checked={showNames}
+						onClick={() => setShowNames((v) => !v)}
+					/>
+					<MenuDivider />
+					<MenuHeader>v{__APP_VERSION__}</MenuHeader>
+				</DocBarMenu>
+			</AppDocBar>
+			{syncBroken && (
+				<Alert color="error" actions={<Button onClick={reload}>{t('Reload')}</Button>}>
+					{t("Your changes aren't being saved. Reload to keep editing.")}
+				</Alert>
+			)}
+			<div className="c-hbox flex-fill" style={{ minHeight: 0 }}>
+				<div className="flex-fill calcillo-sheet" style={{ minWidth: 0 }}>
+					{origCellData ? (
+						workbook
+					) : loadTimedOut ? (
+						<LoadError
+							error={new Error('Spreadsheet load timed out')}
+							title={t("Couldn't open this spreadsheet")}
+							onRetry={reload}
+						/>
+					) : (
+						<LoadingSpinner label={t('Loading spreadsheet…')} />
+					)}
 				</div>
-				{pdfExport && (
-					<PdfExportDialog
+				{showNames && (
+					<NamedRangesPanel
 						yDoc={cloudillo.yDoc}
-						{...pdfExport}
-						onClose={() => setPdfExport(null)}
+						readOnly={isReadOnly}
+						getSelectionAnchor={getSelectionAnchor}
+						onSelect={selectNamedRange}
+						onCopyLink={copyEmbedLink}
+						onClose={() => setShowNames(false)}
 					/>
 				)}
-				<DialogContainer />
-				<Toasts />
 			</div>
-		)
+			{pdfExport && (
+				<PdfExportDialog
+					yDoc={cloudillo.yDoc}
+					{...pdfExport}
+					onClose={() => setPdfExport(null)}
+				/>
+			)}
+			<DialogContainer />
+			<Toasts />
+		</div>
 	)
 }
 

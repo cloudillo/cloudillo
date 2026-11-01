@@ -3,6 +3,7 @@
 
 import { IcBack, IcConfirm, LoadingSpinner, ZoomableImage } from '@cloudillo/react'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { IcRotateLeft, IcRotateRight } from '../icons.js'
 import { FILTER_DEFAULTS, type PageFilter } from '../types.js'
@@ -34,6 +35,7 @@ export function FilterSelect({
 	onConfirm,
 	onBack
 }: FilterSelectProps) {
+	const { t } = useTranslation()
 	const [selectedFilter, setSelectedFilter] = React.useState<PageFilter>('document')
 	const [processing, setProcessing] = React.useState(false)
 	const [rotation, setRotation] = React.useState(initialRotation ?? 0)
@@ -152,7 +154,11 @@ export function FilterSelect({
 			<div className="filter-preview">
 				{previewUrl ? (
 					<>
-						<ZoomableImage src={previewUrl} alt="Preview" resetOnSrcChange={false} />
+						<ZoomableImage
+							src={previewUrl}
+							alt={t('Preview')}
+							resetOnSrcChange={false}
+						/>
 						{applyingFilter && (
 							<div className="filter-preview-spinner">
 								<LoadingSpinner />
@@ -161,7 +167,7 @@ export function FilterSelect({
 					</>
 				) : (
 					<div className="filter-preview-loading">
-						<LoadingSpinner label="Applying filter…" />
+						<LoadingSpinner label={t('Applying filter…')} />
 					</div>
 				)}
 			</div>
@@ -190,29 +196,37 @@ export function FilterSelect({
 						onClick={() => handleFilterSwitch(f.id)}
 					>
 						{thumbnails[f.id] ? (
-							<img src={thumbnails[f.id]} alt={f.label} />
+							<img src={thumbnails[f.id]} alt={t(f.label)} />
 						) : (
 							<div className="filter-thumb-skeleton" />
 						)}
-						<span>{f.label}</span>
+						<span>{t(f.label)}</span>
 					</button>
 				))}
 			</div>
 			<div className="filter-toolbar">
-				<button className="c-button icon" onClick={onBack} title="Back">
+				<button className="c-button icon" onClick={onBack} title={t('Back')}>
 					<IcBack />
 				</button>
-				<button className="c-button icon" onClick={handleRotateLeft} title="Rotate left">
+				<button
+					className="c-button icon"
+					onClick={handleRotateLeft}
+					title={t('Rotate left')}
+				>
 					<IcRotateLeft />
 				</button>
-				<button className="c-button icon" onClick={handleRotateRight} title="Rotate right">
+				<button
+					className="c-button icon"
+					onClick={handleRotateRight}
+					title={t('Rotate right')}
+				>
 					<IcRotateRight />
 				</button>
 				<button
 					className="c-button primary"
 					onClick={handleConfirm}
 					disabled={processing}
-					title="Apply filter"
+					title={t('Apply filter')}
 				>
 					{processing ? <LoadingSpinner size="sm" /> : <IcConfirm />}
 				</button>

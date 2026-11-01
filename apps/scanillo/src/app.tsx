@@ -3,16 +3,21 @@
 
 import { createApiClient, getAppBus, getFileUrl, type MediaFileResolvedPush } from '@cloudillo/core'
 import {
+	Alert,
 	AppDocBar,
+	Button,
 	Dialog,
 	DocBarMenu,
+	friendlyError,
 	IcBack,
 	IcCamera,
 	IcDelete,
 	IcEraser,
 	IcImage,
+	IcNext,
 	IcPdf,
 	IcPen,
+	IcPrev,
 	IcRectangle,
 	IcScan,
 	IcUndo,
@@ -21,10 +26,12 @@ import {
 	Panel,
 	Toasts,
 	useRtdbDocument,
+	useToast,
 	ZoomableImage
 } from '@cloudillo/react'
 import type { RtdbClient } from '@cloudillo/rtdb'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { FAB } from './components/FAB.js'
 
@@ -58,6 +65,7 @@ import {
 	extractPerspective,
 	rotateCanvas
 } from './utils/image-processing.js'
+import { type MoveDir, neighbourMove } from './utils/page-order.js'
 import { lerpQuad, quadDistance } from './utils/refine-quad.js'
 
 // Live-preview lock. Two consecutive preview detections that agree within these bounds
@@ -258,6 +266,7 @@ function PageGrid({
 	loading,
 	ownerTag,
 	token,
+	readOnly,
 	onSelectPage,
 	onMovePage
 }: {
@@ -265,9 +274,11 @@ function PageGrid({
 	loading: boolean
 	ownerTag?: string
 	token?: string
+	readOnly: boolean
 	onSelectPage: (id: string) => void
 	onMovePage: (pageId: string, targetId: string, position: 'before' | 'after') => void
 }) {
+	const { t } = useTranslation()
 	const [draggedId, setDraggedId] = React.useState<string | null>(null)
 	const [dropTargetId, setDropTargetId] = React.useState<string | null>(null)
 	const [dropPosition, setDropPosition] = React.useState<'before' | 'after'>('before')
@@ -327,6 +338,7 @@ function PageGrid({
 	}
 
 	function handleTouchStart(e: React.TouchEvent, pageId: string) {
+		if (readOnly) return
 		const touch = e.touches[0]
 		const ts = touchState.current
 		ts.startX = touch.clientX
@@ -402,7 +414,7 @@ function PageGrid({
 	}
 
 	if (loading && pages.length === 0) {
-		return <LoadingSpinner label="Loading pages…" />
+		return <LoadingSpinner label={t('Loading pages…')} />
 	}
 
 	if (pages.length === 0) {
@@ -411,8 +423,8 @@ function PageGrid({
 				<div className="empty-state-icon">
 					<IcScan size={48} />
 				</div>
-				<p className="empty-state-text">No pages yet</p>
-				<small>Add pages using the button below.</small>
+				<p className="empty-state-text">{t('No pages yet')}</p>
+				<small>{t('Add pages using the button below.')}</small>
 			</div>
 		)
 	}
@@ -430,13 +442,23 @@ function PageGrid({
 				]
 					.filter(Boolean)
 					.join(' ')
+				// A div, not a <button>: Firefox starts no HTML5 drag from a <button>.
 				return (
 					<div
 						key={page.id}
 						className={cls}
 						data-page-id={page.id}
-						draggable
+						role="button"
+						tabIndex={0}
+						aria-label={t('Page {{n}}', { n: idx + 1 })}
+						draggable={!readOnly}
 						onClick={() => !draggedId && onSelectPage(page.id)}
+						onKeyDown={(e) => {
+							if (e.key === 'Enter' || e.key === ' ') {
+								e.preventDefault()
+								onSelectPage(page.id)
+							}
+						}}
 						onDragStart={(e) => handleDragStart(e, page.id)}
 						onDragOver={(e) => handleDragOver(e, page.id)}
 						onDragLeave={handleDragLeave}
@@ -448,7 +470,7 @@ function PageGrid({
 						{ownerTag && (
 							<img
 								src={getFileUrl(ownerTag, page.fileId, 'vis.tn', { token })}
-								alt={`Page ${idx + 1}`}
+								alt={t('Page {{n}}', { n: idx + 1 })}
 								loading="lazy"
 							/>
 						)}
@@ -469,9 +491,11 @@ function PageDetail({
 	totalPages,
 	ownerTag,
 	token,
+	readOnly,
 	onBack,
 	onDelete,
 	onReEdit,
+	onMove,
 	onUpdateAnnotations
 }: {
 	page: ScanPage
@@ -479,11 +503,14 @@ function PageDetail({
 	totalPages: number
 	ownerTag?: string
 	token?: string
+	readOnly: boolean
 	onBack: () => void
 	onDelete: (id: string) => void
 	onReEdit: (page: ScanPage, mode: 'crop' | 'filter') => void
+	onMove: (dir: MoveDir) => void
 	onUpdateAnnotations: (pageId: string, annotations: Annotation[]) => void
 }) {
+	const { t } = useTranslation()
 	const [confirming, setConfirming] = React.useState(false)
 	const [activeTool, setActiveTool] = React.useState<AnnotationTool | null>(null)
 	const [color, setColor] = React.useState(ANNOTATION_COLORS[0])
@@ -632,19 +659,17 @@ function PageDetail({
 				<button className="c-button icon" onClick={onBack}>
 					<IcBack />
 				</button>
-				<h3>
-					Page {pageIndex + 1} of {totalPages}
-				</h3>
+				<h3>{t('Page {{n}} of {{total}}', { n: pageIndex + 1, total: totalPages })}</h3>
 			</div>
 			<div className="page-detail-image">
 				{ownerTag && (
-					<ZoomableImage alt={`Page ${pageIndex + 1}`}>
+					<ZoomableImage alt={t('Page {{n}}', { n: pageIndex + 1 })}>
 						<img
 							src={
 								processedUrl ??
 								getFileUrl(ownerTag, page.fileId, 'vis.md', { token })
 							}
-							alt={`Page ${pageIndex + 1}`}
+							alt={t('Page {{n}}', { n: pageIndex + 1 })}
 							style={{
 								width: '100%',
 								height: '100%',
@@ -656,7 +681,7 @@ function PageDetail({
 						/>
 						<AnnotationOverlay
 							annotations={annotations}
-							activeTool={activeTool}
+							activeTool={readOnly ? null : activeTool}
 							color={color}
 							strokeWidth={strokeWidth}
 							opacity={1}
@@ -684,7 +709,7 @@ function PageDetail({
 					</ZoomableImage>
 				)}
 			</div>
-			{activeTool && activeTool !== 'eraser' && (
+			{!readOnly && activeTool && activeTool !== 'eraser' && (
 				<div className="annotation-options-bar">
 					<div className="annotation-colors">
 						{ANNOTATION_COLORS.map((c) => (
@@ -707,63 +732,85 @@ function PageDetail({
 					/>
 				</div>
 			)}
-			<div className="action-bar">
-				<button
-					className={`c-button icon${activeTool === 'freehand' ? ' primary' : ''}`}
-					onClick={() => toggleTool('freehand')}
-					title="Pen"
-				>
-					<IcPen />
-				</button>
-				<button
-					className={`c-button icon${activeTool === 'rect' ? ' primary' : ''}`}
-					onClick={() => toggleTool('rect')}
-					title="Rectangle"
-				>
-					<IcRectangle />
-				</button>
-				<button
-					className={`c-button icon${activeTool === 'eraser' ? ' primary' : ''}`}
-					onClick={() => toggleTool('eraser')}
-					title="Eraser"
-				>
-					<IcEraser />
-				</button>
-				{activeTool && (
+			{!readOnly && (
+				<div className="action-bar">
+					<button
+						className={`c-button icon${activeTool === 'freehand' ? ' primary' : ''}`}
+						onClick={() => toggleTool('freehand')}
+						title={t('Pen')}
+					>
+						<IcPen />
+					</button>
+					<button
+						className={`c-button icon${activeTool === 'rect' ? ' primary' : ''}`}
+						onClick={() => toggleTool('rect')}
+						title={t('Rectangle')}
+					>
+						<IcRectangle />
+					</button>
+					<button
+						className={`c-button icon${activeTool === 'eraser' ? ' primary' : ''}`}
+						onClick={() => toggleTool('eraser')}
+						title={t('Eraser')}
+					>
+						<IcEraser />
+					</button>
+					{activeTool && (
+						<button
+							className="c-button icon"
+							onClick={handleUndo}
+							disabled={annotations.length === 0}
+							title={t('Undo')}
+						>
+							<IcUndo />
+						</button>
+					)}
+					<div style={{ flex: 1 }} />
 					<button
 						className="c-button icon"
-						onClick={handleUndo}
-						disabled={annotations.length === 0}
-						title="Undo"
+						onClick={() => onMove('earlier')}
+						disabled={pageIndex <= 0}
+						title={t('Move earlier')}
 					>
-						<IcUndo />
+						<IcPrev />
 					</button>
-				)}
-				<div style={{ flex: 1 }} />
-				<button
-					className="c-button icon"
-					onClick={() => onReEdit(page, 'crop')}
-					title="Adjust crop"
-				>
-					<IcCrop />
-				</button>
-				<button
-					className="c-button icon"
-					onClick={() => onReEdit(page, 'filter')}
-					title="Change filter"
-				>
-					<IcImageFilter />
-				</button>
-				{confirming ? (
-					<button className="c-button error" onClick={handleDelete}>
-						<IcDelete /> Delete?
+					<button
+						className="c-button icon"
+						onClick={() => onMove('later')}
+						disabled={pageIndex >= totalPages - 1}
+						title={t('Move later')}
+					>
+						<IcNext />
 					</button>
-				) : (
-					<button className="c-button icon" onClick={handleDelete} title="Delete page">
-						<IcDelete />
+					<button
+						className="c-button icon"
+						onClick={() => onReEdit(page, 'crop')}
+						title={t('Adjust crop')}
+					>
+						<IcCrop />
 					</button>
-				)}
-			</div>
+					<button
+						className="c-button icon"
+						onClick={() => onReEdit(page, 'filter')}
+						title={t('Change filter')}
+					>
+						<IcImageFilter />
+					</button>
+					{confirming ? (
+						<button className="c-button error" onClick={handleDelete}>
+							<IcDelete /> {t('Delete?')}
+						</button>
+					) : (
+						<button
+							className="c-button icon"
+							onClick={handleDelete}
+							title={t('Delete page')}
+						>
+							<IcDelete />
+						</button>
+					)}
+				</div>
+			)}
 		</div>
 	)
 }
@@ -787,6 +834,7 @@ function ExportDialog({
 	onClose: () => void
 	onExport: (options: ExportOptions) => void
 }) {
+	const { t } = useTranslation()
 	const [dpi, setDpi] = React.useState(150)
 	const [margin, setMargin] = React.useState<MarginOption>('normal')
 	const [annotations, setAnnotations] = React.useState(true)
@@ -796,16 +844,16 @@ function ExportDialog({
 	}
 
 	return (
-		<Dialog open={open} title="Export PDF" dismissable onClose={onClose}>
+		<Dialog open={open} title={t('Export PDF')} dismissable onClose={onClose}>
 			<div className="c-vbox g-3">
 				<div className="c-vbox g-1">
-					<label className="export-label">Resolution</label>
+					<label className="export-label">{t('Resolution')}</label>
 					<div className="c-hbox g-2">
 						{(
 							[
-								[72, 'Draft'],
-								[150, 'Normal'],
-								[300, 'High']
+								[72, t('Draft')],
+								[150, t('Normal')],
+								[300, t('High')]
 							] as const
 						).map(([value, label]) => (
 							<label key={value} className="c-hbox g-1 align-center">
@@ -822,13 +870,13 @@ function ExportDialog({
 				</div>
 
 				<div className="c-vbox g-1">
-					<label className="export-label">Margins</label>
+					<label className="export-label">{t('Margins')}</label>
 					<div className="c-hbox g-2">
 						{(
 							[
-								['none', 'None'],
-								['small', 'Small'],
-								['normal', 'Normal']
+								['none', t('None')],
+								['small', t('Small')],
+								['normal', t('Normal')]
 							] as [MarginOption, string][]
 						).map(([value, label]) => (
 							<label key={value} className="c-hbox g-1 align-center">
@@ -850,11 +898,11 @@ function ExportDialog({
 						checked={annotations}
 						onChange={(e) => setAnnotations(e.target.checked)}
 					/>
-					Include annotations
+					{t('Include annotations')}
 				</label>
 
 				<button className="c-button primary" onClick={handleExport}>
-					Export
+					{t('Export')}
 				</button>
 			</div>
 		</Dialog>
@@ -866,7 +914,9 @@ function ExportDialog({
 // =============================================================================
 
 export function ScanilloApp() {
+	const { t } = useTranslation()
 	const scanillo = useScanillo()
+	const toast = useToast()
 	const pendingTempIds = React.useRef(new Map<string, PendingTempId>())
 	// Monotonic, so every `step: 'crop'` state is a distinct CropEditor instance.
 	const captureIdRef = React.useRef(0)
@@ -885,7 +935,32 @@ export function ScanilloApp() {
 	const [exportProgress, setExportProgress] = React.useState(0)
 	const [saving, setSaving] = React.useState(false)
 	const [loadingReEdit, setLoadingReEdit] = React.useState(false)
+	// Filter-step save failed: the scan stays on screen, and Retry re-runs the last confirm.
+	const [uploadFailed, setUploadFailed] = React.useState(false)
+	const lastFilterArgs = React.useRef<[HTMLCanvasElement, PageFilter, number, number] | null>(
+		null
+	)
+	// Uploads already done for a filtered canvas, so Retry after a later failure doesn't
+	// orphan a second copy. keyed by canvas; choosing another filter re-uploads the original
+	const uploadCache = React.useRef(
+		new WeakMap<
+			HTMLCanvasElement,
+			{
+				uploaded?: Awaited<
+					ReturnType<ReturnType<typeof createApiClient>['files']['uploadBlob']>
+				>
+				originalFileId?: string
+			}
+		>()
+	)
+	// Page number of the capture just saved: the grid shows "Page N saved · Scan next / Done".
+	const [savedPrompt, setSavedPrompt] = React.useState<number | null>(null)
+	const scanNextRef = React.useRef<HTMLButtonElement>(null)
 	const isReadOnly = scanillo.access !== 'write'
+
+	React.useEffect(() => {
+		if (savedPrompt !== null) scanNextRef.current?.focus()
+	}, [savedPrompt])
 
 	// Use ref to avoid re-registering the handler when updatePage changes
 	const updatePageRef = React.useRef(updatePage)
@@ -985,6 +1060,7 @@ export function ScanilloApp() {
 	})
 
 	async function handlePickMedia() {
+		setSavedPrompt(null)
 		try {
 			const bus = getAppBus()
 			const result = await bus.pickMedia({
@@ -1032,10 +1108,12 @@ export function ScanilloApp() {
 		} catch (err) {
 			setCaptureFlow({ step: 'idle' })
 			console.error('[Scanillo] Pick media error:', err)
+			toast.error(friendlyError(t, err))
 		}
 	}
 
 	async function handleCaptureCamera() {
+		setSavedPrompt(null)
 		try {
 			const bus = getAppBus()
 			// Hoisted out of the 5fps loop so no frame pays for module resolution
@@ -1177,6 +1255,7 @@ export function ScanilloApp() {
 		} catch (err) {
 			setCaptureFlow({ step: 'idle' })
 			console.error('[Scanillo] Camera capture error:', err)
+			toast.error(friendlyError(t, err))
 		}
 	}
 
@@ -1190,31 +1269,35 @@ export function ScanilloApp() {
 	) {
 		const api = createApiClient({ idTag: scanillo.ownerTag!, authToken: scanillo.token })
 
+		let entry = uploadCache.current.get(filteredCanvas)
+		if (!entry) {
+			entry = {}
+			uploadCache.current.set(filteredCanvas, entry)
+		}
+
 		// Upload processed image directly via API
-		const processedBlob = await canvasToBlob(filteredCanvas)
-		const uploaded = await api.files.uploadBlob(
+		entry.uploaded ??= await api.files.uploadBlob(
 			'thumbnail-only',
 			`scan-${Date.now()}.jpg`,
-			processedBlob,
+			await canvasToBlob(filteredCanvas),
 			'image/jpeg',
 			{ rootId: scanillo.fileId }
 		)
+		const uploaded = entry.uploaded
 
 		// Use existing original (re-edit) or upload new one (first edit)
-		let originalFileId: string
-		if (opts.existingOriginalFileId) {
-			originalFileId = opts.existingOriginalFileId
-		} else {
-			const origBlob = await base64ToBlob(opts.originalImageData)
-			const origResult = await api.files.uploadBlob(
-				'orig-only',
-				`scan-orig-${Date.now()}.jpg`,
-				origBlob,
-				'image/jpeg',
-				{ rootId: scanillo.fileId }
-			)
-			originalFileId = origResult.fileId
+		if (!opts.existingOriginalFileId) {
+			entry.originalFileId ??= (
+				await api.files.uploadBlob(
+					'orig-only',
+					`scan-orig-${Date.now()}.jpg`,
+					await base64ToBlob(opts.originalImageData),
+					'image/jpeg',
+					{ rootId: scanillo.fileId }
+				)
+			).fileId
 		}
+		const originalFileId = opts.existingOriginalFileId ?? entry.originalFileId!
 
 		let pageId: string | undefined
 
@@ -1316,6 +1399,7 @@ export function ScanilloApp() {
 				if (savedPageId) setSelectedPageId(savedPageId)
 			} catch (err) {
 				console.error('[Scanillo] Crop re-edit save error:', err)
+				toast.error(friendlyError(t, err))
 			} finally {
 				setSaving(false)
 			}
@@ -1348,6 +1432,8 @@ export function ScanilloApp() {
 		filterStrength: number
 	) {
 		if (captureFlow.step !== 'filter') return
+		lastFilterArgs.current = [filteredCanvas, filter, rotation, filterStrength]
+		setUploadFailed(false)
 		setSaving(true)
 		try {
 			const savedPageId = await handleSavePage(
@@ -1363,16 +1449,31 @@ export function ScanilloApp() {
 				}
 			)
 			setCaptureFlow({ step: 'idle' })
-			if (savedPageId) setSelectedPageId(savedPageId)
+			if (captureFlow.sourcePageId) {
+				// Re-edit: back to the page that was edited
+				if (savedPageId) setSelectedPageId(savedPageId)
+			} else {
+				// New capture: back to the grid, offering the next scan. A new page is
+				// appended last, so its number is the count before the save plus one.
+				setSavedPrompt(pages.length + 1)
+			}
 		} catch (err) {
+			// captureFlow stays on 'filter', so the scan is kept for Retry
 			console.error('[Scanillo] Filter confirm error:', err)
+			setUploadFailed(true)
 		} finally {
 			setSaving(false)
 		}
 	}
 
+	function handleFilterRetry() {
+		const args = lastFilterArgs.current
+		if (args) handleFilterConfirm(...args)
+	}
+
 	function handleFilterBack() {
 		if (captureFlow.step !== 'filter') return
+		setUploadFailed(false)
 
 		// Re-edit filter: go back to PageDetail (cancel)
 		if (captureFlow.sourcePageId) {
@@ -1475,6 +1576,7 @@ export function ScanilloApp() {
 			}
 		} catch (err) {
 			console.error('[Scanillo] Re-edit error:', err)
+			toast.error(friendlyError(t, err))
 		} finally {
 			setLoadingReEdit(false)
 		}
@@ -1498,187 +1600,252 @@ export function ScanilloApp() {
 			})
 		} catch (err) {
 			console.error('[Scanillo] PDF export error:', err)
+			toast.error(friendlyError(t, err))
 		} finally {
 			setExporting(false)
 		}
 	}
 
 	async function handleDeletePage(id: string) {
-		await deletePage(id)
-		setSelectedPageId(null)
+		try {
+			await deletePage(id)
+			setSelectedPageId(null)
+		} catch (err) {
+			console.error('[Scanillo] Delete page error:', err)
+			toast.error(friendlyError(t, err))
+		}
 	}
 
-	if (scanillo.loading) {
-		return (
-			<div className="c-vbox w-100 h-100 justify-center align-center">
-				<Panel className="c-vbox align-center p-2">
-					<LoadingSpinner size="lg" label="Connecting to Scanillo…" />
-				</Panel>
-			</div>
-		)
+	async function handleMovePage(pageId: string, targetId: string, position: 'before' | 'after') {
+		try {
+			await movePage(pageId, targetId, position)
+		} catch (err) {
+			console.error('[Scanillo] Move page error:', err)
+			toast.error(friendlyError(t, err))
+		}
 	}
 
-	if (scanillo.error) {
-		return (
-			<div className="c-vbox w-100 h-100 justify-center align-center">
-				<Panel className="c-alert error">
-					<h3>Connection Error</h3>
-					<p>{scanillo.error.message}</p>
-				</Panel>
-			</div>
-		)
+	function handleMoveNeighbour(pageId: string, dir: MoveDir) {
+		const move = neighbourMove(pages, pageId, dir)
+		if (move) handleMovePage(pageId, move.targetId, move.position)
 	}
 
-	if (captureFlow.step === 'processing') {
-		return (
-			<div className="scanillo-app c-vbox w-100 h-100">
-				<div className="export-overlay">
-					<div className="export-progress">
-						<LoadingSpinner label="Processing image…" />
+	function handleUpdateAnnotations(pageId: string, annotations: Annotation[]) {
+		updatePage(pageId, { annotations }).catch((err) => {
+			console.error('[Scanillo] Annotation save error:', err)
+			toast.error(friendlyError(t, err))
+		})
+	}
+
+	// Every branch below is an early return; `<Toasts />` is mounted once around them
+	// (in the return at the end), so toasts show in all of them.
+	function renderView() {
+		if (scanillo.loading) {
+			return (
+				<div className="c-vbox w-100 h-100 justify-center align-center">
+					<Panel className="c-vbox align-center p-2">
+						<LoadingSpinner size="lg" label={t('Connecting to Scanillo…')} />
+					</Panel>
+				</div>
+			)
+		}
+
+		if (scanillo.error) {
+			return (
+				<div className="c-vbox w-100 h-100 justify-center align-center">
+					<Panel className="c-alert error">
+						<h3>{t('Connection Error')}</h3>
+						<p>{scanillo.error.message}</p>
+					</Panel>
+				</div>
+			)
+		}
+
+		if (captureFlow.step === 'processing') {
+			return (
+				<div className="scanillo-app c-vbox w-100 h-100">
+					<div className="export-overlay">
+						<div className="export-progress">
+							<LoadingSpinner label={t('Processing image…')} />
+						</div>
 					</div>
 				</div>
-			</div>
-		)
-	}
+			)
+		}
 
-	if (captureFlow.step === 'crop') {
-		return (
-			<div className="scanillo-app c-vbox w-100 h-100">
-				<CropEditor
-					key={captureFlow.captureId}
-					imageData={captureFlow.imageData}
-					width={captureFlow.width}
-					height={captureFlow.height}
-					initialCorners={captureFlow.detectedCorners}
-					cornerSource={captureFlow.cornerSource}
-					onConfirm={handleCropConfirm}
-					onRetake={captureFlow.sourcePageId ? undefined : handleCropRetake}
-					onCancel={() => setCaptureFlow({ step: 'idle' })}
-				/>
-				{saving && (
-					<div className="export-overlay">
-						<div className="export-progress">
-							<LoadingSpinner label="Saving…" />
+		if (captureFlow.step === 'crop') {
+			return (
+				<div className="scanillo-app c-vbox w-100 h-100">
+					<CropEditor
+						key={captureFlow.captureId}
+						imageData={captureFlow.imageData}
+						width={captureFlow.width}
+						height={captureFlow.height}
+						initialCorners={captureFlow.detectedCorners}
+						cornerSource={captureFlow.cornerSource}
+						onConfirm={handleCropConfirm}
+						onRetake={captureFlow.sourcePageId ? undefined : handleCropRetake}
+						onCancel={() => setCaptureFlow({ step: 'idle' })}
+					/>
+					{saving && (
+						<div className="export-overlay">
+							<div className="export-progress">
+								<LoadingSpinner label={t('Saving…')} />
+							</div>
 						</div>
-					</div>
-				)}
-			</div>
-		)
-	}
+					)}
+				</div>
+			)
+		}
 
-	if (captureFlow.step === 'filter') {
-		return (
-			<div className="scanillo-app c-vbox w-100 h-100">
-				<FilterSelect
-					sourceCanvas={captureFlow.croppedCanvas}
-					initialRotation={captureFlow.rotation}
-					onConfirm={handleFilterConfirm}
-					onBack={handleFilterBack}
-				/>
-				{saving && (
-					<div className="export-overlay">
-						<div className="export-progress">
-							<LoadingSpinner label="Saving…" />
+		if (captureFlow.step === 'filter') {
+			return (
+				<div className="scanillo-app c-vbox w-100 h-100">
+					{uploadFailed && (
+						<Alert
+							color="error"
+							actions={<Button onClick={handleFilterRetry}>{t('Retry')}</Button>}
+						>
+							{t('Upload failed. Your scan is kept.')}
+						</Alert>
+					)}
+					<FilterSelect
+						sourceCanvas={captureFlow.croppedCanvas}
+						initialRotation={captureFlow.rotation}
+						onConfirm={handleFilterConfirm}
+						onBack={handleFilterBack}
+					/>
+					{saving && (
+						<div className="export-overlay">
+							<div className="export-progress">
+								<LoadingSpinner label={t('Saving…')} />
+							</div>
 						</div>
-					</div>
-				)}
-			</div>
-		)
-	}
+					)}
+				</div>
+			)
+		}
 
-	if (selectedPage) {
+		if (selectedPage) {
+			return (
+				<div className="scanillo-app c-vbox w-100 h-100">
+					<PageDetail
+						page={selectedPage}
+						pageIndex={selectedPageIndex}
+						totalPages={pages.length}
+						ownerTag={scanillo.ownerTag}
+						token={scanillo.token}
+						readOnly={isReadOnly}
+						onBack={() => setSelectedPageId(null)}
+						onDelete={handleDeletePage}
+						onReEdit={handleReEditPage}
+						onMove={(dir) => handleMoveNeighbour(selectedPage.id, dir)}
+						onUpdateAnnotations={handleUpdateAnnotations}
+					/>
+					{loadingReEdit && (
+						<div className="export-overlay">
+							<div className="export-progress">
+								<LoadingSpinner label={t('Loading…')} />
+							</div>
+						</div>
+					)}
+				</div>
+			)
+		}
+
 		return (
 			<div className="scanillo-app c-vbox w-100 h-100">
-				<PageDetail
-					page={selectedPage}
-					pageIndex={selectedPageIndex}
-					totalPages={pages.length}
+				{/* Only the page grid gets the bar. The camera, crop and filter views
+				    are reached by early returns above, and are full-screen by design. */}
+				<AppDocBar>
+					<DocBarMenu>
+						<MenuItem
+							icon={<IcPdf />}
+							label={t('Export as PDF')}
+							disabled={!pages.length || exporting}
+							onClick={() => setShowExportDialog(true)}
+						/>
+					</DocBarMenu>
+				</AppDocBar>
+				<PageGrid
+					pages={pages}
+					loading={pagesLoading}
 					ownerTag={scanillo.ownerTag}
 					token={scanillo.token}
-					onBack={() => setSelectedPageId(null)}
-					onDelete={handleDeletePage}
-					onReEdit={handleReEditPage}
-					onUpdateAnnotations={(pageId, anns) =>
-						updatePage(pageId, { annotations: anns })
-					}
+					readOnly={isReadOnly}
+					onSelectPage={setSelectedPageId}
+					onMovePage={handleMovePage}
 				/>
-				{loadingReEdit && (
+				{/* Export lives in the DocBar; the FABs are for the two primary
+				    creation actions. */}
+				<div className="fab-container">
+					{!isReadOnly && (
+						<>
+							<FAB
+								size="small"
+								onClick={handlePickMedia}
+								title={t('Import image')}
+								label={t('Import image')}
+								icon={<IcImage />}
+							/>
+							<FAB
+								variant="primary"
+								onClick={handleCaptureCamera}
+								title={t('Capture with camera')}
+								label={t('Capture with camera')}
+								icon={<IcCamera />}
+							/>
+						</>
+					)}
+				</div>
+				{/* The camera is a shell overlay that cannot show text, so the
+				    multi-page prompt sits on the grid instead. */}
+				{savedPrompt !== null && !isReadOnly && (
+					<div className="saved-prompt" role="status">
+						<span>{t('Page {{n}} saved', { n: savedPrompt })}</span>
+						<button
+							ref={scanNextRef}
+							className="c-button primary"
+							onClick={() => {
+								setSavedPrompt(null)
+								handleCaptureCamera()
+							}}
+						>
+							{t('Scan next')}
+						</button>
+						<button className="c-button" onClick={() => setSavedPrompt(null)}>
+							{t('Done')}
+						</button>
+					</div>
+				)}
+				<ExportDialog
+					open={showExportDialog}
+					onClose={() => setShowExportDialog(false)}
+					onExport={handleExportPdf}
+				/>
+				{exporting && (
 					<div className="export-overlay">
 						<div className="export-progress">
-							<LoadingSpinner label="Loading…" />
+							<LoadingSpinner size="lg" label={t('Exporting PDF…')} />
+							<div className="progress-bar">
+								<div
+									className="progress-fill"
+									style={{ width: `${exportProgress}%` }}
+								/>
+							</div>
+							<small>{exportProgress}%</small>
 						</div>
 					</div>
 				)}
-				<Toasts />
 			</div>
 		)
 	}
 
 	return (
-		<div className="scanillo-app c-vbox w-100 h-100">
-			{/* Only the page grid gets the bar. The camera, crop and filter views
-			    are reached by early returns above, and are full-screen by design. */}
-			<AppDocBar>
-				<DocBarMenu>
-					<MenuItem
-						icon={<IcPdf />}
-						label="Export as PDF"
-						disabled={!pages.length || exporting}
-						onClick={() => setShowExportDialog(true)}
-					/>
-				</DocBarMenu>
-			</AppDocBar>
-			<PageGrid
-				pages={pages}
-				loading={pagesLoading}
-				ownerTag={scanillo.ownerTag}
-				token={scanillo.token}
-				onSelectPage={setSelectedPageId}
-				onMovePage={movePage}
-			/>
-			{/* Export lives in the DocBar; the FABs are for the two primary
-			    creation actions. */}
-			<div className="fab-container">
-				{!isReadOnly && (
-					<>
-						<FAB
-							size="small"
-							onClick={handlePickMedia}
-							title="Import image"
-							label="Import image"
-							icon={<IcImage />}
-						/>
-						<FAB
-							variant="primary"
-							onClick={handleCaptureCamera}
-							title="Capture with camera"
-							label="Capture with camera"
-							icon={<IcCamera />}
-						/>
-					</>
-				)}
-			</div>
-			<ExportDialog
-				open={showExportDialog}
-				onClose={() => setShowExportDialog(false)}
-				onExport={handleExportPdf}
-			/>
-			{exporting && (
-				<div className="export-overlay">
-					<div className="export-progress">
-						<LoadingSpinner size="lg" label="Exporting PDF…" />
-						<div className="progress-bar">
-							<div
-								className="progress-fill"
-								style={{ width: `${exportProgress}%` }}
-							/>
-						</div>
-						<small>{exportProgress}%</small>
-					</div>
-				</div>
-			)}
+		<>
+			{renderView()}
 			<Toasts />
-		</div>
+		</>
 	)
 }
 

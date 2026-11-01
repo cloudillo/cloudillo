@@ -31,6 +31,29 @@
 	border-color: var(--col-primary);
 }
 
+.page-thumb:focus-visible {
+	outline: 2px solid var(--col-primary);
+	outline-offset: 2px;
+}
+
+/* "Page N saved · Scan next / Done", shown on the grid after a new capture */
+.saved-prompt {
+	position: fixed;
+	left: 50%;
+	bottom: 1.5rem;
+	transform: translateX(-50%);
+	z-index: 10;
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.5rem 0.75rem;
+	background: var(--col-surface);
+	color: var(--col-on-surface);
+	border: 1px solid var(--col-outline);
+	border-radius: var(--radius-sm);
+	box-shadow: var(--shadow-lg);
+}
+
 .page-thumb img {
 	object-fit: cover;
 	width: 100%;

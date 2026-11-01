@@ -1,8 +1,16 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: MPL-2.0
 
-import { IcCancel, IcConfirm, IcRetry, LoadingSpinner } from '@cloudillo/react'
+import {
+	friendlyError,
+	IcCancel,
+	IcConfirm,
+	IcRetry,
+	LoadingSpinner,
+	useToast
+} from '@cloudillo/react'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 
 import type { CornerSource, CropPoints } from '../types.js'
 import { base64ToCanvas, extractPerspective } from '../utils/image-processing.js'
@@ -31,6 +39,7 @@ export function CropEditor({
 	onRetake,
 	onCancel
 }: CropEditorProps) {
+	const { t } = useTranslation()
 	const [corners, setCorners] = React.useState<CropPoints>(
 		initialCorners ?? [
 			[0, 0],
@@ -40,6 +49,7 @@ export function CropEditor({
 		]
 	)
 	const [processing, setProcessing] = React.useState(false)
+	const toast = useToast()
 	const [_imageLoaded, setImageLoaded] = React.useState(false)
 	const [activeCorner, setActiveCorner] = React.useState<number | null>(null)
 	const [hintVisible, setHintVisible] = React.useState(true)
@@ -311,6 +321,7 @@ export function CropEditor({
 			onConfirm(result, corners)
 		} catch (err) {
 			console.error('[CropEditor] Processing error:', err)
+			toast.error(friendlyError(t, err))
 		} finally {
 			setProcessing(false)
 		}
@@ -326,9 +337,9 @@ export function CropEditor({
 	// is expected to check or fix them.
 	const hintText =
 		cornerSource === 'preview'
-			? 'Using boundaries from the live preview — check the corners'
+			? t('Using boundaries from the live preview — check the corners')
 			: cornerSource === 'none'
-				? 'No document edges found — drag the corners to fit'
+				? t('No document edges found — drag the corners to fit')
 				: null
 
 	return (
@@ -346,7 +357,7 @@ export function CropEditor({
 				<img
 					ref={imgRef}
 					src={imgSrc}
-					alt="Captured"
+					alt={t('Captured')}
 					style={{
 						width: '100%',
 						height: '100%',
@@ -406,11 +417,11 @@ export function CropEditor({
 			</div>
 			{hintVisible && hintText && <div className="crop-hint">{hintText}</div>}
 			<div className="crop-toolbar">
-				<button className="c-button icon" onClick={onCancel} title="Cancel">
+				<button className="c-button icon" onClick={onCancel} title={t('Cancel')}>
 					<IcCancel />
 				</button>
 				{onRetake && (
-					<button className="c-button icon" onClick={onRetake} title="Retake">
+					<button className="c-button icon" onClick={onRetake} title={t('Retake')}>
 						<IcRetry />
 					</button>
 				)}
@@ -418,7 +429,7 @@ export function CropEditor({
 					className="c-button primary"
 					onClick={handleConfirm}
 					disabled={processing}
-					title="Confirm crop"
+					title={t('Confirm crop')}
 				>
 					{processing ? <LoadingSpinner size="sm" /> : <IcConfirm />}
 				</button>

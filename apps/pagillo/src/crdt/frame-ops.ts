@@ -2,8 +2,11 @@
 // SPDX-License-Identifier: MPL-2.0
 
 /**
- * Frame operations (`f` map): page-anchored frames and master static items, and the
- * "On this page / Moves with text" conversion between an `f` frame and an inline `img` embed.
+ * Frame operations (`f` map): page-anchored frames, master static items and text-anchored
+ * frames (a `{ frame: id }` marker run in a section story plus the `f` entry with
+ * `anchor: { txt, rel, side? }`), and the conversions between those modes and an inline `img`
+ * embed: `inlineToFrame`, `frameToInline`, `anchorFrame`. Each is one transaction with origin
+ * `yDoc.clientID`, so marker and frame undo together.
  */
 
 import { FX } from '@cloudillo/typeset'
@@ -11,26 +14,134 @@ import type * as Y from 'yjs'
 
 import type { EmbedRecord } from '../embeds/record'
 import { newBlockId } from './block-ids'
-import { deltaOf } from './delta-cache'
-import { FULL_CROP, frameOf, framesOf, newFrameMap, patchFrame } from './entities'
+import { deltaOf, opsAt } from './delta-cache'
+import {
+	anchorOf,
+	FULL_CROP,
+	frameOf,
+	framesOf,
+	isFlow,
+	isObj,
+	newFrameMap,
+	patchFrame
+} from './entities'
 import { type FrameId, type MasterId, newId } from './ids'
-import { createStory, type SeedParagraph } from './story-ops'
-import { masterItems, textChains } from './type-converters'
 import type {
 	StoredFrame,
 	StoredImageData,
+	StoredLineAttrs,
 	StoredTextFrameData,
 	YPagilloDocument
 } from './stored-types'
+import { createStory, type SeedParagraph } from './story-ops'
+import { cellOf, markerWins, masterItems, textChains } from './type-converters'
 
-/** Inline image embed payload (`{ img }`). */
+/** Inline image embed payload (`{ img }`; full width / centred). */
 export interface InlineImage {
 	fileId: string
 	w: number
 	h: number
 	alt: string
-	/** Line-start float; absent = full width / centred. */
-	float?: { side: 'l' | 'r'; w: number }
+}
+
+/** Offset `at` of `t` is in a table-cell paragraph (a marker there never wins). */
+export function inCell(t: Y.Text, at: number): boolean {
+	for (const [op, pos] of opsAt(deltaOf(t))) {
+		if (typeof op.insert === 'string' && pos + op.insert.length > at) {
+			const nl = op.insert.indexOf('\n', Math.max(0, at - pos))
+			if (nl >= 0) return !!cellOf(op.attributes as StoredLineAttrs | undefined)
+		}
+	}
+	return false
+}
+
+/**
+ * Offset `at` of `t` is in a paragraph holding exactly one `{ img }` / `{ emb }` embed plus its
+ * `'\n'`: an `EmbedBlock` only while that embed is its sole run (`deltaToParagraphs`), so a marker
+ * there would break it.
+ */
+export function embedPara(t: Y.Text, at: number): boolean {
+	const isEmbed = (o: number) => {
+		const e = opAt(t, o).embed
+		return isObj(e) && ('img' in e || 'emb' in e)
+	}
+	const solo = (e: number) =>
+		isEmbed(e) && opAt(t, e + 1).ch === '\n' && (e === 0 || opAt(t, e - 1).ch === '\n')
+	return opAt(t, at).ch === '\n' ? at > 0 && solo(at - 1) : solo(at)
+}
+
+/** The winning marker of text-anchored frame `id` (`markerWins`): its story and Y.Text offset. */
+export function anchorMarker(
+	doc: YPagilloDocument,
+	id: FrameId
+): { story: string; at: number } | undefined {
+	const a = anchorOf(doc.f.get(id))
+	const w = a && 'txt' in a ? markerWins(doc, a.txt).get(id) : undefined
+	return a && 'txt' in a && w ? { story: a.txt, at: w.at } : undefined
+}
+
+/** Delete every `{ frame: id }` marker of `t`; their pre-delete offsets, ascending. */
+function deleteMarkers(t: Y.Text, id: FrameId): number[] {
+	const at: number[] = []
+	for (const [op, pos] of opsAt(deltaOf(t))) {
+		if (isObj(op.insert) && op.insert.frame === id) at.push(pos)
+	}
+	for (const p of [...at].reverse()) t.delete(p, 1)
+	return at
+}
+
+/**
+ * Re-anchor frame `id` (not a master item) in one transaction — every mode change but Inline:
+ * text-anchored (`{ txt, rel, side? }`) ↔ page-anchored (`{ sec, page }`), a new `rel` / `side`,
+ * and moving the marker. `geo` patches the geometry (caller-computed: page coordinates for
+ * `rel: 'page'` and page anchors, offsets from the marker line for `rel: 'text'`); `wCol` is
+ * dropped unless the new anchor is `rel: 'text'`. Marker: dropping text anchoring deletes it;
+ * entering it (or another story), or passing `at`, puts it at offset `at` of section story
+ * `anchor.txt` (an offset in the text as it is before the call). False when refused (no `at`
+ * where one is needed, `anchor.txt` not a section story, a threaded box entering text anchoring).
+ * Every marker of the frame in the stories it leaves is removed, duplicates included.
+ */
+export function anchorFrame(
+	yDoc: Y.Doc,
+	doc: YPagilloDocument,
+	id: FrameId,
+	anchor: StoredFrame['anchor'],
+	geo: Partial<Pick<StoredFrame, 'x' | 'y' | 'w' | 'h' | 'rot' | 'wCol'>> = {},
+	at?: number
+): boolean {
+	const y = doc.f.get(id)
+	const cur = anchorOf(y)
+	if (!cur || 'ms' in cur || 'ms' in anchor) return false
+	// Threads lay out page-anchored boxes only (`buildTextChains`).
+	if ('txt' in anchor && 'sec' in cur && chainOf(doc, id)) return false
+	const story = 'txt' in anchor ? anchor.txt : undefined
+	const t = story !== undefined ? doc.tx.get(story) : undefined
+	const m = anchorMarker(doc, id)
+	const move = story !== undefined && (at !== undefined || m?.story !== story)
+	if (
+		move &&
+		(!t ||
+			!isFlow(doc, story) ||
+			at === undefined ||
+			at < 0 ||
+			at >= t.length ||
+			inCell(t, at) ||
+			embedPara(t, at))
+	)
+		return false
+	const col = 'txt' in anchor && anchor.rel === 'text'
+	yDoc.transact(() => {
+		let to = at ?? 0
+		if (move || story === undefined)
+			for (const s of new Set([m?.story, 'txt' in cur ? cur.txt : undefined, story]))
+				if (s) {
+					const tx = doc.tx.get(s)
+					if (tx) for (const p of deleteMarkers(tx, id)) if (s === story && p < to) to--
+				}
+		if (move && t) t.insertEmbed(to, { frame: id }, {})
+		patchFrame(y, { anchor, ...geo, ...(col ? {} : { wCol: undefined }) })
+	}, yDoc.clientID)
+	return true
 }
 
 /**
@@ -72,11 +183,16 @@ export function updateFrame(
 	}, yDoc.clientID)
 }
 
-/** Delete a frame and its text story (a threaded frame hands its text on instead). */
-export function deleteFrame(yDoc: Y.Doc, doc: YPagilloDocument, id: FrameId): void {
+/**
+ * Delete a frame and its text story (a threaded frame hands its text on instead), and the
+ * winning marker of a text-anchored frame unless `marker` is false (the caller deleted it).
+ */
+export function deleteFrame(yDoc: Y.Doc, doc: YPagilloDocument, id: FrameId, marker = true): void {
 	const cur = frameOf(doc, id)
 	if (!cur) return
 	yDoc.transact(() => {
+		const m = marker ? anchorMarker(doc, id) : undefined
+		if (m) doc.tx.get(m.story)?.delete(m.at, 1)
 		if (cur.t === 'txt') {
 			// Never lose text: a follower leaves the chain, a head hands story + rest to the next.
 			const c = chainOf(doc, id)
@@ -91,7 +207,7 @@ export function deleteFrame(yDoc: Y.Doc, doc: YPagilloDocument, id: FrameId): vo
 }
 
 /** Why a frame can't be linked to (`undefined` = allowed). Each maps to one UI hint. */
-export type LinkRefusal = 'hasText' | 'inThread' | 'layoutItem' | 'notText'
+export type LinkRefusal = 'anchored' | 'hasText' | 'inThread' | 'layoutItem' | 'notText'
 
 /** Replace the story/chain linkage of `id` (writes only its `story` and `chain` keys). */
 function setData(doc: YPagilloDocument, id: FrameId, data: StoredTextFrameData): void {
@@ -126,7 +242,7 @@ export function chainOf(
 		if (head === frameId || chain.includes(frameId)) return { head, frames: [head, ...chain] }
 }
 
-/** Can `targetId` continue the thread of `fromId`? Targets: empty, unchained page `txt` frames. */
+/** Can `targetId` continue the thread of `fromId`? Both page-anchored; targets: empty, unchained `txt` frames. */
 export function canLinkTarget(
 	doc: YPagilloDocument,
 	fromId: FrameId,
@@ -135,8 +251,11 @@ export function canLinkTarget(
 	master = masterItems(doc)
 ): LinkRefusal | undefined {
 	const target = frameOf(doc, targetId)
-	if (target?.t !== 'txt' || frameOf(doc, fromId)?.t !== 'txt') return 'notText'
+	const from = frameOf(doc, fromId)
+	if (target?.t !== 'txt' || from?.t !== 'txt') return 'notText'
 	if (master.has(targetId) || master.has(fromId)) return 'layoutItem'
+	// Threads lay out page-anchored boxes only (`buildTextChains`).
+	if (!('sec' in target.anchor) || !('sec' in from.anchor)) return 'anchored'
 	if (targetId === fromId || chainOf(doc, targetId, chains)) return 'inThread'
 	if (!isEmptyText(doc, targetId)) return 'hasText'
 }
@@ -370,7 +489,10 @@ export function setInlineEmbed(t: Y.Text, offset: number, emb: EmbedRecord): voi
 	t.insertEmbed(offset, { emb })
 }
 
-/** "Moves with text": the `img` frame becomes an image paragraph at paragraph start `at`. */
+/**
+ * "Inline": the `img` frame becomes an image paragraph at paragraph start `at` (an offset in the
+ * text before the call); a text-anchored frame's marker goes with it (`deleteFrame`).
+ */
 export function frameToInline(
 	yDoc: Y.Doc,
 	doc: YPagilloDocument,
@@ -391,32 +513,47 @@ export function frameToInline(
 }
 
 /**
- * "On this page": the `img` embed at `offset` (with its paragraph's `'\n'` when the paragraph
- * holds only the image) becomes a page-anchored frame at `box`. One transaction.
+ * The `img` embed at `offset` (with its paragraph's `'\n'` when the paragraph holds only the
+ * image) becomes a frame at `box`: "On this page" for a `{ sec, page }` anchor; for a text anchor
+ * (its `txt` is forced to `story`, which must be a section story) a `{ frame }` marker takes the
+ * image's place — at the start of the next paragraph when the image paragraph went whole — with
+ * `box` as caller-computed geometry (`wCol` for `rel: 'text'`). One transaction.
  */
 export function inlineToFrame(
 	yDoc: Y.Doc,
 	doc: YPagilloDocument,
 	story: string,
 	offset: number,
-	box: Pick<StoredFrame, 'anchor' | 'x' | 'y' | 'w' | 'h'>
+	box: Pick<StoredFrame, 'anchor' | 'x' | 'y' | 'w' | 'h' | 'wCol'>
 ): FrameId | undefined {
 	const t = doc.tx.get(story)
 	const img = t && embedImgAt(t, offset)
-	if (!t || !img) return
+	const a = box.anchor
+	const text = 'txt' in a
+	if (!t || !img || (text && (!isFlow(doc, story) || inCell(t, offset)))) return
+	// Where a text marker lands when the image paragraph goes whole: next paragraph's start, else
+	// the previous paragraph's end — never inside a cell or an embed-only paragraph.
+	const land = offset + 2 < t.length ? offset + 2 : offset - 1
 	const solo =
-		(offset === 0 || opAt(t, offset - 1).ch === '\n') && opAt(t, offset + 1).ch === '\n'
+		(offset === 0 || opAt(t, offset - 1).ch === '\n') &&
+		opAt(t, offset + 1).ch === '\n' &&
+		(offset > 0 || offset + 2 < t.length) && // the story's only paragraph keeps its '\n'
+		(!text || (!inCell(t, land) && !embedPara(t, land)))
 	let id: FrameId | undefined
 	yDoc.transact(() => {
 		t.delete(offset, solo ? 2 : 1)
-		id = addFrame(yDoc, doc, {
+		const fid = addFrame(yDoc, doc, {
 			t: 'img',
 			...box,
+			anchor: 'txt' in a ? { ...a, txt: story } : a,
+			...('txt' in a && a.rel === 'text' ? {} : { wCol: undefined }),
 			rot: 0,
-			z: 1,
+			z: text ? 0 : 1,
 			wrap: { mode: 'box', off: 6 * FX },
 			data: { fileId: img.fileId, crop: FULL_CROP, fit: 'contain', alt: img.alt }
 		})
+		if (text) t.insertEmbed(Math.min(offset, t.length - 1), { frame: fid }, {})
+		id = fid
 	}, yDoc.clientID)
 	return id
 }

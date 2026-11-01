@@ -6,7 +6,7 @@ import type { DLItem, FontRef, LineGeom } from '../display-list.js'
 import { type Fx, unitsToFx } from '../fixed.js'
 import type { ShapedRun } from '../shape/hb.js'
 import { type BreakOpp, findBreaks, hyphenGlyph } from '../text/breaks.js'
-import type { ItemizedParagraph, ItemizeEnv } from '../text/itemize.js'
+import { type ItemizedParagraph, type ItemizeEnv, noGlyphs } from '../text/itemize.js'
 import type { Exclusion } from './exclusions.js'
 import { textGlyphs } from './fields.js'
 
@@ -75,7 +75,7 @@ export interface Prep {
 	px: Float64Array
 	/** As `ParaLayout.adv`. */
 	adv: Int32Array[]
-	/** `findBreaks(text, lang, style.hyphenate)`. */
+	/** `findBreaks(text, lang, style.hyphenate)`, `{ frame }` markers read as U+200D (see `prepare`). */
 	opps: BreakOpp[]
 }
 
@@ -99,6 +99,8 @@ export function prepare(ip: ItemizedParagraph): Prep {
 	isStart[n] = 1
 	const adv = runs.map((r) => {
 		const s = r.shaped
+		// Zero-width marker: still its own cluster, so the caret and breaks can sit on it.
+		if (!s.glyphs.length) isStart[r.from] = 1
 		const track = Math.round((r.char.tracking * r.size) / 1000)
 		const a = new Int32Array(s.glyphs.length)
 		for (let i = 0; i < a.length; i++) {
@@ -113,7 +115,15 @@ export function prepare(ip: ItemizedParagraph): Prep {
 	})
 	const px = new Float64Array(n + 1)
 	for (let o = 0; o < n; o++) px[o + 1] = px[o] + cw[o]
-	prep = { cw, isStart, px, adv, opps: findBreaks(text, ip.lang, style.hyphenate) }
+	// A `{ frame }` marker's U+FFFC is UAX#14 CB (a break on each side): the break finder sees
+	// U+200D instead, which glues it to its neighbours yet keeps a break after a space before it
+	// (U+2060 would not). Same length, so offsets hold.
+	let bt = text
+	for (const r of runs) {
+		if (r.embed && 'frame' in r.embed)
+			bt = bt.slice(0, r.from) + '\u200d'.repeat(r.to - r.from) + bt.slice(r.to)
+	}
+	prep = { cw, isStart, px, adv, opps: findBreaks(bt, ip.lang, style.hyphenate) }
 	preps.set(ip, prep)
 	return prep
 }
@@ -390,15 +400,8 @@ function makeDropCap(ip: ItemizedParagraph, env: ItemizeEnv): DropCap | undefine
 		offsets: Int32Array.from(keep.flatMap((i) => [s.offsets[2 * i], s.offsets[2 * i + 1]])),
 		unsafeToBreak: Uint8Array.from(keep, (i) => s.unsafeToBreak?.[i] ?? 0)
 	}
-	const none: ShapedRun = {
-		glyphs: new Uint16Array(0),
-		clusters: new Uint32Array(0),
-		advances: new Int32Array(0),
-		offsets: new Int32Array(0),
-		unsafeToBreak: new Uint8Array(0)
-	}
 	const runs = [
-		{ ...r0, to: end, shaped: none },
+		{ ...r0, to: end, shaped: noGlyphs },
 		...(end < r0.to ? [{ ...r0, from: end, shaped: rest }] : []),
 		...ip.runs.slice(1)
 	]

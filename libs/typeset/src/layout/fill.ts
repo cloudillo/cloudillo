@@ -3,9 +3,17 @@
 
 import type { DLItem, PageDL, TagNode, TagRole } from '../display-list.js'
 import type { Fx } from '../fixed.js'
-import type { Box, Story } from '../model.js'
+import type { Box, Frame, Story } from '../model.js'
 import type { ItemizedParagraph, ItemizeEnv } from '../text/itemize.js'
-import { type Exclusion, freeSpan, freeSpans, moved, nextFreeTop, type Span } from './exclusions.js'
+import {
+	type Exclusion,
+	freeSpan,
+	freeSpans,
+	moved,
+	nextFreeTop,
+	type Span,
+	wrapExclusions
+} from './exclusions.js'
 import { dropCap, emitLine, layoutParagraph, layoutParagraphAt, lineGeom } from './paragraph.js'
 import { type FnMark, type FnNote, FootnoteArea } from './footnotes.js'
 import { emitRows, rowsH, tableAt, tableTagCount } from './table.js'
@@ -35,6 +43,93 @@ export interface FlowSlot {
  * columns at `top` (no room: the next region's columns). `undefined` = no more pages.
  */
 export type NextSlot = (kind?: 'page' | 'band' | 'cols', top?: Fx) => FlowSlot | undefined
+
+/**
+ * The winning text-anchor marker (`{ frame }` run) of a text-anchored frame in the flow's story:
+ * paragraph index, offset in that paragraph, and the frame (`anchor.txt` = the story).
+ */
+export interface FrameMark {
+	pi: number
+	at: number
+	f: Frame
+}
+
+/** A text-anchored frame placed by `fillFlow`: its page, page-space box and rotation as painted. */
+export interface AnchorPlace {
+	id: string
+	pg: PageDL
+	box: Box
+	/** The frame's `rot`; negated for a `rel: 'page'` frame mirrored on a left-hand page. */
+	rot: number
+	/** A `rel: 'page'` frame not on its marker's page (deferred, or kept back at a section end). */
+	late?: true
+}
+
+const isPage = (m: FrameMark) => 'txt' in m.f.anchor && m.f.anchor.rel === 'page'
+
+/**
+ * A `rel: 'page'` frame on `page`: `x`/`y`/`w`/`h` are right-hand-page coordinates, mirrored (x and
+ * `rot`) on a left-hand page; scaled down (aspect kept) when larger than the page, moved into it.
+ */
+function pageFrame(f: Frame, page: PageDL['page']): Frame {
+	const num = (v: number) => (Number.isFinite(v) ? v : 0)
+	let w = Math.max(0, num(f.w))
+	let h = Math.max(0, num(f.h))
+	if (w > page.w) {
+		h = Math.floor((h * page.w) / w)
+		w = page.w
+	}
+	if (h > page.h) {
+		w = Math.floor((w * page.h) / h)
+		h = page.h
+	}
+	const left = page.side === 'l'
+	const x = left ? page.w - num(f.x) - w : num(f.x)
+	return {
+		...f,
+		x: Math.max(0, Math.min(x, page.w - w)),
+		y: Math.max(0, Math.min(num(f.y), page.h - h)),
+		w,
+		h,
+		rot: (left ? -num(f.rot) : num(f.rot)) || 0
+	}
+}
+
+/** Whether an item already on `pg` overlaps the bounds of `ex` (glyphs: advance × size above the baseline). */
+function covers(pg: PageDL, ex: Exclusion[]): boolean {
+	return pg.items.some((q) => {
+		const b: Box | undefined =
+			q.k === 'glyphs'
+				? { x: q.x, y: q.y - q.size, w: q.advances.reduce((s, a) => s + a, 0), h: q.size }
+				: 'box' in q
+					? q.box
+					: undefined
+		return (
+			!!b && ex.some((e) => b.x < e.x1 && e.x0 < b.x + b.w && b.y < e.y1 && e.y0 < b.y + b.h)
+		)
+	})
+}
+
+/** Fill state at a paragraph start, restored for the one-time refill of a page (`rel: 'page'`). */
+interface Snap {
+	i: number
+	slot: FlowSlot
+	y: Fx
+	off: number
+	pageTop: boolean
+	low: Fx
+	inBand: boolean
+	childTag: number
+	tociTag: number
+	toc: number
+	out: number
+	fa?: ReturnType<FootnoteArea['save']>
+	items: number
+	lines: number
+	tags: number
+	/** Restores the caller's `next` state (`anchors.save`). */
+	back?: () => void
+}
 
 /** Narrowest usable free width beside a frame, in em of the paragraph (plus its indents). */
 // Fixed 2 em; make it a paragraph prop if designers want slivers kept or dropped.
@@ -87,14 +182,34 @@ const WRAP_PASS_MAX = 64
  * set below the band. A band that overflows continues in plain columns.
  * Drop caps (`dropCap`, `layout/paragraph.ts`): a paragraph-relative `Exclusion` beside the first n
  * lines, through the same wrap path as frames; the paragraph is at least as tall as its cap.
- * Floats (`EmbedBlock.float`): the block's box (a fraction of the column, aspect kept, caption
- * below) at the column side from the current flow y, taking no height; it joins the slot's wrap
- * exclusions, so the following paragraphs of this column wrap beside it.
+ * Text-anchored frames (`anchors.marks`; zero-width `{ frame }` marker runs), `rel: 'text'`:
+ * `wCol` of the column wide (else `w`, at most the column), aspect kept from `w`/`h`, at the
+ * anchor's `side` of the free span (on a left-hand page the sides swap: 'l' = inside) with `x`
+ * inward, its top `y` below the reference — the paragraph's first line top for a marker at
+ * offset 0, else the top of the row after the marker's row — stepping down past the frames in the
+ * way. Its wrap outline joins the slot's exclusions, so only text after the reference wraps it. A
+ * frame that would overrun the column (not at its top) moves on to the next column with the text
+ * after it; a paragraph moved on whole takes its start frames along.
+ * `rel: 'page'`: at the end of its marker's row the frame is pinned to the current page
+ * (`PageDL.page.index`) at page coordinates (`x`/`y`/`w`/`h` of a right-hand page, no `wCol`;
+ * mirrored with `rot` on a left-hand page; moved into the page, shrunk when larger), and its wrap
+ * outline joins every slot of that page. When the outline overlaps content already on the page,
+ * the page is refilled once: the fill state at the start of the paragraph in progress at the
+ * page's top (`y`, `off`, footnote area, the page's items/lines/tags lengths, …) is restored
+ * together with the caller's `next` state (`anchors.save()` returns its restore; pages created
+ * since are dropped), and the flow re-runs with the pin in place; a pin is never undone. A pinned
+ * frame whose marker does not come on its page moves to the next page (once, before that page
+ * fills), and its page is refilled again without it, so it leaves no hole (at most two refills per
+ * frame); it is placed on the next page, flagged `late`. When the text ends before that page,
+ * the frame goes back to its page, refilled a third time with it (its marker goes on, as before
+ * the deferral), and is placed there, also flagged `late`.
+ * Placements go to `anchors.out` in flow order and are rolled back with the lines.
  * TOC (`toc.blocks`, paragraphs with a `{ toc }` embed, `layout/toc.ts`): the entries' lines in
  * order, moved past frames, a `TOC` tag (with the paragraph's bid) per page holding one `TOCI` (no bid,
  * ids from `toc.tag` on, one per entry in order) per entry on that page, and one `LineGeom` (the
  * paragraph's whole text, on its first line); the leader and number of each entry are placeholders
- * collected in `toc.out`.
+ * collected in `toc.out`. Its frame markers all anchor at the block start (`rel: 'page'` ones at
+ * the end of its first line).
  * Returns the overset: story characters left unplaced (each paragraph counted as its text plus
  * one newline, a block as one) plus footnote body characters left unplaced, 0 when everything fit.
  */
@@ -106,7 +221,8 @@ export function fillFlow(
 	next: NextSlot,
 	env: ItemizeEnv,
 	notes?: FnNote[],
-	toc?: { blocks: Map<number, TocBlock>; out: TocSlot[]; tag: number }
+	toc?: { blocks: Map<number, TocBlock>; out: TocSlot[]; tag: number },
+	anchors?: { marks: FrameMark[]; out: AnchorPlace[]; save: () => () => void }
 ): number {
 	let total = 0
 	for (let i = 0; i < paras.length; i++) {
@@ -128,6 +244,44 @@ export function fillFlow(
 		if (l) l.push(n)
 		else notesOf.set(n.pi, [n])
 	}
+	const marksOf = new Map<number, FrameMark[]>()
+	for (const m of anchors?.marks ?? []) {
+		if (!('txt' in m.f.anchor) || (m.f.anchor.rel !== 'text' && m.f.anchor.rel !== 'page'))
+			continue
+		const l = marksOf.get(m.pi)
+		if (l) l.push(m)
+		else marksOf.set(m.pi, [m])
+	}
+	const placedOut = anchors?.out
+	/**
+	 * `rel: 'page'` frames pinned to a page (`page.index`); `moved` = deferred once, `back` = the
+	 * snapshot to refill from and the page index it was deferred from (until sent back there).
+	 * The snapshot may start on an earlier page (a paragraph in progress at the page's top).
+	 * Never rolled back.
+	 */
+	const pins = new Map<
+		string,
+		{ f: Frame; index: number; moved: boolean; back?: { snap: Snap; index: number } }
+	>()
+	/** Some frame is `rel: 'page'`: take a snapshot at every paragraph start. */
+	const pageMode = !!anchors?.marks.some(isPage)
+	/** Snapshot at the current paragraph's start, and at the start of the one in progress at the page's top. */
+	let paraSnap: Snap | undefined
+	let pageSnap: Snap | undefined
+	/** Snapshot of a page to refill without the pin deferred from it. */
+	let redo: Snap | undefined
+	const placeOnPage = (f: Frame, pg: PageDL, late?: boolean) => {
+		const { x, y, w, h, rot } = pageFrame(f, pg.page)
+		placedOut?.push({ id: f.id, pg, box: { x, y, w, h }, rot, ...(late ? { late: true } : {}) })
+	}
+	/** `s` with the wrap outlines of the frames pinned to its page. */
+	const withPins = (s: FlowSlot): FlowSlot => {
+		const fs: Frame[] = []
+		for (const p of pins.values())
+			if (p.index === s.pg.page.index) fs.push(pageFrame(p.f, s.pg.page))
+		const e = fs.length ? wrapExclusions(fs) : []
+		return e.length ? { ...s, ex: [...(s.ex ?? []), ...e] } : s
+	}
 	/** Page-space bottom of the content of the column set's earlier columns on this page. */
 	let low = Number.NEGATIVE_INFINITY
 	/** `slot` is a span band. */
@@ -140,13 +294,31 @@ export function fillFlow(
 		fa?.flush(slot.pg, c)
 		const s = next(kind, top)
 		if (!s) return false
+		if (s.pg !== slot.pg) {
+			const leaving = pageSnap
+			pageSnap = paraSnap
+			// Pinned frames whose marker did not come on their page: on to this one (before it
+			// fills), once; after that, placed on the page they were moved to.
+			for (const p of pins.values()) {
+				if (p.index !== slot.pg.page.index || placedOut?.some((a) => a.id === p.f.id))
+					continue
+				if (p.moved) placeOnPage(p.f, slot.pg, true)
+				else {
+					// If a later advance runs out of pages before the refill, the hole stays.
+					p.back = leaving && { snap: leaving, index: p.index }
+					p.index = s.pg.page.index
+					p.moved = true
+					redo ??= leaving
+				}
+			}
+		}
 		low =
 			s.pg === slot.pg && s.region === slot.region
 				? Math.max(low, bottom)
 				: Number.NEGATIVE_INFINITY
 		pageTop = s.pg !== slot.pg || (pageTop && kind === 'band' && y === 0)
 		inBand = kind === 'band'
-		slot = s
+		slot = withPins(s)
 		y = 0
 		fa?.open(slot.col)
 		return true
@@ -160,11 +332,104 @@ export function fillFlow(
 			if (!advance()) return false
 		}
 	}
+	/**
+	 * Place `m`'s frame in the current column (see above), its reference at flow y `top`; its wrap
+	 * outline joins this column's slot (the next `advance` drops it). `false`, nothing placed,
+	 * when it would overrun the column below a used band — unless `force`.
+	 */
+	const placeMark = (m: FrameMark, top: Fx, force: boolean): boolean => {
+		const { f } = m
+		const { pg, col, ex = [] } = slot
+		const fin = (v: number) => (Number.isFinite(v) ? Math.max(0, v) : 0)
+		const wc = f.wCol
+		let w = Math.min(
+			col.w,
+			wc !== undefined && Number.isFinite(wc) && wc > 0
+				? Math.floor(col.w * Math.min(1, wc))
+				: fin(f.w)
+		)
+		let h = f.w > 0 && Number.isFinite(f.w) ? Math.floor((fin(f.h) * w) / f.w) : fin(f.h)
+		// At most the column's height (a remote peer's frame can be any size), aspect kept.
+		if (h > col.h) {
+			w = Math.floor((w * col.h) / h)
+			h = col.h
+		}
+		const dx = fin(f.x)
+		const dy = fin(f.y)
+		const fy = nextFreeTop(col, ex, col.y + top + dy, h, w + dx) - col.y
+		if (!force && fy > dy && fy + h > col.h - fh()) return false
+		const free = freeSpan(col, ex, col.y + fy, col.y + fy + h)
+		// Facing pages: 'l' is the inside, the right side of a left-hand page.
+		const r = ('side' in f.anchor && f.anchor.side === 'r') !== (pg.page.side === 'l')
+		const box: Box = { x: r ? free.x + free.w - w - dx : free.x + dx, y: col.y + fy, w, h }
+		placedOut?.push({ id: f.id, pg, box, rot: Number.isFinite(f.rot) ? f.rot : 0 })
+		const e = wrapExclusions([{ ...f, ...box }])
+		if (e.length) slot = { ...slot, ex: [...ex, ...e] }
+		return true
+	}
 	const isText = (k: number) => k < paras.length && Array.isArray(story.paragraphs[k].runs)
 	/** First tag id of the next table's TR/TH/TD range (see `storyTagCount`). */
 	let childTag = story.paragraphs.length + 1
 	/** Next TOCI tag id (reserved by paginate after the story's and its footnotes' ranges). */
 	let tociTag = toc?.tag ?? 0
+	const snap = (i: number): Snap => ({
+		i,
+		slot,
+		y,
+		off,
+		pageTop,
+		low,
+		inBand,
+		childTag,
+		tociTag,
+		toc: toc?.out.length ?? 0,
+		out: placedOut?.length ?? 0,
+		fa: fa?.save(),
+		items: slot.pg.items.length,
+		lines: slot.pg.lines.length,
+		tags: slot.pg.tags.length,
+		back: anchors?.save()
+	})
+	/** Back to `s` (the caller's later pages dropped); returns the paragraph index before `s.i`. */
+	const restore = (s: Snap): number => {
+		s.back?.()
+		// The new pin too, when `s` is on the page to refill (its first one).
+		slot = withPins(s.slot)
+		y = s.y
+		off = s.off
+		pageTop = s.pageTop
+		low = s.low
+		inBand = s.inBand
+		childTag = s.childTag
+		tociTag = s.tociTag
+		slot.pg.items.length = s.items
+		slot.pg.lines.length = s.lines
+		slot.pg.tags.length = s.tags
+		if (s.fa) fa?.load(s.fa)
+		if (toc) toc.out.length = s.toc
+		if (placedOut) placedOut.length = s.out
+		pageSnap = s
+		return s.i - 1
+	}
+	/**
+	 * `rel: 'page'` frame of `m` at its marker's row end (see above). `true`: its outline overlaps
+	 * content already on the page, which must be refilled (the pin stays, so only once).
+	 */
+	const pageMark = (m: FrameMark): boolean => {
+		const { pg } = slot
+		const p = pins.get(m.f.id)
+		if (p) {
+			// Pinned elsewhere: placed when the flow left that page.
+			if (p.index === pg.page.index) placeOnPage(m.f, pg, p.moved)
+			return false
+		}
+		pins.set(m.f.id, { f: m.f, index: pg.page.index, moved: false })
+		const e = wrapExclusions([pageFrame(m.f, pg.page)])
+		if (covers(pg, e)) return true
+		placeOnPage(m.f, pg)
+		if (e.length) slot = { ...slot, ex: [...(slot.ex ?? []), ...e] }
+		return false
+	}
 
 	/** keep-with-next of paragraph `i` (see above), measured at the column's width. */
 	// Assumes the next column has this one's width and height, and ignores wrap
@@ -187,7 +452,34 @@ export function fillFlow(
 		return y + paras[i].style.spaceBefore + need <= slot.col.h - fh() || need > slot.col.h
 	}
 
-	for (let i = 0; i < story.paragraphs.length; i++) {
+	/**
+	 * A deferred frame whose page the flow did not reach (the text ended before it): back to the
+	 * page it was deferred from, to refill once more with it (its marker goes on, as with no deferral).
+	 */
+	const unreached = (): Snap | undefined => {
+		for (const p of pins.values()) {
+			const b = p.back
+			if (!b || p.index === slot.pg.page.index || placedOut?.some((a) => a.id === p.f.id))
+				continue
+			p.index = b.index
+			p.back = undefined
+			return b.snap
+		}
+	}
+
+	para: for (let i = 0; ; i++) {
+		if (i >= story.paragraphs.length) redo ??= unreached()
+		if (redo) {
+			const r = redo
+			redo = undefined
+			i = restore(r)
+			continue
+		}
+		if (i >= story.paragraphs.length) break
+		if (pageMode) {
+			paraSnap = snap(i)
+			pageSnap ??= paraSnap
+		}
 		const p = story.paragraphs[i]
 		const ip = paras[i]
 		const blk = p.runs
@@ -280,33 +572,18 @@ export function fillFlow(
 			// Inline image/embed: at the first band with room, moved on whole when it does not fit.
 			// Only the image's band (natural height) is checked against wrap exclusions,
 			// not the caption's; check both if captions run into frames below.
-			// A float takes no flow height: it becomes a wrap exclusion of this column.
-			// A float steps down past exclusions (frames, earlier floats) like an inline image does.
-			const fl =
-				blk.float && (blk.float.side === 'l' || blk.float.side === 'r')
-					? blk.float
-					: undefined
-			const frac = fl
-				? Math.min(1, Math.max(0.1, Number.isFinite(fl.w) && fl.w > 0 ? fl.w : 0.5))
-				: 0
-			if (y > 0 && !fl) y += st.spaceBefore
+			if (y > 0) y += st.spaceBefore
 			for (;;) {
 				const { pg, col, ex = [] } = slot
-				const fw = Math.floor(col.w * frac)
-				const band = fl && blk.w > 0 ? Math.floor((blk.h * fw) / blk.w) : blk.h
-				const fy = nextFreeTop(col, ex, col.y + y, band, fl ? fw : minW) - col.y
-				if (!fl) y = fy
-				const top = col.y + fy
-				const free = freeSpan(col, ex, top, top + band)
-				const sp: Span = fl
-					? { x: fl.side === 'l' ? free.x : free.x + free.w - fw, w: fw }
-					: free
-				const bw = fl ? sp.w : Math.min(sp.w, blk.w)
+				y = nextFreeTop(col, ex, col.y + y, blk.h, minW) - col.y
+				const top = col.y + y
+				const sp = freeSpan(col, ex, top, top + blk.h)
+				const bw = Math.min(sp.w, blk.w)
 				const bh = blk.w > 0 ? Math.floor((blk.h * bw) / blk.w) : blk.h
 				const cap = ip.text ? layoutParagraphAt(ip, env, sp.w) : undefined
 				let need = bh
 				for (const l of cap?.lines ?? []) need += l.height
-				if (fy > 0 && fy + need > col.h - fh()) {
+				if (y > 0 && y + need > col.h - fh()) {
 					if (!advance()) return total - off
 					continue
 				}
@@ -340,18 +617,7 @@ export function fillFlow(
 						ly += l.height
 					}
 				}
-				if (fl) {
-					const gap = Math.floor(st.size / 2)
-					const e: Exclusion = {
-						x0: fl.side === 'l' ? col.x : sp.x - gap,
-						y0: top,
-						x1: fl.side === 'l' ? sp.x + sp.w + gap : col.x + col.w,
-						y1: top + need + gap,
-						tb: false
-					}
-					// Only this column's slot carries it: the next `advance` drops it.
-					slot = { ...slot, ex: [...ex, e] }
-				} else y += need + st.spaceAfter
+				y += need + st.spaceAfter
 				break
 			}
 			off += 1
@@ -361,6 +627,15 @@ export function fillFlow(
 		const tb = toc?.blocks.get(i)
 		if (tb) {
 			if (y > 0) y += st.spaceBefore
+			// Frame markers: a marker's offset means nothing in generated text, so every frame
+			// anchors at the block start; `rel: 'page'` ones at the end of its first line.
+			const tmks = marksOf.get(i)
+			for (const m of tmks ?? []) {
+				if (isPage(m) || placeMark(m, y, false)) continue
+				if (!advance()) return total - off
+				placeMark(m, y, true)
+			}
+			let pinned = !tmks?.some(isPage)
 			let tagged: PageDL | undefined
 			let node: TagNode | undefined
 			let geom = false
@@ -437,6 +712,15 @@ export function fillFlow(
 						})
 					}
 					y += line.height
+					if (!pinned) {
+						pinned = true
+						for (const m of tmks ?? []) {
+							if (isPage(m) && pageMark(m) && pageSnap) {
+								i = restore(pageSnap)
+								continue para
+							}
+						}
+					}
 				}
 			}
 			y += st.spaceAfter
@@ -449,6 +733,19 @@ export function fillFlow(
 		/** The paragraph starts at a column top: moving it on whole would not help. */
 		let fresh = y === 0
 		if (!fresh) y += st.spaceBefore
+		const mks = marksOf.get(i)
+		/** Frames anchored at the paragraph start: placed first, so its first line wraps them. */
+		const starts = mks?.filter((m) => m.at === 0 && !isPage(m))
+		/** Frames placed at their marker's row end (`rel: 'page'` ones at any offset). */
+		const mids = mks?.filter((m) => m.at > 0 || isPage(m))
+		/** Placement count before the start frames, to move them on with the paragraph. */
+		const p0 = placedOut?.length ?? 0
+		for (const m of starts ?? []) {
+			if (placeMark(m, y, false)) continue
+			if (!advance()) return total - off
+			fresh = true
+			placeMark(m, y, true)
+		}
 		const dc = dropCap(ip, env)
 		/** The paragraph to lay out (a drop cap's cluster taken out). */
 		const tp = dc?.ip ?? ip
@@ -533,7 +830,15 @@ export function fillFlow(
 		/** First line of the paragraph in the current column. */
 		let cs = 0
 		/** Page state before each line emitted in the current column (index j − cs), for rollback. */
-		const marks: { items: number; lines: number; tags: number; rel: Fx; fn?: FnMark }[] = []
+		const marks: {
+			items: number
+			lines: number
+			tags: number
+			rel: Fx
+			fn?: FnMark
+			/** `anchors.out` length. */
+			pl: number
+		}[] = []
 		const refs = notesOf.get(i)
 		let j = 0
 		while (j < pl.lines.length) {
@@ -588,10 +893,18 @@ export function fillFlow(
 					}
 					rel = m.rel
 					if (m.fn) fa?.reset(m.fn)
+					if (placedOut) placedOut.length = m.pl
 					j = b
 				}
 				if (!advance()) return total - off - pl.lines[j].from
-				if (j === 0) fresh = true
+				if (j === 0) {
+					fresh = true
+					// The start frames move on with the paragraph.
+					if (placedOut && starts?.length) {
+						placedOut.length = p0
+						for (const m of starts) placeMark(m, 0, true)
+					}
+				}
 				cs = j
 				marks.length = 0
 				// The new column (width, top, exclusions) applies from line j on.
@@ -615,7 +928,8 @@ export function fillFlow(
 				lines: pg.lines.length,
 				tags: pg.tags.length,
 				rel,
-				fn: fm
+				fn: fm,
+				pl: placedOut?.length ?? 0
 			})
 			if (tagged !== pg) {
 				pg.tags.push({ id: tag, role, bid: p.bid, ...(ip.lang ? { lang: ip.lang } : {}) })
@@ -631,6 +945,7 @@ export function fillFlow(
 			pg.items.push(...emitLine(pl, line, sx, oy, tag))
 			const geom = lineGeom(story.id, p.bid, line, sx, oy)
 			if (!ip.text && p.placeholder) geom.placeholder = p.placeholder
+			if (j === 0 && st.breakBefore !== 'none') geom.brk = st.breakBefore
 			if (dc && j === 0) {
 				geom.x = capX
 				geom.carets[0] = capX
@@ -641,12 +956,49 @@ export function fillFlow(
 			if (pl.lines[j]?.row !== line.row) {
 				y += line.height
 				rel += line.height
+				// Frames anchored mid-paragraph in this row: below it, wrapping the rows after it.
+				let k = j - 1
+				while (k > 0 && pl.lines[k - 1].row === line.row) k--
+				const lo = pl.lines[k].from
+				const here = mids?.filter((m) => m.at >= lo && m.at < line.to)
+				if (here?.length) {
+					// Page frames first, while the flow is still on their marker's page.
+					for (const m of here) {
+						if (isPage(m) && pageMark(m) && pageSnap) {
+							i = restore(pageSnap)
+							continue para
+						}
+					}
+					let onward = false
+					for (const m of here) {
+						if (isPage(m) || placeMark(m, y, false)) continue
+						// The frame and the text after it move on to the next column.
+						if (!advance()) return total - off - (pl.lines[j]?.from ?? ip.text.length)
+						cs = j
+						marks.length = 0
+						onward = true
+						placeMark(m, y, true)
+					}
+					segs.push({
+						rel,
+						col: slot.col,
+						ex: slot.ex ?? [],
+						top: slot.col.y + y,
+						band,
+						cap: !onward && segs[segs.length - 1].cap
+					})
+					pl = wrapLayout()
+				}
 			}
 		}
 		if (cap?.col === slot.col) y = Math.max(y, cap.bottom - slot.col.y)
 		y += st.spaceAfter
 		off += ip.text.length + 1
 	}
+	// Deferred frames on the page where the text ended (not placed by leaving it).
+	for (const p of pins.values())
+		if (p.moved && p.index === slot.pg.page.index && !placedOut?.some((a) => a.id === p.f.id))
+			placeOnPage(p.f, slot.pg, true)
 	if (!fa) return 0
 	while (fa.carry.length) if (!advance()) break
 	fa.flush(slot.pg, slot.col)

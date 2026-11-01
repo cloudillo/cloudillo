@@ -10,10 +10,11 @@
 import type * as Y from 'yjs'
 
 import { newBlockId } from '../crdt/block-ids'
-import { deltaOf, storyTextOf } from '../crdt/delta-cache'
-import { embedImgAt } from '../crdt/frame-ops'
+import { deltaOf, opsAt, storyTextOf } from '../crdt/delta-cache'
+import { openPublication } from '../crdt/document'
+import { deleteFrame, embedImgAt } from '../crdt/frame-ops'
 import { LINE_KEYS as LINE, MARK_KEYS as MARKS } from '../crdt/stored-types'
-import { cellOf, isTableLine } from '../crdt/type-converters'
+import { cellOf, isTableLine, markerWins } from '../crdt/type-converters'
 
 const pick = (src: Record<string, unknown> | undefined, keys: readonly string[]) =>
 	Object.fromEntries(keys.map((k) => [k, src?.[k] ?? null]))
@@ -107,11 +108,37 @@ function imagePara(t: Y.Text, offset: number): number | undefined {
 }
 
 /**
+ * The frames whose winning text-anchor marker (`markerWins`) lies in `[from, to)` of `t`, as a
+ * deleter to call once that text is gone (`undefined`: none). Scans the story only when the
+ * range holds a `{ frame }` run.
+ */
+function anchoredIn(t: Y.Text, from: number, to: number): (() => void) | undefined {
+	const yDoc = t.doc
+	let any = false
+	for (const [op, pos] of opsAt(deltaOf(t))) {
+		if (pos >= to) break
+		if (pos >= from && typeof op.insert === 'object' && 'frame' in op.insert) any = true
+	}
+	if (!yDoc || !any) return
+	const doc = openPublication(yDoc)
+	const story = [...doc.tx.entries()].find(([, x]) => x === t)?.[0]
+	const ids = [...(story ? markerWins(doc, story) : [])]
+		.filter(([, w]) => !w.frame && w.at >= from && w.at < to)
+		.map(([id]) => id)
+	return ids.length
+		? () => {
+				for (const id of ids) deleteFrame(yDoc, doc, id, false)
+			}
+		: undefined
+}
+
+/**
  * Delete `[from, to)`. When paragraphs merge, the merged one keeps the first paragraph's line
  * attrs and bid (not the last one's). Image paragraphs go whole or not at all, and text never
  * merges into one (it would render as a U+FFFC run): touching one deletes all of it; Delete at
  * the end of the paragraph before it deletes the image. Table lines never merge across cells, and
- * a table goes only whole (`breaks` below); otherwise only its text is cleared.
+ * a table goes only whole (`breaks` below); otherwise only its text is cleared. The frames whose
+ * winning text-anchor markers it deletes are deleted too (`anchoredIn`).
  */
 export function deleteRange(t: Y.Text, from: number, to: number): void {
 	if (to <= from) return
@@ -145,6 +172,7 @@ export function deleteRange(t: Y.Text, from: number, to: number): void {
 	// Both ends in one cell (e.g. a Tab-selected multi-paragraph cell): merge as plain text.
 	const cell = cellOf(paragraphEnd(t, to)?.attrs)
 	const oneCell = cell !== undefined && cellOf(first?.attrs) === cell
+	const dropAnchored = anchoredIn(t, from, to)
 	if (
 		!oneCell &&
 		((merge && cellOf(first?.attrs) !== cell) ||
@@ -159,6 +187,7 @@ export function deleteRange(t: Y.Text, from: number, to: number): void {
 			if (b > a) t.delete(a, b - a)
 			b = nl
 		}
+		dropAnchored?.()
 		return
 	}
 	t.delete(from, to - from)
@@ -166,6 +195,7 @@ export function deleteRange(t: Y.Text, from: number, to: number): void {
 		const merged = paragraphEnd(t, from)
 		if (merged) t.format(merged.index, 1, pick(first.attrs, LINE))
 	}
+	dropAnchored?.()
 }
 
 // vim: ts=4

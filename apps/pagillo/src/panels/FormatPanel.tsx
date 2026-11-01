@@ -32,12 +32,14 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import type * as Y from 'yjs'
 
-import { frameOf, mastersOf, stylesOf } from '../crdt/entities'
+import { frameOf, isFlow, mastersOf, sectionOf, stylesOf } from '../crdt/entities'
 import {
+	anchorFrame,
 	breakThreadAfter,
 	chainOf,
 	embedImgAt,
 	embedRecordAt,
+	inCell,
 	linkFrame,
 	linkTargets,
 	setInlineImage,
@@ -53,7 +55,7 @@ import type {
 } from '../crdt/stored-types'
 import { masterItems } from '../crdt/type-converters'
 import * as Cmd from '../editor/commands'
-import { FRAME_LABELS, type FrameCtl } from '../editor/FrameOverlay'
+import { FRAME_LABELS, type FrameCtl, type FramePosition } from '../editor/FrameOverlay'
 import { effectiveDpi } from '../editor/frames'
 import type { Editor } from '../editor/useEditor'
 import { appLabel, type EmbedRecord, embedTarget } from '../embeds/record'
@@ -197,6 +199,103 @@ function PageSelect({ frames }: { frames: FrameCtl }) {
 	)
 }
 
+/** Position modes, in menu order (English keys). */
+const POSITIONS: [FramePosition, string][] = [
+	['inline', 'Inline'],
+	['text', 'Moves with text'],
+	['page', "On the anchor's page"],
+	['fixed', 'On this page']
+]
+
+/** "Position" select: the current mode, 'fixed', Inline when `inline`, the text modes when `flow`. */
+function PositionSelect({
+	value,
+	flow,
+	inline = false,
+	onChange
+}: {
+	value: FramePosition
+	flow: boolean
+	inline?: boolean
+	onChange: (m: FramePosition) => void
+}) {
+	const { t } = useTranslation()
+	const ok = (m: FramePosition) =>
+		m === value || m === 'fixed' || (m === 'inline' ? inline : flow)
+	return (
+		<PropertyField label={t('Position')}>
+			<NativeSelect value={value} onChange={(e) => onChange(e.target.value as FramePosition)}>
+				{POSITIONS.filter(([m]) => ok(m)).map(([m, label]) => (
+					<option key={m} value={m}>
+						{t(label)}
+					</option>
+				))}
+			</NativeSelect>
+		</PropertyField>
+	)
+}
+
+/**
+ * Frame "Position": Inline (images), Moves with text / On the anchor's page (only with a section
+ * flow for the marker), On this page; Moves with text adds its side and width presets.
+ */
+function PositionFields({
+	yDoc,
+	doc,
+	frames,
+	id,
+	f
+}: PanelProps & { frames: FrameCtl; id: string; f: StoredFrame }) {
+	const { t } = useTranslation()
+	const a = f.anchor
+	if ('ms' in a) return null
+	const pos: FramePosition = 'txt' in a ? a.rel : 'fixed'
+	const flow = 'txt' in a || !!sectionOf(doc, a.sec)?.story
+	const inline = f.t === 'img' && !!(f.data as StoredImageData).fileId
+	// Facing pages: 'l' is the inside.
+	const facing = !!doc.m.get('facing')
+	return (
+		<>
+			<PositionSelect
+				value={pos}
+				// A threaded box can't move with text (`anchorFrame`).
+				flow={flow && !(f.t === 'txt' && chainOf(doc, id))}
+				inline={inline}
+				onChange={(m) => frames.setPosition(id, m)}
+			/>
+			{'txt' in a && a.rel === 'text' && (
+				<>
+					<PropertyField label={t('Side')}>
+						<Segmented
+							value={a.side ?? 'l'}
+							onChange={(v) =>
+								anchorFrame(yDoc, doc, id, { ...a, side: v === 'r' ? 'r' : 'l' })
+							}
+						>
+							<SegmentedItem value="l">
+								{facing ? t('Inside') : t('Left')}
+							</SegmentedItem>
+							<SegmentedItem value="r">
+								{facing ? t('Outside') : t('Right')}
+							</SegmentedItem>
+						</Segmented>
+					</PropertyField>
+					<PropertyField label={t('Width')}>
+						<Segmented
+							value={String(f.wCol ?? '')}
+							onChange={(v) => updateFrame(yDoc, doc, id, { wCol: Number(v) })}
+						>
+							<SegmentedItem value="0.5">½</SegmentedItem>
+							<SegmentedItem value="0.333">⅓</SegmentedItem>
+							<SegmentedItem value="1">{t('Full')}</SegmentedItem>
+						</Segmented>
+					</PropertyField>
+				</>
+			)}
+		</>
+	)
+}
+
 function FrameSection({ yDoc, doc, frames }: PanelProps & { frames: FrameCtl }) {
 	const { t } = useTranslation()
 	const altBox = React.useRef<HTMLDivElement>(null)
@@ -228,7 +327,7 @@ function FrameSection({ yDoc, doc, frames }: PanelProps & { frames: FrameCtl }) 
 	const master = masterItems(doc).has(id)
 	const img = f.t === 'img'
 	const emb = f.t === 'emb'
-	const thread = f.t === 'txt' && !master
+	const thread = f.t === 'txt' && !master && 'sec' in f.anchor
 	const chain = thread ? chainOf(doc, id) : undefined
 	const ci = chain ? chain.frames.indexOf(id) : 0
 	const dpi = img && d.px ? Math.round(effectiveDpi(d.px[0], f.w)) : undefined
@@ -322,19 +421,9 @@ function FrameSection({ yDoc, doc, frames }: PanelProps & { frames: FrameCtl }) 
 				</PropertySection>
 			)}
 			<PropertySection title={t('Placement')}>
-				{!master && img && d.fileId && (
-					<PropertyField label={t('Position')}>
-						<Segmented
-							value="page"
-							onChange={(v) => v === 'text' && frames.toInline(id)}
-						>
-							<SegmentedItem value="page">{t('On this page')}</SegmentedItem>
-							<SegmentedItem value="text">{t('Moves with text')}</SegmentedItem>
-						</Segmented>
-					</PropertyField>
-				)}
 				{!master && (
 					<>
+						<PositionFields yDoc={yDoc} doc={doc} frames={frames} id={id} f={f} />
 						<PageSelect frames={frames} />
 						<PropertyField label={t('Text wrap')}>
 							<NativeSelect
@@ -482,6 +571,8 @@ function InlineImageSection({
 	const at = tx && soleInlineImage(tx, Math.min(s.anchor, s.head), Math.max(s.anchor, s.head))
 	const img = tx && at !== undefined ? embedImgAt(tx, at) : undefined
 	if (at === undefined || !img) return null
+	// The text-anchored modes need a section flow story (outside table cells) for the marker.
+	const flow = !!tx && isFlow(doc, s.story) && !inCell(tx, at)
 	return (
 		<PropertySection title={t('Image')}>
 			<PropertyField label={t('Alt text')}>
@@ -498,41 +589,11 @@ function InlineImageSection({
 					}}
 				/>
 			</PropertyField>
-			<PropertyField label={t('Position')}>
-				<Segmented
-					value="text"
-					onChange={(v) => v === 'page' && frames.toFrame(s.story, at)}
-				>
-					<SegmentedItem value="page">{t('On this page')}</SegmentedItem>
-					<SegmentedItem value="text">{t('Moves with text')}</SegmentedItem>
-				</Segmented>
-			</PropertyField>
-			<PropertyField label={t('Wrap')}>
-				{/* Full width and Centred both store no float (the EmbedBlock centres a
-				    full-width box), so Centred reads back as Full width. */}
-				<NativeSelect
-					value={img.float ? `${img.float.side}${img.float.w < 0.4 ? 3 : 2}` : 'full'}
-					onChange={(e) => {
-						const v = e.target.value
-						const float =
-							v[0] === 'l' || v[0] === 'r'
-								? { side: v[0] as 'l' | 'r', w: v[1] === '3' ? 0.333 : 0.5 }
-								: undefined
-						editor.run((yt) => {
-							const { float: _old, ...rest } = img
-							setInlineImage(yt, at, float ? { ...rest, float } : rest)
-							return undefined
-						})
-					}}
-				>
-					<option value="full">{t('Full width')}</option>
-					<option value="center">{t('Centred')}</option>
-					<option value="l2">{t('Float left ½')}</option>
-					<option value="l3">{t('Float left ⅓')}</option>
-					<option value="r2">{t('Float right ½')}</option>
-					<option value="r3">{t('Float right ⅓')}</option>
-				</NativeSelect>
-			</PropertyField>
+			<PositionSelect
+				value="inline"
+				flow={flow}
+				onChange={(m) => m !== 'inline' && frames.toFrame(s.story, at, m)}
+			/>
 		</PropertySection>
 	)
 }

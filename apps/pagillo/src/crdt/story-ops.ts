@@ -5,8 +5,8 @@
  * Story creation and copying (`tx` map).
  */
 
-import * as Y from 'yjs'
 import type { ParagraphProps } from '@cloudillo/typeset'
+import * as Y from 'yjs'
 
 import { newBlockId } from './block-ids'
 import { isObj } from './entities'
@@ -50,9 +50,15 @@ export function createStory(doc: YPagilloDocument, paras: SeedParagraph[]): Stor
 
 /**
  * Copy a story's content, each paragraph with a fresh bid; its footnote refs point to copies of
- * their bodies. Call inside a transaction.
+ * their bodies; a `{ frame }` marker whose id is in `frames` is repointed to the mapped id. Call
+ * inside a transaction.
  */
-export function copyStory(doc: YPagilloDocument, storyId: StoryId, notes = true): StoryId {
+export function copyStory(
+	doc: YPagilloDocument,
+	storyId: StoryId,
+	notes = true,
+	frames?: Map<string, string>
+): StoryId {
 	const id = newId()
 	const text = new Y.Text()
 	doc.tx.set(id, text)
@@ -65,6 +71,8 @@ export function copyStory(doc: YPagilloDocument, storyId: StoryId, notes = true)
 					return op.attributes?.bid
 						? { ...op, attributes: { ...op.attributes, bid: newBlockId() } }
 						: op
+				if (frames && isObj(e) && typeof e.frame === 'string' && frames.has(e.frame))
+					return { ...op, insert: { ...e, frame: frames.get(e.frame) } }
 				// Bodies hold no refs: copy them flat.
 				return notes && isObj(e) && typeof e.fn === 'string' && doc.tx.has(e.fn)
 					? { ...op, insert: { ...e, fn: copyStory(doc, e.fn, false) } }

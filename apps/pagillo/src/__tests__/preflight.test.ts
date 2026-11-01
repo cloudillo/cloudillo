@@ -95,6 +95,26 @@ describe('preflightRows', () => {
 			)
 		).toEqual([{ key: 'dpi', label: expect.any(String), page: 's1/1', frame: 'f3' }])
 	})
+	it('low dpi of a text-anchored image: the page it is painted on', () => {
+		const frame = {
+			t: 'img',
+			anchor: { txt: 'st', rel: 'text' },
+			w: 72 * 1024,
+			data: { fileId: 'a', px: [100, 100] }
+		} as unknown as StoredFrame
+		const pages = new Map([['s1/1', { items: [], anchored: [{ id: 'f5' }] }]])
+		const l = layout({ pages } as unknown as Partial<LayoutState>)
+		expect(preflightRows(input({ layout: l, frames: [['f5', frame]] }), t)).toEqual([
+			{ key: 'dpi', label: expect.any(String), page: 's1/1', frame: 'f5' }
+		])
+	})
+	it("frame deferred past its anchor's page", () => {
+		const pages = new Map([['s1/2', { items: [], anchored: [{ id: 'f6', late: true }] }]])
+		const l = layout({ pages } as unknown as Partial<LayoutState>)
+		expect(preflightRows(input({ layout: l }), t)).toEqual([
+			{ key: 'late', label: expect.any(String), page: 's1/2', frame: 'f6' }
+		])
+	})
 	it('figure without alt text', () => {
 		const pg = {
 			items: [{ k: 'image', tag: 2 }],

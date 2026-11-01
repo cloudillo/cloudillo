@@ -66,7 +66,7 @@ export interface PreflightInput {
 	emptyImages: Map<string, EmptyImage[]>
 }
 
-/** Export warnings: overset text, empty image frames, low dpi, missing alt text. */
+/** Export warnings: overset text, empty image frames, frames off their anchor's page, low dpi, missing alt text. */
 export function preflightRows(
 	{ layout, frames, emptyImages }: PreflightInput,
 	t: Translate
@@ -90,11 +90,31 @@ export function preflightRows(
 			frame: empties[0].id
 		})
 	const low: { page: string; id: string }[] = []
+	const anchoredPage = new Map<string, string>()
+	const late: { page: string; id: string }[] = []
+	for (const [key, pg] of layout.pages) {
+		for (const it of pg.anchored ?? []) {
+			anchoredPage.set(it.id, key)
+			if (it.late) late.push({ page: key, id: it.id })
+		}
+	}
+	if (late.length)
+		rows.push({
+			key: 'late',
+			label: t("{{n}} frames are not on their anchor's page", { n: late.length }),
+			page: late[0].page,
+			frame: late[0].id
+		})
 	for (const [id, f] of frames) {
 		const d = f.data as StoredImageData
-		if (f.t !== 'img' || !('sec' in f.anchor) || !d.fileId || !d.px) continue
-		if (effectiveDpi(d.px[0], f.w) < 150)
-			low.push({ page: pageKey(f.anchor.sec, f.anchor.page), id })
+		if (f.t !== 'img' || !d.fileId || !d.px || effectiveDpi(d.px[0], f.w) >= 150) continue
+		const page =
+			'sec' in f.anchor
+				? pageKey(f.anchor.sec, f.anchor.page)
+				: 'txt' in f.anchor
+					? anchoredPage.get(id)
+					: undefined
+		if (page) low.push({ page, id })
 	}
 	if (low.length)
 		rows.push({

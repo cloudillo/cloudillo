@@ -5,9 +5,9 @@ import { FX } from '@cloudillo/typeset'
 import * as Y from 'yjs'
 
 import { openPublication } from '../crdt/document.js'
-import { newSectionMap } from '../crdt/entities.js'
+import { FULL_CROP, newSectionMap } from '../crdt/entities.js'
 import { sanitizeOverrides } from '../crdt/overrides.js'
-import type { StoredSection } from '../crdt/stored-types.js'
+import type { StoredFrame, StoredSection } from '../crdt/stored-types.js'
 import type { DeltaOp } from '../crdt/type-converters.js'
 import { deltaToHtml, deltaToPlain, pasteDelta, readDelta } from '../editor/clipboard.js'
 import { deleteRange } from '../editor/text-edit.js'
@@ -17,6 +17,7 @@ function setup() {
 	const doc = openPublication(yDoc)
 	const t = new Y.Text()
 	doc.s.set('s1', newSectionMap({ story: 'S' } as StoredSection))
+	doc.secs.push(['s1'])
 	doc.tx.set('S', t)
 	doc.tx.set('fn1', new Y.Text())
 	doc.f.set(
@@ -105,6 +106,33 @@ describe('pasteDelta', () => {
 		expect(a.indent).toBe(8)
 		expect(a.list).toBe('bullet')
 		expect(typeof a.bid).toBe('string')
+	})
+
+	it('refuses an anchored image frame with an oversized fileId and counts the drop', () => {
+		const { doc, t } = setup()
+		const f: StoredFrame = {
+			t: 'img',
+			anchor: { txt: 'X', rel: 'text' },
+			x: 0,
+			y: 0,
+			w: 100,
+			h: 50,
+			rot: 0,
+			z: 0,
+			wrap: { mode: 'box', off: 0 },
+			data: { fileId: 'f'.repeat(300), crop: FULL_CROP, fit: 'contain', alt: '' }
+		}
+		const dropped = { n: 0 }
+		pasteDelta(
+			doc,
+			t,
+			0,
+			[{ insert: { frame: 'old' } }, { insert: '\n' }],
+			{ old: { f } },
+			dropped
+		)
+		expect(t.toDelta().some((op: DeltaOp) => typeof op.insert !== 'string')).toBe(false)
+		expect(dropped.n).toBe(1)
 	})
 })
 

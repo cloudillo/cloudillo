@@ -22,17 +22,20 @@ import type {
 } from '@cloudillo/typeset'
 
 import { openPublication } from '../crdt/document'
-import { mastersOf, sectionOf, stylesOf } from '../crdt/entities'
+import { flowStories, mastersOf, sectionOf, stylesOf } from '../crdt/entities'
 import type { YPagilloDocument } from '../crdt/stored-types'
 import {
+	allWins,
 	type DeltaOp,
 	deltaToParagraphs,
 	framesToEngine,
 	isRtlLang,
+	type MarkerWins,
 	masterItemIndex,
 	masterToEngine,
 	readMeta,
 	sectionToEngine,
+	storyMarks,
 	toEnginePublication
 } from '../crdt/type-converters'
 import type { Composition } from './protocol'
@@ -116,6 +119,10 @@ export class PublicationAdapter {
 	private owned = new Set<string>()
 	/** Footnote story ids loaded by the last `footnotes()`. */
 	private fnStories = new Set<string>()
+	/** Section flow story ids: their `{ frame }` markers resolve (`storyMarks`). */
+	private flows = new Set<string>()
+	/** Section story id → its winning markers as last read (`read()`). */
+	private marks = new Map<string, MarkerWins>()
 
 	constructor(
 		yDoc: Y.Doc,
@@ -143,7 +150,9 @@ export class PublicationAdapter {
 	}
 
 	private rebuild(): void {
-		const pub = toEnginePublication(this.doc)
+		this.marks.clear()
+		const pub = toEnginePublication(this.doc, this.marks)
+		this.flows = new Set(flowStories(this.doc).keys())
 		this.defaultStyle = readMeta(this.doc.m).styleMap.p ?? ''
 		this.styles = pub.styles
 		this.stories.clear()
@@ -204,7 +213,21 @@ export class PublicationAdapter {
 		let ops: DeltaOp[] = t instanceof Y.Text ? t.toDelta() : []
 		const c = this.composing
 		if (c?.story === id) ops = spliceComposition(ops, c.offset, c.text)
-		return deltaToParagraphs(ops, this.defaultStyle)
+		const m = this.flows.has(id) ? storyMarks(this.doc, id) : undefined
+		const ps = deltaToParagraphs(ops, this.defaultStyle, m)
+		if (m) this.marks.set(id, m.wins)
+		else this.marks.delete(id)
+		return ps
+	}
+
+	/** Winning markers of every section story, as last read. */
+	private wins(): MarkerWins {
+		return allWins([...this.flows].flatMap((id) => this.marks.get(id) ?? []))
+	}
+
+	/** A section story's winners without offsets: changes when its frames do, not on a move. */
+	private winsKey(id: string): string {
+		return JSON.stringify([...(this.marks.get(id) ?? [])].map(([k, w]) => [k, w.frame]))
 	}
 
 	/**
@@ -268,20 +291,29 @@ export class PublicationAdapter {
 		const structural =
 			changed.has(d.secs) || changed.has(d.tx) || [d.s, d.f, d.ms].some((t) => deep.has(t))
 		if (structural) {
+			const secs = d.secs.toArray().flatMap((id) => {
+				const s = sectionOf(d, id)
+				return s ? [{ id, s }] : []
+			})
+			const prev = this.flows
+			this.flows = new Set(flowStories(d).keys())
 			const old = this.stories
 			this.stories = new Map()
 			for (const [id, st] of old) if (!texts.includes(id)) this.stories.set(id, st)
-			const sections: Section[] = []
-			for (const id of d.secs.toArray()) {
-				const s = sectionOf(d, id)
-				if (s) sections.push(sectionToEngine(id, s, this.story(s.story)))
+			// Winners follow the frames' anchors: re-read (identities kept) the stories affected.
+			for (const id of [...this.stories.keys()]) {
+				const flow = this.flows.has(id)
+				if ((anchorsMoved && flow) || prev.has(id) !== flow) this.diff(id)
 			}
+			const sections: Section[] = secs.map(({ id, s }) =>
+				sectionToEngine(id, s, this.story(s.story))
+			)
 			const used = new Set(sections.map((s) => s.story.id))
 			const story = (sid: string) => {
 				used.add(sid)
 				return this.story(sid)
 			}
-			const frames = framesToEngine(d, story)
+			const frames = framesToEngine(d, story, this.wins())
 			this.owned = new Set(used)
 			const fs = this.footnotes(sections.map((s) => s.story.id))
 			for (const id of Object.keys(fs)) used.add(id)
@@ -293,7 +325,12 @@ export class PublicationAdapter {
 			return
 		}
 
-		this.patch(texts.filter((id) => this.stories.has(id)).flatMap((id) => this.diff(id)))
+		const live = texts.filter((id) => this.stories.has(id))
+		const before = live.map((id) => this.winsKey(id))
+		this.patch(live.flatMap((id) => this.diff(id)))
+		// A marker added / removed / re-won (paste, delete, undo) or a legacy float edited.
+		if (live.some((id, i) => this.winsKey(id) !== before[i]))
+			this.engine.setFrames(framesToEngine(d, (sid) => this.story(sid), this.wins()))
 		// A section edit added or removed a footnote ref (paste, delete, undo of a delete).
 		if (texts.some((id) => this.notes.has(id) && this.notes.get(id) !== this.fnIds(id)))
 			this.engine.setFootnotes(this.footnotes([...this.notes.keys()]))

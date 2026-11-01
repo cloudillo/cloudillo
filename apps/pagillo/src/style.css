@@ -222,6 +222,11 @@ body,
 	}
 }
 
+/* `size="sm"` keeps the compact button height, but its 0.75rem font would shrink 1em icons to 12px. */
+.pagillo-toolbar .c-button > svg {
+	font-size: 1rem;
+}
+
 /* Paragraph-style listbox (`toolbar/StyleSelect.tsx`): fixed width, the
    paragraph state never resizes the toolbar. Menu look follows `.c-font-picker__menu`. */
 .pagillo-style-select {
@@ -373,6 +378,11 @@ body,
 
 .pagillo-thread-badge circle {
 	fill: var(--col-primary, #06f);
+	stroke: var(--col-surface, #fff);
+}
+
+.pagillo-anchor-badge {
+	fill: var(--col-accent, #0a7);
 	stroke: var(--col-surface, #fff);
 }
 

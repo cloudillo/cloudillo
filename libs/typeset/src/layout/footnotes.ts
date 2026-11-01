@@ -44,7 +44,7 @@ export interface FnNote extends FnRef {
 
 /**
  * The refs of `story` whose body exists in `footnotes`, in story order (table cells and captions
- * are not searched). Tag ids start after the story's own range (`storyTagCount`); `tags` = how
+ * are not searched); the first ref per footnote id wins, later ones stay unnumbered. Tag ids start after the story's own range (`storyTagCount`); `tags` = how
  * many the refs take (per ref one `Note` plus one per body paragraph).
  */
 export function collectRefs(
@@ -55,14 +55,17 @@ export function collectRefs(
 	const base = storyTagCount(story) + 1
 	let tag = base
 	if (!footnotes) return { refs, tags: 0 }
+	const seen = new Set<string>()
 	story.paragraphs.forEach((p, pi) => {
 		if (!Array.isArray(p.runs)) return
 		let at = 0
 		for (const r of p.runs) {
 			const e = r.embed
+			const id = e && 'fn' in e ? e.fn : ''
 			const fs =
-				e && 'fn' in e && Object.hasOwn(footnotes, e.fn) ? footnotes[e.fn] : undefined
+				id && !seen.has(id) && Object.hasOwn(footnotes, id) ? footnotes[id] : undefined
 			if (fs) {
+				seen.add(id)
 				refs.push({ pi, at, story: fs, num: refs.length + 1, tag })
 				tag += 1 + fs.paragraphs.length
 			}
@@ -182,6 +185,20 @@ export class FootnoteArea {
 		this.parts.length = m.parts
 		this.carry.length = m.carry
 		this.full = m.full
+	}
+
+	/** The whole state, valid across columns (a `mark` only holds within one); see `load`. */
+	// Copies both arrays on every page-mode paragraph snapshot; they hold a column's
+	// few notes, so it is cheap. Go copy-on-write like paginate's `sets` if a profile says so.
+	save() {
+		return { h: this.h, parts: [...this.parts], carry: [...this.carry], full: this.full }
+	}
+
+	load(s: ReturnType<FootnoteArea['save']>): void {
+		this.h = s.h
+		this.parts = [...s.parts]
+		this.carry = [...s.carry]
+		this.full = s.full
 	}
 
 	/**

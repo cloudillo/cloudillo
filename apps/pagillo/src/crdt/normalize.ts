@@ -3,7 +3,8 @@
 
 /**
  * Story normaliser: every paragraph of every `tx` story ends in `'\n'` and has a `bid`
- * unique within its story (rules in `block-ids.ts`, as quillo's).
+ * unique within its story (rules in `block-ids.ts`, as quillo's); legacy `img.float` runs become
+ * text-anchored frames (`migrateFloats`).
  *
  * Writes use `NORMALIZE_ORIGIN`, so a `Y.UndoManager` tracking the local origin
  * (`yDoc.clientID`) keeps them out of the undo stack, and the observer skips them.
@@ -12,9 +13,10 @@
 import * as Y from 'yjs'
 
 import { BID_FORMAT, computeBlockIdFixes } from './block-ids'
-import { deltaOf } from './delta-cache'
-import { framesOf, isObj } from './entities'
+import { deltaOf, opsAt } from './delta-cache'
+import { flowStories, framesOf, isObj, newFrameMap } from './entities'
 import type { YPagilloDocument } from './stored-types'
+import { markerWins } from './type-converters'
 
 export const NORMALIZE_ORIGIN = 'pagillo-normalize'
 
@@ -36,15 +38,99 @@ export function normalizeStory(text: Y.Text): boolean {
 }
 
 /**
- * Delete frames anchored to a missing master, then `tx` stories nothing references (no section,
- * no frame — master items included — no footnote ref). References are read raw, so the story of
- * an entity this client cannot read (a newer peer's frame type) is kept. Every local op drops a
- * story with its last reference and a master with its items, so these come from concurrent edits.
+ * Rewrite the legacy `img.float` runs of story `story`: in a section story (`flow`) each becomes
+ * its `{ frame }` marker (same offset and marks) plus — unless an `f` entry already exists under
+ * that id — its `rel: 'text'` `f` entry under the deterministic `floatFrameId` (the adapter's
+ * `markerWins` decides, so readers and writers agree); anywhere else the run just loses its
+ * `float`. Bids must be normalised first (`normalizeStory`). Call inside a transaction.
+ */
+export function migrateFloats(doc: YPagilloDocument, story: string, flow: boolean): void {
+	const t = doc.tx.get(story)
+	if (!(t instanceof Y.Text)) return
+	const floats: { at: number; img: Record<string, unknown>; attrs?: Record<string, unknown> }[] =
+		[]
+	for (const [op, pos] of opsAt(deltaOf(t))) {
+		const img = isObj(op.insert) ? op.insert.img : undefined
+		if (isObj(img) && img.float !== undefined)
+			floats.push({ at: pos, img, attrs: op.attributes })
+	}
+	if (!floats.length) return
+	const byAt = new Map<number, string>()
+	if (flow)
+		// A win at a float's offset is that float (real markers are `{ frame }` runs).
+		for (const [id, w] of markerWins(doc, story)) {
+			byAt.set(w.at, id)
+			if (w.frame && !doc.f.has(id)) doc.f.set(id, newFrameMap(w.frame))
+		}
+	for (const { at, img, attrs } of floats) {
+		const id = byAt.get(at)
+		const { float: _float, ...plain } = img
+		t.delete(at, 1)
+		t.insertEmbed(at, id ? { frame: id } : { img: plain }, { ...attrs })
+	}
+}
+
+/** Delete every `{ frame }` marker of `t` for which `drop(id, offset)` holds. */
+function dropMarkers(t: Y.Text, drop: (id: string, pos: number) => boolean): void {
+	const at: number[] = []
+	for (const [op, pos] of opsAt(deltaOf(t))) {
+		const id = isObj(op.insert) ? op.insert.frame : undefined
+		if (typeof id === 'string' && drop(id, pos)) at.push(pos)
+	}
+	for (const p of at.reverse()) t.delete(p, 1)
+}
+
+/**
+ * Text-anchor sweep: delete every `{ frame }` marker that does not win (`markerWins` in a section
+ * flow story; elsewhere none wins) while its id wins elsewhere — a true duplicate. Frames are
+ * never deleted: a text-anchored frame without a winning marker is just not drawn. Call inside a
+ * transaction.
+ */
+// Orphaned text-anchored frames stay invisible; surface/repair them in the UI if it matters.
+// Frame-less markers stay as inert zero-width runs (readers ignore them; their `f` entry
+// may still arrive from a peer), so deleting them is never decided from local state.
+function sweepAnchors(doc: YPagilloDocument): void {
+	const won = new Set<string>()
+	const keep = new Map<string, Set<number>>()
+	for (const story of flowStories(doc).keys()) {
+		const at = new Set<number>()
+		for (const [id, w] of markerWins(doc, story)) {
+			won.add(id)
+			at.add(w.at)
+		}
+		keep.set(story, at)
+	}
+	for (const [story, t] of [...doc.tx.entries()]) {
+		if (!(t instanceof Y.Text)) continue
+		const k = keep.get(story)
+		dropMarkers(t, (id, pos) => !k?.has(pos) && won.has(id))
+	}
+}
+
+/**
+ * Delete the same-story duplicates of section story `story`'s winning markers (e.g. two peers
+ * migrating the same legacy float); cross-story duplicates are the load sweep's job. Call inside
+ * a transaction.
+ */
+export function dedupeMarkers(doc: YPagilloDocument, story: string): void {
+	const t = doc.tx.get(story)
+	if (!(t instanceof Y.Text)) return
+	const w = markerWins(doc, story)
+	dropMarkers(t, (id, pos) => w.has(id) && w.get(id)?.at !== pos)
+}
+
+/**
+ * Delete frames anchored to a missing master, duplicate text-anchor markers
+ * (`sweepAnchors`; frames themselves are kept), then `tx` stories nothing references (no section, no frame —
+ * master items included — no footnote ref). References are read raw, so the story of an entity
+ * this client cannot read (a newer peer's frame type) is kept. Every local op drops a story with
+ * its last reference and a master with its items, so these come from concurrent edits.
  * Call inside a transaction.
  */
 export function sweepOrphanStories(doc: YPagilloDocument): void {
 	for (const [id, f] of framesOf(doc))
 		if ('ms' in f.anchor && !doc.ms.has(f.anchor.ms)) doc.f.delete(id)
+	sweepAnchors(doc)
 	const used = new Set<string>()
 	// A peer can put anything in an entity root.
 	for (const root of [doc.s, doc.f] as Y.Map<unknown>[])
@@ -96,7 +182,7 @@ export function rootNotes(doc: YPagilloDocument, text: Y.Text): void {
  * observer. `canWrite` is read on each run; while it is false, touched stories stay pending.
  *
  * `run()` re-checks every story (e.g. after an access upgrade); `dispose()` stops observing.
- * The first write also sweeps orphan stories (`sweepOrphanStories`).
+ * The first write also sweeps orphan stories and stray text-anchor markers (`sweepOrphanStories`).
  *
  * Rescans a touched story whole (O(n) per change); scan only changed lines plus an id index
  * if long stories feel sluggish.
@@ -120,11 +206,15 @@ export function registerNormalizer(
 					sweep = false
 					sweepOrphanStories(doc)
 				}
+				const flows = flowStories(doc)
 				// A peer can put anything in `tx`; only a Y.Text is a story.
-				doc.tx.forEach((t) => {
+				doc.tx.forEach((t, id) => {
 					if (t instanceof Y.Text && dirty.has(t)) {
 						normalizeStory(t)
 						rootNotes(doc, t)
+						const flow = flows.has(id)
+						migrateFloats(doc, id, flow)
+						if (flow) dedupeMarkers(doc, id)
 					}
 				})
 			}, NORMALIZE_ORIGIN)

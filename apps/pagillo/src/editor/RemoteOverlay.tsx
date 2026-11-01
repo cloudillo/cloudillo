@@ -271,7 +271,12 @@ export function useRemote({ awareness, yDoc, doc, editor, layout }: UseRemoteOpt
 				}
 			}
 			if (pg && p.page === i && p.frames.length) {
-				for (const it of pageItems(doc, pg, p.layout)) {
+				for (const it of pageItems(
+					doc,
+					pg,
+					p.layout,
+					layout.pages.get(pages[i].key)?.anchored
+				)) {
 					if (!p.frames.includes(it.id)) continue
 					const b = boxOf(it)
 					svg.push(

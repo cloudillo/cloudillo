@@ -39,6 +39,15 @@ export function deltaOf(t: Y.Text): DeltaOp[] {
 	return ops
 }
 
+/** `[op, offset]` over `ops` (an embed counts 1). */
+export function* opsAt(ops: DeltaOp[]): Generator<[DeltaOp, number]> {
+	let pos = 0
+	for (const op of ops) {
+		yield [op, pos]
+		pos += typeof op.insert === 'string' ? op.insert.length : 1
+	}
+}
+
 /** Story text with U+FFFC per embed (`Y.Text#toString` drops embeds), cached per delta. */
 export function storyTextOf(t: Y.Text): string {
 	const ops = deltaOf(t)

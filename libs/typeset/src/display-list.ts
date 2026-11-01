@@ -44,7 +44,10 @@ export interface TagNode {
 	bid?: string
 	alt?: string
 	lang?: string
-	/** Id of the page-anchored frame it was laid out in; absent = the section's flow. */
+	/**
+	 * Id of the frame it was laid out in; absent = the section's flow. A text-anchored frame's
+	 * tags are `children` of its marker paragraph's tag on the page (top-level when that is absent).
+	 */
 	frame?: string
 	children?: TagNode[]
 }
@@ -115,6 +118,11 @@ export interface LineGeom {
 	carets: Int32Array
 	/** Ghost prompt of an empty paragraph with a placeholder; overlay only. */
 	placeholder?: string
+	/**
+	 * First line of a paragraph whose resolved `breakBefore` is not `'none'`, whether or not the
+	 * break was taken; overlay only (hidden-character marks).
+	 */
+	brk?: 'page' | 'column'
 	/** Table cell lines: the cell's horizontal extent (absolute), for hit-testing. */
 	cell?: { x: Fx; w: Fx }
 	/** Its rotated frame's rotation; the fields above are in the frame's unrotated space. */
@@ -128,4 +136,15 @@ export interface PageDL {
 	lines: LineGeom[]
 	tags: TagNode[]
 	rev: number
+	/** Text-anchored frames placed on the page (`Frame.anchor.txt`): their box and `rot` as painted. */
+	anchored?: {
+		id: string
+		x: Fx
+		y: Fx
+		w: Fx
+		h: Fx
+		rot: number
+		/** An "On the anchor's page" frame deferred past its marker's page. */
+		late?: true
+	}[]
 }

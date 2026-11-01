@@ -36,12 +36,13 @@ import { FX } from '@cloudillo/typeset'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { stylesOf } from '../crdt/entities'
+import { isFlow, stylesOf } from '../crdt/entities'
 import type { YPagilloDocument } from '../crdt/stored-types'
 import * as Cmd from '../editor/commands'
+import { MARKS_KEY_LABEL } from '../editor/keymap'
 import type { Undo } from '../editor/undo'
 import type { Editor } from '../editor/useEditor'
-import { IcIndent, IcOutdent } from '../icons.js'
+import { IcIndent, IcOutdent, IcParagraph } from '../icons.js'
 import { useDocVersion } from '../panels/useY'
 import { LengthInput } from '../ui/LengthInput'
 import { StyleSelect } from './StyleSelect'
@@ -114,6 +115,9 @@ export interface ToolbarProps extends Cmd.CommandCtx {
 	onInsertEmbed?(inline: boolean): void
 	/** Inline image refused (Edit layout, a frame selected). */
 	inlineImageOff?: boolean
+	/** Show hidden characters is on; with `onToggleMarks`, shows the ¶ toggle. */
+	marks?: boolean
+	onToggleMarks?(): void
 }
 
 const ALIGNS = [
@@ -133,7 +137,9 @@ export function Toolbar({
 	onInsertImage,
 	onInsertTextBox,
 	onInsertEmbed,
-	inlineImageOff
+	inlineImageOff,
+	marks,
+	onToggleMarks
 }: ToolbarProps) {
 	const { t } = useTranslation()
 	const dialog = useDialog()
@@ -145,7 +151,7 @@ export function Toolbar({
 	/** Title of the Insert items that need a caret. */
 	const needCaret = t('Place the caret in text first')
 	/** Footnotes and the TOC: section flows only (not text boxes, not a footnote body). */
-	const flowCaret = !off && Cmd.isSectionStory(doc, editor.sel?.story)
+	const flowCaret = !off && isFlow(doc, editor.sel?.story)
 	const flowTitle = off
 		? needCaret
 		: !flowCaret
@@ -157,6 +163,8 @@ export function Toolbar({
 		() => (st ? Cmd.headingNudge(ctx) !== undefined : false),
 		[st, editor.index]
 	)
+
+	const marksLabel = `${t('Show hidden characters')} (${MARKS_KEY_LABEL})`
 
 	/** Run a command and give the text its focus back. */
 	const act = (fn: () => void) => () => {
@@ -412,6 +420,17 @@ export function Toolbar({
 				/>
 			</Menu>
 			<ToolbarDivider />
+			{onToggleMarks && (
+				<Button
+					variant="ghost"
+					size="sm"
+					icon={<IcParagraph />}
+					pressed={!!marks}
+					aria-label={marksLabel}
+					title={marksLabel}
+					onClick={act(onToggleMarks)}
+				/>
+			)}
 			<Button
 				variant="ghost"
 				size="sm"

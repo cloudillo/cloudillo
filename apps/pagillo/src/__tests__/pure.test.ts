@@ -140,18 +140,14 @@ describe('peer data reaching the layout worker', () => {
 		expect(ps[0].runs).toEqual([{ text: 'x', marks: {} }])
 	})
 
-	it('copies an image float onto its EmbedBlock', () => {
+	it('reads a legacy image float outside a section flow as a plain image block', () => {
 		const img = { fileId: 'f', w: 10, h: 10, alt: '' }
 		const ps = deltaToParagraphs([
 			{ insert: { img: { ...img, float: { side: 'r', w: 0.5 } } } },
-			{ insert: '\n' },
-			{ insert: { img } },
 			{ insert: '\n' }
 		])
-		expect(ps.map((p) => (p.runs as { float?: unknown }).float)).toEqual([
-			{ side: 'r', w: 0.5 },
-			undefined
-		])
+		expect(ps[0].runs).toMatchObject({ k: 'emb', img: { fileId: 'f' } })
+		expect(ps[0].runs).not.toHaveProperty('float')
 	})
 
 	it('does not make an embed block of a malformed emb', () => {

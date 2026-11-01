@@ -161,6 +161,11 @@ export function StatusBar({
 							onChange={(e) => setView({ guides: e.target.checked })}
 						/>
 						<Toggle
+							label={t('Show hidden characters')}
+							checked={view.marks}
+							onChange={(e) => setView({ marks: e.target.checked })}
+						/>
+						<Toggle
 							label={t('Show key hints')}
 							checked={view.keyHints}
 							onChange={(e) => setView({ keyHints: e.target.checked })}

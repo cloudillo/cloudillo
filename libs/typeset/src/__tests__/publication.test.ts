@@ -228,7 +228,7 @@ describe('text chains', () => {
 		pages.find((pg) => pg.page.sec === sec && pg.page.index === index)
 	/** The chain's lines inside frame `f` (baselines within its box). */
 	const linesIn = (pages: PageDL[], f: Frame) =>
-		(page(pages, f.anchor.sec, f.anchor.page)?.lines ?? []).filter(
+		('sec' in f.anchor ? (page(pages, f.anchor.sec, f.anchor.page)?.lines ?? []) : []).filter(
 			(l) => l.story === 'tx-chain' && l.y >= f.y && l.y <= f.y + f.h
 		)
 	const order = (pub: Publication, pages: PageDL[], ids: string[]) =>

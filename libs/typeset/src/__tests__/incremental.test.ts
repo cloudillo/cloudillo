@@ -16,9 +16,9 @@ import {
 	dlJson,
 	EN,
 	field,
-	floatImg,
 	HU,
 	loadPublication,
+	marker,
 	p,
 	PUB_CORPUS,
 	sha256,
@@ -73,8 +73,8 @@ const TEMPLATES: Paragraph[] = [
 	{ ...p('body', EN), overrides: { dropCap: 3 } },
 	{ ...p('h2', 'Spanning heading'), overrides: { spanColumns: true } },
 	p('body', 'Noted', field({ fn: 'n1' }), ` ${EN}`),
-	floatImg('l', 0.5),
-	floatImg('r', 0.333)
+	marker('fl-l'),
+	marker('fl-r')
 ]
 
 /** Stories random patches go to: sections', footnotes', the `f-note` text frame's. */

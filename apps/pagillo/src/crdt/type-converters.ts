@@ -29,6 +29,7 @@ import {
 	FULL_CROP,
 	framesOf,
 	frameOf,
+	isObj,
 	masterOf,
 	mastersOf,
 	sectionOf,
@@ -130,22 +131,141 @@ export function colSpanOf(a: StoredLineAttrs | Record<string, unknown> | undefin
 export const newRowId = (): string => `row-${newBlockId()}`
 export const newCellId = (): string => `cell-${newBlockId()}`
 
+/** An inline image embed's data (`InlineEmbed` `img`). */
+type InlineImg = Extract<InlineEmbed, { img: unknown }>['img']
+
+/** Winning text-anchor marker id → its Y.Text offset; `frame` = synthetic frame of a legacy float. */
+export type MarkerWins = Map<string, { at: number; frame?: StoredFrame }>
+
+/**
+ * Text-anchor markers of one section flow story, resolved by `deltaToParagraphs`: the first `{ frame: id }` marker outside table cells naming a
+ * frame text-anchored to `story` wins; every other marker reads as `{ frame: '' }`.
+ */
+export interface StoryMarks {
+	/** Section story id. */
+	story: string
+	/** `id` is a readable `f` frame whose `anchor.txt` is `story`. */
+	anchored: (id: string) => boolean
+	/** An `f` entry `id` exists, readable or not (a legacy float then synthesises no frame). */
+	has: (id: string) => boolean
+	/** Out: the winners, in story order. */
+	wins: MarkerWins
+}
+
+/** Fresh `StoryMarks` of section story `story` (frames read from `doc.f`). */
+export function storyMarks(doc: YPagilloDocument, story: string): StoryMarks {
+	return {
+		story,
+		anchored: (id) => {
+			const a = id.includes('~') ? undefined : anchorOf(doc.f.get(id))
+			return !!a && 'txt' in a && a.txt === story
+		},
+		has: (id) => doc.f.has(id),
+		wins: new Map()
+	}
+}
+
+/** Winning markers of section story `story` (the editor's anchor glyph positions). */
+export function markerWins(doc: YPagilloDocument, story: string): MarkerWins {
+	const m = storyMarks(doc, story)
+	const t = doc.tx.get(story)
+	if (t instanceof Y.Text) deltaToParagraphs(t.toDelta(), '', m)
+	return m.wins
+}
+
+/** Winners of several stories, one map. */
+export const allWins = (ws: Iterable<MarkerWins>): MarkerWins =>
+	new Map([...ws].flatMap((w) => [...w]))
+
+/**
+ * Deterministic frame id of the `n`th legacy float run (0-based, among the float runs) of
+ * paragraph `bid` in story `storyId`: every migrating peer writes the same `f` key.
+ */
+export const floatFrameId = (storyId: string, bid: string, n: number): string =>
+	`flt-${storyId}-${bid}-${n}`
+
+/** Wrap gap of a migrated float (the old one used half its paragraph's font size). */
+const FLOAT_GAP = ptToFx(5)
+
+/** The `rel: 'text'` frame a legacy `img.float` run in section story `story` becomes. */
+export function floatFrame(
+	story: string,
+	img: InlineImg,
+	float: { side?: unknown; w?: unknown }
+): StoredFrame {
+	const fw = float.w
+	return {
+		t: 'img',
+		anchor: { txt: story, rel: 'text', side: float.side === 'r' ? 'r' : 'l' },
+		x: 0,
+		y: 0,
+		w: img.w,
+		h: img.h,
+		wCol:
+			typeof fw === 'number' && Number.isFinite(fw) && fw > 0
+				? Math.min(1, Math.max(0.1, fw))
+				: 0.5,
+		rot: 0,
+		z: 0,
+		wrap: { mode: 'box', off: FLOAT_GAP },
+		data: { fileId: img.fileId, crop: FULL_CROP, fit: 'contain', alt: img.alt }
+	}
+}
+
 /**
  * Story delta → engine paragraphs. Every `'\n'` ends a paragraph and carries its line attrs.
  * A missing or duplicate `bid` (not yet normalised — readers never normalise) gets a
  * placeholder `~<line index>` so the engine's per-story bid uniqueness always holds. A paragraph
- * holding only an `img` embed becomes an `EmbedBlock` (full column width / centred, or its
- * `float` when set). Consecutive table lines become one `TableBlock` paragraph (bid: its
+ * holding only an `img` embed becomes an `EmbedBlock` (full column width / centred).
+ * Consecutive table lines become one `TableBlock` paragraph (bid: its
  * `table-temporary` line's, else `<first cell bid>~t`) whose cell paragraphs keep their own bids.
+ * `{ frame }` markers resolve per `marks` (absent: every marker is ignored, `{ frame: '' }`); a
+ * legacy `img.float` run becomes the marker `floatFrameId(story, bid, n)` with `floatFrame` as its
+ * synthetic frame (unless an `f` entry of that id exists), or — outside `marks`' top-level
+ * paragraphs — a plain image.
  */
-export function deltaToParagraphs(ops: DeltaOp[], defaultStyle = ''): Paragraph[] {
+export function deltaToParagraphs(
+	ops: DeltaOp[],
+	defaultStyle = '',
+	marks?: StoryMarks
+): Paragraph[] {
 	const out: Paragraph[] = []
 	const seen = new Set<string>()
 	let runs: Run[] = []
+	/** Y.Text offset of each run in `runs`. */
+	let ats: number[] = []
+	let pos = 0
 	/** '\n' index: the bid fallback counts lines, as `paragraphStarts` does. */
 	let line = 0
 	let tbl: { p: Paragraph; blk: TableBlock; row?: string; cell?: string } | undefined
 	const tables: Paragraph[] = []
+
+	/** Resolve a run's marker / legacy float (`at`: its offset; `n()`: next float index). */
+	const resolve = (r: Run, at: number, bid: string, flow: boolean, n: () => number): Run => {
+		const e = r.embed
+		if (!e) return r
+		if ('frame' in e) {
+			const id = e.frame
+			const win =
+				flow &&
+				!!marks &&
+				typeof id === 'string' &&
+				!marks.wins.has(id) &&
+				marks.anchored(id)
+			if (win) marks.wins.set(id, { at })
+			return { ...r, embed: { frame: win ? id : '' } }
+		}
+		if (!('img' in e) || !isObj(e.img)) return r
+		const { float, ...img } = e.img as InlineImg & { float?: unknown }
+		if (!isObj(float)) return r
+		if (!flow || !marks) return { ...r, embed: { img } }
+		const id = floatFrameId(marks.story, bid, n())
+		if (marks.wins.has(id)) return { ...r, embed: { frame: '' } }
+		// An `f` entry of this id: a peer already migrated it (normalize), which never overwrites it.
+		const frame = marks.has(id) ? undefined : floatFrame(marks.story, img, float)
+		marks.wins.set(id, { at, ...(frame ? { frame } : {}) })
+		return { ...r, embed: { frame: id } }
+	}
 
 	const paragraph = (attrs: StoredLineAttrs): Paragraph => {
 		const bid = bidOf(attrs, seen, line++)
@@ -154,17 +274,20 @@ export function deltaToParagraphs(ops: DeltaOp[], defaultStyle = ''): Paragraph[
 			const level = Math.min(8, Math.max(0, attrs.indent ?? 0))
 			overrides.list = { kind: attrs.list, format: '', level }
 		}
+		const flow = !isTableLine(attrs)
+		let n = 0
+		const at = ats
+		runs = runs.map((r, k) => resolve(r, at[k], bid, flow, () => n++))
 		const p: Paragraph = { bid, style: attrs.ps || defaultStyle, overrides, runs }
 		const only = runs.length === 1 ? runs[0].embed : undefined
 		if (only && 'img' in only) {
-			const { fileId, w, h, alt, float } = only.img
+			const { fileId, w, h, alt } = only.img
 			p.runs = {
 				k: 'emb',
 				data: {},
 				img: { fileId, crop: FULL_CROP, fit: 'contain', alt },
 				w,
-				h,
-				...(float ? { float } : {})
+				h
 			}
 		} else if (only && 'emb' in only && only.emb && typeof only.emb === 'object') {
 			// Embed record (`embeds/record.ts`): natural size in CSS px at 96 dpi; peer data.
@@ -180,6 +303,7 @@ export function deltaToParagraphs(ops: DeltaOp[], defaultStyle = ''): Paragraph[
 		}
 		if (attrs.ph) p.placeholder = attrs.ph
 		runs = []
+		ats = []
 		return p
 	}
 
@@ -247,18 +371,24 @@ export function deltaToParagraphs(ops: DeltaOp[], defaultStyle = ''): Paragraph[
 					marks: sanitizeMarks(op.attributes),
 					embed: ins as InlineEmbed
 				})
+				ats.push(pos)
 			}
+			pos++
 			continue
 		}
 		let i = 0
 		for (;;) {
 			const nl = ins.indexOf('\n', i)
 			const end = nl < 0 ? ins.length : nl
-			if (end > i) runs.push({ text: ins.slice(i, end), marks: sanitizeMarks(op.attributes) })
+			if (end > i) {
+				runs.push({ text: ins.slice(i, end), marks: sanitizeMarks(op.attributes) })
+				ats.push(pos + i)
+			}
 			if (nl < 0) break
 			push((op.attributes ?? {}) as StoredLineAttrs)
 			i = nl + 1
 		}
+		pos += ins.length
 	}
 	// Unterminated tail (the normaliser appends the '\n'; until then keep it visible).
 	if (runs.length) push({})
@@ -341,8 +471,14 @@ export function tableCells(ops: DeltaOp[]): Map<string, { row: string; cell: str
 	return out
 }
 
-export function storyToEngine(id: string, text: Y.Text | undefined, defaultStyle = ''): Story {
-	return { id, paragraphs: text ? deltaToParagraphs(text.toDelta(), defaultStyle) : [] }
+/** `marks`: a section flow story's marker resolution (`deltaToParagraphs`). */
+export function storyToEngine(
+	id: string,
+	text: Y.Text | undefined,
+	defaultStyle = '',
+	marks?: StoryMarks
+): Story {
+	return { id, paragraphs: text ? deltaToParagraphs(text.toDelta(), defaultStyle, marks) : [] }
 }
 
 /** Facing-page handling of `m`: non-facing → 'same'; missing → 'different' with variants, else 'mirror'. */
@@ -512,23 +648,26 @@ export function mirroredItemFrames(
  * Engine frames: page frames, the master items some engine master draws (`masterToEngine`:
  * master present; a `side` item only in 'different' mode), plus `mirroredItemFrames`. `~` is
  * reserved for synthesized ids (`newId` never makes one), so a stored id holding it is a peer's
- * forgery and is skipped.
+ * forgery and is skipped. Text-anchored frames only with a winning marker in `wins` (the section
+ * stories' `MarkerWins`), plus the synthetic frames of legacy floats there.
  */
 export function framesToEngine(
 	doc: YPagilloDocument,
-	story: (id: string) => Story
+	story: (id: string) => Story,
+	wins?: MarkerWins
 ): Record<string, Frame> {
 	const out: Record<string, Frame> = {}
 	const chains = textChains(doc)
 	const facing = readMeta(doc.m).facing
 	for (const [id, f] of framesOf(doc)) {
-		if (id.includes('~')) continue
+		if (id.includes('~') || ('txt' in f.anchor && !wins?.has(id))) continue
 		if ('ms' in f.anchor) {
 			const m = masterOf(doc, f.anchor.ms)
 			if (!m || (f.anchor.side && resolveSide(m, facing) !== 'different')) continue
 		}
 		out[id] = frameToEngine(id, f, story, chains.get(id))
 	}
+	for (const [id, w] of wins ?? []) if (w.frame) out[id] = frameToEngine(id, w.frame, story)
 	return Object.assign(out, mirroredItemFrames(doc, story))
 }
 
@@ -586,7 +725,8 @@ const chainsHooked = new WeakSet<Y.Doc>()
 
 function buildTextChains(doc: YPagilloDocument): Map<string, string[]> {
 	const frames = new Map(framesOf(doc))
-	const bad = (id: string) => id.includes('~') || 'ms' in (frames.get(id)?.anchor ?? {})
+	// Master items and text-anchored frames never thread.
+	const bad = (id: string) => id.includes('~') || !('sec' in (frames.get(id)?.anchor ?? {}))
 	const claimed = new Set<string>()
 	const out = new Map<string, string[]>()
 	const heads = [...frames].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
@@ -640,16 +780,31 @@ export function frameToEngine(
 	return { ...f, id, anchor, data }
 }
 
-/** The whole publication as an engine model (worker init; incremental updates use the parts). */
-export function toEnginePublication(doc: YPagilloDocument): Publication {
+/**
+ * The whole publication as an engine model (worker init; incremental updates use the parts).
+ * `marks` (out): section story id → its `MarkerWins`.
+ */
+export function toEnginePublication(
+	doc: YPagilloDocument,
+	marks = new Map<string, MarkerWins>()
+): Publication {
 	const meta = readMeta(doc.m)
 	const story = (id: string) => storyToEngine(id, doc.tx.get(id), meta.styleMap.p)
+	const sections: Section[] = []
+	for (const id of doc.secs.toArray()) {
+		const s = sectionOf(doc, id)
+		if (!s) continue
+		const m = storyMarks(doc, s.story)
+		const st = storyToEngine(s.story, doc.tx.get(s.story), meta.styleMap.p, m)
+		sections.push(sectionToEngine(id, s, st))
+		marks.set(s.story, m.wins)
+	}
 	const pub: Publication = {
 		lang: meta.lang,
 		styles: Object.fromEntries(stylesOf(doc)),
 		masters: {},
-		sections: [],
-		frames: framesToEngine(doc, story),
+		sections,
+		frames: framesToEngine(doc, story, allWins(marks.values())),
 		facing: meta.facing,
 		title: meta.title,
 		exportedAt: meta.exportedAt
@@ -658,10 +813,6 @@ export function toEnginePublication(doc: YPagilloDocument): Publication {
 	const index = masterItemIndex(doc)
 	for (const [id, m] of mastersOf(doc))
 		pub.masters[id] = masterToEngine(id, m, index.get(id), opts)
-	for (const id of doc.secs.toArray()) {
-		const s = sectionOf(doc, id)
-		if (s) pub.sections.push(sectionToEngine(id, s, story(s.story)))
-	}
 	return pub
 }
 

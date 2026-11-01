@@ -11,6 +11,7 @@ import type * as Y from 'yjs'
 
 import {
 	frameOf,
+	flowStories,
 	framesOf,
 	masterOf,
 	mastersOf,
@@ -309,13 +310,18 @@ export function setPageSize(yDoc: Y.Doc, doc: YPagilloDocument, w: number, h: nu
 				...(m.right ? { right: scaleVariant(m.right, sx, sy) } : {})
 			})
 		}
+		const flows = flowStories(doc)
 		for (const [fid, f] of framesOf(doc)) {
 			const a = f.anchor
 			let k: [number, number] | undefined
 			if ('ms' in a) k = ratio.get(a.ms)
-			else {
+			else if ('sec' in a) {
 				const sec = sectionOf(doc, a.sec)
 				k = sec && ratio.get(a.page === 0 ? sec.first : sec.rest)
+			} else {
+				// Text-anchored: the page it lands on is unknown here, so its section's `rest` master.
+				const sec = flows.get(a.txt)
+				k = sec && ratio.get(sec.rest)
 			}
 			if (!k || (k[0] === 1 && k[1] === 1)) continue
 			const [sx, sy] = k

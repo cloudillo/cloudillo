@@ -10,17 +10,24 @@
  */
 
 import { type DocLinkResult, getAppBus, safeHref } from '@cloudillo/core'
+import { FX } from '@cloudillo/typeset'
+import { useToast } from '@cloudillo/react'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import * as Y from 'yjs'
 
 import { newBlockId, stripBlockIds } from '../crdt/block-ids'
 import { deltaOf } from '../crdt/delta-cache'
-import { sectionsOf, styleOf } from '../crdt/entities'
+import { flowStories, frameOf, newFrameMap, readFrame, styleOf } from '../crdt/entities'
+import { newId } from '../crdt/ids'
 import { sanitizeOverrides } from '../crdt/overrides'
 import { copyStory } from '../crdt/story-ops'
 import {
 	LINE_KEYS,
 	MARK_KEYS,
+	type StoredFrame,
+	type StoredImageData,
+	type StoredTextFrameData,
 	type StyleMapKey,
 	TABLE_KEYS,
 	type YPagilloDocument
@@ -31,11 +38,13 @@ import {
 	cellSpan,
 	colSpanOf,
 	type DeltaOp,
+	markerWins,
 	newCellId,
 	newRowId,
 	readMeta,
 	rowOf
 } from '../crdt/type-converters'
+import { clamp } from './frames'
 import { embedTarget } from '../embeds/record'
 import * as C from './caret'
 import type { CommandCtx } from './commands'
@@ -66,7 +75,8 @@ const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFin
 function validEmbed(e: unknown): boolean {
 	if (!isObj(e) || Object.keys(e).length !== 1) return false
 	// `emb` is not pasteable until its record shape is validated here.
-	const { img, fn, field, toc } = e
+	const { img, fn, field, toc, frame } = e
+	if (frame !== undefined) return typeof frame === 'string'
 	if (img !== undefined)
 		return (
 			isObj(img) &&
@@ -403,22 +413,149 @@ export function htmlToDelta(doc: YPagilloDocument, html: string): DeltaOp[] {
 	return ops
 }
 
+/** Untrusted ops: known embeds only, attributes objects only (`pasteDelta` checks the rest). */
+function cleanOps(v: unknown): DeltaOp[] | undefined {
+	if (!Array.isArray(v)) return
+	const ops: DeltaOp[] = []
+	for (const op of v as DeltaOp[]) {
+		const ins = op?.insert
+		if (typeof ins !== 'string' && !validEmbed(ins)) continue
+		const a = isObj(op.attributes) ? op.attributes : undefined
+		ops.push(a ? { insert: ins, attributes: a } : { insert: ins })
+	}
+	return ops
+}
+
 /** Our Delta from the clipboard, validated: known embeds only, known attrs only. */
 export function readDelta(json: string): DeltaOp[] | undefined {
 	try {
-		const v = JSON.parse(json) as { ops?: unknown }
-		if (!Array.isArray(v.ops)) return
-		const ops: DeltaOp[] = []
-		for (const op of v.ops as DeltaOp[]) {
-			const ins = op?.insert
-			if (typeof ins !== 'string' && !validEmbed(ins)) continue
-			const a = isObj(op.attributes) ? op.attributes : undefined
-			ops.push(a ? { insert: ins, attributes: a } : { insert: ins })
-		}
-		return ops
+		return cleanOps((JSON.parse(json) as { ops?: unknown }).ops)
 	} catch {
 		return
 	}
+}
+
+/**
+ * Frame snapshots of the `{ frame }` markers in our Delta JSON (`frames`, keyed by marker id):
+ * the frame as read (`frameOf`) and, for a text box, its story's ops. Untrusted until
+ * `pasteFrame`.
+ */
+export type ClipFrames = Record<string, { f: StoredFrame; text?: DeltaOp[] }>
+
+/** The `frames` of our Delta JSON (unvalidated: `pasteFrame` checks each one it uses). */
+export function readFrames(json: string): ClipFrames | undefined {
+	try {
+		const v = (JSON.parse(json) as { frames?: unknown }).frames
+		return isObj(v) ? (v as ClipFrames) : undefined
+	} catch {
+		return
+	}
+}
+
+/** Frames one paste may create (the engine wraps around at most WRAP_FRAMES_MAX = 256 per page). */
+// Pasted text ops are uncapped, as plain / rich text paste is everywhere else.
+const MAX_PASTE_FRAMES = 256
+/** Largest pasted frame offset / size: 14400 pt, PDF's maximum page side. */
+const PASTE_GEOM_MAX = 14400 * FX
+
+/** Snapshots of the frames whose winning markers lie in `[from, to)` of `story`. */
+export function copyFrames(
+	doc: YPagilloDocument,
+	story: string,
+	from: number,
+	to: number
+): ClipFrames | undefined {
+	const out: ClipFrames = {}
+	for (const [id, w] of markerWins(doc, story)) {
+		const f = !w.frame && w.at >= from && w.at < to ? frameOf(doc, id) : undefined
+		if (!f) continue
+		const st = f.t === 'txt' ? (f.data as StoredTextFrameData).story : undefined
+		const t = st ? doc.tx.get(st) : undefined
+		out[id] = t ? { f, text: stripBlockIds(deltaOf(t)) } : { f }
+	}
+	return Object.keys(out).length ? out : undefined
+}
+
+const FITS = new Set(['fill', 'contain', 'cover'])
+
+/**
+ * Only the `data` keys frame type `t` declares (`stored-types.ts`): sizes clamped to
+ * [0, PASTE_GEOM_MAX], colours kept when strings of at most 64 characters. `crop`/`px` come
+ * validated by `readFrame`; a text frame's `story` is replaced by the caller. `fileId` ≤ 256 and
+ * `alt` ≤ 2000 characters (a longer `alt` is cleared).
+ */
+function pasteData(t: StoredFrame['t'], d: Record<string, unknown>): StoredFrame['data'] {
+	const out: Record<string, unknown> = {}
+	const str = (k: string, max = Number.POSITIVE_INFINITY) => {
+		const v = d[k]
+		if (typeof v === 'string' && v.length <= max) out[k] = v
+	}
+	const size = (k: string) => {
+		const v = d[k]
+		if (typeof v === 'number' && Number.isFinite(v)) out[k] = clamp(v, 0, PASTE_GEOM_MAX)
+	}
+	if (t === 'img') {
+		str('fileId', 256)
+		out.crop = d.crop
+		if (d.px) out.px = d.px
+		out.fit = typeof d.fit === 'string' && FITS.has(d.fit) ? d.fit : 'contain'
+		out.alt = typeof d.alt === 'string' && d.alt.length <= 2000 ? d.alt : ''
+		if (d.deco === true) out.deco = true
+		return out
+	}
+	str('fill', 64)
+	str('stroke', 64)
+	size('strokeW')
+	if (t === 'txt') size('inset')
+	if (t === 'shp') out.kind = d.kind === 'ellipse' ? 'ellipse' : 'rect'
+	return out as StoredFrame['data']
+}
+
+/**
+ * Clone clipboard snapshot `c` as a new frame text-anchored to section story `story`; its fresh
+ * id, or `undefined` when invalid (`emb` frames and `img` frames without a `fileId` are refused,
+ * as `emb` embeds are). A text box gets a new story holding its pasted text. Inside the caller's
+ * transaction.
+ */
+function pasteFrame(doc: YPagilloDocument, c: unknown, story: string): string | undefined {
+	if (!isObj(c) || !isObj(c.f)) return
+	let f: StoredFrame | undefined
+	try {
+		// Validate by the reader: write the snapshot into a scratch map and read it back.
+		const m = new Y.Doc().getMap<unknown>('f')
+		m.set('x', newFrameMap(c.f as unknown as StoredFrame))
+		f = readFrame(m.get('x'))
+	} catch {
+		return
+	}
+	if (!f || f.t === 'emb' || !('txt' in f.anchor)) return
+	const g = (v: number, lo: number) => clamp(v, lo, PASTE_GEOM_MAX)
+	const w = g(f.w, FX)
+	const h = g(f.h, FX)
+	f = {
+		...f,
+		x: g(f.x, 0),
+		y: g(f.y, 0),
+		w,
+		h,
+		...(f.wCol === undefined ? {} : { wCol: clamp(f.wCol, 0.05, 1) }),
+		rot: clamp(f.rot, -180, 180),
+		z: clamp(Math.round(f.z), -1e6, 1e6),
+		wrap: { ...f.wrap, off: clamp(f.wrap.off, 0, Math.max(w, h)) },
+		data: pasteData(f.t, f.data as Record<string, unknown>)
+	}
+	let data = f.data
+	if (f.t === 'img' && !(data as StoredImageData).fileId) return
+	if (f.t === 'txt') {
+		const sid = newId()
+		doc.tx.set(sid, new Y.Text())
+		const body = doc.tx.get(sid)
+		if (body) pasteDelta(doc, body, 0, cleanOps(c.text) ?? [])
+		data = { ...(f.data as StoredTextFrameData), story: sid, chain: undefined }
+	}
+	const id = newId()
+	doc.f.set(id, newFrameMap({ ...f, anchor: { ...f.anchor, txt: story }, data }))
+	return id
 }
 
 /**
@@ -429,8 +566,18 @@ export function readDelta(json: string): DeltaOp[] | undefined {
  * footnotes pasted into a section story's top-level text, where refs render; links are
  * re-checked. Table lines get fresh row / cell ids (quillo's `normalizeTablePasteDelta`),
  * `table-col` lines are dropped, and inside a cell every pasted line joins that cell.
+ * A `{ frame }` marker is kept the same way, with its `frames` snapshot cloned under a fresh id
+ * (`pasteFrame`; each snapshot once per paste, so no duplicate marker); otherwise dropped, and
+ * a dropped one that had a snapshot counts in `dropped.n`.
  */
-export function pasteDelta(doc: YPagilloDocument, t: Y.Text, at: number, ops: DeltaOp[]): number {
+export function pasteDelta(
+	doc: YPagilloDocument,
+	t: Y.Text,
+	at: number,
+	ops: DeltaOp[],
+	frames?: ClipFrames,
+	dropped?: { n: number }
+): number {
 	const out: DeltaOp[] = []
 	const target = paragraphEnd(t, at)?.attrs
 	const into = cellOf(target)
@@ -476,7 +623,10 @@ export function pasteDelta(doc: YPagilloDocument, t: Y.Text, at: number, ops: De
 			[th ? 'table-th-block' : 'table-cell-block']: id
 		}
 	}
-	const notesOk = !into && sectionsOf(doc).some(([, s]) => doc.tx.get(s.story) === t)
+	/** The section story pasted into (top-level text only), where refs and markers render. */
+	const flow = into ? undefined : [...flowStories(doc).keys()].find((st) => doc.tx.get(st) === t)
+	const notesOk = !!flow
+	const cloned = new Set<string>()
 	const src = stripBlockIds(ops)
 	/** Per op: its line (ended by the next `'\n'`) is a table line. */
 	const cellLine: boolean[] = []
@@ -505,6 +655,18 @@ export function pasteDelta(doc: YPagilloDocument, t: Y.Text, at: number, ops: De
 					continue
 				// A pasted ref gets its own body: two refs to one story would share the note.
 				e = { ...e, fn: copyStory(doc, e.fn, false) }
+			}
+			if (typeof e.frame === 'string') {
+				const old = e.frame
+				const snap = !!frames && Object.hasOwn(frames, old) && !cloned.has(old)
+				const ok = snap && flow && !cellLine[i] && cloned.size < MAX_PASTE_FRAMES
+				const id = ok ? pasteFrame(doc, frames[old], flow) : undefined
+				if (!id) {
+					if (snap && dropped) dropped.n++
+					continue
+				}
+				cloned.add(old)
+				e = { frame: id }
 			}
 			out.push({ insert: e, attributes: { ...marks, ...NO_LINE } })
 			pos++
@@ -557,6 +719,10 @@ export interface ClipboardEmbeds {
  * Cut/paste go through `editor.run`, which refuses readers and `readOnlyReason` itself.
  */
 export function useClipboard(ctx: CommandCtx, embeds?: ClipboardEmbeds): void {
+	const { t } = useTranslation()
+	const toast = useToast()
+	const ui = React.useRef({ t, toast })
+	ui.current = { t, toast }
 	const cur = React.useRef(ctx)
 	cur.current = ctx
 	const emb = React.useRef(embeds)
@@ -582,10 +748,16 @@ export function useClipboard(ctx: CommandCtx, embeds?: ClipboardEmbeds): void {
 			if (!ours(e) || !s || s.anchor === s.head || !e.clipboardData) return
 			const t = doc.tx.get(s.story)
 			if (!t) return
-			const ops = stripBlockIds(sliceDelta(deltaOf(t), C.selFrom(s), C.selTo(s)))
+			const from = C.selFrom(s)
+			const to = C.selTo(s)
+			const ops = stripBlockIds(sliceDelta(deltaOf(t), from, to))
+			// `{ v, ops, frames? }`: frames carry the anchored frames' snapshots (`ClipFrames`).
+			const frames = ops.some((op) => isObj(op.insert) && 'frame' in op.insert)
+				? copyFrames(doc, s.story, from, to)
+				: undefined
 			e.clipboardData.setData('text/plain', deltaToPlain(ops))
 			e.clipboardData.setData('text/html', deltaToHtml(doc, ops))
-			e.clipboardData.setData(DELTA_MIME, JSON.stringify({ v: 1, ops }))
+			e.clipboardData.setData(DELTA_MIME, JSON.stringify({ v: 1, ops, frames }))
 			e.preventDefault()
 			if (e.type === 'cut') {
 				editor.run((tx, from, to) => {
@@ -618,14 +790,20 @@ export function useClipboard(ctx: CommandCtx, embeds?: ClipboardEmbeds): void {
 			e.preventDefault()
 			const json = data.getData(DELTA_MIME)
 			let ops = json ? readDelta(json) : undefined
+			const frames = json ? readFrames(json) : undefined
 			const html = ops?.length ? '' : data.getData('text/html')
 			if (html) ops = htmlToDelta(doc, html)
 			const plain = data.getData('text/plain').replace(/\r\n?/g, '\n')
 			if (!ops?.length && !plain) return
+			const dropped = { n: 0 }
 			editor.run((t, from, to) => {
 				deleteRange(t, from, to)
-				return ops?.length ? pasteDelta(doc, t, from, ops) : insertText(t, from, plain)
+				return ops?.length
+					? pasteDelta(doc, t, from, ops, frames, dropped)
+					: insertText(t, from, plain)
 			})
+			if (dropped.n > 0)
+				ui.current.toast.warning(ui.current.t('Some anchored objects could not be pasted.'))
 		}
 		document.addEventListener('copy', copy)
 		document.addEventListener('cut', copy)

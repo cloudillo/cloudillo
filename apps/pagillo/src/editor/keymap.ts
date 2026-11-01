@@ -8,6 +8,8 @@ import * as Cmd from './commands'
 import type { Undo } from './undo'
 
 export const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform)
+/** The undo shortcut's label. */
+export const UNDO_KEY = IS_MAC ? '⌘Z' : 'Ctrl+Z'
 
 /** Mod+Z → undo; Shift+Mod+Z, or Ctrl+Y off Mac → redo. */
 export function undoRedoKey(e: KeyboardEvent): 'undo' | 'redo' | undefined {
@@ -16,6 +18,11 @@ export function undoRedoKey(e: KeyboardEvent): 'undo' | 'redo' | undefined {
 	if (k === 'z') return e.shiftKey ? 'redo' : 'undo'
 	if (k === 'y' && !IS_MAC) return 'redo'
 }
+
+/** Mod+Shift+8: toggle hidden characters. */
+export const isMarksKey = (e: KeyboardEvent): boolean =>
+	(IS_MAC ? e.metaKey : e.ctrlKey) && e.shiftKey && !e.altKey && e.code === 'Digit8'
+export const MARKS_KEY_LABEL = IS_MAC ? '⌘⇧8' : 'Ctrl+Shift+8'
 
 export interface KeymapCtx extends Cmd.CommandCtx {
 	undo: Undo

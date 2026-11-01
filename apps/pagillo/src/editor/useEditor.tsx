@@ -355,14 +355,14 @@ export function useEditor({
 		}
 		if (e.button !== 0) return
 		// Only in or within 8 screen px of a text area / text box; elsewhere deselects.
-		const pg = layout.pages.get(keys[hit.index])?.page
+		const dl = layout.pages.get(keys[hit.index])
 		const h = hitText(
 			index,
 			hit.index,
 			hit.x,
 			hit.y,
 			undefined,
-			pg && textAreas(doc, pg),
+			dl?.page && textAreas(doc, dl.page, dl.anchored),
 			(8 / (hit.scale ?? 1)) * FX
 		)
 		if (!h) {
@@ -400,14 +400,14 @@ export function useEditor({
 	}
 
 	const contextMenu = (hit: PageHit): boolean => {
-		const pg = layout.pages.get(keys[hit.index])?.page
+		const dl = layout.pages.get(keys[hit.index])
 		const h = hitText(
 			index,
 			hit.index,
 			hit.x,
 			hit.y,
 			undefined,
-			pg && textAreas(doc, pg),
+			dl?.page && textAreas(doc, dl.page, dl.anchored),
 			(8 / (hit.scale ?? 1)) * FX
 		)
 		if (!h) return false

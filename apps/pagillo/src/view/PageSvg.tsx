@@ -29,20 +29,29 @@ export interface EmptyImage {
 	rot: number
 }
 
-/** Empty page-anchored image frames by `pageKey`; master items are not drawn. */
-export function useEmptyImages(doc: YPagilloDocument | undefined): Map<string, EmptyImage[]> {
+/**
+ * Empty image frames by `pageKey`: page-anchored ones at their stored box, text-anchored ones at
+ * their laid-out box (`PageDL.anchored` of `pages`); master items are not drawn.
+ */
+export function useEmptyImages(
+	doc: YPagilloDocument | undefined,
+	pages?: Map<string, PageDL>
+): Map<string, EmptyImage[]> {
 	const read = React.useCallback(() => {
-		const out = new Map<string, EmptyImage[]>()
-		if (!doc) return out
+		const byPage = new Map<string, EmptyImage[]>()
+		/** Empty text-anchored image frame ids. */
+		const txt = new Set<string>()
+		if (!doc) return { byPage, txt }
 		for (const [id, f] of framesOf(doc)) {
-			if (f.t !== 'img' || !('sec' in f.anchor) || (f.data as { fileId?: string }).fileId)
-				continue
+			if (f.t !== 'img' || (f.data as { fileId?: string }).fileId) continue
+			if ('txt' in f.anchor) txt.add(id)
+			if (!('sec' in f.anchor)) continue
 			const key = pageKey(f.anchor.sec, f.anchor.page)
-			const list = out.get(key) ?? []
+			const list = byPage.get(key) ?? []
 			list.push({ id, x: f.x, y: f.y, w: f.w, h: f.h, rot: f.rot })
-			out.set(key, list)
+			byPage.set(key, list)
 		}
-		return out
+		return { byPage, txt }
 	}, [doc])
 	const [frames, setFrames] = React.useState(read)
 	React.useEffect(() => {
@@ -56,7 +65,16 @@ export function useEmptyImages(doc: YPagilloDocument | undefined): Map<string, E
 			doc.ms.unobserveDeep(update)
 		}
 	}, [doc, read])
-	return frames
+	return React.useMemo(() => {
+		const { byPage, txt } = frames
+		if (!txt.size || !pages) return byPage
+		const out = new Map(byPage)
+		for (const [key, pg] of pages) {
+			const add = pg.anchored?.filter((a) => txt.has(a.id))
+			if (add?.length) out.set(key, [...(out.get(key) ?? []), ...add])
+		}
+		return out
+	}, [frames, pages])
 }
 
 export interface ImageSource {

@@ -30,6 +30,8 @@ import type * as Y from 'yjs'
 import { FULL_CROP, frameOf, framesOf, sectionOf } from '../crdt/entities'
 import {
 	addFrame,
+	anchorFrame,
+	anchorMarker,
 	canLinkTarget,
 	chainOf,
 	deleteFrame,
@@ -65,17 +67,18 @@ import {
 	REFLOW_NOTICE
 } from '../embeds/record'
 import { type EmbedRenders, embedRecordOf } from '../embeds/useEmbedRenders'
-import { IcAnchor } from '../icons.js'
+import { IcAnchor, IcAnchorPage } from '../icons.js'
 import type { LayoutState } from '../layout/useLayout'
 import { flattenPages, type PageHit, scrollToPage } from '../view/PageList'
 import { type ImageSource, useImageAspect } from '../view/PageSvg'
 import { PageRulers, type RulerIndents } from '../view/Ruler'
-import { lineAt, selFrom, selTo, storyText } from './caret'
+import { type CaretBox, caretBox, lineAt, selFrom, selTo, storyText } from './caret'
 import * as Cmd from './commands'
 import {
 	type Box,
 	boxOf,
 	clamp,
+	columnAt,
 	containsPoint,
 	flowRegions,
 	gridLines,
@@ -86,8 +89,10 @@ import {
 	moveDrop,
 	type PageInfo,
 	type PageItem,
+	pageCoords,
 	pageItems,
 	pageMaster,
+	positionOf,
 	reachBoxes,
 	readingOrder,
 	rotArcRadius,
@@ -97,10 +102,12 @@ import {
 	sameBox,
 	snapAt,
 	snapBox,
-	snapTargets
+	snapTargets,
+	textSide
 } from './frames'
-import { hitFrame, nearArea, textAreas } from './hit-test'
-import { IS_MAC } from './keymap'
+import { hitFrame, hitText, nearArea, textAreas } from './hit-test'
+import { IS_MAC, UNDO_KEY } from './keymap'
+import { AnchorGlyph } from './MarksOverlay'
 import { breakBefore, deleteRange } from './text-edit'
 import type { Editor } from './useEditor'
 
@@ -112,7 +119,8 @@ const DEFAULT_PREFS: ViewPrefs = {
 	snap: true,
 	keyHints: true,
 	guides: true,
-	spell: true
+	spell: true,
+	marks: false
 }
 /** Resize handles: id, x and y fraction of the box. */
 const HANDLES: [ResizeHandle, number, number][] = [
@@ -142,6 +150,8 @@ export interface ViewPrefs {
 	guides: boolean
 	/** Spell-check squiggles and suggestions. */
 	spell: boolean
+	/** Show hidden characters (`MarksOverlay`). */
+	marks: boolean
 }
 
 type Drag =
@@ -171,6 +181,8 @@ type Drag =
 			region?: Box
 	  }
 	| { k: 'marquee'; page: number; x0: number; y0: number; moved: boolean }
+	/** Dragging the anchor glyph of text-anchored frame `id`: re-anchors on drop. */
+	| { k: 'anchor'; page: number; id: string }
 	/** Link mode: drawing a new follower text box on empty page space. */
 	| { k: 'link'; page: number; x0: number; y0: number; moved: boolean }
 	/** Crop mode: pan (no `corner`) or zoom from a ghost corner; frame-local Fx. */
@@ -250,7 +262,15 @@ interface Live {
 	move?: boolean
 	/** Page key of the Pages-rail thumbnail a move drag hovers (drop target). */
 	rail?: string
+	/** An anchor glyph drag: the marker's drop offset and its caret on `page`. */
+	anchorAt?: CaretBox & { at: number }
 }
+
+/**
+ * Position modes: an image paragraph, text-anchored "Moves with text" / "On the
+ * anchor's page", and "On this page" (`{ sec, page }`).
+ */
+export type FramePosition = 'inline' | 'text' | 'page' | 'fixed'
 
 export interface UseFramesOptions {
 	yDoc: Y.Doc
@@ -297,8 +317,13 @@ export interface FrameCtl {
 	insertTextBox(): void
 	/** Choose / replace the image of an `img` frame. */
 	pick(id: string): Promise<void>
-	toInline(id: string): void
-	toFrame(story: string, offset: number): void
+	/** The inline image at `offset` becomes a frame in `mode` (default "On this page"). */
+	toFrame(story: string, offset: number, mode?: Exclude<FramePosition, 'inline'>): void
+	/**
+	 * Switch frame `id` to position `mode`, kept where it is painted (a new marker goes to the
+	 * paragraph at its top; "Moves with text" starts at its marker line, nearer column side).
+	 */
+	setPosition(id: string, mode: FramePosition): void
 	sizeToImage(id: string): void
 	remove(): void
 	view: ViewPrefs
@@ -353,6 +378,7 @@ export interface FrameCtl {
 
 /** Link refusal hints (English keys, translated at use). */
 export const LINK_REFUSALS: Record<LinkRefusal, string> = {
+	anchored: "Text boxes that move with text can't be linked",
 	hasText: 'This text box has its own text · empty it first',
 	inThread: 'Already part of a thread',
 	layoutItem: "Layout items can't be linked",
@@ -491,9 +517,13 @@ export function useFrames({
 		const p = pages[i]
 		return p && layout.pages.get(p.key)?.page
 	}
+	const anchoredOf = (i: number) => {
+		const p = pages[i]
+		return p && layout.pages.get(p.key)?.anchored
+	}
 	const items = (i: number): PageItem[] => {
-		const pg = info(i)
-		return pg && canEdit ? pageItems(doc, pg, layoutEdit) : []
+		const dl = pages[i] && layout.pages.get(pages[i].key)
+		return dl?.page && canEdit ? pageItems(doc, dl.page, layoutEdit, dl.anchored) : []
 	}
 	/** Inline image items of page `i` (DL `image`/`embed` whose tag carries a paragraph bid). */
 	const inlineImages = (i: number): { bid: string; box: Box }[] => {
@@ -536,7 +566,7 @@ export function useFrames({
 		const page = f
 			? sel?.ids.includes(id)
 				? sel.page
-				: pageOfFrame(f)
+				: pageOf(id)
 			: pages.findIndex((_, i) => inlineImages(i).some((m) => m.bid === id))
 		if (page < 0) return false
 		if (f) select({ ids: [id], page })
@@ -616,7 +646,7 @@ export function useFrames({
 		const f = frameOf(doc, id)
 		const d = f?.t === 'img' ? (f.data as StoredImageData) : undefined
 		if (!f || !d?.fileId || locked?.has(id)) return
-		const page = sel?.ids.includes(id) ? sel.page : pageOfFrame(f)
+		const page = sel?.ids.includes(id) ? sel.page : pageOf(id)
 		if (page < 0) return
 		select({ ids: [id], page })
 		setCrop({ id, page, c: d.crop ?? FULL_CROP })
@@ -635,15 +665,16 @@ export function useFrames({
 			updateFrame(yDoc, doc, crop.id, { data: { crop: c } })
 	}
 
-	/** Global page index of a page frame's anchor (-1 for master items / not laid out). */
-	const pageOfFrame = (f: StoredFrame): number => {
-		const a = f.anchor
-		return 'sec' in a ? pages.findIndex((p) => p.sec === a.sec && p.index === a.page) : -1
-	}
-
+	/**
+	 * Global page index of a frame: its anchor page, or where a text-anchored one is painted
+	 * (-1 for master items / not laid out).
+	 */
 	const pageOf = (id: string): number => {
-		const f = frameOf(doc, id)
-		return f ? pageOfFrame(f) : -1
+		const a = frameOf(doc, id)?.anchor
+		if (a && 'sec' in a) return pages.findIndex((p) => p.sec === a.sec && p.index === a.page)
+		return a && 'txt' in a
+			? pages.findIndex((p) => layout.pages.get(p.key)?.anchored?.some((x) => x.id === id))
+			: -1
 	}
 
 	/** Page frames (not regions / master items): kept reachable, may move between pages. */
@@ -652,9 +683,15 @@ export function useFrames({
 		return !!f && 'sec' in f.anchor
 	}
 
-	/** Unlocked page frames: may move between pages. */
+	/** "On the anchor's page" frame: dropped on another page it becomes "On this page". */
+	const onAnchorPage = (id: string) => {
+		const a = frameOf(doc, id)?.anchor
+		return !!a && 'txt' in a && a.rel === 'page'
+	}
+
+	/** Unlocked page (or "On the anchor's page") frames: may move between pages. */
 	const canRelocate = (ids: Iterable<string>) =>
-		[...ids].every((id) => isPageFrame(id) && !locked?.has(id))
+		[...ids].every((id) => (isPageFrame(id) || onAnchorPage(id)) && !locked?.has(id))
 
 	/** The selection is all unlocked page frames: it may move to another page. */
 	const movable = !!sel && canEdit && !layoutEdit && canRelocate(sel.ids)
@@ -666,24 +703,31 @@ export function useFrames({
 		if (!p || !info(to) || !canRelocate(boxes.keys())) return
 		if (crop) endCrop()
 		const anchor = { sec: p.sec, page: p.index }
+		let fixed = false
 		yDoc.transact(() => {
 			for (const [id, b] of boxes) {
-				const { x, y, w, h, rot } = round(b)
-				updateFrame(yDoc, doc, id, { anchor, x, y, w, h, rot })
+				if (isPageFrame(id)) updateFrame(yDoc, doc, id, { anchor, ...round(b) })
+				// "On the anchor's page" converts; its marker goes in the same undo step.
+				else fixed = anchorFrame(yDoc, doc, id, anchor, round(b)) || fixed
 			}
 		}, yDoc.clientID)
 		select({ ids: [...boxes.keys()], page: to })
+		if (fixed)
+			toast.info(
+				t('Now fixed to page {{n}} · {{key}} to undo', {
+					n: to + 1,
+					key: UNDO_KEY
+				})
+			)
 	}
 
 	const moveToPage = (target: number) => {
 		const p = pages[target]
 		const pg = info(target)
 		if (!sel || !movable || target === pageOf(sel.ids[0]) || !p || !pg) return
+		// Painted boxes: a text-anchored frame's stored geometry is not in page coordinates.
 		const all = new Map<string, Box>()
-		for (const id of sel.ids) {
-			const f = frameOf(doc, id)
-			if (f) all.set(id, boxOf(f))
-		}
+		for (const it of items(sel.page)) if (sel.ids.includes(it.id)) all.set(it.id, boxOf(it))
 		relocate(
 			reachBoxes(all, pg, () => true),
 			target
@@ -804,7 +848,25 @@ export function useFrames({
 				const b = round(raw)
 				const it = its.find((x) => x.id === id)
 				if (it?.kind === 'region') regs.set(id, b)
-				else if (it) {
+				else if (it?.frame && 'txt' in it.frame.anchor) {
+					const a = it.frame.anchor
+					const resized = b.w !== Math.round(it.w) || b.h !== Math.round(it.h)
+					// On the anchor's page: right-hand-page coordinates.
+					if (a.rel === 'page') anchorFrame(yDoc, doc, id, a, pageCoords(pg, b))
+					else {
+						// Moves with text: nearer side of its column; y below the marker line, ≥ 0.
+						const col = columnAt(doc, pg, it.x + it.w / 2, it.y + it.h / 2)
+						const { side, x } = textSide(pg, b, col)
+						const y = Math.max(0, Math.round(it.frame.y + b.y - it.y))
+						anchorFrame(
+							yDoc,
+							doc,
+							id,
+							{ ...a, side },
+							{ ...b, x, y, ...(resized ? { wCol: undefined } : {}) }
+						)
+					}
+				} else if (it) {
 					const s = it.master && mirrored ? mirrorFrame(b, pg.w) : b
 					updateFrame(yDoc, doc, id, { x: s.x, y: s.y, w: s.w, h: s.h, rot: s.rot })
 				}
@@ -1031,21 +1093,34 @@ export function useFrames({
 		} else select({ ids: [id], page })
 	}
 
-	const toInline = (id: string) => {
-		const f = frameOf(doc, id)
-		const story = f && 'sec' in f.anchor ? sectionOf(doc, f.anchor.sec)?.story : undefined
-		const tx = story && doc.tx.get(story)
-		const page = f ? pageOfFrame(f) : -1
-		if (!f || !story || !tx) return
-		// The paragraph whose first line sits at or below the frame's top on its page.
+	/** Start offset of the paragraph whose first line on global page `page` is at or below `y`. */
+	const paraAt = (story: string, page: number, y: number): number => {
+		const tx = doc.tx.get(story)
+		const txt = tx ? storyText(tx) : ''
 		const lines = (editor.index.pages.get(page) ?? []).filter((l) => l.line.story === story)
-		const pl = lines.find((l) => l.line.y >= f.y) ?? lines[lines.length - 1]
-		const txt = storyText(tx)
-		const at = pl ? txt.lastIndexOf('\n', pl.from - 1) + 1 : txt.length - 1
-		if (frameToInline(yDoc, doc, id, story, Math.max(0, at))) setSel(undefined)
+		const pl = lines.find((l) => l.line.y >= y) ?? lines[lines.length - 1]
+		const at = pl ? (pl.from ? txt.lastIndexOf('\n', pl.from - 1) + 1 : 0) : txt.length - 1
+		return Math.max(0, at)
 	}
 
-	const toFrame = (story: string, offset: number) => {
+	const toInline = (id: string) => {
+		const f = frameOf(doc, id)
+		// Text-anchored: at its marker's paragraph; a page frame: the paragraph at its top.
+		const m = anchorMarker(doc, id)
+		const story = f && 'sec' in f.anchor ? sectionOf(doc, f.anchor.sec)?.story : m?.story
+		const tx = story && doc.tx.get(story)
+		if (!f || !story || !tx) return
+		const at = m
+			? m.at && storyText(tx).lastIndexOf('\n', m.at - 1) + 1
+			: paraAt(story, pageOf(id), f.y)
+		if (frameToInline(yDoc, doc, id, story, at)) setSel(undefined)
+	}
+
+	const toFrame = (
+		story: string,
+		offset: number,
+		mode: Exclude<FramePosition, 'inline'> = 'fixed'
+	) => {
 		const tx = doc.tx.get(story)
 		const img = tx && embedImgAt(tx, offset)
 		if (!img) return
@@ -1059,19 +1134,39 @@ export function useFrames({
 		const w = Math.min(img.w, mb.w)
 		const h = (img.h * w) / Math.max(1, img.w)
 		const y = pl ? pl.line.y + pl.line.descent : mb.y
-		const id = inlineToFrame(yDoc, doc, story, offset, {
-			anchor: { sec: pg.sec, page: pg.index },
-			...round({
-				x: mb.x + (mb.w - w) / 2,
-				y: Math.max(0, Math.min(y, pg.h - h)),
-				w,
-				h,
-				rot: 0
-			})
+		const b = round({
+			x: mb.x + (mb.w - w) / 2,
+			y: Math.max(0, Math.min(y, pg.h - h)),
+			w,
+			h,
+			rot: 0
 		})
+		// Moves with text: at the column side, right below the marker's line.
+		const { anchor, geo } = positionOf(mode, story, pg, b, { side: 'l', x: 0 })
+		const id = inlineToFrame(yDoc, doc, story, offset, { anchor, ...geo })
 		if (!id) return
 		select({ ids: [id], page })
 		if (page !== current) scrollToPage(pages[page].key)
+	}
+
+	const setPosition = (id: string, mode: FramePosition) => {
+		if (mode === 'inline') return toInline(id)
+		const f = frameOf(doc, id)
+		const page = pageOf(id)
+		const p = pages[page]
+		const pg = info(page)
+		const it = items(page).find((x) => x.id === id)
+		if (!f || !p || !pg || !it || 'ms' in f.anchor || locked?.has(id)) return
+		const b = round(boxOf(it))
+		const a = f.anchor
+		const story = 'txt' in a ? a.txt : sectionOf(doc, p.sec)?.story
+		if (!story) return
+		// Entering text anchoring: a new marker at the paragraph at the frame's top.
+		const at = 'txt' in a ? undefined : paraAt(story, page, b.y)
+		const ts = textSide(pg, b, columnAt(doc, pg, b.x + b.w / 2, b.y + b.h / 2))
+		const { anchor, geo } = positionOf(mode, story, pg, b, ts)
+		const ok = anchorFrame(yDoc, doc, id, anchor, geo, at)
+		if (ok) select({ ids: [id], page })
 	}
 
 	const sizeToImage = (id: string) => {
@@ -1100,7 +1195,7 @@ export function useFrames({
 		const story = editor.sel.story
 		for (const [id, f] of framesOf(doc)) {
 			if (f.t !== 'txt' || (f.data as StoredTextFrameData).story !== story) continue
-			const page = pageOfFrame(f)
+			const page = pageOf(id)
 			if (page < 0) return false
 			select({ ids: [id], page })
 			return true
@@ -1219,6 +1314,14 @@ export function useFrames({
 				} else endLink()
 				return
 			}
+			// The selected frame's anchor glyph: dragging it re-anchors (moves the marker).
+			const anc = (e.target as Element)
+				.closest?.('[data-anchor]')
+				?.getAttribute('data-anchor')
+			if (anc) {
+				drag.current = { k: 'anchor', page: hit.index, id: anc }
+				return
+			}
 			const one =
 				sel?.ids.length === 1 && sel.page === hit.index
 					? its.find((it) => it.id === sel.ids[0])
@@ -1327,7 +1430,15 @@ export function useFrames({
 				return
 			}
 			// Only a move of page frames follows the pointer to another page (below).
-			if (hit.index !== d.page && d.k !== 'move') return
+			if (hit.index !== d.page && d.k !== 'move' && d.k !== 'anchor') return
+			if (d.k === 'anchor') {
+				// Same story only: the marker stays in its section flow.
+				const m = anchorMarker(doc, d.id)
+				const h = m && hitText(editor.index, hit.index, hit.x, hit.y, m.story)
+				const c = m && h && caretBox(editor.index.stories.get(m.story) ?? [], h.offset)
+				if (h && c) show({ page: c.page, anchorAt: { ...c, at: h.offset } })
+				return
+			}
 			if (d.k === 'crop') {
 				const p = toLocal(d.b, hit.x, hit.y)
 				setCrop((s) => s && { ...s, c: cropDrag(d, p.x, p.y) })
@@ -1373,8 +1484,18 @@ export function useFrames({
 				if (!d.moved && to === d.page && Math.hypot(dx, dy) < thr) return
 				d.moved = true
 				d.target = pages[to].key
+				// Moves with text never goes above its marker line (`geo.y` ≥ 0).
+				const top = (id: string, b: Box) => {
+					const f = frameOf(doc, id)
+					return f && 'txt' in f.anchor && f.anchor.rel === 'text' ? b.y - f.y : -Infinity
+				}
 				const shift = (ox: number, oy: number) =>
-					new Map([...d.start].map(([id, b]) => [id, { ...b, x: b.x + ox, y: b.y + oy }]))
+					new Map(
+						[...d.start].map(([id, b]) => [
+							id,
+							{ ...b, x: b.x + ox, y: Math.max(top(id, b), b.y + oy) }
+						])
+					)
 				let lines: SnapLine[] = []
 				const pg = info(to)
 				if (view.snap && !e.altKey && pg) {
@@ -1492,6 +1613,15 @@ export function useFrames({
 		}
 		// The crop is live in `crop`; it commits on leaving crop mode.
 		if (d.k === 'crop') return
+		if (d.k === 'anchor') {
+			const a = frameOf(doc, d.id)?.anchor
+			const m = anchorMarker(doc, d.id)
+			const at = l?.anchorAt?.at
+			// A drop beside the marker (either side of it) leaves it where it is.
+			if (a && 'txt' in a && m && at !== undefined && at !== m.at && at !== m.at + 1)
+				anchorFrame(yDoc, doc, d.id, a, {}, at)
+			return
+		}
 		if (d.k === 'move') {
 			const r = moveDrop({ ...d, rail: l?.rail }, pages)
 			// Rail drop: same x/y + shift on that page.
@@ -1591,7 +1721,7 @@ export function useFrames({
 							: 'default'
 						: pg &&
 								nearArea(
-									textAreas(doc, pg),
+									textAreas(doc, pg, anchoredOf(hit.index)),
 									hit.x,
 									hit.y,
 									(8 / (hit.scale ?? 1)) * FX
@@ -1752,7 +1882,7 @@ export function useFrames({
 		const st = pl?.page === i ? Cmd.textState(doc, es) : undefined
 		if (!pl || !st) return
 		const l = pl.line
-		const areas = textAreas(doc, pg)
+		const areas = textAreas(doc, pg, anchoredOf(i))
 		const boxed = areas.some((a) => a.story === l.story)
 		const a = nearArea(
 			areas.filter((b) => (boxed ? b.story === l.story : !b.story)),
@@ -1789,7 +1919,14 @@ export function useFrames({
 	 * here, ▸ = continues, + (red) = text doesn't fit.
 	 */
 	const portsOf = (it: PageItem, b: Box, scale: number) => {
-		if (layoutEdit || it.kind !== 'frame' || it.frame?.t !== 'txt' || it.master) return null
+		if (
+			layoutEdit ||
+			it.kind !== 'frame' ||
+			it.frame?.t !== 'txt' ||
+			it.master ||
+			!('sec' in it.frame.anchor)
+		)
+			return null
 		const c = chainOf(doc, it.id, chains)
 		const n = c ? c.frames.indexOf(it.id) : 0
 		const m = c?.frames.length ?? 1
@@ -1877,7 +2014,15 @@ export function useFrames({
 				? bx(aIt)
 				: inlineImages(i).find((m) => m.bid === act?.id)?.box
 			: undefined
-		if (!its.length && !layoutEdit && !ghost && !rulers && !ibox && !hbox && !ab) return null
+		// A selected text-anchored frame's anchor glyph, at its marker when that is on this page
+		// (the frame itself may sit on another page).
+		const aid = sel?.ids.length === 1 && editable && !layoutEdit ? sel.ids[0] : undefined
+		const af = aid ? frameOf(doc, aid) : undefined
+		const gm = aid && af && 'txt' in af.anchor ? anchorMarker(doc, aid) : undefined
+		const gc = gm && caretBox(editor.index.stories.get(gm.story) ?? [], gm.at)
+		const glyph = gc?.page === i ? gc : undefined
+		if (!its.length && !layoutEdit && !ghost && !rulers && !ibox && !hbox && !ab && !glyph)
+			return null
 		const k = 1 / FX
 		const px = 1 / scale
 		const hs = 8 * px
@@ -1919,6 +2064,7 @@ export function useFrames({
 			return z && z.n === a.n + 1 ? [`${mid(a.b)} ${mid(z.b)}`] : []
 		})
 		const outSide = isRtlLang(String(doc.m.get('lang') || 'en')) ? -1 : 1
+		const jp = ob && edgePt(ob, scale, -outSide, 0, 24)
 		const jumps = here.flatMap(({ n, b }) =>
 			([-1, 1] as const).flatMap((dir) => {
 				const id = chain?.frames[n + dir]
@@ -2055,6 +2201,10 @@ export function useFrames({
 							it.frame?.t === 'img' ? (it.frame.data as StoredImageData) : undefined
 						const isSel = selected.includes(it)
 						const isHover = hv?.id === it.id
+						const [AnchorIc, anchorLabel] =
+							it.frame && 'txt' in it.frame.anchor && it.frame.anchor.rel === 'text'
+								? [IcAnchor, t('Moves with text')]
+								: [IcAnchorPage, t("On the anchor's page")]
 						// The text box holding the caret keeps its outline while typing.
 						const typing =
 							it.frame?.t === 'txt' &&
@@ -2141,14 +2291,21 @@ export function useFrames({
 										</text>
 									</g>
 								)}
-								{(isSel || isHover) && !it.master && (
-									<g
-										transform={`translate(${(b.x + b.w) * k + 4 * px} ${b.y * k - 18 * px})`}
-									>
-										<title>{t('Anchored to this page')}</title>
-										<IcAnchor size={14 * px} color="var(--col-primary, #06f)" />
-									</g>
-								)}
+								{/* Text-anchored frames only: a page-fixed frame has no anchor to show. */}
+								{(isSel || isHover) &&
+									!it.master &&
+									it.frame &&
+									'txt' in it.frame.anchor && (
+										<g
+											transform={`translate(${(b.x + b.w) * k + 4 * px} ${b.y * k - 18 * px})`}
+										>
+											<title>{anchorLabel}</title>
+											<AnchorIc
+												size={14 * px}
+												color="var(--col-primary, #06f)"
+											/>
+										</g>
+									)}
 							</g>
 						)
 					})}
@@ -2216,6 +2373,16 @@ export function useFrames({
 							height={hbox.h * k}
 						/>
 					)}
+					{L?.anchorAt && (
+						<line
+							x1={L.anchorAt.x * k}
+							y1={L.anchorAt.top * k}
+							x2={L.anchorAt.x * k}
+							y2={L.anchorAt.bottom * k}
+							stroke="var(--col-accent, #0a7)"
+							strokeWidth={2 * px}
+						/>
+					)}
 					{one && ob && lockedBy && (
 						<text
 							x={ob.x * k}
@@ -2260,6 +2427,48 @@ export function useFrames({
 								isSnapActive={!!L?.snap}
 								onRotateStart={(e) => startRotate(e, i, one, scale)}
 							/>
+						</g>
+					)}
+					{/* Drawn last of the selection chrome: on top of the frame and its handles. */}
+					{aid && glyph && (
+						<g>
+							{one &&
+								ob &&
+								haloLine(
+									glyph.x * k,
+									glyph.bottom * k,
+									(glyph.x < ob.x + ob.w / 2 ? ob.x : ob.x + ob.w) * k,
+									ob.y * k,
+									4 * px,
+									px,
+									`${2 * px} ${2 * px}`
+								)}
+							{haloLine(
+								glyph.x * k,
+								glyph.top * k,
+								glyph.x * k,
+								glyph.bottom * k,
+								5 * px,
+								2 * px
+							)}
+							<g
+								data-anchor={aid}
+								transform={`translate(${glyph.x * k} ${glyph.top * k - 13 * px})`}
+								style={{ pointerEvents: 'all', cursor: 'grab' }}
+							>
+								<title>{t('Anchor · drag to move it in the text')}</title>
+								<circle
+									r={11 * px}
+									className="pagillo-anchor-badge"
+									strokeWidth={1.5 * px}
+								/>
+								<AnchorGlyph
+									x={-8 * px}
+									y={-8 * px}
+									size={16 * px}
+									color="var(--col-on-accent, #fff)"
+								/>
+							</g>
 						</g>
 					)}
 					{L?.lines?.map((l, j) =>
@@ -2364,6 +2573,19 @@ export function useFrames({
 					)}
 				</svg>
 				{one && ob && !lockedBy && portsOf(one, ob, scale)}
+				{one && ob && gc && gc.page !== i && (
+					<button
+						type="button"
+						className="pagillo-thread-jump"
+						style={{ left: jp?.x, top: jp?.y }}
+						aria-label={t('Anchor on page {{n}}', { n: gc.page + 1 })}
+						title={t('Anchor on page {{n}}', { n: gc.page + 1 })}
+						onPointerDown={(e) => e.stopPropagation()}
+						onClick={() => scrollToPage(pages[gc.page].key)}
+					>
+						{t('Anchor on page {{n}}', { n: gc.page + 1 })}
+					</button>
+				)}
 				{act && ab && aRec && aTg && (
 					<LiveEmbed
 						id={act.id}
@@ -2524,8 +2746,8 @@ export function useFrames({
 		canInsertEmbed,
 		insertTextBox,
 		pick,
-		toInline,
 		toFrame,
+		setPosition,
 		sizeToImage,
 		remove,
 		view,
@@ -2660,6 +2882,39 @@ function LiveEmbed({
 					</div>
 				</div>
 			</div>
+		</>
+	)
+}
+
+/** A halo line under an accent line, both `x1,y1 → x2,y2` (`halo`/`w`: their stroke widths). */
+function haloLine(
+	x1: number,
+	y1: number,
+	x2: number,
+	y2: number,
+	halo: number,
+	w: number,
+	dash?: string
+) {
+	return (
+		<>
+			<line
+				className="pagillo-thread-halo"
+				x1={x1}
+				y1={y1}
+				x2={x2}
+				y2={y2}
+				strokeWidth={halo}
+			/>
+			<line
+				x1={x1}
+				y1={y1}
+				x2={x2}
+				y2={y2}
+				stroke="var(--col-accent, #0a7)"
+				strokeWidth={w}
+				strokeDasharray={dash}
+			/>
 		</>
 	)
 }

@@ -35,8 +35,9 @@ import type * as Y from 'yjs'
 import { useLandmarks } from './a11y/landmarks'
 import { MIRROR_ID, Mirror } from './a11y/Mirror'
 import { isEmptyPublication, openPublication } from './crdt/document'
-import { frameOf, framesOf, masterOf, sectionOf } from './crdt/entities'
+import { frameOf, framesOf, isFlow, masterOf, sectionOf } from './crdt/entities'
 import {
+	anchorMarker,
 	chainOf,
 	chainOfStory,
 	soleInlineObject,
@@ -54,7 +55,6 @@ import {
 	type CommandCtx,
 	deletePage,
 	footnoteRef,
-	isSectionStory,
 	leaveFootnote,
 	leaveTable,
 	tableAt
@@ -62,7 +62,9 @@ import {
 import { useFindReplace } from './editor/FindReplace'
 import { type FrameCtl, LINK_REFUSALS, useFrames } from './editor/FrameOverlay'
 import { containsPoint, pageMaster } from './editor/frames'
-import { handleKey, type KeymapCtx, undoRedoKey } from './editor/keymap'
+import { handleKey, isMarksKey, type KeymapCtx, UNDO_KEY, undoRedoKey } from './editor/keymap'
+import { marksCtx, pageMarks } from './editor/marks'
+import { MarksOverlay } from './editor/MarksOverlay'
 import { usePublishPresence, useRemote } from './editor/RemoteOverlay'
 import { SpellOverlay } from './editor/SpellOverlay'
 import { TextMenu } from './editor/TextMenu'
@@ -193,6 +195,13 @@ export function PagilloApp() {
 				}
 				return
 			}
+			if (isMarksKey(e) && c?.canEdit) {
+				const f = framesRef.current
+				if (!f) return
+				e.preventDefault()
+				f.setView({ marks: !f.view.marks })
+				return
+			}
 			const k = !field && undoRedoKey(e)
 			if (!c?.canEdit || !k) return
 			e.preventDefault()
@@ -258,6 +267,23 @@ export function PagilloApp() {
 			.catch(() => {})
 	}, [setSpell])
 	framesRef.current = frames
+	// View › Show hidden characters (writers only), on whatever is selected.
+	const mctx = React.useMemo(() => {
+		if (!canEdit || !frames.view.marks) return
+		const refs = flattenPages(layout.sections)
+		return marksCtx(doc, editor.index, (n) => {
+			const key = refs[n]?.key
+			return key ? layout.pages.get(key)?.page : undefined
+		})
+	}, [canEdit, frames.view.marks, layout.sections, layout.pages, doc, editor.index])
+	// The selected frame's anchor marker: `FrameOverlay` draws its glyph there, on the marker's page.
+	const fsel = frames.sel
+	const markSkip = React.useMemo(() => {
+		const id = fsel?.ids.length === 1 && !layoutEdit ? fsel.ids[0] : undefined
+		const m = id && mctx ? anchorMarker(doc, id) : undefined
+		const page = m && caretBox(editor.index.stories.get(m.story) ?? [], m.at)?.page
+		return m && page !== undefined ? { ...m, page } : undefined
+	}, [fsel, layoutEdit, mctx, doc, editor.index])
 	usePublishPresence(awareness, doc, {
 		sel: editor.sel,
 		frames: frames.sel,
@@ -275,7 +301,7 @@ export function PagilloApp() {
 		layoutUsage.set(p.page.master, (layoutUsage.get(p.page.master) ?? 0) + 1)
 	}
 	const layoutPages = layoutEdit ? (layoutUsage.get(layoutEdit) ?? 0) : 0
-	const emptyImages = useEmptyImages(synced ? doc : undefined)
+	const emptyImages = useEmptyImages(synced ? doc : undefined, layout.pages)
 	const defaultPage = (doc.m.get('page') as { w: number; h: number } | undefined) ?? PAGE_SIZES.A4
 	const handleExport = React.useCallback(() => {
 		downloadYDocExport(
@@ -345,7 +371,7 @@ export function PagilloApp() {
 			setSaid(
 				a.kind === 'linked'
 					? t('Linked · frame {{n}} of {{m}}', { n: a.m, m: a.m })
-					: t('Text no longer fits · Ctrl+Z to undo')
+					: t('Text no longer fits · {{key}} to undo', { key: UNDO_KEY })
 			)
 	}, [synced, layout.pending, layout.overset])
 
@@ -567,7 +593,7 @@ export function PagilloApp() {
 					spoken: t('Typing in a text box · Esc selects the box')
 				}
 		}
-		if (!isSectionStory(doc, es.story) && footnoteRef(doc, es.story))
+		if (!isFlow(doc, es.story) && footnoteRef(doc, es.story))
 			return {
 				chip: t('Footnote'),
 				hints: [[t('Esc'), t('back to text')]],
@@ -655,6 +681,8 @@ export function PagilloApp() {
 							canLayout ? (inline) => void frames.insertEmbed(inline) : undefined
 						}
 						inlineImageOff={!!layoutEdit || !!frames.sel}
+						marks={frames.view.marks}
+						onToggleMarks={() => frames.setView({ marks: !frames.view.marks })}
 					/>
 				</div>
 			)}
@@ -732,6 +760,17 @@ export function PagilloApp() {
 												h={size.h}
 												lines={editor.index.pages.get(i)}
 												spell={layout.spell}
+											/>
+										)}
+										{mctx && (
+											<MarksOverlay
+												w={size.w}
+												h={size.h}
+												marks={pageMarks(
+													editor.index.pages.get(i) ?? [],
+													mctx,
+													markSkip
+												)}
 											/>
 										)}
 										{frames.overlay(i, size, scale)}

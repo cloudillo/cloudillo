@@ -7,7 +7,7 @@
  */
 
 import { rotatePointAroundCenter } from '@cloudillo/canvas-tools'
-import type { LineGeom } from '@cloudillo/typeset'
+import type { LineGeom, PageDL } from '@cloudillo/typeset'
 
 import { type GeomIndex, nearestCaret, type PlacedLine, sameRow, xDist } from './caret'
 import { frameOf } from '../crdt/entities'
@@ -39,11 +39,18 @@ export interface TextArea {
 	rot?: number
 }
 
-/** Text areas of a page (`flowBoxes`) then its text boxes, so a text box wins a tie. */
-export function textAreas(doc: YPagilloDocument, page: PageInfo): TextArea[] {
+/**
+ * Text areas of a page (`flowBoxes`) then its text boxes, so a text box wins a tie; text-anchored
+ * boxes only with `anchored` (`PageDL.anchored`).
+ */
+export function textAreas(
+	doc: YPagilloDocument,
+	page: PageInfo,
+	anchored?: PageDL['anchored']
+): TextArea[] {
 	const out: TextArea[] = [...flowBoxes(doc, page)]
 	const chains = textChains(doc)
-	for (const it of pageItems(doc, page)) {
+	for (const it of pageItems(doc, page, undefined, anchored)) {
 		if (it.frame?.t !== 'txt') continue
 		// A thread follower edits its head's story; an orphan follower has none and is skipped.
 		const own = (it.frame.data as StoredTextFrameData).story

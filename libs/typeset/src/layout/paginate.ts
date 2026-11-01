@@ -18,7 +18,14 @@ import type {
 import { type ItemizedParagraph, type ItemizeEnv, itemizeParagraph } from '../text/itemize.js'
 import { type Exclusion, wrapExclusions } from './exclusions.js'
 import { type FieldCtx, type FieldEmbed, patchFields, sectionTitle, sizeFields } from './fields.js'
-import { embedAlt, type FlowSlot, fillFlow, type NextSlot } from './fill.js'
+import {
+	type AnchorPlace,
+	embedAlt,
+	type FlowSlot,
+	type FrameMark,
+	fillFlow,
+	type NextSlot
+} from './fill.js'
 import { collectRefs, type FnNote, type FnRef, numberRefs } from './footnotes.js'
 import { placeMarkers, withListIndent } from './lists.js'
 import { formatNumber } from './locale.js'
@@ -180,6 +187,37 @@ const pageKey = (sec: string, page: number) => `${sec}\u0000${page}`
 /** Paint order: z, then id. */
 const byPaint = (a: Frame, b: Frame) => a.z - b.z || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
 
+type PageFrame = Frame & { anchor: { sec: string; page: number } }
+const onPage = (f: Frame): f is PageFrame => 'sec' in f.anchor
+
+/**
+ * The winning `{ frame }` markers of `story` (top-level text paragraphs, first marker per id),
+ * for frames text-anchored to this story that are not master items.
+ */
+function collectMarks(
+	story: Story,
+	frames: Record<string, Frame>,
+	masterIds: Set<string>
+): FrameMark[] {
+	const out: FrameMark[] = []
+	const seen = new Set<string>()
+	story.paragraphs.forEach((p, pi) => {
+		if (!Array.isArray(p.runs)) return
+		let at = 0
+		for (const r of p.runs) {
+			const e = r.embed
+			const id = e && 'frame' in e ? e.frame : ''
+			const f = id && Object.hasOwn(frames, id) ? frames[id] : undefined
+			if (f && !seen.has(id) && !masterIds.has(id) && 'txt' in f.anchor) {
+				if (f.anchor.txt === story.id) out.push({ pi, at, f })
+				seen.add(id)
+			}
+			at += r.text.length
+		}
+	})
+	return out
+}
+
 /** Bézier circle constant: 4/3·(√2 − 1). */
 const KAPPA = 0.5522847498
 
@@ -212,6 +250,11 @@ function ellipsePath(b: Box): string {
  * story text on their page, the section has at least `anchor.page + 1` pages (up to `maxPages`),
  * and their items paint in z order — `z < 0` below the story text, the rest above it — rotated
  * by `rot`, which wrap follows too.
+ * Text-anchored frames (`anchor.txt`, section stories only): placed by `fillFlow` at their winning
+ * `{ frame }` marker — `rel: 'text'` in the column below it, `rel: 'page'` at page coordinates on
+ * the marker's page (mirrored on left-hand pages; that page refilled once when the frame covers
+ * text already on it, through `next`'s state snapshot) — painted like page-anchored ones at the
+ * placed box and listed in `PageDL.anchored`; they never thread and keep no page alive.
  * Master items (frames listed in the page side's `items`; never anchored frames) paint on every
  * page using the master, below everything else in z order, all under one `Artifact` tag; they
  * add no `LineGeom`. A text item that overflows is reported once.
@@ -230,8 +273,9 @@ function ellipsePath(b: Box): string {
  * refs in text frames stay unnumbered and place no body. Each ref takes a tag range (Note + its
  * body paragraphs) after its section story's range.
  * Tags: a section's frames take ids after its story's (and footnotes') range,
- * in (page, z, id) order: one per image/embed frame, one per paragraph of a text frame; the
- * master items' Artifact tag takes the next id.
+ * in (page, z, id) order: one per image/embed frame, one per paragraph of a text frame; then the
+ * text-anchored frames' (their tags nest in the marker paragraph's tag on their page, so they
+ * read with it); the master items' Artifact tag takes the next id.
  * Synchronous: call `initHarfBuzz()` and `loadParagraphFaces(…)` for every section's story and
  * every text frame's story (master items included) first.
  * `opts.stopAt`: a partial pass for an editor — pages from `stopAt` on are not laid out (the page
@@ -262,7 +306,7 @@ export function layoutPublication(
 	}
 	// Anchored frames by page in paint order, last anchored page and first tag id per frame.
 	const frames = Object.values(pub.frames)
-		.filter((f) => !masterIds.has(f.id))
+		.filter((f): f is PageFrame => onPage(f) && !masterIds.has(f.id))
 		.sort((a, b) => a.anchor.page - b.anchor.page || byPaint(a, b))
 	// Text chains: head id → its valid followers, follower id → its head. A `chain` id is dropped
 	// when it is not an anchored `txt` frame, has its own story (the head itself included) or is
@@ -274,18 +318,22 @@ export function layoutPublication(
 		if (f.t !== 'txt' || !story || !Array.isArray(chain)) continue
 		const ok = chain.filter((id) => {
 			const fr = pub.frames[id]
-			if (fr?.t !== 'txt' || (fr.data as TextFrameData).story) return false
+			if (fr?.t !== 'txt' || !onPage(fr) || (fr.data as TextFrameData).story) return false
 			if (masterIds.has(id) || headOf.has(id)) return false
 			headOf.set(id, f.id)
 			return true
 		})
 		if (ok.length) chains.set(f.id, ok)
 	}
-	const byPage = new Map<string, Frame[]>()
+	const byPage = new Map<string, PageFrame[]>()
 	const lastPage = new Map<string, number>()
 	const tagBase = new Map<string, number>()
 	// Footnote refs per section; their tag ranges follow the story's.
 	const refsOf = new Map(pub.sections.map((s) => [s.id, collectRefs(s.story, pub.footnotes)]))
+	// Text-anchor markers per section; their frames' tag ranges follow the page frames'.
+	const marksOf = new Map(
+		pub.sections.map((s) => [s.id, collectMarks(s.story, pub.frames, masterIds)])
+	)
 	// TOC: headings collected once a TOC paragraph needs them; its entries' placeholders.
 	let tocAll: TocEntry[] | undefined
 	const tocOut: TocSlot[] = []
@@ -323,6 +371,19 @@ export function layoutPublication(
 		tagBase.set(f.id, t)
 		nextTag.set(sec, t + (f.t === 'txt' ? (story ? storyTagCount(story) : 0) : 1))
 	}
+	/** Marker paragraph index of each text-anchored frame (its tags nest in that paragraph's). */
+	const markPi = new Map<string, number>()
+	for (const [sec, marks] of marksOf) {
+		for (const { f, pi } of marks) {
+			markPi.set(f.id, pi)
+			const story = (f.data as TextFrameData | undefined)?.story
+			const t = nextTag.get(sec) ?? 1
+			tagBase.set(f.id, t)
+			nextTag.set(sec, t + (f.t === 'txt' ? (story ? storyTagCount(story) : 0) : 1))
+		}
+	}
+	/** Placed text-anchored frames: copies at their placed box, per page. */
+	const anchoredOn = new Map<PageDL, Frame[]>()
 
 	const titles = new Map(pub.sections.map((s) => [s.id, sectionTitle(s.story, pub.styles)]))
 	const baseCtx = (sec: string): FieldCtx => ({
@@ -375,7 +436,10 @@ export function layoutPublication(
 		/** The page's flow columns with their region index, in flow order. */
 		let cols: { box: Box; reg: number }[] = []
 		let ex: Exclusion[] = []
-		/** Per region: the box its current column set spans (from where the last band ended). */
+		/**
+		 * Per region: the box its current column set spans (from where the last band ended).
+		 * Copy-on-write (never mutated in place): `save` keeps the reference.
+		 */
 		let sets = new Map<number, Box>()
 		let ci = 0
 		/** Region of the last slot handed out. */
@@ -405,7 +469,7 @@ export function layoutPublication(
 				const r = regs[cur]
 				const fits = top < r.y + r.h
 				ci = regionEnd(fits && kind === 'cols' ? cur - 1 : cur)
-				if (kind === 'cols') sets.set(cur, below(r, top))
+				if (kind === 'cols') sets = new Map(sets).set(cur, below(r, top))
 				else if (fits) {
 					const b = below(r, top)
 					return slotOf(b, b)
@@ -431,7 +495,7 @@ export function layoutPublication(
 			let set = sets.get(cur)
 			if (!set) {
 				set = below(r, r.y)
-				sets.set(cur, set)
+				sets = new Map(sets).set(cur, set)
 			}
 			const multi = trackCount(r.cols) > 1
 			if (kind === 'band' && multi) {
@@ -464,7 +528,53 @@ export function layoutPublication(
 		const toc = blocks.size
 			? { blocks, out: tocOut, tag: tociOf.get(sec.id)?.tag ?? 0 }
 			: undefined
-		const chars = fillFlow(sec.story, paras, next, env, notes, toc)
+		const anchorOut: AnchorPlace[] = []
+		const marks = marksOf.get(sec.id) ?? []
+		/** Snapshot of `next`'s state for a page refill; the result restores it. */
+		const save = () => {
+			const s = {
+				pg,
+				regs,
+				cols,
+				ex,
+				sets,
+				ci,
+				cur,
+				count,
+				text,
+				n: pages.length
+			}
+			return () => {
+				pg = s.pg
+				regs = s.regs
+				cols = s.cols
+				ex = s.ex
+				sets = s.sets
+				ci = s.ci
+				cur = s.cur
+				count = s.count
+				text = s.text
+				pages.length = s.n
+			}
+		}
+		const chars = fillFlow(sec.story, paras, next, env, notes, toc, {
+			marks,
+			out: anchorOut,
+			save
+		})
+		for (const a of anchorOut) {
+			const f = { ...pub.frames[a.id], ...a.box, rot: a.rot }
+			const l = anchoredOn.get(a.pg)
+			if (l) l.push(f)
+			else anchoredOn.set(a.pg, [f])
+			a.pg.anchored ??= []
+			a.pg.anchored.push({
+				id: a.id,
+				...a.box,
+				rot: a.rot,
+				...(a.late ? { late: true } : {})
+			})
+		}
 		if (chars && !stopped) overset.push({ sec: sec.id, chars })
 		placeMarkers(sec.story, paras, pages.slice(firstPage), env)
 		// Anchored frames keep their pages alive, still capped by `maxPages`.
@@ -554,7 +664,7 @@ export function layoutPublication(
 		if (!story || !chain) continue
 		const slots = [f.id, ...chain].flatMap((id) => {
 			const fr = pub.frames[id]
-			const pg = fr && pageAt.get(pageKey(fr.anchor.sec, fr.anchor.page))
+			const pg = fr && onPage(fr) && pageAt.get(pageKey(fr.anchor.sec, fr.anchor.page))
 			return pg ? [{ id, box: textBox(fr), pg }] : []
 		})
 		if (!slots.length) continue
@@ -675,10 +785,11 @@ export function layoutPublication(
 		const below: DLItem[] = []
 		const above: DLItem[] = []
 		const k = pageKey(sec, index)
-		const fr = byPage.get(k)
-		if (fr) {
+		const fr = [...(byPage.get(k) ?? []), ...(anchoredOn.get(pg) ?? [])].sort(byPaint)
+		if (fr.length) {
 			placed.add(k)
 			for (const f of fr) {
+				const t0 = pg.tags.length
 				const chars = emitFrame(
 					f,
 					pg,
@@ -686,7 +797,15 @@ export function layoutPublication(
 					tagBase.get(f.id) ?? 0,
 					false
 				)
-				if (chars) overset.push({ sec: f.anchor.sec, chars, frame: f.id })
+				if (chars) overset.push({ sec, chars, frame: f.id })
+				// A text-anchored frame reads with its marker's paragraph: its tags nest in that
+				// paragraph's tag on this page (none here: they stay top-level, read as a frame).
+				const pi = markPi.get(f.id)
+				const host =
+					pi === undefined || pg.tags.length === t0
+						? undefined
+						: pg.tags.find((t) => t.id === pi + 1 && !t.frame)
+				if (host) host.children = [...(host.children ?? []), ...pg.tags.splice(t0)]
 			}
 		}
 		pg.items = [...art, ...below, ...pg.items, ...above]

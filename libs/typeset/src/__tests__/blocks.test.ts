@@ -8,17 +8,7 @@ import { ptToFx } from '../fixed.js'
 import { FontRegistry } from '../fonts/registry.js'
 import { layoutPublication } from '../layout/paginate.js'
 import type { Paragraph, Publication, TableBlock } from '../model.js'
-import {
-	CORPUS,
-	EN,
-	field,
-	floatImg,
-	layoutCase,
-	loadPublication,
-	PUB_CORPUS,
-	p,
-	table
-} from './corpus.js'
+import { CORPUS, EN, field, layoutCase, loadPublication, PUB_CORPUS, p, table } from './corpus.js'
 
 async function layout(pub: Publication) {
 	return layoutPublication(pub, await loadPublication(pub, new FontRegistry()))
@@ -189,53 +179,7 @@ describe('TOC', () => {
 	})
 })
 
-describe('floats', () => {
-	it('keeps body text out of a float', async () => {
-		const pb = pub('advanced-text')
-		const paras = pb.sections[0].story.paragraphs
-		const fi = paras.findIndex(
-			(x: Paragraph) =>
-				!Array.isArray(x.runs) && x.runs.k === 'emb' && x.runs.float?.side === 'l'
-		)
-		const after = paras[fi + 1].bid
-		const r = await layout(pb)
-		const pg = r.pages.find((x) => x.lines.some((l) => l.bid === after))
-		const img = pg?.items.find((it) => it.k === 'image')
-		if (!pg || img?.k !== 'image') throw new Error('float not placed')
-		const beside = pg.lines.filter(
-			(l) =>
-				l.bid === after &&
-				l.y > img.box.y &&
-				l.y - l.ascent < img.box.y + img.box.h &&
-				l.x < img.box.x + img.box.w + img.box.w
-		)
-		expect(beside.length).toBeGreaterThan(0)
-		for (const l of beside) expect(l.x).toBeGreaterThanOrEqual(img.box.x + img.box.w)
-	})
-
-	it('does not overlap consecutive floats', async () => {
-		const base = pub('advanced-text')
-		const r = await layout({
-			...base,
-			sections: [
-				{
-					...base.sections[0],
-					story: {
-						id: 'st',
-						paragraphs: [floatImg('l', 0.5), floatImg('l', 0.5), p('body', EN)]
-					}
-				}
-			]
-		})
-		const boxes = r.pages[0].items.flatMap((it) => (it.k === 'image' ? [it.box] : []))
-		expect(boxes).toHaveLength(2)
-		const [a, b] = boxes
-		const apart = a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y
-		expect(apart).toBe(true)
-	})
-})
-
-// vim: ts=4
+// Text-anchored frames (the former floats): `anchors.test.ts`.
 
 describe('embed alt', () => {
 	it('puts an embed record alt on its Figure tag, page frame and inline', async () => {
@@ -308,5 +252,32 @@ describe('drop caps', () => {
 			checked = true
 		}
 		expect(checked).toBe(true)
+	})
+})
+
+describe('LineGeom.brk', () => {
+	it('marks only the first line of a breakBefore paragraph', async () => {
+		const pg = { ...p('body', EN), overrides: { breakBefore: 'page' as const } }
+		const col = { ...p('left', EN, ' ', EN), overrides: { breakBefore: 'column' as const } }
+		const r = await layout({
+			...pub('advanced-text'),
+			sections: [
+				{
+					id: 'sec',
+					story: { id: 'st', paragraphs: [p('body', EN), pg, col] },
+					first: 'm-cols',
+					rest: 'm-cols',
+					start: 'any'
+				}
+			]
+		})
+		const ls = r.pages.flatMap((x) => x.lines)
+		const of = (bid: string) => ls.filter((l) => l.bid === bid).map((l) => l.brk)
+		const [a, b] = [of(pg.bid), of(col.bid)]
+		expect(b.length).toBeGreaterThan(1)
+		expect(a[0]).toBe('page')
+		expect(b[0]).toBe('column')
+		expect([...a.slice(1), ...b.slice(1)].every((x) => x === undefined)).toBe(true)
+		expect(ls.filter((l) => l.brk)).toHaveLength(2)
 	})
 })

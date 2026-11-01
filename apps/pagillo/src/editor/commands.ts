@@ -12,9 +12,16 @@ import type * as Y from 'yjs'
 
 import { newBlockId } from '../crdt/block-ids'
 import { deltaOf } from '../crdt/delta-cache'
-import { newSectionMap, sectionOf, sectionsOf, styleOf } from '../crdt/entities'
+import {
+	anchorOf,
+	isFlow,
+	newSectionMap,
+	patchFrame,
+	sectionOf,
+	sectionsOf,
+	styleOf
+} from '../crdt/entities'
 import { newId, type StyleId } from '../crdt/ids'
-import { createStory } from '../crdt/story-ops'
 import {
 	LINE_KEYS,
 	MARK_KEYS,
@@ -24,12 +31,14 @@ import {
 	type StyleMapKey,
 	type YPagilloDocument
 } from '../crdt/stored-types'
+import { createStory } from '../crdt/story-ops'
 import { updateStyle } from '../crdt/style-ops'
 import {
 	cellOf,
 	colSpanOf,
 	type DeltaOp,
 	isTableLine,
+	markerWins,
 	newCellId,
 	newRowId,
 	readMeta,
@@ -298,9 +307,15 @@ export function insertSectionBreak({ doc, editor }: CommandCtx): void {
 		const at = breakBefore(t, from)
 		// Uncached on purpose: `applyDelta` writes nulls into the ops' attribute objects.
 		const tail = sliceDelta(t.toDelta() as DeltaOp[], at, t.length)
+		const wins = markerWins(doc, sec.story)
 		const body = styleMap(doc).p
 		const id = createStory(doc, tail.length ? [] : [{ ps: body }])
 		doc.tx.get(id)?.applyDelta(tail)
+		// Frames anchored in the tail follow their markers into the new story.
+		for (const [fid, { at: m }] of wins) {
+			const a = m >= at ? anchorOf(doc.f.get(fid)) : undefined
+			if (a && 'txt' in a) patchFrame(doc.f.get(fid), { anchor: { ...a, txt: id } })
+		}
 		t.delete(at, t.length - at)
 		if (t.length === 0) t.insert(0, '\n', { bid: newBlockId(), ...(body ? { ps: body } : {}) })
 		const { pageNum: _p, maxPages: _m, ...rest } = sec
@@ -740,11 +755,6 @@ export function leaveTable({ doc, editor }: CommandCtx): boolean {
 	return true
 }
 
-/** Whether `story` is a section's story (footnotes and the TOC lay out in section flows only). */
-export function isSectionStory(doc: YPagilloDocument, story: string | undefined): boolean {
-	return !!story && sectionsOf(doc).some(([, s]) => s.story === story)
-}
-
 /**
  * Story and offset of the `{ fn: story }` ref, i.e. whether `story` is a footnote body.
  * Scans every story's delta (cached); index refs if books with many stories lag.
@@ -770,7 +780,7 @@ export function footnoteRef(
  * paragraph) in the same transaction and moves the caret into it.
  */
 export function insertFootnote({ doc, editor }: CommandCtx): void {
-	if (!isSectionStory(doc, editor.sel?.story)) return
+	if (!isFlow(doc, editor.sel?.story)) return
 	let body: string | undefined
 	editor.run((t, from, to) => {
 		if (tableAt(t, from)) return
@@ -795,7 +805,7 @@ export function leaveFootnote({ doc, editor }: CommandCtx): boolean {
  * the caret's (split at the caret first). Section stories only, never inside a table.
  */
 export function insertToc({ doc, editor }: CommandCtx, levels: number): void {
-	if (!isSectionStory(doc, editor.sel?.story)) return
+	if (!isFlow(doc, editor.sel?.story)) return
 	editor.run((t, from, to) => {
 		if (tableAt(t, from) || tableAt(t, to)) return
 		deleteRange(t, from, to)

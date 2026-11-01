@@ -5,8 +5,10 @@
 
 export {
 	PiAnchor as IcAnchor,
+	PiFile as IcAnchorPage,
 	PiMegaphone as IcAnnouncement,
 	PiNewspaper as IcNewsletter,
+	PiParagraph as IcParagraph,
 	PiTextIndent as IcIndent,
 	PiTextOutdent as IcOutdent
 } from 'react-icons/pi'

@@ -6,7 +6,7 @@
  * Worker-safe: no DOM, no `@cloudillo/core`.
  *
  * Key layout (one key per independent field, one atomic plain value per field group):
- * - frame: `t`, `anchor`, `geo` = `{ x, y, w, h, rot }`, `z`, `wrap`; `txt`: `story`, `chain`,
+ * - frame: `t`, `anchor`, `geo` = `{ x, y, w, h, rot, wCol? }`, `z`, `wrap`; `txt`: `story`, `chain`,
  *   `inset`, `fill`, `stroke`, `strokeW`; `shp`: `kind`, `fill`, `stroke`, `strokeW`; `img`:
  *   `src` = `{ fileId, px?, crop }` (absent = empty frame), `fit`, `alt`, `deco`; `emb`: `emb`.
  * - master: one key per `StoredMaster` field (`margins`, `regions`, `left`, `right` atomic).
@@ -19,8 +19,8 @@
  * `yDoc.transact`; an explicit `undefined` deletes a key, an absent one is left alone.
  */
 
-import * as Y from 'yjs'
 import type { Crop } from '@cloudillo/typeset'
+import * as Y from 'yjs'
 
 import type {
 	MasterAnchor,
@@ -30,6 +30,7 @@ import type {
 	StoredMaster,
 	StoredSection,
 	StoredStyle,
+	TextAnchor,
 	YPagilloDocument
 } from './stored-types'
 
@@ -69,11 +70,14 @@ const FRAME_KEYS = new Set(['t', 'anchor', 'geo', 'z', 'wrap', 'src', 'emb'])
 /** Style property key prefix. */
 const PROP = 'p/'
 
-function readAnchor(a: unknown): PageAnchor | MasterAnchor | undefined {
+/** Unknown rel/shape → unreadable: the frame stays opaque (never drawn or written); its marker and story are kept (sweepAnchors, sweepOrphanStories). */
+function readAnchor(a: unknown): PageAnchor | MasterAnchor | TextAnchor | undefined {
 	if (!isObj(a)) return undefined
-	if (typeof a.ms === 'string')
-		return a.side === 'l' || a.side === 'r' ? { ms: a.ms, side: a.side } : { ms: a.ms }
+	const side: { side?: 'l' | 'r' } = a.side === 'l' || a.side === 'r' ? { side: a.side } : {}
+	if (typeof a.ms === 'string') return { ms: a.ms, ...side }
 	if (typeof a.sec === 'string') return { sec: a.sec, page: num(a.page) }
+	if (typeof a.txt === 'string' && (a.rel === 'text' || a.rel === 'page'))
+		return { txt: a.txt, rel: a.rel, ...side }
 	return undefined
 }
 
@@ -106,6 +110,7 @@ export function readFrame(y: unknown): StoredFrame | undefined {
 			crop: crop.w <= 0 || crop.h <= 0 ? FULL_CROP : crop
 		} as StoredImageData
 	}
+	const wCol = num(g.wCol)
 	return {
 		t,
 		anchor,
@@ -113,6 +118,7 @@ export function readFrame(y: unknown): StoredFrame | undefined {
 		y: num(g.y),
 		w: num(g.w),
 		h: num(g.h),
+		...(wCol > 0 ? { wCol } : {}),
 		rot: num(g.rot),
 		z: num(o.z),
 		wrap: {
@@ -189,6 +195,18 @@ function readAll<T>(
 export const framesOf = (doc: YPagilloDocument) => readAll(doc.f, readFrame)
 export const mastersOf = (doc: YPagilloDocument) => readAll(doc.ms, readMaster)
 export const sectionsOf = (doc: YPagilloDocument) => readAll(doc.s, readSection)
+/** Section flow story → its section, in `secs` order (the only stories whose `{ frame }` markers can win). */
+export function flowStories(doc: YPagilloDocument): Map<string, StoredSection> {
+	const out = new Map<string, StoredSection>()
+	for (const id of doc.secs.toArray()) {
+		const s = sectionOf(doc, id)
+		if (s && !out.has(s.story)) out.set(s.story, s)
+	}
+	return out
+}
+/** `story` is a section flow story (the only place a text-anchor marker counts). */
+export const isFlow = (doc: YPagilloDocument, story: string | undefined) =>
+	!!story && flowStories(doc).has(story)
 export const stylesOf = (doc: YPagilloDocument) => readAll(doc.st, readStyle)
 
 // Creators ----------------------------------------------------------------------------------
@@ -206,11 +224,11 @@ function dataEntries(t: StoredFrame['t'], data: Obj): [string, unknown][] {
 
 /** A filled (not yet integrated) frame `Y.Map` — `root.set(id, newFrameMap(f))`. */
 export function newFrameMap(f: StoredFrame): Y.Map<unknown> {
-	const { t, anchor, x, y, w, h, rot, z, wrap, data } = f
+	const { t, anchor, x, y, w, h, wCol, rot, z, wrap, data } = f
 	const e: [string, unknown][] = [
 		['t', t],
 		['anchor', { ...anchor }],
-		['geo', { x, y, w, h, rot }],
+		['geo', defined({ x, y, w, h, rot, wCol })],
 		['z', z],
 		['wrap', { ...wrap }],
 		...dataEntries(t, data as Obj)
@@ -249,16 +267,21 @@ export type FramePatch = Partial<Omit<StoredFrame, 't' | 'data'>> & { data?: Obj
 export function patchFrame(y: unknown, patch: FramePatch): boolean {
 	const cur = readFrame(y)
 	if (!cur || !(y instanceof Y.Map)) return false
-	const { data, x, y: py, w, h, rot, ...keys } = patch
+	const { data, x, y: py, w, h, rot, wCol, ...keys } = patch
 	for (const [k, v] of Object.entries(keys)) put(y, k, isObj(v) ? { ...v } : v)
-	if ([x, py, w, h, rot].some((v) => v !== undefined))
-		put(y, 'geo', {
-			x: x ?? cur.x,
-			y: py ?? cur.y,
-			w: w ?? cur.w,
-			h: h ?? cur.h,
-			rot: rot ?? cur.rot
-		})
+	if ([x, py, w, h, rot].some((v) => v !== undefined) || 'wCol' in patch)
+		put(
+			y,
+			'geo',
+			defined({
+				x: x ?? cur.x,
+				y: py ?? cur.y,
+				w: w ?? cur.w,
+				h: h ?? cur.h,
+				rot: rot ?? cur.rot,
+				wCol: 'wCol' in patch ? wCol : cur.wCol
+			})
+		)
 	if (!data) return true
 	if (cur.t === 'emb') {
 		put(y, 'emb', defined({ ...(cur.data as Obj), ...data }))

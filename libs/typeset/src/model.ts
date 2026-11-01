@@ -180,19 +180,27 @@ export interface ShapeFrameData {
 }
 
 /**
- * A page-anchored frame (page space). `wrap` excludes its outline (box, rotated box or ellipse)
- * grown by `off` from the story's lines: `box` = lines take every free part of the column (≥ 2 em),
- * `tb` = the whole band is skipped.
+ * A frame anchored to a page or to a marker in a section story (page space once placed). `wrap`
+ * excludes its outline (box, rotated box or ellipse) grown by `off` from the story's lines: `box` =
+ * lines take every free part of the column (≥ 2 em), `tb` = the whole band is skipped.
  */
 export interface Frame {
 	id: string
 	t: 'img' | 'emb' | 'txt' | 'shp'
-	/** Section id and page index within the section; the page is kept alive (up to `maxPages`). */
-	anchor: { sec: string; page: number }
+	/**
+	 * `{ sec, page }`: section id and page index within the section; the page is kept alive (up to
+	 * `maxPages`). `{ txt, rel, side }`: anchored at the frame's `{ frame: id }` marker run in the
+	 * section story `txt` — `rel: 'text'` moves with the text (`x`/`y` = inward / downward offsets
+	 * from the column `side`, default 'l', and the marker's line), `rel: 'page'` sits at page
+	 * coordinates `x`/`y` on the marker's page.
+	 */
+	anchor: { sec: string; page: number } | { txt: string; rel: 'text' | 'page'; side?: 'l' | 'r' }
 	x: Fx
 	y: Fx
 	w: Fx
 	h: Fx
+	/** Text-anchored: width as a fraction of the column (aspect kept from `w`/`h`), over `w`. */
+	wCol?: number
 	/** Degrees clockwise about the box centre; the render transform, and wrap follows it. */
 	rot: number
 	/** Paint order on the page; `z < 0` paints below the story text, `z >= 0` above it. */
@@ -219,10 +227,11 @@ export interface Marks {
 }
 
 export type InlineEmbed =
-	/** `float`: line-start float, copied to `EmbedBlock.float` by the adapter. */
-	| { img: { fileId: string; w: Fx; h: Fx; alt: string; float?: { side: 'l' | 'r'; w: number } } }
+	| { img: { fileId: string; w: Fx; h: Fx; alt: string } }
 	| { emb: Record<string, unknown> }
 	| { fn: string /* footnote story id */ }
+	/** Text-anchor marker of frame `frame` (zero width); `''` = an ignored marker. */
+	| { frame: string }
 	/** Page number, publication page count, section title (`tocLevel` heading), `Publication.title`. */
 	| { field: 'page' | 'pages' | 'section' | 'title' }
 	| { field: 'date'; src: 'fixed' | 'export'; d?: string /* YYYY-MM-DD */ }
@@ -273,11 +282,6 @@ export interface EmbedBlock {
 	h: Fx
 	/** Plain caption text; not part of the story's text offsets. */
 	caption?: string
-	/**
-	 * Line-start float: `w` of the column wide (a fraction, e.g. 0.5 or 0.333), at the
-	 * column's `side`, its top where the flow reaches it; following text in the column wraps beside it.
-	 */
-	float?: { side: 'l' | 'r'; w: number }
 }
 
 export interface Paragraph {
@@ -303,8 +307,9 @@ export interface Publication {
 	/** Flow order. */
 	sections: Section[]
 	/**
-	 * Page-anchored frames, and the static items of masters (`Master.items` ids; their `anchor`
-	 * is ignored, they are drawn on every page using the master).
+	 * Page-anchored and text-anchored frames (the latter drawn only at their winning `{ frame }`
+	 * marker in a section story), and the static items of masters (`Master.items` ids; their
+	 * `anchor` is ignored, they are drawn on every page using the master).
 	 */
 	frames: Record<string, Frame>
 	/** Facing pages: global page 1 is right-hand, sides alternate, master variants apply. */

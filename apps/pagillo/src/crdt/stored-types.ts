@@ -99,17 +99,30 @@ export interface MasterAnchor {
 }
 
 /**
- * `f` value (read shape, `readFrame`): page-anchored frame or master static item. Stored
- * flattened: `t`, `anchor`, `geo` = `{ x, y, w, h, rot }`, `z`, `wrap`, and the `data` fields
- * as their own keys (`img`: `src` group; `emb`: one `emb` key).
+ * Text-anchored frame: placed from its `{ frame: id }` marker run in section flow story `txt`;
+ * `rel` 'text' = moves with the text, 'page' = page coordinates on the marker's page. `side`
+ * (default 'l'; inside on facing pages) is the column side for 'text'.
+ */
+export interface TextAnchor {
+	txt: string
+	rel: 'text' | 'page'
+	side?: 'l' | 'r'
+}
+
+/**
+ * `f` value (read shape, `readFrame`): page-anchored, text-anchored frame or master static item.
+ * Stored flattened: `t`, `anchor`, `geo` = `{ x, y, w, h, rot, wCol? }`, `z`, `wrap`, and the
+ * `data` fields as their own keys (`img`: `src` group; `emb`: one `emb` key).
  */
 export interface StoredFrame {
 	t: 'img' | 'emb' | 'txt' | 'shp'
-	anchor: PageAnchor | MasterAnchor
+	anchor: PageAnchor | MasterAnchor | TextAnchor
 	x: number
 	y: number
 	w: number
 	h: number
+	/** Text-anchored: width as a column fraction (aspect from `w`/`h`); kept in `geo`. */
+	wCol?: number
 	rot: number
 	z: number
 	wrap: { mode: 'none' | 'box' | 'tb'; off: number }
@@ -227,7 +240,11 @@ export const LINE_KEYS = [
 
 export type StoredMarks = Marks
 
-/** Length-1 embed inserts: `{ img }`, `{ emb }`, `{ fn }`, `{ field }`, `{ toc }`. */
+/**
+ * Length-1 embed inserts: `{ img }`, `{ emb }`, `{ fn }`, `{ frame }` (text-anchor marker of an
+ * `f` entry), `{ field }`, `{ toc }`. Legacy: `img.float = { side, w }` (line-start float, read
+ * as a marker + synthetic frame, `floatFrame` in `type-converters.ts`).
+ */
 export type StoredInlineEmbed = InlineEmbed
 
 /**

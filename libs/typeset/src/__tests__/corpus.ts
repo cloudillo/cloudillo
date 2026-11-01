@@ -494,19 +494,26 @@ const FN_PUB: Publication = {
 	footnotes: FOOTNOTES
 }
 
-/** A float: an inline image block `w` of the column wide at `side`, with a caption. */
-export const floatImg = (side: 'l' | 'r', w: number): Paragraph => ({
-	...p('left', ''),
-	runs: {
-		k: 'emb',
-		data: {},
-		img: { fileId: 'file-1', crop: { x: 0, y: 0, w: 1, h: 1 }, fit: 'cover', alt: 'A float' },
-		w: ptToFx(160),
-		h: ptToFx(100),
-		caption: 'Floating',
-		float: { side, w }
-	}
-})
+/** A "moves with text" image frame on story `txt`: `wCol` of the column wide (else 160 pt) at `side`. */
+export const anchoredImg = (
+	id: string,
+	txt: string,
+	side: 'l' | 'r',
+	wCol: number | undefined,
+	extra: Partial<Frame> = {}
+): Frame =>
+	frame(
+		id,
+		'img',
+		{ txt, rel: 'text', side },
+		box(0, 0, 160, 100),
+		{ fileId: 'file-1', crop: { x: 0, y: 0, w: 1, h: 1 }, fit: 'cover', alt: 'A float' },
+		{ ...(wCol === undefined ? {} : { wCol }), wrap: { mode: 'box', off: ptToFx(5) }, ...extra }
+	)
+
+/** A `left` paragraph starting with the text-anchor marker of frame `id`, then `rest`. */
+export const marker = (id: string, ...rest: (string | Run)[]): Paragraph =>
+	p('left', field({ frame: id }), ...rest)
 
 const ADV_STORY: Story = {
 	id: 'as',
@@ -519,9 +526,9 @@ const ADV_STORY: Story = {
 			...p('body', i % 2 ? HU : EN),
 			overrides: { dropCap: 2 + i }
 		})),
-		floatImg('l', 0.5),
+		marker('fl-l'),
 		p('body', `${EN} ${HU}`),
-		floatImg('r', 0.333),
+		marker('fl-r'),
 		p('body', `${DE} ${EN}`),
 		{ ...p('h2', 'A spanning heading'), overrides: { spanColumns: true } },
 		{ ...p('left', 'A spanning paragraph right below it.'), overrides: { spanColumns: true } },
@@ -549,7 +556,10 @@ const ADV_PUB: Publication = {
 			start: 'any'
 		}
 	],
-	frames: {},
+	frames: {
+		'fl-l': anchoredImg('fl-l', 'as', 'l', 0.5),
+		'fl-r': anchoredImg('fl-r', 'as', 'r', 0.333)
+	},
 	facing: false
 }
 

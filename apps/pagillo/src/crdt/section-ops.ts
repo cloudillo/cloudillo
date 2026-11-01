@@ -72,6 +72,9 @@ export function deleteSection(yDoc: Y.Doc, doc: YPagilloDocument, id: SectionId)
 	yDoc.transact(() => {
 		const i = doc.secs.toArray().indexOf(id)
 		if (i >= 0) doc.secs.delete(i, 1)
+		// Text-anchored frames first: their marker deletion needs the story.
+		for (const [fid, f] of framesOf(doc))
+			if (sec && 'txt' in f.anchor && f.anchor.txt === sec.story) deleteFrame(yDoc, doc, fid)
 		if (sec) doc.tx.delete(sec.story)
 		for (const [fid, f] of framesOf(doc))
 			if ('sec' in f.anchor && f.anchor.sec === id) deleteFrame(yDoc, doc, fid)
@@ -89,12 +92,23 @@ export function duplicateSection(
 	if (!sec) return undefined
 	const copy = newId()
 	yDoc.transact(() => {
-		doc.s.set(copy, newSectionMap({ ...sec, story: copyStory(doc, sec.story) }))
+		const frames = framesOf(doc)
+		const ids = new Map<string, string>()
+		for (const [fid, f] of frames)
+			if ('txt' in f.anchor && f.anchor.txt === sec.story) ids.set(fid, newId())
+		const story = copyStory(doc, sec.story, true, ids)
+		doc.s.set(copy, newSectionMap({ ...sec, story }))
 		doc.secs.insert(doc.secs.toArray().indexOf(id) + 1, [copy])
-		for (const [, f] of framesOf(doc)) {
-			if (!('sec' in f.anchor) || f.anchor.sec !== id) continue
+		for (const [fid, f] of frames) {
+			const anchor =
+				'sec' in f.anchor && f.anchor.sec === id
+					? { ...f.anchor, sec: copy }
+					: 'txt' in f.anchor && ids.has(fid)
+						? { ...f.anchor, txt: story }
+						: undefined
+			if (!anchor) continue
 			const data = f.t === 'txt' ? copyTextData(doc, f.data as StoredTextFrameData) : f.data
-			doc.f.set(newId(), newFrameMap({ ...f, anchor: { ...f.anchor, sec: copy }, data }))
+			doc.f.set(ids.get(fid) ?? newId(), newFrameMap({ ...f, anchor, data }))
 		}
 	}, yDoc.clientID)
 	return copy

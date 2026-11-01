@@ -32,6 +32,23 @@ import {
 
 export type PageInfo = PageDL['page']
 
+/** `b` in right-hand-page coordinates (`rel: 'page'` storage): a left-hand page mirrors it. */
+export const pageCoords = (pg: PageInfo, b: Box): Box =>
+	pg.side === 'l' ? mirrorFrame(b, pg.w) : b
+
+/** Anchor + geometry of position `mode` for box `b` on `pg`, marker in `story`; `ts` = column side for 'text'. */
+export function positionOf(
+	mode: 'text' | 'page' | 'fixed',
+	story: string,
+	pg: PageInfo,
+	b: Box,
+	ts: { side: 'l' | 'r'; x: number }
+): { anchor: StoredFrame['anchor']; geo: Box } {
+	if (mode === 'fixed') return { anchor: { sec: pg.sec, page: pg.index }, geo: b }
+	if (mode === 'page') return { anchor: { txt: story, rel: 'page' }, geo: pageCoords(pg, b) }
+	return { anchor: { txt: story, rel: 'text', side: ts.side }, geo: { ...b, x: ts.x, y: 0 } }
+}
+
 export interface Box {
 	x: number
 	y: number
@@ -160,14 +177,46 @@ export function flowBoxes(doc: YPagilloDocument, page: PageInfo): Region[] {
 	return pm?.regions.length ? pm.regions : [marginBox(doc, page)]
 }
 
+/** The column of the page's flow boxes holding point `x`,`y` (else of the nearest box). */
+export function columnAt(
+	doc: YPagilloDocument,
+	page: PageInfo,
+	x: number,
+	y: number
+): { x: number; w: number } {
+	const dist = (b: Region) =>
+		Math.max(0, b.x - x, x - b.x - b.w) + Math.max(0, b.y - y, y - b.y - b.h)
+	const r = flowBoxes(doc, page).reduce((a, b) => (dist(b) < dist(a) ? b : a))
+	const n = trackCount(r.cols)
+	const cw = (r.w - (n - 1) * r.gutter) / n
+	const c = clamp(Math.floor((x - r.x) / (cw + r.gutter)), 0, n - 1)
+	return { x: r.x + c * (cw + r.gutter), w: cw }
+}
+
 /**
- * Selectable items of a page in paint order. Normal mode: the page's anchored frames. With
+ * "Moves with text" side and inward x offset of box `b` in column `col` of `page`: the side
+ * nearer the box centre; on a left-hand page (facing) 'l' means inside, so the sides swap.
+ */
+export function textSide(
+	page: PageInfo,
+	b: Box,
+	col: { x: number; w: number }
+): { side: 'l' | 'r'; x: number } {
+	const right = b.x + b.w / 2 > col.x + col.w / 2
+	const x = right ? col.x + col.w - b.x - b.w : b.x - col.x
+	return { side: right !== (page.side === 'l') ? 'r' : 'l', x: Math.max(0, Math.round(x)) }
+}
+
+/**
+ * Selectable items of a page in paint order. Normal mode: the page's anchored frames, and with
+ * `anchored` (`PageDL.anchored`) its text-anchored frames at their painted boxes. With
  * `layoutMaster` (Edit layout): that master's text areas and items, on pages using it only.
  */
 export function pageItems(
 	doc: YPagilloDocument,
 	page: PageInfo,
-	layoutMaster?: string
+	layoutMaster?: string,
+	anchored?: PageDL['anchored']
 ): PageItem[] {
 	const out: PageItem[] = []
 	const frame = (id: string, f: StoredFrame, master: boolean): PageItem => ({
@@ -209,6 +258,12 @@ export function pageItems(
 		for (const [id, f] of framesOf(doc))
 			if ('sec' in f.anchor && f.anchor.sec === page.sec && f.anchor.page === page.index)
 				out.push(frame(id, f, false))
+		// Legacy float frames not yet migrated (`flt-…`, synthetic) have no `f` entry: skipped.
+		for (const a of anchored ?? []) {
+			const f = frameOf(doc, a.id)
+			if (f && 'txt' in f.anchor)
+				out.push({ ...frame(a.id, f, false), x: a.x, y: a.y, w: a.w, h: a.h, rot: a.rot })
+		}
 	}
 	return out.sort((a, b) => a.z - b.z)
 }

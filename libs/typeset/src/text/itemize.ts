@@ -160,7 +160,10 @@ export function itemizeParagraph(
 				link: run.marks.link,
 				embed: run.embed
 			}
-			pushWithFallback(out.runs, text, from, to, font, chain, base, env)
+			// A `{ frame }` anchor marker takes no width: no glyphs, only its offset.
+			if (run.embed && 'frame' in run.embed) {
+				out.runs.push({ ...base, from, to, font, shaped: noGlyphs })
+			} else pushWithFallback(out.runs, text, from, to, font, chain, base, env)
 			from = to
 		}
 		pos = end
@@ -169,6 +172,15 @@ export function itemizeParagraph(
 }
 
 type RunBase = Omit<ItemRun, 'from' | 'to' | 'font' | 'shaped'>
+
+/** A run with no glyphs (zero width). Shared: do not mutate. */
+export const noGlyphs: ShapedRun = {
+	glyphs: new Uint16Array(0),
+	clusters: new Uint32Array(0),
+	advances: new Int32Array(0),
+	offsets: new Int32Array(0),
+	unsafeToBreak: new Uint8Array(0)
+}
 
 function shapeSeg(
 	env: ItemizeEnv,

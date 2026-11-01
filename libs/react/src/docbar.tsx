@@ -77,6 +77,11 @@ export function useDocBar(): UseDocBarReturn {
 		})
 	}, [])
 
+	// `AppDocBar` reads `getAppBus().access` at render time (the "View only" chip); a
+	// corrective `auth:init.push` can change it with no `doc:info` push, so re-render on it.
+	const [, bump] = React.useReducer((n: number) => n + 1, 0)
+	React.useEffect(() => getAppBus().onIdentityChange(() => bump()), [])
+
 	const rename = React.useCallback(
 		async (name: string) => {
 			const fileName = name.trim()
@@ -126,19 +131,37 @@ export function useDocBar(): UseDocBarReturn {
 	}
 }
 
-/** What the bar says about the CRDT connection; none while all is well. */
+/** What the bar says about the connection; none while all is well. */
 type ConnectionNote = 'offline' | 'reconnecting' | 'synced'
 
 /**
- * Connection state off a y-websocket provider: "Offline" at once when the browser is offline,
- * "Reconnecting…" after 3 s down otherwise, then a brief "Synced" — only after a note was shown,
- * so a blip nobody saw stays silent. Exported for tests (`@internal`).
+ * A non-Yjs connection the bar can report on — `RtdbClient` satisfies it structurally.
+ * `onConnectionChange` fires on transitions only and returns an unsubscribe.
  */
-export function useConnectionNote(provider?: WebsocketProvider | null): ConnectionNote | undefined {
+export type ConnectionSource = {
+	isConnected(): boolean
+	onConnectionChange(cb: (connected: boolean) => void): () => void
+}
+
+function isConnectionSource(src: WebsocketProvider | ConnectionSource): src is ConnectionSource {
+	return typeof (src as ConnectionSource).onConnectionChange === 'function'
+}
+
+/**
+ * Connection state off a y-websocket provider or a `ConnectionSource`: "Offline" at once when
+ * the browser is offline, "Reconnecting…" after 3 s down otherwise, then a brief "Synced" — only
+ * after a note was shown, so a blip nobody saw stays silent. A provider counts as synced on its
+ * `sync` event; a `ConnectionSource` has none, so reconnecting (after its queue flush) counts.
+ * Exported for tests (`@internal`).
+ */
+export function useConnectionNote(
+	source?: WebsocketProvider | ConnectionSource | null
+): ConnectionNote | undefined {
 	const [note, setNote] = React.useState<ConnectionNote>()
 	React.useEffect(() => {
 		setNote(undefined)
-		if (!provider) return
+		const src = source
+		if (!src) return
 		let timer: ReturnType<typeof setTimeout> | undefined
 		let shown = false
 		const show = (n: ConnectionNote | undefined, ms = 0) => {
@@ -148,31 +171,45 @@ export function useConnectionNote(provider?: WebsocketProvider | null): Connecti
 				setNote(n)
 			}, ms)
 		}
+		const isUp = isConnectionSource(src) ? () => src.isConnected() : () => src.wsconnected
 		const onStatus = () => {
-			if (provider.wsconnected) clearTimeout(timer)
+			if (isUp()) clearTimeout(timer)
 			else show(navigator.onLine ? 'reconnecting' : 'offline', navigator.onLine ? 3000 : 0)
 		}
-		const onSync = (synced: boolean) => {
-			if (!synced || !provider.wsconnected) return
+		const onSynced = () => {
 			if (shown) {
 				shown = false
 				setNote('synced')
 				show(undefined, 2000)
 			} else show(undefined)
 		}
+		let unsubscribe: () => void
+		if (isConnectionSource(src)) {
+			unsubscribe = src.onConnectionChange((connected) => {
+				if (connected) onSynced()
+				else onStatus()
+			})
+		} else {
+			const onSync = (synced: boolean) => {
+				if (synced && src.wsconnected) onSynced()
+			}
+			src.on('status', onStatus)
+			src.on('sync', onSync)
+			unsubscribe = () => {
+				src.off('status', onStatus)
+				src.off('sync', onSync)
+			}
+		}
 		onStatus()
-		provider.on('status', onStatus)
-		provider.on('sync', onSync)
 		window.addEventListener('online', onStatus)
 		window.addEventListener('offline', onStatus)
 		return () => {
 			clearTimeout(timer)
-			provider.off('status', onStatus)
-			provider.off('sync', onSync)
+			unsubscribe()
 			window.removeEventListener('online', onStatus)
 			window.removeEventListener('offline', onStatus)
 		}
-	}, [provider])
+	}, [source])
 	return note
 }
 
@@ -185,6 +222,11 @@ export interface AppDocBarProps {
 	awareness?: Awareness | null
 	/** CRDT provider: when given, the bar shows the connection state (offline, reconnecting). */
 	provider?: WebsocketProvider | null
+	/**
+	 * A non-Yjs connection (an `RtdbClient`) whose state the bar shows the same way.
+	 * `provider` wins when both are given.
+	 */
+	connection?: ConnectionSource | null
 	className?: string
 	/** Unsaved changes: rendered as the leading `*` the tab title also uses. */
 	dirty?: boolean
@@ -212,6 +254,7 @@ export interface AppDocBarProps {
 export function AppDocBar({
 	awareness,
 	provider,
+	connection,
 	className,
 	dirty,
 	sub,
@@ -230,7 +273,7 @@ export function AppDocBar({
 	const provided = usePresenceContext()
 	const own = useDocPresence(hidden || provided ? undefined : awareness)
 	const { users } = provided ?? own
-	const note = useConnectionNote(hidden ? undefined : provider)
+	const note = useConnectionNote(hidden ? undefined : (provider ?? connection))
 
 	if (hidden) return null
 
@@ -286,10 +329,18 @@ export function AppDocBar({
 				presence={users}
 				maxAvatars={maxAvatars}
 			>
+				{/* Not `Tag`: it pulls in react-router, and this module stays router-free.
+				    Read at render time; `useDocBar` re-renders on identity changes. */}
+				{state === 'ready' && getAppBus().access === 'read' && (
+					<span className="c-tag small">{t('View only')}</span>
+				)}
 				{note && (
 					<span role="status" className="text-muted small">
 						{note === 'offline'
-							? t('Offline · changes saved on this device')
+							? // An RTDB queue lives in memory: nothing is saved on the device.
+								provider
+								? t('Offline · changes saved on this device')
+								: t('Offline · changes will sync when you reconnect')
 							: note === 'reconnecting'
 								? t('Reconnecting…')
 								: t('Synced')}

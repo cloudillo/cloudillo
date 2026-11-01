@@ -4,9 +4,11 @@
 import { useDraggable, useDroppable } from '@dnd-kit/core'
 import * as React from 'react'
 
+import { useLibTranslation } from '../../i18n.js'
 import { IcDisclosure } from '../../icons.js'
+import { useMergedRefs } from '../hooks.js'
 import { createComponent, mergeClasses } from '../utils.js'
-import { TreeDndContext, type TreeMoveData } from './TreeView.js'
+import { TreeDndContext, TreeFocusContext, type TreeMoveData } from './TreeView.js'
 
 /** True below the item being dragged under `onMove`: it cannot drop into itself */
 const InsideActiveContext = React.createContext(false)
@@ -92,13 +94,18 @@ export const TreeItem = createComponent<HTMLDivElement, TreeItemProps>(
 			onItemDragLeave,
 			onItemDrop,
 			onItemDragEnd,
+			onKeyDown,
 			children,
 			...props
 		},
 		ref
 	) => {
+		const { t } = useLibTranslation()
 		const rowRef = React.useRef<HTMLDivElement>(null)
 		const dnd = React.useContext(TreeDndContext)
+		const focus = React.useContext(TreeFocusContext)
+		const release = focus?.release
+		React.useEffect(() => () => release?.(id), [release, id])
 		const insideActive = React.useContext(InsideActiveContext)
 		const html5Drag = !dnd && !!isDraggable
 		const isActive = dnd?.activeId === id
@@ -110,11 +117,15 @@ export const TreeItem = createComponent<HTMLDivElement, TreeItemProps>(
 			node: label,
 			allowDropInside
 		}
+		const canDrag = !!dnd && isDraggable !== false
 		const {
 			attributes,
 			listeners,
-			setNodeRef: setDragRef
-		} = useDraggable({ id, data: moveData, disabled: !dnd || isDraggable === false })
+			setNodeRef: setDragRef,
+			setActivatorNodeRef
+		} = useDraggable({ id, data: moveData, disabled: !canDrag })
+		// The outer treeitem is the keyboard activator: it holds the roving focus
+		const outerRef = useMergedRefs(ref, setActivatorNodeRef)
 		const { setNodeRef: setDropRef } = useDroppable({
 			id,
 			data: moveData,
@@ -128,8 +139,16 @@ export const TreeItem = createComponent<HTMLDivElement, TreeItemProps>(
 			},
 			[setDragRef, setDropRef]
 		)
-		// The row is not a button; `treeitem` is the outer element's role
-		const { role: _role, 'aria-pressed': _pressed, ...dragAttributes } = attributes
+		// Only the drag instructions (`aria-describedby`) go on the treeitem: its role and
+		// "tree item" announcement stay, and the roving tabIndex replaces dnd-kit's
+		const {
+			role: _role,
+			'aria-pressed': _pressed,
+			'aria-roledescription': _roleDesc,
+			'aria-disabled': _disabled,
+			tabIndex: _tabIndex,
+			...dragAttributes
+		} = attributes
 		// Controls inside the row keep their own pointer and keyboard input: typing a
 		// space or selecting text in an input must not pick the row up
 		const dragListeners = React.useMemo(
@@ -147,6 +166,13 @@ export const TreeItem = createComponent<HTMLDivElement, TreeItemProps>(
 				),
 			[listeners]
 		)
+		// Pointer drags start on the row; the keyboard pick-up runs on the treeitem itself
+		// (not when a key bubbles up from a control or a child item)
+		const { onKeyDown: dragKeyDown, ...pointerListeners } = dragListeners ?? {}
+		const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+			onKeyDown?.(e)
+			if (!e.defaultPrevented && e.target === e.currentTarget) dragKeyDown?.(e)
+		}
 		const dropAt = dropPosition ?? (dnd && dnd.overId === id ? dnd.position : null)
 
 		const handleClick = React.useCallback(
@@ -161,6 +187,8 @@ export const TreeItem = createComponent<HTMLDivElement, TreeItemProps>(
 			(e: React.MouseEvent) => {
 				e.stopPropagation()
 				onToggle?.()
+				// Keep arrow keys working after a mouse toggle
+				;(e.currentTarget as HTMLElement).closest<HTMLElement>('[role="treeitem"]')?.focus()
 			},
 			[onToggle]
 		)
@@ -268,7 +296,7 @@ export const TreeItem = createComponent<HTMLDivElement, TreeItemProps>(
 
 		return (
 			<div
-				ref={ref}
+				ref={outerRef}
 				className={mergeClasses(
 					'c-tree-item',
 					selected && 'selected',
@@ -278,9 +306,13 @@ export const TreeItem = createComponent<HTMLDivElement, TreeItemProps>(
 					className
 				)}
 				role="treeitem"
+				aria-level={depth + 1}
 				aria-expanded={hasChildren ? expanded : undefined}
 				aria-selected={selected}
 				data-tree-item-id={id}
+				{...(canDrag ? dragAttributes : undefined)}
+				tabIndex={focus ? (focus.focusedId === id ? 0 : -1) : undefined}
+				onKeyDown={handleKeyDown}
 				{...props}
 			>
 				<div
@@ -289,7 +321,7 @@ export const TreeItem = createComponent<HTMLDivElement, TreeItemProps>(
 					style={{ paddingLeft: depth * INDENT_SIZE }}
 					onClick={handleClick}
 					{...(dnd
-						? { ...dragAttributes, ...dragListeners }
+						? pointerListeners
 						: {
 								draggable: html5Drag,
 								onDragStart: handleDragStart,
@@ -300,8 +332,12 @@ export const TreeItem = createComponent<HTMLDivElement, TreeItemProps>(
 							})}
 				>
 					{/* Expand/collapse toggle */}
-					<span
+					{/* Out of the Tab order: ←/→ on the item reach it */}
+					<button
+						type="button"
+						tabIndex={-1}
 						className="c-tree-item-toggle"
+						aria-label={expanded ? t('Collapse') : t('Expand')}
 						onClick={handleToggleClick}
 						style={{ visibility: hasChildren ? 'visible' : 'hidden' }}
 					>
@@ -309,7 +345,7 @@ export const TreeItem = createComponent<HTMLDivElement, TreeItemProps>(
 							size={14}
 							style={expanded ? { transform: 'rotate(90deg)' } : undefined}
 						/>
-					</span>
+					</button>
 
 					{/* Icon */}
 					{icon && <span className="c-tree-item-icon">{icon}</span>}

@@ -12,6 +12,7 @@
 import { type AppMessageBus, type AppState, getAppBus, getDocWsUrl } from '@cloudillo/core'
 import { buildPresenceUser, RtdbClient, type RtdbPresence } from '@cloudillo/rtdb'
 import * as React from 'react'
+import { getI18n } from 'react-i18next'
 
 export interface UseRtdbDocumentOptions {
 	/** Opt in to the presence channel (goes in the socket URL — cannot be turned on later). */
@@ -85,6 +86,7 @@ export function useRtdbDocument(
 		let feed: RtdbPresence | undefined
 		let initCleanup: (() => void) | undefined
 		let busInitCleanup: (() => void) | undefined
+		let unsubscribeConnection: (() => void) | undefined
 		let unmounted = false
 
 		void (async () => {
@@ -95,6 +97,7 @@ export function useRtdbDocument(
 				const bus = getAppBus()
 				const state = await bus.init(appName)
 				if (unmounted) return
+				if (state.language) void getI18n()?.changeLanguage(state.language)
 
 				setIdTag(bus.idTag)
 				setAccess(bus.access)
@@ -131,6 +134,12 @@ export function useRtdbDocument(
 					return
 				}
 
+				// Live from here on: transitions only, so the `setConnected(true)` below
+				// still sets the initial state.
+				unsubscribeConnection = rtdbClient.onConnectionChange((c) => {
+					if (!unmounted) setConnected(c)
+				})
+
 				// Only the display name goes on the wire: the server stamps
 				// `user.idTag` from the socket's own token, and the colour and
 				// picture are derived from that tag by whoever is LOOKING.
@@ -161,6 +170,7 @@ export function useRtdbDocument(
 			// Clears our roster entry at once, so peers do not wait for the socket
 			// to die for the avatar to go. `disconnect()` would close it too.
 			feed?.close()
+			unsubscribeConnection?.()
 			if (rtdbClient) {
 				rtdbClient.disconnect().catch(console.error)
 			}

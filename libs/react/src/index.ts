@@ -8,8 +8,16 @@ export * from './comments/index.js'
 export * from './components/index.js'
 export * from './docbar.js'
 export * from './embed-source.js'
+export * from './errors.js'
 export * from './hooks.js'
-export { LibTrans, type LibTransProps, useLibTranslation } from './i18n.js'
+export {
+	initAppI18n,
+	LibTrans,
+	type LibTransProps,
+	N_,
+	type TFunction,
+	useLibTranslation
+} from './i18n.js'
 export * from './icons.js'
 export * from './presence.js'
 export {

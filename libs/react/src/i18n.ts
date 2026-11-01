@@ -1,10 +1,45 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: MPL-2.0
 
+import { getAppBus } from '@cloudillo/core'
+import i18n from 'i18next'
 import * as React from 'react'
-import { Trans, useTranslation } from 'react-i18next'
+import { initReactI18next, Trans, useTranslation } from 'react-i18next'
 
-type TFunction = (key: string, options?: Record<string, unknown>) => string
+import libHu from './i18n/hu/translation.json'
+
+/** Scanned-but-untranslated keys are "": dropping them falls back to the lib bundle, then English */
+const nonEmpty = (bundle: Record<string, string>) =>
+	Object.fromEntries(Object.entries(bundle).filter(([, v]) => v))
+
+/**
+ * Init the app's i18next instance: English keys, Hungarian resources, Cloudillo separators.
+ * The library's own bundle is merged under the app's, so non-empty app entries win.
+ */
+export function initAppI18n(hu: Record<string, string>): typeof i18n {
+	i18n.use(initReactI18next)
+		.init({
+			resources: {
+				en: { translation: {} },
+				hu: { translation: { ...libHu, ...nonEmpty(hu) } }
+			},
+			fallbackLng: 'en',
+			keySeparator: '@',
+			nsSeparator: '$',
+			interpolation: { escapeValue: false }
+		})
+		.catch((err) => console.error('[i18n] init failed', err))
+	// Live switch from the shell; the initial language is applied by each app after bus init
+	getAppBus().onLanguageChange((lng) => {
+		void i18n.changeLanguage(lng)
+	})
+	return i18n
+}
+
+/** Marks a string for l-scan; translate it later with t() */
+export const N_ = (key: string): string => key
+
+export type TFunction = (key: string, options?: Record<string, unknown>) => string
 
 /**
  * A wrapper around useTranslation that falls back to returning the key

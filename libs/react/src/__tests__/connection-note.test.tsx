@@ -125,3 +125,83 @@ describe('useConnectionNote', () => {
 		remove.mockRestore()
 	})
 })
+
+/** A `ConnectionSource` (what `RtdbClient` provides): transition-only change events. */
+function fakeSource(connected: boolean) {
+	const listeners = new Set<(c: boolean) => void>()
+	return {
+		isConnected: () => connected,
+		onConnectionChange: (cb: (c: boolean) => void) => {
+			listeners.add(cb)
+			return () => {
+				listeners.delete(cb)
+			}
+		},
+		set: (c: boolean) => {
+			connected = c
+			for (const cb of listeners) cb(c)
+		},
+		count: () => listeners.size
+	}
+}
+
+describe('useConnectionNote with a ConnectionSource', () => {
+	beforeEach(() => {
+		jest.useFakeTimers()
+		online = true
+	})
+	afterEach(() => {
+		jest.useRealTimers()
+	})
+
+	it('shows "offline" immediately when the browser is offline', () => {
+		const s = fakeSource(true)
+		const { result } = renderHook(() => useConnectionNote(s))
+		expect(result.current).toBeUndefined()
+		online = false
+		act(() => s.set(false))
+		advance(0)
+		expect(result.current).toBe('offline')
+	})
+
+	it('shows "reconnecting" only after 3 s down', () => {
+		const s = fakeSource(true)
+		const { result } = renderHook(() => useConnectionNote(s))
+		act(() => s.set(false))
+		advance(2999)
+		expect(result.current).toBeUndefined()
+		advance(1)
+		expect(result.current).toBe('reconnecting')
+	})
+
+	it('stays silent for a blip that reconnects within 3 s', () => {
+		const s = fakeSource(true)
+		const { result } = renderHook(() => useConnectionNote(s))
+		act(() => s.set(false))
+		advance(1000)
+		act(() => s.set(true))
+		advance(5000)
+		expect(result.current).toBeUndefined()
+	})
+
+	it('shows "synced" for 2 s after a shown note', () => {
+		const s = fakeSource(false)
+		const { result } = renderHook(() => useConnectionNote(s))
+		advance(3000)
+		expect(result.current).toBe('reconnecting')
+		act(() => s.set(true))
+		expect(result.current).toBe('synced')
+		advance(1999)
+		expect(result.current).toBe('synced')
+		advance(1)
+		expect(result.current).toBeUndefined()
+	})
+
+	it('unsubscribes on unmount', () => {
+		const s = fakeSource(true)
+		const { unmount } = renderHook(() => useConnectionNote(s))
+		expect(s.count()).toBe(1)
+		unmount()
+		expect(s.count()).toBe(0)
+	})
+})

@@ -57,6 +57,8 @@ jest.unstable_mockModule('@cloudillo/core', async () => {
 		ownerTag: '@node.example',
 		idTag: '@node.example',
 		accessToken: undefined,
+		access: 'write',
+		onIdentityChange: () => () => {},
 		onDocInfo: (cb: (info: DocInfo) => void) => {
 			docInfoHandlers.add(cb)
 			return () => docInfoHandlers.delete(cb)

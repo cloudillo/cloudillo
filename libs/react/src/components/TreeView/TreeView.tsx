@@ -18,6 +18,7 @@ import * as React from 'react'
 import { useLibTranslation } from '../../i18n.js'
 import { useDragSensors } from '../SortableList/SortableList.js'
 import { createComponent, mergeClasses } from '../utils.js'
+import { treeKeyAction } from './keyboard.js'
 
 export type TreeDropPosition = 'before' | 'after' | 'inside'
 
@@ -36,6 +37,17 @@ export interface TreeDndState {
 
 /** Present only inside a `TreeView` with `onMove` */
 export const TreeDndContext = React.createContext<TreeDndState | null>(null)
+
+/** Roving focus: the item holding the tree's one tab stop (`null` = the tree itself) */
+export interface TreeFocusState {
+	focusedId: string | null
+	/** An unmounting item gives the tab stop back to the tree */
+	release: (id: string) => void
+}
+
+export const TreeFocusContext = React.createContext<TreeFocusState | null>(null)
+
+const ITEM = '[role="treeitem"]'
 
 export interface TreeViewProps extends React.HTMLAttributes<HTMLDivElement> {
 	/**
@@ -66,9 +78,12 @@ const IDLE: TreeDndState = { activeId: null, overId: null, position: null }
 
 function TreeDnd({
 	onMove,
+	activeRef,
 	children
 }: {
 	onMove: NonNullable<TreeViewProps['onMove']>
+	/** Mirrors `activeId` for TreeView's key handler, which sits outside the provider */
+	activeRef: React.MutableRefObject<string | null>
 	children: React.ReactNode
 }) {
 	const { t } = useLibTranslation()
@@ -77,6 +92,7 @@ function TreeDnd({
 	const [overlay, setOverlay] = React.useState<React.ReactNode>(null)
 	const stateRef = React.useRef(state)
 	stateRef.current = state
+	activeRef.current = state.activeId
 
 	const announcements = React.useMemo<Announcements>(() => {
 		const name = (x: Active | Over | null) =>
@@ -147,18 +163,83 @@ function TreeDnd({
 
 export const TreeView = createComponent<HTMLDivElement, TreeViewProps>(
 	'TreeView',
-	({ className, onMove, children, ...props }, ref) => {
+	({ className, onMove, onKeyDown, onFocus, children, ...props }, ref) => {
+		const [focusedId, setFocusedId] = React.useState<string | null>(null)
+		const release = React.useCallback((id: string) => {
+			setFocusedId((cur) => (cur === id ? null : cur))
+		}, [])
+		const focus = React.useMemo(() => ({ focusedId, release }), [focusedId, release])
+		const dragActive = React.useRef<string | null>(null)
+
+		function handleFocus(e: React.FocusEvent<HTMLDivElement>) {
+			onFocus?.(e)
+			const tree = e.currentTarget
+			if (e.target === tree) {
+				// Tabbed onto the tree itself: hand focus to the selected item, else the first
+				const item =
+					tree.querySelector<HTMLElement>(`${ITEM}[aria-selected="true"]`) ??
+					tree.querySelector<HTMLElement>(ITEM)
+				item?.focus()
+				return
+			}
+			const id = (e.target as Element).closest(ITEM)?.getAttribute('data-tree-item-id')
+			if (id != null) setFocusedId(id)
+		}
+
+		function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+			onKeyDown?.(e)
+			// dnd-kit's KeyboardSensor owns the keys while it drags; inputs and buttons
+			// inside a row keep theirs
+			if (e.defaultPrevented || dragActive.current || e.altKey || e.ctrlKey || e.metaKey)
+				return
+			const target = e.target as HTMLElement
+			if (target.getAttribute('role') !== 'treeitem') return
+			const els = Array.from(e.currentTarget.querySelectorAll<HTMLElement>(ITEM))
+			const action = treeKeyAction(
+				e.key,
+				els.map((el) => ({
+					level: Number(el.getAttribute('aria-level')) || 1,
+					expanded: el.getAttribute('aria-expanded') === 'true',
+					hasChildren: el.hasAttribute('aria-expanded')
+				})),
+				els.indexOf(target),
+				{ draggable: !!onMove }
+			)
+			if (!action) return
+			e.preventDefault()
+			// The row is the item's first child; clicking it or its toggle runs the
+			// item's own onSelect / onToggle
+			const row = target.firstElementChild as HTMLElement | null
+			if ('focus' in action) els[action.focus]?.focus()
+			else if ('toggle' in action)
+				row?.querySelector<HTMLElement>('.c-tree-item-toggle')?.click()
+			else row?.click()
+		}
+
 		const tree = (
 			<div
 				ref={ref}
 				className={mergeClasses('c-tree-view c-vbox', className)}
 				role="tree"
+				tabIndex={focusedId === null ? 0 : -1}
+				onFocus={handleFocus}
+				onKeyDown={handleKeyDown}
 				{...props}
 			>
 				{children}
 			</div>
 		)
-		return onMove ? <TreeDnd onMove={onMove}>{tree}</TreeDnd> : tree
+		return (
+			<TreeFocusContext.Provider value={focus}>
+				{onMove ? (
+					<TreeDnd onMove={onMove} activeRef={dragActive}>
+						{tree}
+					</TreeDnd>
+				) : (
+					tree
+				)}
+			</TreeFocusContext.Provider>
+		)
 	}
 )
 

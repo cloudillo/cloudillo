@@ -5,6 +5,7 @@ import { type ApiClient, getApiClient, getAppBus, hasApiToken } from '@cloudillo
 import { type CrdtPersistence, openYDoc } from '@cloudillo/crdt'
 import { atom, useAtom } from 'jotai'
 import * as React from 'react'
+import { getI18n } from 'react-i18next'
 import { useLocation } from 'react-router-dom'
 import type { WebsocketProvider } from 'y-websocket'
 import * as Y from 'yjs'
@@ -197,6 +198,7 @@ export function useCloudillo(appNameArg?: string): UseCloudillo {
 				try {
 					const bus = getAppBus()
 					const state = await bus.init(appName)
+					if (state.language) void getI18n()?.changeLanguage(state.language)
 					setAuth({
 						idTag: state.idTag,
 						tnId: state.tnId ?? 0,
@@ -299,7 +301,7 @@ export function useCloudilloEditor(appName: string) {
 	// discarded one minted rather than mint a second. `superseded` lives on the entry so each
 	// effect run reasons about its own doc instead of reading the ref back at teardown.
 	//
-	// ponytail: correct only while `docId` arrives synchronously. Feeding this hook a
+	// correct only while `docId` arrives synchronously. Feeding this hook a
 	// `useDeferredValue`/transition-ed docId would let a discarded render flip `superseded`
 	// on the committed entry. Upgrade path if that ever happens: mint the doc inside the
 	// effect and return `Y.Doc | undefined`, which is a breaking change for the three

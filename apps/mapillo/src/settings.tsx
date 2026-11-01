@@ -3,6 +3,7 @@
 
 import { IcClose, IcSettings } from '@cloudillo/react'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 
 import type { MapilloSettings, OverpassServer } from './types.js'
 import { OVERPASS_SERVERS } from './types.js'
@@ -15,6 +16,7 @@ interface SettingsPanelProps {
 }
 
 export function SettingsPanel({ settings, onSettingsChange, open, onToggle }: SettingsPanelProps) {
+	const { t } = useTranslation()
 	function handleOverpassChange(server: OverpassServer) {
 		onSettingsChange({ overpassServer: server })
 	}
@@ -24,7 +26,7 @@ export function SettingsPanel({ settings, onSettingsChange, open, onToggle }: Se
 			<button
 				className="mapillo-ctrl mapillo-settings-toggle"
 				onClick={() => onToggle(true)}
-				title="Settings"
+				title={t('Settings')}
 			>
 				<IcSettings />
 			</button>
@@ -34,14 +36,14 @@ export function SettingsPanel({ settings, onSettingsChange, open, onToggle }: Se
 	return (
 		<div className="mapillo-settings-panel">
 			<div className="mapillo-settings-header">
-				<span>Settings</span>
-				<button onClick={() => onToggle(false)} title="Close">
+				<span>{t('Settings')}</span>
+				<button onClick={() => onToggle(false)} title={t('Close')}>
 					<IcClose />
 				</button>
 			</div>
 
 			<div className="mapillo-settings-section">
-				<div className="mapillo-settings-label">Overpass server</div>
+				<div className="mapillo-settings-label">{t('Overpass server')}</div>
 				{(
 					Object.entries(OVERPASS_SERVERS) as [
 						OverpassServer,
@@ -55,15 +57,15 @@ export function SettingsPanel({ settings, onSettingsChange, open, onToggle }: Se
 							checked={settings.overpassServer === id}
 							onChange={() => handleOverpassChange(id)}
 						/>
-						<span>{server.label}</span>
+						<span>{t(server.label)}</span>
 					</label>
 				))}
 			</div>
 
 			<div className="mapillo-settings-section">
-				<div className="mapillo-settings-label">Privacy consents</div>
+				<div className="mapillo-settings-label">{t('Privacy consents')}</div>
 				<label className="c-settings-field">
-					<span>Nominatim (search)</span>
+					<span>{t('Nominatim (search)')}</span>
 					<input
 						className="c-toggle primary"
 						type="checkbox"
@@ -72,7 +74,7 @@ export function SettingsPanel({ settings, onSettingsChange, open, onToggle }: Se
 					/>
 				</label>
 				<label className="c-settings-field">
-					<span>Overpass (POI)</span>
+					<span>{t('Overpass (POI)')}</span>
 					<input
 						className="c-toggle primary"
 						type="checkbox"

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 import type { TileSource } from '@cloudillo/core'
+import { N_ } from '@cloudillo/react'
 import type { StyleSpecification } from 'maplibre-gl'
 
 import type { TileLayerConfig, TileLayerId } from './types.js'
@@ -21,34 +22,38 @@ const DEFAULT_HINTS: StyleHints = {
  * `map.tile_sources` server setting. URLs and attributions come from the setting only.
  */
 const STYLE_HINTS: Record<string, Partial<StyleHints>> = {
-	OpenStreetMap: { description: 'Standard map with labels', previewColor: '#aad3df' },
+	OpenStreetMap: { description: N_('Standard map with labels'), previewColor: '#aad3df' },
 	Positron: {
-		description: 'Clean, light, minimal',
+		description: N_('Clean, light, minimal'),
 		tileSize: 512,
 		maxZoom: 20,
 		previewColor: '#e6e5e3'
 	},
 	'Positron (No Labels)': {
-		description: 'Light, no text',
+		description: N_('Light, no text'),
 		tileSize: 512,
 		maxZoom: 20,
 		previewColor: '#d5d4d2'
 	},
 	'Dark Matter': {
-		description: 'Native dark theme',
+		description: N_('Native dark theme'),
 		tileSize: 512,
 		maxZoom: 20,
 		skipDarkFilter: true,
 		previewColor: '#2c2c2c'
 	},
 	Voyager: {
-		description: 'Colorful, modern',
+		description: N_('Colorful, modern'),
 		tileSize: 512,
 		maxZoom: 20,
 		previewColor: '#e8e0d8'
 	},
-	OpenTopoMap: { description: 'Topographic contour lines', maxZoom: 17, previewColor: '#c5e8b0' },
-	Satellite: { description: 'Aerial imagery', skipDarkFilter: true, previewColor: '#3a5a3a' }
+	OpenTopoMap: {
+		description: N_('Topographic contour lines'),
+		maxZoom: 17,
+		previewColor: '#c5e8b0'
+	},
+	Satellite: { description: N_('Aerial imagery'), skipDarkFilter: true, previewColor: '#3a5a3a' }
 }
 
 /**

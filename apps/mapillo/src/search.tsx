@@ -3,6 +3,7 @@
 
 import { IcClear, IcSearch, useOutsideClick } from '@cloudillo/react'
 import * as React from 'react'
+import { Trans, useTranslation } from 'react-i18next'
 
 import type { NominatimResult } from './types.js'
 
@@ -15,12 +16,26 @@ interface SearchBarProps {
 }
 
 export function SearchBar({ onSelect, privacyAcknowledged, onPrivacyAcknowledge }: SearchBarProps) {
+	const { t } = useTranslation()
 	const [query, setQuery] = React.useState('')
 	const [results, setResults] = React.useState<NominatimResult[]>([])
 	const [loading, setLoading] = React.useState(false)
 	const [showResults, setShowResults] = React.useState(false)
 	const [showPrivacyNotice, setShowPrivacyNotice] = React.useState(false)
+	const [active, setActive] = React.useState(-1)
 	const containerRef = React.useRef<HTMLDivElement>(null)
+	const baseId = React.useId()
+	const listId = `${baseId}-list`
+	const optionId = (i: number) => `${baseId}-opt-${i}`
+	const listOpen = showResults && results.length > 0
+
+	// New results, a closed list or a cleared query start with no active option
+	React.useEffect(() => setActive(-1), [results, showResults])
+
+	React.useEffect(() => {
+		if (active >= 0)
+			document.getElementById(optionId(active))?.scrollIntoView({ block: 'nearest' })
+	}, [active])
 
 	// Close results dropdown on outside click
 	useOutsideClick(containerRef, () => setShowResults(false))
@@ -63,9 +78,19 @@ export function SearchBar({ onSelect, privacyAcknowledged, onPrivacyAcknowledge 
 	}
 
 	function handleKeyDown(e: React.KeyboardEvent) {
-		if (e.key === 'Enter') {
+		if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+			if (!listOpen) return
 			e.preventDefault()
-			doSearch()
+			const n = results.length
+			const down = e.key === 'ArrowDown'
+			setActive((i) => (down ? (i + 1) % n : (i <= 0 ? n : i) - 1))
+		} else if (e.key === 'Enter') {
+			e.preventDefault()
+			if (listOpen && active >= 0) handleSelect(results[active])
+			else doSearch()
+		} else if (e.key === 'Escape' && showResults) {
+			e.preventDefault()
+			setShowResults(false)
 		}
 	}
 
@@ -93,14 +118,23 @@ export function SearchBar({ onSelect, privacyAcknowledged, onPrivacyAcknowledge 
 				<IcSearch className="mapillo-search-icon" />
 				<input
 					type="text"
-					placeholder="Search location..."
+					role="combobox"
+					aria-autocomplete="list"
+					aria-expanded={listOpen}
+					aria-controls={listOpen ? listId : undefined}
+					aria-activedescendant={listOpen && active >= 0 ? optionId(active) : undefined}
+					placeholder={t('Search location...')}
 					value={query}
 					onChange={(e) => setQuery(e.target.value)}
 					onKeyDown={handleKeyDown}
 					onFocus={() => results.length > 0 && setShowResults(true)}
 				/>
 				{query && (
-					<button className="mapillo-search-clear" onClick={clearSearch} title="Clear">
+					<button
+						className="mapillo-search-clear"
+						onClick={clearSearch}
+						title={t('Clear')}
+					>
 						<IcClear />
 					</button>
 				)}
@@ -108,48 +142,63 @@ export function SearchBar({ onSelect, privacyAcknowledged, onPrivacyAcknowledge 
 					className="mapillo-search-btn"
 					onClick={() => doSearch()}
 					disabled={loading || !query.trim()}
-					title="Search"
+					title={t('Search')}
 				>
-					{loading ? '...' : 'Go'}
+					{loading ? '...' : t('Go')}
 				</button>
 			</div>
 
 			{showPrivacyNotice && (
 				<div className="mapillo-privacy-notice">
 					<p>
-						This will contact <b>OpenStreetMap Nominatim</b> servers. Your search query
-						will be sent to nominatim.openstreetmap.org.
+						<Trans
+							i18nKey="This will contact <0>OpenStreetMap Nominatim</0> servers. Your search query will be sent to nominatim.openstreetmap.org."
+							components={[<b key="b" />]}
+						/>
 					</p>
 					<div className="mapillo-privacy-actions">
-						<button onClick={() => setShowPrivacyNotice(false)}>Cancel</button>
+						<button onClick={() => setShowPrivacyNotice(false)}>{t('Cancel')}</button>
 						<button className="mapillo-btn-primary" onClick={handlePrivacyAccept}>
-							OK, search
+							{t('OK, search')}
 						</button>
 					</div>
 				</div>
 			)}
 
-			{showResults && results.length > 0 && (
-				<ul className="mapillo-search-results">
-					{results.map((r) => (
-						<li key={r.place_id} onClick={() => handleSelect(r)}>
-							<span className="mapillo-result-name">
-								{r.display_name.split(',')[0]}
-							</span>
-							<span className="mapillo-result-detail">
-								{r.display_name.split(',').slice(1, 3).join(',')}
-							</span>
-						</li>
-					))}
-					<li className="mapillo-search-attribution">Powered by OSM Nominatim</li>
-				</ul>
-			)}
-
-			{showResults && results.length === 0 && !loading && query.trim() && (
+			{listOpen && (
 				<div className="mapillo-search-results">
-					<div className="mapillo-no-results">No results found</div>
+					<ul id={listId} role="listbox" className="mapillo-search-listbox">
+						{results.map((r, i) => (
+							<li
+								key={r.place_id}
+								id={optionId(i)}
+								role="option"
+								aria-selected={i === active}
+								onClick={() => handleSelect(r)}
+							>
+								<span className="mapillo-result-name">
+									{r.display_name.split(',')[0]}
+								</span>
+								<span className="mapillo-result-detail">
+									{r.display_name.split(',').slice(1, 3).join(',')}
+								</span>
+							</li>
+						))}
+					</ul>
+					<div className="mapillo-search-attribution">
+						{t('Powered by OSM Nominatim')}
+					</div>
 				</div>
 			)}
+
+			{/* Kept mounted so screen readers announce the message when it appears */}
+			<div aria-live="polite">
+				{showResults && results.length === 0 && !loading && query.trim() && (
+					<div className="mapillo-search-results">
+						<div className="mapillo-no-results">{t('No results found')}</div>
+					</div>
+				)}
+			</div>
 		</div>
 	)
 }

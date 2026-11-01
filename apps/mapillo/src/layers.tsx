@@ -3,6 +3,7 @@
 
 import { IcCheck, IcClose } from '@cloudillo/react'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { IcLayers } from './icons.js'
 import type { TileLayerConfig, TileLayerId } from './types.js'
@@ -16,12 +17,13 @@ interface LayerPanelProps {
 }
 
 export function LayerPanel({ layers, activeTileId, onSelect, open, onToggle }: LayerPanelProps) {
+	const { t } = useTranslation()
 	if (!open) {
 		return (
 			<button
 				className="mapillo-ctrl mapillo-layer-toggle"
 				onClick={() => onToggle(true)}
-				title="Change map style"
+				title={t('Change map style')}
 			>
 				<IcLayers />
 			</button>
@@ -31,8 +33,8 @@ export function LayerPanel({ layers, activeTileId, onSelect, open, onToggle }: L
 	return (
 		<div className="mapillo-layer-panel">
 			<div className="mapillo-layer-header">
-				<span>Map Style</span>
-				<button onClick={() => onToggle(false)} title="Close">
+				<span>{t('Map Style')}</span>
+				<button onClick={() => onToggle(false)} title={t('Close')}>
 					<IcClose />
 				</button>
 			</div>
@@ -55,7 +57,7 @@ export function LayerPanel({ layers, activeTileId, onSelect, open, onToggle }: L
 							<div className="mapillo-layer-info">
 								<div className="mapillo-layer-name">{layer.name}</div>
 								{layer.description && (
-									<div className="mapillo-layer-desc">{layer.description}</div>
+									<div className="mapillo-layer-desc">{t(layer.description)}</div>
 								)}
 							</div>
 							{isActive && <IcCheck className="mapillo-layer-check" />}

@@ -3,6 +3,7 @@
 
 import { IcClose, IcDisclosure, IcLoading, IcLocation } from '@cloudillo/react'
 import * as React from 'react'
+import { Trans, useTranslation } from 'react-i18next'
 
 import {
 	IcAtm,
@@ -39,6 +40,9 @@ import {
 } from './icons.js'
 import type { PoiCategory, PoiFeature, PoiGroupId } from './types.js'
 import { POI_CATEGORIES, POI_GROUPS } from './types.js'
+
+/** Overpass queries cover the visible area, so below this zoom they would be too large. */
+export const MIN_POI_ZOOM = 13
 
 const CATEGORY_ICONS: Record<PoiCategory, React.ComponentType> = {
 	restaurant: IcRestaurant,
@@ -77,6 +81,7 @@ const CATEGORY_ICONS: Record<PoiCategory, React.ComponentType> = {
 interface PoiPanelProps {
 	onResults: (pois: PoiFeature[], category: PoiCategory) => void
 	queryPois: (category: PoiCategory) => Promise<PoiFeature[]>
+	zoom: number
 	privacyAcknowledged: boolean
 	onPrivacyAcknowledge: () => void
 	open: boolean
@@ -86,11 +91,13 @@ interface PoiPanelProps {
 export function PoiPanel({
 	onResults,
 	queryPois,
+	zoom,
 	privacyAcknowledged,
 	onPrivacyAcknowledge,
 	open,
 	onToggle
 }: PoiPanelProps) {
+	const { t } = useTranslation()
 	const [activeCategory, setActiveCategory] = React.useState<PoiCategory | null>(null)
 	const [resultCount, setResultCount] = React.useState<number | null>(null)
 	const [loading, setLoading] = React.useState(false)
@@ -98,6 +105,7 @@ export function PoiPanel({
 	const [showPrivacyNotice, setShowPrivacyNotice] = React.useState(false)
 	const [expandedGroup, setExpandedGroup] = React.useState<PoiGroupId | null>(POI_GROUPS[0].id)
 	const pendingCategoryRef = React.useRef<PoiCategory | null>(null)
+	const zoomedOut = zoom < MIN_POI_ZOOM
 
 	async function doQuery(category: PoiCategory) {
 		setActiveCategory(category)
@@ -110,7 +118,7 @@ export function PoiPanel({
 			onResults(results, category)
 		} catch (err) {
 			console.error('[Mapillo] POI query failed:', err)
-			setError('Failed to query places. Try again later.')
+			setError(t('Failed to query places. Try again later.'))
 			setResultCount(null)
 		} finally {
 			setLoading(false)
@@ -154,7 +162,7 @@ export function PoiPanel({
 			<button
 				className="mapillo-ctrl mapillo-poi-toggle"
 				onClick={() => onToggle(true)}
-				title="Explore nearby places"
+				title={t('Explore nearby places')}
 			>
 				<IcLocation />
 			</button>
@@ -164,13 +172,18 @@ export function PoiPanel({
 	return (
 		<div className="mapillo-poi-panel">
 			<div className="mapillo-poi-header">
-				<span>Explore POIs</span>
-				<button onClick={handleClose} title="Close">
+				<span>{t('Explore POIs')}</span>
+				<button onClick={handleClose} title={t('Close')}>
 					<IcClose />
 				</button>
 			</div>
 
 			<div className="mapillo-poi-body">
+				{zoomedOut && (
+					<div className="mapillo-poi-zoom-hint" role="status">
+						{t('Zoom in to explore places')}
+					</div>
+				)}
 				{POI_GROUPS.map((group) => {
 					const expanded = expandedGroup === group.id
 					return (
@@ -179,7 +192,7 @@ export function PoiPanel({
 								className={`mapillo-poi-group-header ${expanded ? 'expanded' : ''}`}
 								onClick={() => toggleGroup(group.id)}
 							>
-								<span>{group.label}</span>
+								<span>{t(group.label)}</span>
 								<IcDisclosure />
 							</button>
 							{expanded && (
@@ -192,15 +205,15 @@ export function PoiPanel({
 												key={key}
 												className={`mapillo-poi-cat ${activeCategory === key ? 'active' : ''}`}
 												onClick={() => handleCategoryClick(key)}
-												disabled={loading}
-												title={cat.label}
+												disabled={loading || zoomedOut}
+												title={t(cat.label)}
 											>
 												<span
 													className="mapillo-poi-cat-dot"
 													style={{ backgroundColor: cat.color }}
 												/>
 												<Icon />
-												<span>{cat.label}</span>
+												<span>{t(cat.label)}</span>
 											</button>
 										)
 									})}
@@ -214,13 +227,15 @@ export function PoiPanel({
 			{showPrivacyNotice && (
 				<div className="mapillo-privacy-notice">
 					<p>
-						This will contact the <b>Overpass API</b> server. Your map area will be sent
-						to overpass-api.de to query points of interest.
+						<Trans
+							i18nKey="This will contact the <0>Overpass API</0> server. Your map area will be sent to overpass-api.de to query points of interest."
+							components={[<b key="b" />]}
+						/>
 					</p>
 					<div className="mapillo-privacy-actions">
-						<button onClick={() => setShowPrivacyNotice(false)}>Cancel</button>
+						<button onClick={() => setShowPrivacyNotice(false)}>{t('Cancel')}</button>
 						<button className="mapillo-btn-primary" onClick={handlePrivacyAccept}>
-							OK, search
+							{t('OK, search')}
 						</button>
 					</div>
 				</div>
@@ -228,19 +243,19 @@ export function PoiPanel({
 
 			{loading && (
 				<div className="mapillo-poi-status">
-					<IcLoading className="mapillo-spin" /> Searching...
+					<IcLoading className="mapillo-spin" /> {t('Searching...')}
 				</div>
 			)}
 			{error && <div className="mapillo-poi-status mapillo-poi-error">{error}</div>}
 			{!error && !loading && resultCount !== null && (
 				<div className="mapillo-poi-status">
 					{resultCount === 0
-						? 'No places found in this area'
-						: `${resultCount} places found`}
+						? t('No places found in this area')
+						: t('{{count}} places found', { count: resultCount })}
 				</div>
 			)}
 
-			<div className="mapillo-poi-attribution">Data: OpenStreetMap / Overpass API</div>
+			<div className="mapillo-poi-attribution">{t('Data: OpenStreetMap / Overpass API')}</div>
 		</div>
 	)
 }

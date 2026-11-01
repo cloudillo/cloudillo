@@ -3,14 +3,16 @@
 
 import * as maplibregl from 'maplibre-gl'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import type { AppMessageBus } from '@cloudillo/core'
 import { IcLoading } from '@cloudillo/react'
 
+import i18n from './i18n.js'
 import { IcCompass, IcLocate, IcNorth } from './icons.js'
 import { LayerPanel } from './layers.js'
 import { queryOverpassPois } from './overpass.js'
-import { PoiPanel } from './poi.js'
+import { MIN_POI_ZOOM, PoiPanel } from './poi.js'
 import { SearchBar } from './search.js'
 import { SettingsPanel } from './settings.js'
 import { getMapStyle, getTileLayer } from './styles.js'
@@ -33,6 +35,7 @@ interface MapViewProps {
 }
 
 export function MapView({ darkMode, settings, onSettingsChange, bus, tileLayers }: MapViewProps) {
+	const { t } = useTranslation()
 	const mapContainerRef = React.useRef<HTMLDivElement>(null)
 	const mapRef = React.useRef<maplibregl.Map | null>(null)
 	const searchMarkerRef = React.useRef<maplibregl.Marker | null>(null)
@@ -41,6 +44,7 @@ export function MapView({ darkMode, settings, onSettingsChange, bus, tileLayers 
 	const [locating, setLocating] = React.useState(false)
 	const [freeRotation, setFreeRotation] = React.useState(false)
 	const [bearing, setBearing] = React.useState(0)
+	const [zoom, setZoom] = React.useState(2)
 	const [activePanel, setActivePanel] = React.useState<'layers' | 'poi' | 'settings' | null>(null)
 
 	const activeLayer = getTileLayer(tileLayers, settings.activeTileLayerId)
@@ -64,6 +68,7 @@ export function MapView({ darkMode, settings, onSettingsChange, bus, tileLayers 
 		map.dragRotate.disable()
 		map.touchZoomRotate.disableRotation()
 		map.on('rotate', () => setBearing(map.getBearing()))
+		map.on('zoomend', () => setZoom(map.getZoom()))
 
 		map.addControl(new maplibregl.NavigationControl(), 'bottom-right')
 		mapRef.current = map
@@ -277,7 +282,7 @@ export function MapView({ darkMode, settings, onSettingsChange, bus, tileLayers 
 			const map = mapRef.current
 			if (!map) return []
 
-			if (map.getZoom() < 13) {
+			if (map.getZoom() < MIN_POI_ZOOM) {
 				throw new Error('Zoom in closer to search for places')
 			}
 
@@ -323,6 +328,7 @@ export function MapView({ darkMode, settings, onSettingsChange, bus, tileLayers 
 			<PoiPanel
 				onResults={handlePoiResults}
 				queryPois={queryPois}
+				zoom={zoom}
 				privacyAcknowledged={settings.overpassConsent}
 				onPrivacyAcknowledge={handleOverpassConsent}
 				open={activePanel === 'poi'}
@@ -337,7 +343,7 @@ export function MapView({ darkMode, settings, onSettingsChange, bus, tileLayers 
 			<button
 				className="mapillo-ctrl mapillo-compass"
 				onClick={handleRotationToggle}
-				title={freeRotation ? 'Lock north' : 'Free rotation'}
+				title={freeRotation ? t('Lock north') : t('Free rotation')}
 			>
 				{freeRotation ? (
 					<IcCompass style={{ transform: `rotate(${-bearing}deg)` }} />
@@ -349,7 +355,7 @@ export function MapView({ darkMode, settings, onSettingsChange, bus, tileLayers 
 				className={`mapillo-ctrl mapillo-locate${locating ? ' locating' : ''}`}
 				onClick={handleLocate}
 				disabled={locating}
-				title="Jump to my location"
+				title={t('Jump to my location')}
 			>
 				{locating ? <IcLoading className="mapillo-spin" /> : <IcLocate />}
 			</button>
@@ -360,7 +366,7 @@ export function MapView({ darkMode, settings, onSettingsChange, bus, tileLayers 
 
 function formatPoiPopup(poi: PoiFeature): string {
 	const tags = poi.tags
-	const name = poi.name || tags.amenity || tags.shop || tags.leisure || 'POI'
+	const name = poi.name || tags.amenity || tags.shop || tags.leisure || i18n.t('POI')
 
 	// Type line from amenity/shop/leisure/tourism
 	const typeTag = tags.amenity || tags.shop || tags.leisure || tags.tourism || ''
@@ -373,7 +379,7 @@ function formatPoiPopup(poi: PoiFeature): string {
 	// Cuisine
 	if (tags.cuisine) {
 		fields.push(
-			`<div class="mapillo-popup-field"><span class="mapillo-popup-label">Cuisine:</span> ${escapeHtml(tags.cuisine.replace(/;/g, ', '))}</div>`
+			`<div class="mapillo-popup-field"><span class="mapillo-popup-label">${escapeHtml(i18n.t('Cuisine:'))}</span> ${escapeHtml(tags.cuisine.replace(/;/g, ', '))}</div>`
 		)
 	}
 
@@ -394,14 +400,14 @@ function formatPoiPopup(poi: PoiFeature): string {
 	// Opening hours
 	if (tags.opening_hours) {
 		fields.push(
-			`<div class="mapillo-popup-field"><span class="mapillo-popup-label">Hours:</span> ${escapeHtml(tags.opening_hours)}</div>`
+			`<div class="mapillo-popup-field"><span class="mapillo-popup-label">${escapeHtml(i18n.t('Hours:'))}</span> ${escapeHtml(tags.opening_hours)}</div>`
 		)
 	}
 
 	// Phone
 	if (tags.phone) {
 		fields.push(
-			`<div class="mapillo-popup-field"><span class="mapillo-popup-label">Phone:</span> ${escapeHtml(tags.phone)}</div>`
+			`<div class="mapillo-popup-field"><span class="mapillo-popup-label">${escapeHtml(i18n.t('Phone:'))}</span> ${escapeHtml(tags.phone)}</div>`
 		)
 	}
 

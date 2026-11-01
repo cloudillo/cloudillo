@@ -4,6 +4,7 @@
 import * as React from 'react'
 import { createRoot } from 'react-dom/client'
 
+import './i18n.js'
 import { MapilloApp } from './app.js'
 
 const app = document.getElementById('app')

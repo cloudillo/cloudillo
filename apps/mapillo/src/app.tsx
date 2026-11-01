@@ -4,12 +4,14 @@
 import { type AppMessageBus, getAppBus, parseTileSources } from '@cloudillo/core'
 import { EmptyState, LoadingSpinner } from '@cloudillo/react'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 
 import '@symbion/opalui'
 import '@symbion/opalui/themes/glass.css'
 import '@cloudillo/fonts/fonts.css'
 import './style.css'
 
+import i18n from './i18n.js'
 import { IcMap } from './icons.js'
 import { MapView } from './map.js'
 import { toTileLayers } from './styles.js'
@@ -67,6 +69,7 @@ async function loadTileLayers(bus: AppMessageBus): Promise<TileLayerConfig[] | u
 }
 
 export function MapilloApp() {
+	const { t } = useTranslation()
 	const [darkMode, setDarkMode] = React.useState(false)
 	const [ready, setReady] = React.useState(false)
 	const [settings, setSettings] = React.useState<MapilloSettings>(DEFAULT_SETTINGS)
@@ -82,6 +85,7 @@ export function MapilloApp() {
 				const bus = getAppBus()
 				busRef.current = bus
 				const state = await bus.init(APP_NAME)
+				if (state.language) await i18n.changeLanguage(state.language)
 				// Torn down while init was pending: the cleanup has already run,
 				// with `unsubscribeTheme` still undefined. Subscribing past this
 				// point would leak the listener for the lifetime of the page.
@@ -149,19 +153,20 @@ export function MapilloApp() {
 	if (!ready) {
 		return (
 			<div className="mapillo-loading c-vbox w-100 h-100 align-center justify-center">
-				<LoadingSpinner size="lg" label="Loading Mapillo…" />
+				<LoadingSpinner size="lg" label={t('Loading Mapillo…')} />
 			</div>
 		)
 	}
 
-	// ponytail: English only, like the spinner above — mapillo has no i18n yet
 	if (!hasWebGL2) {
 		return (
 			<EmptyState
 				fill
 				icon={<IcMap />}
-				title="Maps need WebGL2"
-				description="This browser or device has WebGL2 disabled or unsupported, so the map cannot be drawn."
+				title={t('Maps need WebGL2')}
+				description={t(
+					'This browser or device has WebGL2 disabled or unsupported, so the map cannot be drawn.'
+				)}
 			/>
 		)
 	}
@@ -171,8 +176,8 @@ export function MapilloApp() {
 			<EmptyState
 				fill
 				icon={<IcMap />}
-				title="Map sources could not be loaded"
-				description="Try reloading the page."
+				title={t('Map sources could not be loaded')}
+				description={t('Try reloading the page.')}
 			/>
 		)
 	}
@@ -182,8 +187,8 @@ export function MapilloApp() {
 			<EmptyState
 				fill
 				icon={<IcMap />}
-				title="Mapillo is disabled by the administrator"
-				description="This server has no map tile sources configured."
+				title={t('Mapillo is disabled by the administrator')}
+				description={t('This server has no map tile sources configured.')}
 			/>
 		)
 	}

@@ -42,13 +42,22 @@ const CONNECTION_HEALTHY_MS = 10_000
  * caller constructing a manager directly to name a flag it does not use.
  */
 type ManagerOptions = Required<
-	Omit<Exclude<RtdbClientOptions['options'], undefined>, 'presence'>
-> & { presence?: boolean }
+	Omit<Exclude<RtdbClientOptions['options'], undefined>, 'presence' | 'maxQueuedWriteAgeMs'>
+> & { presence?: boolean; maxQueuedWriteAgeMs?: number }
+
+/** Frames `send` will hold while offline; past this it rejects instead of queueing. */
+const MAX_QUEUED_FRAMES = 1000
 
 interface PendingRequest {
 	resolve: (value: unknown) => void
 	reject: (reason: Error) => void
-	timeout: ReturnType<typeof setTimeout>
+	/** The frame's `type`; `getPendingWriteCount` counts the `transaction` ones. */
+	type: string
+	/** The 30s timer. Unset while a `transaction` frame waits in `messageQueue`: writes
+	 *  time from the wire, so a queued write survives an outage of any length. */
+	timeout?: ReturnType<typeof setTimeout>
+	/** When a `transaction` frame was queued; `flushMessageQueue` expires old ones. */
+	queuedAt?: number
 }
 
 interface Subscription {
@@ -105,10 +114,14 @@ export class WebSocketManager {
 	private debug: boolean
 
 	// Set by `disconnect()` and `stopReconnection()`: the caller is done with this client and
-	// nothing already in flight may revive it. Distinct from `options.reconnect === false`,
+	// nothing already in flight may revive it. Also set by a terminal auth close (4400–4499
+	// not retried), so a later `send()` rejects instead of queueing for a socket that never
+	// comes; an explicit `connect()` clears it. Distinct from `options.reconnect === false`,
 	// which only means "never auto-reconnect on a dropped socket" — such a client may still
 	// legitimately be reconnected by the 4401 refresh path.
 	private stopped = false
+	// Set by the first `connect()`: before it, a send queues for the socket that is coming
+	private started = false
 
 	// Bounds the 4401 recovery path so a genuinely unauthorized resource can't spin through
 	// refresh → reconnect → 4401 → refresh forever. Counting attempts is what makes the bound
@@ -151,6 +164,10 @@ export class WebSocketManager {
 	private presenceUnsupported = false
 
 	private presenceHandlers = new Set<(event: PresenceEvent) => void>()
+
+	private connectionListeners = new Set<(connected: boolean) => void>()
+	// The last value handed to `connectionListeners`, so they only ever see transitions.
+	private lastEmittedConnected = false
 
 	constructor(
 		private dbId: string,
@@ -202,6 +219,7 @@ export class WebSocketManager {
 		if (this.connecting && this.connectPromise) return this.connectPromise
 
 		this.stopped = false
+		this.started = true
 
 		// Cancel any pending reconnect
 		if (this.reconnectTimeout) {
@@ -273,6 +291,9 @@ export class WebSocketManager {
 					// so the server has already put us back in the room and will push a
 					// fresh `sync`. Only what we had published needs saying again.
 					this.republishPresence()
+					// After the flush: RTDB has no separate "synced" event, so a listener
+					// reads reconnect-plus-flush as synced.
+					this.emitConnection(true)
 					resolve()
 				}
 
@@ -316,7 +337,9 @@ export class WebSocketManager {
 		this.connected = false
 		this.connId = undefined
 		this.stopPingInterval()
+		// Everything, queued frames included: nothing will reopen the socket to send them.
 		this.clearPendingRequests()
+		this.emitConnection(false)
 	}
 
 	async send<T>(message: ClientMessage): Promise<T> {
@@ -324,38 +347,70 @@ export class WebSocketManager {
 		const messageWithId = { ...message, id }
 
 		return new Promise((resolve, reject) => {
-			const timeout = setTimeout(() => {
-				if (this.pendingRequests.has(id)) {
-					this.pendingRequests.delete(id)
-					reject(new TimeoutError(`Request ${id} timeout after 30s`))
-				}
-			}, 30000)
+			const ws = this.ws
+			const open = this.connected && ws !== null && ws.readyState === WebSocket.OPEN
+
+			// A queued frame waits for an `onopen`. On a stopped client — or one that is
+			// not connecting and will not reconnect on its own — none is coming, and the
+			// caller would wait forever. Before the first `connect()` it still queues.
+			if (
+				!open &&
+				(this.stopped ||
+					(this.started &&
+						!this.connecting &&
+						!this.options.reconnect &&
+						!this.connected))
+			) {
+				reject(new ConnectionError('Not connected'))
+				return
+			}
 
 			this.pendingRequests.set(id, {
 				resolve: resolve as (value: unknown) => void,
 				reject,
-				timeout
+				type: message.type
 			})
+			// Writes time from the wire (`armTimeout` on send or flush), the rest from the call
+			if (message.type !== 'transaction') this.armTimeout(id)
 
-			if (this.connected && this.ws && this.ws.readyState === WebSocket.OPEN) {
+			if (open) {
 				try {
-					this.ws.send(JSON.stringify(messageWithId))
+					ws.send(JSON.stringify(messageWithId))
+					this.armTimeout(id)
 					this.log('Sent:', messageWithId)
 				} catch (error) {
+					clearTimeout(this.pendingRequests.get(id)?.timeout)
 					this.pendingRequests.delete(id)
-					clearTimeout(timeout)
 					reject(new ConnectionError('Failed to send message', { cause: error }))
 				}
-			} else if (this.connected && this.ws) {
-				// WebSocket exists but is not in OPEN state — reject immediately
-				this.pendingRequests.delete(id)
-				clearTimeout(timeout)
-				reject(new ConnectionError('WebSocket is not in OPEN state'))
 			} else {
+				// Every non-OPEN state queues, CLOSING included: `connected` is still true
+				// until `onclose`, and rejecting there lost writes typed in that window.
+				// `onopen` flushes the queue; a drop that will reconnect keeps it.
+				if (this.messageQueue.length >= MAX_QUEUED_FRAMES) {
+					clearTimeout(this.pendingRequests.get(id)?.timeout)
+					this.pendingRequests.delete(id)
+					reject(new ConnectionError('Write queue full'))
+					return
+				}
+				const pending = this.pendingRequests.get(id)
+				if (pending && message.type === 'transaction') pending.queuedAt = Date.now()
 				this.messageQueue.push(messageWithId)
 				this.log('Queued:', messageWithId)
 			}
 		})
+	}
+
+	/** Start request `id`'s 30s timer, unless it has one or has already settled. */
+	private armTimeout(id: number): void {
+		const pending = this.pendingRequests.get(id)
+		if (!pending || pending.timeout) return
+		pending.timeout = setTimeout(() => {
+			if (this.pendingRequests.get(id) === pending) {
+				this.pendingRequests.delete(id)
+				pending.reject(new TimeoutError(`Request ${id} timeout after 30s`))
+			}
+		}, 30000)
 	}
 
 	subscribe(
@@ -481,6 +536,29 @@ export class WebSocketManager {
 		this.presenceHandlers.add(handler)
 		return () => {
 			this.presenceHandlers.delete(handler)
+		}
+	}
+
+	/**
+	 * Listen to connection transitions: `true` from `onopen` once the queue is flushed,
+	 * `false` on the first drop or `disconnect()` after that. Never repeats a value.
+	 */
+	onConnectionChange(cb: (connected: boolean) => void): () => void {
+		this.connectionListeners.add(cb)
+		return () => {
+			this.connectionListeners.delete(cb)
+		}
+	}
+
+	private emitConnection(connected: boolean): void {
+		if (connected === this.lastEmittedConnected) return
+		this.lastEmittedConnected = connected
+		for (const cb of this.connectionListeners) {
+			try {
+				cb(connected)
+			} catch (error) {
+				console.error('[RTDB] Error in connection listener:', error)
+			}
 		}
 	}
 
@@ -627,8 +705,11 @@ export class WebSocketManager {
 	private handleError(error: Error): void {
 		this.log('Error:', error)
 
-		// Rejects the pending requests and drops their queued frames.
-		this.clearPendingRequests(error)
+		// Rejects the requests already on the wire. Queued frames survive when a reconnect
+		// will follow — browsers fire `onerror` then `onclose`, and a failed reconnect
+		// attempt lands here too, so rejecting them here would undo `handleDisconnect`'s
+		// keep. With no reconnect coming they are rejected and dropped.
+		this.clearPendingRequests(error, this.options.reconnect && !this.stopped)
 
 		// Notify all subscriptions
 		this.errorNotified = true
@@ -727,10 +808,12 @@ export class WebSocketManager {
 		// inherits the id as "you". `localPresence` survives — that is the point of it.
 		this.connId = undefined
 
-		// Clear pending requests if not already cleared by handleError
-		if (this.pendingRequests.size > 0) {
-			this.clearPendingRequests()
-		}
+		// Requests already on the wire died with the socket: reject them, never replay — a
+		// `create` is not idempotent. Frames still in `messageQueue` never left the client
+		// and wait for the next `onopen`; every branch below that will not reopen the
+		// socket rejects those too.
+		this.clearPendingRequests(undefined, true)
+		this.emitConnection(false)
 
 		// Clear stale buffered subscription events
 		this.pendingSubscriptionEvents.clear()
@@ -770,7 +853,13 @@ export class WebSocketManager {
 					}
 					// Reconnect disabled: the backoff path is a no-op, so nothing would
 					// retry and nothing would call `onError` — the caller's promise and
-					// UI would wait forever. Failing the subscriptions is better.
+					// UI would wait forever. Failing the subscriptions, and the queued
+					// requests, is better. Not inside `notifyAuthError`: that is skipped
+					// once `handleError` has notified, and the queue must go regardless.
+					this.stopped = true
+					this.clearPendingRequests(
+						new AuthError(`Connection closed: ${reason || 'auth error'}`)
+					)
 					this.notifyAuthError(reason)
 					return
 				}
@@ -802,12 +891,19 @@ export class WebSocketManager {
 		// 4404 = Not found (and 4401 once refresh is unavailable or already spent).
 		if (code !== undefined && code >= 4400 && code < 4500) {
 			this.log('Auth/resource error, not reconnecting', { code, reason })
+			// Queued requests too: no socket is coming to send them. Here rather than in
+			// `notifyAuthError`, which is skipped once `handleError` has notified.
+			this.stopped = true
+			this.clearPendingRequests(new AuthError(`Connection closed: ${reason || 'auth error'}`))
 			this.notifyAuthError(reason)
 			return
 		}
 
-		if (this.options.reconnect) {
+		if (this.options.reconnect && !this.stopped) {
 			this.attemptReconnect()
+		} else {
+			// Nothing will reopen the socket, so a queued frame would wait forever.
+			this.clearPendingRequests()
 		}
 	}
 
@@ -825,6 +921,8 @@ export class WebSocketManager {
 
 	private attemptReconnect(): void {
 		if (this.stopped || !this.options.reconnect) return
+		// A failed reconnect reaches here twice (connect().catch and onclose): keep one timer
+		if (this.reconnectTimeout) return
 
 		const delay = Math.min(
 			this.options.reconnectDelay * 2 ** this.reconnectAttempts,
@@ -836,6 +934,7 @@ export class WebSocketManager {
 		this.log(`Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`)
 
 		this.reconnectTimeout = setTimeout(() => {
+			this.reconnectTimeout = null
 			this.connect().catch((error) => {
 				this.log('Reconnection failed:', error)
 				this.attemptReconnect()
@@ -859,15 +958,29 @@ export class WebSocketManager {
 		// events would pile up in `pendingSubscriptionEvents` forever. `send` registers
 		// the pending request before queueing, so a missing entry means exactly that.
 		// Frames without a numeric id carry no promise and pass through.
-		const queue = this.messageQueue.filter(
-			(msg) => typeof msg.id !== 'number' || this.pendingRequests.has(msg.id)
-		)
+		// Writes queued longer than `maxQueuedWriteAgeMs` are rejected rather than
+		// replayed onto data that has likely moved on.
+		const maxAge = this.options.maxQueuedWriteAgeMs ?? 600_000
+		const now = Date.now()
+		const queue = this.messageQueue.filter((msg) => {
+			if (typeof msg.id !== 'number') return true
+			const pending = this.pendingRequests.get(msg.id)
+			if (!pending) return false
+			if (pending.queuedAt !== undefined && now - pending.queuedAt > maxAge) {
+				this.pendingRequests.delete(msg.id)
+				pending.reject(new ConnectionError('Queued write expired'))
+				return false
+			}
+			return true
+		})
 		this.messageQueue = []
 
 		for (const message of queue) {
 			if (this.ws && this.ws.readyState === WebSocket.OPEN) {
 				try {
 					this.ws.send(JSON.stringify(message))
+					// On the wire now, so a queued write's 30s starts here.
+					if (typeof message.id === 'number') this.armTimeout(message.id)
 				} catch (error) {
 					this.log('Error sending queued message:', error)
 					this.messageQueue.push(message)
@@ -898,17 +1011,24 @@ export class WebSocketManager {
 		}
 	}
 
-	private clearPendingRequests(reason?: Error): void {
+	/**
+	 * Reject pending requests. By default all of them, dropping every queued frame. With
+	 * `keepQueued`, only those already sent: a request counts as sent when its id is not
+	 * in `messageQueue`, and the queued ones stay for the next `onopen` to flush.
+	 */
+	private clearPendingRequests(reason?: Error, keepQueued = false): void {
 		const error = reason ?? new ConnectionError('Connection closed')
-		for (const [, pending] of this.pendingRequests.entries()) {
+		const queued = new Set(keepQueued ? this.messageQueue.map((msg) => msg.id) : [])
+		for (const [id, pending] of this.pendingRequests) {
+			if (queued.has(id)) continue
 			clearTimeout(pending.timeout)
+			this.pendingRequests.delete(id)
 			pending.reject(error)
 		}
-		this.pendingRequests.clear()
 		// Frames whose promises were just rejected must not reach the wire. This is the
 		// cheap path; `flushMessageQueue` enforces it, since a request can also settle
 		// on its own 30s timeout with no clear in sight.
-		this.messageQueue = []
+		if (!keepQueued) this.messageQueue = []
 	}
 
 	private log(...args: unknown[]): void {
@@ -923,6 +1043,15 @@ export class WebSocketManager {
 
 	getPendingRequestCount(): number {
 		return this.pendingRequests.size
+	}
+
+	/** Pending `transaction` requests, queued or in flight. */
+	getPendingWriteCount(): number {
+		let count = 0
+		for (const pending of this.pendingRequests.values()) {
+			if (pending.type === 'transaction') count++
+		}
+		return count
 	}
 
 	getSubscriptionCount(): number {
@@ -940,6 +1069,9 @@ export class WebSocketManager {
 			this.reconnectTimeout = null
 		}
 		this.options = { ...this.options, reconnect: false }
+		// With no socket up and none coming, queued frames would wait forever. An open
+		// socket keeps its queue: its own close rejects whatever is left.
+		if (!this.connected && !this.connecting) this.clearPendingRequests()
 	}
 }
 

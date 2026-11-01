@@ -63,9 +63,14 @@ export class MockWebSocket {
 		this.onopen?.(new Event('open'))
 	}
 
-	simulateClose(): void {
+	simulateClose(code = 1006): void {
 		this.readyState = 3
-		this.onclose?.(new CloseEvent('close', { code: 1006 }))
+		this.onclose?.(new CloseEvent('close', { code }))
+	}
+
+	/** Enter CLOSING without firing `onclose`: the window where `connected` is still true. */
+	simulateClosing(): void {
+		this.readyState = 2
 	}
 
 	simulateError(): void {

@@ -17,7 +17,7 @@
 
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 
-import { AuthError } from '../errors'
+import { AuthError, ConnectionError } from '../errors'
 import { WebSocketManager } from '../websocket'
 
 // Mirrors websocket.ts (module-private).
@@ -148,6 +148,25 @@ describe('4401 token-refresh cap', () => {
 		expect(refreshToken).toHaveBeenCalledTimes(MAX_TOKEN_REFRESH_ATTEMPTS)
 		// One initial socket plus one per refresh, and nothing after the cap.
 		expect(sockets).toHaveLength(MAX_TOKEN_REFRESH_ATTEMPTS + 1)
+
+		await manager.disconnect()
+	})
+
+	it('rejects a write sent after the cap instead of queueing it forever', async () => {
+		script = (ws) => {
+			ws.open()
+			ws.frame({ type: 'pong', id: 1 })
+			ws.closeWith(4401)
+		}
+		const manager = createManager(async () => 'fresh-token')
+
+		const connected = manager.connect().catch(() => {})
+		await jest.advanceTimersByTimeAsync(60_000)
+		await connected
+
+		await expect(manager.send({ type: 'transaction', operations: [] })).rejects.toBeInstanceOf(
+			ConnectionError
+		)
 
 		await manager.disconnect()
 	})

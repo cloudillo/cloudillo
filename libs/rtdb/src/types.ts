@@ -185,6 +185,8 @@ export interface RtdbClientOptions {
 		 * answers every presence frame with a 400.
 		 */
 		presence?: boolean
+		/** Queued writes older than this are rejected on flush instead of sent. Default 10 min. */
+		maxQueuedWriteAgeMs?: number
 	}
 }
 

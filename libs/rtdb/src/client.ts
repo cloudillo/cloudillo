@@ -186,6 +186,19 @@ export class RtdbClient {
 		return this.ws.getPendingRequestCount()
 	}
 
+	/**
+	 * Socket transitions: `true` once a (re)connect has flushed the queued writes, `false`
+	 * on a drop or `disconnect()`. Transitions only. Returns the unsubscribe.
+	 */
+	onConnectionChange(cb: (connected: boolean) => void): () => void {
+		return this.ws.onConnectionChange(cb)
+	}
+
+	/** Writes (`transaction` requests) queued or in flight without an answer yet. */
+	pendingWrites(): number {
+		return this.ws.getPendingWriteCount()
+	}
+
 	getActiveSubscriptions(): number {
 		return this.ws.getSubscriptionCount()
 	}

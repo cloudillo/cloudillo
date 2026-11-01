@@ -9,7 +9,7 @@
  * the user with a choice to upload as-is or convert to a native document.
  */
 
-import { useAuth } from '@cloudillo/react'
+import { friendlyError, useAuth, useToast } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
@@ -36,6 +36,7 @@ export interface PendingConversion {
 export function useSmartUpload(options?: UseUploadQueueOptions) {
 	const { t } = useTranslation()
 	const [auth] = useAuth()
+	const toast = useToast()
 	const { api } = useContextAwareApi()
 	const contextIdTag = useCurrentContextIdTag()
 	// URL form of the context (`~` at home); `ownerTag` below is the real idTag and
@@ -137,10 +138,7 @@ export function useSmartUpload(options?: UseUploadQueueOptions) {
 				}
 
 				const ownerTag = contextIdTag || auth?.idTag
-				if (!ownerTag) {
-					console.error('[SmartUpload] Missing owner tag for import')
-					return
-				}
+				if (!ownerTag) throw new Error('[SmartUpload] Missing owner tag for import')
 				const resId = `${ownerTag}:${res.fileId}`
 
 				setPendingImport(resId, {
@@ -153,9 +151,20 @@ export function useSmartUpload(options?: UseUploadQueueOptions) {
 				navigate(appPath(urlCtx, appId, resId, { import: 1 }))
 			} catch (err) {
 				console.error('[SmartUpload] Conversion failed:', err)
+				toast.error(friendlyError(t, err))
 			}
 		},
-		[api, auth?.idTag, contextIdTag, urlCtx, navigate, options?.parentId, options?.channel, t]
+		[
+			api,
+			auth?.idTag,
+			contextIdTag,
+			urlCtx,
+			navigate,
+			options?.parentId,
+			options?.channel,
+			t,
+			toast
+		]
 	)
 
 	/**

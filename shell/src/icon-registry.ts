@@ -10,7 +10,6 @@ import {
 	IcContacts,
 	IcFeed,
 	IcFilesApp,
-	IcFormillo,
 	IcGallery,
 	IcIdeallo,
 	IcIdp,
@@ -23,7 +22,6 @@ import {
 	IcRoom,
 	IcScanillo,
 	IcServer,
-	IcTaskillo,
 	IcViewer
 } from './icons.js'
 
@@ -36,7 +34,6 @@ const iconRegistry: Record<string, React.ComponentType> = {
 	contacts: IcContacts,
 	feed: IcFeed,
 	files: IcFilesApp,
-	formillo: IcFormillo,
 	gallery: IcGallery,
 	ideallo: IcIdeallo,
 	idp: IcIdp,
@@ -51,14 +48,12 @@ const iconRegistry: Record<string, React.ComponentType> = {
 	scanillo: IcScanillo,
 	server: IcServer,
 	settings: IcSettings,
-	taskillo: IcTaskillo,
 	viewer: IcViewer
 }
 
 // Old Lucide manifest keys → concept key, so existing app manifests keep working.
 const legacyIconKeys: Record<string, string> = {
 	'book-open': 'notillo',
-	'clipboard-list': 'formillo',
 	contact: 'contacts',
 	eye: 'viewer',
 	file: 'files',
@@ -66,7 +61,6 @@ const legacyIconKeys: Record<string, string> = {
 	fingerprint: 'idp',
 	image: 'gallery',
 	list: 'feed',
-	'list-checks': 'taskillo',
 	map: 'mapillo',
 	'messages-square': 'messages',
 	'pen-line': 'ideallo',

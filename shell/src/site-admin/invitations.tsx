@@ -14,6 +14,7 @@ import {
 	FAB,
 	Field,
 	Fieldset,
+	friendlyError,
 	HBox,
 	IcAdd,
 	IcDelete,
@@ -37,6 +38,7 @@ import {
 	useApi,
 	useAuth,
 	useDialog,
+	useToast,
 	VBox
 } from '@cloudillo/react'
 import type { Profile } from '@cloudillo/types'
@@ -304,6 +306,7 @@ function RegistrationInvites() {
 	const { api } = useApi()
 	const [auth] = useAuth()
 	const dialog = useDialog()
+	const toast = useToast()
 	const {
 		communities: memberCommunities,
 		pinnedCommunities,
@@ -513,7 +516,13 @@ function RegistrationInvites() {
 		)
 			return
 
-		await api.refs.delete(refId)
+		try {
+			await api.refs.delete(refId)
+		} catch (err) {
+			console.error('Failed to delete invitation:', err)
+			toast.error(friendlyError(t, err))
+			return
+		}
 		setRefs((refs) => refs?.filter((ref) => ref.refId !== refId))
 		if (editingRefId === refId) cancelEdit()
 	}

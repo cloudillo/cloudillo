@@ -25,6 +25,7 @@ import {
 	IdentityTag,
 	List,
 	ListItem,
+	LoadError,
 	LoadingSpinner,
 	NativeSelect,
 	ProfilePicture,
@@ -313,7 +314,7 @@ interface ProposeProps {
  * Each `from`'s state toward `target`; a key appears once its lookup settles.
  * Passive token: a community the trust gate keeps anonymous reads as unknown.
  */
-// ponytail: refetched per mount/version bump; an open page misses the peer's answer until then
+// refetched per mount/version bump; an open page misses the peer's answer until then
 function usePartnershipStates(
 	fromOptions: Pick<CommunityRef, 'idTag'>[],
 	targetTag: string | undefined
@@ -853,10 +854,12 @@ export function PartnersManager() {
 	)
 
 	const [peers, setPeers] = React.useState<Profile[]>()
+	const [peersError, setPeersError] = React.useState<unknown>()
 	const [peersOf, setPeersOf] = React.useState(communityIdTag)
 	if (peersOf !== communityIdTag) {
 		setPeersOf(communityIdTag)
 		setPeers(undefined)
+		setPeersError(undefined)
 	}
 	const version = useAtomValue(partnerRequestsVersionAtom)
 	const reload = React.useCallback(() => bumpRequests((n) => n + 1), [bumpRequests])
@@ -878,11 +881,15 @@ export function PartnersManager() {
 				// Leader-only page, so `status` applies: show unreachable (S) partners too.
 				.list({ type: 'community', connected: true, status: ['A', 'M', 'S'] })
 				.then((list) => {
-					if (!cancelled) setPeers(list.filter((p) => p.idTag !== communityIdTag))
+					if (cancelled) return
+					setPeers(list.filter((p) => p.idTag !== communityIdTag))
+					setPeersError(undefined)
 				})
 				.catch((err) => {
 					console.error('Failed to load partner communities', err)
-					if (!cancelled) setPeers([])
+					if (cancelled) return
+					setPeersError(err)
+					setPeers([])
 				})
 			return () => {
 				cancelled = true
@@ -932,6 +939,12 @@ export function PartnersManager() {
 
 			{!peers ? (
 				<LoadingSpinner />
+			) : peersError && peers.length === 0 ? (
+				<LoadError
+					error={peersError}
+					onRetry={reload}
+					title={t("Couldn't load partner communities")}
+				/>
 			) : peers.length === 0 ? (
 				<EmptyState
 					icon={<IcPartner />}

@@ -21,7 +21,7 @@ import { getIcon } from './icon-registry.js'
 import { shellManifests } from './shell-manifests.js'
 import type { AppConfigState, MenuItem } from './utils.js'
 
-export { appRequiresTrusted, appTrust } from './app-trust.js'
+export { appAllowsPresentation, appRequiresTrusted, appTrust } from './app-trust.js'
 export { disabledApps, withoutDisabledApps } from './disabled-apps.js'
 
 // All registered manifests

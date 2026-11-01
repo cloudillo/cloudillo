@@ -12,12 +12,13 @@
 import { type ApiClient, createApiClient, getApiClient, splitContextKey } from '@cloudillo/core'
 import { jwtRemainingSeconds } from '@cloudillo/core/jwt'
 import type { AuthState } from '@cloudillo/react'
-import type { i18n as I18n } from 'i18next'
 import { getDefaultStore } from 'jotai'
 import type * as React from 'react'
 
 import { recoverHattedAuth } from '../context/hat-recovery.js'
 import { activeKeyFor } from '../context/trust-gate.js'
+// The real instance — `useTranslation().i18n` is a per-language snapshot whose `language` goes stale
+import i18n from '../i18n.js'
 import { getAccessSuffix, type ShellMessageBusConfig } from './index.js'
 
 /**
@@ -70,12 +71,10 @@ export async function mintAppToken(
 
 export function createShellBusConfig({
 	apiRef,
-	authRef,
-	i18n
+	authRef
 }: {
 	apiRef: React.RefObject<ApiClient | null>
 	authRef: React.RefObject<AuthState | null | undefined>
-	i18n: I18n
 }): ShellMessageBusConfig {
 	return {
 		debug: false,

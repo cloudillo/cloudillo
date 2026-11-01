@@ -15,7 +15,7 @@
 import { jest } from '@jest/globals'
 import { render, screen } from '@testing-library/react'
 import * as React from 'react'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 
 let authState: { idTag: string } | null | undefined = { idTag: 'alice.example' }
 
@@ -34,7 +34,8 @@ function Inside() {
 }
 
 function LoginPage() {
-	return <div data-testid="login" />
+	const { search } = useLocation()
+	return <div data-testid="login" data-next={new URLSearchParams(search).get('next') ?? ''} />
 }
 
 /** The shape of the real tree: `:contextIdTag` over a section, `/login` beside it. */
@@ -138,6 +139,12 @@ describe('RequireAuth', () => {
 		authState = null
 		renderAt('/~/app/feed', <RequireAuth />)
 		expect(screen.getByTestId('login')).toBeDefined()
+	})
+
+	it('carries the requested path to /login as next', () => {
+		authState = null
+		renderAt('/~/app/feed', <RequireAuth />)
+		expect(screen.getByTestId('login').getAttribute('data-next')).toBe('/~/app/feed')
 	})
 
 	it('renders the branch for a signed-in user', () => {

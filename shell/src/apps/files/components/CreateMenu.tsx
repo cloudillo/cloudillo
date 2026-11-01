@@ -31,7 +31,6 @@ const createItems = (t: TFunction): { app: AppId; db?: boolean; label: string }[
 	{ app: 'ideallo', label: t('Ideallo whiteboard document') },
 	{ app: 'prezillo', label: t('Prezillo presentation document') },
 	{ app: 'pagillo', label: t('Pagillo publication') },
-	{ app: 'taskillo', db: true, label: t('Taskillo task list') },
 	{ app: 'notillo', db: true, label: t('Notillo wiki') },
 	{ app: 'scanillo', db: true, label: t('Scanillo document scanner') }
 ]

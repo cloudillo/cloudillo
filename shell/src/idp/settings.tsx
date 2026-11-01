@@ -1,7 +1,17 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: MPL-2.0
 
-import { Field, Input, List, Panel, TextArea, useAuth, VBox } from '@cloudillo/react'
+import {
+	Field,
+	Input,
+	List,
+	LoadError,
+	LoadingSpinner,
+	Panel,
+	TextArea,
+	useAuth,
+	VBox
+} from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -10,10 +20,14 @@ import { SettingsDenied, SwitchRow, useSettings } from '../settings/settings.js'
 export function ProviderSettings() {
 	const { t } = useTranslation()
 	const [_auth] = useAuth()
-	const { settings, onSettingChange, denied } = useSettings('idp')
+	const { settings, onSettingChange, denied, error, refresh } = useSettings('idp')
 
 	if (denied) return <SettingsDenied />
-	if (!settings) return null
+	if (error)
+		return (
+			<LoadError error={error} onRetry={refresh} title={t("Couldn't load these settings")} />
+		)
+	if (!settings) return <LoadingSpinner className="auto-bg" />
 
 	const renewalIntervalDays = (settings['idp.renewal_interval'] as number) || 365
 	const renewalIntervalYears = Math.round((renewalIntervalDays / 365) * 10) / 10

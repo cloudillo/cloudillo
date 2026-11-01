@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: MPL-2.0
 
-import { Field, List, LoadingSpinner, Panel, RadioGroup, useApi } from '@cloudillo/react'
+import { Field, List, LoadError, LoadingSpinner, Panel, RadioGroup, useApi } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -147,7 +147,7 @@ export function AppearanceSettings() {
 	const { t } = useTranslation()
 	useApi()
 
-	const { settings, onSettingChange } = useSettings('ui')
+	const { settings, onSettingChange, error, refresh } = useSettings('ui')
 
 	// RadioGroup reports a value, onSettingChange reads a select-shaped event target
 	function onThemeChange(name: 'ui.theme' | 'ui.colors', value: string) {
@@ -160,6 +160,10 @@ export function AppearanceSettings() {
 		else setTheme(settings['ui.theme'], value)
 	}
 
+	if (error)
+		return (
+			<LoadError error={error} onRetry={refresh} title={t("Couldn't load these settings")} />
+		)
 	if (!settings) return <LoadingSpinner className="auto-bg" />
 
 	return (

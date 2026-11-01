@@ -8,12 +8,14 @@ import {
 	DocBar,
 	DropZone,
 	Fcd,
+	friendlyError,
 	HBox,
 	IcBack,
 	IcInfo,
 	IcPin,
 	IcSearch,
 	Icon,
+	LoadError,
 	MenuHeader,
 	MenuItem,
 	ProfilePicture,
@@ -21,6 +23,7 @@ import {
 	useAuth,
 	useDialog,
 	useIsMobile,
+	useToast,
 	VBox
 } from '@cloudillo/react'
 import { useAtomValue, useSetAtom } from 'jotai'
@@ -82,6 +85,8 @@ export function ConversationView({
 	const { api } = useApi()
 	const [auth] = useAuth()
 	const isMobile = useIsMobile()
+	const toast = useToast()
+	const [rejoining, setRejoining] = React.useState(false)
 	const reloadConversations = useConversationsReload()
 	const convPrefs = useConvPrefs()
 	const listed = useAtomValue(conversationsAtom)?.find((c) => c.id === convId)
@@ -135,6 +140,7 @@ export function ConversationView({
 		newestListIncomingTs,
 		newestListTs,
 		reload: reloadMessages,
+		error: loadError,
 		lastChangeRef
 	} = messages
 
@@ -297,6 +303,7 @@ export function ConversationView({
 
 	async function handleRejoin() {
 		if (!api || !convId || !conversation?.ownerTag) return
+		setRejoining(true)
 		try {
 			await api.actions.create({
 				type: 'SUBS',
@@ -307,6 +314,9 @@ export function ConversationView({
 			reloadConversations()
 		} catch (err) {
 			console.error('Failed to rejoin group', err)
+			toast.error(friendlyError(t, err))
+		} finally {
+			setRejoining(false)
 		}
 	}
 
@@ -567,37 +577,45 @@ export function ConversationView({
 				</>
 			}
 		>
-			<MessageList
-				menuSlots={menuSlots}
-				receipts={points}
-				msg={msg}
-				events={events}
-				members={members}
-				convId={convId}
-				isGroup={isGroup}
-				ownIdTag={auth?.idTag}
-				firstUnreadIdx={firstUnreadIdx}
-				unreadDividerRef={unreadDividerRef}
-				highlightId={highlightId}
-				register={register}
-				onRetry={retry}
-				canModerate={canModerate}
-				allowAll={allowAll}
-				onReact={react}
-				onReply={onReply}
-				onEdit={onEdit}
-				onDelete={onDelete}
-				onJumpTo={jumpTo}
-				root={scrollEl}
-				hasOlder={hasMore}
-				loadingOlder={loadingOlder}
-				onLoadOlder={onLoadOlder}
-				atLive={atLive}
-				loadingNewer={loadingNewer}
-				onLoadNewer={loadNewer}
-				showFab={!scrollBottom || !atLive}
-				onFabClick={onConvScrollBottomClick}
-			/>
+			{loadError && msg?.length === 0 ? (
+				<LoadError
+					error={loadError}
+					onRetry={reloadMessages}
+					title={t("Couldn't load messages")}
+				/>
+			) : (
+				<MessageList
+					menuSlots={menuSlots}
+					receipts={points}
+					msg={msg}
+					events={events}
+					members={members}
+					convId={convId}
+					isGroup={isGroup}
+					ownIdTag={auth?.idTag}
+					firstUnreadIdx={firstUnreadIdx}
+					unreadDividerRef={unreadDividerRef}
+					highlightId={highlightId}
+					register={register}
+					onRetry={retry}
+					canModerate={canModerate}
+					allowAll={allowAll}
+					onReact={react}
+					onReply={onReply}
+					onEdit={onEdit}
+					onDelete={onDelete}
+					onJumpTo={jumpTo}
+					root={scrollEl}
+					hasOlder={hasMore}
+					loadingOlder={loadingOlder}
+					onLoadOlder={onLoadOlder}
+					atLive={atLive}
+					loadingNewer={loadingNewer}
+					onLoadNewer={loadNewer}
+					showFab={!scrollBottom || !atLive}
+					onFabClick={onConvScrollBottomClick}
+				/>
+			)}
 			{/* Composer / left-group banner: sticky at the bottom of the message column */}
 			{conversation && (
 				<VBox className="pos-sticky bottom-0 mt-auto pt-1">
@@ -607,7 +625,11 @@ export function ConversationView({
 							compact
 							actions={
 								conversation.isOpen ? (
-									<Button color="primary" onClick={handleRejoin}>
+									<Button
+										color="primary"
+										loading={rejoining}
+										onClick={handleRejoin}
+									>
 										{t('Rejoin')}
 									</Button>
 								) : undefined

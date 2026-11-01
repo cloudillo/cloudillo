@@ -8,6 +8,7 @@ import {
 	Heading,
 	List,
 	ListItem,
+	LoadError,
 	LoadingSpinner,
 	NativeSelect,
 	Panel,
@@ -123,7 +124,7 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 	const { t } = useTranslation()
 	const { api } = useApi()
 	const { error: toastError } = useToast()
-	const { settings, onSettingChange } = useSettings(NOTIFY_PREFIXES)
+	const { settings, onSettingChange, error, refresh } = useSettings(NOTIFY_PREFIXES)
 	const { settings: localSettings, updateSetting } = useLocalNotifySettings()
 	const { muted: mutedRooms, unmute: unmuteRoom } = useMutedRooms()
 	const [notificationSubscription, setNotificationSubscription] = React.useState<
@@ -173,6 +174,10 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 		}
 	}
 
+	if (error)
+		return (
+			<LoadError error={error} onRetry={refresh} title={t("Couldn't load these settings")} />
+		)
 	if (!settings) return <LoadingSpinner className="auto-bg" />
 
 	return (

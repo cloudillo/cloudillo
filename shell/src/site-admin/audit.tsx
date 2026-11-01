@@ -2,7 +2,17 @@
 // SPDX-License-Identifier: MPL-2.0
 
 import { downloadBlob, isSessionExpiredError } from '@cloudillo/core'
-import { Button, Field, Input, Panel, useApi, useToast, VBox } from '@cloudillo/react'
+import {
+	Button,
+	Field,
+	Input,
+	LoadError,
+	LoadingSpinner,
+	Panel,
+	useApi,
+	useToast,
+	VBox
+} from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -19,12 +29,19 @@ import { SettingsDenied, useSettings } from '../settings/settings.js'
 export function AuditSettings() {
 	const { t } = useTranslation()
 	const { api } = useApi()
-	const { settings, setSettings, onSettingChange, denied } = useSettings(['audit'], {
-		level: 'global'
-	})
+	const { settings, setSettings, onSettingChange, denied, error, refresh } = useSettings(
+		['audit'],
+		{
+			level: 'global'
+		}
+	)
 
 	if (denied) return <SettingsDenied />
-	if (!settings) return null
+	if (error)
+		return (
+			<LoadError error={error} onRetry={refresh} title={t("Couldn't load these settings")} />
+		)
+	if (!settings) return <LoadingSpinner className="auto-bg" />
 
 	const raw = (settings as Record<string, unknown>)['audit.categories']
 	const categories = Array.isArray(raw) ? (raw as string[]) : ['sharing']

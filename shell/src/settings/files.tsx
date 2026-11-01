@@ -7,6 +7,7 @@ import {
 	HBox,
 	Input,
 	List,
+	LoadError,
 	LoadingSpinner,
 	NativeSelect,
 	Panel,
@@ -40,17 +41,15 @@ export function FilesSettings() {
 		[variantOptions]
 	)
 
-	const { settings, onSettingChange, denied } = useSettings('file')
+	const { settings, onSettingChange, denied, error, refresh } = useSettings('file', {
+		context: true
+	})
 
 	const [auth] = useAuth()
 	// file.trash_retention_days is PermissionLevel::Admin: the server lists it to every
 	// owner but only a site admin may write it, so `denied` alone never hides it.
 	const canEditRetention = !denied && !!auth?.roles?.includes('SADM')
 	const activeContext = useAtomValue(activeContextAtom)
-	// Deliberately not `useSettings`: that hook writes through `useApi()`, bound to the
-	// user's own idTag, while the reindex this change asks for must run on the active
-	// context's tenant. Reading and writing through the same `contextApi` keeps both on
-	// one tenant, and lets a community leader configure the community's index.
 	const { api: contextApi } = useContextAwareApi()
 	const dialog = useDialog()
 	const { toast } = useToast()
@@ -131,6 +130,10 @@ export function FilesSettings() {
 		}
 	}
 
+	if (error)
+		return (
+			<LoadError error={error} onRetry={refresh} title={t("Couldn't load these settings")} />
+		)
 	if (!settings) return <LoadingSpinner className="auto-bg" />
 
 	return (

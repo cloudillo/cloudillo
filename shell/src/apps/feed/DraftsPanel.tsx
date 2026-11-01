@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: MPL-2.0
 
-import { EmptyState, SkeletonCard, useApi, VBox } from '@cloudillo/react'
+import { EmptyState, LoadError, SkeletonCard, useApi, VBox } from '@cloudillo/react'
 import type { ActionView } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -19,11 +19,15 @@ export function DraftsPanel({ onEdit, onPublished }: DraftsPanelProps) {
 	const { api } = useApi()
 	const [drafts, setDrafts] = React.useState<ActionView[]>([])
 	const [isLoading, setIsLoading] = React.useState(true)
+	const [error, setError] = React.useState<unknown>()
+	const [reloadKey, setReloadKey] = React.useState(0)
+	const reload = () => setReloadKey((k) => k + 1)
 
 	React.useEffect(() => {
 		if (!api) return
 		;(async function loadDrafts() {
 			setIsLoading(true)
+			setError(undefined)
 			try {
 				const result = await api.actions.listPaginated({
 					type: 'POST',
@@ -51,11 +55,12 @@ export function DraftsPanel({ onEdit, onPublished }: DraftsPanelProps) {
 				setDrafts(sorted)
 			} catch (e) {
 				console.error('Failed to load drafts', e)
+				setError(e)
 			} finally {
 				setIsLoading(false)
 			}
 		})()
-	}, [api])
+	}, [api, reloadKey])
 
 	function handleDeleted(actionId: string) {
 		setDrafts((prev) => prev.filter((d) => d.actionId !== actionId))
@@ -77,6 +82,10 @@ export function DraftsPanel({ onEdit, onPublished }: DraftsPanelProps) {
 				<SkeletonCard lines={2} />
 			</VBox>
 		)
+	}
+
+	if (error && drafts.length === 0) {
+		return <LoadError error={error} onRetry={reload} title={t("Couldn't load drafts")} />
 	}
 
 	if (drafts.length === 0) {

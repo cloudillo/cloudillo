@@ -67,7 +67,7 @@ import {
 	parseLiveDocContent
 } from './live-doc.js'
 import { SchedulePicker } from './SchedulePicker.js'
-import { type Visibility, VisibilitySelector } from './VisibilitySelector.js'
+import { postAudienceSummary, type Visibility, VisibilitySelector } from './VisibilitySelector.js'
 
 export interface ComposePanelProps {
 	open: boolean
@@ -918,6 +918,11 @@ export function ComposePanel({
 							<IcClose />
 						</Button>
 					</HBox>
+					{!roomChannel && (
+						<Text size="sm" emphasis="muted">
+							{postAudienceSummary(t, audienceTarget, visibility)}
+						</Text>
+					)}
 					<HatComposeStrip audienceTag={audienceTarget.idTag} />
 					{draft && (
 						<Text size="sm" color={isEditingScheduled ? 'primary' : 'warning'}>

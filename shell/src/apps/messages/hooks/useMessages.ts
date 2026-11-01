@@ -76,6 +76,8 @@ export interface UseMessages {
 	// WS arrivals. Ceiling for the bottom-dwell "caught up" signal.
 	newestListTs: number
 	reload: () => void
+	// The first-page load failure, cleared on every (re)load. `msg` stays `[]` meanwhile.
+	error: unknown
 	// Re-read the group header + members in place (no window reset).
 	refreshGroupMeta: () => Promise<void>
 	lastChangeRef: React.MutableRefObject<MsgChangeKind>
@@ -303,6 +305,7 @@ export function useMessages(convId: string | undefined): UseMessages {
 	const [newestListTs, setNewestListTs] = React.useState(0)
 	const [reloadKey, setReloadKey] = React.useState(0)
 	const reload = React.useCallback(() => setReloadKey((k) => k + 1), [])
+	const [error, setError] = React.useState<unknown>()
 
 	const lastChangeRef = React.useRef<MsgChangeKind>('init')
 	// Window generation: bumped whenever the window is replaced (conversation (re)load,
@@ -350,6 +353,7 @@ export function useMessages(convId: string | undefined): UseMessages {
 			setHasNewer(false)
 			setLoadingNewer(false)
 			setHighlightId(undefined)
+			setError(undefined)
 			lastChangeRef.current = 'init'
 			pendingRef.current = []
 			if (!auth?.idTag || !convId || !api) return
@@ -439,7 +443,10 @@ export function useMessages(convId: string | undefined): UseMessages {
 				} catch (err) {
 					if (ac.signal.aborted) return
 					console.error('Failed to load messages', err)
-					if (gen === loadGenRef.current) setMsg([])
+					if (gen === loadGenRef.current) {
+						setMsg([])
+						setError(err)
+					}
 				}
 			})()
 			return () => ac.abort()
@@ -1019,6 +1026,7 @@ export function useMessages(convId: string | undefined): UseMessages {
 		newestListIncomingTs,
 		newestListTs,
 		reload,
+		error,
 		refreshGroupMeta,
 		lastChangeRef
 	}

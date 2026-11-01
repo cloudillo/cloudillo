@@ -9,11 +9,8 @@ module.exports = {
 		'!**/__tests__/**'
 	],
 	options: {
-		//removeUnusedKeys: true,
-		removeUnusedKeys: (lng, ns, key) => {
-			console.log('UNUSED:', lng, ns, key)
-			return false
-		},
+		// Unused keys are kept on purpose
+		removeUnusedKeys: () => false,
 		lngs: ['hu'],
 		keySeparator: '$',
 		nsSeparator: '#',

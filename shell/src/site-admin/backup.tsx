@@ -10,6 +10,7 @@ import {
 	Field,
 	HBox,
 	Input,
+	LoadError,
 	Panel,
 	Table,
 	TableCell,
@@ -30,7 +31,13 @@ export function Backup() {
 	const { t } = useTranslation()
 	const { api } = useApi()
 	const dialog = useDialog()
-	const { settings, onSettingChange, denied } = useSettings(['backup'], { level: 'global' })
+	const {
+		settings,
+		onSettingChange,
+		denied,
+		error: settingsError,
+		refresh
+	} = useSettings(['backup'], { level: 'global' })
 	const [status, setStatus] = React.useState<BackupStatus | undefined>()
 	const [error, setError] = React.useState<string | undefined>()
 
@@ -73,6 +80,14 @@ export function Backup() {
 	}
 
 	if (denied) return <SettingsDenied />
+	if (settingsError)
+		return (
+			<LoadError
+				error={settingsError}
+				onRetry={refresh}
+				title={t("Couldn't load these settings")}
+			/>
+		)
 
 	const last = status?.last
 

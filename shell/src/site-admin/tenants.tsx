@@ -30,6 +30,7 @@ import {
 	useApi,
 	useAuth,
 	useDialog,
+	useToast,
 	VBox
 } from '@cloudillo/react'
 import dayjs from 'dayjs'
@@ -252,6 +253,7 @@ export function Tenants() {
 	const { api } = useApi()
 	const [auth] = useAuth()
 	const dialog = useDialog()
+	const toast = useToast()
 	const [tenants, setTenants] = React.useState<TenantView[] | undefined>()
 	const [loading, setLoading] = React.useState(false)
 	const [search, setSearch] = React.useState('')
@@ -399,19 +401,26 @@ export function Tenants() {
 	async function handleDelete(idTag: string) {
 		if (!api) return
 
+		let body = t(
+			'All files, documents, posts, messages, contacts and keys of this account are erased, and the identity stops existing. Copies already shared with other servers are not removed. This cannot be undone. To block sign-in and keep the data, use Suspend instead.'
+		)
+		if (tenants?.find((x) => x.idTag === idTag)?.type === 'community') {
+			body += `\n\n${t('Its members lose access to everything in this community.')}`
+		}
 		const confirmed = await dialog.confirm(
-			t('Type the tenant ID to confirm'),
-			t('Type {{idTag}} below to confirm immediate deletion.', { idTag }),
-			{ color: 'error', confirmLabel: t('Delete tenant'), requireText: idTag }
+			t('Delete {{idTag}} permanently?', { idTag }),
+			body,
+			{
+				color: 'error',
+				confirmLabel: t('Delete tenant'),
+				requireText: idTag
+			}
 		)
 		if (!confirmed) return
 
 		try {
 			const res = await api.admin.purgeTenant(idTag, { confirmIdTag: idTag })
-			await dialog.tell(
-				t('Tenant deleted'),
-				t('{{idTag}} has been removed.', { idTag: res.idTag })
-			)
+			toast.success(t('{{idTag}} has been removed.', { idTag: res.idTag }))
 			loadTenants(search || undefined)
 		} catch (err) {
 			await dialog.tell(t('Delete failed'), errorMessage(err))

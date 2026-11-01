@@ -4,14 +4,19 @@
 import { delay, resolveAppUrl } from '@cloudillo/core'
 import { jwtRemainingSeconds } from '@cloudillo/core/jwt'
 import { EmptyState, useApi, useAuth, useDialog, useToast } from '@cloudillo/react'
-import { useSetAtom } from 'jotai'
+import { useAtomValue, useSetAtom } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import { version } from '../../package.json'
 import { fileViewUpdateAtom, useCtx, useGuestDocument } from '../context/index.js'
-import { appRequiresTrusted, appTrust, disabledApps } from '../manifest-registry.js'
+import {
+	appAllowsPresentation,
+	appRequiresTrusted,
+	appTrust,
+	disabledApps
+} from '../manifest-registry.js'
 import { releaseClientIdsForWindow } from '../message-bus/handlers/crdt.js'
 import { fileIdFromResId, idTagFromResId } from '../message-bus/handlers/resId.js'
 import { offAppTitle, onAppError, onAppReady, onAppTitle } from '../message-bus/index.js'
@@ -59,6 +64,20 @@ export function MicrofrontendContainer({
 	const { api } = useApi()
 	const [auth] = useAuth()
 	const setDocumentTitle = useSetAtom(documentTitleAtom)
+	const documentTitle = useAtomValue(documentTitleAtom)
+	// The app marks the document dirty while its writes are queued offline. The
+	// prompt lives here because an iframe's own `beforeunload` cannot reliably stop
+	// the shell tab from closing. Known gap: SPA navigation away gets no prompt.
+	const unloadGuard = !!resId && documentTitle.resId === resId && !!documentTitle.dirty
+	React.useEffect(() => {
+		if (!unloadGuard) return
+		const onBeforeUnload = (e: BeforeUnloadEvent) => {
+			e.preventDefault()
+			e.returnValue = ''
+		}
+		window.addEventListener('beforeunload', onBeforeUnload)
+		return () => window.removeEventListener('beforeunload', onBeforeUnload)
+	}, [unloadGuard])
 	const [url, setUrl] = React.useState<string | undefined>(undefined)
 	const [loadingStage, setLoadingStage] = React.useState<LoadingStage>('connecting')
 	const [errorMessage, setErrorMessage] = React.useState<string | undefined>(undefined)
@@ -72,6 +91,7 @@ export function MicrofrontendContainer({
 	// A `requiresTrusted` app launched below 'trusted' never boots: AppFrame shows a refusal
 	// card and the init effect below does nothing (no token, no iframe, no timeout).
 	const requiresTrusted = appRequiresTrusted(app)
+	const allowPresentation = appAllowsPresentation(app)
 	const refused = requiresTrusted && trustLevel !== 'trusted'
 	const timeoutRef = React.useRef<number | undefined>(undefined)
 	// Track the app window for subscription persistence across effect re-runs
@@ -309,9 +329,10 @@ export function MicrofrontendContainer({
 							setErrorMessage(message)
 							setLoadingStage('error')
 						})
-						// App title push: the app takes over title management. An
-						// explicit `title` replaces the file name; when omitted the
-						// current title is kept and only the dirty flag updates.
+						// App title push: an explicit `title` replaces the file name and
+						// the app takes over title management. When omitted the current
+						// title is kept and only the dirty flag updates, so a title-less
+						// dirty push does not claim the title for the app.
 						onAppTitle(currentAppWindow, (_window, title, dirty) => {
 							if (!resId) return
 							setDocumentTitle((prev) => {
@@ -320,7 +341,8 @@ export function MicrofrontendContainer({
 									resId,
 									title: title ?? (sameRes ? prev.title : undefined),
 									dirty,
-									appManaged: true
+									appManaged:
+										title !== undefined || (sameRes && !!prev.appManaged)
 								}
 							})
 						})
@@ -454,6 +476,7 @@ export function MicrofrontendContainer({
 			ref={ref}
 			trust={trustLevel}
 			requiresTrusted={requiresTrusted}
+			allowPresentation={allowPresentation}
 			className={className}
 			src={url}
 			allow="clipboard-read; clipboard-write; fullscreen; geolocation; accelerometer; gyroscope; magnetometer"

@@ -14,6 +14,7 @@ import {
 	MenuDivider,
 	MenuItem,
 	PageHeader,
+	useAuth,
 	useIsMobile,
 	useToast
 } from '@cloudillo/react'
@@ -75,9 +76,12 @@ export function CalendarApp() {
 
 	// Server-persisted calendar prefs. `ui.calendar.week_start`: 0 = Sunday,
 	// 1 = Monday. When unset (or anything else) the library falls back to
-	// the locale default via `localeFirstDay`.
-	const { settings: calendarSettings, setSettings: setCalendarSettings } =
-		useSettings('ui.calendar')
+	// the locale default via `localeFirstDay`. The user's own, not the active community's.
+	const [auth] = useAuth()
+	const { settings: calendarSettings, setSettings: setCalendarSettings } = useSettings(
+		'ui.calendar',
+		{ idTag: auth?.idTag ?? null }
+	)
 	const weekStartRaw = calendarSettings?.['ui.calendar.week_start']
 	const firstDayOfWeek: 0 | 1 | undefined =
 		weekStartRaw === 0 || weekStartRaw === '0'

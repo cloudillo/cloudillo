@@ -27,6 +27,8 @@ const FRAGMENT =
 	'<p data-testid="published-body">Hello</p>'
 
 jest.unstable_mockModule('react-i18next', () => ({
+	getI18n: () => undefined,
+	initReactI18next: { type: '3rdParty', init: () => {} },
 	Trans: () => null,
 	useTranslation: () => ({ t: (key: string) => key })
 }))

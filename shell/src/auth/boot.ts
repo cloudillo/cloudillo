@@ -45,11 +45,12 @@ import {
 	installToken,
 	setCurrentAuthToken
 } from '../pwa.js'
-import { feedPath, HOME_BASE, scopePath } from '../routes.js'
+import { feedPath, HOME_BASE, loginPath, scopePath } from '../routes.js'
 import { applyTheme, readStoredTheme, setTheme } from '../settings'
 import { isSiteDocument, siteSeed } from '../site/detect.js'
 import type { AppConfigState } from '../utils.js'
 import type { LoginInitData } from './auth.js'
+import { wasSignedInHere } from './device-flag.js'
 import { assessKeyLoss, type KeyLossState } from './key-loss.js'
 
 export interface BootDeps {
@@ -60,6 +61,8 @@ export interface BootDeps {
 	setAuth: (auth: AuthState | null) => void
 	setIdTag: (idTag: string) => void
 	setKeyLoss: (state: KeyLossState) => void
+	/** The id-tag probe could not reach this host (network error or 5xx); boot halted. */
+	setUnreachable: (host: string) => void
 	setLoginInitData: (data: LoginInitData | null) => void
 	setFavorites: (favorites: string[]) => void
 	setContextColors: (colors: Record<string, string>) => void
@@ -137,6 +140,7 @@ export async function runBootSequence(deps: BootDeps): Promise<void> {
 		setAuth,
 		setIdTag,
 		setKeyLoss,
+		setUnreachable,
 		setLoginInitData,
 		setFavorites,
 		setContextColors,
@@ -309,7 +313,22 @@ export async function runBootSequence(deps: BootDeps): Promise<void> {
 
 			const storedApiKey = await getApiKey()
 
-			const res = await fetch(`https://${window.location.host}/.well-known/cloudillo/id-tag`)
+			// A network failure or a 5xx means "server unreachable", not "signed out":
+			// stop before `setAuth(null)` so the user sees a retry screen instead of a
+			// fake sign-out. A 4xx falls through to the outer catch.
+			let res: Response
+			try {
+				res = await fetch(`https://${window.location.host}/.well-known/cloudillo/id-tag`)
+			} catch (err) {
+				console.warn('[Layout] id-tag probe failed — server unreachable', err)
+				setUnreachable(window.location.host)
+				return
+			}
+			if (res.status >= 500) {
+				console.warn('[Layout] id-tag probe returned', res.status)
+				setUnreachable(window.location.host)
+				return
+			}
 			if (!res.ok) {
 				throw new Error('Failed to fetch idTag')
 			}
@@ -324,6 +343,8 @@ export async function runBootSequence(deps: BootDeps): Promise<void> {
 
 			// Silent exchange, if a remember-me key is stored.
 			let authState: AuthState | undefined
+			// One "session expired" toast per boot, whichever credential died.
+			let toasted = false
 			if (storedApiKey) {
 				try {
 					const tokenResult = await tempApi.auth.getAccessTokenByApiKey(storedApiKey)
@@ -344,6 +365,7 @@ export async function runBootSequence(deps: BootDeps): Promise<void> {
 						console.warn('[Layout] API key rejected (401), clearing stale key')
 						await deleteApiKey()
 						toastWarning(t('Session expired. Please sign in again.'))
+						toasted = true
 					}
 				}
 			}
@@ -370,11 +392,18 @@ export async function runBootSequence(deps: BootDeps): Promise<void> {
 							// authorise anything else this session.
 							setCurrentAuthToken(undefined)
 							await clearAuthToken().catch(() => {})
+							if (!toasted) toastWarning(t('Session expired. Please sign in again.'))
+							toasted = true
 						}
 					} catch (err) {
 						console.warn('[Layout] session token rejected:', err)
 						setCurrentAuthToken(undefined)
 						await clearAuthToken().catch(() => {})
+						// Only a real rejection; a network blip is not an expired session.
+						if (err instanceof FetchError && err.httpStatus === 401 && !toasted) {
+							toastWarning(t('Session expired. Please sign in again.'))
+							toasted = true
+						}
 					}
 				}
 			}
@@ -428,14 +457,18 @@ export async function runBootSequence(deps: BootDeps): Promise<void> {
 			// Only `/` needs a decision here: every other path is either guest-visible or
 			// wrapped in the route tree's `RequireAuth`, which redirects on render. And
 			// not on a published page, where `/` is the site's root alias — see the
-			// same guard in `applyUiSettings`.
-			if (!isSiteDocument && getPathname() === '/') navigate(feedPath(HOME_BASE))
+			// same guard in `applyUiSettings`. Someone who signed in to this node from this
+			// browser before is most likely its owner, so `/` goes to the login screen.
+			if (!isSiteDocument && getPathname() === '/') {
+				navigate(wasSignedInHere(ownerIdTag) ? loginPath() : feedPath(HOME_BASE))
+			}
 		} catch (err) {
 			console.error('Failed to fetch idTag:', err)
 			// Resolve the auth gate anyway, or the boot splash never tears down and the
-			// user stares at a white screen.
+			// user stares at a white screen. `/` renders nothing on its own: send it to login.
 			setAuth(null)
 			settingsAppliedFor = null
+			if (!isSiteDocument && getPathname() === '/') navigate(loginPath())
 		}
 	} else if (api && auth) {
 		if (auth.idTag && settingsAppliedFor !== auth.idTag) {

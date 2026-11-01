@@ -15,11 +15,13 @@ import {
 	idpPath,
 	isBootstrapPath,
 	isContextSegment,
+	loginPath,
 	matchAppRoute,
 	messagesPath,
 	profilePath,
 	rebase,
 	roomsPath,
+	safeNextPath,
 	scopePath,
 	sectionMatch,
 	settingsPath,
@@ -311,6 +313,36 @@ describe('match patterns', () => {
 
 	it('takes no tail', () => {
 		expect(sectionMatch('search')).toBe('/:contextIdTag/search')
+	})
+})
+
+describe('safeNextPath', () => {
+	it.each(['/~/notifications?x=1#h', '/@comm.tld/settings'])('accepts %s', (p) => {
+		expect(safeNextPath(p)).toBe(p)
+	})
+
+	it.each([
+		'//evil.com',
+		'/\\evil.com',
+		'https://evil.com',
+		'evil',
+		'',
+		null,
+		undefined,
+		'/login?next=/x',
+		'/~/feed\nx'
+	])('rejects %p', (p) => {
+		expect(safeNextPath(p)).toBeUndefined()
+	})
+})
+
+describe('loginPath', () => {
+	it('carries a safe next, encoded', () => {
+		expect(loginPath('/~/app/feed')).toBe('/login?next=%2F~%2Fapp%2Ffeed')
+	})
+
+	it.each([undefined, '/', '//evil.com'])('drops %p', (p) => {
+		expect(loginPath(p)).toBe('/login')
 	})
 })
 

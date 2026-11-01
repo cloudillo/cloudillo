@@ -9,10 +9,10 @@
 
 import { useAuth } from '@cloudillo/react'
 import * as React from 'react'
-import { Navigate, Outlet, useParams } from 'react-router-dom'
+import { Navigate, Outlet, useLocation, useParams } from 'react-router-dom'
 
 import { NotFound } from './NotFound.js'
-import { isContextSegment } from './routes.js'
+import { isContextSegment, loginPath } from './routes.js'
 
 /**
  * The layout route under `:contextIdTag`, and the only thing standing between a
@@ -55,11 +55,16 @@ export function ContextGuard({ fallback }: { fallback?: React.ReactNode }) {
  */
 export function RequireAuth() {
 	const [auth] = useAuth()
+	const location = useLocation()
 
 	// `undefined` is "still booting", not "logged out"; the inline #initial-splash covers
 	// exactly this render.
 	if (auth === undefined) return null
-	return auth ? <Outlet /> : <Navigate to="/login" replace />
+	return auth ? (
+		<Outlet />
+	) : (
+		<Navigate to={loginPath(location.pathname + location.search + location.hash)} replace />
+	)
 }
 
 // vim: ts=4

@@ -1,7 +1,16 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: MPL-2.0
 
-import { Field, Input, List, NativeSelect, Panel, VBox } from '@cloudillo/react'
+import {
+	Field,
+	Input,
+	List,
+	LoadError,
+	LoadingSpinner,
+	NativeSelect,
+	Panel,
+	VBox
+} from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -9,12 +18,16 @@ import { SettingsDenied, SwitchRow, useSettings } from '../settings/settings.js'
 
 export function StorageSettings() {
 	const { t } = useTranslation()
-	const { settings, onSettingChange, denied } = useSettings(['file', 'limits'], {
+	const { settings, onSettingChange, denied, error, refresh } = useSettings(['file', 'limits'], {
 		level: 'global'
 	})
 
 	if (denied) return <SettingsDenied />
-	if (!settings) return null
+	if (error)
+		return (
+			<LoadError error={error} onRetry={refresh} title={t("Couldn't load these settings")} />
+		)
+	if (!settings) return <LoadingSpinner className="auto-bg" />
 
 	const variantOptions = [
 		{ value: 'tn', label: 'Thumbnail' },

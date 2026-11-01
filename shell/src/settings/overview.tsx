@@ -4,6 +4,7 @@
 import type { ApiKeyListItem, WebAuthnCredential } from '@cloudillo/core'
 import {
 	Button,
+	friendlyError,
 	HBox,
 	IcGoTo,
 	IconText,
@@ -45,7 +46,7 @@ interface SettingsOverviewProps {
 export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 	const { t } = useTranslation()
 	const dialog = useDialog()
-	const { toast } = useToast()
+	const { toast, error: toastError } = useToast()
 	const { api } = useApi()
 	const [auth] = useAuth()
 	const activeContext = useAtomValue(activeContextAtom)
@@ -60,8 +61,9 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 	const basePath = settingsPath(useCtx().base)
 
 	// Security data
-	const [passkeys, setPasskeys] = React.useState<WebAuthnCredential[]>([])
-	const [apiKeys, setApiKeys] = React.useState<ApiKeyListItem[]>([])
+	// `undefined` while loading, `null` when the load failed.
+	const [passkeys, setPasskeys] = React.useState<WebAuthnCredential[] | null>()
+	const [apiKeys, setApiKeys] = React.useState<ApiKeyListItem[] | null>()
 	const [notificationSubscription, setNotificationSubscription] = React.useState<
 		PushSubscription | undefined
 	>()
@@ -89,11 +91,17 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 					api!.auth
 						.listWebAuthnCredentials()
 						.then(setPasskeys)
-						.catch((err) => console.error('Failed to load passkeys:', err)),
+						.catch((err) => {
+							console.error('Failed to load passkeys:', err)
+							setPasskeys(null)
+						}),
 					api!.auth
 						.listApiKeys()
 						.then(setApiKeys)
-						.catch((err) => console.error('Failed to load API keys:', err))
+						.catch((err) => {
+							console.error('Failed to load API keys:', err)
+							setApiKeys(null)
+						})
 				])
 			}
 			load()
@@ -115,7 +123,8 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 	const notificationsEnabled = Notification.permission === 'granted' && !!notificationSubscription
 	const canEnableNotifications =
 		'Notification' in window && Notification.permission !== 'denied' && pushAllowed
-	const hasPasskeys = passkeys.length > 0
+	// Only a successful load may prompt for a passkey; unknown or failed reads as "has one".
+	const hasPasskeys = !passkeys || passkeys.length > 0
 	// Mirrors the backend's `require_leader` on POST /api/search/reindex.
 	const canReindex = isContextLeader(activeContext, auth?.idTag)
 
@@ -198,6 +207,7 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 			}
 		} catch (err) {
 			console.error('Failed to enable notifications:', err)
+			toastError(friendlyError(t, err))
 		}
 	}
 
@@ -258,10 +268,24 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 				<Panel title={t('Security')}>
 					<HBox gap={4} className="py-2">
 						<IconText icon={<IcPasskey className="text-muted" />}>
-							{passkeys.length} {passkeys.length === 1 ? t('Passkey') : t('Passkeys')}
+							{passkeys === null ? (
+								<Text color="error">{t("Couldn't load passkeys")}</Text>
+							) : (
+								<>
+									{passkeys?.length ?? '…'}{' '}
+									{passkeys?.length === 1 ? t('Passkey') : t('Passkeys')}
+								</>
+							)}
 						</IconText>
 						<IconText icon={<IcDevice className="text-muted" />}>
-							{apiKeys.length} {apiKeys.length === 1 ? t('Device') : t('Devices')}
+							{apiKeys === null ? (
+								<Text color="error">{t("Couldn't load API keys")}</Text>
+							) : (
+								<>
+									{apiKeys?.length ?? '…'}{' '}
+									{apiKeys?.length === 1 ? t('Device') : t('Devices')}
+								</>
+							)}
 						</IconText>
 					</HBox>
 					<Link href={`${basePath}/security`} className="mt-2">

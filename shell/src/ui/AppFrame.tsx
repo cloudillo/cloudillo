@@ -14,6 +14,8 @@ export interface AppFrameProps
 	trust: TrustLevel
 	/** The manifest's `requiresTrusted`: below `'trusted'` the frame shows a refusal card, not the app */
 	requiresTrusted?: boolean
+	/** The manifest's `presentation`: adds `allow-presentation` and `window-management` to a trusted frame */
+	allowPresentation?: boolean
 	/** On the frame box, not the iframe */
 	className?: string
 	/** Overlays above the iframe, e.g. the loading indicator */
@@ -29,7 +31,7 @@ export interface AppFrameProps
  * renders a refusal card instead of the iframe.
  */
 export const AppFrame = React.forwardRef<HTMLIFrameElement, AppFrameProps>(function AppFrame(
-	{ trust, requiresTrusted, className, children, ...iframeProps },
+	{ trust, requiresTrusted, allowPresentation, className, children, ...iframeProps },
 	ref
 ) {
 	const { t } = useTranslation()
@@ -67,7 +69,12 @@ export const AppFrame = React.forwardRef<HTMLIFrameElement, AppFrameProps>(funct
 			<iframe
 				{...iframeProps}
 				ref={ref}
-				sandbox={appSandbox(trust === 'trusted')}
+				sandbox={appSandbox(trust === 'trusted', { presentation: allowPresentation })}
+				allow={
+					trust === 'trusted' && allowPresentation
+						? `${iframeProps.allow}; window-management`
+						: iframeProps.allow
+				}
 				className="c-app-frame-iframe"
 			/>
 			{badge && (

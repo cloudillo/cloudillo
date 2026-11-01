@@ -2,7 +2,17 @@
 // SPDX-License-Identifier: MPL-2.0
 
 import { getInstanceUrl, type ProfilePatch } from '@cloudillo/core'
-import { Field, NativeSelect, Panel, Text, Toggle, useApi, useAuth, VBox } from '@cloudillo/react'
+import {
+	Field,
+	NativeSelect,
+	Panel,
+	Text,
+	Toggle,
+	useApi,
+	useAuth,
+	useToast,
+	VBox
+} from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -19,6 +29,7 @@ export function CommunityGeneralSettings() {
 	const { t } = useTranslation()
 	const { api } = useApi()
 	const [auth] = useAuth()
+	const { error: toastError } = useToast()
 	const community = useActiveCommunity()
 	const { getTokenFor } = useApiContext()
 	const idTag = community?.idTag
@@ -27,7 +38,9 @@ export function CommunityGeneralSettings() {
 	const [settings, setSettings] = React.useState<Record<string, string | number | boolean>>({})
 	const [x, setX] = React.useState<Record<string, string>>()
 	const [loading, setLoading] = React.useState(true)
-	const debounceTimers = React.useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+	const pending = React.useRef<
+		Record<string, { timer: ReturnType<typeof setTimeout>; run: () => Promise<void> }>
+	>({})
 
 	// Fetch the community's settings and profile from its own node
 	React.useEffect(
@@ -92,12 +105,13 @@ export function CommunityGeneralSettings() {
 		[idTag, api, getTokenFor, canEdit]
 	)
 
-	// Cleanup debounce timers on unmount
+	// Flush pending debounced writes on unmount instead of dropping them
 	React.useEffect(() => {
 		return () => {
-			Object.values(debounceTimers.current).forEach((timer) => {
-				clearTimeout(timer)
-			})
+			for (const p of Object.values(pending.current)) {
+				clearTimeout(p.timer)
+				void p.run()
+			}
 		}
 	}, [])
 
@@ -137,37 +151,49 @@ export function CommunityGeneralSettings() {
 		// Update local state immediately
 		setSettings((prev) => ({ ...prev, [name]: value }))
 
-		// Clear existing timer
-		if (debounceTimers.current[name]) {
-			clearTimeout(debounceTimers.current[name])
+		// Drop a superseded pending write, so the unmount flush never sends a stale value
+		const stale = pending.current[name]
+		if (stale) {
+			clearTimeout(stale.timer)
+			delete pending.current[name]
 		}
 
 		// Debounce for text inputs, immediate for toggles/selects
 		const delay = type === 'checkbox' ? 0 : type === 'text' ? 800 : 300
 
 		const saveToServer = async () => {
+			delete pending.current[name]
 			try {
 				// Explicit user action: writing a community setting.
 				const proxyResult = await getTokenFor(idTag, { explicit: true })
-				if (!proxyResult?.token) return
+				if (!proxyResult?.token) throw new Error('Failed to get proxy token')
 
-				await fetch(`${getInstanceUrl(idTag)}/api/settings/${encodeURIComponent(name)}`, {
-					method: 'PUT',
-					headers: {
-						Authorization: `Bearer ${proxyResult.token}`,
-						'Content-Type': 'application/json'
-					},
-					body: JSON.stringify({ value })
-				})
+				const response = await fetch(
+					`${getInstanceUrl(idTag)}/api/settings/${encodeURIComponent(name)}`,
+					{
+						method: 'PUT',
+						headers: {
+							Authorization: `Bearer ${proxyResult.token}`,
+							'Content-Type': 'application/json'
+						},
+						body: JSON.stringify({ value })
+					}
+				)
+				if (!response.ok) throw new Error(`Setting update failed: ${response.status}`)
 			} catch (err) {
 				console.error('Failed to save setting:', name, err)
+				setSettings((prev) => ({ ...prev, [name]: oldValue }))
+				toastError(t('Failed to save setting. Please try again.'))
 			}
 		}
 
 		if (delay === 0) {
 			await saveToServer()
 		} else {
-			debounceTimers.current[name] = setTimeout(saveToServer, delay)
+			pending.current[name] = {
+				timer: setTimeout(() => void saveToServer(), delay),
+				run: saveToServer
+			}
 		}
 	}
 

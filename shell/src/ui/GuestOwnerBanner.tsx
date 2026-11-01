@@ -1,14 +1,24 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: MPL-2.0
 
-import { Alert, HBox, IdentityTag, ProfilePicture, Text, useApi, useAuth } from '@cloudillo/react'
+import {
+	Alert,
+	Button,
+	HBox,
+	IdentityTag,
+	ProfilePicture,
+	Text,
+	useApi,
+	useAuth
+} from '@cloudillo/react'
 import { useAtomValue } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useLocation } from 'react-router-dom'
 
+import { wasSignedInHere } from '../auth/device-flag.js'
 import { isGuestDocumentPath, useGuestDocument } from '../context/index.js'
-import { HOME_BASE, isBootstrapPath, profilePath } from '../routes.js'
+import { HOME_BASE, isBootstrapPath, loginPath, profilePath } from '../routes.js'
 import { siteSeed } from '../site/detect.js'
 import { siteRouteActiveAtom } from '../site/state.js'
 
@@ -68,40 +78,75 @@ export function GuestOwnerBanner() {
 	if (siteRouteActive) return null
 	if (isBootstrapPath(location.pathname)) return null
 
-	// The `/s/` prefix test stands on its own: any share route is a shared resource,
-	// even before the atom is set and even for a different refId.
-	const label =
-		location.pathname.startsWith('/s/') || isGuestDocumentPath(location.pathname, guestDocument)
-			? t('Shared by')
-			: t('Hosted by')
-
 	const ownerName = seeded?.name ?? name
 	const ownerPic = seeded?.profilePic ?? profilePic
+
+	// This browser signed in to this very node before: most likely its owner, signed out.
+	const ownNode = wasSignedInHere(idTag)
+	// The `/s/` prefix test stands on its own: any share route is a shared resource,
+	// even before the atom is set and even for a different refId.
+	const sharePath =
+		location.pathname.startsWith('/s/') || isGuestDocumentPath(location.pathname, guestDocument)
+
+	const ownerChip = (
+		<Link
+			className="c-hbox g-1 align-items-center min-w-0"
+			to={profilePath(HOME_BASE, 'me')}
+			title={idTag}
+		>
+			<ProfilePicture profile={{ profilePic: ownerPic }} srcTag={idTag} tiny />
+			<Text weight="semibold" truncate>
+				{ownerName || idTag}
+			</Text>
+			{/* Only alongside a real name — without one the name already *is* the idTag. */}
+			{!!ownerName && (
+				<Text emphasis="muted" truncate>
+					<IdentityTag idTag={idTag} />
+				</Text>
+			)}
+		</Link>
+	)
+
+	// A share-link visitor is usually not this node's owner, and the owner's login is useless
+	// to them — no Sign in button there unless the device flag says otherwise.
+	const signIn = (ownNode || !sharePath) && (
+		<Button
+			href={loginPath(location.pathname + location.search)}
+			color="accent"
+			size="sm"
+			className="flex-shrink-0 ms-auto"
+		>
+			{t('Sign in')}
+		</Button>
+	)
 
 	// `role="note"`: provenance, not news — Alert's default `status` would announce it on
 	// every navigation.
 	return (
 		<Alert color="neutral" compact icon={false} role="note" className="rounded-0">
 			<HBox gap={2} align="center">
-				<Text emphasis="muted" className="flex-shrink-0">
-					{label}
-				</Text>
-				<Link
-					className="c-hbox g-1 align-items-center min-w-0"
-					to={profilePath(HOME_BASE, 'me')}
-					title={idTag}
-				>
-					<ProfilePicture profile={{ profilePic: ownerPic }} srcTag={idTag} tiny />
-					<Text weight="semibold" truncate>
-						{ownerName || idTag}
-					</Text>
-					{/* Only alongside a real name — without one the name already *is* the idTag. */}
-					{!!ownerName && (
-						<Text emphasis="muted" truncate>
-							<IdentityTag idTag={idTag} />
+				{ownNode || sharePath ? (
+					<>
+						<Text emphasis="muted" className="flex-shrink-0">
+							{ownNode ? t('Is this you? Sign in to continue') : t('Shared by')}
 						</Text>
-					)}
-				</Link>
+						{ownerChip}
+					</>
+				) : (
+					<Link
+						className="c-hbox g-1 align-items-center min-w-0"
+						to={profilePath(HOME_BASE, 'me')}
+						title={idTag}
+					>
+						<ProfilePicture profile={{ profilePic: ownerPic }} srcTag={idTag} tiny />
+						<Text truncate>
+							{t("You're not signed in · viewing {{name}}'s public page", {
+								name: ownerName || idTag
+							})}
+						</Text>
+					</Link>
+				)}
+				{signIn}
 			</HBox>
 		</Alert>
 	)

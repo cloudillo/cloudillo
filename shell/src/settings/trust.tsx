@@ -16,6 +16,7 @@ import {
 	IcUntrusted,
 	List,
 	ListItem,
+	LoadError,
 	LoadingSpinner,
 	Panel,
 	Segmented,
@@ -38,6 +39,7 @@ export function TrustSettings(): React.ReactElement {
 	const { error: toastError } = useToast()
 	const storedTrust = useAtomValue(storedTrustAtom)
 	const [profiles, setProfiles] = React.useState<Profile[] | undefined>()
+	const [error, setError] = React.useState<unknown>()
 	const [busyIdTag, setBusyIdTag] = React.useState<string | undefined>()
 
 	// Render-ready rows: prefer the enriched fetched list (has `name`), fall back
@@ -59,16 +61,17 @@ export function TrustSettings(): React.ReactElement {
 		try {
 			const list = await api.profiles.listTrust()
 			setProfiles(list)
+			setError(undefined)
 			// Seed the in-memory cache with the authoritative list.
 			for (const p of list) {
 				rememberStoredTrust(p.idTag, p.trust ?? null)
 			}
 		} catch (err) {
 			console.error('Failed to load trusted profiles:', err)
-			toastError(t('Failed to load trusted profiles'))
+			setError(err)
 			setProfiles([])
 		}
-	}, [api, rememberStoredTrust, toastError, t])
+	}, [api, rememberStoredTrust])
 
 	React.useEffect(() => {
 		void load()
@@ -106,6 +109,16 @@ export function TrustSettings(): React.ReactElement {
 	]
 
 	if (rows === undefined) return <LoadingSpinner className="auto-bg" />
+
+	if (error && rows.length === 0) {
+		return (
+			<LoadError
+				error={error}
+				onRetry={() => void load()}
+				title={t('Failed to load trusted profiles')}
+			/>
+		)
+	}
 
 	if (rows.length === 0) {
 		return (

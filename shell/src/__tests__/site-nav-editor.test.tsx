@@ -22,6 +22,8 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import * as React from 'react'
 
 jest.unstable_mockModule('react-i18next', () => ({
+	getI18n: () => undefined,
+	initReactI18next: { type: '3rdParty', init: () => {} },
 	Trans: () => null,
 	useTranslation: () => ({ t: (key: string) => key })
 }))

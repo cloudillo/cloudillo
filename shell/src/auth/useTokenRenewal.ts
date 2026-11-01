@@ -21,6 +21,7 @@ import {
 	getApiKeyResult,
 	installToken
 } from '../pwa.js'
+import { loginPath } from '../routes.js'
 import { resetBootSettingsApplied } from './boot.js'
 import { createRenewer, type Renewer } from './renewal-timer.js'
 import { runRenewal } from './token-session.js'
@@ -97,6 +98,8 @@ export function useTokenRenewal() {
 		if (expiredRef.current) return
 		expiredRef.current = true
 		latest.current.toastWarning(latest.current.t('Session expired. Please sign in again.'))
+		// Before setAuth(null): the auth change can redirect and rewrite the location.
+		const next = window.location.pathname + window.location.search + window.location.hash
 		latest.current.setAuth(null)
 		// Same as the explicit logout path: signing back in as the same idTag must
 		// re-apply theme/menu/favourites rather than hit boot's warm branch.
@@ -121,7 +124,7 @@ export function useTokenRenewal() {
 			cleanupEncryptionCookie()
 			resetKeyErrorState()
 		}
-		latest.current.navigate('/login')
+		latest.current.navigate(loginPath(next))
 	}, [])
 
 	// Recovery path for a home-token 401. The bearer JWT is already expired, so

@@ -36,6 +36,7 @@ import { usePushAllowed } from '../settings/settings.js'
 import { tourAtom } from '../tour/atoms.js'
 import { loadOnboardingCommunity } from './community.js'
 import { useOnboardingDraft } from './draft.js'
+import { SignInAddress } from './sign-in-address.js'
 import { VerifyIdp } from './verify-idp.js'
 import { Welcome } from './welcome.js'
 
@@ -331,6 +332,7 @@ function Extras({ pwa }: { pwa: UsePWA }) {
 	const { t } = useTranslation()
 	const navigate = useNavigate()
 	const { api } = useApi()
+	const [auth] = useAuth()
 	const { error: toastError } = useToast()
 	const { loadNotifications } = useNotifications()
 	const { loadCommunities, pinCommunities } = useCommunitiesList()
@@ -518,6 +520,7 @@ function Extras({ pwa }: { pwa: UsePWA }) {
 			}
 		>
 			<VBox gap={2}>
+				{auth?.idTag && <SignInAddress idTag={auth.idTag} />}
 				{canNotify && (
 					<Checkbox
 						label={t('Enable notifications')}

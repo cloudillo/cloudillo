@@ -222,9 +222,9 @@ describe('useShellEmbed app lifecycle', () => {
 	it('should hold at syncing after auth, then fall through to ready', () => {
 		jest.useFakeTimers()
 		try {
-			// taskillo stops at 'auth', so the ceiling is the only thing that ends it.
+			// mapillo stops at 'auth', so the ceiling is the only thing that ends it.
 			const { result } = renderHook(() =>
-				useShellEmbed(options({ contentType: 'cloudillo/taskillo' }))
+				useShellEmbed(options({ contentType: 'cloudillo/mapillo' }))
 			)
 			act(() => result.current.onAppReady('auth'))
 			expect(result.current.stage).toBe('syncing')

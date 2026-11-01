@@ -14,6 +14,7 @@ import {
 	type AuthState,
 	Button,
 	CodeBlock,
+	Disclosure,
 	Field,
 	Form,
 	IcBack,
@@ -24,6 +25,7 @@ import {
 	Switcher,
 	Text,
 	Toggle,
+	friendlyError,
 	useApi,
 	useAuth,
 	useToast
@@ -43,7 +45,7 @@ import { IcLogin, IcMail, IcPasskey } from '../icons.js'
 import { onboardingNextPath } from '../onboarding/next-step.js'
 import { RegisterForm } from '../profile/register.js'
 import { installToken, setApiKey } from '../pwa.js'
-import { feedPath, HOME_BASE, scopePath } from '../routes.js'
+import { feedPath, HOME_BASE, safeNextPath, scopePath } from '../routes.js'
 import { useAppConfig } from '../utils.js'
 import { AuthLayout } from './AuthLayout.js'
 import { IdpActivate } from './idp-activate.js'
@@ -349,7 +351,7 @@ export function LoginForm() {
 
 		try {
 			if (!api?.idTag) {
-				setError('Identity tag not set')
+				setError(t('This server has no identity set up yet.'))
 				return
 			}
 
@@ -372,9 +374,17 @@ export function LoginForm() {
 		} catch (err: unknown) {
 			if (isSessionExpiredError(err)) return // global toast + /login redirect already shown
 			console.error('Login failed:', err)
-			setError(
-				rateLimitMessage(err, t) ?? (err instanceof Error ? err.message : t('Login failed'))
-			)
+			const banMsg = rateLimitMessage(err, t)
+			if (banMsg) setError(banMsg)
+			else if (
+				err instanceof FetchError &&
+				// E-AUTH-NOPERM also covers other denials on the login path; a
+				// distinct code (E-AUTH-BADPASS in cloudillo-auth handler.rs) would make it exact
+				(err.httpStatus === 401 ||
+					(err.httpStatus === 403 && err.apiErrorCode === 'E-AUTH-NOPERM'))
+			) {
+				setError(t('Incorrect password. Try again or reset it.'))
+			} else setError(friendlyError(t, err))
 		}
 	}
 
@@ -432,7 +442,7 @@ export function LoginForm() {
 				} else if (err instanceof FetchError && err.httpStatus === 403) {
 					setError(t('Invalid code. Please try again.'))
 				} else {
-					setError(err instanceof Error ? err.message : t('Login failed'))
+					setError(t('Login failed'))
 				}
 				return
 			}
@@ -442,7 +452,7 @@ export function LoginForm() {
 			} catch (err: unknown) {
 				if (isSessionExpiredError(err)) return
 				console.error('Login failed:', err)
-				setError(err instanceof Error ? err.message : t('Login failed'))
+				setError(t('Login failed'))
 			}
 		} finally {
 			setSubmitting(false)
@@ -508,7 +518,9 @@ export function LoginForm() {
 		const menuPath = appConfig?.menu?.find((m) => m.id === appConfig.defaultMenu)?.path
 		// Menu paths are context-relative templates; a fresh login always lands at home.
 		const navTo =
-			resumePath ?? (menuPath ? scopePath(HOME_BASE, menuPath) : feedPath(HOME_BASE))
+			resumePath ??
+			safeNextPath(new URLSearchParams(location.search).get('next')) ??
+			(menuPath ? scopePath(HOME_BASE, menuPath) : feedPath(HOME_BASE))
 		return <Navigate to={navTo} />
 	} else {
 		return (
@@ -547,6 +559,13 @@ export function LoginForm() {
 									</Text>
 								)}
 								<TotpCodeField value={code} onChange={setCode} />
+								<Disclosure summary={t('Lost your device?')}>
+									<Text as="p" emphasis="muted">
+										{t(
+											'If you added a passkey, go Back and sign in with the passkey button instead. Otherwise, ask your server administrator to reset two-factor authentication for your account.'
+										)}
+									</Text>
+								</Disclosure>
 							</>
 						) : !forgot ? (
 							<>

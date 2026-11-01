@@ -145,7 +145,7 @@ describe('LoginForm TOTP step', () => {
 		const form = await toCodeStep()
 		enterCode('123456')
 		fireEvent.submit(form)
-		await screen.findByText('Service worker unavailable')
+		await screen.findByText('Login failed')
 		expect(screen.queryByText('Invalid code. Please try again.')).toBeNull()
 		// The token is spent, so the step closes
 		expect(screen.queryByText(CODE_PROMPT)).toBeNull()

@@ -3,6 +3,7 @@
 
 import {
 	Button,
+	friendlyError,
 	IcDelete,
 	IcMore,
 	Menu,
@@ -10,7 +11,8 @@ import {
 	MenuItem,
 	useApi,
 	useAuth,
-	useDialog
+	useDialog,
+	useToast
 } from '@cloudillo/react'
 import type { ActionView } from '@cloudillo/types'
 import * as React from 'react'
@@ -36,6 +38,7 @@ export function PostMenu({ action, onDelete }: PostMenuProps) {
 	const [auth] = useAuth()
 	const { api } = useApi()
 	const dialog = useDialog()
+	const toast = useToast()
 
 	const isOwn = action.issuer.idTag === auth?.idTag
 	const [notifyLevel, setSubLevel] = React.useState<SubLevel | null>(
@@ -80,6 +83,7 @@ export function PostMenu({ action, onDelete }: PostMenuProps) {
 			onDelete?.()
 		} catch (e) {
 			console.error('Failed to delete post', e)
+			toast.error(friendlyError(t, e))
 		}
 	}
 

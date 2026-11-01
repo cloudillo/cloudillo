@@ -5,6 +5,7 @@ import { EmptyState, IcNoAccess, ListItem, Toggle, useApi, useToast } from '@clo
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { useContextAwareApi } from '../context/index.js'
 import { coerceSettingValue, isPermissionError } from '../utils.js'
 
 /** Shown instead of a settings page whose `useSettings` load was refused (403) */
@@ -52,28 +53,39 @@ const DEBOUNCE_DELAYS = {
 // `level` selects between the caller's own scope (tenant or global) — for cross-
 // tenant admin writes (site admin editing tenant X), call api.settings.* directly
 // with { level: 'tenant', tenant: idTag }; this hook only handles self-settings.
-// `idTag` overrides the active context (see `useApi`).
+// Reads and writes the home node's settings by default; `idTag` (including `null`)
+// targets that node (see `useApi`), and `context: true` targets the active context
+// (`useContextAwareApi`) — only for community-admin pages.
 export function useSettings(
 	prefix: string | string[],
-	opts?: { level?: 'global' | 'tenant'; idTag?: string | null }
+	opts?: { level?: 'global' | 'tenant'; idTag?: string | null; context?: boolean }
 ) {
 	const level = opts?.level
 	const { t } = useTranslation()
-	const { api, authenticated } = useApi(opts?.idTag)
+	const contextApi = useContextAwareApi()
+	const explicitApi = useApi(opts?.idTag)
+	const { api, authenticated } = opts?.context ? contextApi : explicitApi
 	const { error: toastError } = useToast()
 	const [settings, setSettings] = React.useState<
 		Record<string, string | number | boolean> | undefined
 	>()
 	const [denied, setDenied] = React.useState(false)
+	const [error, setError] = React.useState<unknown>()
 	const prefixStr = React.useMemo(
 		() => (Array.isArray(prefix) ? prefix.join(',') : prefix),
 		[prefix]
 	)
-	const debounceTimers = React.useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+	// Debounced writes not yet sent: the timer calls `run`, or the unmount flush does
+	const pending = React.useRef<
+		Record<string, { timer: ReturnType<typeof setTimeout>; run: () => Promise<void> }>
+	>({})
+	// The client whose list responses may still land; a superseded one's are dropped
+	const liveApi = React.useRef<typeof api>(undefined)
 
 	const refresh = React.useCallback(async () => {
 		if (!api || !authenticated) return
 		try {
+			setError(undefined)
 			const res = await api.settings.list({
 				prefix: prefixStr,
 				...(level ? { level } : {})
@@ -85,24 +97,33 @@ export function useSettings(
 					settingsMap[setting.key] = setting.value as string | number | boolean
 				}
 			}
+			if (liveApi.current !== api) return
 			setSettings(settingsMap)
 			setDenied(false)
+			setError(undefined)
 		} catch (err) {
+			if (liveApi.current !== api) return
 			console.error('Failed to load settings:', err)
 			if (isPermissionError(err)) setDenied(true)
+			else setError(err)
 		}
 	}, [api, authenticated, prefixStr, level])
 
 	React.useEffect(() => {
+		liveApi.current = api
 		refresh()
-	}, [refresh])
+		return () => {
+			liveApi.current = undefined
+		}
+	}, [api, refresh])
 
-	// Cleanup debounce timers on unmount
+	// Flush pending debounced writes on unmount instead of dropping them
 	React.useEffect(() => {
 		return () => {
-			Object.values(debounceTimers.current).forEach((timer) => {
-				clearTimeout(timer)
-			})
+			for (const p of Object.values(pending.current)) {
+				clearTimeout(p.timer)
+				void p.run()
+			}
 		}
 	}, [])
 
@@ -131,9 +152,11 @@ export function useSettings(
 		const delay =
 			DEBOUNCE_DELAYS[inputType as keyof typeof DEBOUNCE_DELAYS] ?? DEBOUNCE_DELAYS.default
 
-		// Clear existing timer for this setting
-		if (debounceTimers.current[name]) {
-			clearTimeout(debounceTimers.current[name])
+		// Supersede a pending write for this setting
+		const prev = pending.current[name]
+		if (prev) {
+			clearTimeout(prev.timer)
+			delete pending.current[name]
 		}
 
 		// Set new debounced API call
@@ -147,21 +170,22 @@ export function useSettings(
 				toastError(t('Failed to save setting. Please try again.'))
 			}
 		} else {
-			// Debounce the API call
-			debounceTimers.current[name] = setTimeout(async () => {
+			// Debounce the API call; `run` fires exactly once, from the timer or the unmount flush
+			const run = async () => {
+				delete pending.current[name]
 				try {
 					await api.settings.update(name, { value }, level ? { level } : undefined)
-					delete debounceTimers.current[name]
 				} catch (error) {
 					console.error('Failed to update setting:', name, error)
 					setSettings((settings) => ({ ...settings, [name]: oldValue }))
 					toastError(t('Failed to save setting. Please try again.'))
 				}
-			}, delay)
+			}
+			pending.current[name] = { timer: setTimeout(() => void run(), delay), run }
 		}
 	}
 
-	return { settings, setSettings, onSettingChange, refresh, denied }
+	return { settings, setSettings, onSettingChange, refresh, denied, error }
 }
 
 /** `notify.push_allowed` (Global): only an explicit false forbids push */

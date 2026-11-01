@@ -4,6 +4,7 @@
 import {
 	Button,
 	EmptyState,
+	friendlyError,
 	Grid,
 	HBox,
 	IcCancel,
@@ -14,6 +15,7 @@ import {
 	SortableList,
 	Text,
 	useDialog,
+	useToast,
 	VBox
 } from '@cloudillo/react'
 import type { SectionType } from '@cloudillo/types'
@@ -233,13 +235,19 @@ function AboutEditMode({
 	initialSections,
 	isCommunity,
 	onSave,
-	onCancel
+	onCancel,
+	saving
 }: {
 	initialLayout: LayoutItem[]
 	initialSections: SectionWithContent[]
 	isCommunity: boolean
-	onSave: (layout: LayoutItem[], sections: SectionWithContent[], deletedIds: string[]) => void
+	onSave: (
+		layout: LayoutItem[],
+		sections: SectionWithContent[],
+		deletedIds: string[]
+	) => Promise<void>
 	onCancel: () => void
+	saving: boolean
 }) {
 	const { t } = useTranslation()
 	const dialog = useDialog()
@@ -308,7 +316,7 @@ function AboutEditMode({
 					{ ...s, content: htmlToMd(s.content.replace(/&nbsp;| /g, ' ')) }
 				: s
 		)
-		onSave(cleanEmptyCols(layout), sections, deletedIds)
+		void onSave(cleanEmptyCols(layout), sections, deletedIds)
 	}
 
 	async function handleCancel() {
@@ -373,7 +381,13 @@ function AboutEditMode({
 					<Button size="sm" icon={<IcCancel />} onClick={handleCancel}>
 						{t('Cancel')}
 					</Button>
-					<Button color="primary" size="sm" icon={<IcConfirm />} onClick={handleSave}>
+					<Button
+						color="primary"
+						size="sm"
+						icon={<IcConfirm />}
+						loading={saving}
+						onClick={handleSave}
+					>
 						{t('Done')}
 					</Button>
 				</HBox>
@@ -434,7 +448,10 @@ function AboutEditMode({
 // ============================================================================
 
 export function ProfileAbout({ profile, updateProfile }: ProfileAboutProps) {
+	const { t } = useTranslation()
+	const toast = useToast()
 	const [editing, setEditing] = React.useState(false)
+	const [saving, setSaving] = React.useState(false)
 	const { layout, sections } = parseSections(profile.x)
 	const isOwner = !!updateProfile
 	const isCommunity = profile.type === 'community'
@@ -444,14 +461,19 @@ export function ProfileAbout({ profile, updateProfile }: ProfileAboutProps) {
 		newSections: SectionWithContent[],
 		deletedIds: string[]
 	) {
-		if (!updateProfile) return
+		if (!updateProfile || saving) return
 
 		const xPatch = buildSavePatch(newLayout, newSections, deletedIds)
+		setSaving(true)
 		try {
 			await updateProfile({ x: xPatch })
 			setEditing(false)
+			toast.success(t('Profile saved'))
 		} catch (err) {
 			console.error('Failed to save profile:', err)
+			toast.error(friendlyError(t, err))
+		} finally {
+			setSaving(false)
 		}
 	}
 
@@ -463,6 +485,7 @@ export function ProfileAbout({ profile, updateProfile }: ProfileAboutProps) {
 				isCommunity={isCommunity}
 				onSave={handleSave}
 				onCancel={() => setEditing(false)}
+				saving={saving}
 			/>
 		)
 	}

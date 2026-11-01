@@ -32,6 +32,7 @@ import {
 	InputGroup,
 	List,
 	ListItem,
+	LoadError,
 	LoadingSpinner,
 	Panel,
 	PasswordInput,
@@ -57,11 +58,17 @@ import {
 	setApiKey as swSetApiKey
 } from '../pwa.js'
 import { registerPasskey } from './passkey.js'
-import { SwitchRow, useSettings } from './settings.js'
+import { SettingsDenied, SwitchRow, useSettings } from './settings.js'
 
 /** TOTP enroll / status / disable. Hidden while the server's `auth.mfa` is off and the
  *  user has nothing to disable (`GET /auth/totp` carries the mode; users cannot read it). */
-export function TwoFactorPanel() {
+export function TwoFactorPanel({
+	onStatus,
+	onAddPasskey
+}: {
+	onStatus?: (s: TotpStatus) => void
+	onAddPasskey?: () => void
+}) {
 	const { t } = useTranslation()
 	const { api } = useApi()
 	const { error: toastError } = useToast()
@@ -70,6 +77,14 @@ export function TwoFactorPanel() {
 	const [disabling, setDisabling] = React.useState(false)
 	const [code, setCode] = React.useState('')
 	const [busy, setBusy] = React.useState(false)
+	const [justEnrolled, setJustEnrolled] = React.useState(false)
+
+	React.useEffect(
+		function reportStatus() {
+			if (status) onStatus?.(status)
+		},
+		[status, onStatus]
+	)
 
 	React.useEffect(
 		function loadTotp() {
@@ -129,6 +144,25 @@ export function TwoFactorPanel() {
 					)}
 				</HBox>
 
+				{justEnrolled && status.enrolled && (
+					<Alert color="info" compact>
+						<VBox gap={2}>
+							<Text>
+								{t(
+									'Keep a way back in: add a passkey, or ask your server administrator to reset two-factor if you lose this device.'
+								)}
+							</Text>
+							{onAddPasskey && (
+								<HBox>
+									<Button size="sm" icon={<IcPasskey />} onClick={onAddPasskey}>
+										{t('Add passkey')}
+									</Button>
+								</HBox>
+							)}
+						</VBox>
+					</Alert>
+				)}
+
 				{status.enrolled ? (
 					status.mode !== 'required' &&
 					(disabling ? (
@@ -186,6 +220,7 @@ export function TwoFactorPanel() {
 									run(async (api) => {
 										setStatus(await api.auth.totpEnrollConfirm({ code }))
 										setEnroll(undefined)
+										setJustEnrolled(true)
 									}, t('Invalid code. Please try again.'))
 								}
 							>
@@ -452,7 +487,7 @@ type ReauthPrompt = () => Promise<ReauthRequest | undefined>
 /** Re-authentication the server requires for an unscoped API key (403 without it): the
  *  password or a fresh passkey assertion. Refused outright while TOTP is enrolled or MFA is
  *  required. Render the returned node; the prompt resolves `undefined` when the user cancels. */
-function useReauth(): [React.ReactNode, ReauthPrompt] {
+function useReauth(description?: string): [React.ReactNode, ReauthPrompt] {
 	const { t } = useTranslation()
 	const { api } = useApi()
 	const resolveRef = React.useRef<(reauth: ReauthRequest | undefined) => void>(undefined)
@@ -508,7 +543,9 @@ function useReauth(): [React.ReactNode, ReauthPrompt] {
 			open={open}
 			onClose={() => finish(undefined)}
 			title={t('Confirm your identity')}
-			description={t('Creating a full-access API key requires re-authentication.')}
+			description={
+				description ?? t('Creating a full-access API key requires re-authentication.')
+			}
 			onSubmit={() => {
 				if (canSubmit) finish({ password })
 			}}
@@ -951,9 +988,10 @@ export function SecuritySettings() {
 	const [auth] = useAuth()
 	const { api } = useApi()
 	const dialog = useDialog()
-	const { settings, onSettingChange, denied } = useSettings(['sec', 'auth'])
-	// auth.remember_days is PermissionLevel::Admin: listed to every owner, writable by SADM only
-	const canEditRememberDays = !denied && !!auth?.roles?.includes('SADM')
+	const { settings, onSettingChange, denied, error, refresh } = useSettings(['sec', 'auth'])
+	// auth.remember_days is PermissionLevel::Admin: listed to every owner, writable by SADM only.
+	// Only the remember-days field reads settings, so its load state gates that field alone.
+	const isSiteAdmin = !!auth?.roles?.includes('SADM')
 
 	// Password change state
 	const [currentPassword, setCurrentPassword] = React.useState('')
@@ -963,20 +1001,29 @@ export function SecuritySettings() {
 
 	// WebAuthn state
 	const [passkeys, setPasskeys] = React.useState<WebAuthnCredential[]>([])
+	const [passkeysError, setPasskeysError] = React.useState<unknown>()
 	const [passkeyDescription, setPasskeyDescription] = React.useState('')
 	const [isAddingPasskey, setIsAddingPasskey] = React.useState(false)
 	const [webAuthnSupported] = React.useState(() => browserSupportsWebAuthn())
 
 	// API Key state
 	const [apiKeys, setApiKeys] = React.useState<ApiKeyListItem[]>([])
+	const [apiKeysError, setApiKeysError] = React.useState<unknown>()
 	const [stayLoggedIn, setStayLoggedIn] = React.useState(false)
+	const [totpBlocks, setTotpBlocks] = React.useState(false)
+	const onTotpStatus = React.useCallback((s: TotpStatus) => {
+		setTotpBlocks(s.enrolled || s.mode === 'required')
+	}, [])
+	const stayLoggedInBlocked = !stayLoggedIn && totpBlocks
 	const [currentDeviceKeyPrefix, setCurrentDeviceKeyPrefix] = React.useState<string | undefined>()
 
 	// Modal state
 	const [showCreateModal, setShowCreateModal] = React.useState(false)
 	const [showKeyCreatedModal, setShowKeyCreatedModal] = React.useState(false)
 	const [createdKeyResult, setCreatedKeyResult] = React.useState<CreateApiKeyResult | null>(null)
-	const [reauthDialog, promptReauth] = useReauth()
+	const [reauthDialog, promptReauth] = useReauth(
+		t('Keeping you logged in on this device requires re-authentication.')
+	)
 	const [editingKey, setEditingKey] = React.useState<ApiKeyListItem | undefined>()
 
 	// Load passkeys and API keys on mount
@@ -995,8 +1042,10 @@ export function SecuritySettings() {
 		try {
 			const credentials = await api.auth.listWebAuthnCredentials()
 			setPasskeys(credentials)
+			setPasskeysError(undefined)
 		} catch (err) {
 			console.error('Failed to load passkeys:', err)
+			setPasskeysError(err)
 		}
 	}
 
@@ -1005,8 +1054,10 @@ export function SecuritySettings() {
 		try {
 			const keys = await api.auth.listApiKeys()
 			setApiKeys(keys)
+			setApiKeysError(undefined)
 		} catch (err) {
 			console.error('Failed to load API keys:', err)
+			setApiKeysError(err)
 		}
 	}
 
@@ -1195,8 +1246,6 @@ export function SecuritySettings() {
 		}
 	}
 
-	if (!settings) return <LoadingSpinner className="auto-bg" />
-
 	return (
 		<>
 			{reauthDialog}
@@ -1278,6 +1327,13 @@ export function SecuritySettings() {
 						'Use biometric authentication or security keys for passwordless login.'
 					)}
 				>
+					{!!passkeysError && passkeys.length === 0 && (
+						<LoadError
+							error={passkeysError}
+							onRetry={loadPasskeys}
+							title={t("Couldn't load passkeys")}
+						/>
+					)}
 					{passkeys.length > 0 && (
 						<List variant="divided">
 							{passkeys.map((pk) => (
@@ -1318,14 +1374,25 @@ export function SecuritySettings() {
 				</Panel>
 			)}
 
-			<TwoFactorPanel />
+			<TwoFactorPanel
+				onStatus={onTotpStatus}
+				onAddPasskey={webAuthnSupported ? addPasskey : undefined}
+			/>
 
 			<Panel title={t('Stay logged in')}>
 				<List variant="divided">
 					<SwitchRow
 						checked={stayLoggedIn}
+						disabled={stayLoggedInBlocked}
 						onChange={(e) => toggleStayLoggedIn(e.target.checked)}
 						label={t('Keep me logged in on this device')}
+						description={
+							stayLoggedInBlocked
+								? t(
+										'Not available while two-factor authentication is on. Use "Remember me on this device" when you sign in instead.'
+									)
+								: undefined
+						}
 					/>
 				</List>
 				<Alert color="warning" compact>
@@ -1333,7 +1400,16 @@ export function SecuritySettings() {
 						'Only enable this on personal, trusted devices. The login credentials will be stored locally.'
 					)}
 				</Alert>
-				{canEditRememberDays && (
+				{isSiteAdmin && denied && <SettingsDenied />}
+				{isSiteAdmin && !denied && !!error && (
+					<LoadError
+						error={error}
+						onRetry={refresh}
+						title={t("Couldn't load these settings")}
+					/>
+				)}
+				{isSiteAdmin && !denied && !error && !settings && <LoadingSpinner />}
+				{isSiteAdmin && !denied && !error && settings && (
 					<Field
 						label={t('Remember devices for (days)')}
 						orientation="horizontal"
@@ -1369,7 +1445,13 @@ export function SecuritySettings() {
 					</Button>
 				}
 			>
-				{apiKeys.length === 0 ? (
+				{apiKeysError && apiKeys.length === 0 ? (
+					<LoadError
+						error={apiKeysError}
+						onRetry={loadApiKeys}
+						title={t("Couldn't load API keys")}
+					/>
+				) : apiKeys.length === 0 ? (
 					<Text emphasis="muted">{t('No API keys yet.')}</Text>
 				) : (
 					<List variant="divided">

@@ -123,11 +123,11 @@ export interface ShellEmbedState {
  *
  * Its own budget, deliberately not shared with `LOADING_TIMEOUT_MS` in
  * `shell/src/apps/index.tsx`. It is what covers the apps that report nothing at all:
- * an RTDB-only app (notillo, taskillo) never emits `app:error.notify`, and neither
+ * an RTDB-only app (notillo) never emits `app:error.notify`, and neither
  * does a bundle that fails to boot.
  *
  * `bus.init()` emits `'auth'` on every handshake, but only the Yjs apps and notillo go on
- * to report `'synced'` — the `view` bundle, taskillo, formillo, mapillo and scanillo stop
+ * to report `'synced'` — the `view` bundle, mapillo and scanillo stop
  * at `'auth'`. So `'syncing'` needs a ceiling, and this is it for everyone: no per-bundle
  * list to keep in step with which apps happen to report sync. The stage only shows the
  * subtle corner spinner over a fully readable document, so waiting it out costs nothing.

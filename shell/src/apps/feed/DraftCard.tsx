@@ -18,8 +18,10 @@ import {
 	Spacer,
 	Text,
 	TimeFormat,
+	friendlyError,
 	useApi,
 	useDialog,
+	useToast,
 	VBox
 } from '@cloudillo/react'
 import type { ActionView } from '@cloudillo/types'
@@ -47,6 +49,9 @@ export function DraftCard({
 	const { t } = useTranslation()
 	const { api } = useApi()
 	const dialog = useDialog()
+	const toast = useToast()
+	// Re-entry guard for all three writes; also the Publish button's busy state.
+	const [busy, setBusy] = React.useState(false)
 
 	const isScheduled = draft.status === 'S'
 	// For scheduled drafts, the backend stores publish_at in created_at
@@ -77,27 +82,35 @@ export function DraftCard({
 		const confirmed = await dialog.confirm(t('Publish now'), message)
 		if (!confirmed) return
 
+		setBusy(true)
 		try {
 			const res = await api.actions.publish(draft.actionId)
 			onPublished(res)
 		} catch (e) {
 			console.error('Failed to publish draft', e)
+			toast.error(friendlyError(t, e))
+		} finally {
+			setBusy(false)
 		}
 	}
 
 	async function handleUnschedule() {
-		if (!api) return
+		if (!api || busy) return
 
+		setBusy(true)
 		try {
 			const res = await api.actions.cancel(draft.actionId)
 			onUnscheduled(res)
 		} catch (e) {
 			console.error('Failed to unschedule', e)
+			toast.error(friendlyError(t, e))
+		} finally {
+			setBusy(false)
 		}
 	}
 
 	async function handleDelete() {
-		if (!api) return
+		if (!api || busy) return
 
 		const confirmed = await dialog.confirm(
 			isScheduled ? t('Delete scheduled post') : t('Delete draft'),
@@ -108,11 +121,15 @@ export function DraftCard({
 		)
 		if (!confirmed) return
 
+		setBusy(true)
 		try {
 			await api.actions.delete(draft.actionId)
 			onDeleted(draft.actionId)
 		} catch (e) {
 			console.error('Failed to delete draft', e)
+			toast.error(friendlyError(t, e))
+		} finally {
+			setBusy(false)
 		}
 	}
 
@@ -175,7 +192,13 @@ export function DraftCard({
 						<IcEdit />
 						{t('Edit')}
 					</Button>
-					<Button size="sm" color="primary" onClick={handlePublishNow}>
+					<Button
+						size="sm"
+						color="primary"
+						loading={busy}
+						disabled={busy}
+						onClick={handlePublishNow}
+					>
 						<IcPublish />
 						{t('Publish now')}
 					</Button>

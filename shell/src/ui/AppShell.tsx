@@ -4,6 +4,7 @@
 import { mergeClasses, SkipLink, useAuth } from '@cloudillo/react'
 import { useAtomValue } from 'jotai'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import { useLocation } from 'react-router-dom'
 
 import {
@@ -37,6 +38,7 @@ export function AppShell({ header, sidebar, sidebarPinned, inert, children }: Ap
 	const { pathname } = useLocation()
 	const docMode = !!matchAppRoute(pathname)?.resId
 	const [auth] = useAuth()
+	const { i18n } = useTranslation()
 	const active = useAtomValue(activeContextAtom)
 	const favorites = useAtomValue(favoritesAtom)
 	const partners = useAtomValue(partnerCommunitiesAtom)
@@ -66,10 +68,11 @@ export function AppShell({ header, sidebar, sidebarPinned, inert, children }: Ap
 
 	// Apps carry the same seed in their own document (inline `--color-neutral`). Declared after the
 	// dataset effect, so it runs after `ctxColor` is applied and the body's computed
-	// `--color-neutral` is current; on mount no app is initialized yet, so it posts nothing.
+	// `--color-neutral` is current; on mount no app is initialized yet, so it posts nothing. The same
+	// broadcast carries the UI language, hence `i18n.language`.
 	React.useEffect(() => {
 		getShellBus()?.broadcastThemeUpdate()
-	}, [community, ctxColor])
+	}, [community, ctxColor, i18n.language])
 
 	return (
 		<>

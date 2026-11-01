@@ -7,13 +7,13 @@ import {
 	BadgeAnchor,
 	Button,
 	DialogContainer,
-	Heading,
 	IcClose,
 	IcMenu,
 	IcQrCode,
 	IcSearch,
 	IcSettings,
 	isInDialog,
+	LoadingSpinner,
 	Logo,
 	Menu,
 	MenuDivider,
@@ -37,7 +37,9 @@ import { useGlobalMessageUnreadProbe } from './apps/messages/index.js'
 import { appRoutes, ContextRoot } from './apps/routes.js'
 import { SharedResourceView } from './apps/shared.js'
 import { authRoutes, loginInitAtom } from './auth/auth.js'
+import { BootUnreachable, bootUnreachableAtom } from './auth/BootUnreachable.js'
 import { isBootSettingsApplied, resetBootSettingsApplied, runBootSequence } from './auth/boot.js'
+import { rememberSignedIn } from './auth/device-flag.js'
 import { KeyAccessError } from './auth/KeyAccessError.js'
 import { keyLossAtom } from './auth/key-loss.js'
 import { LogoutDialog } from './auth/LogoutDialog.js'
@@ -96,6 +98,7 @@ import { ContextGuard, RequireAuth } from './route-guards.js'
 import {
 	ctxBase,
 	filesPath,
+	loginPath,
 	matchAppRoute,
 	messagesPath,
 	profilePath,
@@ -159,6 +162,7 @@ function Header({ inert }: { inert?: boolean }) {
 	const { setNotifications, loadNotifications } = useNotifications()
 	const { warning: toastWarning } = useToast()
 	const setKeyLoss = useSetAtom(keyLossAtom)
+	const setUnreachable = useSetAtom(bootUnreachableAtom)
 	const startTour = useStartTour()
 	const [businessCardOpen, setBusinessCardOpen] = React.useState(false)
 	const urlContext = useCtx().base
@@ -296,6 +300,7 @@ function Header({ inert }: { inert?: boolean }) {
 				setAuth,
 				setIdTag,
 				setKeyLoss,
+				setUnreachable,
 				setLoginInitData,
 				setFavorites,
 				setContextColors,
@@ -468,7 +473,7 @@ function Header({ inert }: { inert?: boolean }) {
 								</AppHeaderItem>
 								<AppHeaderItem>
 									<Button
-										href="/login"
+										href={loginPath(location.pathname + location.search)}
 										color="accent"
 										shape="pill"
 										size="sm"
@@ -476,7 +481,7 @@ function Header({ inert }: { inert?: boolean }) {
 										icon={<IcLogin />}
 										aria-label={t('Sign in')}
 									>
-										<Text className="sm-hide">{t('Sign in')}</Text>
+										<Text>{t('Sign in')}</Text>
 									</Button>
 								</AppHeaderItem>
 							</>
@@ -516,10 +521,6 @@ function QrScanner() {
 	const ctx = useCtx()
 
 	return <QrScannerDialog onScan={(idTag) => navigate(profilePath(ctx.base, idTag))} />
-}
-
-function PlaceHolder({ title }: { title: string }) {
-	return <Heading level={1}>{title}</Heading>
 }
 
 /**
@@ -572,18 +573,21 @@ function PlaceHolder({ title }: { title: string }) {
  * same path an in-site click already takes. A path that is *not* a page still 404s,
  * as `SiteNotFound` rather than the shell's own — one fetch to tell them apart.
  *
- * `/` stays the home placeholder on a shell document: a site's root alias resolves
+ * `/` is a loading state on a shell document (boot redirects it): a site's root alias resolves
  * there server-side, so the flag is the only thing separating "this node's home" from
  * "this site's front page", and there it is still the right question.
  */
 function ShellRoutes({ pwa }: { pwa: UsePWA }) {
+	const { t } = useTranslation()
 	return (
 		<Routes>
 			{/* A site's root alias is served at `/`, so this one is site-owned too —
 			    see the site note above the function. */}
 			<Route
 				path="/"
-				element={isSiteDocument ? <SitePage /> : <PlaceHolder title="Home" />}
+				element={
+					isSiteDocument ? <SitePage /> : <LoadingSpinner fill label={t('Loading…')} />
+				}
 			/>
 			{/* Before the context subtree on purpose — see the tie-break note above. */}
 			{authRoutes()}
@@ -620,7 +624,6 @@ function ShellRoutes({ pwa }: { pwa: UsePWA }) {
 }
 
 export function Layout() {
-	const { i18n } = useTranslation()
 	const pwa = usePWA()
 	const [auth] = useAuth()
 	const { api } = useApi()
@@ -629,6 +632,7 @@ export function Layout() {
 	const authScreen = isAuthScreen(useLocation().pathname)
 	const { loadCommunities } = useCommunitiesList()
 	const keyLoss = useAtomValue(keyLossAtom)
+	const unreachable = useAtomValue(bootUnreachableAtom)
 	useTokenRenewal() // Automatic auth token renewal
 	useContextTokenRenewal() // Proactive proxy-token renewal for trusted foreign profiles
 	useProfileTrustBootstrap() // Seed persisted per-profile trust from the backend
@@ -665,6 +669,8 @@ export function Layout() {
 				// It stays, idempotently, for the `setAuth` callers that don't
 				// (onboarding/welcome, QrLoginPanel, profile).
 				setApiToken(auth.idTag, auth.token)
+				// The "signed in here before" hint for the guest strip and boot (device-flag.ts).
+				rememberSignedIn(auth.idTag)
 			} else if (homeIdTagRef.current) {
 				// Logout or a dead session. The registry outlives the React tree and
 				// guest mode resolves to this very entry, so the bearer has to be
@@ -681,7 +687,7 @@ export function Layout() {
 	// A 250 ms minimum visible duration prevents a render-then-instant-teardown
 	// flash on warm cache hits.
 	React.useEffect(() => {
-		if (auth === undefined && !keyLoss) return
+		if (auth === undefined && !keyLoss && !unreachable) return
 		const el = document.getElementById('initial-splash')
 		if (!el) return
 		const bootStart = window.__cloudilloBootStart ?? 0
@@ -696,7 +702,7 @@ export function Layout() {
 			clearTimeout(fadeTimer)
 			if (removeTimer) clearTimeout(removeTimer)
 		}
-	}, [auth, keyLoss])
+	}, [auth, keyLoss, unreachable])
 
 	// Load communities list from backend when authenticated
 	// (pinned communities are loaded from pre-fetched ui settings in Header)
@@ -717,7 +723,7 @@ export function Layout() {
 	// Initialize shell message bus on mount
 	React.useEffect(() => {
 		if (!getShellBus()) {
-			initShellBus(createShellBusConfig({ apiRef, authRef, i18n }))
+			initShellBus(createShellBusConfig({ apiRef, authRef }))
 		}
 	}, [])
 
@@ -729,6 +735,8 @@ export function Layout() {
 			/>
 		)
 	}
+
+	if (unreachable) return <BootUnreachable host={unreachable} />
 
 	// Note: while `auth === undefined`, the inline #initial-splash element in
 	// index.html (position: fixed; z-index: 10000) visually covers everything

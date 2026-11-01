@@ -54,6 +54,7 @@ import { ProfileContextMenu, useProfileContextMenu } from '../context/profile-co
 import { IcProfile, IcUnpin } from '../icons.js'
 import { unreadCountAtom } from '../read-position.js'
 import { communityMapPath, HOME_BASE, profilePath, scopePath } from '../routes.js'
+import { useSearch } from '../search.js'
 import { ContextAvatar, ContextChip } from '../ui/ContextChip.js'
 import { buildCommunitySections } from './community-sections.js'
 
@@ -235,6 +236,7 @@ export function CommunityFinder({ variant, onDone, draggable }: CommunityFinderP
 	const { pinnedKeys, togglePinCommunity } = useCommunitiesList()
 	const handleSwitch = useContextSwitchNav()
 	const [query, setQuery] = React.useState('')
+	const [, setSearch] = useSearch()
 
 	const sections = buildCommunitySections(communities, recentCommunities, query)
 	const titles = { recent: t('Recent'), all: t('All'), results: t('Results') }
@@ -310,6 +312,16 @@ export function CommunityFinder({ variant, onDone, draggable }: CommunityFinderP
 			<VBox className="c-community-finder-footer">
 				{variant === 'sheet' && <ContextTools onNavigate={onDone} />}
 				<HBox justify="between" align="center" className="c-community-finder-links">
+					<Button
+						variant="link"
+						onClick={() => {
+							const q = query.trim()
+							setSearch({ query: q ? `@${q}` : '@' })
+							onDone()
+						}}
+					>
+						{t('Find a community')}
+					</Button>
 					<Button
 						variant="link"
 						href={scopePath(ctx.base, 'communities')}

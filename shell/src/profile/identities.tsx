@@ -3,12 +3,15 @@
 
 import { parseQS } from '@cloudillo/core'
 import {
+	Alert,
 	Avatar,
 	Badge,
 	Button,
 	EmptyState,
 	FAB,
 	Fcd,
+	Form,
+	HBox,
 	IcAdd,
 	IcAll,
 	IcCommunity,
@@ -18,7 +21,9 @@ import {
 	Icon,
 	IcPerson,
 	IcScan,
+	IcSearch,
 	IdentityTag,
+	Input,
 	List,
 	ListItem,
 	Nav,
@@ -26,6 +31,7 @@ import {
 	ProfilePicture,
 	useApi,
 	useAuth,
+	useToast,
 	VBox
 } from '@cloudillo/react'
 import type { Profile } from '@cloudillo/types'
@@ -40,8 +46,12 @@ import { useCtx } from '../context/index.js'
 import { ProfileContextMenu, useProfileContextMenu } from '../context/profile-context-menu.js'
 import { IcBlock, IcFollowing, IcMute, IcMutual, IcPeople, IcSuspended } from '../icons.js'
 import { communityCreatePath, profilePath } from '../routes.js'
+import { useSearch } from '../search.js'
 import { DrawerToggle } from '../ui/DrawerToggle.js'
+import { resolveProfileAddress } from './address.js'
+import { usePrinvtInvites } from './community.js'
 import { PartnerCommunityPage } from './partner-communities.js'
+import { prinvtRefId } from './prinvt.js'
 import { PeopleHeader } from './people-header.js'
 import { parseRelFilter, type RelFilter } from './rel-filter.js'
 import { describeRelationship } from './relationship.js'
@@ -310,11 +320,57 @@ export function CommunityListCard({
 	)
 }
 
+/** Opens the profile behind a typed idTag or a pasted profile / share link. */
+export function AddressEntry({ placeholder }: { placeholder: string }) {
+	const { t } = useTranslation()
+	const navigate = useNavigate()
+	const ctx = useCtx()
+	const toast = useToast()
+	const [address, setAddress] = React.useState('')
+	const [busy, setBusy] = React.useState(false)
+
+	async function handleSubmit(e: React.FormEvent) {
+		e.preventDefault()
+		if (busy || !address.trim()) return
+		setBusy(true)
+		try {
+			// Never throws: every failure (bad input, unreachable host, bad JSON) is `null`.
+			const idTag = await resolveProfileAddress(address)
+			if (idTag) navigate(profilePath(ctx.base, idTag))
+			else toast.error(t("Couldn't find a Cloudillo profile at this address"))
+		} finally {
+			setBusy(false)
+		}
+	}
+
+	return (
+		<Form onSubmit={handleSubmit}>
+			<HBox gap={2} className="mb-2">
+				<Input
+					className="flex-fill"
+					value={address}
+					onChange={(e) => setAddress(e.target.value)}
+					placeholder={placeholder}
+					aria-label={placeholder}
+					autoCapitalize="none"
+					autoCorrect="off"
+					spellCheck={false}
+				/>
+				<Button type="submit" loading={busy}>
+					{t('Open')}
+				</Button>
+			</HBox>
+		</Form>
+	)
+}
+
 export function PersonListPage({ idTag }: { idTag?: string }) {
 	const { t } = useTranslation()
 	const location = useLocation()
 	const { api } = useApi()
 	const [auth] = useAuth()
+	const [, setSearch] = useSearch()
+	const findPeople = () => setSearch({ query: '@' })
 	// `undefined` while loading
 	const [profiles, setProfiles] = React.useState<Profile[]>()
 	const [error, setError] = React.useState(false)
@@ -385,20 +441,29 @@ export function PersonListPage({ idTag }: { idTag?: string }) {
 								<>
 									<DrawerToggle onClick={() => setShowFilter(true)} />
 									{auth && (
-										<Button
-											className="sm-hide"
-											color="primary"
-											icon={<IcScan />}
-											onClick={() => setQrScannerOpen(true)}
-										>
-											{t('Scan QR code')}
-										</Button>
+										<>
+											<Button
+												icon={<IcScan />}
+												aria-label={t('Scan QR code')}
+												onClick={() => setQrScannerOpen(true)}
+											/>
+											<Button
+												color="primary"
+												icon={<IcSearch />}
+												onClick={findPeople}
+											>
+												{t('Find people')}
+											</Button>
+										</>
 									)}
 								</>
 							}
 						/>
 					}
 				>
+					{auth && (
+						<AddressEntry placeholder={t('Enter an idTag or paste a profile link')} />
+					)}
 					{error ? (
 						<EmptyState fill icon={<IcPeople />} title={t('Something went wrong')} />
 					) : (
@@ -407,14 +472,29 @@ export function PersonListPage({ idTag }: { idTag?: string }) {
 								fill
 								icon={<IcPeople />}
 								title={unfiltered ? t('No connections yet') : t('No results found')}
-								action={
-									<Button
-										color="primary"
-										icon={<IcScan />}
-										onClick={() => setQrScannerOpen(true)}
-									>
-										{t('Scan QR code')}
-									</Button>
+								description={
+									unfiltered
+										? t('Find people by name or idTag, or scan their QR code.')
+										: undefined
+								}
+								actions={
+									auth && (
+										<>
+											<Button
+												color="primary"
+												icon={<IcSearch />}
+												onClick={findPeople}
+											>
+												{t('Find people')}
+											</Button>
+											<Button
+												icon={<IcScan />}
+												onClick={() => setQrScannerOpen(true)}
+											>
+												{t('Scan QR code')}
+											</Button>
+										</>
+									)
 								}
 							/>
 						)
@@ -440,9 +520,9 @@ export function PersonListPage({ idTag }: { idTag?: string }) {
 			{auth && (
 				<FAB
 					className="md-hide lg-hide"
-					icon={<IcScan />}
-					aria-label={t('Scan QR code')}
-					onClick={() => setQrScannerOpen(true)}
+					icon={<IcSearch />}
+					aria-label={t('Find people')}
+					onClick={findPeople}
 				/>
 			)}
 
@@ -484,6 +564,15 @@ function HomeCommunityListPage() {
 	// The tenant the route names; the effect below re-runs when it changes.
 	const ctx = useCtx()
 	const rel = parseRelFilter(parseQS(location.search), 'community')
+	const [, setSearch] = useSearch()
+	const { invites } = usePrinvtInvites()
+	const usableInvites = (invites ?? []).flatMap((invite) => {
+		const refId = prinvtRefId(invite)
+		return refId ? [{ invite, refId }] : []
+	})
+	const isSadm = !!auth?.roles?.includes('SADM')
+	const canCreate = isSadm || usableInvites.length > 0
+	const findCommunity = () => setSearch({ query: '@' })
 
 	React.useEffect(
 		function loadCommunities() {
@@ -533,19 +622,57 @@ function HomeCommunityListPage() {
 							actions={
 								<>
 									<DrawerToggle onClick={() => setShowFilter(true)} />
-									<Button
-										className="sm-hide"
-										color="primary"
-										icon={<IcAdd />}
-										onClick={() => navigate(communityCreatePath(ctx.base))}
-									>
-										{t('Create new community')}
-									</Button>
+									{auth && canCreate && (
+										<Button
+											icon={<IcAdd />}
+											onClick={() => navigate(communityCreatePath(ctx.base))}
+										>
+											{t('Create community')}
+										</Button>
+									)}
+									{auth && (
+										<Button
+											color="primary"
+											icon={<IcSearch />}
+											onClick={findCommunity}
+										>
+											{t('Join a community')}
+										</Button>
+									)}
 								</>
 							}
 						/>
 					}
 				>
+					{auth &&
+						usableInvites.map(({ invite, refId }) => (
+							<Alert
+								key={invite.actionId}
+								color="info"
+								className="mb-2"
+								title={t("You're invited to create a community")}
+								actions={
+									<Button
+										color="primary"
+										icon={<IcAdd />}
+										onClick={() =>
+											navigate(
+												communityCreatePath(ctx.base, undefined, {
+													invite: refId
+												})
+											)
+										}
+									>
+										{t('Create')}
+									</Button>
+								}
+							>
+								{invite.issuer.name || invite.issuer.idTag}
+							</Alert>
+						))}
+					{auth && (
+						<AddressEntry placeholder={t('Enter a community idTag or paste a link')} />
+					)}
 					{error ? (
 						<EmptyState fill icon={<IcCommunity />} title={t('Something went wrong')} />
 					) : (
@@ -558,14 +685,23 @@ function HomeCommunityListPage() {
 										? t('No results found')
 										: t('No communities yet')
 								}
-								action={
-									<Button
-										color="primary"
-										icon={<IcAdd />}
-										onClick={() => navigate(communityCreatePath(ctx.base))}
-									>
-										{t('Create new community')}
-									</Button>
+								description={
+									location.search
+										? undefined
+										: t(
+												'Find a community by name or address, or paste a link someone shared with you.'
+											)
+								}
+								actions={
+									auth && (
+										<Button
+											color="primary"
+											icon={<IcSearch />}
+											onClick={findCommunity}
+										>
+											{t('Join a community')}
+										</Button>
+									)
 								}
 							/>
 						)
@@ -588,12 +724,14 @@ function HomeCommunityListPage() {
 				</Fcd.Content>
 			</Fcd.Container>
 
-			<FAB
-				className="md-hide lg-hide"
-				icon={<IcAdd />}
-				aria-label={t('Create new community')}
-				onClick={() => navigate(communityCreatePath(ctx.base))}
-			/>
+			{auth && (
+				<FAB
+					className="md-hide lg-hide"
+					icon={<IcSearch />}
+					aria-label={t('Join a community')}
+					onClick={findCommunity}
+				/>
+			)}
 
 			{menuState && (
 				<ProfileContextMenu

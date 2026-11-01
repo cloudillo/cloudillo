@@ -26,4 +26,9 @@ export function appRequiresTrusted(appId: string | undefined): boolean {
 	return manifests.some((m) => m.id === appId && !!m.requiresTrusted)
 }
 
+/** The manifest's `presentation`: frame it with `allow-presentation` (only when trusted) */
+export function appAllowsPresentation(appId: string | undefined): boolean {
+	return manifests.some((m) => m.id === appId && !!m.presentation)
+}
+
 // vim: ts=4

@@ -122,6 +122,24 @@ export function isBootstrapPath(pathname: string): boolean {
 	return BOOTSTRAP_ROOTS.some((r) => pathname === `/${r}` || pathname.startsWith(`/${r}/`))
 }
 
+/**
+ * A `?next=` value is untrusted: accept only a same-origin absolute path — no `//host`, no
+ * backslash, no control character — and never `/login` itself. Anything else is `undefined`.
+ */
+export function safeNextPath(raw: string | null | undefined): string | undefined {
+	if (typeof raw !== 'string' || !raw.startsWith('/') || raw.startsWith('//')) return undefined
+	// biome-ignore lint/suspicious/noControlCharactersInRegex: rejecting them is the point
+	if (raw.includes('\\') || /[\u0000-\u001f\u007f]/.test(raw)) return undefined
+	if (raw.startsWith('/login')) return undefined
+	return raw
+}
+
+/** `/login`, carrying `next` when it is a safe path other than `/`. */
+export function loginPath(next?: string): string {
+	const safe = safeNextPath(next)
+	return safe && safe !== '/' ? `/login?next=${encodeURIComponent(safe)}` : '/login'
+}
+
 /** `useMatch` pattern for "any context route": segment 1 plus everything after it. */
 export const CTX_MATCH = '/:contextIdTag/*'
 

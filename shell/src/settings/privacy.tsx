@@ -7,6 +7,7 @@ import {
 	Field,
 	IcDownload,
 	List,
+	LoadError,
 	LoadingSpinner,
 	NativeSelect,
 	Panel,
@@ -19,6 +20,7 @@ import {
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { useActiveCommunity } from '../context/index.js'
 import { formatBytes } from '../utils.js'
 import { SwitchRow, useSettings } from './settings.js'
 
@@ -141,9 +143,15 @@ export function DataExportPanel() {
 
 export function PrivacySettings() {
 	const { t } = useTranslation()
-	useApi()
-	const { settings, onSettingChange } = useSettings(PRIVACY_PREFIXES)
+	const community = !!useActiveCommunity()
+	const { settings, onSettingChange, error, refresh } = useSettings(PRIVACY_PREFIXES, {
+		context: true
+	})
 
+	if (error)
+		return (
+			<LoadError error={error} onRetry={refresh} title={t("Couldn't load these settings")} />
+		)
 	if (!settings) return <LoadingSpinner className="auto-bg" />
 
 	// VisibilitySelect reports a value, onSettingChange reads a select-shaped event target
@@ -160,65 +168,83 @@ export function PrivacySettings() {
 
 	return (
 		<>
-			<Panel title={t('Post visibility')}>
-				<Field
-					label={t('Default visibility for new posts')}
-					orientation="horizontal"
-					hint={t('You can change visibility for individual posts when creating them.')}
-				>
-					<VisibilitySelect
-						value={
-							((settings['profile.default_visibility'] as string) ||
-								'F') as VisibilityCode
-						}
-						onChange={onVisibilityChange}
-					/>
-				</Field>
-			</Panel>
+			{/* In a community, connection mode, followers and the visibility cap live in
+			    Community › General; a default post visibility has no community reader. */}
+			{!community && (
+				<Panel title={t('Post visibility')}>
+					<Field
+						label={t('Default visibility for new posts')}
+						orientation="horizontal"
+						hint={t(
+							'You can change visibility for individual posts when creating them.'
+						)}
+					>
+						<VisibilitySelect
+							value={
+								((settings['profile.default_visibility'] as string) ||
+									'F') as VisibilityCode
+							}
+							onChange={onVisibilityChange}
+						/>
+					</Field>
+				</Panel>
+			)}
 
 			<Panel title={t('Connections')}>
-				<Field
-					label={t('Connection mode')}
-					orientation="horizontal"
-					hint={
-						<>
-							{t('Controls how connection requests to your profile are handled.')}{' '}
-							{settings['profile.connection_mode'] === 'A'
-								? t('Anyone can connect with you immediately.')
-								: settings['profile.connection_mode'] === 'I'
-									? t('Connection requests are automatically rejected.')
-									: t('You will be asked to approve each connection request.')}
-						</>
-					}
-				>
-					<NativeSelect
-						name="profile.connection_mode"
-						value={(settings['profile.connection_mode'] as string) ?? 'M'}
-						onChange={onSettingChange}
+				{!community && (
+					<Field
+						label={t('Connection mode')}
+						orientation="horizontal"
+						hint={
+							<>
+								{t('Controls how connection requests to your profile are handled.')}{' '}
+								{settings['profile.connection_mode'] === 'A'
+									? t('Anyone can connect with you immediately.')
+									: settings['profile.connection_mode'] === 'I'
+										? t('Connection requests are automatically rejected.')
+										: t(
+												'You will be asked to approve each connection request.'
+											)}
+							</>
+						}
 					>
-						<option value="M">{t('Manual approval')}</option>
-						<option value="A">{t('Auto-accept')}</option>
-						<option value="I">{t('Ignore (reject all)')}</option>
-					</NativeSelect>
-				</Field>
+						<NativeSelect
+							name="profile.connection_mode"
+							value={(settings['profile.connection_mode'] as string) ?? 'M'}
+							onChange={onSettingChange}
+						>
+							<option value="M">{t('Manual approval')}</option>
+							<option value="A">{t('Auto-accept')}</option>
+							<option value="I">{t('Ignore (reject all)')}</option>
+						</NativeSelect>
+					</Field>
+				)}
 				<List variant="divided">
-					<SwitchRow
-						name="profile.allow_followers"
-						checked={settings['profile.allow_followers'] !== false}
-						onChange={onSettingChange}
-						label={t('Allow others to follow you')}
-						description={t(
-							'When disabled, new follow requests will be rejected and your posts will only be visible to your connections.'
-						)}
-					/>
+					{!community && (
+						<SwitchRow
+							name="profile.allow_followers"
+							checked={settings['profile.allow_followers'] !== false}
+							onChange={onSettingChange}
+							label={t('Allow others to follow you')}
+							description={t(
+								'When disabled, new follow requests will be rejected and your posts will only be visible to your connections.'
+							)}
+						/>
+					)}
 					<SwitchRow
 						name="profile.auto_approve_actions"
 						checked={!!settings['profile.auto_approve_actions']}
 						onChange={onSettingChange}
 						label={t('Auto-approve incoming actions')}
-						description={t(
-							'When enabled, posts and messages from trusted sources are automatically approved without manual review.'
-						)}
+						description={
+							community
+								? t(
+										'When enabled, posts and messages from trusted sources are automatically approved.'
+									)
+								: t(
+										'When enabled, posts and messages from trusted sources are automatically approved without manual review.'
+									)
+						}
 					/>
 				</List>
 			</Panel>
@@ -237,7 +263,7 @@ export function PrivacySettings() {
 				</List>
 			</Panel>
 
-			<DataExportPanel />
+			{!community && <DataExportPanel />}
 		</>
 	)
 }

@@ -167,23 +167,6 @@ describe('useHatEntry — plain entry', () => {
 		expect(setHats).toHaveBeenCalledWith(B, ['b', 'a'])
 	})
 
-	it('enters as yourself when the picker is dismissed', async () => {
-		remembered(['a', 'b'])
-		const { result } = renderHook(() => useHatEntry())
-		let done: Promise<void> | undefined
-		act(() => {
-			done = result.current.enter(B)
-		})
-		await flush()
-		await act(async () => {
-			store.get(hatPickerAtom)?.resolve(undefined, ['a', 'b'])
-			await done
-		})
-		expect(setActiveContext).toHaveBeenCalledTimes(1)
-		expect(setActiveContext).toHaveBeenCalledWith(B)
-		expect(setHats).toHaveBeenCalledWith(B, ['', 'a', 'b'])
-	})
-
 	it('enters nothing when the picker is superseded by another entry', async () => {
 		remembered(['a', 'b'])
 		const { result } = renderHook(() => useHatEntry())

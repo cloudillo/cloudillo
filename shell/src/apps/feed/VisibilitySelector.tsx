@@ -37,6 +37,24 @@ export function getVisibilityMeta(
 	return getVisibilityOptions(t).find((o) => o.value === visibility)
 }
 
+/** Who will see a post, relative to its owner (P/F/C is evaluated against the post's owner). */
+export function postAudienceSummary(
+	t: TFunction,
+	target: { kind: 'me' | 'community'; name?: string; idTag: string },
+	visibility: Visibility
+): string {
+	if (visibility === 'P') return t('Visible to anyone')
+	if (target.kind === 'me') {
+		return visibility === 'F'
+			? t('Visible to your followers')
+			: t('Visible to your connections')
+	}
+	const name = target.name || target.idTag
+	return visibility === 'F'
+		? t('Visible to followers of {{name}}', { name })
+		: t('Visible to members of {{name}}', { name })
+}
+
 interface VisibilitySelectorProps {
 	value: Visibility
 	onChange: (value: Visibility) => void

@@ -49,6 +49,9 @@ jest.unstable_mockModule('../pwa.js', () => ({
 	setApiKey: async () => {}
 }))
 
+// useSettings (security.tsx) reads the active context's client; the real module pulls in pwa.js
+jest.unstable_mockModule('../context/index.js', () => ({ useContextAwareApi: () => API_HOOK }))
+
 const { TwoFactorPanel } = await import('../settings/security.js')
 
 const forbidden = () => new FetchError('E', 'denied', 403)

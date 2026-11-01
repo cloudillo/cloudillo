@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: MPL-2.0
 
-import { Field, Input, List, Panel, VBox } from '@cloudillo/react'
+import { Field, Input, List, LoadError, LoadingSpinner, Panel, VBox } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -9,12 +9,19 @@ import { SettingsDenied, SwitchRow, useSettings } from '../settings/settings.js'
 
 export function TenantSettings() {
 	const { t } = useTranslation()
-	const { settings, onSettingChange, denied } = useSettings(['auth', 'federation'], {
-		level: 'global'
-	})
+	const { settings, onSettingChange, denied, error, refresh } = useSettings(
+		['auth', 'federation'],
+		{
+			level: 'global'
+		}
+	)
 
 	if (denied) return <SettingsDenied />
-	if (!settings) return null
+	if (error)
+		return (
+			<LoadError error={error} onRetry={refresh} title={t("Couldn't load these settings")} />
+		)
+	if (!settings) return <LoadingSpinner className="auto-bg" />
 
 	const sessionTimeoutSeconds = (settings['auth.session_timeout'] as number) || 86400
 	const sessionTimeoutHours = Math.round((sessionTimeoutSeconds / 3600) * 10) / 10

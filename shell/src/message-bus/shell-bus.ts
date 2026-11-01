@@ -453,7 +453,7 @@ export class ShellMessageBus extends MessageBusBase {
 	 * Broadcast a theme update to all initialized app iframes
 	 */
 	broadcastThemeUpdate(): void {
-		const theme = themeFields(this.getThemeState())
+		const theme = { ...themeFields(this.getThemeState()), language: this.getLanguage() }
 		const windows = this.appTracker.getInitializedWindows()
 		for (const appWindow of windows) {
 			this.sendNotify(appWindow, 'theme:update', theme)

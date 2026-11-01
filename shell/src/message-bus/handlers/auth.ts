@@ -7,9 +7,10 @@
  * Handles auth-related messages from apps:
  * - auth:init.req - App requests initialization
  * - auth:token.refresh.req - App requests token refresh
+ * - auth:token.read.req - App requests a read-only token for its own document
  */
 
-import type { AuthInitReq, AuthTokenRefreshReq, EmbedMode } from '@cloudillo/core'
+import type { AuthInitReq, AuthTokenReadReq, AuthTokenRefreshReq, EmbedMode } from '@cloudillo/core'
 import { getJwtTimes, jwtRemainingSeconds, renewalDelayMs } from '@cloudillo/core/jwt'
 
 import { type ShellMessageBus, themeFields } from '../shell-bus.js'
@@ -338,6 +339,30 @@ export function initAuthHandlers(bus: ShellMessageBus): void {
 				(err as Error).message || 'Failed to refresh token'
 			)
 		}
+	})
+
+	// A READ-only token for the app's own document (e.g. a Presentation API receiver).
+	// Not in EMBED_ALLOWED_MESSAGES (shell-bus.ts), so only a top-level app connection should
+	// reach it; the embed check below is defence in depth behind that dispatch gate.
+	// The connection's stored token is left alone.
+	bus.on('auth:token.read.req', async (msg: AuthTokenReadReq, source) => {
+		const appWindow = source as Window
+		if (!appWindow) return
+		const fail = (error: string) =>
+			bus.sendResponse(appWindow, 'auth:token.read.res', msg.id, false, undefined, error)
+
+		const connection = bus.getAppTracker().validateSource(source, true)
+		if (!connection) return fail('App not initialized')
+		if (connection.embed) return fail('Not available')
+		// A share-link guest's token comes from its ref and cannot be narrowed.
+		if (connection.refId || !connection.resId) return fail('Not available')
+
+		const tokenResult = await bus.getAccessToken(connection.resId, 'read')
+		if (!tokenResult?.token) return fail('Failed to get token')
+		bus.sendResponse(appWindow, 'auth:token.read.res', msg.id, true, {
+			token: tokenResult.token,
+			tokenLifetime: tokenResult.tokenLifetime
+		})
 	})
 }
 

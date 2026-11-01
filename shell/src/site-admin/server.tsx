@@ -8,6 +8,8 @@ import {
 	HBox,
 	Input,
 	List,
+	LoadError,
+	LoadingSpinner,
 	NativeSelect,
 	Panel,
 	TextArea,
@@ -48,7 +50,7 @@ export function ServerSettings() {
 	const { api } = useApi()
 	const { error: toastError } = useToast()
 	const dialog = useDialog()
-	const { settings, setSettings, onSettingChange, denied } = useSettings(
+	const { settings, setSettings, onSettingChange, denied, error, refresh } = useSettings(
 		['auth', 'federation', 'notify', 'onboarding', 'map', 'audit'],
 		{ level: 'global' }
 	)
@@ -150,7 +152,11 @@ export function ServerSettings() {
 	}
 
 	if (denied) return <SettingsDenied />
-	if (!settings) return null
+	if (error)
+		return (
+			<LoadError error={error} onRetry={refresh} title={t("Couldn't load these settings")} />
+		)
+	if (!settings) return <LoadingSpinner className="auto-bg" />
 
 	const community = settings['onboarding.community'] as string | undefined
 

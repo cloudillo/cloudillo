@@ -13,6 +13,7 @@ import {
 	Icon,
 	List,
 	ListItem,
+	LoadError,
 	Panel,
 	SearchInput,
 	SkeletonList,
@@ -271,15 +272,10 @@ export function InboxList({ activeId, invites, onNewChat }: InboxListProps) {
 				{!visible ? (
 					<SkeletonList count={5} showAvatar />
 				) : loadFailed && !conversations?.length ? (
-					<EmptyState
-						icon={<IcMessages />}
-						title={t('Could not load conversations')}
-						description={t('Check your connection and try again')}
-						actions={
-							<Button color="primary" onClick={reload}>
-								{t('Retry')}
-							</Button>
-						}
+					<LoadError
+						error={loadFailed}
+						onRetry={reload}
+						title={t("Couldn't load conversations")}
 					/>
 				) : !visible.length ? (
 					narrowed ? (

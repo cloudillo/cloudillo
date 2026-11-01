@@ -65,6 +65,8 @@ const API = {
 }
 
 jest.unstable_mockModule('react-i18next', () => ({
+	getI18n: () => undefined,
+	initReactI18next: { type: '3rdParty', init: () => {} },
 	Trans: () => null,
 	useTranslation: () => ({
 		// Keys are the English strings; only `count` needs interpolating here.

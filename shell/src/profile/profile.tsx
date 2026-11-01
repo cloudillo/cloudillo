@@ -3,6 +3,7 @@
 
 import {
 	decodeBadgeTokens,
+	FetchError,
 	getFileUrl,
 	getInstanceUrl,
 	idHue,
@@ -19,6 +20,7 @@ import {
 	FAB,
 	Fcd,
 	FileButton,
+	friendlyError,
 	HBox,
 	Heading,
 	IcAdd,
@@ -36,6 +38,7 @@ import {
 	Input,
 	List,
 	ListItem,
+	LoadError,
 	LoadingSpinner,
 	Menu,
 	MenuDivider,
@@ -182,6 +185,8 @@ interface FullProfile {
 	x?: { category, intro, sections, tabConfig }
 */
 
+type ProfileCmd = 'follow' | 'unfollow' | 'connect' | 'disconnect' | 'block' | 'unblock'
+
 interface ProfileConnectionCmds {
 	onFollow: () => void
 	onUnfollow: () => void
@@ -189,6 +194,8 @@ interface ProfileConnectionCmds {
 	onDisconnect: () => void
 	onBlock: () => void
 	onUnblock: () => void
+	/** The relationship command in flight, if any; its button shows busy, the rest disable. */
+	busy?: ProfileCmd
 }
 
 // My own relation as a read-only "You: …" Badge next to the name (a community's
@@ -228,9 +235,38 @@ function RelationshipBadge({
 	)
 }
 
-// The one relationship CTA: primary Follow (or Follow back) while not
-// following, a quiet Following button (click to unfollow) once followed.
-// Nothing when blocked; Unblock lives in the ⋯ menu.
+// The primary relationship CTA: Connect (person) / Join (community) while there is
+// no link and no pending request. Disconnect / Leave / Cancel request live in the ⋯ menu.
+function ProfileConnectButton({
+	localProfile,
+	profileType,
+	cmds
+}: {
+	localProfile?: Partial<Profile>
+	profileType?: 'person' | 'community'
+	cmds: ProfileConnectionCmds
+}) {
+	const { t } = useTranslation()
+	if (!localProfile) return null
+
+	const rel = describeRelationship({ ...localProfile, type: profileType })
+	if (rel.primary === 'blocked' || rel.primary === 'pending' || rel.connected) return null
+
+	return (
+		<Button
+			color="primary"
+			icon={<IcConnect />}
+			loading={cmds.busy === 'connect'}
+			disabled={!!cmds.busy}
+			onClick={cmds.onConnect}
+		>
+			{profileType === 'community' ? t('Join') : t('Connect')}
+		</Button>
+	)
+}
+
+// Follow (or Follow back) while not following, a quiet Following button
+// (click to unfollow) once followed. Nothing when blocked; Unblock lives in the ⋯ menu.
 function ProfileFollowButton({
 	localProfile,
 	profileType,
@@ -258,18 +294,28 @@ function ProfileFollowButton({
 	}
 
 	return rel.following ? (
-		<Button icon={<IcFollowers />} onClick={onUnfollow}>
+		<Button
+			icon={<IcFollowers />}
+			loading={cmds.busy === 'unfollow'}
+			disabled={!!cmds.busy}
+			onClick={onUnfollow}
+		>
 			{t('Following')}
 		</Button>
 	) : (
-		<Button color="primary" icon={<IcFollow />} onClick={cmds.onFollow}>
+		<Button
+			icon={<IcFollow />}
+			loading={cmds.busy === 'follow'}
+			disabled={!!cmds.busy}
+			onClick={cmds.onFollow}
+		>
 			{rel.followsYou ? t('Follow back') : t('Follow')}
 		</Button>
 	)
 }
 
-// Connection/membership actions for the ⋯ menu: establish, cancel, break, or
-// unblock — whichever applies to the current relation.
+// Connection/membership actions for the ⋯ menu: cancel, break, or unblock —
+// whichever applies. Establishing is the visible `ProfileConnectButton`.
 function relationshipMenuItems(
 	t: TFunction,
 	localProfile: Partial<Profile> | undefined,
@@ -280,13 +326,23 @@ function relationshipMenuItems(
 	const isCommunity = profileType === 'community'
 	const rel = describeRelationship({ ...localProfile, type: profileType })
 
+	const disabled = !!cmds.busy
+
 	if (rel.primary === 'blocked')
-		return <MenuItem icon={<IcBlock />} label={t('Unblock')} onClick={cmds.onUnblock} />
+		return (
+			<MenuItem
+				icon={<IcBlock />}
+				label={t('Unblock')}
+				disabled={disabled}
+				onClick={cmds.onUnblock}
+			/>
+		)
 	if (rel.primary === 'pending')
 		return (
 			<MenuItem
 				icon={<IcConnect />}
 				label={t('Cancel request')}
+				disabled={disabled}
 				onClick={cmds.onDisconnect}
 			/>
 		)
@@ -295,16 +351,11 @@ function relationshipMenuItems(
 			<MenuItem
 				icon={<IcConnect />}
 				label={isCommunity ? t('Leave') : t('Disconnect')}
+				disabled={disabled}
 				onClick={cmds.onDisconnect}
 			/>
 		)
-	return (
-		<MenuItem
-			icon={<IcConnect />}
-			label={isCommunity ? t('Join') : t('Connect')}
-			onClick={cmds.onConnect}
-		/>
-	)
+	return null
 }
 
 // ============================================================================
@@ -493,6 +544,7 @@ export function ProfilePage({
 	const own = auth?.idTag === profile.idTag
 	const [coverUpload, setCoverUpload] = React.useState<string | undefined>()
 	const [profileUpload, setProfileUpload] = React.useState<string | undefined>()
+	const [uploading, setUploading] = React.useState(false)
 	const [editMode, setEditMode] = React.useState(false)
 	const [picOpen, setPicOpen] = React.useState(false)
 	const [nameDraft, setNameDraft] = React.useState(profile.name)
@@ -532,12 +584,25 @@ export function ProfilePage({
 		return proxyResult.token
 	}
 
+	// Upload failed: clear busy, keep the crop dialog open so the user can resubmit.
+	function uploadFailed(err?: unknown) {
+		setUploading(false)
+		toast.error(err ? friendlyError(t, err) : t('Failed to upload image'))
+	}
+
 	async function uploadCover(img: Blob) {
-		if (!auth) return
+		if (!auth || uploading) return
+		setUploading(true)
 
 		const targetIdTag = profile.idTag
-		const token = await resolveUploadToken(targetIdTag)
-		if (!token) return
+		let token: string | undefined
+		try {
+			token = await resolveUploadToken(targetIdTag)
+		} catch (err) {
+			console.error('Failed to resolve upload token:', err)
+			return uploadFailed(err)
+		}
+		if (!token) return uploadFailed()
 
 		// Upload
 		const request = new XMLHttpRequest()
@@ -550,18 +615,22 @@ export function ProfilePage({
 					const res = JSON.parse(request.response)
 					const coverPic = res.fileId || res
 					if (profile) setProfile((p) => (p ? { ...p, coverPic } : p))
+					setUploading(false)
 					setCoverUpload(undefined)
+					toast.success(t('Image updated'))
 				} catch (err) {
 					console.error('Failed to parse response:', err)
+					uploadFailed()
 				}
 			} else {
 				console.error('Upload failed with status:', request.status, request.response)
+				uploadFailed()
 			}
 		})
 
 		request.addEventListener('error', function () {
 			console.error('Network error during cover upload')
-			setCoverUpload(undefined)
+			uploadFailed()
 		})
 
 		request.send(img)
@@ -611,11 +680,18 @@ export function ProfilePage({
 	)
 
 	async function uploadProfile(img: Blob) {
-		if (!auth) return
+		if (!auth || uploading) return
+		setUploading(true)
 
 		const targetIdTag = profile.idTag
-		const token = await resolveUploadToken(targetIdTag)
-		if (!token) return
+		let token: string | undefined
+		try {
+			token = await resolveUploadToken(targetIdTag)
+		} catch (err) {
+			console.error('Failed to resolve upload token:', err)
+			return uploadFailed(err)
+		}
+		if (!token) return uploadFailed()
 
 		// Authoritative pre-upload mirror picture, so the post-upload refresh accepts
 		// only a CHANGED value (never re-writes the stale one). Read from the home
@@ -657,18 +733,22 @@ export function ProfilePage({
 						// local value. Fire-and-forget with internal retry.
 						void reconcileCommunityPicture(profile.idTag, mirrorBaseline)
 					}
+					setUploading(false)
 					setProfileUpload(undefined)
+					toast.success(t('Image updated'))
 				} catch (err) {
 					console.error('Failed to parse response:', err)
+					uploadFailed()
 				}
 			} else {
 				console.error('Upload failed with status:', request.status, request.response)
+				uploadFailed()
 			}
 		})
 
 		request.addEventListener('error', function () {
 			console.error('Network error during profile upload')
-			setProfileUpload(undefined)
+			uploadFailed()
 		})
 
 		request.send(img)
@@ -745,7 +825,16 @@ export function ProfilePage({
 		<Fcd.Container className="g-1">
 			<Fcd.Filter collapsed />
 			<Fcd.Content>
-				{!own && auth && <TrustBanner idTag={profile.idTag} onDecision={onTrustDecision} />}
+				{!own && auth && (
+					<>
+						{/* Only one of the two renders: the banner while no trust decision exists,
+						    the chip once one does. */}
+						<TrustBanner idTag={profile.idTag} onDecision={onTrustDecision} />
+						<HBox justify="end" className="px-2">
+							<TrustChip idTag={profile.idTag} onChanged={onTrustDecision} />
+						</HBox>
+					</>
+				)}
 				<ProfileHero
 					cover={
 						profile.coverPic ? (
@@ -844,10 +933,6 @@ export function ProfilePage({
 									</HBox>
 									{!own && auth && (
 										<>
-											<TrustChip
-												idTag={profile.idTag}
-												onChanged={onTrustDecision}
-											/>
 											<RelationshipBadge
 												localProfile={localProfile}
 												profileType={profile.type}
@@ -899,6 +984,11 @@ export function ProfilePage({
 														{t('Message')}
 													</Button>
 												)}
+											<ProfileConnectButton
+												localProfile={localProfile}
+												profileType={profile.type}
+												cmds={profileCmds}
+											/>
 											<ProfileFollowButton
 												localProfile={localProfile}
 												profileType={profile.type}
@@ -936,6 +1026,7 @@ export function ProfilePage({
 												icon={<IcBlock />}
 												label={t('Block')}
 												color="error"
+												disabled={!!profileCmds.busy}
 												onClick={profileCmds.onBlock}
 											/>
 										)}
@@ -994,6 +1085,7 @@ export function ProfilePage({
 						src={coverUpload}
 						aspects={['', '4:1', '3:1']}
 						onSubmit={uploadCover}
+						isUploading={uploading}
 						onCancel={onCancel}
 					/>
 				)}
@@ -1002,6 +1094,7 @@ export function ProfilePage({
 						src={profileUpload}
 						aspects={['circle']}
 						onSubmit={uploadProfile}
+						isUploading={uploading}
 						onCancel={onCancel}
 					/>
 				)}
@@ -1833,6 +1926,7 @@ function ProfileView() {
 	const { getTokenFor } = useApiContext()
 	const { rememberStoredTrust } = useProfileTrust()
 	const dialog = useDialog()
+	const toast = useToast()
 	const params = useParams()
 	const idTag = params.idTag == 'me' ? (auth?.idTag ?? api?.idTag) : params.idTag || auth?.idTag
 	const own = idTag == auth?.idTag
@@ -1841,6 +1935,10 @@ function ProfileView() {
 	// Tick to force profile refetch after a trust decision so cached proxy-token-gated
 	// content reloads with the new auth state.
 	const [trustTick, setTrustTick] = React.useState(0)
+	// Why the profile failed to load; shown instead of the skeleton while there is no profile.
+	const [loadError, setLoadError] = React.useState<unknown>()
+	// The relationship command in flight (guards re-entry, drives button/menu busy state)
+	const [busy, setBusy] = React.useState<ProfileCmd>()
 	// User's roles in the viewed community (fetched via proxy token)
 	const [communityRoles, setCommunityRoles] = React.useState<string[]>([])
 	const porch = usePorch(idTag, communityRoles)
@@ -1875,6 +1973,7 @@ function ProfileView() {
 			if (!idTag) return
 			if (!api) return
 
+			setLoadError(undefined)
 			if (idTag != profile?.idTag) {
 				setProfile(undefined)
 				setLocalProfile(undefined)
@@ -1893,7 +1992,10 @@ function ProfileView() {
 						.then((p) => {
 							if (!cancelled && n === seq) setProfile(p as unknown as FullProfile)
 						})
-						.catch((err) => console.warn('Profile: failed to load own profile', err))
+						.catch((err) => {
+							console.warn('Profile: failed to load own profile', err)
+							if (!cancelled && n === seq) setLoadError(err)
+						})
 				}
 				loadOwn()
 				// The shown badges changed (Settings → Badges, or a notification).
@@ -1913,12 +2015,17 @@ function ProfileView() {
 						if (p.idTag.toLowerCase() !== idTag!.toLowerCase()) {
 							console.warn('Profile: remote returned another idTag', p.idTag, idTag)
 							setProfile(undefined)
+							// Shown as "Profile not found": the node does not serve this identity.
+							setLoadError(new FetchError('E-CORE-NOTFOUND', 'idTag mismatch', 404))
 							return
 						}
 						setProfile(p as unknown as FullProfile)
 					})
-					.catch(() => {
-						if (!cancelled) setProfile(undefined)
+					.catch((err) => {
+						if (cancelled) return
+						console.warn('Profile: failed to load remote profile', err)
+						setProfile(undefined)
+						setLoadError(err)
 					})
 			}
 
@@ -2007,11 +2114,28 @@ function ProfileView() {
 				}))
 			}
 
+	// Every relationship write: re-entry guard, busy state, success toast (if any), friendly error.
+	async function run(cmd: ProfileCmd, fn: () => Promise<void>, successMsg?: string) {
+		if (busy) return
+		setBusy(cmd)
+		try {
+			await fn()
+			if (successMsg) toast.success(successMsg)
+		} catch (err) {
+			console.error(`Profile: ${cmd} failed`, err)
+			toast.error(friendlyError(t, err))
+		} finally {
+			setBusy(undefined)
+		}
+	}
+
 	async function onFollow() {
 		if (!profile || localProfile?.following) return
 		const followAction: NewAction = { type: 'FLLW', audienceTag: profile.idTag }
-		await api!.actions.create(followAction)
-		setLocalProfile((p) => (p ? { ...p, following: true } : p))
+		await run('follow', async () => {
+			await api!.actions.create(followAction)
+			setLocalProfile((p) => (p ? { ...p, following: true } : p))
+		})
 	}
 
 	async function onUnfollow() {
@@ -2021,16 +2145,20 @@ function ProfileView() {
 			subType: 'DEL',
 			audienceTag: profile.idTag
 		}
-		await api!.actions.create(unfollowAction)
-		setLocalProfile((p) => (p ? { ...p, following: false } : p))
+		await run('unfollow', async () => {
+			await api!.actions.create(unfollowAction)
+			setLocalProfile((p) => (p ? { ...p, following: false } : p))
+		})
 	}
 
 	async function onConnect() {
 		if (!profile || localProfile?.connected) return
 
 		let content: string | undefined
+		// Auto-accept community: the join takes effect immediately.
+		const autoJoin = profile.type === 'community' && profile.settings?.connectionMode === 'A'
 
-		if (profile.type === 'community' && profile.settings?.connectionMode === 'A') {
+		if (autoJoin) {
 			// Auto-accept community: simple confirm, no message
 			const confirmed = await dialog.confirm(
 				t('Join community'),
@@ -2057,8 +2185,14 @@ function ProfileView() {
 			audienceTag: profile.idTag,
 			content
 		}
-		await api!.actions.create(connectAction)
-		setLocalProfile((p) => (p ? { ...p, connected: 'R' } : p))
+		await run(
+			'connect',
+			async () => {
+				await api!.actions.create(connectAction)
+				setLocalProfile((p) => (p ? { ...p, connected: autoJoin ? true : 'R' } : p))
+			},
+			autoJoin ? t('Joined {{name}}', { name: profile.name }) : t('Request sent')
+		)
 	}
 
 	async function onDisconnect() {
@@ -2075,26 +2209,67 @@ function ProfileView() {
 			subType: 'DEL',
 			audienceTag: profile.idTag
 		}
-		await api!.actions.create(disconnectAction)
-		setLocalProfile((p) => (p ? { ...p, connected: undefined } : p))
+		const successMsg =
+			localProfile.connected === 'R'
+				? t('Request withdrawn')
+				: profile.type === 'community'
+					? t('You left {{name}}', { name: profile.name })
+					: t('Disconnected')
+		await run(
+			'disconnect',
+			async () => {
+				await api!.actions.create(disconnectAction)
+				setLocalProfile((p) => (p ? { ...p, connected: undefined } : p))
+			},
+			successMsg
+		)
 	}
 
 	async function onBlock() {
 		if (!profile || localProfile?.status == 'B') return
-		const _res = await api!.profiles.updateConnection(profile.idTag, { status: 'B' })
-		setLocalProfile((p) => (p ? { ...p, status: 'B' } : p))
+		await run(
+			'block',
+			async () => {
+				await api!.profiles.updateConnection(profile.idTag, { status: 'B' })
+				setLocalProfile((p) => (p ? { ...p, status: 'B' } : p))
+			},
+			t('Blocked')
+		)
 	}
 
 	async function onUnblock() {
 		if (!profile || localProfile?.status != 'B') return
-		const _res = await api!.profiles.updateConnection(profile.idTag, { status: 'A' })
-		setLocalProfile((p) => (p ? { ...p, status: 'A' } : p))
+		await run(
+			'unblock',
+			async () => {
+				await api!.profiles.updateConnection(profile.idTag, { status: 'A' })
+				setLocalProfile((p) => (p ? { ...p, status: 'A' } : p))
+			},
+			t('Unblocked')
+		)
 	}
 
 	// Determine if this is a community profile
 	const isCommunity = profile?.type === 'community'
 
 	if (!profile) {
+		if (loadError) {
+			const notFound = loadError instanceof FetchError && loadError.httpStatus === 404
+			return (
+				<LoadError
+					error={loadError}
+					onRetry={() => {
+						setLoadError(undefined)
+						setTrustTick((n) => n + 1)
+					}}
+					title={
+						notFound
+							? t('Profile not found')
+							: t("This profile's server can't be reached")
+					}
+				/>
+			)
+		}
 		return <ProfileSkeleton />
 	}
 
@@ -2110,7 +2285,8 @@ function ProfileView() {
 				onConnect,
 				onDisconnect,
 				onBlock,
-				onUnblock
+				onUnblock,
+				busy
 			}}
 			communityRoles={communityRoles}
 			getTokenFor={getTokenFor}

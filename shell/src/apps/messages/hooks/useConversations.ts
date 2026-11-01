@@ -29,7 +29,7 @@ const conversationsReloadAtom = atom(0)
 // Bumped after every successful load: each one rebuilds groups with `profiles: []`.
 const conversationsLoadGenAtom = atom(0)
 // The last load failed (the list is then `[]`); cleared by the next successful load.
-export const conversationsErrorAtom = atom(false)
+export const conversationsErrorAtom = atom<unknown>(undefined)
 
 // The per-reader part of a Conversation, from its `P:MSG` / `A:CONV` reader-state row.
 // Also used by useConvPrefs to re-derive the fields after an optimistic row edit.
@@ -208,12 +208,12 @@ export function useConversationsLoader(): void {
 					if (ac.signal.aborted) return
 					setConversations(sortByRecency([...byId.values()]))
 					setLoadGen((g) => g + 1)
-					setError(false)
+					setError(undefined)
 				} catch (err) {
 					if (ac.signal.aborted) return
 					console.error('Failed to load conversations', err)
 					setConversations([])
-					setError(true)
+					setError(err)
 				}
 			})()
 			return () => ac.abort()

@@ -6,6 +6,7 @@ import {
 	Field,
 	HBox,
 	List,
+	LoadError,
 	LoadingSpinner,
 	NativeSelect,
 	Panel,
@@ -50,7 +51,7 @@ export function CalendarSettings() {
 	const { api } = useApi()
 	const { error: toastError } = useToast()
 	const weekdayNames = useWeekdayNames()
-	const { settings, setSettings, onSettingChange } = useSettings('ui.calendar')
+	const { settings, setSettings, onSettingChange, error, refresh } = useSettings('ui.calendar')
 	// The start select takes the Field's id; the end one needs its own
 	const whEndId = React.useId()
 
@@ -100,6 +101,10 @@ export function CalendarSettings() {
 		[api, workingDays, setSettings, t, toastError]
 	)
 
+	if (error)
+		return (
+			<LoadError error={error} onRetry={refresh} title={t("Couldn't load these settings")} />
+		)
 	if (!settings) return <LoadingSpinner className="auto-bg" />
 
 	const weekStart = settings['ui.calendar.week_start']

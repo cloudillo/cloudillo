@@ -29,6 +29,8 @@ import {
 	IcSend,
 	IcTag,
 	IcVideo,
+	friendlyError,
+	LoadError,
 	LoadMoreTrigger,
 	Menu,
 	MenuItem,
@@ -51,6 +53,7 @@ import {
 	useApi,
 	useAuth,
 	useProfileBadges,
+	useToast,
 	VBox
 } from '@cloudillo/react'
 import type { ActionView, NewAction } from '@cloudillo/types'
@@ -201,13 +204,15 @@ function NewComment({
 	const [auth] = useAuth()
 	const [content, setContent] = React.useState('')
 	const editorRef = React.useRef<HTMLDivElement>(null)
+	const sendingRef = React.useRef(false)
+	const toast = useToast()
 	const hatFor = useHatFor()
 	const audienceTag = actionContextTag(parentAction)
 
 	async function doSubmit() {
-		if (!api || !auth?.idTag) return
+		if (!api || !auth?.idTag || sendingRef.current) return
+		sendingRef.current = true
 		editorRef.current?.blur()
-		setContent('')
 		const action: NewAction = {
 			type: 'CMNT',
 			content,
@@ -216,8 +221,16 @@ function NewComment({
 			hat: hatFor(audienceTag)
 		}
 
-		const actionRes = await api.actions.create(action)
-		onSubmit?.(actionRes)
+		try {
+			const actionRes = await api.actions.create(action)
+			setContent('')
+			onSubmit?.(actionRes)
+		} catch {
+			// Keep the text so the user can retry.
+			toast.error(t('Failed to send'))
+		} finally {
+			sendingRef.current = false
+		}
 	}
 
 	if (!auth?.name || !auth?.idTag) return false
@@ -574,6 +587,7 @@ function Post({
 	onRoomClick
 }: PostProps) {
 	const { t } = useTranslation()
+	const toast = useToast()
 	const [auth] = useAuth()
 	const { api } = useApi()
 	const contextIdTag = useCurrentContextIdTag()
@@ -682,6 +696,7 @@ function Post({
 			})
 		} catch (e) {
 			console.error('Failed to send reaction', e)
+			toast.error(friendlyError(t, e))
 		}
 	}
 
@@ -1047,6 +1062,7 @@ function RoomMenuItems({
 	onShowOnly: (channel: string) => void
 }) {
 	const { t } = useTranslation()
+	const toast = useToast()
 	const navigate = useNavigate()
 	const [auth] = useAuth()
 	const contextIdTag = useCurrentContextIdTag()
@@ -1067,9 +1083,10 @@ function RoomMenuItems({
 			<MenuItem
 				label={isMuted ? t('Unmute ~{{room}}', { room }) : t('Mute ~{{room}}', { room })}
 				onClick={() => {
-					;(isMuted ? unmute : mute)(channel).catch((err) =>
+					;(isMuted ? unmute : mute)(channel).catch((err) => {
 						console.error('Failed to update room mute:', err)
-					)
+						toast.error(friendlyError(t, err))
+					})
 				}}
 			/>
 		</>
@@ -1322,6 +1339,7 @@ function sourceToQuery(
 }
 
 export function FeedApp() {
+	const toast = useToast()
 	const location = useLocation()
 	const navigate = useNavigate()
 	const { t } = useTranslation()
@@ -1453,7 +1471,7 @@ export function FeedApp() {
 	React.useEffect(() => {
 		if (userTouchedViewRef.current) return
 		if (viewModeSetRef.current === ctxKey) return
-		// ponytail: the Unread list has no room filter, so a room view stays on the feed.
+		// the Unread list has no room filter, so a room view stays on the feed.
 		if (channel) return
 		if (readPosition > 0 && ctxUnread > 0) {
 			viewModeSetRef.current = ctxKey
@@ -1502,6 +1520,7 @@ export function FeedApp() {
 		isOffline,
 		hasMore,
 		loadMore,
+		reset,
 		sentinelRef,
 		newPostsCount,
 		showNewPosts,
@@ -1528,6 +1547,7 @@ export function FeedApp() {
 		error: unreadError,
 		hasMore: unreadHasMore,
 		loadMore: loadMoreUnread,
+		reset: resetUnread,
 		sentinelRef: unreadSentinelRef
 	} = useUnreadPosts({
 		since: unreadSince,
@@ -2155,9 +2175,10 @@ export function FeedApp() {
 								size="sm"
 								variant="ghost"
 								onClick={() => {
-									unmuteRoom(channel).catch((err) =>
+									unmuteRoom(channel).catch((err) => {
 										console.error('Failed to unmute room:', err)
-									)
+										toast.error(friendlyError(t, err))
+									})
 								}}
 							>
 								{t('Unmute')}
@@ -2188,6 +2209,12 @@ export function FeedApp() {
 								<SkeletonCard showAvatar lines={3} />
 								<SkeletonCard showAvatar showImage lines={2} />
 							</VBox>
+						) : unreadError && unreadPosts.length === 0 ? (
+							<LoadError
+								error={unreadError}
+								onRetry={resetUnread}
+								title={t("Couldn't load posts")}
+							/>
 						) : unreadPosts.length === 0 && !unreadHasMore ? (
 							<EmptyState
 								className="auto-bg"
@@ -2297,6 +2324,12 @@ export function FeedApp() {
 								<SkeletonCard showAvatar lines={3} />
 								<SkeletonCard showAvatar showImage lines={2} />
 							</VBox>
+						) : error && mergedFeed.length === 0 ? (
+							<LoadError
+								error={error}
+								onRetry={reset}
+								title={t("Couldn't load posts")}
+							/>
 						) : mergedFeed.length === 0 ? (
 							<EmptyState
 								className="auto-bg"

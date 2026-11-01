@@ -37,14 +37,14 @@ import { hatRefusedText, isRefusal } from './hat-recovery.js'
 import { useApiContext, useContextSwitch, useContextSwitchNav } from './hooks'
 
 /**
- * An open `HatPicker`: B, its remembered hats, and where the choice goes — `hat` undefined
- * = dismissed (a plain entry then goes in as yourself), `null` = superseded by another entry
- * (B is not entered), `entries` = the list after any × forgets (already saved by the picker).
+ * An open `HatPicker`: B, its remembered hats, and where the choice goes — `hat` is the
+ * picked row (`''` = as yourself), `null` = dismissed or superseded by another entry (B is
+ * not entered), `entries` = the list after any × forgets (already saved by the picker).
  */
 export interface HatPickerRequest {
 	community: string
 	entries: string[]
-	resolve: (hat: string | null | undefined, entries: string[]) => void
+	resolve: (hat: string | null, entries: string[]) => void
 }
 
 export const hatPickerAtom = atom<HatPickerRequest | undefined>(undefined)
@@ -94,7 +94,7 @@ export function useHatEntry() {
 
 	const pickHat = React.useCallback(
 		(idTag: string, entries: string[]) =>
-			new Promise<{ hat: string | null | undefined; entries: string[] }>((resolve) => {
+			new Promise<{ hat: string | null; entries: string[] }>((resolve) => {
 				setPicker({
 					community: idTag,
 					entries,
@@ -167,7 +167,7 @@ export function useHatEntry() {
 			if (known.length < 2) return activate(idTag, known, list)
 			const { hat: chosen, entries } = await pickHat(idTag, known)
 			if (chosen === null) return
-			return activate(idTag, toFront(entries, chosen ?? ''), entries)
+			return activate(idTag, toFront(entries, chosen), entries)
 		},
 		[readHats, activate, pickHat, store]
 	)

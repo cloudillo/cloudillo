@@ -8,6 +8,7 @@ import {
 	HBox,
 	IdentityTag,
 	invalidateProfile,
+	LoadError,
 	LoadingSpinner,
 	Panel,
 	SortableGroup,
@@ -44,6 +45,7 @@ export function BadgeSettings() {
 	const { error: toastError } = useToast()
 	const [received, setReceived] = React.useState<ReceivedBadge[]>()
 	const [shown, setShown] = React.useState<string[]>([])
+	const [error, setError] = React.useState<unknown>()
 
 	const idTag = auth?.idTag
 	const load = React.useCallback(
@@ -57,9 +59,12 @@ export function BadgeSettings() {
 				if (cancelled()) return
 				setReceived(list)
 				setShown(keys)
+				setError(undefined)
 			} catch (err) {
 				console.error('Failed to load badges:', err)
-				if (!cancelled()) setReceived((prev) => prev ?? [])
+				if (cancelled()) return
+				setError(err)
+				setReceived((prev) => prev ?? [])
 			}
 		},
 		[api, idTag]
@@ -219,7 +224,13 @@ export function BadgeSettings() {
 
 	return (
 		<Panel title={t('Badges')}>
-			{received.length === 0 ? (
+			{error && received.length === 0 ? (
+				<LoadError
+					error={error}
+					onRetry={() => void load()}
+					title={t("Couldn't load badges")}
+				/>
+			) : received.length === 0 ? (
 				<Text as="div" emphasis="muted">
 					{t('You have not received any badges yet.')}
 				</Text>

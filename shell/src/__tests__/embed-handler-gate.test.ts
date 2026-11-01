@@ -19,6 +19,7 @@ import { EMBED_ERR_CYCLE, EMBED_ERR_DEPTH, EMBED_ERR_TRUST } from '@cloudillo/co
 import { jest } from '@jest/globals'
 
 import { getAppTracker, resetAppTracker } from '../message-bus/app-tracker.js'
+import { initAuthHandlers } from '../message-bus/handlers/auth.js'
 import {
 	initDocumentHandlers,
 	setDocGrantConfirm,
@@ -812,6 +813,21 @@ describe('doc:link.req and the file-link share', () => {
 		})
 	})
 
+	it('links an image file (canvas paste from another board) with no app', async () => {
+		const api = fakeApi([], { contentType: 'image/png' })
+		const bus = createBus({ resId: 'home.example:f1' }, api)
+
+		await bus.send('doc:link.req', { ...link, ref: 'cl:file/home.example:f2' })
+
+		expect(api.files.createShare).toHaveBeenCalledWith('f2', {
+			subjectType: 'F',
+			subjectId: 'f1',
+			permission: 'R'
+		})
+		expect(bus.responses[0]).toMatchObject({ ok: true, data: { fileId: 'f2' } })
+		expect(bus.responses[0].data?.appId).toBeUndefined()
+	})
+
 	it('does not downgrade an existing write share on re-linking', async () => {
 		const api = fakeApi([writeShare])
 		const bus = createBus({ resId: 'home.example:f1' }, api)
@@ -1109,6 +1125,71 @@ describe('doc:pick.req change view', () => {
 		expect(bus.notifies).toEqual([
 			{ type: 'doc:pick.result', payload: { sessionId: 's1', selected: false } }
 		])
+	})
+})
+
+// The read-only token a Presentation API receiver asks for. The dispatch gate keeps embeds
+// out; the handler's own guard is the defence in depth behind it.
+describe('auth:token.read.req', () => {
+	function setup(connection: Partial<AppConnection>) {
+		const responses: Response[] = []
+		const handlers = new Map<string, (msg: unknown, source: unknown) => Promise<void>>()
+		const getAccessToken = jest.fn(async (_resId: string, _access: string) => ({
+			token: 'read-tok',
+			tokenLifetime: 3600
+		}))
+		const bus = {
+			on(type: string, fn: (msg: unknown, source: unknown) => Promise<void>) {
+				handlers.set(type, fn)
+			},
+			getAppTracker: () => ({
+				validateSource: () => ({ access: 'write', initialized: true, ...connection })
+			}),
+			getAccessToken,
+			sendResponse: (
+				_win: unknown,
+				type: string,
+				_id: unknown,
+				ok: boolean,
+				data?: Record<string, unknown>,
+				error?: string
+			) => {
+				responses.push({ type, ok, data, error })
+			}
+		}
+		// biome-ignore lint/suspicious/noExplicitAny: the stub is a deliberate subset
+		initAuthHandlers(bus as any)
+		return {
+			responses,
+			getAccessToken,
+			send: () => handlers.get('auth:token.read.req')?.({ id: 1 }, {} as Window)
+		}
+	}
+
+	it('refuses an embed connection', async () => {
+		const bus = setup({ resId: 'victim.tld:f1', embed: true })
+		await bus.send()
+		expect(bus.getAccessToken).not.toHaveBeenCalled()
+		expect(bus.responses[0]).toMatchObject({ type: 'auth:token.read.res', ok: false })
+	})
+
+	it('refuses a share-link guest', async () => {
+		const bus = setup({ resId: 'home.example:f1', refId: 'ref1' })
+		await bus.send()
+		expect(bus.getAccessToken).not.toHaveBeenCalled()
+		expect(bus.responses[0]).toMatchObject({ type: 'auth:token.read.res', ok: false })
+	})
+
+	it('mints a read token for the connection document, even on a write connection', async () => {
+		const bus = setup({ resId: 'home.example:f1', access: 'write' })
+		await bus.send()
+		expect(bus.getAccessToken).toHaveBeenCalledWith('home.example:f1', 'read')
+		expect(bus.getAccessToken.mock.calls.every(([, access]) => access === 'read')).toBe(true)
+		expect(bus.responses[0]).toMatchObject({
+			type: 'auth:token.read.res',
+			ok: true,
+			data: { token: 'read-tok', tokenLifetime: 3600 }
+		})
 	})
 })
 

@@ -18,11 +18,14 @@ import {
 	useApi,
 	useAuth
 } from '@cloudillo/react'
-import { useAtomValue } from 'jotai'
+import { useAtomValue, useStore } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
+import { useMatch, useNavigate } from 'react-router-dom'
 
-import { communitiesAtom } from './atoms'
+import { CTX_MATCH, feedPath, HOME_BASE, isContextSegment } from '../routes.js'
+import { activeContextAtom, communitiesAtom } from './atoms'
+import { HOME_CONTEXT } from './constants.js'
 import { hatPickerAtom } from './hat-entry.js'
 
 export function HatPicker() {
@@ -33,6 +36,12 @@ export function HatPicker() {
 	const { api } = useApi()
 	const [entries, setEntries] = React.useState<string[]>([])
 	const [showOthers, setShowOthers] = React.useState(false)
+	const store = useStore()
+	const navigate = useNavigate()
+	// Not `useCtx()`: the picker can render outside `CtxProvider`.
+	const segment = useMatch(CTX_MATCH)?.params.contextIdTag
+	const urlIdTag =
+		isContextSegment(segment) && segment !== HOME_CONTEXT ? segment?.slice(1) : undefined
 
 	React.useEffect(() => {
 		setEntries(request?.entries ?? [])
@@ -43,7 +52,16 @@ export function HatPicker() {
 
 	const community = communities.find((c) => c.idTag === request.community)
 	const communityName = community?.name ?? request.community
-	const choose = (hat: string | undefined) => request.resolve(hat, entries)
+	const choose = (hat: string | null) => request.resolve(hat, entries)
+
+	/** Enters nothing; leaves B's URL when it was opened by entering B (not by `changeHat`). */
+	function dismiss() {
+		const target = request!.community
+		choose(null)
+		if (store.get(activeContextAtom)?.idTag === target || urlIdTag !== target) return
+		if ((window.history.state?.idx ?? 0) > 0) navigate(-1)
+		else navigate(feedPath(HOME_BASE), { replace: true })
+	}
 
 	function forget(hat: string) {
 		const next = entries.filter((h) => h !== hat)
@@ -69,7 +87,7 @@ export function HatPicker() {
 					/>
 				}
 				title={hat ? t('Via {{name}}', { name: profile.name }) : t('As yourself')}
-				subtitle={hat || undefined}
+				subtitle={hat || t('Shows your own identity')}
 				selected={selected}
 				onClick={() => choose(hat)}
 				actions={
@@ -96,7 +114,11 @@ export function HatPicker() {
 			open
 			size="sm"
 			title={t('Enter {{name}} as…', { name: communityName })}
-			onClose={() => choose(undefined)}
+			description={t(
+				'Choose who {{name}} sees you as. "As yourself" shows your own identity to its server.',
+				{ name: communityName }
+			)}
+			onClose={dismiss}
 		>
 			<List>
 				{entries.map((hat, i) => row(hat, i === 0, !!hat))}

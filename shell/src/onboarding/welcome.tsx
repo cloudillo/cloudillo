@@ -26,6 +26,7 @@ import { handOffMfa } from '../auth/mfa-handoff.js'
 import { IcPassword } from '../icons.js'
 import { installToken } from '../pwa.js'
 import { onboardingNextPath } from './next-step.js'
+import { SignInAddress } from './sign-in-address.js'
 import { type ResendState, VerifyIdpContent } from './verify-idp-content.js'
 
 const POLL_INTERVAL_MS = 10_000
@@ -291,12 +292,25 @@ export function Welcome() {
 			subtitle={t('Set Your Password')}
 		>
 			<Text as="p">{t('Please choose a strong password to secure your account.')}</Text>
+			{api?.idTag && <SignInAddress idTag={api.idTag} />}
 
 			<Form onSubmit={handleSubmit}>
+				{/* Password managers pair the password with this username field */}
+				{/* biome-ignore lint/plugin/no-raw-intrinsic: ds-allow: visually hidden username for password-manager autofill */}
+				<input
+					className="sr-only"
+					name="username"
+					autoComplete="username"
+					value={api?.idTag ?? ''}
+					readOnly
+					tabIndex={-1}
+					aria-hidden="true"
+				/>
 				<Field label={t('Password')}>
 					<PasswordInput
 						leading={<IcPassword />}
 						name="password"
+						autoComplete="new-password"
 						autoFocus
 						onChange={(evt) => {
 							setPassword(evt.target.value)
@@ -321,6 +335,7 @@ export function Welcome() {
 					<PasswordInput
 						leading={<IcPassword />}
 						name="confirmPassword"
+						autoComplete="new-password"
 						onChange={(evt) => {
 							setConfirmPassword(evt.target.value)
 							setError(undefined)

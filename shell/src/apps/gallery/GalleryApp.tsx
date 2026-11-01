@@ -6,6 +6,7 @@ import {
 	EmptyState,
 	Fcd,
 	IcImage,
+	LoadError,
 	LoadingSpinner,
 	LoadMoreTrigger,
 	PageHeader,
@@ -59,6 +60,7 @@ export function GalleryApp() {
 		error,
 		hasMore,
 		loadMore,
+		reset,
 		sentinelRef
 	} = useGalleryImages({
 		apiQueryParams: fileName ? { ...apiQueryParams, fileName } : apiQueryParams
@@ -94,6 +96,10 @@ export function GalleryApp() {
 					<LoadingSpinner size="lg" label={t('Loading gallery...')} />
 				</VBox>
 			)
+		}
+
+		if (error && files.length === 0) {
+			return <LoadError error={error} onRetry={reset} title={t("Couldn't load photos")} />
 		}
 
 		// Empty state (no photos at all)

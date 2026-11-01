@@ -13,9 +13,11 @@ import {
 	Icon,
 	IcUpload,
 	List,
+	LoadError,
 	LoadingSpinner,
 	LoadMoreTrigger,
 	Text,
+	friendlyError,
 	useAuth,
 	useDebouncedValue,
 	useDialog,
@@ -422,10 +424,15 @@ export function FilesApp() {
 			)
 			if (!res) return
 
-			await api.trash.empty()
+			try {
+				await api.trash.empty()
+			} catch (err) {
+				console.error('[Files] empty trash failed', err)
+				toast.error(friendlyError(t, err))
+			}
 			fileListData.refresh()
 		},
-		[api, dialog, t, fileListData]
+		[api, dialog, t, toast, fileListData]
 	)
 
 	const fileOps: FileOps = React.useMemo(() => {
@@ -444,6 +451,29 @@ export function FilesApp() {
 				t('Restore to {{place}}?', { place: contextName }),
 				audienceText(t, contextName, null, isHome) ?? contextName
 			)
+		}
+
+		// Runs a write per id; the rows that DID succeed stay done, so the list is always
+		// refetched, and a partial failure reports how many went through.
+		async function settleBatch(
+			entryIds: string[],
+			run: (id: string) => Promise<unknown>,
+			partial: (ok: number, total: number) => string
+		) {
+			const results = await Promise.allSettled(entryIds.map(run))
+			const failed = results.filter(
+				(r): r is PromiseRejectedResult => r.status === 'rejected'
+			)
+			const ok = entryIds.length - failed.length
+			if (ok > 0) setStarVersion((v) => v + 1)
+			multiSelect.clearSelection()
+			fileListData.refresh()
+			if (failed.length > 0) {
+				console.error('[Files] batch operation failed for some files', failed)
+				toast.error(
+					ok === 0 ? friendlyError(t, failed[0].reason) : partial(ok, entryIds.length)
+				)
+			}
 		}
 
 		// Shared navigation helper for opening files in apps
@@ -586,7 +616,13 @@ export function FilesApp() {
 				)
 				if (!res) return
 
-				await api.files.delete(entryId)
+				try {
+					await api.files.delete(entryId)
+				} catch (err) {
+					console.error('[Files] move to trash failed', err)
+					toast.error(friendlyError(t, err))
+					return
+				}
 				setStarVersion((v) => v + 1)
 				if (multiSelect.isSelected(entryId)) {
 					multiSelect.clearSelection()
@@ -597,7 +633,13 @@ export function FilesApp() {
 			doRestoreFile: async function doRestoreFile(entryId: string, parentId?: string) {
 				if (!api) return
 				if (!parentId && !(await confirmRestore([entryId]))) return
-				await api.files.restore(entryId, parentId)
+				try {
+					await api.files.restore(entryId, parentId)
+				} catch (err) {
+					console.error('[Files] restore failed', err)
+					toast.error(friendlyError(t, err))
+					return
+				}
 				setStarVersion((v) => v + 1)
 				fileListData.refresh()
 			},
@@ -613,7 +655,13 @@ export function FilesApp() {
 				)
 				if (!res) return
 
-				await api.files.permanentDelete(entryId)
+				try {
+					await api.files.permanentDelete(entryId)
+				} catch (err) {
+					console.error('[Files] permanent delete failed', err)
+					toast.error(friendlyError(t, err))
+					return
+				}
 				setStarVersion((v) => v + 1)
 				if (multiSelect.isSelected(entryId)) {
 					multiSelect.clearSelection()
@@ -665,19 +713,21 @@ export function FilesApp() {
 				)
 				if (!res) return
 
-				await Promise.all(entryIds.map((id) => api.files.delete(id)))
-				setStarVersion((v) => v + 1)
-				multiSelect.clearSelection()
-				fileListData.refresh()
+				await settleBatch(
+					entryIds,
+					(id) => api.files.delete(id),
+					(ok, total) => t('{{ok}} of {{total}} moved to trash', { ok, total })
+				)
 			},
 
 			doRestoreFiles: async function doRestoreFiles(entryIds: string[], parentId?: string) {
 				if (!api || entryIds.length === 0) return
 				if (!parentId && !(await confirmRestore(entryIds))) return
-				await Promise.all(entryIds.map((id) => api.files.restore(id, parentId)))
-				setStarVersion((v) => v + 1)
-				multiSelect.clearSelection()
-				fileListData.refresh()
+				await settleBatch(
+					entryIds,
+					(id) => api.files.restore(id, parentId),
+					(ok, total) => t('{{ok}} of {{total}} restored', { ok, total })
+				)
 			},
 
 			doPermanentDeleteFiles: async function doPermanentDeleteFiles(entryIds: string[]) {
@@ -693,10 +743,11 @@ export function FilesApp() {
 				)
 				if (!res) return
 
-				await Promise.all(entryIds.map((id) => api.files.permanentDelete(id)))
-				setStarVersion((v) => v + 1)
-				multiSelect.clearSelection()
-				fileListData.refresh()
+				await settleBatch(
+					entryIds,
+					(id) => api.files.permanentDelete(id),
+					(ok, total) => t('{{ok}} of {{total}} deleted', { ok, total })
+				)
 			},
 
 			toggleStarredBatch: async function toggleStarredBatch(
@@ -1046,6 +1097,12 @@ export function FilesApp() {
 					>
 						{isInitialLoading ? (
 							<LoadingSpinner fill size="lg" label={t('Loading files...')} />
+						) : fileListData.error && files.length === 0 ? (
+							<LoadError
+								error={fileListData.error}
+								onRetry={fileListData.refresh}
+								title={t("Couldn't load files")}
+							/>
 						) : files.length === 0 &&
 							isRoomView &&
 							room &&

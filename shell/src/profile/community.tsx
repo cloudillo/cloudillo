@@ -39,7 +39,8 @@ import {
 	useContextSwitch,
 	useCtx
 } from '../context/index.js'
-import { communityCreatePath } from '../routes.js'
+import { communityCreatePath, scopePath } from '../routes.js'
+import { isLiveInvite, prinvtRefId } from './prinvt.js'
 import {
 	AppDomainErrorPanel,
 	AppDomainInput,
@@ -393,15 +394,9 @@ function ProgressStep({
 	)
 }
 
-////////////////////////
-// InviteChooserStep //
-////////////////////////
-interface InviteChooserStepProps {
-	onSelectInvite: (refId: string) => void
-}
-
-function InviteChooserStep({ onSelectInvite }: InviteChooserStepProps) {
-	const { t } = useTranslation()
+/** Live community-creation invites (PRINVT) addressed to the current user, created or
+ * already acknowledged. Errors resolve to an empty list. */
+export function usePrinvtInvites(): { invites: ActionView[] | undefined; loading: boolean } {
 	const { api } = useApi()
 	const [invites, setInvites] = React.useState<ActionView[] | undefined>()
 	const [loading, setLoading] = React.useState(true)
@@ -415,18 +410,9 @@ function InviteChooserStep({ onSelectInvite }: InviteChooserStepProps) {
 					// The PRINVT action shares its ref's expiry; used refs still slip through
 					// (use_ref doesn't update the action) and are caught in onSubmit.
 					const now = Date.now()
-					setInvites(
-						actions.filter(({ expiresAt }) => {
-							if (expiresAt === undefined) return true
-							const ms =
-								typeof expiresAt === 'number'
-									? expiresAt * 1000
-									: Date.parse(expiresAt)
-							return !(ms <= now)
-						})
-					)
+					setInvites(actions.filter(({ expiresAt }) => isLiveInvite(expiresAt, now)))
 				} catch (err) {
-					console.log('Error loading community invites:', err)
+					console.error('Error loading community invites:', err)
 					setInvites([])
 				} finally {
 					setLoading(false)
@@ -435,6 +421,21 @@ function InviteChooserStep({ onSelectInvite }: InviteChooserStepProps) {
 		},
 		[api]
 	)
+
+	return { invites, loading }
+}
+
+////////////////////////
+// InviteChooserStep //
+////////////////////////
+interface InviteChooserStepProps {
+	onSelectInvite: (refId: string) => void
+}
+
+function InviteChooserStep({ onSelectInvite }: InviteChooserStepProps) {
+	const { t } = useTranslation()
+	const ctx = useCtx()
+	const { invites, loading } = usePrinvtInvites()
 
 	return (
 		<>
@@ -452,14 +453,8 @@ function InviteChooserStep({ onSelectInvite }: InviteChooserStepProps) {
 			{!loading && invites && invites.length > 0 && (
 				<VBox gap={2}>
 					{invites.map((invite) => {
-						const content = invite.content as
-							| {
-									refId?: string
-									inviteUrl?: string
-									nodeName?: string
-									message?: string
-							  }
-							| undefined
+						const content = invite.content as { message?: string } | undefined
+						const refId = prinvtRefId(invite)
 						return (
 							<Card key={invite.actionId}>
 								<HBox gap={2} align="center">
@@ -475,10 +470,8 @@ function InviteChooserStep({ onSelectInvite }: InviteChooserStepProps) {
 									<Button
 										color="primary"
 										icon={<IcGoTo />}
-										onClick={() =>
-											content?.refId && onSelectInvite(content.refId)
-										}
-										disabled={!content?.refId}
+										onClick={() => refId && onSelectInvite(refId)}
+										disabled={!refId}
 									>
 										{t('Use this invite')}
 									</Button>
@@ -495,6 +488,14 @@ function InviteChooserStep({ onSelectInvite }: InviteChooserStepProps) {
 						"You don't have any community creation invites yet. Ask your server administrator for one."
 					)}
 				</Alert>
+			)}
+
+			{!loading && (!invites || invites.length === 0) && (
+				<ActionBar>
+					<Button icon={<IcBack />} href={scopePath(ctx.base, 'communities')}>
+						{t('Back to communities')}
+					</Button>
+				</ActionBar>
 			)}
 		</>
 	)

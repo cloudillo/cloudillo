@@ -9,6 +9,7 @@ import {
 	List,
 	ListItem,
 	ProfilePicture,
+	Text,
 	TimeFormat,
 	useDialog,
 	useToast
@@ -141,7 +142,22 @@ export function PendingRequestsList({
 							key={action.actionId}
 							leading={<ProfilePicture profile={action.issuer} />}
 							title={action.issuer.name || action.issuer.idTag}
-							subtitle={message ?? <IdentityTag idTag={action.issuer.idTag} />}
+							subtitle={
+								<>
+									<IdentityTag idTag={action.issuer.idTag} />
+									{message && (
+										<Text
+											as="span"
+											className="d-block"
+											size="sm"
+											emphasis="muted"
+											truncate
+										>
+											{message}
+										</Text>
+									)}
+								</>
+							}
 							meta={<TimeFormat time={action.createdAt} />}
 							trailing={
 								/* Consent decision, both options carry equal weight */

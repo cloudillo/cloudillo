@@ -430,15 +430,20 @@ export function initDocumentHandlers(bus: ShellMessageBus): void {
 				return reply(false, undefined, 'No access to the document context')
 			}
 			const meta = await api.files.getMetadata(fileId)
-			if (!isEmbeddable(meta.contentType)) {
+			// An image is linked too (canvas paste from another board), but opens in no app
+			const isImage = meta.contentType.startsWith('image/')
+			if (!isImage && !isEmbeddable(meta.contentType)) {
 				docPickerNotifier?.('link-not-embeddable')
 				return reply(false, undefined, 'Not embeddable')
 			}
 			// The pasted ref is untrusted: the app comes from the file's own content type
-			const appId =
-				resolveAppId(meta.contentType, appConfig.mime) ??
-				(appConfig.apps.some((app) => app.id === parsed.appId) ? parsed.appId : undefined)
-			if (!appId) {
+			const appId = isImage
+				? undefined
+				: (resolveAppId(meta.contentType, appConfig.mime) ??
+					(appConfig.apps.some((app) => app.id === parsed.appId)
+						? parsed.appId
+						: undefined))
+			if (!isImage && !appId) {
 				docPickerNotifier?.('link-failed')
 				return reply(false, undefined, 'No app for this document')
 			}

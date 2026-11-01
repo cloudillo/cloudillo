@@ -72,7 +72,7 @@ test('no MIME type has two primary claimants', () => {
 
 test("isEmbeddable follows the content type's embed declaration", () => {
 	expect(isEmbeddable('cloudillo/calcillo')).toBe(true)
-	expect(isEmbeddable('cloudillo/taskillo')).toBe(false)
+	expect(isEmbeddable('cloudillo/mapillo')).toBe(false)
 })
 
 describe.each(contentTypes)('%s', (_label, ct, manifest) => {

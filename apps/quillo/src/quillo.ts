@@ -3,10 +3,8 @@
 
 const _APP_NAME = 'quillo'
 
-// Only marks keys for extraction (interpolating `{{name}}` like i18next); the i18next instance
-// (`./i18n.js`) so far translates the React doc bar only. Swap for `i18n.t` once these keys get hu entries.
-const t = (key: string, o?: Record<string, string>): string =>
-	key.replace(/\{\{(\w+)\}\}/g, (_, n) => o?.[n] ?? '')
+// Only call after `bus.init` has applied the shell's language — never at module top level.
+const t = (key: string, o?: Record<string, string>): string => i18n.t(key, o)
 
 import * as Y from 'yjs'
 
@@ -24,7 +22,7 @@ import QuillTableBetter from 'quill-table-better'
 import 'quill-table-better/dist/quill-table-better.css'
 
 import { ClDocumentBlot, refreshDocumentEmbeds } from './blots/ClDocumentBlot.js'
-import { ClImageBlot } from './blots/ClImageBlot.js'
+import { ClImageBlot, type ClImageValue } from './blots/ClImageBlot.js'
 import { ClImageSpec } from './blots/ClImageSpec.js'
 import { registerSafeTableBlots } from './blots/SafeTableBlots.js'
 
@@ -61,7 +59,6 @@ import {
 	getSuggestedBodyFonts,
 	getSuggestedHeadingFonts
 } from '@cloudillo/fonts'
-import { Cloud, CloudOff, createElement } from 'lucide'
 import type { Awareness } from 'y-protocols/awareness'
 
 import {
@@ -99,6 +96,15 @@ function paletteKeyToCss(key: string): string {
 	return `var(--palette-${key})`
 }
 
+// Swatch tooltip for a palette key (`n0`, `red`, `red-p`); the key stays the stored value.
+// Keys built here are not scanner-visible: they are hand-added to the hu JSON.
+function swatchName(key: string): string {
+	const n = /^n(\d)$/.exec(key)
+	if (n) return t('Neutral {{n}}', { n: String(Number(n[1]) + 1) })
+	const base = key.replace(/-p$/, '')
+	return t(base === key ? base[0].toUpperCase() + base.slice(1) : `Pastel ${base}`)
+}
+
 function createColorPicker(
 	type: 'color' | 'background',
 	onSelect: (color: string) => void
@@ -116,7 +122,7 @@ function createColorPicker(
 	clearRow.className = 'quillo-color-row'
 	const clearBtn = document.createElement('button')
 	clearBtn.className = 'quillo-color-swatch clear'
-	clearBtn.title = 'Clear'
+	clearBtn.title = t('Clear')
 	clearBtn.dataset.color = 'clear'
 	clearBtn.addEventListener('click', () => {
 		onSelect('')
@@ -132,7 +138,7 @@ function createColorPicker(
 		const swatch = document.createElement('button')
 		swatch.className = 'quillo-color-swatch'
 		swatch.style.backgroundColor = paletteKeyToCss(key)
-		swatch.title = key
+		swatch.title = swatchName(key)
 		swatch.dataset.color = key
 		swatch.addEventListener('click', () => {
 			onSelect(paletteKeyToCss(key))
@@ -149,7 +155,7 @@ function createColorPicker(
 		const swatch = document.createElement('button')
 		swatch.className = 'quillo-color-swatch'
 		swatch.style.backgroundColor = paletteKeyToCss(key)
-		swatch.title = key
+		swatch.title = swatchName(key)
 		swatch.dataset.color = key
 		swatch.addEventListener('click', () => {
 			onSelect(paletteKeyToCss(key))
@@ -166,7 +172,7 @@ function createColorPicker(
 		const swatch = document.createElement('button')
 		swatch.className = 'quillo-color-swatch'
 		swatch.style.backgroundColor = paletteKeyToCss(key)
-		swatch.title = key
+		swatch.title = swatchName(key)
 		swatch.dataset.color = key
 		swatch.addEventListener('click', () => {
 			onSelect(paletteKeyToCss(key))
@@ -215,7 +221,7 @@ function createSettingsDialog(
 	header.className = 'c-hbox g-2 p-3 border-bottom'
 	const title = document.createElement('h3')
 	title.className = 'm-0'
-	title.textContent = 'Document Settings'
+	title.textContent = t('Document Settings')
 	header.appendChild(title)
 	container.appendChild(header)
 
@@ -227,7 +233,7 @@ function createSettingsDialog(
 	const sectionTitle = document.createElement('div')
 	sectionTitle.className = 'text-secondary text-uppercase small'
 	sectionTitle.style.letterSpacing = '0.05em'
-	sectionTitle.textContent = 'Typography'
+	sectionTitle.textContent = t('Typography')
 	content.appendChild(sectionTitle)
 
 	// Heading font picker
@@ -235,7 +241,7 @@ function createSettingsDialog(
 	headingField.className = 'c-vbox g-1'
 	const headingLabel = document.createElement('label')
 	headingLabel.className = 'small'
-	headingLabel.textContent = 'Heading Font'
+	headingLabel.textContent = t('Heading Font')
 	headingField.appendChild(headingLabel)
 
 	const headingSelect = createDocFontSelect('heading', () => bodySelect.value)
@@ -248,7 +254,7 @@ function createSettingsDialog(
 	bodyField.className = 'c-vbox g-1'
 	const bodyLabel = document.createElement('label')
 	bodyLabel.className = 'small'
-	bodyLabel.textContent = 'Body Font'
+	bodyLabel.textContent = t('Body Font')
 	bodyField.appendChild(bodyLabel)
 
 	const bodySelect = createDocFontSelect('body', () => headingSelect.value)
@@ -279,7 +285,7 @@ function createSettingsDialog(
 	const cancelBtn = document.createElement('button')
 	cancelBtn.type = 'button'
 	cancelBtn.className = 'c-button secondary'
-	cancelBtn.textContent = 'Cancel'
+	cancelBtn.textContent = t('Cancel')
 	cancelBtn.addEventListener('click', () => {
 		// Reset to current values
 		headingSelect.value = settingsMap.get('headingFont') || ''
@@ -291,7 +297,7 @@ function createSettingsDialog(
 	const applyBtn = document.createElement('button')
 	applyBtn.type = 'button'
 	applyBtn.className = 'c-button primary'
-	applyBtn.textContent = 'Apply'
+	applyBtn.textContent = t('Apply')
 	applyBtn.addEventListener('click', () => {
 		settingsMap.set('headingFont', headingSelect.value)
 		settingsMap.set('bodyFont', bodySelect.value)
@@ -305,6 +311,121 @@ function createSettingsDialog(
 	return dialog
 }
 
+// ============================================
+// Image Alt Text Dialog
+// ============================================
+
+/**
+ * Builds the alt-text dialog (appended to `document.body`) and returns its opener.
+ * Saving replaces the `cl-image` embed value in one `'user'` delta, so y-quill syncs it,
+ * undo covers it, and the DOCX exporter keeps reading `alt` from the insert value.
+ */
+function createAltTextDialog(editor: Quill): (img: HTMLImageElement) => void {
+	const dialog = document.createElement('dialog')
+	dialog.className = 'quillo-alt-dialog'
+
+	const form = document.createElement('form')
+	form.className = 'c-dialog c-panel emph p-0'
+
+	const header = document.createElement('div')
+	header.className = 'c-hbox g-2 p-3 border-bottom'
+	const title = document.createElement('h3')
+	title.className = 'm-0'
+	title.id = 'alt-dialog-title'
+	title.textContent = t('Alt text')
+	header.appendChild(title)
+	form.appendChild(header)
+	dialog.setAttribute('aria-labelledby', title.id)
+
+	const content = document.createElement('div')
+	content.className = 'c-vbox g-3 p-3'
+
+	const input = document.createElement('input')
+	input.type = 'text'
+	input.className = 'c-input'
+	input.placeholder = t('Describe the image')
+	input.setAttribute('aria-labelledby', title.id)
+	content.appendChild(input)
+
+	const decoLabel = document.createElement('label')
+	decoLabel.className = 'c-choice'
+	const decoText = document.createElement('span')
+	decoText.className = 'c-choice-text'
+	const decoTextLabel = document.createElement('span')
+	decoTextLabel.className = 'c-choice-label'
+	decoTextLabel.textContent = t('Decorative')
+	decoText.appendChild(decoTextLabel)
+	const deco = document.createElement('input')
+	deco.type = 'checkbox'
+	deco.className = 'c-toggle'
+	deco.addEventListener('change', () => {
+		input.disabled = deco.checked
+	})
+	decoLabel.append(deco, decoText)
+	content.appendChild(decoLabel)
+	form.appendChild(content)
+
+	const footer = document.createElement('div')
+	footer.className = 'c-hbox g-2 p-3 border-top jc-end'
+	const cancelBtn = document.createElement('button')
+	cancelBtn.type = 'button'
+	cancelBtn.className = 'c-button secondary'
+	cancelBtn.textContent = t('Cancel')
+	cancelBtn.addEventListener('click', () => dialog.close())
+	const saveBtn = document.createElement('button')
+	saveBtn.type = 'submit'
+	saveBtn.className = 'c-button primary'
+	saveBtn.textContent = t('Save')
+	footer.append(cancelBtn, saveBtn)
+	form.appendChild(footer)
+	dialog.appendChild(form)
+	document.body.appendChild(dialog)
+
+	let target: HTMLImageElement | null = null
+
+	form.addEventListener('submit', (e) => {
+		e.preventDefault()
+		dialog.close()
+		// The node is gone if a peer deleted or replaced the image meanwhile
+		const blot = target && Quill.find(target)
+		if (!target || !blot || blot instanceof Quill) return
+		const index = editor.getIndex(blot)
+		const value: ClImageValue = {
+			...ClImageBlot.value(target),
+			alt: deco.checked ? '' : input.value.trim(),
+			deco: deco.checked || undefined
+		}
+		editor.updateContents(
+			new Delta()
+				.retain(index)
+				.delete(1)
+				.insert({ 'cl-image': value }, ClImageBlot.formats(target)),
+			'user'
+		)
+	})
+
+	dialog.addEventListener('keydown', (e) => {
+		if (e.key === 'Escape') {
+			// Consumed here, so an embedding host doesn't also leave interact mode
+			e.preventDefault()
+			dialog.close()
+		}
+	})
+	dialog.addEventListener('close', () => {
+		target = null
+	})
+
+	return (img) => {
+		target = img
+		const value = ClImageBlot.value(img)
+		deco.checked = !!value.deco
+		input.value = value.alt ?? ''
+		input.disabled = deco.checked
+		dialog.showModal()
+		input.focus()
+	}
+}
+
 function createDocFontSelect(
 	type: 'heading' | 'body',
 	_getOtherFont: () => string
@@ -316,7 +437,7 @@ function createDocFontSelect(
 	// Default option (inherit)
 	const defaultOpt = document.createElement('option')
 	defaultOpt.value = ''
-	defaultOpt.textContent = type === 'heading' ? 'Default heading font' : 'Default body font'
+	defaultOpt.textContent = type === 'heading' ? t('Default heading font') : t('Default body font')
 	select.appendChild(defaultOpt)
 
 	// Group fonts by category
@@ -325,7 +446,7 @@ function createDocFontSelect(
 		if (fonts.length === 0) continue
 
 		const optgroup = document.createElement('optgroup')
-		optgroup.label = CATEGORY_LABELS[category]
+		optgroup.label = t(CATEGORY_LABELS[category])
 
 		for (const font of fonts) {
 			const option = document.createElement('option')
@@ -417,7 +538,7 @@ function updatePairingBadges(
 
 	const bus = getAppBus()
 	const state = await bus.init('quillo')
-	if (state.language) i18n.changeLanguage(state.language)
+	if (state.language) await i18n.changeLanguage(state.language)
 	// Pick-view (the shell's view picker) is the normal scrolling read-only editor, so it
 	// does not get the reflow-embed layout
 	const pickView = bus.pickView
@@ -485,6 +606,7 @@ function updatePairingBadges(
 		if (docBarEl) {
 			mountDocBar(docBarEl, {
 				awareness: doc.provider.awareness,
+				provider: doc.provider,
 				// Passed unconditionally: `QuilloDocBar` gates them on live
 				// `bus.access`, so a corrective `auth:init.push` that upgrades a
 				// share-link reader to a writer fills the menu in without a reload.
@@ -522,19 +644,6 @@ function updatePairingBadges(
 
 	const ytext = doc.yDoc.getText('doc')
 
-	const iconEl = document.getElementById('ws-bus-status')!
-	doc.provider.on('status', function ({ status }: { status: string }) {
-		console.log('STATUS', status)
-		switch (status) {
-			case 'connected':
-				iconEl.replaceChildren(createElement(Cloud, { class: 'text-success' }))
-				break
-			case 'disconnected':
-				iconEl.replaceChildren(createElement(CloudOff, { class: 'text-error' }))
-				break
-		}
-	})
-
 	// Notify shell when CRDT sync is complete
 	if (doc.provider.synced) {
 		bus.notifyReady('synced')
@@ -549,13 +658,35 @@ function updatePairingBadges(
 	// ============================================
 	// Must populate before Quill transforms the select into its picker UI
 	const toolbarEl = document.getElementById('toolbar')
-	toolbarEl?.querySelector('.ql-image')?.setAttribute('title', t('Insert Image'))
-	toolbarEl?.querySelector('.ql-cl-document')?.setAttribute('title', t('Embed Document'))
+	// index.html keeps English titles and empty picker options. Quill copies an option's text
+	// into its picker item's `data-label` (quill/ui/picker.js), which quillo.css renders, so the
+	// labels must be set before `new Quill`. They are matched by position in index.html.
+	toolbarEl?.querySelectorAll<HTMLElement>('[title]').forEach((el) => {
+		el.title = t(el.title)
+	})
+	const setOptionLabels = (selector: string, labels: string[]) => {
+		toolbarEl?.querySelectorAll(`${selector} option`).forEach((option, i) => {
+			if (labels[i]) option.textContent = labels[i]
+		})
+	}
+	setOptionLabels('.ql-header', [t('Normal'), t('Heading 1'), t('Heading 2'), t('Heading 3')])
+	setOptionLabels('.ql-font', [t('Default font')])
+	setOptionLabels('.ql-size', [
+		t('Default size'),
+		t('9pt (Small)'),
+		t('12pt (Normal)'),
+		t('16pt (Medium)'),
+		t('24pt (Large)'),
+		t('36pt (Heading)'),
+		t('48pt (Title)'),
+		t('72pt (Display)')
+	])
 	const fontSelect = toolbarEl?.querySelector('.ql-font') as HTMLSelectElement | null
 	if (fontSelect) {
 		for (const font of FONTS) {
 			const option = document.createElement('option')
 			option.value = sanitizeFontName(font.family)
+			option.textContent = font.displayName
 			fontSelect.appendChild(option)
 		}
 	}
@@ -572,7 +703,76 @@ function updatePairingBadges(
 			},
 			table: false, // Disable Quill's built-in table module
 			'table-better': {
-				language: 'en_US',
+				// One locale for every language: the English text is the i18n key.
+				language: {
+					name: 'cloudillo',
+					content: {
+						col: t('Column'),
+						insColL: t('Insert column left'),
+						insColR: t('Insert column right'),
+						delCol: t('Delete column'),
+						selCol: t('Select column'),
+						row: t('Row'),
+						headerRow: t('Header row'),
+						insRowAbv: t('Insert row above'),
+						insRowBlw: t('Insert row below'),
+						delRow: t('Delete row'),
+						selRow: t('Select row'),
+						mCells: t('Merge cells'),
+						sCell: t('Split cell'),
+						tblProps: t('Table properties'),
+						cellProps: t('Cell properties'),
+						insParaOTbl: t('Insert paragraph outside the table'),
+						insB4: t('Insert before'),
+						insAft: t('Insert after'),
+						copyTable: t('Copy table'),
+						delTable: t('Delete table'),
+						border: t('Border'),
+						color: t('Color'),
+						width: t('Width'),
+						background: t('Background'),
+						dims: t('Dimensions'),
+						height: t('Height'),
+						padding: t('Padding'),
+						tblCellTxtAlm: t('Table cell text alignment'),
+						alCellTxtL: t('Align cell text to the left'),
+						alCellTxtC: t('Align cell text to the center'),
+						alCellTxtR: t('Align cell text to the right'),
+						jusfCellTxt: t('Justify cell text'),
+						alCellTxtT: t('Align cell text to the top'),
+						alCellTxtM: t('Align cell text to the middle'),
+						alCellTxtB: t('Align cell text to the bottom'),
+						dimsAlm: t('Dimensions and alignment'),
+						alTblL: t('Align table to the left'),
+						tblC: t('Center table'),
+						alTblR: t('Align table to the right'),
+						save: t('Save'),
+						cancel: t('Cancel'),
+						colorMsg: t(
+							'The color is invalid. Try "#FF0000" or "rgb(255,0,0)" or "red".'
+						),
+						dimsMsg: t(
+							'The value is invalid. Try "10px" or "2em" or "2%" or simply "2".'
+						),
+						colorPicker: t('Color picker'),
+						removeColor: t('Remove color'),
+						black: t('Black'),
+						dimGrey: t('Dim grey'),
+						grey: t('Grey'),
+						lightGrey: t('Light grey'),
+						white: t('White'),
+						red: t('Red'),
+						orange: t('Orange'),
+						yellow: t('Yellow'),
+						lightGreen: t('Light green'),
+						green: t('Green'),
+						aquamarine: t('Aquamarine'),
+						turquoise: t('Turquoise'),
+						lightBlue: t('Light blue'),
+						blue: t('Blue'),
+						purple: t('Purple')
+					}
+				},
 				menus: ['column', 'row', 'merge', 'table', 'cell', 'wrap', 'delete'],
 				toolbarTable: true
 			},
@@ -580,9 +780,25 @@ function updatePairingBadges(
 				bindings: QuillTableBetter.keyboardBindings
 			}
 		},
-		placeholder: 'Start collaborating...',
+		placeholder: t('Start collaborating...'),
 		theme: 'snow' // or 'bubble'
 	})
+
+	// Snow's link tooltip draws its labels in CSS; quillo.css reads them from these attributes.
+	const tooltipEl = (editor.theme as unknown as { tooltip?: { root: HTMLElement } }).tooltip?.root
+	if (tooltipEl) {
+		Object.assign(tooltipEl.dataset, {
+			visit: t('Visit URL:'),
+			link: t('Enter link:'),
+			formula: t('Enter formula:'),
+			video: t('Enter video:')
+		})
+		const action = tooltipEl.querySelector<HTMLElement>('a.ql-action')
+		if (action) Object.assign(action.dataset, { edit: t('Edit'), save: t('Save') })
+		tooltipEl
+			.querySelector<HTMLElement>('a.ql-remove')
+			?.setAttribute('data-remove', t('Remove'))
+	}
 
 	// Normalize pasted tables (e.g. from spreadsheets) to the canonical
 	// uniform-column shape so they round-trip correctly through the stored
@@ -812,6 +1028,10 @@ function updatePairingBadges(
 		if (toolbar) toolbar.style.display = 'none'
 	}
 
+	// Alt text: the formatter's AltTextAction (writers only) and every new image insert
+	const openAltDialog = createAltTextDialog(editor)
+	ClImageSpec.onEditAlt = openAltDialog
+
 	// Register image insertion handler
 	interface QuillToolbarModule {
 		addHandler(name: string, handler: () => void): void
@@ -837,6 +1057,16 @@ function updatePairingBadges(
 
 			// Move cursor after the image
 			editor.setSelection(range.index + 1, 0, 'silent')
+
+			// Ask for alt text right away (Cancel keeps `alt: ''`)
+			// The embed sits at `range.index`, or one later when a mid-line insert split the line
+			const img = [range.index, range.index + 1]
+				.map((i) => editor.getLeaf(i)[0]?.domNode)
+				.find(
+					(n): n is HTMLImageElement =>
+						n instanceof HTMLImageElement && n.dataset.fileId === result.fileId
+				)
+			if (img) openAltDialog(img)
 		} catch (error) {
 			console.error('[quillo] Failed to insert image:', error)
 		}
@@ -931,35 +1161,38 @@ function updatePairingBadges(
 	// Handle import data from shell (markdown → quillo conversion via smart upload)
 	bus.onImportData(async (payload) => {
 		if (bus.access !== 'write') {
-			bus.notifyImportComplete(false, 'Read-only document')
+			bus.notifyImportComplete(false, t('Read-only document'))
 			return
 		}
 		if (payload.sourceMimeType === 'text/markdown') {
 			try {
 				const bytes = Uint8Array.from(atob(payload.data), (c) => c.charCodeAt(0))
 				const markdown = new TextDecoder().decode(bytes)
-				importMarkdown(editor, markdown)
+				importMarkdown(editor, markdown, 'api')
 				bus.notifyImportComplete(true)
 			} catch (err) {
 				console.error('[quillo] Markdown import failed:', err)
 				bus.notifyImportComplete(
 					false,
-					err instanceof Error ? err.message : 'Import failed'
+					err instanceof Error ? err.message : t('Import failed')
 				)
 			}
 		} else {
-			bus.notifyImportComplete(false, `Unsupported import type: ${payload.sourceMimeType}`)
+			bus.notifyImportComplete(
+				false,
+				t('Unsupported import type: {{type}}', { type: payload.sourceMimeType })
+			)
 		}
 	})
 
-	// Hidden file input, opened by the DocBar's Import Markdown item
+	// Hidden file input, opened by the DocBar's Insert Markdown file… item
 	const importInput = document.getElementById('import-input') as HTMLInputElement | null
 	importInput?.addEventListener('change', async () => {
 		if (bus.access !== 'write') return
 		const file = importInput.files?.[0]
 		if (!file) return
 		const text = await file.text()
-		importMarkdown(editor, text)
+		importMarkdown(editor, text, 'user')
 		importInput.value = ''
 	})
 

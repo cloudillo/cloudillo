@@ -8,16 +8,54 @@
  * Extends ImageSpec pattern to properly handle click-to-select behavior.
  */
 
+import { getAppBus } from '@cloudillo/core'
 import {
-	type Action,
+	Action,
 	AlignAction,
 	BlotSpec,
 	DeleteAction,
-	ResizeAction
+	ResizeAction,
+	ToolbarButton
 } from '@enzedonline/quill-blot-formatter2'
 import Quill from 'quill'
 
+import i18n from '../i18n.js'
+
+// Only call after `bus.init` has applied the shell's language, like the one in `quillo.ts`
+const t = (key: string): string => i18n.t(key)
+
+// lucide `type` icon, inline (quillo.ts no longer imports lucide)
+const ALT_TEXT_ICON =
+	'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" x2="15" y1="20" y2="20"/><line x1="12" x2="12" y1="4" y2="20"/></svg>'
+
+/** Toolbar button that opens quillo's alt-text dialog for the selected image */
+class AltTextAction extends Action {
+	constructor(formatter: Action['formatter']) {
+		super(formatter)
+		const toolbar = formatter.options.toolbar
+		this.toolbarButtons = [
+			new ToolbarButton('altText', this.onClickHandler, {
+				...toolbar,
+				icons: { ...toolbar.icons, altText: ALT_TEXT_ICON },
+				tooltips: { ...toolbar.tooltips, altText: t('Alt text') }
+			})
+		]
+	}
+
+	onClickHandler = (): void => {
+		const img = this.formatter.currentSpec?.getTargetElement()
+		if (!(img instanceof HTMLImageElement)) return
+		// Hide first: `onHide` persists a pending resize while the node is still in the DOM,
+		// and saving replaces the embed, which would orphan the overlay
+		this.formatter.hide()
+		ClImageSpec.onEditAlt?.(img)
+	}
+}
+
 class ClImageSpec extends BlotSpec {
+	/** Opens the alt-text dialog; set from `quillo.ts` once the editor exists */
+	static onEditAlt?: (img: HTMLImageElement) => void
+
 	private img: HTMLElement | null = null
 
 	init = (): void => {
@@ -49,11 +87,15 @@ class ClImageSpec extends BlotSpec {
 
 	getActions = (): Action[] => {
 		// Return action instances, not classes
-		return [
+		const actions: Action[] = [
 			new AlignAction(this.formatter),
 			new ResizeAction(this.formatter),
 			new DeleteAction(this.formatter)
 		]
+		if (ClImageSpec.onEditAlt && getAppBus().access === 'write') {
+			actions.push(new AltTextAction(this.formatter))
+		}
+		return actions
 	}
 
 	onHide = (): void => {
@@ -77,6 +119,6 @@ class ClImageSpec extends BlotSpec {
 	}
 }
 
-export { ClImageSpec }
+export { AltTextAction, ClImageSpec }
 
 // vim: ts=4

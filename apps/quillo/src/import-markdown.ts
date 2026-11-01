@@ -7,7 +7,15 @@ import Delta from 'quill-delta'
 
 marked.use({ async: false })
 
-export function importMarkdown(quill: Quill, markdown: string): void {
+/**
+ * Converts Markdown to Quill content. With source `'api'` (shell import into a
+ * fresh document) it replaces the whole document and leaves no undo step. With
+ * `'user'` it inserts at the last cursor position (the saved range, since the
+ * file dialog took focus), deleting nothing, as its own undo step (history is
+ * `userOnly`, and it is bracketed by cutoffs so it merges with neither the
+ * typing before nor after), and puts the caret after the inserted content.
+ */
+export function importMarkdown(quill: Quill, markdown: string, source: 'user' | 'api'): void {
 	const html = marked.parse(markdown) as string
 	const delta = quill.clipboard.convert({ html })
 	// Trim the trailing newline that clipboard.convert always appends,
@@ -20,10 +28,18 @@ export function importMarkdown(quill: Quill, markdown: string): void {
 			if (last.insert === '') ops.pop()
 		}
 	}
-	// setContents drops table cell content, so use delete + updateContents instead
+	const insert = new Delta(ops)
+	// setContents drops table cell content, so use updateContents instead
 	// (updateContents is the same path that insertTable uses)
-	const length = quill.getLength()
-	quill.updateContents(new Delta().delete(length - 1).concat(new Delta(ops)), 'api')
+	if (source === 'api') {
+		quill.updateContents(new Delta().delete(quill.getLength() - 1).concat(insert), 'api')
+		return
+	}
+	const index = Math.min(quill.selection.savedRange.index, quill.getLength() - 1)
+	quill.history.cutoff()
+	quill.updateContents(new Delta().retain(index).concat(insert), source)
+	quill.history.cutoff()
+	quill.setSelection(index + insert.length(), 'silent')
 }
 
 // vim: ts=4

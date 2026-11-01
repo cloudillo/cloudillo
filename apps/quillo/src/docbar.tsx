@@ -29,6 +29,7 @@ import { IcCopyLink, IcDownload, IcImport, IcSettings } from '@cloudillo/react/i
 import * as React from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import type { Awareness } from 'y-protocols/awareness'
+import type { WebsocketProvider } from 'y-websocket'
 
 export interface DocBarActions {
 	/** Open the Markdown file picker. Absent for a read-only viewer. */
@@ -45,6 +46,8 @@ export interface DocBarActions {
 
 export interface MountDocBarOptions {
 	awareness?: Awareness | null
+	/** The CRDT provider: the bar shows its connection state (offline, reconnecting, synced). */
+	provider?: WebsocketProvider | null
 	/**
 	 * Everything the menu can offer. Whether any of it is SHOWN is decided here,
 	 * from live bus state — pass them unconditionally.
@@ -52,7 +55,7 @@ export interface MountDocBarOptions {
 	actions?: DocBarActions
 }
 
-function QuilloDocBar({ awareness, actions }: MountDocBarOptions) {
+function QuilloDocBar({ awareness, provider, actions }: MountDocBarOptions) {
 	const { t } = useLibTranslation()
 	// Not a mount-time snapshot: on a share-link mount the shell sends a
 	// corrective `auth:init.push` once auth resolves, which can turn a reader
@@ -77,7 +80,7 @@ function QuilloDocBar({ awareness, actions }: MountDocBarOptions) {
 	const getSectionLink = actions?.getSectionLink
 	const exports = [
 		{ label: t('Export as HTML'), onClick: actions?.onExportHtml },
-		{ label: t('Export as PDF'), onClick: actions?.onExportPdf },
+		{ label: t('Print / Save as PDF…'), onClick: actions?.onExportPdf },
 		{ label: t('Export as DOCX'), onClick: actions?.onExportDocx }
 	].filter((e) => e.onClick)
 	function copySectionLink() {
@@ -88,7 +91,7 @@ function QuilloDocBar({ awareness, actions }: MountDocBarOptions) {
 
 	return (
 		<React.Fragment>
-			<AppDocBar awareness={awareness}>
+			<AppDocBar awareness={awareness} provider={provider}>
 				{(hasActions || getSectionLink || exports.length > 0) && (
 					<DocBarMenu>
 						{getSectionLink && (
@@ -122,7 +125,7 @@ function QuilloDocBar({ awareness, actions }: MountDocBarOptions) {
 						{hasActions && actions?.onImportMarkdown && (
 							<MenuItem
 								icon={<IcImport />}
-								label={t('Import Markdown')}
+								label={t('Insert Markdown file…')}
 								onClick={actions.onImportMarkdown}
 							/>
 						)}

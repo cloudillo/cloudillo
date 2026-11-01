@@ -7,7 +7,8 @@
  * Stores fileId instead of URL, compatible with quill-blot-formatter2 for
  * resize/align/float/margin editing.
  *
- * Delta format: { insert: { 'cl-image': { fileId, alt?, width? } } }
+ * Delta format: { insert: { 'cl-image': { fileId, alt?, deco?, width? } } }
+ * `deco` marks a decorative image: rendered with `alt=""` plus `data-deco`.
  */
 
 import { getFileUrl } from '@cloudillo/core'
@@ -25,6 +26,7 @@ const BlockEmbed = Quill.import('blots/block/embed') as unknown as QuillBlockEmb
 export interface ClImageValue {
 	fileId: string
 	alt?: string
+	deco?: boolean
 	width?: string
 }
 
@@ -41,7 +43,8 @@ class ClImageBlot extends BlockEmbed {
 		// biome-ignore lint/complexity/noThisInStatic: Parchment requires polymorphic `this` to read subclass tagName
 		const node = super.create() as HTMLImageElement
 		node.setAttribute('data-file-id', value.fileId)
-		node.setAttribute('alt', value.alt || '')
+		node.setAttribute('alt', value.deco ? '' : value.alt || '')
+		if (value.deco) node.setAttribute('data-deco', '')
 
 		// No owner tag — or a fileId `getFileUrl` refuses — means no src, and the
 		// `.ql-cl-image:not([src])` placeholder in `quillo.css` shows instead: a
@@ -73,6 +76,7 @@ class ClImageBlot extends BlockEmbed {
 		return {
 			fileId: node.getAttribute('data-file-id') || '',
 			alt: node.getAttribute('alt') || undefined,
+			deco: node.hasAttribute('data-deco') || undefined,
 			width: node.getAttribute('data-width') || undefined
 		}
 	}

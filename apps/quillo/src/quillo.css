@@ -297,6 +297,36 @@ body.quillo-embed {
 	color: var(--col-primary, #0589f3);
 }
 
+/* Snow tooltip labels, translated: quillo.ts sets these data-* attributes after `new Quill`.
+   `.ql-container` outranks quill.snow.css, which is bundled after this file. */
+.ql-container.ql-snow .ql-tooltip::before {
+	content: attr(data-visit);
+}
+
+.ql-container.ql-snow .ql-tooltip[data-mode='link']::before {
+	content: attr(data-link);
+}
+
+.ql-container.ql-snow .ql-tooltip[data-mode='formula']::before {
+	content: attr(data-formula);
+}
+
+.ql-container.ql-snow .ql-tooltip[data-mode='video']::before {
+	content: attr(data-video);
+}
+
+.ql-container.ql-snow .ql-tooltip a.ql-action::after {
+	content: attr(data-edit);
+}
+
+.ql-container.ql-snow .ql-tooltip.ql-editing a.ql-action::after {
+	content: attr(data-save);
+}
+
+.ql-container.ql-snow .ql-tooltip a.ql-remove::before {
+	content: attr(data-remove);
+}
+
 /* Indent styles */
 .ql-editor .ql-indent-1 {
 	padding-left: 2rem;
@@ -629,22 +659,22 @@ body.quillo-embed {
 /* Header dropdown labels for Quill snow theme */
 .c-panel.ql-toolbar.ql-snow .ql-header .ql-picker-label::before,
 .c-panel.ql-toolbar.ql-snow .ql-header .ql-picker-item::before {
-	content: 'Normal';
+	content: attr(data-label);
 }
 
 .c-panel.ql-toolbar.ql-snow .ql-header .ql-picker-label[data-value='1']::before,
 .c-panel.ql-toolbar.ql-snow .ql-header .ql-picker-item[data-value='1']::before {
-	content: 'Heading 1';
+	content: attr(data-label);
 }
 
 .c-panel.ql-toolbar.ql-snow .ql-header .ql-picker-label[data-value='2']::before,
 .c-panel.ql-toolbar.ql-snow .ql-header .ql-picker-item[data-value='2']::before {
-	content: 'Heading 2';
+	content: attr(data-label);
 }
 
 .c-panel.ql-toolbar.ql-snow .ql-header .ql-picker-label[data-value='3']::before,
 .c-panel.ql-toolbar.ql-snow .ql-header .ql-picker-item[data-value='3']::before {
-	content: 'Heading 3';
+	content: attr(data-label);
 }
 
 /* ============================================
@@ -808,7 +838,7 @@ body.quillo-embed {
 /* Font picker - show "Default font" when empty */
 .c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-label::before,
 .c-panel.ql-toolbar.ql-snow .ql-font .ql-picker-item::before {
-	content: 'Default font';
+	content: attr(data-label);
 }
 
 /* Each font option shows its name in that font */
@@ -930,56 +960,58 @@ body.quillo-embed {
 /* Size picker - default label */
 .c-panel.ql-toolbar.ql-snow .ql-size .ql-picker-label::before,
 .c-panel.ql-toolbar.ql-snow .ql-size .ql-picker-item::before {
-	content: 'Default size';
+	content: attr(data-label);
 }
 
-/* Size options - dropdown shows hint, toolbar shows just pt */
+/* Size options - dropdown shows the translated hint (`data-label`, set by quillo.ts), toolbar
+   shows just pt. `.ql-picker` on the label rules outranks snow's `[data-label]` rule, which the
+   label also matches once an item is selected. */
 .c-panel.ql-toolbar.ql-snow .ql-size .ql-picker-item[data-value='9pt']::before {
-	content: '9pt (Small)';
+	content: attr(data-label);
 }
-.c-panel.ql-toolbar.ql-snow .ql-size .ql-picker-label[data-value='9pt']::before {
+.c-panel.ql-toolbar.ql-snow .ql-size.ql-picker .ql-picker-label[data-value='9pt']::before {
 	content: '9pt';
 }
 
 .c-panel.ql-toolbar.ql-snow .ql-size .ql-picker-item[data-value='12pt']::before {
-	content: '12pt (Normal)';
+	content: attr(data-label);
 }
-.c-panel.ql-toolbar.ql-snow .ql-size .ql-picker-label[data-value='12pt']::before {
+.c-panel.ql-toolbar.ql-snow .ql-size.ql-picker .ql-picker-label[data-value='12pt']::before {
 	content: '12pt';
 }
 
 .c-panel.ql-toolbar.ql-snow .ql-size .ql-picker-item[data-value='16pt']::before {
-	content: '16pt (Medium)';
+	content: attr(data-label);
 }
-.c-panel.ql-toolbar.ql-snow .ql-size .ql-picker-label[data-value='16pt']::before {
+.c-panel.ql-toolbar.ql-snow .ql-size.ql-picker .ql-picker-label[data-value='16pt']::before {
 	content: '16pt';
 }
 
 .c-panel.ql-toolbar.ql-snow .ql-size .ql-picker-item[data-value='24pt']::before {
-	content: '24pt (Large)';
+	content: attr(data-label);
 }
-.c-panel.ql-toolbar.ql-snow .ql-size .ql-picker-label[data-value='24pt']::before {
+.c-panel.ql-toolbar.ql-snow .ql-size.ql-picker .ql-picker-label[data-value='24pt']::before {
 	content: '24pt';
 }
 
 .c-panel.ql-toolbar.ql-snow .ql-size .ql-picker-item[data-value='36pt']::before {
-	content: '36pt (Heading)';
+	content: attr(data-label);
 }
-.c-panel.ql-toolbar.ql-snow .ql-size .ql-picker-label[data-value='36pt']::before {
+.c-panel.ql-toolbar.ql-snow .ql-size.ql-picker .ql-picker-label[data-value='36pt']::before {
 	content: '36pt';
 }
 
 .c-panel.ql-toolbar.ql-snow .ql-size .ql-picker-item[data-value='48pt']::before {
-	content: '48pt (Title)';
+	content: attr(data-label);
 }
-.c-panel.ql-toolbar.ql-snow .ql-size .ql-picker-label[data-value='48pt']::before {
+.c-panel.ql-toolbar.ql-snow .ql-size.ql-picker .ql-picker-label[data-value='48pt']::before {
 	content: '48pt';
 }
 
 .c-panel.ql-toolbar.ql-snow .ql-size .ql-picker-item[data-value='72pt']::before {
-	content: '72pt (Display)';
+	content: attr(data-label);
 }
-.c-panel.ql-toolbar.ql-snow .ql-size .ql-picker-label[data-value='72pt']::before {
+.c-panel.ql-toolbar.ql-snow .ql-size.ql-picker .ql-picker-label[data-value='72pt']::before {
 	content: '72pt';
 }
 
@@ -1146,10 +1178,15 @@ body.quillo-embed {
 	#docbar,
 	#toolbar,
 	.ql-toolbar,
-	#ws-bus-status,
 	#popper-container,
-	.ql-cursors {
+	.ql-cursors,
+	.ql-table-menu,
+	.blot-formatter__overlay {
 		display: none !important;
+	}
+
+	@page {
+		margin: 2cm;
 	}
 
 	body {

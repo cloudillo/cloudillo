@@ -6,7 +6,7 @@
 	"type": "module",
 	"main": "src/index.js",
 	"scripts": {
-		"l-scan": "i18next-scanner --config src/i18n/scanner.config.cjs",
+		"l-scan": "i18next-scanner --config ../../scripts/i18n-scanner.base.cjs",
 		"ts": "tsgo --noEmit",
 		"ts-test": "tsgo --noEmit -p tsconfig.test.json",
 		"ts-watch": "tsgo --noEmit --watch",
@@ -36,6 +36,7 @@
 		"i18next-scanner": "^4.6.0",
 		"i18next-scanner-typescript": "^1.2.1",
 		"jest": "^30.5.2",
+		"jest-environment-jsdom": "^30.5.2",
 		"lucide": "^1.64.0",
 		"quill": "^2.0.3",
 		"quill-cursors": "^6.0.0",

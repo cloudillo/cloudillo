@@ -6,7 +6,8 @@
  *
  * Main entry point for the Smart Ink feature.
  * Analyzes freehand strokes and optionally converts them to shapes.
- * Shape detection is always attempted - confidence thresholds decide.
+ * Shape detection is attempted unless the user switched "Smart shapes" off
+ * (`detectShapes: false`) - confidence thresholds decide.
  */
 
 import { type BezierFitResult, fitBezierPath } from '../utils/bezier-fitting.js'
@@ -131,9 +132,13 @@ export interface SmartInkResult {
  * 3. Default: smoothed freehand
  *
  * @param timedPoints - Points with timestamps from drawing
+ * @param options.detectShapes - false keeps every stroke freehand (default true)
  * @returns Processing result with type, points, and metadata
  */
-export function processSmartInk(timedPoints: TimedPoint[]): SmartInkResult {
+export function processSmartInk(
+	timedPoints: TimedPoint[],
+	{ detectShapes = true }: { detectShapes?: boolean } = {}
+): SmartInkResult {
 	// Convert to simple points
 	const originalPoints: Point[] = timedPoints.map((p) => [p.x, p.y])
 
@@ -161,6 +166,7 @@ export function processSmartInk(timedPoints: TimedPoint[]): SmartInkResult {
 		bezierResult,
 		snapped: false
 	}
+	if (!detectShapes) return result
 
 	// Check if path is closed for closed-shape detection
 	const isClosed = isClosedPath(originalPoints, 25)

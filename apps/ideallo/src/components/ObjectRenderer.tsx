@@ -9,8 +9,10 @@
 import type { CaretPoint } from '@cloudillo/canvas-text'
 import { type EmbedViewReportPayload, getAppBus } from '@cloudillo/core'
 import { SvgViewEmbed } from '@cloudillo/react'
+import type { TFunction } from 'i18next'
 import type Quill from 'quill'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 
 import type {
 	DocumentObject,
@@ -293,6 +295,29 @@ function documentActions(object: DocumentObject, props: RenderProps) {
 	}
 }
 
+/** Screen-reader name of an object: its type, plus its name or text if it has one */
+export function objectLabel(
+	t: TFunction,
+	doc: YIdealloDocument | undefined,
+	object: IdealloObject
+): string {
+	const types: Record<IdealloObject['type'], string> = {
+		freehand: t('Drawing'),
+		rect: t('Rectangle'),
+		ellipse: t('Ellipse'),
+		connector: t('Connector'),
+		text: t('Text'),
+		polygon: t('Polygon'),
+		sticky: t('Sticky note'),
+		image: t('Image'),
+		document: t('Embedded document'),
+		frame: t('Frame')
+	}
+	const name = 'name' in object ? object.name : undefined
+	const text = (name || (doc && getObjectYText(doc, object.id)?.toString()) || '').trim()
+	return text ? `${types[object.type]}, ${text.slice(0, 120)}` : types[object.type]
+}
+
 export function ObjectRenderer({
 	object,
 	doc,
@@ -319,6 +344,7 @@ export function ObjectRenderer({
 	onDocumentUseView,
 	onDocumentEditable
 }: ObjectRendererProps) {
+	const { t } = useTranslation()
 	const content = renderObject(object, {
 		doc,
 		ownerTag,
@@ -342,6 +368,7 @@ export function ObjectRenderer({
 		onDocumentEditable
 	})
 	if (!content) return null
+	const label = objectLabel(t, doc, object)
 
 	// Build class name with optional highlight/hover
 	// Images handle hover effects internally to avoid flickering issues with the loading placeholder
@@ -368,6 +395,8 @@ export function ObjectRenderer({
 			<g
 				transform={`rotate(${object.rotation} ${cx} ${cy})`}
 				className={className}
+				role="img"
+				aria-label={label}
 				onDoubleClick={handleDoubleClick}
 			>
 				{content}
@@ -378,7 +407,7 @@ export function ObjectRenderer({
 	// Always wrap in group to maintain consistent DOM structure
 	// (conditional wrapping causes re-mounts which flicker images)
 	return (
-		<g className={className} onDoubleClick={handleDoubleClick}>
+		<g className={className} role="img" aria-label={label} onDoubleClick={handleDoubleClick}>
 			{content}
 		</g>
 	)

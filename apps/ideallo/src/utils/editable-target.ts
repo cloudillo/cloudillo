@@ -8,6 +8,8 @@
  * mounting the whole editor.
  */
 
+import { isEditableTarget as isEditableTargetIn } from '@cloudillo/canvas-tools'
+
 /**
  * Matched with `closest()` against the keydown TARGET, so a plain '.c-action-sheet' is right here:
  * a target inside a sheet is inside it whether or not the sheet is mid-animation.
@@ -33,18 +35,8 @@ export const POPOVER_PRESENCE_SELECTOR =
  * every keystroke inside a sticky. This is the TARGET-based tier and it blocks EVERY shortcut: a
  * keystroke aimed at a text field must never also be a command.
  */
-export function isEditableTarget(target: EventTarget | null): boolean {
-	const el = target as HTMLElement | null
-	if (!el || typeof el.closest !== 'function') return false
-	if (el.isContentEditable) return true
-	const tag = el.tagName
-	if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true
-	return Boolean(
-		el.closest(
-			`[data-rich-text-editor], dialog[open], [role="dialog"], ${POPOVER_TARGET_SELECTOR}`
-		)
-	)
-}
+export const isEditableTarget = (target: EventTarget | null) =>
+	isEditableTargetIn(target, POPOVER_TARGET_SELECTOR)
 
 /**
  * Whether a popover is open anywhere, regardless of where focus sits.

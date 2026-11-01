@@ -48,6 +48,8 @@ function baseProps(): ToolbarProps {
 		canRedo: false,
 		hasSelection: false,
 		toolLocked: false,
+		smartInk: true,
+		onSmartInkChange: () => {},
 		onToolChange: () => {},
 		onToolLockChange: () => {},
 		onUndo: () => {},

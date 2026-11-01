@@ -58,6 +58,8 @@ export interface UseDrawingHandlerOptions {
 		strokeWidth: number
 	}
 	enabled?: boolean
+	/** Smart Ink shape detection ("Smart shapes" toggle); false keeps strokes freehand */
+	smartInk?: boolean
 	onObjectCreated?: (id: ObjectId, snapped: boolean) => void
 	onMorphAnimationUpdate?: (states: Map<string, MorphAnimationState>) => void
 }
@@ -69,6 +71,7 @@ export function useDrawingHandler(options: UseDrawingHandlerOptions) {
 		awareness,
 		currentStyle,
 		enabled = true,
+		smartInk = true,
 		onObjectCreated,
 		onMorphAnimationUpdate
 	} = options
@@ -159,7 +162,7 @@ export function useDrawingHandler(options: UseDrawingHandlerOptions) {
 		}
 
 		// Process with Smart Ink
-		const result = processSmartInk(stroke.timedPoints)
+		const result = processSmartInk(stroke.timedPoints, { detectShapes: smartInk })
 
 		// Helper function to commit the result to CRDT
 		const commitResult = (smartInkResult: SmartInkResult) => {
@@ -388,7 +391,7 @@ export function useDrawingHandler(options: UseDrawingHandlerOptions) {
 			// No animation needed for freehand, commit immediately
 			commitResult(result)
 		}
-	}, [enabled, drawingState, yDoc, doc, clearDrawingState, onObjectCreated])
+	}, [enabled, smartInk, drawingState, yDoc, doc, clearDrawingState, onObjectCreated])
 
 	// Client-side undo (for strokes only)
 	const undoStroke = React.useCallback(() => {
@@ -406,8 +409,9 @@ export function useDrawingHandler(options: UseDrawingHandlerOptions) {
 	const redoStroke = React.useCallback(() => {
 		const stroke = drawingState.popFromRedoStack()
 		if (stroke) {
-			// Re-process with Smart Ink to recreate the same result
-			const result = processSmartInk(stroke.timedPoints)
+			// Recognition is deterministic on the same points: detecting only when the original
+			// snapped recreates that result, whatever the Smart Ink toggle says now
+			const result = processSmartInk(stroke.timedPoints, { detectShapes: stroke.snapped })
 			let objectId: ObjectId
 
 			const baseStyle = {
@@ -547,10 +551,7 @@ export function useDrawingHandler(options: UseDrawingHandlerOptions) {
 				}
 			}
 
-			drawingState.pushToUndoStack({
-				...stroke,
-				objectId
-			})
+			drawingState.pushToUndoStack({ ...stroke, objectId }, { keepRedo: true })
 		}
 	}, [drawingState, yDoc, doc])
 

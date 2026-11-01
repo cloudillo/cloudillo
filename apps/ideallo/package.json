@@ -14,7 +14,8 @@
 		"test": "NODE_OPTIONS=\"--experimental-vm-modules\" jest",
 		"test:watch": "NODE_OPTIONS=\"--experimental-vm-modules\" jest --watch",
 		"test:coverage": "NODE_OPTIONS=\"--experimental-vm-modules\" jest --coverage",
-		"clean": "rimraf .cache dist/assets-*"
+		"clean": "rimraf .cache dist/assets-*",
+		"l-scan": "i18next-scanner --config ../../scripts/i18n-scanner.base.cjs"
 	},
 	"author": "Cloudillo <info@cloudillo.org>",
 	"license": "MPL-2.0",
@@ -36,6 +37,8 @@
 		"cross-env": "^10.1.0",
 		"esbuild": "^0.28.2",
 		"i18next": "^26.5.11",
+		"i18next-scanner": "^4.6.0",
+		"i18next-scanner-typescript": "^1.2.1",
 		"jest": "^30.5.2",
 		"jest-environment-jsdom": "^30.5.2",
 		"jotai": "^3.0.1",

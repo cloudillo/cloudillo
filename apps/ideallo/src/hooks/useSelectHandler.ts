@@ -14,13 +14,14 @@ import {
 	type StackableObject
 } from '@cloudillo/canvas-tools'
 import * as React from 'react'
+import { boundsFromPoints, getObjectsIntersectingRect } from 'react-svg-canvas'
 import type { Awareness } from 'y-protocols/awareness'
 import type * as Y from 'yjs'
 
 import type { IdealloObject, ObjectId, StoredObject, YIdealloDocument } from '../crdt/index.js'
 import { getAllObjects, getAllResolvedObjects, getObject, translateObject } from '../crdt/index.js'
 import { DRAG_THRESHOLD_PX, takePending } from '../tools/lifecycle.js'
-import { getObjectBounds } from '../utils/bounds.js'
+import { getObjectBounds, getRotatedObjectBounds } from '../utils/bounds.js'
 import type { Point } from '../utils/geometry.js'
 import { hitTestObject } from '../utils/hit-testing.js'
 import { useLatestRef } from './useLatestRef.js'
@@ -34,6 +35,8 @@ export interface UseSelectHandlerOptions {
 	selectedIds: Set<ObjectId>
 	selectObject: (id: ObjectId, addToSelection?: boolean) => void
 	clearSelection: () => void
+	/** Marquee result. Optional for standalone callers, whose marquee then selects nothing. */
+	selectObjects?: (ids: ObjectId[], addToSelection?: boolean) => void
 	enabled: boolean
 	/** Pass objects state to trigger stacked-highlight recomputation on changes */
 	objects?: Record<string, StoredObject> | null
@@ -53,6 +56,13 @@ export interface DragOffset {
 	dx: number
 	dy: number
 	objectIds: Set<ObjectId>
+}
+
+/** Rubber band in canvas coordinates; Shift (`additive`) adds to the selection instead of replacing it */
+export interface Marquee {
+	start: Point
+	current: Point
+	additive: boolean
 }
 
 interface DragState {
@@ -114,6 +124,7 @@ export function useSelectHandler(options: UseSelectHandlerOptions) {
 		selectedIds,
 		selectObject,
 		clearSelection,
+		selectObjects,
 		enabled,
 		objects,
 		getResolvedObjects,
@@ -130,6 +141,9 @@ export function useSelectHandler(options: UseSelectHandlerOptions) {
 	const [hoveredId, setHoveredId] = React.useState<ObjectId | null>(null)
 	const [stackedHighlightIds, setStackedHighlightIds] = React.useState<Set<ObjectId>>(new Set())
 	const dragStateRef = React.useRef<DragState | null>(null)
+	// Only set once the press has travelled past DRAG_THRESHOLD_PX; the ref also holds the armed one
+	const [marquee, setMarquee] = React.useState<Marquee | null>(null)
+	const marqueeRef = React.useRef<(Marquee & { active: boolean }) | null>(null)
 
 	// Every pointer move reaches this handler twice, once through Canvas' tool move and once
 	// through app.tsx's cursor broadcast. Written eagerly rather than through useLatestRef: the
@@ -141,6 +155,14 @@ export function useSelectHandler(options: UseSelectHandlerOptions) {
 	React.useEffect(() => {
 		dragStateRef.current = dragState
 	}, [dragState])
+
+	// A band armed in select mode must not survive a tool switch: pointer-up bails on !enabled
+	// before clearing it, so it would otherwise commit on the next move back in select mode
+	React.useEffect(() => {
+		if (enabled) return
+		marqueeRef.current = null
+		setMarquee(null)
+	}, [enabled])
 
 	// Compute drag offset for rendering
 	const dragOffset = React.useMemo<DragOffset | null>(() => {
@@ -204,7 +226,13 @@ export function useSelectHandler(options: UseSelectHandlerOptions) {
 	)
 
 	const handlePointerDown = React.useCallback(
-		(x: number, y: number, shiftKey: boolean = false, altKey: boolean = false) => {
+		(
+			x: number,
+			y: number,
+			shiftKey: boolean = false,
+			altKey: boolean = false,
+			pointerType?: string
+		): undefined | false => {
 			if (!enabled) return
 
 			const point: Point = [x, y]
@@ -218,8 +246,8 @@ export function useSelectHandler(options: UseSelectHandlerOptions) {
 				 * A locked object is SELECTABLE but not movable.
 				 *
 				 * Selectable, because unlocking is a property-bar button and ideallo has no
-				 * context menu and no marquee select: a locked object that could not be picked up
-				 * again would be locked forever. Not movable, because that is what the lock means
+				 * context menu: a locked object that could not be picked up again would be locked
+				 * forever (the marquee picks locked objects up too). Not movable, because that is what the lock means
 				 * - Canvas withholds the resize, rotate and pivot handles for the same reason,
 				 * and the eraser already skips it.
 				 */
@@ -273,9 +301,20 @@ export function useSelectHandler(options: UseSelectHandlerOptions) {
 					objectIds: dragIds,
 					originalObjects
 				})
-			} else {
-				// Click on empty space - clear selection
+			} else if (pointerType === 'touch') {
+				// One finger on empty canvas pans: decline, and SvgCanvas starts a pan instead
 				clearSelection()
+				return false
+			} else {
+				// Empty space arms a marquee. Shift keeps the selection; a click that never
+				// travels is just the clear below.
+				if (!shiftKey) clearSelection()
+				marqueeRef.current = {
+					start: point,
+					current: point,
+					additive: shiftKey,
+					active: false
+				}
 			}
 		},
 		[enabled, doc, resolveAll, selectedIds, selectObject, clearSelection]
@@ -284,6 +323,18 @@ export function useSelectHandler(options: UseSelectHandlerOptions) {
 	const handlePointerMove = React.useCallback(
 		(x: number, y: number) => {
 			if (!enabled) return
+
+			const band = marqueeRef.current
+			if (band) {
+				// Same screen-px slop as a drag; a duplicate delivery of the same point is a no-op
+				const travel = Math.hypot(x - band.start[0], y - band.start[1]) * scaleRef.current
+				if (!band.active && travel <= DRAG_THRESHOLD_PX) return
+				if (band.active && band.current[0] === x && band.current[1] === y) return
+				const next = { ...band, current: [x, y] as Point, active: true }
+				marqueeRef.current = next
+				setMarquee({ start: next.start, current: next.current, additive: next.additive })
+				return
+			}
 
 			// If dragging, handle drag movement
 			if (dragStateRef.current) {
@@ -337,6 +388,27 @@ export function useSelectHandler(options: UseSelectHandlerOptions) {
 
 		lastMovePointRef.current = null
 
+		const band = marqueeRef.current
+		if (band) {
+			marqueeRef.current = null
+			setMarquee(null)
+			if (!band.active) return
+			const rect = boundsFromPoints(
+				{ x: band.start[0], y: band.start[1] },
+				{ x: band.current[0], y: band.current[1] }
+			)
+			// Drawn (rotated) bounds; locked objects included, as a click selects them too
+			const hits = getObjectsIntersectingRect(
+				resolveAll().map((obj) => ({ id: obj.id, bounds: getRotatedObjectBounds(obj) })),
+				rect
+			)
+			selectObjects?.(
+				hits.map((hit) => hit.id),
+				band.additive
+			)
+			return
+		}
+
 		// Consumed, not just read: the effect that mirrors dragState into this ref does not run
 		// until the next render, so a second release in the same frame would find the same drag
 		// still pending and apply its delta twice - the object ends up jumping twice as far as it
@@ -363,7 +435,7 @@ export function useSelectHandler(options: UseSelectHandlerOptions) {
 		// Clear drag state and awareness
 		setDragState(null)
 		broadcastEditing(null, null)
-	}, [enabled, yDoc, doc, broadcastEditing])
+	}, [enabled, yDoc, doc, broadcastEditing, resolveAll, selectObjects])
 
 	// Clear hover on pointer leave
 	const handlePointerLeave = React.useCallback(() => {
@@ -387,6 +459,7 @@ export function useSelectHandler(options: UseSelectHandlerOptions) {
 			isDragging: dragOffset !== null,
 			isPressed,
 			dragOffset,
+			marquee,
 			hoveredId,
 			stackedHighlightIds,
 			handlePointerDown,
@@ -397,6 +470,7 @@ export function useSelectHandler(options: UseSelectHandlerOptions) {
 		[
 			dragOffset,
 			isPressed,
+			marquee,
 			hoveredId,
 			stackedHighlightIds,
 			handlePointerDown,

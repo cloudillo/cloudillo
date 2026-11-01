@@ -22,11 +22,13 @@ import {
 	IcDuplicate,
 	IcLocked,
 	IcUnlocked,
+	N_,
 	NativeSelect,
 	NumberInput,
 	useEscapeKey
 } from '@cloudillo/react'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { arrowheadGeometry } from '../connectors/index.js'
 import type { ArrowheadType, ArrowStyle, TextAlign, VerticalAlign } from '../crdt/index.js'
@@ -38,28 +40,28 @@ import { ColorPalette } from './ColorPalette.js'
 
 /** Arrowhead shapes offered in the picker, in the order they appear */
 const ARROWHEAD_CHOICES: { type: ArrowheadType; label: string }[] = [
-	{ type: 'none', label: 'None' },
-	{ type: 'arrow', label: 'Arrow' },
-	{ type: 'triangle', label: 'Triangle' },
-	{ type: 'circle', label: 'Circle' },
-	{ type: 'diamond', label: 'Diamond' },
-	{ type: 'bar', label: 'Bar' }
+	{ type: 'none', label: N_('None') },
+	{ type: 'arrow', label: N_('Arrow') },
+	{ type: 'triangle', label: N_('Triangle') },
+	{ type: 'circle', label: N_('Circle') },
+	{ type: 'diamond', label: N_('Diamond') },
+	{ type: 'bar', label: N_('Bar') }
 ]
 
 /** Shapes whose head can be hollow. The open V has no interior to fill. */
 const FILLABLE: ArrowheadType[] = ['triangle', 'circle', 'diamond']
 
 export const TEXT_ALIGN_CHOICES: { value: TextAlign; title: string; Icon: typeof IcAlignLeft }[] = [
-	{ value: 'left', title: 'Align left', Icon: IcAlignLeft },
-	{ value: 'center', title: 'Align centre', Icon: IcAlignCenter },
-	{ value: 'right', title: 'Align right', Icon: IcAlignRight },
-	{ value: 'justify', title: 'Justify', Icon: IcAlignJustify }
+	{ value: 'left', title: N_('Align left'), Icon: IcAlignLeft },
+	{ value: 'center', title: N_('Align centre'), Icon: IcAlignCenter },
+	{ value: 'right', title: N_('Align right'), Icon: IcAlignRight },
+	{ value: 'justify', title: N_('Justify'), Icon: IcAlignJustify }
 ]
 
 const VERTICAL_ALIGN_CHOICES: { value: VerticalAlign; title: string; Icon: typeof IcAlignTop }[] = [
-	{ value: 'top', title: 'Align top', Icon: IcAlignTop },
-	{ value: 'middle', title: 'Align middle', Icon: IcAlignMiddle },
-	{ value: 'bottom', title: 'Align bottom', Icon: IcAlignBottom }
+	{ value: 'top', title: N_('Align top'), Icon: IcAlignTop },
+	{ value: 'middle', title: N_('Align middle'), Icon: IcAlignMiddle },
+	{ value: 'bottom', title: N_('Align bottom'), Icon: IcAlignBottom }
 ]
 
 /**
@@ -184,9 +186,10 @@ export function BarPopover({
 
 /** One labelled line inside a popover: the label the bar no longer shows, plus its control */
 function PopoverRow({ label, children }: { label: string; children: React.ReactNode }) {
+	const { t } = useTranslation()
 	return (
 		<div className="ideallo-popover-row">
-			<span className="ideallo-property-label">{label}</span>
+			<span className="ideallo-property-label">{t(label)}</span>
 			{children}
 		</div>
 	)
@@ -197,8 +200,9 @@ function PopoverRow({ label, children }: { label: string; children: React.ReactN
  * swatch IS the line it sets, so the row reads as a ramp instead of asking for a pixel count.
  */
 function StrokeWidthPicker({ value, onChange }: { value: number; onChange: (w: number) => void }) {
+	const { t } = useTranslation()
 	return (
-		<PopoverRow label="Width">
+		<PopoverRow label={N_('Width')}>
 			{STROKE_WIDTHS.map((w) => (
 				<button
 					key={w}
@@ -206,7 +210,7 @@ function StrokeWidthPicker({ value, onChange }: { value: number; onChange: (w: n
 					className={`ideallo-width-swatch${value === w ? ' selected' : ''}`}
 					onClick={() => onChange(w)}
 					title={`${w}px`}
-					aria-label={`Width ${w}px`}
+					aria-label={t('Width {{size}}px', { size: w })}
 					aria-pressed={value === w}
 				>
 					<span style={{ height: w }} />
@@ -243,8 +247,9 @@ export function CornerRadiusPicker({
 	value: number
 	onChange: (r: number) => void
 }) {
+	const { t } = useTranslation()
 	return (
-		<PopoverRow label="Corners">
+		<PopoverRow label={N_('Corners')}>
 			{CORNER_RADII.map((r) => (
 				<button
 					key={r}
@@ -252,7 +257,7 @@ export function CornerRadiusPicker({
 					className={`ideallo-radius-swatch${value === r ? ' selected' : ''}`}
 					onClick={() => onChange(r)}
 					title={`${r}px`}
-					aria-label={`Corner radius ${r}px`}
+					aria-label={t('Corner radius {{size}}px', { size: r })}
 					aria-pressed={value === r}
 				>
 					<svg width={20} height={20} aria-hidden="true">
@@ -363,6 +368,7 @@ export function TextPopover({
 	anchorRef,
 	manageFocus
 }: TextPopoverProps) {
+	const { t } = useTranslation()
 	return (
 		<BarPopover
 			className="ideallo-text-popover"
@@ -372,14 +378,14 @@ export function TextPopover({
 			anchorRef={anchorRef}
 			manageFocus={manageFocus}
 		>
-			<PopoverRow label="Font">
+			<PopoverRow label={N_('Font')}>
 				<FontPicker value={fontFamily ?? ''} onChange={onFontFamilyChange} />
 			</PopoverRow>
-			<PopoverRow label="Size">
+			<PopoverRow label={N_('Size')}>
 				<NativeSelect
 					value={fontSize ?? ''}
 					onChange={(e) => onFontSizeChange(parseInt(e.target.value, 10))}
-					aria-label="Font size"
+					aria-label={t('Font size')}
 				>
 					{fontSize === null && <option value="">—</option>}
 					{FONT_SIZES.map((size) => (
@@ -417,6 +423,7 @@ export function AlignPopover({
 	anchorRef,
 	manageFocus
 }: AlignPopoverProps) {
+	const { t } = useTranslation()
 	return (
 		<BarPopover
 			className="ideallo-align-popover"
@@ -426,7 +433,7 @@ export function AlignPopover({
 			anchorRef={anchorRef}
 			manageFocus={manageFocus}
 		>
-			<PopoverRow label="Align">
+			<PopoverRow label={N_('Align')}>
 				{TEXT_ALIGN_CHOICES.map(({ value, title, Icon }) => (
 					<button
 						key={value}
@@ -434,8 +441,8 @@ export function AlignPopover({
 						className={`ideallo-format-btn${textAlign === value ? ' active' : ''}`}
 						onMouseDown={preventBlur}
 						onClick={() => onTextAlignChange(value)}
-						title={title}
-						aria-label={title}
+						title={t(title)}
+						aria-label={t(title)}
 						aria-pressed={textAlign === value}
 					>
 						<Icon size={14} />
@@ -443,7 +450,7 @@ export function AlignPopover({
 				))}
 			</PopoverRow>
 			{showVAlign && (
-				<PopoverRow label="V.Align">
+				<PopoverRow label={N_('V.Align')}>
 					{VERTICAL_ALIGN_CHOICES.map(({ value, title, Icon }) => (
 						<button
 							key={value}
@@ -451,8 +458,8 @@ export function AlignPopover({
 							className={`ideallo-format-btn${verticalAlign === value ? ' active' : ''}`}
 							onMouseDown={preventBlur}
 							onClick={() => onVerticalAlignChange(value)}
-							title={title}
-							aria-label={title}
+							title={t(title)}
+							aria-label={t(title)}
 							aria-pressed={verticalAlign === value}
 						>
 							<Icon size={14} />
@@ -487,8 +494,12 @@ export function ArrowheadPopover({
 			onClose={onClose}
 			anchorRef={anchorRef}
 		>
-			<ArrowheadGrid label="Start" value={start} onChange={(s) => onChange('start', s)} />
-			<ArrowheadGrid label="End" value={end} onChange={(s) => onChange('end', s)} />
+			<ArrowheadGrid
+				label={N_('Start')}
+				value={start}
+				onChange={(s) => onChange('start', s)}
+			/>
+			<ArrowheadGrid label={N_('End')} value={end} onChange={(s) => onChange('end', s)} />
 		</BarPopover>
 	)
 }
@@ -503,10 +514,11 @@ function ArrowheadGrid({
 	value: ArrowStyle
 	onChange: (style: ArrowStyle) => void
 }) {
+	const { t } = useTranslation()
 	const canFill = FILLABLE.includes(value.type)
 	return (
 		<div className="ideallo-arrowhead-grid">
-			<div className="ideallo-property-label">{label}</div>
+			<div className="ideallo-property-label">{t(label)}</div>
 			<div className="ideallo-arrowhead-cells">
 				{ARROWHEAD_CHOICES.map((choice) => (
 					<button
@@ -514,8 +526,8 @@ function ArrowheadGrid({
 						type="button"
 						className={`palette-swatch${value.type === choice.type ? ' selected' : ''}`}
 						onClick={() => onChange({ ...value, type: choice.type })}
-						title={choice.label}
-						aria-label={choice.label}
+						title={t(choice.label)}
+						aria-label={t(choice.label)}
 						aria-pressed={value.type === choice.type}
 					>
 						<ArrowheadSwatch type={choice.type} />
@@ -529,12 +541,12 @@ function ArrowheadGrid({
 						checked={value.filled ?? true}
 						onChange={(e) => onChange({ ...value, filled: e.target.checked })}
 					/>
-					<span>Filled</span>
+					<span>{t('Filled')}</span>
 				</label>
 			)}
 			{value.type !== 'none' && (
 				<label className="ideallo-arrowhead-option">
-					<span>Size</span>
+					<span>{t('Size')}</span>
 					<NumberInput
 						value={Math.round((value.size ?? 1) * 100)}
 						onChange={(v) => onChange({ ...value, size: v / 100 })}
@@ -569,8 +581,9 @@ export function OpacitySlider({
 	)
 	// Not a constant id: the desktop menu and the mobile sheet must not collide on the datalist
 	const listId = React.useId()
+	const { t } = useTranslation()
 	return (
-		<PopoverRow label="Opacity">
+		<PopoverRow label={N_('Opacity')}>
 			<input
 				type="range"
 				className="ideallo-opacity-slider"
@@ -580,7 +593,7 @@ export function OpacitySlider({
 				list={listId}
 				value={index}
 				onChange={(e) => onChange(OPACITY_STOPS[Number(e.target.value)])}
-				aria-label="Opacity"
+				aria-label={t('Opacity')}
 				aria-valuetext={`${Math.round(value * 100)}%`}
 			/>
 			<datalist id={listId}>
@@ -631,6 +644,7 @@ export function OverflowMenu({
 	onClose,
 	anchorRef
 }: OverflowMenuProps) {
+	const { t } = useTranslation()
 	return (
 		<BarPopover
 			className="ideallo-overflow-popover"
@@ -651,7 +665,7 @@ export function OverflowMenu({
 				aria-pressed={!anyUnlocked}
 			>
 				{anyUnlocked ? <IcUnlocked size={16} /> : <IcLocked size={16} />}
-				<span>{anyUnlocked ? 'Lock' : 'Unlock'}</span>
+				<span>{anyUnlocked ? t('Lock') : t('Unlock')}</span>
 			</button>
 			{onReverse && (
 				<button
@@ -661,12 +675,12 @@ export function OverflowMenu({
 					onClick={onReverse}
 				>
 					<IcReverse size={16} />
-					<span>Reverse direction</span>
+					<span>{t('Reverse direction')}</span>
 				</button>
 			)}
 			<button type="button" className="ideallo-property-menu-item" onClick={onDuplicate}>
 				<IcDuplicate size={16} />
-				<span>Duplicate</span>
+				<span>{t('Duplicate')}</span>
 				<span className="ideallo-property-menu-shortcut">Ctrl+D</span>
 			</button>
 			<button
@@ -676,7 +690,7 @@ export function OverflowMenu({
 				onClick={onDelete}
 			>
 				<IcDelete size={16} />
-				<span>Delete</span>
+				<span>{t('Delete')}</span>
 				<span className="ideallo-property-menu-shortcut">Del</span>
 			</button>
 		</BarPopover>

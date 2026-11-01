@@ -29,6 +29,7 @@ import {
 	IcLocked,
 	IcMore,
 	IcUnlocked,
+	N_,
 	useIsMobile
 } from '@cloudillo/react'
 import type Quill from 'quill'
@@ -205,10 +206,10 @@ const TYPE_CAPS: Record<ObjectType, Caps> = {
 
 /** Frame presets: height = width × ratio */
 const FRAME_PRESETS = [
-	{ label: '16:9', title: 'Widescreen 16:9', ratio: 9 / 16 },
-	{ label: '4:3', title: 'Standard 4:3', ratio: 3 / 4 },
-	{ label: 'A4', title: 'A4 portrait', ratio: Math.SQRT2 },
-	{ label: '1:1', title: 'Square', ratio: 1 }
+	{ label: '16:9', title: N_('Widescreen 16:9'), ratio: 9 / 16 },
+	{ label: '4:3', title: N_('Standard 4:3'), ratio: 3 / 4 },
+	{ label: 'A4', title: N_('A4 portrait'), ratio: Math.SQRT2 },
+	{ label: '1:1', title: N_('Square'), ratio: 1 }
 ]
 
 /**
@@ -434,7 +435,9 @@ export function PropertyBar({
 	 * "Stroke" is a lie for a text label: TextLabel renders its glyphs in style.strokeColor, so for
 	 * a text-only selection the swatch is the text colour and the trigger's title says so.
 	 */
-	const strokeLabel = selectedObjects.every((obj) => obj.type === 'text') ? 'Colour' : 'Stroke'
+	const strokeLabel = selectedObjects.every((obj) => obj.type === 'text')
+		? t('Colour')
+		: t('Stroke')
 
 	// Local style state - updated immediately on change, synced from selection
 	const [localStyle, setLocalStyle] = React.useState(() => {
@@ -799,8 +802,8 @@ export function PropertyBar({
 						className={`ideallo-format-btn${selectionFormat.bold ? ' active' : ''}`}
 						onMouseDown={preventBlur}
 						onClick={handleInlineBold}
-						title="Bold (Ctrl+B)"
-						aria-label="Bold"
+						title={t('Bold (Ctrl+B)')}
+						aria-label={t('Bold')}
 						aria-pressed={Boolean(selectionFormat.bold)}
 					>
 						<IcBold size={14} />
@@ -810,8 +813,8 @@ export function PropertyBar({
 						className={`ideallo-format-btn${selectionFormat.italic ? ' active' : ''}`}
 						onMouseDown={preventBlur}
 						onClick={handleInlineItalic}
-						title="Italic (Ctrl+I)"
-						aria-label="Italic"
+						title={t('Italic (Ctrl+I)')}
+						aria-label={t('Italic')}
 						aria-pressed={Boolean(selectionFormat.italic)}
 					>
 						<IcItalic size={14} />
@@ -821,8 +824,8 @@ export function PropertyBar({
 						className={`ideallo-format-btn${selectionFormat.list === 'bullet' ? ' active' : ''}`}
 						onMouseDown={preventBlur}
 						onClick={handleListBullet}
-						title="Bullet list"
-						aria-label="Bullet list"
+						title={t('Bullet list')}
+						aria-label={t('Bullet list')}
 						aria-pressed={selectionFormat.list === 'bullet'}
 					>
 						<IcList size={14} />
@@ -832,8 +835,8 @@ export function PropertyBar({
 						className={`ideallo-format-btn${selectionFormat.list === 'ordered' ? ' active' : ''}`}
 						onMouseDown={preventBlur}
 						onClick={handleListOrdered}
-						title="Numbered list"
-						aria-label="Numbered list"
+						title={t('Numbered list')}
+						aria-label={t('Numbered list')}
 						aria-pressed={selectionFormat.list === 'ordered'}
 					>
 						<IcListNumbers size={14} />
@@ -903,8 +906,8 @@ export function PropertyBar({
 									: undefined
 							}
 							onClick={togglePopover('fill')}
-							title="Fill"
-							aria-label="Fill"
+							title={t('Fill')}
+							aria-label={t('Fill')}
 							aria-haspopup="true"
 							aria-controls={panelId('fill')}
 							aria-expanded={openPopover === 'fill'}
@@ -916,7 +919,7 @@ export function PropertyBar({
 								value={displayStyle.fillColor}
 								onChange={handleFillColorChange}
 								disableTransparent={!allowClearFill}
-								label="Fill"
+								label={t('Fill')}
 								panelId={panelId('fill')}
 								onClose={closePopover}
 								anchorRef={triggerRef}
@@ -941,8 +944,8 @@ export function PropertyBar({
 							style={{ fontFamily: displayText.fontFamily ?? undefined }}
 							onMouseDown={preventBlur}
 							onClick={togglePopover('text')}
-							title="Font and size"
-							aria-label="Font and size"
+							title={t('Font and size')}
+							aria-label={t('Font and size')}
 							aria-haspopup="true"
 							aria-controls={panelId('text')}
 							aria-expanded={openPopover === 'text'}
@@ -955,7 +958,7 @@ export function PropertyBar({
 								fontSize={displayText.fontSize}
 								onFontFamilyChange={handleFontFamilyChange}
 								onFontSizeChange={handleFontSizeChange}
-								label="Font and size"
+								label={t('Font and size')}
 								panelId={panelId('text')}
 								onClose={closePopover}
 								anchorRef={triggerRef}
@@ -979,8 +982,8 @@ export function PropertyBar({
 							className={`ideallo-format-btn${openPopover === 'align' ? ' active' : ''}`}
 							onMouseDown={preventBlur}
 							onClick={togglePopover('align')}
-							title="Alignment"
-							aria-label="Alignment"
+							title={t('Alignment')}
+							aria-label={t('Alignment')}
 							aria-haspopup="true"
 							aria-controls={panelId('align')}
 							aria-expanded={openPopover === 'align'}
@@ -995,7 +998,7 @@ export function PropertyBar({
 								onTextAlignChange={handleTextAlignChange}
 								onVerticalAlignChange={handleVerticalAlignChange}
 								preventBlur={preventBlur}
-								label="Alignment"
+								label={t('Alignment')}
 								panelId={panelId('align')}
 								onClose={closePopover}
 								anchorRef={triggerRef}
@@ -1018,9 +1021,9 @@ export function PropertyBar({
 				<div className="ideallo-property-group">
 					{(
 						[
-							['straight', 'Straight', IcConnectorStraight],
-							['curved', 'Curved', IcConnectorCurved],
-							['orthogonal', 'Elbow', IcConnectorElbow]
+							['straight', N_('Straight'), IcConnectorStraight],
+							['curved', N_('Curved'), IcConnectorCurved],
+							['orthogonal', N_('Elbow'), IcConnectorElbow]
 						] as const
 					).map(([value, title, Icon]) => (
 						<button
@@ -1028,8 +1031,8 @@ export function PropertyBar({
 							type="button"
 							className={`ideallo-format-btn${displayRouting === value ? ' active' : ''}`}
 							onClick={() => handleRoutingChange(value)}
-							title={title}
-							aria-label={title}
+							title={t(title)}
+							aria-label={t(title)}
 							aria-pressed={displayRouting === value}
 						>
 							<Icon size={14} />
@@ -1050,8 +1053,8 @@ export function PropertyBar({
 							type="button"
 							className="ideallo-arrowhead-swatch-btn"
 							onClick={togglePopover('arrows')}
-							title="Arrowheads"
-							aria-label="Arrowheads"
+							title={t('Arrowheads')}
+							aria-label={t('Arrowheads')}
 							aria-haspopup="true"
 							aria-controls={panelId('arrows')}
 							aria-expanded={openPopover === 'arrows'}
@@ -1066,7 +1069,7 @@ export function PropertyBar({
 								start={displayStartArrow}
 								end={displayEndArrow}
 								onChange={handleArrowheadChange}
-								label="Arrowheads"
+								label={t('Arrowheads')}
 								panelId={panelId('arrows')}
 								onClose={closePopover}
 								anchorRef={triggerRef}
@@ -1092,7 +1095,7 @@ export function PropertyBar({
 							key={p.label}
 							type="button"
 							className="ideallo-format-btn"
-							title={p.title}
+							title={t(p.title)}
 							onClick={() => handleFramePreset(p.ratio)}
 						>
 							{p.label}
@@ -1126,8 +1129,8 @@ export function PropertyBar({
 						onClick={(evt) =>
 							isMobile ? setActionsOpen(true) : togglePopover('overflow')(evt)
 						}
-						title="More"
-						aria-label="More"
+						title={t('More')}
+						aria-label={t('More')}
 						// Mobile opens an ActionSheet, which is a role="dialog" aria-modal overlay:
 						// that is announced by aria-haspopup="dialog", and aria-expanded is not a
 						// property of a dialog trigger at all.
@@ -1153,7 +1156,7 @@ export function PropertyBar({
 							onDuplicate={handleDuplicate}
 							canDelete={canDelete}
 							onDelete={handleDelete}
-							label="More"
+							label={t('More')}
 							panelId={panelId('overflow')}
 							onClose={closePopover}
 							anchorRef={triggerRef}
@@ -1193,7 +1196,7 @@ export function PropertyBar({
 				<ActionSheet
 					isOpen={actionsOpen}
 					onClose={() => setActionsOpen(false)}
-					title="Actions"
+					title={t('Actions')}
 				>
 					{/* Opacity has no inline slot any more, so the sheet is its mobile home too */}
 					<div className="ideallo-action-sheet-row">
@@ -1213,7 +1216,7 @@ export function PropertyBar({
 					{/* No checked variant on ActionSheetItem, so the state rides in the label */}
 					<ActionSheetItem
 						icon={anyUnlocked ? <IcUnlocked size={20} /> : <IcLocked size={20} />}
-						label={anyUnlocked ? 'Lock' : 'Unlock'}
+						label={anyUnlocked ? t('Lock') : t('Unlock')}
 						aria-pressed={!anyUnlocked}
 						onClick={() => {
 							handleToggleLock()
@@ -1223,7 +1226,7 @@ export function PropertyBar({
 					{caps.ends && (
 						<ActionSheetItem
 							icon={<IcReverse size={20} />}
-							label="Reverse direction"
+							label={t('Reverse direction')}
 							disabled={!anyUnlocked}
 							onClick={() => {
 								handleReverseConnectors()
@@ -1233,7 +1236,7 @@ export function PropertyBar({
 					)}
 					<ActionSheetItem
 						icon={<IcDuplicate size={20} />}
-						label="Duplicate"
+						label={t('Duplicate')}
 						onClick={() => {
 							handleDuplicate()
 							setActionsOpen(false)
@@ -1242,7 +1245,7 @@ export function PropertyBar({
 					<ActionSheetDivider />
 					<ActionSheetItem
 						icon={<IcDelete size={20} />}
-						label="Delete"
+						label={t('Delete')}
 						disabled={!canDelete}
 						onClick={() => {
 							handleDelete()

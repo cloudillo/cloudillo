@@ -23,10 +23,11 @@ import {
 	useIsMobile
 } from '@cloudillo/react'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import type { IconType } from 'react-icons'
 
 import type { FrameObject } from '../crdt/runtime-types.js'
-import { IcArrange, IcTools } from '../icons.js'
+import { IcArrange, IcSmartInk, IcTools } from '../icons.js'
 import type { ToolCategory, ToolType } from '../tools/index.js'
 import {
 	CATEGORY_LABELS,
@@ -59,6 +60,9 @@ export interface ToolbarProps {
 	onZoomToFrame: (frame: FrameObject) => void
 	onCopyFrameLink: (frame: FrameObject) => void
 	onRenameFrame: (frame: FrameObject, name: string) => void
+	/** Smart Ink: snap pen strokes to recognised shapes (persisted by app.tsx) */
+	smartInk: boolean
+	onSmartInkChange: (on: boolean) => void
 }
 
 /**
@@ -97,15 +101,17 @@ function ToolButton({
 	onToolChange,
 	onToolLockChange
 }: ToolButtonProps) {
+	const { t } = useTranslation()
 	const descriptor = TOOL_CATALOG[tool]
 	const Icon = TOOL_ICONS[tool]
 	const lockable = canKeepActive(tool)
 	const kept = lockable && toolLocked && activeTool === tool
 	// The tooltip is where the double-click gesture is discoverable, so it carries the hint
 	const title = [
-		`${descriptor.label} (${descriptor.shortcut})`,
-		descriptor.hint,
-		lockable && (kept ? 'double-click or Q to release' : 'double-click or Q to keep active')
+		`${t(descriptor.label)} (${descriptor.shortcut})`,
+		descriptor.hint && t(descriptor.hint),
+		lockable &&
+			(kept ? t('double-click or Q to release') : t('double-click or Q to keep active'))
 	]
 		.filter(Boolean)
 		.join(' · ')
@@ -117,7 +123,7 @@ function ToolButton({
 			onClick={() => onToolChange(tool)}
 			onDoubleClick={lockable ? () => onToolLockChange(!toolLocked) : undefined}
 			title={title}
-			aria-label={descriptor.label}
+			aria-label={t(descriptor.label)}
 		>
 			<Icon size={size} />
 			{kept && <KeptBadge />}
@@ -167,6 +173,7 @@ function ToolGroupButton({
 	onToolLockChange,
 	children
 }: ToolGroupButtonProps) {
+	const { t } = useTranslation()
 	const lockable = lockTool !== undefined && canKeepActive(lockTool)
 	const kept = lockable && toolLocked
 	// Opening the flyout ARMS the group's last-used member, so a trigger with one armed is standing
@@ -174,10 +181,12 @@ function ToolGroupButton({
 	// click just changed the armed tool is the `active` tint, which a screen reader never sees.
 	// aria-haspopup/aria-expanded stay as they are: it is still a disclosure, it is just also a tool.
 	const armed = lockTool !== undefined ? TOOL_CATALOG[lockTool] : undefined
+	const armedLabel = armed ? t(armed.label) : undefined
 	const title = [
-		armed?.label,
-		armed ? `${label} (click for others)` : label,
-		lockable && (kept ? 'double-click or Q to release' : 'double-click or Q to keep active')
+		armedLabel,
+		armed ? `${label} (${t('click for others')})` : label,
+		lockable &&
+			(kept ? t('double-click or Q to release') : t('double-click or Q to keep active'))
 	]
 		.filter(Boolean)
 		.join(' · ')
@@ -192,7 +201,7 @@ function ToolGroupButton({
 				onClick={onToggle}
 				onDoubleClick={lockable ? () => onToolLockChange(!toolLocked) : undefined}
 				title={title}
-				aria-label={armed ? `${armed.label} (${label})` : label}
+				aria-label={armedLabel ? `${armedLabel} (${label})` : label}
 			>
 				<Icon size={size} />
 				<span className="ideallo-tool-group-indicator" />
@@ -248,8 +257,11 @@ export function Toolbar({
 	frames,
 	onZoomToFrame,
 	onCopyFrameLink,
-	onRenameFrame
+	onRenameFrame,
+	smartInk,
+	onSmartInkChange
 }: ToolbarProps) {
+	const { t } = useTranslation()
 	const isMobile = useIsMobile()
 
 	const lastPerCategory = useLastToolPerCategory(activeTool)
@@ -332,11 +344,11 @@ export function Toolbar({
 	const toolSection = React.useCallback(
 		(category: ToolCategory, withHeading: boolean): ToolPopoverSection => ({
 			key: category,
-			heading: withHeading ? CATEGORY_LABELS[category] : undefined,
+			heading: withHeading ? t(CATEGORY_LABELS[category]) : undefined,
 			items: TOOLS_BY_CATEGORY[category].map((descriptor) => ({
 				key: descriptor.tool,
 				Icon: TOOL_ICONS[descriptor.tool],
-				label: descriptor.label,
+				label: t(descriptor.label),
 				shortcut: descriptor.shortcut,
 				active: activeTool === descriptor.tool,
 				kept:
@@ -344,7 +356,7 @@ export function Toolbar({
 				onSelect: () => pickTool(descriptor.tool)
 			}))
 		}),
-		[activeTool, toolLocked, pickTool]
+		[activeTool, toolLocked, pickTool, t]
 	)
 
 	// The More sheet lives inside a `hasSelection` guard, so a selection cleared
@@ -360,7 +372,7 @@ export function Toolbar({
 		items: LAYER_ACTIONS.map((action) => ({
 			key: action.id,
 			Icon: action.Icon,
-			label: action.label,
+			label: t(action.label),
 			shortcut: action.shortcut,
 			onSelect: () => {
 				layerHandlers[action.id]()
@@ -377,8 +389,8 @@ export function Toolbar({
 				className="ideallo-tool-btn"
 				aria-haspopup="dialog"
 				aria-expanded={openMenu === 'frames'}
-				title="Frame list — jump to a frame"
-				aria-label="Frame list"
+				title={t('Frame list — jump to a frame')}
+				aria-label={t('Frame list')}
 				onClick={() => toggleMenu('frames')}
 			>
 				<IcList size={size} />
@@ -420,7 +432,7 @@ export function Toolbar({
 				<ToolGroupButton
 					Icon={DrawIcon}
 					size={22}
-					label={CATEGORY_LABELS.draw}
+					label={t(CATEGORY_LABELS.draw)}
 					open={openMenu === 'draw'}
 					onToggle={() => toggleArmingMenu('draw', drawTool)}
 					triggerRef={drawTriggerRef}
@@ -433,10 +445,28 @@ export function Toolbar({
 						open={openMenu === 'draw'}
 						onClose={closeMenu}
 						onCancel={cancelMenu}
-						sections={[toolSection('draw', false)]}
+						sections={[
+							toolSection('draw', false),
+							{
+								key: 'smart-ink',
+								className: 'modes',
+								items: [
+									{
+										key: 'smart-ink',
+										Icon: IcSmartInk,
+										label: t('Smart shapes'),
+										checkbox: true,
+										row: true,
+										active: smartInk,
+										// Does not close: a toggle, then pick the pen
+										onSelect: () => onSmartInkChange(!smartInk)
+									}
+								]
+							}
+						]}
 						anchorRef={drawTriggerRef}
 						dismissMode={isDragCommittedTool(activeTool) ? 'passthrough' : 'swallow'}
-						aria-label={CATEGORY_LABELS.draw}
+						aria-label={t(CATEGORY_LABELS.draw)}
 					/>
 				</ToolGroupButton>
 
@@ -445,7 +475,7 @@ export function Toolbar({
 				<ToolGroupButton
 					Icon={IcTools}
 					size={22}
-					label="Tools"
+					label={t('Tools')}
 					open={openMenu === 'tools'}
 					onToggle={() => toggleMenu('tools')}
 					triggerRef={toolsTriggerRef}
@@ -469,7 +499,7 @@ export function Toolbar({
 									{
 										key: 'tool-lock',
 										Icon: toolLocked ? IcLocked : IcUnlocked,
-										label: 'Keep tool active',
+										label: t('Keep tool active'),
 										checkbox: true,
 										row: true,
 										active: toolLocked,
@@ -483,7 +513,7 @@ export function Toolbar({
 						layout="rows"
 						anchorRef={toolsTriggerRef}
 						dismissMode={isDragCommittedTool(activeTool) ? 'passthrough' : 'swallow'}
-						aria-label="Tools"
+						aria-label={t('Tools')}
 					/>
 				</ToolGroupButton>
 
@@ -496,7 +526,7 @@ export function Toolbar({
 					className="ideallo-tool-btn"
 					onClick={onUndo}
 					disabled={!canUndo}
-					title="Undo"
+					title={t('Undo')}
 				>
 					<IcUndo size={22} />
 				</button>
@@ -505,7 +535,7 @@ export function Toolbar({
 					className="ideallo-tool-btn"
 					onClick={onRedo}
 					disabled={!canRedo}
-					title="Redo"
+					title={t('Redo')}
 				>
 					<IcRedo size={22} />
 				</button>
@@ -521,7 +551,7 @@ export function Toolbar({
 						<button
 							className="ideallo-tool-btn"
 							onClick={() => setMoreOpen(true)}
-							title="More"
+							title={t('More')}
 						>
 							<IcMore size={22} />
 						</button>
@@ -529,13 +559,13 @@ export function Toolbar({
 						<ActionSheet
 							isOpen={moreOpen}
 							onClose={() => setMoreOpen(false)}
-							title="Actions"
+							title={t('Actions')}
 						>
 							{LAYER_ACTIONS.map((action) => (
 								<ActionSheetItem
 									key={action.id}
 									icon={<action.Icon size={20} />}
-									label={action.label}
+									label={t(action.label)}
 									onClick={() => {
 										layerHandlers[action.id]()
 										setMoreOpen(false)
@@ -584,6 +614,19 @@ export function Toolbar({
 				onToolChange={onToolChange}
 				onToolLockChange={onToolLockChange}
 			/>
+			{/* Smart Ink toggle, only while the pen is armed (the Draw flyout is mobile-only) */}
+			{activeTool === 'pen' && (
+				<button
+					type="button"
+					className={`ideallo-tool-btn${smartInk ? ' active' : ''}`}
+					onClick={() => onSmartInkChange(!smartInk)}
+					title={t('Smart shapes')}
+					aria-label={t('Smart shapes')}
+					aria-pressed={smartInk}
+				>
+					<IcSmartInk size={24} />
+				</button>
+			)}
 
 			<div className="ideallo-toolbar-divider" />
 
@@ -593,7 +636,7 @@ export function Toolbar({
 			<ToolGroupButton
 				Icon={ShapeIcon}
 				size={24}
-				label={CATEGORY_LABELS.shape}
+				label={t(CATEGORY_LABELS.shape)}
 				open={openMenu === 'shapes'}
 				onToggle={() => toggleArmingMenu('shapes', shapeTool)}
 				triggerRef={shapesTriggerRef}
@@ -609,7 +652,7 @@ export function Toolbar({
 					sections={[toolSection('shape', false)]}
 					anchorRef={shapesTriggerRef}
 					dismissMode={isDragCommittedTool(activeTool) ? 'passthrough' : 'swallow'}
-					aria-label={CATEGORY_LABELS.shape}
+					aria-label={t(CATEGORY_LABELS.shape)}
 				/>
 			</ToolGroupButton>
 
@@ -670,7 +713,7 @@ export function Toolbar({
 				className="ideallo-tool-btn"
 				onClick={onUndo}
 				disabled={!canUndo}
-				title="Undo (Ctrl+Z)"
+				title={t('Undo (Ctrl+Z)')}
 			>
 				<IcUndo size={24} />
 			</button>
@@ -679,7 +722,7 @@ export function Toolbar({
 				className="ideallo-tool-btn"
 				onClick={onRedo}
 				disabled={!canRedo}
-				title="Redo (Ctrl+Shift+Z)"
+				title={t('Redo (Ctrl+Shift+Z)')}
 			>
 				<IcRedo size={24} />
 			</button>
@@ -693,7 +736,7 @@ export function Toolbar({
 					<ToolGroupButton
 						Icon={IcArrange}
 						size={24}
-						label="Arrange"
+						label={t('Arrange')}
 						open={openMenu === 'layer'}
 						onToggle={() => toggleMenu('layer')}
 						triggerRef={layerTriggerRef}
@@ -708,7 +751,7 @@ export function Toolbar({
 							layout="rows"
 							iconSize={24}
 							anchorRef={layerTriggerRef}
-							aria-label="Arrange"
+							aria-label={t('Arrange')}
 						/>
 					</ToolGroupButton>
 				</>
@@ -733,8 +776,8 @@ export function Toolbar({
 					className="ideallo-tool-btn"
 					aria-haspopup="menu"
 					aria-expanded={openMenu === 'more'}
-					title="More"
-					aria-label="More"
+					title={t('More')}
+					aria-label={t('More')}
 					onClick={() => toggleMenu('more')}
 				>
 					<IcMore size={24} />
@@ -751,7 +794,7 @@ export function Toolbar({
 								{
 									key: 'tool-lock',
 									Icon: toolLocked ? IcLocked : IcUnlocked,
-									label: 'Keep tool active',
+									label: t('Keep tool active'),
 									shortcut: 'Q',
 									checkbox: true,
 									active: toolLocked,
@@ -763,7 +806,7 @@ export function Toolbar({
 						}
 					]}
 					anchorRef={moreTriggerRef}
-					aria-label="More"
+					aria-label={t('More')}
 				/>
 			</div>
 		</div>

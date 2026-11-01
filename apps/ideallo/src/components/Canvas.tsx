@@ -15,6 +15,7 @@ import {
 import type { EmbedViewReportPayload } from '@cloudillo/core'
 import type Quill from 'quill'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import type { RotationState } from 'react-svg-canvas'
 import {
 	type Point,
@@ -54,7 +55,8 @@ import { toObjectId, tryExpandObject } from '../crdt/index.js'
 import type {
 	ActiveStroke as ActiveStrokeType,
 	DragOffset,
-	IdealloPresence
+	IdealloPresence,
+	Marquee
 } from '../hooks/index.js'
 import type { ObjectEditState, ShapePreview as ShapePreviewType, ToolType } from '../tools/index.js'
 
@@ -332,12 +334,21 @@ export interface CanvasProps {
 	selectedObjectPivotX: number
 	selectedObjectPivotY: number
 	dragOffset: DragOffset | null
+	/** Rubber band of the select tool, canvas coordinates; drawn in the fixed layer */
+	marquee?: Marquee | null
 	/**
 	 * Pending resize/rotate geometry from app.tsx, keyed by object id.
 	 * Combined with dragOffset to reroute connectors bound to whatever is being manipulated.
 	 */
 	geometryOverrides?: GeometryOverrides
-	onPointerDown: (x: number, y: number, shiftKey?: boolean, altKey?: boolean) => void
+	/** Returning `false` declines the press and SvgCanvas pans instead (touch on empty canvas) */
+	onPointerDown: (
+		x: number,
+		y: number,
+		shiftKey?: boolean,
+		altKey?: boolean,
+		pointerType?: string
+	) => undefined | false
 	onPointerMove: (x: number, y: number) => void
 	onPointerUp: () => void
 	onCursorMove?: (x: number, y: number) => void
@@ -432,6 +443,7 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 		selectedObjectPivotX,
 		selectedObjectPivotY,
 		dragOffset,
+		marquee,
 		geometryOverrides,
 		onPointerDown,
 		onPointerMove,
@@ -489,6 +501,14 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 	ref
 ) {
 	const svgCanvasRef = React.useRef<SvgCanvasHandle>(null)
+
+	// Bigger handles with a 44px hit area on touch (WCAG 2.5.8); read once, guarded for jsdom
+	const [coarsePointer] = React.useState(
+		() =>
+			typeof window !== 'undefined' &&
+			typeof window.matchMedia === 'function' &&
+			window.matchMedia('(pointer: coarse)').matches
+	)
 
 	const [canvasMatrix, setCanvasMatrix] = React.useState<
 		[number, number, number, number, number, number]
@@ -558,6 +578,19 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 	)
 
 	// Track last matrix to avoid unnecessary state updates
+	const { t } = useTranslation()
+	const labelledSvgRef = React.useRef<Element | null>(null)
+	const labelSvg = React.useCallback(
+		(svg: Element) => {
+			svg.setAttribute('aria-roledescription', t('canvas'))
+			svg.setAttribute('aria-label', t('Whiteboard canvas'))
+		},
+		[t]
+	)
+	// A language switch rewrites the labels on the already-labelled svg
+	React.useEffect(() => {
+		if (labelledSvgRef.current) labelSvg(labelledSvgRef.current)
+	}, [labelSvg])
 	const lastMatrixRef = React.useRef<[number, number, number, number, number, number]>([
 		1, 0, 0, 1, 0, 0
 	])
@@ -567,6 +600,16 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 		(context: SvgCanvasContext) => {
 			// Pass context to parent
 			onContextReady?.(context)
+
+			// Keyboard / screen-reader identity of the canvas. SvgCanvas takes no aria props, so they
+			// go on its svg - once per element, not on every pan frame. role=application lets a
+			// screen reader pass Tab and the arrows through to the object navigation in app.tsx.
+			const svg = context.svg
+			if (svg && labelledSvgRef.current !== svg) {
+				labelledSvgRef.current = svg
+				svg.setAttribute('role', 'application')
+				labelSvg(svg)
+			}
 
 			// Only update matrix state if values actually changed (avoids infinite loops)
 			const newMatrix = context.matrix
@@ -587,13 +630,11 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 				onMatrixChange?.(newMatrix)
 			}
 		},
-		[onContextReady, onScaleChange, onMatrixChange]
+		[onContextReady, onScaleChange, onMatrixChange, labelSvg]
 	)
 
 	const handleToolStart = React.useCallback(
-		(evt: ToolEvent) => {
-			onPointerDown(evt.x, evt.y, evt.shiftKey, evt.altKey)
-		},
+		(evt: ToolEvent) => onPointerDown(evt.x, evt.y, evt.shiftKey, evt.altKey, evt.pointerType),
 		[onPointerDown]
 	)
 
@@ -626,6 +667,19 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 			height: selectionBounds.height * s
 		}
 	}, [selectionBounds, canvasMatrix])
+
+	const screenMarquee = React.useMemo(() => {
+		if (!marquee) return null
+		const [s, , , , tx, ty] = canvasMatrix
+		const [x1, y1] = marquee.start
+		const [x2, y2] = marquee.current
+		return {
+			x: Math.min(x1, x2) * s + tx,
+			y: Math.min(y1, y2) * s + ty,
+			width: Math.abs(x2 - x1) * s,
+			height: Math.abs(y2 - y1) * s
+		}
+	}, [marquee, canvasMatrix])
 
 	/**
 	 * Pending geometry that has not reached the CRDT yet: the local drag offset plus whatever
@@ -858,7 +912,7 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 	)
 
 	// Fixed layer content (doesn't zoom with canvas)
-	const fixedContent =
+	const selectionContent =
 		!readOnly && screenSelectionBounds ? (
 			<g>
 				{!noTransformHandles && (
@@ -868,6 +922,8 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 						pivotX={selectedObjectPivotX}
 						pivotY={selectedObjectPivotY}
 						onResizeStart={handleLibResizeStart}
+						handleSize={coarsePointer ? 12 : 8}
+						handleHitSize={coarsePointer ? 44 : undefined}
 					/>
 				)}
 				{/* What "selected, but locked" looks like, in place of the box it replaces */}
@@ -940,6 +996,29 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 			</g>
 		) : null
 
+	// The marquee sits outside the selection condition: there is usually no selection while it runs
+	const fixedContent = (
+		<>
+			{selectionContent}
+			{screenMarquee && (
+				<rect
+					x={screenMarquee.x}
+					y={screenMarquee.y}
+					width={screenMarquee.width}
+					height={screenMarquee.height}
+					style={{
+						fill: 'var(--col-primary, #3b82f6)',
+						fillOpacity: 0.1,
+						stroke: 'var(--col-primary, #3b82f6)',
+						strokeDasharray: '4 3'
+					}}
+					strokeWidth={1}
+					pointerEvents="none"
+				/>
+			)}
+		</>
+	)
+
 	// Handle pointer leaving the canvas
 	const handlePointerLeave = React.useCallback(() => {
 		onEraserLeave?.()
@@ -948,12 +1027,14 @@ export const Canvas = React.forwardRef<CanvasHandle, CanvasProps>(function Canva
 
 	return (
 		<div
+			className="ideallo-canvas"
 			style={{ width: '100%', height: '100%', position: 'relative' }}
 			onPointerLeave={handlePointerLeave}
 		>
 			<SvgCanvas
 				ref={svgCanvasRef}
 				className="w-100 h-100"
+				tabIndex={0}
 				style={{ background: 'var(--col-surface, #f8f9fa)' }}
 				onToolStart={handleToolStart}
 				onToolMove={handleToolMove}

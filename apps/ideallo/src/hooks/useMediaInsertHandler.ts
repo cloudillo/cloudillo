@@ -15,6 +15,7 @@ import {
 	type MediaPickResult
 } from '@cloudillo/core'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import type * as Y from 'yjs'
 
 import type { NewDocumentInput, NewImageInput, ObjectId, YIdealloDocument } from '../crdt/index.js'
@@ -32,17 +33,31 @@ export interface UseMediaInsertHandlerOptions {
 }
 
 // Default sizes (aspect ratio determined by the actual image for images)
-const DEFAULT_IMAGE_SIZE = 300
+export const DEFAULT_IMAGE_SIZE = 300
 const DEFAULT_DOC_WIDTH = 400
 const DEFAULT_DOC_HEIGHT = 300
 
 // Module-level: the temp ID -> object ID mapping must survive re-renders.
 const pendingTempIds = new Map<string, { yDoc: Y.Doc; doc: YIdealloDocument; objectId: ObjectId }>()
 
+/**
+ * Register a temp file ID (`@…`) so the `media:file.resolved` push swaps in the final id.
+ * Used by image paste, which uploads itself instead of going through the picker.
+ */
+export function registerPendingImageTempId(
+	tempId: string,
+	yDoc: Y.Doc,
+	doc: YIdealloDocument,
+	objectId: ObjectId
+): void {
+	pendingTempIds.set(tempId, { yDoc, doc, objectId })
+}
+
 // No visible border on insert (the colour is cleared), but the width picker
 // starts on a REAL preset, so picking a colour immediately gives a 2px border
-// rather than an invisible 0-width one.
-const DEFAULT_STYLE = {
+// rather than an invisible 0-width one. Named MEDIA_ so it cannot be confused with the crdt
+// DEFAULT_STYLE once re-exported through hooks/index.ts.
+export const MEDIA_DEFAULT_STYLE = {
 	strokeColor: 'transparent',
 	fillColor: 'transparent',
 	strokeWidth: 2,
@@ -52,6 +67,7 @@ const DEFAULT_STYLE = {
 
 function useMediaInsertHandler(kind: MediaInsertKind, options: UseMediaInsertHandlerOptions) {
 	const { yDoc, doc, enabled, documentFileId, onObjectCreated, onInsertComplete } = options
+	const { t } = useTranslation()
 
 	// Track if we're currently inserting (to prevent double-opens)
 	const [isInserting, setIsInserting] = React.useState(false)
@@ -95,12 +111,12 @@ function useMediaInsertHandler(kind: MediaInsertKind, options: UseMediaInsertHan
 						? await bus.pickMedia({
 								mediaType: 'image/*',
 								documentFileId,
-								title: 'Insert Image'
+								title: t('Insert Image')
 							})
 						: (link ??
 							(await bus.pickDocument({
 								sourceFileId: documentFileId,
-								title: 'Embed Document'
+								title: t('Embed Document')
 							})))
 
 				if (!result) {
@@ -124,7 +140,7 @@ function useMediaInsertHandler(kind: MediaInsertKind, options: UseMediaInsertHan
 						pivotX: 0.5,
 						pivotY: 0.5,
 						locked: false,
-						style: DEFAULT_STYLE
+						style: MEDIA_DEFAULT_STYLE
 					}
 				} else {
 					const picked = result as DocPickResult
@@ -142,7 +158,7 @@ function useMediaInsertHandler(kind: MediaInsertKind, options: UseMediaInsertHan
 						pivotX: 0.5,
 						pivotY: 0.5,
 						locked: false,
-						style: DEFAULT_STYLE
+						style: MEDIA_DEFAULT_STYLE
 					}
 				}
 
@@ -168,7 +184,17 @@ function useMediaInsertHandler(kind: MediaInsertKind, options: UseMediaInsertHan
 				setIsInserting(false)
 			}
 		},
-		[enabled, isInserting, kind, yDoc, doc, documentFileId, onObjectCreated, onInsertComplete]
+		[
+			enabled,
+			isInserting,
+			kind,
+			yDoc,
+			doc,
+			documentFileId,
+			onObjectCreated,
+			onInsertComplete,
+			t
+		]
 	)
 
 	return React.useMemo(

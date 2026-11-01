@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 /**
  * Zoom controls for the canvas
  * Provides zoom in/out buttons and zoom level display
@@ -15,6 +16,7 @@ export interface ZoomControlsProps {
 }
 
 export function ZoomControls({ scale, onZoomIn, onZoomOut, onZoomReset }: ZoomControlsProps) {
+	const { t } = useTranslation()
 	const zoomPercent = Math.round(scale * 100)
 
 	return (
@@ -22,7 +24,7 @@ export function ZoomControls({ scale, onZoomIn, onZoomOut, onZoomReset }: ZoomCo
 			<button
 				className="ideallo-zoom-btn"
 				onClick={onZoomOut}
-				title="Zoom Out (-)"
+				title={t('Zoom Out (-)')}
 				disabled={scale <= 0.1}
 			>
 				<svg viewBox="0 0 24 24" width="18" height="18">
@@ -38,14 +40,18 @@ export function ZoomControls({ scale, onZoomIn, onZoomOut, onZoomReset }: ZoomCo
 				</svg>
 			</button>
 
-			<button className="ideallo-zoom-level" onClick={onZoomReset} title="Reset Zoom (0)">
+			<button
+				className="ideallo-zoom-level"
+				onClick={onZoomReset}
+				title={t('Reset Zoom (0)')}
+			>
 				{zoomPercent}%
 			</button>
 
 			<button
 				className="ideallo-zoom-btn"
 				onClick={onZoomIn}
-				title="Zoom In (+)"
+				title={t('Zoom In (+)')}
 				disabled={scale >= 10}
 			>
 				<svg viewBox="0 0 24 24" width="18" height="18">

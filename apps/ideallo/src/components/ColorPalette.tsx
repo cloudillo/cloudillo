@@ -11,6 +11,7 @@
  */
 
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { colorToCss, PALETTE_KEYS } from '../utils/palette.js'
 
@@ -32,6 +33,7 @@ export function ColorPalette({
 	showTransparent,
 	disableTransparent
 }: ColorPaletteProps) {
+	const { t } = useTranslation()
 	const [hexInput, setHexInput] = React.useState('')
 
 	// Update hex input when value changes (if it's a hex color)
@@ -71,7 +73,9 @@ export function ColorPalette({
 						onClick={() => onChange('transparent')}
 						disabled={disableTransparent}
 						aria-disabled={disableTransparent}
-						title={disableTransparent ? 'Keep at least a stroke or a fill' : 'None'}
+						title={
+							disableTransparent ? t('Keep at least a stroke or a fill') : t('None')
+						}
 					>
 						<span className="swatch-none">⊘</span>
 					</button>
@@ -131,7 +135,7 @@ export function ColorPalette({
 					onKeyDown={handleHexKeyDown}
 					placeholder="000000"
 					maxLength={6}
-					aria-label="Hex colour"
+					aria-label={t('Hex colour')}
 				/>
 			</div>
 		</div>

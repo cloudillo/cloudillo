@@ -9,6 +9,7 @@
  */
 
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 
 import type { Bounds } from '../crdt/index.js'
 
@@ -31,7 +32,8 @@ export interface UndoHintProps {
 
 const FADE_DURATION = 500 // ms for fade animation
 
-export function UndoHint({ bounds, onUndo, duration = 2000 }: UndoHintProps) {
+export function UndoHint({ bounds, onUndo, duration = 5000 }: UndoHintProps) {
+	const { t } = useTranslation()
 	const [opacity, setOpacity] = React.useState(0.7)
 	const [visible, setVisible] = React.useState(true)
 
@@ -72,7 +74,7 @@ export function UndoHint({ bounds, onUndo, duration = 2000 }: UndoHintProps) {
 				onUndo()
 			}}
 			role="button"
-			aria-label="Undo shape detection"
+			aria-label={t('Undo shape detection')}
 		>
 			{/* Background circle */}
 			<circle

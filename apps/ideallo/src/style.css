@@ -1421,3 +1421,10 @@ body,
 }
 
 /* vim: ts=4 */
+
+/* Keyboard focus on the canvas. SvgCanvas sets an inline outline: none on its svg, so the ring
+   goes on the container instead. */
+.ideallo-canvas:has(> svg:focus-visible) {
+	outline: var(--focus-ring-width, 3px) solid var(--col-focus);
+	outline-offset: calc(-1 * var(--focus-ring-width, 3px));
+}

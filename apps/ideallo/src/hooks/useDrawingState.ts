@@ -91,41 +91,46 @@ export function useDrawingState() {
 		return activeStroke
 	}, [activeStroke])
 
-	const pushToUndoStack = React.useCallback((stroke: UndoableStroke) => {
-		setUndoStack((prev) => {
-			const next = [...prev, stroke]
-			if (next.length > MAX_UNDO_STACK_SIZE) {
-				next.shift()
-			}
-			return next
-		})
-		// Clear redo stack on new action
-		setRedoStack([])
+	// The stacks live in refs, mirrored to state for re-render: a pop must return its stroke
+	// synchronously, and a setState updater is not guaranteed to run before setState returns
+	const undoRef = React.useRef<UndoableStroke[]>([])
+	const redoRef = React.useRef<UndoableStroke[]>([])
+	const setUndo = React.useCallback((next: UndoableStroke[]) => {
+		undoRef.current = next
+		setUndoStack(next)
 	}, [])
+	const setRedo = React.useCallback((next: UndoableStroke[]) => {
+		redoRef.current = next
+		setRedoStack(next)
+	}, [])
+
+	const pushToUndoStack = React.useCallback(
+		(stroke: UndoableStroke, { keepRedo = false }: { keepRedo?: boolean } = {}) => {
+			setUndo([...undoRef.current, stroke].slice(-MAX_UNDO_STACK_SIZE))
+			// A new action clears the redo stack; a redo keeps the strokes still after it
+			if (!keepRedo) setRedo([])
+		},
+		[setUndo, setRedo]
+	)
 
 	const popFromUndoStack = React.useCallback((): UndoableStroke | undefined => {
-		let popped: UndoableStroke | undefined
-		setUndoStack((prev) => {
-			if (prev.length === 0) return prev
-			popped = prev[prev.length - 1]
-			return prev.slice(0, -1)
-		})
+		const popped = undoRef.current.at(-1)
+		if (popped) setUndo(undoRef.current.slice(0, -1))
 		return popped
-	}, [])
+	}, [setUndo])
 
-	const pushToRedoStack = React.useCallback((stroke: UndoableStroke) => {
-		setRedoStack((prev) => [...prev, stroke])
-	}, [])
+	const pushToRedoStack = React.useCallback(
+		(stroke: UndoableStroke) => {
+			setRedo([...redoRef.current, stroke])
+		},
+		[setRedo]
+	)
 
 	const popFromRedoStack = React.useCallback((): UndoableStroke | undefined => {
-		let popped: UndoableStroke | undefined
-		setRedoStack((prev) => {
-			if (prev.length === 0) return prev
-			popped = prev[prev.length - 1]
-			return prev.slice(0, -1)
-		})
+		const popped = redoRef.current.at(-1)
+		if (popped) setRedo(redoRef.current.slice(0, -1))
 		return popped
-	}, [])
+	}, [setRedo])
 
 	const canUndoStroke = undoStack.length > 0
 	const canRedoStroke = redoStack.length > 0

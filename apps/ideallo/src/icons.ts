@@ -11,6 +11,7 @@ export {
 	PiDiamond as IcDiamond,
 	PiFrameCorners as IcFrame,
 	PiNote as IcStickyNote,
+	PiSparkle as IcSmartInk,
 	PiStack as IcArrange,
 	PiToolbox as IcTools,
 	PiTriangle as IcTriangle

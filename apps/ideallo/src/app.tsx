@@ -18,7 +18,19 @@ import '@cloudillo/fonts/fonts.css'
 import '@cloudillo/react/components.css'
 import './style.css'
 
-import { calculateArcRadius } from '@cloudillo/canvas-tools'
+import {
+	calculateArcRadius,
+	canvasPasteOffset,
+	clipboardImageFile,
+	clipboardSource,
+	decodeCanvasClipboard,
+	encodeCanvasClipboard,
+	isBounds,
+	resolveForeignPaste,
+	uploadPastedImage,
+	cycleIndex,
+	selectionCycleIndex
+} from '@cloudillo/canvas-tools'
 import {
 	docRef,
 	type EmbedViewReportPayload,
@@ -29,8 +41,12 @@ import {
 import { downloadYDocExport } from '@cloudillo/crdt'
 import {
 	AppDocBar,
+	Button,
 	DocBarMenu,
+	EmptyState,
+	IcError,
 	IcExport,
+	LoadingSpinner,
 	MenuItem,
 	Toasts,
 	useCopyEmbedLink,
@@ -66,8 +82,17 @@ declare const __APP_VERSION__: string
 
 import { isBoundConnector } from './connectors/index.js'
 import { bindEndpoint } from './connectors/lifecycle.js'
+import { objectLabel } from './components/ObjectRenderer.js'
 import type { Bounds, IdealloObject, ObjectId, StoredObject } from './crdt/index.js'
 import {
+	CLIPBOARD_APP,
+	clipboardFileRef,
+	collectClipboard,
+	type IdealloClipboard,
+	pasteClipboard
+} from './clipboard.js'
+import {
+	addObject,
 	bringForward,
 	bringToFront,
 	compactAnchorPoint,
@@ -92,6 +117,9 @@ import { renameFrame } from './crdt/object-ops.js'
 import type { FrameObject } from './crdt/runtime-types.js'
 import { renderBoardSvg } from './export/render-svg.js'
 import {
+	DEFAULT_IMAGE_SIZE,
+	MEDIA_DEFAULT_STYLE,
+	registerPendingImageTempId,
 	useConnectorEndpointDrag,
 	useDocumentHandler,
 	useDrawingHandler,
@@ -501,6 +529,23 @@ export function IdealloApp() {
 		[ideallo.doc]
 	)
 
+	// Smart Ink (shape snapping) on/off, persisted per browser; default on
+	const [smartInk, setSmartInk] = React.useState(() => {
+		try {
+			return localStorage.getItem('ideallo.smartInk') !== 'false'
+		} catch {
+			return true
+		}
+	})
+	const handleSmartInkChange = React.useCallback((on: boolean) => {
+		setSmartInk(on)
+		try {
+			localStorage.setItem('ideallo.smartInk', String(on))
+		} catch {
+			// Storage unavailable: the setting lasts for this session only
+		}
+	}, [])
+
 	// Drawing handler for pen tool
 	const drawingHandler = useDrawingHandler({
 		yDoc: ideallo.yDoc,
@@ -508,6 +553,7 @@ export function IdealloApp() {
 		awareness: ideallo.awareness,
 		currentStyle: ideallo.currentStyle,
 		enabled: ideallo.activeTool === 'pen',
+		smartInk,
 		onMorphAnimationUpdate: handleMorphAnimationUpdate,
 		onObjectCreated: handleObjectCreated
 	})
@@ -742,6 +788,7 @@ export function IdealloApp() {
 		selectedIds,
 		selectObject,
 		clearSelection,
+		selectObjects,
 		enabled: ideallo.activeTool === 'select' && !isReadOnly,
 		objects: ideallo.objects,
 		getResolvedObjects,
@@ -815,13 +862,128 @@ export function IdealloApp() {
 		}
 	}, [ideallo.activeTool])
 
-	// Pasting a `cl:` embed link embeds it at the viewport centre (as quillo/notillo do)
+	// Last canvas-space pointer position (from SvgCanvas onMove): where a paste lands
+	const lastPointerRef = React.useRef<[number, number] | null>(null)
+
+	// Ctrl+C / Ctrl+X put the selection on the system clipboard as an ideallo payload. Its own
+	// effect, because copy must work read-only, where the paste effect below bails.
+	React.useEffect(() => {
+		const { yDoc, doc } = ideallo
+		if (!yDoc || !doc || !selectedIds.size) return
+		const ids = Array.from(selectedIds)
+		const onCopy = (e: ClipboardEvent) => {
+			const cut = e.type === 'cut'
+			if ((cut && isReadOnly) || isEditableTarget(e.target) || !e.clipboardData) return
+			// A real text selection elsewhere on the page copies as text, as usual
+			const sel = document.getSelection()
+			if (sel && !sel.isCollapsed) return
+			const payload = collectClipboard(doc, ids)
+			if (!payload) return
+			const { fileId, ownerTag } = idealloRef.current.cloudillo
+			if (fileId) payload.source = { fileId, ownerTag }
+			e.clipboardData.setData('text/plain', encodeCanvasClipboard(CLIPBOARD_APP, payload))
+			e.preventDefault()
+			if (cut) {
+				// Locked objects are copied but stay put, as Delete leaves them
+				deleteObjectsWithBindingCleanup(yDoc, doc, ids)
+				clearSelection()
+			}
+		}
+		document.addEventListener('copy', onCopy)
+		document.addEventListener('cut', onCopy)
+		return () => {
+			document.removeEventListener('copy', onCopy)
+			document.removeEventListener('cut', onCopy)
+		}
+	}, [ideallo.yDoc, ideallo.doc, selectedIds, isReadOnly])
+
+	// Paste: our own payload → at the pointer; an image file → upload + image object; a `cl:`
+	// embed link → embedded at the viewport centre (as quillo/notillo do)
 	React.useEffect(() => {
 		const bus = getAppBus()
 		const fileId = ideallo.cloudillo.fileId
-		if (isReadOnly || bus.embedded || !fileId) return
+		const { yDoc, doc } = ideallo
+		if (isReadOnly || bus.embedded || !fileId || !yDoc || !doc) return
+
+		const pasteImage = async (file: File, cx: number, cy: number) => {
+			// Read at paste time: the token renews while the effect stays mounted
+			const { ownerTag, token } = idealloRef.current.cloudillo
+			try {
+				const res = await uploadPastedImage(
+					{ ownerTag, token, fileId },
+					file,
+					DEFAULT_IMAGE_SIZE
+				)
+				const { width, height } = res
+				const id = addObject(yDoc, doc, {
+					type: 'image',
+					x: cx - width / 2,
+					y: cy - height / 2,
+					width,
+					height,
+					fileId: res.fileId,
+					rotation: 0,
+					pivotX: 0.5,
+					pivotY: 0.5,
+					locked: false,
+					style: MEDIA_DEFAULT_STYLE
+				})
+				if (res.fileId.startsWith('@')) {
+					registerPendingImageTempId(res.fileId, yDoc, doc, id)
+				}
+				selectObject(id)
+			} catch (err) {
+				console.error('[ideallo] image paste failed:', err)
+				toast.error(t('Could not paste the image'))
+			}
+		}
+
 		const onPaste = (e: ClipboardEvent) => {
 			if (isEditableTarget(e.target)) return
+			const decoded = decodeCanvasClipboard<IdealloClipboard>(
+				e.clipboardData?.getData('text/plain') ?? '',
+				CLIPBOARD_APP
+			)
+			if (decoded) {
+				e.preventDefault()
+				// Untrusted clipboard text: a malformed source counts as missing (foreign)
+				const payload = { ...decoded, source: clipboardSource(decoded.source) }
+				const [dx, dy] = canvasPasteOffset(
+					isBounds(payload.bounds) ? payload.bounds : undefined,
+					lastPointerRef.current
+				)
+				const paste = (p: IdealloClipboard) => {
+					const ids = pasteClipboard(yDoc, doc, p, dx, dy)
+					if (ids.length) selectObjects(ids)
+				}
+				const link = (ref: string) => bus.linkDocument(ref, fileId)
+				// From another board: its images and embeds must be linked to this one first.
+				// One claiming this board is trusted only for files it already references; the
+				// rest (or a cut original, already deleted) go through the link path too.
+				const known = new Set<unknown>()
+				for (const o of doc.o.values()) {
+					if (o.t === 'I' || o.t === 'D') known.add(o.fid)
+				}
+				void resolveForeignPaste(
+					payload,
+					fileId,
+					clipboardFileRef,
+					link,
+					known,
+					idealloRef.current.cloudillo.ownerTag
+				).then(({ payload: p, failed }) => {
+					if (failed) toast.error(t('Some pasted items could not be linked'))
+					paste(p)
+				})
+				return
+			}
+			const image = clipboardImageFile(e.clipboardData)
+			if (image) {
+				e.preventDefault()
+				const [cx, cy] = lastPointerRef.current ?? viewportCentre()
+				void pasteImage(image, cx, cy)
+				return
+			}
 			const p = bus.linkFromPaste(e, fileId)
 			if (!p) return
 			const [cx, cy] = viewportCentre()
@@ -831,7 +993,7 @@ export function IdealloApp() {
 		}
 		document.addEventListener('paste', onPaste)
 		return () => document.removeEventListener('paste', onPaste)
-	}, [isReadOnly, ideallo.cloudillo.fileId])
+	}, [isReadOnly, ideallo.cloudillo.fileId, ideallo.yDoc, ideallo.doc])
 
 	// We need selectionBounds before we can initialize resize handler
 	// Compute basic selection bounds first (without offsets)
@@ -1517,7 +1679,13 @@ export function IdealloApp() {
 
 	// Unified pointer handlers that route to the right tool
 	const handlePointerDown = React.useCallback(
-		(x: number, y: number, shiftKey: boolean = false, altKey: boolean = false) => {
+		(
+			x: number,
+			y: number,
+			shiftKey: boolean = false,
+			altKey: boolean = false,
+			pointerType?: string
+		) => {
 			// A click on the canvas finishes whichever editor is open
 			if (textEditor.editing) endTextEdit()
 
@@ -1526,7 +1694,8 @@ export function IdealloApp() {
 				!isPivotDraggingRef.current &&
 				!isEndpointDraggingRef.current
 			) {
-				selectHandler.handlePointerDown(x, y, shiftKey, altKey)
+				// `false`: a touch on empty canvas, declined so SvgCanvas pans
+				return selectHandler.handlePointerDown(x, y, shiftKey, altKey, pointerType)
 			} else if (ideallo.activeTool === 'pen') {
 				drawingHandler.handlePointerDown(x, y)
 			} else if (ideallo.activeTool === 'eraser') {
@@ -1978,6 +2147,53 @@ export function IdealloApp() {
 			if (isEditableTarget(evt.target)) return
 			const popoverOpen = isPopoverOpen()
 
+			/*
+			 * Object navigation, only while the canvas svg itself holds focus (Canvas.tsx gives it
+			 * tabIndex 0) and no popover is open. Tab past either end is left alone, so focus walks out
+			 * of the canvas - no keyboard trap (WCAG 2.1.2).
+			 */
+			const onCanvas =
+				(evt.target as Element | null)?.matches?.('.ideallo-canvas > svg') ?? false
+			if (onCanvas && !popoverOpen && !evt.ctrlKey && !evt.metaKey && !evt.altKey) {
+				if (evt.key === 'Tab' && ideallo.order) {
+					const dir = evt.shiftKey ? -1 : 1
+					const order = ideallo.order
+					const next = cycleIndex(
+						order.length,
+						selectionCycleIndex(order, selectedIds, dir),
+						dir
+					)
+					if (next !== null) {
+						selectObject(order[next] as ObjectId)
+						evt.preventDefault()
+					}
+					return
+				}
+				if (
+					!isReadOnly &&
+					evt.key.startsWith('Arrow') &&
+					selectedIds.size > 0 &&
+					ideallo.yDoc &&
+					ideallo.doc
+				) {
+					const step = evt.shiftKey ? 10 : 1
+					const dx = evt.key === 'ArrowLeft' ? -step : evt.key === 'ArrowRight' ? step : 0
+					const dy = evt.key === 'ArrowUp' ? -step : evt.key === 'ArrowDown' ? step : 0
+					const yDoc = ideallo.yDoc
+					const doc = ideallo.doc
+					// One outer transaction carrying the origin, so the nudge is one undo step.
+					// deletableObjectIds is the "not locked" filter: a drag skips locked objects too.
+					yDoc.transact(() => {
+						for (const id of deletableObjectIds(doc, Array.from(selectedIds))) {
+							const obj = getObject(doc, id)
+							if (obj) translateObject(yDoc, doc, id, obj, dx, dy)
+						}
+					}, yDoc.clientID)
+					evt.preventDefault()
+					return
+				}
+			}
+
 			// Cmd/Ctrl+Z for undo
 			if (!isReadOnly && (evt.ctrlKey || evt.metaKey) && evt.key === 'z' && !evt.shiftKey) {
 				handleUndo()
@@ -2165,7 +2381,9 @@ export function IdealloApp() {
 			ideallo.setActiveTool,
 			ideallo.setToolLocked,
 			selectedIds,
+			selectObject,
 			selectObjects,
+			ideallo.order,
 			ideallo.yDoc,
 			ideallo.activeTool,
 			clearSelection,
@@ -2202,6 +2420,7 @@ export function IdealloApp() {
 	const cursorThrottleRef = React.useRef<number | null>(null)
 	const handleCursorMove = React.useCallback(
 		(x: number, y: number) => {
+			lastPointerRef.current = [x, y]
 			// Update hover state when select tool is active (skip during pivot drag)
 			if (
 				ideallo.activeTool === 'select' &&
@@ -2259,19 +2478,38 @@ export function IdealloApp() {
 		prevToolRef.current = tool
 		setAnnouncement(
 			tool === 'select' && isOneShotTool(prev)
-				? `${TOOL_LABELS[prev]} placed. Select tool active.`
-				: `${TOOL_LABELS[tool]} tool active.`
+				? t('{{tool}} placed. Select tool active.', { tool: t(TOOL_LABELS[prev]) })
+				: t('{{tool}} tool active.', { tool: t(TOOL_LABELS[tool]) })
 		)
-	}, [ideallo.activeTool])
+	}, [ideallo.activeTool, t])
 
-	const lockAnnounceRef = React.useRef(false)
+	// Compares against the previous value rather than skipping the first run, so a `t` change
+	// (the init-time language switch) does not announce a lock change that never happened
+	const prevToolLockedRef = React.useRef(ideallo.toolLocked)
 	React.useEffect(() => {
-		if (!lockAnnounceRef.current) {
-			lockAnnounceRef.current = true
+		if (prevToolLockedRef.current === ideallo.toolLocked) return
+		prevToolLockedRef.current = ideallo.toolLocked
+		setAnnouncement(ideallo.toolLocked ? t('Keep tool active: on') : t('Keep tool active: off'))
+	}, [ideallo.toolLocked, t])
+
+	// The selection: Tab cycling moves it without moving anything a screen-reader user can see
+	React.useEffect(() => {
+		if (selectedIds.size > 1) {
+			setAnnouncement(t('{{count}} objects selected', { count: selectedIds.size }))
 			return
 		}
-		setAnnouncement(`Keep tool active: ${ideallo.toolLocked ? 'on' : 'off'}`)
-	}, [ideallo.toolLocked])
+		const [id] = selectedIds
+		const obj = id && ideallo.doc ? getObject(ideallo.doc, id) : undefined
+		if (!obj) return
+		const b = getObjectBounds(obj)
+		setAnnouncement(
+			t('{{name}}, {{w}}×{{h}}, selected', {
+				name: objectLabel(t, ideallo.doc, obj),
+				w: Math.round(b.width),
+				h: Math.round(b.height)
+			})
+		)
+	}, [selectedIds, ideallo.doc, t])
 
 	// Cleanup throttle on unmount
 	React.useEffect(() => {
@@ -2285,15 +2523,25 @@ export function IdealloApp() {
 	// A headless render draws nothing: renderBoardSvg answers the requests
 	if (renderMode) return null
 
-	// Show loading state until synced
-	if (!ideallo.cloudillo.synced) {
+	const loadError = ideallo.cloudillo.error
+	if (loadError) {
 		return (
-			<div className="ideallo-loading">
-				<div className="ideallo-loading-spinner" />
-				<div>Loading...</div>
-			</div>
+			<EmptyState
+				fill
+				color="error"
+				icon={<IcError />}
+				title={
+					loadError.code === 4401 || loadError.code === 4403
+						? t('You no longer have access')
+						: loadError.code === 4404
+							? t('Document not found')
+							: t('Connection error')
+				}
+				actions={<Button onClick={() => location.reload()}>{t('Retry')}</Button>}
+			/>
 		)
 	}
+	if (!ideallo.cloudillo.synced) return <LoadingSpinner />
 
 	return (
 		<div className="ideallo-app" data-tool={ideallo.activeTool} tabIndex={0}>
@@ -2336,6 +2584,7 @@ export function IdealloApp() {
 				selectedObjectPivotX={tempObjectState?.pivotX ?? selectedObjectPivotX}
 				selectedObjectPivotY={tempObjectState?.pivotY ?? selectedObjectPivotY}
 				dragOffset={selectHandler.dragOffset}
+				marquee={selectHandler.marquee}
 				geometryOverrides={geometryOverrides}
 				onPointerDown={handlePointerDown}
 				onPointerMove={handlePointerMove}
@@ -2427,6 +2676,8 @@ export function IdealloApp() {
 							renameFrame(ideallo.yDoc, ideallo.doc, frame.id, name)
 						}
 					}}
+					smartInk={smartInk}
+					onSmartInkChange={handleSmartInkChange}
 				/>
 			)}
 
@@ -2460,7 +2711,7 @@ export function IdealloApp() {
 				onZoomReset={handleZoomReset}
 			/>
 
-			{/* Tool announcements. Lives outside the Toolbar, which read-only mode unmounts. */}
+			{/* Tool and selection announcements. Lives outside the Toolbar, which read-only mode unmounts. */}
 			<div className="ideallo-sr-only" role="status" aria-live="polite">
 				{announcement}
 			</div>

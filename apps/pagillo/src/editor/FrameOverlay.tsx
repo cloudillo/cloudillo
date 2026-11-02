@@ -120,7 +120,8 @@ const DEFAULT_PREFS: ViewPrefs = {
 	keyHints: true,
 	guides: true,
 	spell: true,
-	marks: false
+	marks: false,
+	rail: 'pages'
 }
 /** Resize handles: id, x and y fraction of the box. */
 const HANDLES: [ResizeHandle, number, number][] = [
@@ -152,6 +153,8 @@ export interface ViewPrefs {
 	spell: boolean
 	/** Show hidden characters (`MarksOverlay`). */
 	marks: boolean
+	/** Left rail tab. */
+	rail: 'pages' | 'sections'
 }
 
 type Drag =

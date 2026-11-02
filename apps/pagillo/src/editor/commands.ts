@@ -12,16 +12,8 @@ import type * as Y from 'yjs'
 
 import { newBlockId } from '../crdt/block-ids'
 import { deltaOf } from '../crdt/delta-cache'
-import {
-	anchorOf,
-	isFlow,
-	newSectionMap,
-	patchFrame,
-	sectionOf,
-	sectionsOf,
-	styleOf
-} from '../crdt/entities'
-import { newId, type StyleId } from '../crdt/ids'
+import { isFlow, styleOf } from '../crdt/entities'
+import type { StyleId } from '../crdt/ids'
 import {
 	LINE_KEYS,
 	MARK_KEYS,
@@ -38,14 +30,12 @@ import {
 	colSpanOf,
 	type DeltaOp,
 	isTableLine,
-	markerWins,
 	newCellId,
 	newRowId,
 	readMeta,
 	rowOf
 } from '../crdt/type-converters'
 import * as C from './caret'
-import { sliceDelta } from './clipboard'
 import { breakBefore, deleteRange, insertText } from './text-edit'
 import type { Editor } from './useEditor'
 
@@ -289,42 +279,6 @@ export function insertField({ editor }: CommandCtx, field: StoredInlineEmbed): v
 		t.insertEmbed(from, field, { ...marksIn(t, from, from), ...NO_LINE })
 		return from + 1
 	})
-}
-
-/**
- * Split the story at the caret into a new section after the current one (same masters); the
- * caret moves to the new section's start. Not available in text-box stories.
- */
-export function insertSectionBreak({ doc, editor }: CommandCtx): void {
-	const story = editor.sel?.story
-	const secId = sectionsOf(doc).find(([, s]) => s.story === story)?.[0]
-	const sec = secId ? sectionOf(doc, secId) : undefined
-	if (!secId || !sec) return
-	let next: string | undefined
-	editor.run((t, from, to) => {
-		deleteRange(t, from, to)
-		// Split mid-paragraph first, so the tail starts at a paragraph start.
-		const at = breakBefore(t, from)
-		// Uncached on purpose: `applyDelta` writes nulls into the ops' attribute objects.
-		const tail = sliceDelta(t.toDelta() as DeltaOp[], at, t.length)
-		const wins = markerWins(doc, sec.story)
-		const body = styleMap(doc).p
-		const id = createStory(doc, tail.length ? [] : [{ ps: body }])
-		doc.tx.get(id)?.applyDelta(tail)
-		// Frames anchored in the tail follow their markers into the new story.
-		for (const [fid, { at: m }] of wins) {
-			const a = m >= at ? anchorOf(doc.f.get(fid)) : undefined
-			if (a && 'txt' in a) patchFrame(doc.f.get(fid), { anchor: { ...a, txt: id } })
-		}
-		t.delete(at, t.length - at)
-		if (t.length === 0) t.insert(0, '\n', { bid: newBlockId(), ...(body ? { ps: body } : {}) })
-		const { pageNum: _p, maxPages: _m, ...rest } = sec
-		const sid = newId()
-		doc.s.set(sid, newSectionMap({ ...rest, story: id }))
-		doc.secs.insert(doc.secs.toArray().indexOf(secId) + 1, [sid])
-		next = id
-	})
-	if (next) editor.select({ story: next, anchor: 0, head: 0 })
 }
 
 /** Mark → style prop for "Update <style> to match". */

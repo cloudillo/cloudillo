@@ -9,11 +9,11 @@
 import { rotatePointAroundCenter } from '@cloudillo/canvas-tools'
 import type { LineGeom, PageDL } from '@cloudillo/typeset'
 
-import { type GeomIndex, nearestCaret, type PlacedLine, sameRow, xDist } from './caret'
 import { frameOf } from '../crdt/entities'
 import { chainOf } from '../crdt/frame-ops'
 import type { StoredTextFrameData, YPagilloDocument } from '../crdt/stored-types'
 import { textChains } from '../crdt/type-converters'
+import { type GeomIndex, nearestCaret, type PlacedLine, sameRow, xDist } from './caret'
 import {
 	containsPoint,
 	edgeDist,

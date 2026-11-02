@@ -28,7 +28,6 @@ export type MarkKind =
 	| 'para'
 	| 'lbr'
 	| 'end'
-	| 'section'
 	| 'page'
 	| 'column'
 	| 'frame'
@@ -38,7 +37,7 @@ export type MarkKind =
 
 /**
  * One mark, pt. Glyphs and ticks: `x` (spacing glyphs: centre), baseline `y`, font `size`.
- * Rules (`section` / `page` / `column`): `x`..`x2` at baseline `y`, `label` an i18n key.
+ * Rules (`page` / `column`): `x`..`x2` at baseline `y`, `label` an i18n key.
  * Tints (`field` / `fn`): box `x`..`x2`, top `y`, height `size`.
  */
 export interface Mark {
@@ -57,8 +56,11 @@ export interface MarksCtx {
 	embeds(story: string): Map<number, EmbedKind>
 	/** Lines of the story in flow order (`GeomIndex.stories`). */
 	storyLines(story: string): PlacedLine[]
-	/** End of story: `#`, a section break rule, or nothing (footnotes). */
-	storyEnd(story: string): 'end' | 'section' | 'none'
+	/**
+	 * `'end'`: `#` (the last section, a text box). Else a plain `¶` (a section boundary is not a
+	 * character: the page label shows it) or, on footnotes, nothing past the `¶`.
+	 */
+	storyEnd(story: string): 'end' | 'none'
 	/** Right edge of the line's column, Fx; absent = the paragraph's widest line on the page. */
 	colRight?(pl: PlacedLine): number | undefined
 }
@@ -164,14 +166,13 @@ export function pageMarks(lines: PlacedLine[], ctx: MarksCtx, skip?: MarkSkip): 
 		add({ k: end === 'end' ? 'end' : 'para', x })
 		const next = i >= 0 ? sl[i + 1] : undefined
 		const brk = next?.line.from === 0 ? next.line.brk : undefined
-		const rule = end === 'section' ? 'section' : brk
-		if (rule)
+		if (brk)
 			add({
-				k: rule,
+				k: brk,
 				x: x + 0.7 * size,
 				x2: right(),
 				y: y - 0.3 * size,
-				label: rule === 'section' ? 'Section break' : BRK_LABEL[rule]
+				label: BRK_LABEL[brk]
 			})
 	}
 	return out
@@ -241,7 +242,7 @@ export function marksCtx(
 		},
 		storyLines: (s) => index.stories.get(s) ?? [],
 		storyEnd: (s) => {
-			if (flows.has(s)) return s === last ? 'end' : 'section'
+			if (flows.has(s)) return s === last ? 'end' : 'none'
 			boxStories ??= new Set(
 				framesOf(doc).flatMap(([, f]) => {
 					const st = f.t === 'txt' && (f.data as StoredTextFrameData).story

@@ -10,8 +10,8 @@
  */
 
 import { type PresenceEntry, presenceColor } from '@cloudillo/core'
-import { useDarkMode } from '@cloudillo/react'
 import { awarenessPresenceFeed } from '@cloudillo/crdt'
+import { useDarkMode } from '@cloudillo/react'
 import { FX } from '@cloudillo/typeset'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'

@@ -13,13 +13,13 @@ import {
 	setInlineImage,
 	soleInlineImage
 } from '../crdt/frame-ops.js'
-import { type GeomIndex, mapOffset, type PlacedLine } from '../editor/caret.js'
+import { crossStory, edgeRow, type GeomIndex, mapOffset, type PlacedLine } from '../editor/caret.js'
 import { sliceDelta } from '../editor/clipboard.js'
 import {
 	containsPoint,
 	gutterEdges,
-	type PageInfo,
 	moveDrop,
+	type PageInfo,
 	type PageItem,
 	reachBoxes,
 	reachShift,
@@ -537,5 +537,31 @@ describe('hitText in table cells', () => {
 
 	it('a click in the next cell’s left padding goes to that cell', () => {
 		expect(hitText(index, 0, 102, 30)).toEqual({ story: 's', offset: 20 })
+	})
+})
+
+describe('section crossing', () => {
+	it('crossStory steps through section flow stories only', () => {
+		const flows = ['a', 'b', 'c']
+		expect(crossStory(flows, 'b', -1)).toBe('a')
+		expect(crossStory(flows, 'b', 1)).toBe('c')
+		expect(crossStory(flows, 'a', -1)).toBeUndefined()
+		expect(crossStory(flows, 'c', 1)).toBeUndefined()
+		expect(crossStory(flows, 'box', 1)).toBeUndefined()
+	})
+
+	it('edgeRow tells the first / last line row', () => {
+		const line = (row: number, from: number): PlacedLine => ({
+			line: { story: 's', bid: 'p', row, carets: [0, 10] } as unknown as PlacedLine['line'],
+			page: 0,
+			from,
+			to: from + 4
+		})
+		const ls = [line(0, 0), line(1, 5), line(2, 10)]
+		expect(edgeRow(ls, 2, -1)).toBe(true)
+		expect(edgeRow(ls, 2, 1)).toBe(false)
+		expect(edgeRow(ls, 7, -1)).toBe(false)
+		expect(edgeRow(ls, 12, 1)).toBe(true)
+		expect(edgeRow([], 0, 1)).toBe(true)
 	})
 })

@@ -6,12 +6,12 @@ import * as Y from 'yjs'
 
 import { openPublication } from '../crdt/document.js'
 import {
-	framesOf,
 	frameOf,
+	framesOf,
+	masterOf,
 	newFrameMap,
 	newMasterMap,
-	newSectionMap,
-	masterOf
+	newSectionMap
 } from '../crdt/entities.js'
 import {
 	deleteMaster,
@@ -217,7 +217,7 @@ describe('copying text frames', () => {
 		doc.tx.set('sst', new Y.Text('\n'))
 		doc.tx.set('st', new Y.Text('hi\n'))
 		doc.f.set('a', newFrameMap(txt({ story: 'st', inset: 5, fill: 'red' })))
-		const copy = duplicateSection(yDoc, doc, 's1')
+		const copy = duplicateSection(yDoc, doc, 's1', ' (copy)')
 		const [id] = framesOf(doc).find(([, f]) => 'sec' in f.anchor && f.anchor.sec === copy) ?? []
 		expect(dataOf(doc, id ?? '')).toMatchObject({ inset: 5, fill: 'red' })
 	})

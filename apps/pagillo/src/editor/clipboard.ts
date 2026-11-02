@@ -10,18 +10,17 @@
  */
 
 import { type DocLinkResult, getAppBus, safeHref } from '@cloudillo/core'
-import { FX } from '@cloudillo/typeset'
 import { useToast } from '@cloudillo/react'
+import { FX } from '@cloudillo/typeset'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import * as Y from 'yjs'
 
 import { newBlockId, stripBlockIds } from '../crdt/block-ids'
 import { deltaOf } from '../crdt/delta-cache'
-import { flowStories, frameOf, newFrameMap, readFrame, styleOf } from '../crdt/entities'
+import { flowList, frameOf, newFrameMap, readFrame, styleOf } from '../crdt/entities'
 import { newId } from '../crdt/ids'
 import { sanitizeOverrides } from '../crdt/overrides'
-import { copyStory } from '../crdt/story-ops'
 import {
 	LINE_KEYS,
 	MARK_KEYS,
@@ -32,6 +31,7 @@ import {
 	TABLE_KEYS,
 	type YPagilloDocument
 } from '../crdt/stored-types'
+import { copyStory } from '../crdt/story-ops'
 import {
 	BORDERS,
 	cellOf,
@@ -44,10 +44,10 @@ import {
 	readMeta,
 	rowOf
 } from '../crdt/type-converters'
-import { clamp } from './frames'
 import { embedTarget } from '../embeds/record'
 import * as C from './caret'
 import type { CommandCtx } from './commands'
+import { clamp } from './frames'
 import { breakBefore, deleteRange, insertText, paragraphEnd } from './text-edit'
 
 export const DELTA_MIME = 'application/x-cloudillo-delta'
@@ -624,7 +624,7 @@ export function pasteDelta(
 		}
 	}
 	/** The section story pasted into (top-level text only), where refs and markers render. */
-	const flow = into ? undefined : [...flowStories(doc).keys()].find((st) => doc.tx.get(st) === t)
+	const flow = into ? undefined : flowList(doc).find((st) => doc.tx.get(st) === t)
 	const notesOk = !!flow
 	const cloned = new Set<string>()
 	const src = stripBlockIds(ops)

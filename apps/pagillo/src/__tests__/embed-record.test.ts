@@ -3,8 +3,8 @@
 
 /** Embed records, with `renderEmbed` mocked before the dynamic import. */
 
-import { jest } from '@jest/globals'
 import type { DocLinkResult } from '@cloudillo/core'
+import { jest } from '@jest/globals'
 
 const core = await import('@cloudillo/core')
 const renderEmbed = jest.fn<typeof core.renderEmbed>()

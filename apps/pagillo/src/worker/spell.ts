@@ -12,8 +12,8 @@
 import {
 	type Paragraph,
 	resolveParagraphStyle,
-	type StyleDef,
-	type Story
+	type Story,
+	type StyleDef
 } from '@cloudillo/typeset'
 import { createHunspellFromStrings, type Hunspell } from 'hunspell-wasm'
 

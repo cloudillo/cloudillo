@@ -26,7 +26,7 @@ import {
 	threadStates,
 	updateFrame
 } from '../crdt/frame-ops.js'
-import { deleteSection } from '../crdt/section-ops.js'
+import { deleteSection, updateSection } from '../crdt/section-ops.js'
 import type {
 	StoredFrame,
 	StoredMaster,
@@ -140,6 +140,33 @@ describe('PublicationAdapter', () => {
 		expect(masters).toBe(1)
 		updateFrame(yDoc, doc, id, { anchor: { ms: 'm1' } })
 		expect(masters).toBe(2)
+	})
+
+	it('re-sends sections on a setting change, not on a rename', () => {
+		const yDoc = new Y.Doc()
+		const doc = openPublication(yDoc)
+		doc.tx.set('S', new Y.Text())
+		doc.s.set('s1', newSectionMap({ story: 'S', start: 'any' } as StoredSection))
+		doc.secs.push(['s1'])
+		let sections = 0
+		const noop = () => {}
+		const engine = {
+			setPublication: noop,
+			setSections: () => {
+				sections++
+			},
+			setFrames: noop,
+			setStyles: noop,
+			setFootnotes: noop,
+			setMasters: noop,
+			patch: noop
+		}
+		new PublicationAdapter(yDoc, engine as unknown as Engine)
+		const before = sections
+		updateSection(yDoc, doc, 's1', { name: 'X' })
+		expect(sections).toBe(before)
+		updateSection(yDoc, doc, 's1', { start: 'odd' })
+		expect(sections).toBe(before + 1)
 	})
 
 	it('drops a footnote body once its ref is gone', () => {

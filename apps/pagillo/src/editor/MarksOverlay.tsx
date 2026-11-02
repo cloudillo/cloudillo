@@ -103,7 +103,6 @@ function markEl(m: Mark, i: number, t: ReturnType<typeof useTranslation>['t']) {
 			)
 		case 'page':
 		case 'column':
-		case 'section':
 			return (
 				<g key={key} transform={m.rot} opacity={0.7}>
 					<line

@@ -14,11 +14,14 @@ import {
 	newSectionMap,
 	readFrame,
 	readMaster,
+	readSection,
+	sectionOf,
 	styleOf
 } from '../crdt/entities.js'
 import { addFrame, chainOf, linkFrame, updateFrame } from '../crdt/frame-ops.js'
 import { addMaster, updateMaster } from '../crdt/master-ops.js'
 import { rootNotes, sweepOrphanStories } from '../crdt/normalize.js'
+import { updateSection } from '../crdt/section-ops.js'
 import type { StoredFrame, StoredMaster, StoredSection, StoredStyle } from '../crdt/stored-types.js'
 import { copyStory } from '../crdt/story-ops.js'
 import { addStyle, updateStyle } from '../crdt/style-ops.js'
@@ -159,6 +162,36 @@ describe('frame fields', () => {
 		const d = frameOf(da, 'i')?.data
 		expect(d).not.toHaveProperty('px')
 		expect(d).toMatchObject({ crop: FULL_CROP })
+	})
+})
+
+describe('section fields', () => {
+	const named = (name: unknown) => {
+		const { da } = peers()
+		da.s.set(
+			's',
+			new Y.Map<unknown>([
+				['story', 'S'],
+				['name', name]
+			])
+		)
+		return readSection(da.s.get('s'))
+	}
+
+	it("normalizes a peer's name: non-string / blank → none, trimmed, capped", () => {
+		expect(named(5)?.name).toBeUndefined()
+		expect(named({ x: 1 })?.name).toBeUndefined()
+		expect(named('  ')?.name).toBeUndefined()
+		expect(named('  A ')?.name).toBe('A')
+		expect(named('x'.repeat(1000))?.name).toHaveLength(80)
+	})
+
+	it('a blank name patch removes the key', () => {
+		const { a, da } = peers()
+		da.s.set('s1', newSectionMap({ story: 'S', name: 'A' } as StoredSection))
+		updateSection(a, da, 's1', { name: '   ' })
+		expect((da.s.get('s1') as Y.Map<unknown>).has('name')).toBe(false)
+		expect(sectionOf(da, 's1')?.name).toBeUndefined()
 	})
 })
 

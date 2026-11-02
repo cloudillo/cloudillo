@@ -4,10 +4,10 @@
 /**
  * Left Pages rail: thumbnails grouped by section separators, plus a "Laying out…" row
  * while the worker is behind. With `onSection` (layout editing allowed) a separator opens the
- * section popover, drags (handle + Move menu) to reorder sections, and Alt+↑/↓ moves its
- * section. With `onAddPage`/`onDeletePage` a thumbnail's context menu (right click, Shift+F10)
- * offers "+ Add page" / "Delete page" and, with `onEditLayout`, "Edit layout…". Pages are not
- * draggable (they follow the text).
+ * section popover (sections are reordered in the Sections tab only). With `onAddPage`/
+ * `onDeletePage` a thumbnail's context menu (right click, Shift+F10) offers "+ Add page" /
+ * "Delete page" and, with `onEditLayout`, "Edit layout…". Pages are not draggable (they follow
+ * the text). Rendered inside the rail `<nav>` that the app owns (with the tab bar).
  */
 
 import {
@@ -15,7 +15,6 @@ import {
 	isKeyboardContextMenu,
 	Menu,
 	MenuItem,
-	SortableList,
 	useDebouncedValue,
 	useNearSet
 } from '@cloudillo/react'
@@ -42,10 +41,10 @@ export interface PagesRailProps {
 	defaultPage: { w: number; h: number }
 	src: ImageSource
 	onJump(key: string): void
+	/** Display name of section `id` (separator label). */
+	sectionName(id: string): string
 	/** Separator clicked: open the section popover anchored to `el`. Absent = read-only rail. */
 	onSection?(id: string, el: HTMLElement): void
-	/** Move a section to `toIndex` in the flow order (drag, Move menu, Alt+↑/↓). */
-	onMoveSection?(id: string, toIndex: number): void
 	/** "+ Add page" after global page `n`. Absent = no page menu. */
 	onAddPage?(n: number): void
 	/** "Delete page" `n` (the caller confirms). */
@@ -66,8 +65,8 @@ export function PagesRail({
 	defaultPage,
 	src,
 	onJump,
+	sectionName,
 	onSection,
-	onMoveSection,
 	onAddPage,
 	onDeletePage,
 	onEditLayout,
@@ -81,12 +80,11 @@ export function PagesRail({
 		position?: { x: number; y: number }
 		anchor?: HTMLElement
 	}>()
-	const sortable = !!(onSection && onMoveSection)
 	// Thumbnails repaint once typing pauses, not on every layout snapshot.
 	const pages = useDebouncedValue(layout.pages, THUMB_DEBOUNCE_MS)
 	const laying = useDelayed(layout.pending, 500)
 	// Keys of thumbnails within one screen of the rail's view: only those mount a `PageCanvas`.
-	const near = useNearSet(railRef, '.pagillo-thumb[data-key]', 'key', [layout.sections, sortable])
+	const near = useNearSet(railRef, '.pagillo-thumb[data-key]', 'key', [layout.sections])
 
 	React.useEffect(() => {
 		railRef.current
@@ -101,22 +99,19 @@ export function PagesRail({
 		starts.push(total)
 		total += s.pages
 	}
-	const label = (si: number) => t('Section {{n}}', { n: si + 1 })
+	const label = (si: number) => {
+		const s = layout.sections[si]
+		return s ? sectionName(s.id) : t('Section {{n}}', { n: si + 1 })
+	}
 
-	const group = (s: RailSection, si: number, handle?: React.ReactNode) => (
+	const group = (s: RailSection, si: number) => (
 		<>
 			{onSection ? (
 				<div className="c-hbox pagillo-rail-sep small">
-					{handle}
 					<Button
 						variant="link"
 						size="sm"
 						onClick={(e) => onSection(s.id, e.currentTarget)}
-						onKeyDown={(e) => {
-							if (!e.altKey || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return
-							e.preventDefault()
-							onMoveSection?.(s.id, si + (e.key === 'ArrowUp' ? -1 : 1))
-						}}
 					>
 						{label(si)}
 					</Button>
@@ -191,29 +186,10 @@ export function PagesRail({
 	)
 
 	return (
-		<nav ref={railRef} className="pagillo-rail" aria-label={t('Pages')}>
-			{onSection && onMoveSection ? (
-				<SortableList
-					className="pagillo-rail-list"
-					items={layout.sections}
-					getKey={(s) => s.id}
-					getLabel={(s) => label(layout.sections.indexOf(s))}
-					onReorder={(from, to) => {
-						const s = layout.sections[from]
-						if (s) onMoveSection(s.id, to)
-					}}
-					renderItem={(s, st) => (
-						// Same flow as `.pagillo-rail`.
-						<div className="c-vbox" style={{ alignItems: 'center', gap: 4 }}>
-							{group(s, st.index, st.handle)}
-						</div>
-					)}
-				/>
-			) : (
-				layout.sections.map((s, si) => (
-					<React.Fragment key={s.id}>{group(s, si)}</React.Fragment>
-				))
-			)}
+		<>
+			{layout.sections.map((s, si) => (
+				<React.Fragment key={s.id}>{group(s, si)}</React.Fragment>
+			))}
 			{menu && onAddPage && (
 				<Menu
 					position={menu.position}
@@ -236,7 +212,7 @@ export function PagesRail({
 			{laying && (
 				<div className="pagillo-rail-pending small text-muted">{t('Laying out…')}</div>
 			)}
-		</nav>
+		</>
 	)
 }
 

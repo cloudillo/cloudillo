@@ -10,16 +10,21 @@ import {
 	DocBarMenu,
 	EmptyState,
 	IcExport,
+	IcFile,
+	IcList,
 	IcPagillo,
 	isContextMenuKey,
 	LoadingSpinner,
 	MenuItem,
 	PropertyPanel,
+	Segmented,
+	SegmentedItem,
 	Tab,
 	Tabs,
 	Toasts,
 	useCloudilloEditor,
-	useDialog
+	useDialog,
+	useToast
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -35,7 +40,15 @@ import type * as Y from 'yjs'
 import { useLandmarks } from './a11y/landmarks'
 import { MIRROR_ID, Mirror } from './a11y/Mirror'
 import { isEmptyPublication, openPublication } from './crdt/document'
-import { frameOf, framesOf, isFlow, masterOf, sectionOf } from './crdt/entities'
+import {
+	frameOf,
+	framesOf,
+	isFlow,
+	masterOf,
+	sectionByStory,
+	sectionNumber,
+	sectionOf
+} from './crdt/entities'
 import {
 	anchorMarker,
 	chainOf,
@@ -46,7 +59,6 @@ import {
 	threadStates
 } from './crdt/frame-ops'
 import { registerNormalizer } from './crdt/normalize'
-import { moveSection } from './crdt/section-ops'
 import { PAGE_SIZES } from './crdt/type-converters'
 import { caretBox, selFrom, selTo } from './editor/caret'
 import { useClipboard } from './editor/clipboard'
@@ -63,13 +75,13 @@ import { useFindReplace } from './editor/FindReplace'
 import { type FrameCtl, LINK_REFUSALS, useFrames } from './editor/FrameOverlay'
 import { containsPoint, pageMaster } from './editor/frames'
 import { handleKey, isMarksKey, type KeymapCtx, UNDO_KEY, undoRedoKey } from './editor/keymap'
-import { marksCtx, pageMarks } from './editor/marks'
 import { MarksOverlay } from './editor/MarksOverlay'
+import { marksCtx, pageMarks } from './editor/marks'
 import { usePublishPresence, useRemote } from './editor/RemoteOverlay'
 import { SpellOverlay } from './editor/SpellOverlay'
 import { TextMenu } from './editor/TextMenu'
 import { useUndo } from './editor/undo'
-import { useEditor } from './editor/useEditor'
+import { type BoundaryKind, useEditor } from './editor/useEditor'
 import { userWords } from './editor/user-words'
 import { appLabel } from './embeds/record'
 import { EmbedRendersContext, useEmbedRenders } from './embeds/useEmbedRenders'
@@ -83,16 +95,20 @@ import { StylesPanel } from './panels/StylesPanel'
 import { TemplateGallery } from './panels/TemplateGallery'
 import { Toolbar } from './toolbar/Toolbar'
 import { Banners, EngineStopped } from './view/Banners'
-import { flattenPages, PageList, scrollToPage, type Zoom } from './view/PageList'
+import { flattenPages, PageList, pageDomId, scrollToPage, type Zoom } from './view/PageList'
 import { useEmptyImages } from './view/PageSvg'
 import { PagesRail } from './view/PagesRail'
 import { SectionPopover } from './view/SectionPopover'
+import { SectionsList } from './view/SectionsList'
 import { type ModeInfo, StatusBar } from './view/StatusBar'
+import { SectionPageLabel, sectionDisplayName } from './view/section-utils'
 
 declare const __APP_VERSION__: string
 
 /** Touch-only devices open read-only. */
 const TOUCH_ONLY = '(hover: none) and (pointer: coarse)'
+/** Section-boundary hints already toasted this session (each kind once). */
+const shownHints = new Set<BoundaryKind>()
 
 type PanelTab = 'format' | 'styles'
 
@@ -122,12 +138,41 @@ export function PagilloApp() {
 	const railRef = React.useRef<HTMLElement>(null)
 	// Writers get the input adapter even under `readOnlyReason`: it refuses edits (onRefusedEdit).
 	const canInput = writer && (!touchOnly || touchEdit)
+	const toast = useToast()
+	/** Display name of the section whose flow story is `story` (`sectionDisplayName`). */
+	const storySectionName = (story: string): string => {
+		const id = sectionByStory(doc, story)
+		return id ? sectionDisplayName(doc, id, t) : t('Untitled')
+	}
 	const editor = useEditor({
 		yDoc,
 		doc,
 		layout,
 		canInput,
 		label: t('Document text'),
+		onBoundary: (kind, info) => {
+			// `secs` numbering, as the page labels and `sectionDisplayName` use.
+			const id = info?.story && sectionByStory(doc, info.story)
+			const text =
+				kind === 'cross'
+					? info &&
+						t('Section {{n}} · {{name}}', {
+							n: id ? sectionNumber(doc, id) : info.n,
+							name: id ? sectionDisplayName(doc, id, t) : t('Untitled')
+						})
+					: kind === 'all'
+						? info && t('Selected this section · {{n}} of {{m}}', info)
+						: kind === 'select'
+							? t('A selection stays within one section.')
+							: t(
+									"Sections can't be joined from the text. To merge, cut and paste the text, then remove the empty section in the Sections tab."
+								)
+			if (!text) return
+			setHint({ text })
+			if (kind === 'cross' || shownHints.has(kind)) return
+			shownHints.add(kind)
+			toast.info(text)
+		},
 		onKey: (e) =>
 			(isContextMenuKey(e) && openTextMenu()) ||
 			(e.key === 'Escape' &&
@@ -257,6 +302,7 @@ export function PagilloApp() {
 	})
 	// Spell checking follows View › Check spelling (writers only); the user's words load once.
 	const spellOn = canEdit && frames.view.spell
+	const rail = frames.view.rail
 	const { setSpell } = layout
 	React.useEffect(() => {
 		setSpell(spellOn)
@@ -268,14 +314,14 @@ export function PagilloApp() {
 	}, [setSpell])
 	framesRef.current = frames
 	// View › Show hidden characters (writers only), on whatever is selected.
+	const pageRefs = React.useMemo(() => flattenPages(layout.sections), [layout.sections])
 	const mctx = React.useMemo(() => {
 		if (!canEdit || !frames.view.marks) return
-		const refs = flattenPages(layout.sections)
 		return marksCtx(doc, editor.index, (n) => {
-			const key = refs[n]?.key
+			const key = pageRefs[n]?.key
 			return key ? layout.pages.get(key)?.page : undefined
 		})
-	}, [canEdit, frames.view.marks, layout.sections, layout.pages, doc, editor.index])
+	}, [canEdit, frames.view.marks, pageRefs, layout.pages, doc, editor.index])
 	// The selected frame's anchor marker: `FrameOverlay` draws its glyph there, on the marker's page.
 	const fsel = frames.sel
 	const markSkip = React.useMemo(() => {
@@ -349,6 +395,13 @@ export function PagilloApp() {
 		const id = setTimeout(() => setSaid(undefined), 3000)
 		return () => clearTimeout(id)
 	}, [said])
+	/** Section-boundary hint / crossing announcement, spoken through the mode (cleared likewise). */
+	const [hint, setHint] = React.useState<{ text: string }>()
+	React.useEffect(() => {
+		if (!hint) return
+		const id = setTimeout(() => setHint(undefined), 3000)
+		return () => clearTimeout(id)
+	}, [hint])
 	// Thread announcements: a local frame edit (link, delete, Stop text after this frame) is
 	// compared per story across the next settled layout. Undo/remote edits use other origins.
 	const localFrameEdit = React.useRef(false)
@@ -374,6 +427,23 @@ export function PagilloApp() {
 					: t('Text no longer fits · {{key}} to undo', { key: UNDO_KEY })
 			)
 	}, [synced, layout.pending, layout.overset])
+	/** Page key `onGo` could not scroll to yet (a just-inserted section); scrolled once laid out. */
+	const pendingScroll = React.useRef<{ key: string; sec: string }>(undefined)
+	React.useEffect(() => {
+		const p = pendingScroll.current
+		if (layout.pending || !p) return
+		// Gone, or laid out without pages: nothing to scroll to. Not laid out yet: keep waiting.
+		if (!sectionOf(doc, p.sec) || layout.sections.find((s) => s.id === p.sec)?.pages === 0) {
+			pendingScroll.current = undefined
+			return
+		}
+		const id = requestAnimationFrame(() => {
+			if (pendingScroll.current !== p || !document.getElementById(pageDomId(p.key))) return
+			pendingScroll.current = undefined
+			scrollToPage(p.key, undefined, false, 1 / 3)
+		})
+		return () => cancelAnimationFrame(id)
+	}, [layout.pending, layout.pages])
 
 	if (error) {
 		return <EmptyState icon={<IcPagillo />} title={t('Connection Error')} />
@@ -437,12 +507,11 @@ export function PagilloApp() {
 	/** Blast radius for the banner: sections with pages using the edited layout, current side. */
 	const layoutScope = (() => {
 		if (!layoutEdit) return
-		const secs = doc.secs.toArray()
 		const refs = flattenPages(layout.sections)
 		const used = refs.filter((r) => layout.pages.get(r.key)?.page.master === layoutEdit)
 		const page = refs[current] && layout.pages.get(refs[current].key)?.page
 		return {
-			sections: [...new Set(used.map((r) => secs.indexOf(r.sec) + 1))],
+			sections: [...new Set(used.map((r) => sectionNumber(doc, r.sec)))],
 			side: page?.master === layoutEdit ? pageMaster(doc, page)?.side : undefined
 		}
 	})()
@@ -450,11 +519,15 @@ export function PagilloApp() {
 	const curPage = curRef && {
 		id: curRef.sec,
 		which: curRef.index === 0 ? ('first' as const) : ('rest' as const),
-		sec: doc.secs.toArray().indexOf(curRef.sec) + 1,
+		sec: sectionNumber(doc, curRef.sec),
 		layoutName: (curMaster && masterOf(doc, curMaster)?.name) || ''
 	}
-	/** Status-bar mode chip + key hints; `spoken` keeps the full sentence. */
+	/** Status-bar mode chip + key hints; `spoken` keeps the full sentence (a boundary hint wins). */
 	const mode = (): ModeInfo => {
+		const m = baseMode()
+		return hint ? { ...m, spoken: hint.text } : m
+	}
+	const baseMode = (): ModeInfo => {
 		if (frames.link) {
 			const r = frames.linkRefusal
 			return {
@@ -600,7 +673,10 @@ export function PagilloApp() {
 				spoken: t('Typing a footnote · Esc returns to its reference in the text')
 			}
 		return {
-			chip: t('Text'),
+			chip:
+				isFlow(doc, es.story) && doc.secs.length > 1
+					? t('Text · {{name}}', { name: storySectionName(es.story) })
+					: t('Text'),
 			hints: [[t('Esc'), t('leave text')]],
 			spoken: t('Typing · Esc leaves the text')
 		}
@@ -717,27 +793,75 @@ export function PagilloApp() {
 					<div className="c-hbox flex-fill pagillo-main">
 						<Mirror doc={doc} editor={editor} layout={layout} notices={notices} />
 						<div data-landmark="rail" style={{ display: 'contents' }}>
-							<PagesRail
-								layout={layout}
-								current={current}
-								defaultPage={defaultPage}
-								src={src}
-								onJump={scrollToPage}
-								onSection={
-									canLayout ? (id, el) => setSecPop({ id, el }) : undefined
+							<nav
+								ref={railRef}
+								className={
+									rail === 'sections' ? 'pagillo-rail sections' : 'pagillo-rail'
 								}
-								onMoveSection={
-									canLayout
-										? (id, to) => moveSection(yDoc, doc, id, to)
-										: undefined
-								}
-								onAddPage={canEdit ? onAddPage : undefined}
-								onDeletePage={canEdit ? onDeletePage : undefined}
-								onEditLayout={canLayout ? editLayoutOf : undefined}
-								highlightMaster={canLayout ? layoutEdit : undefined}
-								dropTarget={frames.railTarget}
-								railRef={railRef}
-							/>
+								aria-label={rail === 'sections' ? t('Sections') : t('Pages')}
+							>
+								<Segmented
+									size="sm"
+									className="pagillo-rail-tabs"
+									aria-label={t('Rail view')}
+									value={rail}
+									onChange={(v) =>
+										frames.setView({
+											rail: v === 'sections' ? 'sections' : 'pages'
+										})
+									}
+								>
+									<SegmentedItem value="pages" icon={IcFile} label={t('Pages')} />
+									<SegmentedItem
+										value="sections"
+										icon={IcList}
+										label={t('Sections')}
+									/>
+								</Segmented>
+								{rail === 'sections' ? (
+									<SectionsList
+										yDoc={yDoc}
+										doc={doc}
+										layout={layout}
+										current={current}
+										caretStory={editor.sel?.story}
+										editable={canLayout}
+										onGo={(id, story) => {
+											// Caret first: its reveal scroll would cancel ours.
+											editor.select({ story, anchor: 0, head: 0 })
+											const key = pageKey(id, 0)
+											pendingScroll.current = undefined
+											requestAnimationFrame(() => {
+												// A new section has no page yet: scroll after layout.
+												if (document.getElementById(pageDomId(key)))
+													scrollToPage(key, undefined, false, 1 / 3)
+												else pendingScroll.current = { key, sec: id }
+											})
+										}}
+										onSettings={(id, el) => setSecPop({ id, el })}
+									/>
+								) : (
+									<PagesRail
+										layout={layout}
+										current={current}
+										defaultPage={defaultPage}
+										src={src}
+										onJump={(key) => scrollToPage(key, undefined, false, 1 / 3)}
+										sectionName={(id) => sectionDisplayName(doc, id, t)}
+										onSection={
+											canLayout
+												? (id, el) => setSecPop({ id, el })
+												: undefined
+										}
+										onAddPage={canEdit ? onAddPage : undefined}
+										onDeletePage={canEdit ? onDeletePage : undefined}
+										onEditLayout={canLayout ? editLayoutOf : undefined}
+										highlightMaster={canLayout ? layoutEdit : undefined}
+										dropTarget={frames.railTarget}
+										railRef={railRef}
+									/>
+								)}
+							</nav>
 						</div>
 						<div data-landmark="document" style={{ display: 'contents' }}>
 							<PageList
@@ -749,6 +873,12 @@ export function PagilloApp() {
 								emptyImages={emptyImages}
 								onCurrent={setCurrent}
 								onZoomPct={setZoomPct}
+								pageLabel={(i) => {
+									const p = pageRefs[i]
+									return (
+										p?.index === 0 && <SectionPageLabel doc={doc} id={p.sec} />
+									)
+								}}
 								overlay={(i, size, scale) => (
 									<>
 										{remote.overlay(i, size, scale)}

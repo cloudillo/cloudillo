@@ -7,11 +7,11 @@
  * `indexGeom` adds each paragraph's Y.Text start (`paragraphStarts`).
  */
 
-import type * as Y from 'yjs'
 import { FX, type LineGeom, type PageDL, type Rot } from '@cloudillo/typeset'
+import type * as Y from 'yjs'
 
-import type { YPagilloDocument } from '../crdt/stored-types'
 import { deltaOf, storyTextOf } from '../crdt/delta-cache'
+import type { YPagilloDocument } from '../crdt/stored-types'
 import { paragraphStarts, tableCells } from '../crdt/type-converters'
 
 /** Local selection: Y.Text offsets within one story (never across stories). */
@@ -169,6 +169,21 @@ export const xDist = (l: PlacedLine, x: number) => {
 /** Both lines are segments of one row (a row split around a frame). */
 export const sameRow = (a: PlacedLine, b: PlacedLine) =>
 	a.page === b.page && a.line.bid === b.line.bid && a.line.row === b.line.row
+
+/** The caret at `off` is on the story's first (`dir` -1) / last (1) line row; true with no lines. */
+export function edgeRow(lines: PlacedLine[], off: number, dir: -1 | 1): boolean {
+	const pl = lineAt(lines, off)
+	if (!pl) return true
+	let i = lines.indexOf(pl)
+	while (lines[i] && sameRow(lines[i], pl)) i += dir
+	return !lines[i]
+}
+
+/** Neighbouring section flow story of `story` in `flows` order; undefined at the ends / non-flow. */
+export function crossStory(flows: string[], story: string, dir: -1 | 1): string | undefined {
+	const i = flows.indexOf(story)
+	return i < 0 ? undefined : flows[i + dir]
+}
 
 /**
  * Up/down one line row (across columns and pages) keeping goal x. A row wrapped around a frame

@@ -7,8 +7,6 @@
  * through `entities.ts`.
  */
 
-import * as Y from 'yjs'
-import { ptToFx } from '@cloudillo/typeset'
 import type {
 	Frame,
 	InlineEmbed,
@@ -23,31 +21,33 @@ import type {
 	Story,
 	TableBlock
 } from '@cloudillo/typeset'
+import { ptToFx } from '@cloudillo/typeset'
+import * as Y from 'yjs'
 
+import { newBlockId } from './block-ids'
 import {
 	anchorOf,
 	FULL_CROP,
-	framesOf,
 	frameOf,
+	framesOf,
 	isObj,
 	masterOf,
 	mastersOf,
 	sectionOf,
 	stylesOf
 } from './entities'
-import { newBlockId } from './block-ids'
 import { sanitizeBox, sanitizeMarks, sanitizeOverrides } from './overrides'
+import type { PageSize, PublicationMeta } from './runtime-types'
 import {
 	type StoredFrame,
 	type StoredLineAttrs,
-	TABLE_KEYS,
 	type StoredMaster,
 	type StoredMeta,
 	type StoredSection,
 	type StoredTextFrameData,
+	TABLE_KEYS,
 	type YPagilloDocument
 } from './stored-types'
-import type { PageSize, PublicationMeta } from './runtime-types'
 
 /** Portrait page sizes (Fx). */
 export const PAGE_SIZES = {
@@ -746,8 +746,10 @@ function buildTextChains(doc: YPagilloDocument): Map<string, string[]> {
 	return out
 }
 
+/** `name` is app-only: the engine never sees it. */
 export function sectionToEngine(id: string, s: StoredSection, story: Story): Section {
-	return { ...s, id, story }
+	const { name: _name, ...rest } = s
+	return { ...rest, id, story }
 }
 
 /** Engine anchor of a master item (the engine ignores it: `Master.items` names the frame). */

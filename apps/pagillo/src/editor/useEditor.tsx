@@ -11,6 +11,7 @@ import { FX, type PageDL } from '@cloudillo/typeset'
 import * as React from 'react'
 import type * as Y from 'yjs'
 
+import { flowList } from '../crdt/entities'
 import type { YPagilloDocument } from '../crdt/stored-types'
 import type { LayoutState } from '../layout/useLayout'
 import { flattenPages, type PageHit } from '../view/PageList'
@@ -38,9 +39,19 @@ export interface EditorOptions {
 	label: string
 	/** An edit refused because `layout.readOnlyReason` is set (linked text wires this later). */
 	onRefusedEdit?(story: string): void
+	/**
+	 * A key stopped (or, for `'cross'`, carried the caret) at a section flow story boundary:
+	 * `'join'` Backspace/Delete there, `'select'` Shift+move clamped, `'all'` Ctrl/Cmd+A in a
+	 * multi-section document, `'cross'` the caret entered another section. `n` = 1-based section
+	 * of the caret, `m` = section count.
+	 */
+	/** `story`: the flow story entered (`'cross'`). */
+	onBoundary?(kind: BoundaryKind, info?: { n: number; m: number; story?: string }): void
 	/** Command keys the editor's own switch does not handle (`keymap.ts`). */
 	onKey?(e: KeyboardEvent): boolean
 }
+
+export type BoundaryKind = 'join' | 'select' | 'all' | 'cross'
 
 export interface Editor {
 	sel?: C.EditorSelection
@@ -81,6 +92,7 @@ export function useEditor({
 	canInput,
 	label,
 	onRefusedEdit,
+	onBoundary,
 	onKey
 }: EditorOptions): Editor {
 	const [sel, setSel] = React.useState<C.EditorSelection>()
@@ -197,6 +209,17 @@ export function useEditor({
 	}
 
 	const del = (dir: -1 | 1, unit: 'char' | 'word') => {
+		const s = cur.current.sel
+		if (
+			canInput &&
+			s &&
+			s.anchor === s.head &&
+			s.head === (dir < 0 ? 0 : C.storyEnd(textOf(s.story))) &&
+			C.crossStory(flowList(doc), s.story, dir)
+		) {
+			onBoundary?.('join')
+			return
+		}
 		edit((t, from, to) => {
 			let [a, b] = [from, to]
 			if (a === b) {
@@ -260,6 +283,41 @@ export function useEditor({
 			goalX.current ??= C.caretBox(ls, s.head)?.x ?? 0
 			return goalX.current
 		}
+		let flowsMemo: string[] | undefined
+		const flows = () => (flowsMemo ??= flowList(doc))
+		/** Collapsed caret at `o` in section flow story `target`, announced when it changes story. */
+		const jump = (target: string, o: number, keepGoal = false) => {
+			select({ story: target, anchor: o, head: o }, keepGoal)
+			const f = flows()
+			if (target !== s.story)
+				onBoundary?.('cross', { n: f.indexOf(target) + 1, m: f.length, story: target })
+			return true
+		}
+		/**
+		 * `move(head)`, unless the caret sits at its story's `dir` edge (`edge`) next to another
+		 * section: then it crosses into it at `land(target)`, or with Shift it hints and stays.
+		 */
+		const step = (
+			dir: -1 | 1,
+			edge: boolean,
+			head: number,
+			keepGoal = false,
+			land = (t: string) => (dir < 0 ? C.storyEnd(textOf(t)) : 0)
+		) => {
+			const target = edge ? C.crossStory(flows(), s.story, dir) : undefined
+			if (!target) return move(head, keepGoal)
+			if (!e.shiftKey) return jump(target, land(target), keepGoal)
+			onBoundary?.('select')
+			return move(head, keepGoal)
+		}
+		/** Publication start/end (first/last section); Shift keeps to the story. */
+		const docEdge = (dir: -1 | 1) => {
+			const f = flows()
+			const h = dir < 0 ? 0 : end()
+			if (e.shiftKey || !f.includes(s.story)) return step(dir, s.head === h, h)
+			const target = f[dir < 0 ? 0 : f.length - 1]
+			return jump(target, dir < 0 ? 0 : C.storyEnd(textOf(target)))
+		}
 		const collapsed = s.anchor === s.head
 		switch (e.key) {
 			case 'ArrowLeft':
@@ -268,16 +326,24 @@ export function useEditor({
 				if (IS_MAC && e.metaKey) return move(C.lineEdge(ls, s.head, dir))
 				if (!e.shiftKey && !collapsed && !word)
 					return move(dir < 0 ? C.selFrom(s) : C.selTo(s))
-				return move(
+				return step(
+					dir,
+					s.head === (dir < 0 ? 0 : end()),
 					word ? C.wordMove(txt(), s.head, dir) : C.charMove(txt(), s.head, dir, end())
 				)
 			}
 			case 'ArrowUp':
 			case 'ArrowDown': {
 				const dir = e.key === 'ArrowUp' ? -1 : 1
-				if (IS_MAC && e.metaKey) return move(dir < 0 ? 0 : end())
+				if (IS_MAC && e.metaKey) return docEdge(dir)
 				if (word) return move(C.paragraphMove(txt(), s.head, dir))
-				return move(C.lineMove(ls, s.head, dir, goal()), true)
+				const h = C.lineMove(ls, s.head, dir, goal())
+				return step(dir, C.edgeRow(ls, s.head, dir), h, true, (t) => {
+					// The target's last (up) / first (down) line at goal x; unlaid-out: its end / start.
+					const tl = lines(t)
+					const l = tl[dir < 0 ? tl.length - 1 : 0]
+					return l ? C.nearestCaret(l, goal()) : dir < 0 ? C.storyEnd(textOf(t)) : 0
+				})
 			}
 			case 'PageUp':
 			case 'PageDown':
@@ -285,7 +351,7 @@ export function useEditor({
 			case 'Home':
 			case 'End': {
 				const dir = e.key === 'Home' ? -1 : 1
-				return move(mod ? (dir < 0 ? 0 : end()) : C.lineEdge(ls, s.head, dir))
+				return mod ? docEdge(dir) : move(C.lineEdge(ls, s.head, dir))
 			}
 			case 'Enter':
 				if (e.altKey || mod) break
@@ -304,6 +370,8 @@ export function useEditor({
 			case 'A':
 				if (!mod || e.altKey) break
 				select({ story: s.story, anchor: 0, head: end() })
+				if (flows().length > 1 && flows().includes(s.story))
+					onBoundary?.('all', { n: flows().indexOf(s.story) + 1, m: flows().length })
 				return true
 		}
 		return onKey?.(e) ?? false

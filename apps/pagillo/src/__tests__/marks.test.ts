@@ -42,7 +42,7 @@ const line = (
 const ctx = (
 	text: string,
 	lines: PlacedLine[],
-	o: { end?: 'end' | 'section' | 'none'; embeds?: [number, EmbedKind][] } = {}
+	o: { end?: 'end' | 'none'; embeds?: [number, EmbedKind][] } = {}
 ): MarksCtx => ({
 	text: () => text,
 	embeds: () => new Map(o.embeds),
@@ -98,14 +98,11 @@ describe('pageMarks', () => {
 		expect(ms[0].x).toBe(50)
 	})
 
-	it('ends a story with # or a section break rule', () => {
+	it('ends a story with #; a non-last section ends with a plain ¶', () => {
 		const text = 'ab\n'
 		const ls = [line(20, 0, 2)]
 		expect(kinds(pageMarks(ls, ctx(text, ls, { end: 'end' })))).toEqual(['end'])
-		const sec = pageMarks(ls, ctx(text, ls, { end: 'section' }))
-		expect(kinds(sec)).toEqual(['para', 'section'])
-		expect(sec[1].label).toBe('Section break')
-		expect(sec[1].x2).toBe(200)
+		expect(kinds(pageMarks(ls, ctx(text, ls, { end: 'none' })))).toEqual(['para'])
 		const cell = { ...ls[0], cell: { row: 'r', cell: 'c' } }
 		expect(kinds(pageMarks([cell], ctx(text, [cell], { end: 'end' })))).toEqual(['para'])
 	})

@@ -10,20 +10,19 @@
  * Prompts and layout names go through the caller's `t` (creator's UI language).
  */
 
-import type * as Y from 'yjs'
 import { getSuggestedBodyFonts } from '@cloudillo/fonts'
 import { FALLBACK_FACE_FAMILY } from '@cloudillo/fonts/metadata'
 import { type Align, type Fx, type ParagraphProps, ptToFx as pt } from '@cloudillo/typeset'
+import type * as Y from 'yjs'
 
 import { setMeta } from './crdt/document'
-import { newFrameMap, newMasterMap, newSectionMap } from './crdt/entities'
+import { FULL_CROP, newFrameMap, newMasterMap, newSectionMap } from './crdt/entities'
 import { addFrame } from './crdt/frame-ops'
 import { type MasterId, newId, type SectionId } from './crdt/ids'
 import type { PageSize } from './crdt/runtime-types'
-import { createStory, type SeedParagraph } from './crdt/story-ops'
 import type { StoredFrame, StoredSection, StoredStyle, YPagilloDocument } from './crdt/stored-types'
+import { createStory, type SeedParagraph } from './crdt/story-ops'
 import { applyStyleSet } from './crdt/style-ops'
-import { FULL_CROP } from './crdt/entities'
 import { PAGE_SIZES } from './crdt/type-converters'
 
 export type TemplateId = 'simple' | 'two-col' | 'hero' | 'newsletter' | 'report' | 'flyer' | 'blank'

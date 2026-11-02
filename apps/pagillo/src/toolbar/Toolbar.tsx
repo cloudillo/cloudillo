@@ -412,12 +412,6 @@ export function Toolbar({
 						/>
 					))}
 				</SubMenuItem>
-				<MenuItem
-					label={t('Section break')}
-					disabled={off}
-					title={off ? needCaret : undefined}
-					onClick={act(() => Cmd.insertSectionBreak(ctx))}
-				/>
 			</Menu>
 			<ToolbarDivider />
 			{onToggleMarks && (

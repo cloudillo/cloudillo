@@ -10,7 +10,6 @@
  * **read** shapes those readers return.
  */
 
-import type * as Y from 'yjs'
 import type {
 	ImageFrameData,
 	InlineEmbed,
@@ -22,6 +21,7 @@ import type {
 	ShapeFrameData,
 	StyleDef
 } from '@cloudillo/typeset'
+import type * as Y from 'yjs'
 
 /**
  * `st` value: `{ k: 'p'|'c', name, basedOn?: styleId, props }` (engine `StyleDef`). Stored as
@@ -52,8 +52,11 @@ export type StoredMaster = Omit<Master, 'id' | 'items' | 'left' | 'right'> & {
 	regionNames?: Record<string, string>
 }
 
-/** `s` value: `story` is a `tx` key; `maxPages` caps page creation. */
-export type StoredSection = Omit<Section, 'id' | 'story'> & { story: string }
+/**
+ * `s` value: `story` is a `tx` key; `maxPages` caps page creation; `name` is the app-only display
+ * name (stripped in `sectionToEngine`).
+ */
+export type StoredSection = Omit<Section, 'id' | 'story'> & { story: string; name?: string }
 
 /**
  * `img` frame data (read shape, flat): no `fileId` = empty template frame; `deco` = decorative;

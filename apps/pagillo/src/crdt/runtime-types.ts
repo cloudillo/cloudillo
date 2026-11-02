@@ -8,6 +8,7 @@
  */
 
 import type { Fx } from '@cloudillo/typeset'
+
 import type { StyleMap } from './stored-types'
 
 export type {

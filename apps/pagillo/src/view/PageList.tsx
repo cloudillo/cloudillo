@@ -3,7 +3,7 @@
 
 /**
  * The virtualized page column. Every page is an exact-size box (CSS flow: `PAD` padding, `GAP`
- * gap — the offsets below assume exactly that); only pages within the viewport ± 1 mount their
+ * gap, plus `LABEL_GAP` margin above a labelled page — the offsets below assume exactly that); only pages within the viewport ± 1 mount their
  * `PageCanvas` (content) and `PageSvgOverlay` (links, ghosts, empty image boxes). The visible
  * range goes to the worker as its priority viewport. Zoom changes the canvas size and redraws it;
  * the overlay's `viewBox` stays in pt.
@@ -51,24 +51,29 @@ export function pageDomId(key: string): string {
 /**
  * Smooth-scroll to a page's top; with `frac` (0–1 down the page) centre that spot instead.
  * `jumpFar`: instant beyond two screens (a moved frame's new page, not every page between).
+ * `at` (0–1 down the view): put the page top (or the `frac` spot) there instead, e.g. ⅓ for a
+ * section jump that keeps the previous page's end in view. The document ends clamp it.
  */
-export function scrollToPage(key: string, frac?: number, jumpFar = false): void {
+export function scrollToPage(key: string, frac?: number, jumpFar = false, at?: number): void {
 	const el = document.getElementById(pageDomId(key))
 	if (!el) return
 	const box = el.closest('.pagillo-pages')
-	if (!box || (frac === undefined && !jumpFar)) {
+	if (!box || (frac === undefined && !jumpFar && at === undefined)) {
 		el.scrollIntoView({ block: 'start', behavior: 'smooth' })
 		return
 	}
 	const r = el.getBoundingClientRect()
 	const b = box.getBoundingClientRect()
-	const y = frac === undefined ? r.top - b.top : r.top + r.height * frac - (b.top + b.height / 2)
+	const y =
+		r.top + r.height * (frac ?? 0) - (b.top + b.height * (at ?? (frac === undefined ? 0 : 0.5)))
 	box.scrollBy({ top: y, behavior: jumpFar && Math.abs(y) > 2 * b.height ? 'instant' : 'smooth' })
 }
 
 const PX_PER_PT = 96 / 72
 const PAD = 24
 const GAP = 16
+/** Extra room above a page with a `pageLabel` (a section start). */
+const LABEL_GAP = 24
 const pt = (fx: number) => fx / FX
 
 export interface PageListProps {
@@ -102,6 +107,8 @@ export interface PageListProps {
 	dragScrollEls?: React.RefObject<HTMLElement | null>[]
 	/** Right-click on a page; the callee decides whether to suppress the native menu. */
 	onPageContextMenu?(hit: PageHit, e: React.MouseEvent): void
+	/** Chrome label in the gap above page `index` (global; a section's first page), never printed. */
+	pageLabel?(index: number): React.ReactNode
 }
 
 /** Auto-scroll band (CSS px from the edge) and top speed (CSS px per frame). */
@@ -122,7 +129,8 @@ export function PageList({
 	onPagePointer,
 	dragScroll,
 	dragScrollEls,
-	onPageContextMenu
+	onPageContextMenu,
+	pageLabel
 }: PageListProps) {
 	const ref = React.useRef<HTMLDivElement>(null)
 	/** Last captured pointer (client px + event): the scroll re-run of a move drag. */
@@ -164,9 +172,11 @@ export function PageList({
 		prevScale.current = scale
 	}, [scale])
 
+	const labels = list.map((_, i) => pageLabel?.(i))
 	const tops: number[] = []
 	let y = PAD
-	for (const s of sizes) {
+	for (const [i, s] of sizes.entries()) {
+		if (labels[i]) y += LABEL_GAP
 		tops.push(y)
 		y += pt(s.h) * scale + GAP
 	}
@@ -311,6 +321,7 @@ export function PageList({
 			{list.map((p, i) => {
 				const dl = layout.pages.get(p.key)
 				const near = i >= first - 1 && i <= last + 1
+				const label = labels[i]
 				return (
 					<div
 						key={p.key}
@@ -319,10 +330,16 @@ export function PageList({
 						aria-hidden="true"
 						style={{
 							position: 'relative',
+							marginTop: label ? LABEL_GAP : undefined,
 							width: pt(sizes[i].w) * scale,
 							height: pt(sizes[i].h) * scale
 						}}
 					>
+						{label && (
+							<div className="pagillo-page-label">
+								<span>{label}</span>
+							</div>
+						)}
 						{dl && near && (
 							<>
 								<PageCanvas

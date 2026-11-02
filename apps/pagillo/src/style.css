@@ -57,6 +57,37 @@ body,
 	-webkit-user-select: none;
 }
 
+/* Section label + dashed rule in the gap above a section's first page: chrome, never printed */
+.pagillo-page-label {
+	position: absolute;
+	bottom: 100%;
+	left: 0;
+	right: 0;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding-bottom: 8px;
+	font-size: 12px;
+	font-weight: 600;
+	line-height: 16px;
+	color: var(--col-primary);
+	white-space: nowrap;
+	pointer-events: none;
+}
+
+.pagillo-page-label > span {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.pagillo-page-label::after {
+	content: '';
+	flex: 1 1 0;
+	min-width: 24px;
+	border-top: 1px dashed currentColor;
+}
+
 .pagillo-page-canvas {
 	display: block;
 }
@@ -102,8 +133,9 @@ body,
 	gap: 4px;
 	flex: none;
 	width: 128px;
-	padding: 8px 0;
+	padding: 8px;
 	overflow-y: auto;
+	background: var(--col-container);
 	border-right: 1px solid var(--col-outline, rgb(0 0 0 / 10%));
 }
 
@@ -118,7 +150,111 @@ body,
 
 .pagillo-rail-sep {
 	align-self: stretch;
-	padding: 4px 8px;
+	padding: 4px 0;
+}
+
+/* Sections tab: wider rail, one row per section */
+.pagillo-rail.sections {
+	align-items: stretch;
+	width: 240px;
+}
+
+.pagillo-rail-tabs {
+	flex: none;
+	align-self: stretch;
+	margin: 0 0 4px;
+}
+
+.pagillo-rail-tabs > * {
+	flex: 1 1 0;
+}
+
+.pagillo-sections {
+	min-width: 0;
+	gap: 8px;
+}
+
+.pagillo-sections .pagillo-rail-list {
+	gap: 8px;
+}
+
+/* Section cards: the OpalUI .c-card tokens (one c-* class per element, so not c-card itself) */
+.pagillo-sec-row {
+	align-items: center;
+	gap: 2px;
+	min-width: 0;
+	border-radius: var(--radius-md);
+	background: var(--col-raised);
+	border: 1px solid var(--col-outline);
+	border-left: 3px solid var(--col-outline);
+	box-shadow: var(--shadow-sm);
+}
+
+.pagillo-sec-row:hover {
+	background: var(--col-frost);
+}
+
+.pagillo-sec-row[data-current] {
+	background: var(--col-selected);
+	border-left-color: var(--col-primary);
+}
+
+/* Drag handle and ⋮: 16 px glyphs (the `sm` button's own are 12 px, hard to see). Targets
+   OpalUI's `.c-button.icon` markup: SortableList's handle has no size prop. */
+.pagillo-sec-row .c-button.icon > svg {
+	width: 16px;
+	height: 16px;
+}
+
+/* ⋮ on hover / focus, always on touch (prezillo `.c-slide-thumb__more`) */
+.pagillo-sec-more {
+	opacity: 0;
+}
+
+.pagillo-sec-row:hover .pagillo-sec-more,
+.pagillo-sec-row:focus-within .pagillo-sec-more {
+	opacity: 1;
+}
+
+@media (pointer: coarse) {
+	.pagillo-sec-more {
+		opacity: 1;
+	}
+}
+
+.pagillo-sec-add {
+	align-self: stretch;
+	justify-content: center;
+}
+
+/* Name and meta lines truncate with an ellipsis (full text in the `TruncTip` tooltip) */
+.pagillo-sec-main {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	flex: 1 1 auto;
+	min-width: 0;
+	padding: 4px 6px;
+	text-align: left;
+}
+
+.pagillo-sec-main[aria-current] {
+	font-weight: 600;
+}
+
+.pagillo-sec-name,
+.pagillo-sec-meta {
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.pagillo-sec-overset {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	color: var(--col-error, currentColor);
 }
 
 .pagillo-thumb {

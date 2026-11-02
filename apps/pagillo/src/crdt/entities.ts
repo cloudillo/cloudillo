@@ -155,9 +155,20 @@ export function readMaster(y: unknown): StoredMaster | undefined {
 	} as StoredMaster
 }
 
+/** Longest section name, chars. */
+export const SECTION_NAME_MAX = 80
+
+/** Trimmed, length-capped section name; blank or non-string → undefined. */
+export function sectionName(v: unknown): string | undefined {
+	const s = typeof v === 'string' ? v.trim().slice(0, SECTION_NAME_MAX) : ''
+	return s || undefined
+}
+
 export function readSection(y: unknown): StoredSection | undefined {
 	const o = json(y)
-	return o && typeof o.story === 'string' ? (o as StoredSection) : undefined
+	return o && typeof o.story === 'string'
+		? ({ ...o, name: sectionName(o.name) } as StoredSection)
+		: undefined
 }
 
 export function readStyle(y: unknown): StoredStyle | undefined {
@@ -177,6 +188,9 @@ export function readStyle(y: unknown): StoredStyle | undefined {
 export const frameOf = (doc: YPagilloDocument, id: string) => readFrame(doc.f.get(id))
 export const masterOf = (doc: YPagilloDocument, id: string) => readMaster(doc.ms.get(id))
 export const sectionOf = (doc: YPagilloDocument, id: string) => readSection(doc.s.get(id))
+/** 1-based position of section `id` in `secs` (0 if absent). */
+export const sectionNumber = (doc: YPagilloDocument, id: string) =>
+	doc.secs.toArray().indexOf(id) + 1
 export const styleOf = (doc: YPagilloDocument, id: string) => readStyle(doc.st.get(id))
 
 function readAll<T>(
@@ -204,6 +218,11 @@ export function flowStories(doc: YPagilloDocument): Map<string, StoredSection> {
 	}
 	return out
 }
+/** Section flow stories, in `secs` order. */
+export const flowList = (doc: YPagilloDocument): string[] => [...flowStories(doc).keys()]
+/** Id of the section whose flow story is `story`. */
+export const sectionByStory = (doc: YPagilloDocument, story: string): string | undefined =>
+	doc.secs.toArray().find((id) => sectionOf(doc, id)?.story === story)
 /** `story` is a section flow story (the only place a text-anchor marker counts). */
 export const isFlow = (doc: YPagilloDocument, story: string | undefined) =>
 	!!story && flowStories(doc).has(story)
@@ -241,7 +260,7 @@ export function newMasterMap(m: StoredMaster): Y.Map<unknown> {
 }
 
 export function newSectionMap(s: StoredSection): Y.Map<unknown> {
-	return new Y.Map(Object.entries(defined(s)))
+	return new Y.Map(Object.entries(defined({ ...s, name: sectionName(s.name) })))
 }
 
 export function newStyleMap(s: StoredStyle): Y.Map<unknown> {
@@ -322,7 +341,9 @@ export function patchMaster(y: unknown, patch: Partial<StoredMaster>): boolean {
 
 export function patchSection(y: unknown, patch: Partial<StoredSection>): boolean {
 	if (!(y instanceof Y.Map)) return false
-	for (const [k, v] of Object.entries(patch)) put(y, k, isObj(v) ? { ...v } : v)
+	// A blank name removes the key.
+	for (const [k, v] of Object.entries(patch))
+		put(y, k, k === 'name' ? sectionName(v) : isObj(v) ? { ...v } : v)
 	return true
 }
 

@@ -8,7 +8,6 @@
  * re-send sections + frames; a changed story text becomes `ParagraphPatch[]` diffed by bid.
  */
 
-import * as Y from 'yjs'
 import type {
 	Engine,
 	Master,
@@ -20,6 +19,7 @@ import type {
 	StyleDef,
 	TextFrameData
 } from '@cloudillo/typeset'
+import * as Y from 'yjs'
 
 import { openPublication } from '../crdt/document'
 import { flowStories, mastersOf, sectionOf, stylesOf } from '../crdt/entities'
@@ -288,8 +288,19 @@ export class PublicationAdapter {
 			if (changed.has(t)) texts.push(id)
 		})
 		// `ms` too: a side mode or items change re-derives the mirrored item frames.
+		// A section map holds plain values, so `changed` names `d.s` (ids added / removed) or a
+		// section map directly. `name` never reaches the engine (`sectionToEngine`).
+		const secsChanged =
+			changed.has(d.s) ||
+			[...changed].some(
+				([t, keys]) =>
+					t instanceof Y.Map && t.parent === d.s && [...keys].some((k) => k !== 'name')
+			)
 		const structural =
-			changed.has(d.secs) || changed.has(d.tx) || [d.s, d.f, d.ms].some((t) => deep.has(t))
+			changed.has(d.secs) ||
+			changed.has(d.tx) ||
+			secsChanged ||
+			[d.f, d.ms].some((t) => deep.has(t))
 		if (structural) {
 			const secs = d.secs.toArray().flatMap((id) => {
 				const s = sectionOf(d, id)

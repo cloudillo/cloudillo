@@ -58,6 +58,12 @@ describe('scrollToPage', () => {
 		expect(scrollBy.calls).toEqual([{ top: 100, behavior: 'smooth' }])
 	})
 
+	it('with `at`: puts the page top that far down the view', () => {
+		const { scrollBy } = setup(1500)
+		scrollToPage('k', undefined, false, 1 / 3)
+		expect(scrollBy.calls).toEqual([{ top: 1500 - 1000 / 3, behavior: 'smooth' }])
+	})
+
 	it('falls back to scrollIntoView without a scroller', () => {
 		const { intoView, scrollBy } = setup(300, false)
 		scrollToPage('k')

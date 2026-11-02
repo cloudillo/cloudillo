@@ -41,10 +41,8 @@ import {
 	toEnginePublication
 } from '../crdt/type-converters.js'
 import { copyFrames, pasteDelta, readDelta, readFrames } from '../editor/clipboard.js'
-import { type CommandCtx, insertSectionBreak } from '../editor/commands.js'
 import { type PageInfo, positionOf } from '../editor/frames.js'
 import { deleteRange } from '../editor/text-edit.js'
-import type { Editor } from '../editor/useEditor.js'
 
 /** A "moves with text" image frame anchored to story `story`. */
 const img = (story: string, extra: Partial<StoredFrame> = {}): StoredFrame => ({
@@ -412,37 +410,9 @@ describe('section ops (text anchors)', () => {
 		return r
 	}
 
-	it('insertSectionBreak moves a frame anchored after the caret into the new story', () => {
-		// a B ¶ b A ¶ — the caret at the start of "b".
-		const { yDoc, doc } = setup([
-			{ insert: 'a' },
-			marker('B'),
-			end,
-			{ insert: 'b' },
-			marker('A'),
-			end
-		])
-		doc.f.set('A', newFrameMap(img('S')))
-		doc.f.set('B', newFrameMap(img('S')))
-		const editor = {
-			sel: { story: 'S', anchor: 3, head: 3 },
-			select() {},
-			run(fn: (t: Y.Text, from: number, to: number) => number | undefined) {
-				yDoc.transact(() => fn(doc.tx.get('S') as Y.Text, 3, 3))
-				return true
-			}
-		}
-		insertSectionBreak({ yDoc, doc, editor: editor as unknown as Editor } as CommandCtx)
-		const story = readFrame(doc.f.get('A'))?.anchor as { txt: string }
-		expect(story.txt).not.toBe('S')
-		expect(markerWins(doc, story.txt).has('A')).toBe(true)
-		expect(readFrame(doc.f.get('B'))?.anchor).toMatchObject({ txt: 'S' })
-		expect(markerWins(doc, 'S').has('B')).toBe(true)
-	})
-
 	it('duplicateSection clones text-anchored frames with winning markers', () => {
 		const { yDoc, doc } = two()
-		const copy = duplicateSection(yDoc, doc, 's1') as string
+		const copy = duplicateSection(yDoc, doc, 's1', ' (copy)') as string
 		const story = sectionOf(doc, copy)?.story ?? ''
 		const [[id]] = [...markerWins(doc, story)]
 		expect(id).not.toBe('A')

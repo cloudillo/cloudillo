@@ -10,8 +10,8 @@ import { type Margins, marginRegion, type Region } from '@cloudillo/typeset'
 import type * as Y from 'yjs'
 
 import {
-	frameOf,
 	flowStories,
+	frameOf,
 	framesOf,
 	masterOf,
 	mastersOf,

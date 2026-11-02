@@ -7,7 +7,15 @@
 
 import type * as Y from 'yjs'
 
-import { framesOf, newFrameMap, newSectionMap, patchSection, sectionOf } from './entities'
+import {
+	framesOf,
+	newFrameMap,
+	newSectionMap,
+	patchSection,
+	SECTION_NAME_MAX,
+	sectionName,
+	sectionOf
+} from './entities'
 import { deleteFrame } from './frame-ops'
 import { newId, type SectionId } from './ids'
 import type { StoredSection, StoredTextFrameData, YPagilloDocument } from './stored-types'
@@ -82,11 +90,12 @@ export function deleteSection(yDoc: Y.Doc, doc: YPagilloDocument, id: SectionId)
 	}, yDoc.clientID)
 }
 
-/** Duplicate a section after itself: settings, story and anchored frames. */
+/** Duplicate a section after itself: settings, story and anchored frames; a name gets `suffix`. */
 export function duplicateSection(
 	yDoc: Y.Doc,
 	doc: YPagilloDocument,
-	id: SectionId
+	id: SectionId,
+	suffix: string
 ): SectionId | undefined {
 	const sec = sectionOf(doc, id)
 	if (!sec) return undefined
@@ -97,7 +106,11 @@ export function duplicateSection(
 		for (const [fid, f] of frames)
 			if ('txt' in f.anchor && f.anchor.txt === sec.story) ids.set(fid, newId())
 		const story = copyStory(doc, sec.story, true, ids)
-		doc.s.set(copy, newSectionMap({ ...sec, story }))
+		// Shorten the base so the suffix survives the length cap.
+		const name = sec.name
+			? sectionName(sec.name.slice(0, SECTION_NAME_MAX - suffix.length) + suffix)
+			: undefined
+		doc.s.set(copy, newSectionMap({ ...sec, story, name }))
 		doc.secs.insert(doc.secs.toArray().indexOf(id) + 1, [copy])
 		for (const [fid, f] of frames) {
 			const anchor =

@@ -3,8 +3,8 @@
 
 /** The worker's incremental spell pass, with a fake Hunspell (mocked before the dynamic import). */
 
-import { jest } from '@jest/globals'
 import type { Paragraph, Story } from '@cloudillo/typeset'
+import { jest } from '@jest/globals'
 
 import type { WorkerToMain } from '../worker/protocol.js'
 

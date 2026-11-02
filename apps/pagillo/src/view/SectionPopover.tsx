@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: MPL-2.0
 
 /**
- * Section settings, anchored to a Pages-rail separator: first/other page layout, start parity,
- * page numbering, page cap, reorder, duplicate, remove.
+ * Section settings, anchored to a Pages-rail separator or a Sections row: name, first/other page
+ * layout, start parity, page numbering, page cap, reorder, duplicate, remove.
  */
 
 import {
@@ -17,18 +17,18 @@ import {
 	NativeSelect,
 	NumberInput,
 	PopoverSurface,
-	PropertyField,
-	useDialog
+	PropertyField
 } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { mastersOf, sectionOf } from '../crdt/entities'
+import { mastersOf, SECTION_NAME_MAX, sectionName, sectionOf } from '../crdt/entities'
 import type { SectionId } from '../crdt/ids'
-import { deleteSection, duplicateSection, moveSection, updateSection } from '../crdt/section-ops'
+import { duplicateSection, moveSection, updateSection } from '../crdt/section-ops'
 import type { StoredSection } from '../crdt/stored-types'
 import type { PanelProps } from '../panels/FormatPanel'
 import { useDocVersion } from '../panels/useY'
+import { sectionDisplayName, useRemoveSection } from './section-utils'
 
 export interface SectionPopoverProps extends PanelProps {
 	secId: SectionId
@@ -47,7 +47,7 @@ export function SectionPopover({
 	onEditLayout
 }: SectionPopoverProps) {
 	const { t } = useTranslation()
-	const dialog = useDialog()
+	const removeSection = useRemoveSection(yDoc, doc)
 	useDocVersion(doc)
 	const s = sectionOf(doc, secId)
 	if (!s) return null
@@ -75,13 +75,7 @@ export function SectionPopover({
 	)
 
 	const remove = async () => {
-		const ok = await dialog.confirm(
-			t('Remove section'),
-			t('The section and all its text and images are removed.')
-		)
-		if (!ok) return
-		onClose()
-		deleteSection(yDoc, doc, secId)
+		if (await removeSection(secId)) onClose()
 	}
 
 	return (
@@ -90,9 +84,21 @@ export function SectionPopover({
 			placement="right-start"
 			width="md"
 			onClose={onClose}
-			aria-label={t('Section {{n}}', { n: index + 1 })}
+			aria-label={sectionDisplayName(doc, secId, t)}
 		>
 			<div className="c-vbox g-2 p-2">
+				<PropertyField label={t('Name')}>
+					<Input
+						key={s.name ?? ''}
+						defaultValue={s.name ?? ''}
+						placeholder={sectionDisplayName(doc, secId, t)}
+						maxLength={SECTION_NAME_MAX}
+						onBlur={(e) => {
+							const name = e.target.value
+							if (sectionName(name) !== s.name) update({ name })
+						}}
+					/>
+				</PropertyField>
 				<PropertyField label={t('First page')}>{layoutSelect('first')}</PropertyField>
 				<PropertyField label={t('Other pages')}>{layoutSelect('rest')}</PropertyField>
 				<div>
@@ -162,7 +168,7 @@ export function SectionPopover({
 						variant="ghost"
 						icon={<IcDuplicate />}
 						onClick={() => {
-							duplicateSection(yDoc, doc, secId)
+							duplicateSection(yDoc, doc, secId, ` ${t('(copy)')}`)
 							onClose()
 						}}
 					>

@@ -204,6 +204,7 @@ body,
 /* Toolbar buttons: link style with small size (32px) */
 .c-nav .c-button {
 	--btn-height: var(--size-sm);
+	--btn-icon-size: 1rem;
 	background: none;
 	box-shadow: none;
 	color: var(--col-secondary);

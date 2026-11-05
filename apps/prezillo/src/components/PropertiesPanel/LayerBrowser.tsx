@@ -411,7 +411,7 @@ export function LayerBrowser({
 							}
 							title={isVisible ? t('Hide') : t('Show')}
 						>
-							{isVisible ? <IcShow size={12} /> : <IcHide size={12} />}
+							{isVisible ? <IcShow /> : <IcHide />}
 						</button>
 						<button
 							type="button"
@@ -421,7 +421,7 @@ export function LayerBrowser({
 							}
 							title={isLocked ? t('Unlock') : t('Lock')}
 						>
-							{isLocked ? <IcLocked size={12} /> : <IcUnlocked size={12} />}
+							{isLocked ? <IcLocked /> : <IcUnlocked />}
 						</button>
 					</>
 				}
@@ -481,7 +481,7 @@ export function LayerBrowser({
 							onClick={(e) => handleToggleObjectVisibility(e, objectId as ObjectId)}
 							title={isVisible ? t('Hide') : t('Show')}
 						>
-							{isVisible ? <IcShow size={12} /> : <IcHide size={12} />}
+							{isVisible ? <IcShow /> : <IcHide />}
 						</button>
 						<button
 							type="button"
@@ -489,7 +489,7 @@ export function LayerBrowser({
 							onClick={(e) => handleToggleObjectLock(e, objectId as ObjectId)}
 							title={isLocked ? t('Unlock') : t('Lock')}
 						>
-							{isLocked ? <IcLocked size={12} /> : <IcUnlocked size={12} />}
+							{isLocked ? <IcLocked /> : <IcUnlocked />}
 						</button>
 					</>
 				}
@@ -506,7 +506,7 @@ export function LayerBrowser({
 					onClick={handleCreateLayer}
 					title={t('New Layer')}
 				>
-					<IcCreateFolder size={14} />
+					<IcCreateFolder />
 				</button>
 			</div>
 			<TreeView>

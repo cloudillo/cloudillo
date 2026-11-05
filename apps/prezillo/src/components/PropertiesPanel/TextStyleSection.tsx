@@ -313,7 +313,7 @@ export function TextStyleSection({
 							onClick={handleInlineBold}
 							title={t('Bold (Ctrl+B)')}
 						>
-							<IcBold size={14} />
+							<IcBold />
 						</button>
 						<button
 							className={mergeClasses(
@@ -323,7 +323,7 @@ export function TextStyleSection({
 							onClick={handleInlineItalic}
 							title={t('Italic (Ctrl+I)')}
 						>
-							<IcItalic size={14} />
+							<IcItalic />
 						</button>
 						<button
 							className={mergeClasses(
@@ -333,7 +333,7 @@ export function TextStyleSection({
 							onClick={handleInlineUnderline}
 							title={t('Underline (Ctrl+U)')}
 						>
-							<IcUnderline size={14} />
+							<IcUnderline />
 						</button>
 						<button
 							className={mergeClasses(
@@ -343,7 +343,7 @@ export function TextStyleSection({
 							onClick={handleInlineStrikethrough}
 							title={t('Strikethrough')}
 						>
-							<IcStrikethrough size={14} />
+							<IcStrikethrough />
 						</button>
 						<div className="c-toolbar-divider" />
 						<button
@@ -354,7 +354,7 @@ export function TextStyleSection({
 							onClick={handleListBullet}
 							title={t('Bullet list')}
 						>
-							<IcList size={14} />
+							<IcList />
 						</button>
 						<button
 							className={mergeClasses(
@@ -364,7 +364,7 @@ export function TextStyleSection({
 							onClick={handleListOrdered}
 							title={t('Numbered list')}
 						>
-							<IcListNumbers size={14} />
+							<IcListNumbers />
 						</button>
 					</div>
 				</PropertyField>
@@ -383,7 +383,7 @@ export function TextStyleSection({
 							title={t('Align left')}
 							disabled={alignLocked}
 						>
-							<IcAlignLeft size={14} />
+							<IcAlignLeft />
 						</button>
 						<button
 							className={mergeClasses(
@@ -394,7 +394,7 @@ export function TextStyleSection({
 							title={t('Align center')}
 							disabled={alignLocked}
 						>
-							<IcAlignCenter size={14} />
+							<IcAlignCenter />
 						</button>
 						<button
 							className={mergeClasses(
@@ -405,7 +405,7 @@ export function TextStyleSection({
 							title={t('Align right')}
 							disabled={alignLocked}
 						>
-							<IcAlignRight size={14} />
+							<IcAlignRight />
 						</button>
 						<button
 							className={mergeClasses(
@@ -416,7 +416,7 @@ export function TextStyleSection({
 							title={t('Justify')}
 							disabled={alignLocked}
 						>
-							<IcAlignJustify size={14} />
+							<IcAlignJustify />
 						</button>
 					</div>
 					<PropertyLockButton
@@ -441,7 +441,7 @@ export function TextStyleSection({
 							title={t('Align top')}
 							disabled={vAlignLocked}
 						>
-							<IcAlignTop size={14} />
+							<IcAlignTop />
 						</button>
 						<button
 							className={mergeClasses(
@@ -452,7 +452,7 @@ export function TextStyleSection({
 							title={t('Align middle')}
 							disabled={vAlignLocked}
 						>
-							<IcAlignMiddle size={14} />
+							<IcAlignMiddle />
 						</button>
 						<button
 							className={mergeClasses(
@@ -463,7 +463,7 @@ export function TextStyleSection({
 							title={t('Align bottom')}
 							disabled={vAlignLocked}
 						>
-							<IcAlignBottom size={14} />
+							<IcAlignBottom />
 						</button>
 					</div>
 					<PropertyLockButton

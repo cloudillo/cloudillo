@@ -199,13 +199,6 @@ body,
 	border-left-color: var(--col-primary);
 }
 
-/* Drag handle and ⋮: 16 px glyphs (the `sm` button's own are 12 px, hard to see). Targets
-   OpalUI's `.c-button.icon` markup: SortableList's handle has no size prop. */
-.pagillo-sec-row .c-button.icon > svg {
-	width: 16px;
-	height: 16px;
-}
-
 /* ⋮ on hover / focus, always on touch (prezillo `.c-slide-thumb__more`) */
 .pagillo-sec-more {
 	opacity: 0;
@@ -356,11 +349,6 @@ body,
 	& .c-font-picker {
 		width: 10rem;
 	}
-}
-
-/* `size="sm"` keeps the compact button height, but its 0.75rem font would shrink 1em icons to 12px. */
-.pagillo-toolbar .c-button > svg {
-	font-size: 1rem;
 }
 
 /* Paragraph-style listbox (`toolbar/StyleSelect.tsx`): fixed width, the

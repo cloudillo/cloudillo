@@ -35,6 +35,18 @@ describe('deltaOf', () => {
 		})
 		expect(storyTextOf(t)).toBe('xab\n')
 	})
+
+	it('does not keep a read of a text created in the open transaction', () => {
+		const doc = new Y.Doc()
+		const t = new Y.Text()
+		doc.transact(() => {
+			doc.getMap<Y.Text>('m').set('t', t)
+			expect(deltaOf(t)).toEqual([])
+			t.insert(0, 'ab\n')
+		})
+		expect(deltaOf(t)).toEqual(t.toDelta())
+		expect(storyTextOf(t)).toBe('ab\n')
+	})
 })
 
 // vim: ts=4

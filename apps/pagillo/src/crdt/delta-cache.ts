@@ -3,9 +3,9 @@
 
 /**
  * Main-thread `Y.Text#toDelta()` cache: one delta per text until a transaction changes it
- * (per-doc `beforeObserverCalls` hook). Inside an open transaction that already changed the text
- * the cache is bypassed (fresh `toDelta()`, not stored). Returned arrays and strings are shared
- * and read-only: callers that mutate copy first.
+ * (per-doc `beforeObserverCalls` hook). Inside an open transaction that created or already changed
+ * the text the cache is bypassed (fresh `toDelta()`, not stored). Returned arrays and strings are
+ * shared and read-only: callers that mutate copy first.
  */
 
 import type * as Y from 'yjs'
@@ -20,8 +20,12 @@ const hooked = new WeakSet<Y.Doc>()
 /** `t.toDelta()`, cached. Shared, read-only. */
 export function deltaOf(t: Y.Text): DeltaOp[] {
 	const doc = t.doc
-	const changed: Map<object, unknown> | undefined = doc?._transaction?.changed
-	if (!doc || changed?.has(t)) return t.toDelta() as DeltaOp[]
+	const tr = doc?._transaction
+	const changed: Map<object, unknown> | undefined = tr?.changed
+	const item = t._item
+	// Yjs leaves a type created in this transaction out of `changed`, so it is never invalidated.
+	const fresh = !!tr && !!item && item.id.clock >= (tr.beforeState.get(item.id.client) ?? 0)
+	if (!doc || fresh || changed?.has(t)) return t.toDelta() as DeltaOp[]
 	if (!hooked.has(doc)) {
 		hooked.add(doc)
 		// Not `afterTransaction`: observers run before it, with `_transaction` already null.

@@ -298,7 +298,7 @@ export function TokensStory() {
 					/>
 					<TokenValue
 						name="--size-md"
-						value="2.5rem (40px)"
+						value="2.25rem (36px)"
 						preview={
 							<div
 								style={{

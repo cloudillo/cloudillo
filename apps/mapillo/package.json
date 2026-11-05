@@ -23,7 +23,7 @@
 		"@cloudillo/core": "workspace:^",
 		"@cloudillo/fonts": "workspace:^",
 		"@cloudillo/react": "workspace:^",
-		"@symbion/opalui": "^0.16.1",
+		"@symbion/opalui": "^0.16.2",
 		"@types/jest": "^30.0.0",
 		"@types/react": "^19.3.0",
 		"@types/react-dom": "^19.3.0",

@@ -105,6 +105,7 @@
 	"Embed Document": "Dokumentum beágyazása",
 	"Read-only document": "Csak olvasható dokumentum",
 	"Import failed": "Az importálás sikertelen",
+	"Could not import the file": "A fájlt nem sikerült importálni",
 	"Unsupported import type: {{type}}": "Nem támogatott importálási típus: {{type}}",
 	"Sans Serif": "Talpatlan",
 	"Serif": "Talpas",

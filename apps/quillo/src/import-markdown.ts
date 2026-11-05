@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: MPL-2.0
 
+import { stripFrontMatter } from '@cloudillo/core'
 import { marked } from 'marked'
 import type Quill from 'quill'
 import Delta from 'quill-delta'
@@ -16,7 +17,7 @@ marked.use({ async: false })
  * typing before nor after), and puts the caret after the inserted content.
  */
 export function importMarkdown(quill: Quill, markdown: string, source: 'user' | 'api'): void {
-	const html = marked.parse(markdown) as string
+	const html = marked.parse(stripFrontMatter(markdown)) as string
 	const delta = quill.clipboard.convert({ html })
 	// Trim the trailing newline that clipboard.convert always appends,
 	// otherwise each import adds an extra blank line at the end.

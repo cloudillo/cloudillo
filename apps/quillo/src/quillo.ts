@@ -41,6 +41,8 @@ import 'quill/dist/quill.snow.css'
 //import 'quill/dist/quill.bubble.css'
 
 import {
+	decodeImportText,
+	readImportFile,
 	docBaseName,
 	docRef,
 	downloadBlob,
@@ -49,6 +51,7 @@ import {
 	getFileUrl,
 	idAccent,
 	parseNav,
+	refuseImport,
 	sanitizeFilename
 } from '@cloudillo/core'
 import { initPresence, openYDoc } from '@cloudillo/crdt'
@@ -1160,28 +1163,13 @@ function updatePairingBadges(
 
 	// Handle import data from shell (markdown → quillo conversion via smart upload)
 	bus.onImportData(async (payload) => {
-		if (bus.access !== 'write') {
-			bus.notifyImportComplete(false, t('Read-only document'))
-			return
-		}
-		if (payload.sourceMimeType === 'text/markdown') {
-			try {
-				const bytes = Uint8Array.from(atob(payload.data), (c) => c.charCodeAt(0))
-				const markdown = new TextDecoder().decode(bytes)
-				importMarkdown(editor, markdown, 'api')
-				bus.notifyImportComplete(true)
-			} catch (err) {
-				console.error('[quillo] Markdown import failed:', err)
-				bus.notifyImportComplete(
-					false,
-					err instanceof Error ? err.message : t('Import failed')
-				)
-			}
-		} else {
-			bus.notifyImportComplete(
-				false,
-				t('Unsupported import type: {{type}}', { type: payload.sourceMimeType })
-			)
+		if (refuseImport(bus, payload.sourceMimeType, t)) return
+		try {
+			importMarkdown(editor, decodeImportText(payload.data), 'api')
+			bus.notifyImportComplete(true)
+		} catch (err) {
+			console.error('[quillo] Markdown import failed:', err)
+			bus.notifyImportComplete(false, t('Could not import the file'))
 		}
 	})
 
@@ -1191,9 +1179,13 @@ function updatePairingBadges(
 		if (bus.access !== 'write') return
 		const file = importInput.files?.[0]
 		if (!file) return
-		const text = await file.text()
-		importMarkdown(editor, text, 'user')
-		importInput.value = ''
+		try {
+			importMarkdown(editor, await readImportFile(file), 'user')
+		} catch (err) {
+			console.error('[quillo] Markdown import failed:', err)
+		} finally {
+			importInput.value = ''
+		}
 	})
 
 	// ============================================

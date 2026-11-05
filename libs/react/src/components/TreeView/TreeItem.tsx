@@ -49,6 +49,8 @@ export interface TreeItemProps extends React.HTMLAttributes<HTMLDivElement> {
 	onSelect?: () => void
 	/** HTML5 drag-drop (the `onItem*` callbacks); under TreeView `onMove`, `false` opts out */
 	isDraggable?: boolean
+	/** Under TreeView `onMove`, `false` takes the item out of the drop targets */
+	isDroppable?: boolean
 	/** Data to pass during drag operations */
 	dragData?: TreeItemDragData
 	/** Called when drag starts */
@@ -65,7 +67,6 @@ export interface TreeItemProps extends React.HTMLAttributes<HTMLDivElement> {
 	children?: React.ReactNode
 }
 
-const INDENT_SIZE = 16 // pixels per depth level
 const INTERACTIVE = 'input, textarea, select, button, a[href], [contenteditable="true"]'
 
 export const TreeItem = createComponent<HTMLDivElement, TreeItemProps>(
@@ -88,6 +89,7 @@ export const TreeItem = createComponent<HTMLDivElement, TreeItemProps>(
 			onToggle,
 			onSelect,
 			isDraggable,
+			isDroppable = true,
 			dragData,
 			onItemDragStart,
 			onItemDragOver,
@@ -129,7 +131,7 @@ export const TreeItem = createComponent<HTMLDivElement, TreeItemProps>(
 		const { setNodeRef: setDropRef } = useDroppable({
 			id,
 			data: moveData,
-			disabled: !dnd || insideActive || isActive
+			disabled: !dnd || !isDroppable || insideActive || isActive
 		})
 		const setRowRef = React.useCallback(
 			(el: HTMLDivElement | null) => {
@@ -318,7 +320,10 @@ export const TreeItem = createComponent<HTMLDivElement, TreeItemProps>(
 				<div
 					ref={setRowRef}
 					className="c-tree-item-row c-hbox"
-					style={{ paddingLeft: depth * INDENT_SIZE }}
+					// A host tree can set both from CSS. Inline, so it beats any `padding` rule.
+					style={{
+						paddingLeft: `calc(var(--c-tree-indent-base, 0px) + ${depth} * var(--c-tree-indent, 16px))`
+					}}
 					onClick={handleClick}
 					{...(dnd
 						? pointerListeners

@@ -59,6 +59,28 @@ describe('DocBarTitle', () => {
 		expect(screen.getByRole('button', { name: 'My doc' })).toBeTruthy()
 	})
 
+	it('renames on Enter and closes the edit box', () => {
+		const onRename = jest.fn()
+		render(<DocBarTitle title="My doc" canRename onRename={onRename} />)
+
+		fireEvent.click(screen.getByRole('button', { name: 'My doc' }))
+		const input = screen.getByPlaceholderText('Document name') as HTMLInputElement
+		fireEvent.change(input, { target: { value: 'New name' } })
+		fireEvent.submit(input.closest('form') as HTMLFormElement)
+
+		expect(onRename).toHaveBeenCalledWith('New name')
+		expect(screen.queryByPlaceholderText('Document name')).toBeNull()
+	})
+
+	it('does not stretch the edit form', () => {
+		render(<DocBarTitle title="My doc" canRename onRename={jest.fn()} />)
+
+		fireEvent.click(screen.getByRole('button', { name: 'My doc' }))
+		const input = screen.getByPlaceholderText('Document name')
+
+		expect(input.closest('form')?.classList.contains('flex-fill')).toBe(false)
+	})
+
 	// A name we have not fetched yet is not the same thing as no name. Showing
 	// "Untitled document" for the length of the row fetch made every document look
 	// unnamed on a slow connection.

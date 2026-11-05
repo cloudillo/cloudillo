@@ -122,7 +122,7 @@ export const SegmentedItem = createComponent<HTMLButtonElement, SegmentedItemPro
 				onKeyDown={handleKeyDown}
 				{...props}
 			>
-				{icon && <Icon as={icon} />}
+				{icon && <Icon as={icon} size="sm" />}
 				{children}
 			</button>
 		)

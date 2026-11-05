@@ -32,8 +32,8 @@ export function treeKeyAction(
 		case 'End':
 			return { focus: items.length - 1 }
 		case 'ArrowRight':
-			if (!item.hasChildren) return null
-			if (!item.expanded) return { toggle: true }
+			if (item.hasChildren && !item.expanded) return { toggle: true }
+			// Not gated on `hasChildren`: a row can show an item under a toggle-less parent
 			return (items[index + 1]?.level ?? 0) > item.level ? { focus: index + 1 } : null
 		case 'ArrowLeft':
 			if (item.hasChildren && item.expanded) return { toggle: true }

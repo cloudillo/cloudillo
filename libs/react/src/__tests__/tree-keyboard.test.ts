@@ -42,6 +42,14 @@ describe('treeKeyAction', () => {
 		expect(act('ArrowRight', 3)).toBeNull()
 	})
 
+	it('ArrowRight on a leaf whose next item is deeper enters it', () => {
+		const withGhost: TreeKeyItem[] = [
+			{ level: 1, expanded: false, hasChildren: false },
+			{ level: 2, expanded: false, hasChildren: false }
+		]
+		expect(treeKeyAction('ArrowRight', withGhost, 0, plain)).toEqual({ focus: 1 })
+	})
+
 	it('ArrowRight on an expanded parent with no rendered children does nothing', () => {
 		const lone: TreeKeyItem[] = [{ level: 1, expanded: true, hasChildren: true }]
 		expect(treeKeyAction('ArrowRight', lone, 0, plain)).toBeNull()

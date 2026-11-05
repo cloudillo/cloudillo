@@ -35,6 +35,13 @@ body.theme-glass.dark {
 	--color-primary: lch(68 50 236);
 }
 
+/* UI text gets the variable Roboto, so every weight really renders. Selectors mirror
+   themes/*.css, as above. Documents set their own family and keep the static Roboto. */
+body.theme-opaque,
+body.theme-glass {
+	font-family: 'Roboto UI', 'Roboto', sans-serif;
+}
+
 /* ==========================================================================
    Accessibility Base Styles
    Focus rings and screen reader utilities
@@ -126,7 +133,7 @@ body.theme-glass.dark {
 }
 
 .c-profile-card__avatar-link:focus-visible {
-	outline: 2px solid var(--col-accent);
+	outline: 2px solid var(--col-focus);
 	outline-offset: 1px;
 }
 
@@ -159,7 +166,7 @@ body.theme-glass.dark {
 }
 
 .c-profile-card__row:focus-visible {
-	outline: 2px solid var(--col-accent);
+	outline: 2px solid var(--col-focus);
 	outline-offset: 1px;
 }
 
@@ -396,7 +403,7 @@ body.theme-glass.dark {
 
 .c-list-item[role='option']:focus-visible,
 .c-list-item:has(.c-list-item-title.stretched:focus-visible) {
-	outline: 2px solid var(--col-accent);
+	outline: 2px solid var(--col-focus);
 	outline-offset: -2px;
 }
 
@@ -983,20 +990,55 @@ body.theme-glass.dark {
 	gap: var(--space-1);
 }
 
-/* Inline Edit Form */
+/* Inline Edit Form: the form is the field, with its buttons inside the right end.
+   Focus only recolours the 2px border, so the layout stays put, and a border and
+   not an outline because `.c-docbar-heading-slot` clips overflow. */
 .c-inline-edit-form {
 	display: flex;
-	flex-wrap: nowrap;
 	width: 100%;
-}
-
-.c-inline-edit-form .c-input {
-	flex: 1;
 	min-width: 0;
+	min-height: var(--size-md);
+	border: 2px solid var(--col-outline);
+	border-radius: var(--radius-control);
+	background: var(--col-inset);
+	color: var(--col-on-container);
 }
 
-.c-inline-edit-form .c-button {
+.c-inline-edit-form.sm {
+	min-height: var(--size-sm);
+}
+
+.c-inline-edit-form:focus-within {
+	border-color: var(--col-focus);
+}
+
+/* `font: inherit`, so the field keeps the look of the name it stands in for */
+.c-inline-edit-input {
+	flex: 1 1 0;
+	min-width: 0;
+	padding: 0 var(--space-1);
+	border: none;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+}
+
+.c-inline-edit-input:focus-visible {
+	outline: none;
+}
+
+/* 28px: `--size-sm` is 32px, and the field's border sits around these */
+.c-inline-edit-form .c-button.sm {
+	--btn-height: 1.75rem;
 	flex-shrink: 0;
+	align-self: center;
+	border-radius: calc(var(--radius-control) - 2px);
+	color: inherit;
+}
+
+/* `.primary` only sets variables, and `.ghost` reads none of them */
+.c-inline-edit-form .c-button.primary {
+	color: var(--col-primary);
 }
 
 /* EmptyState */
@@ -2074,7 +2116,7 @@ dialog.c-modal.c-bottom-sheet-modal {
 }
 
 .cl-view-embed.active {
-	outline: 2px solid var(--col-accent);
+	outline: 2px solid var(--col-focus);
 }
 
 .cl-view-embed-frame {
@@ -2383,7 +2425,7 @@ dialog.c-modal.c-bottom-sheet-modal {
 }
 
 .c-tree-item:focus-visible > .c-tree-item-row {
-	outline: 2px solid var(--col-accent);
+	outline: 2px solid var(--col-focus);
 	outline-offset: -2px;
 }
 
@@ -2680,11 +2722,24 @@ dialog.c-modal.c-bottom-sheet-modal {
 	overflow: hidden;
 }
 
-/* Idle the slot hugs the name; editing it has to grow. The segment swaps its
-   `.c-docbar-doc-title` for the edit form, so the absence of that class is what
-   "is being renamed" looks like in CSS. */
-.c-docbar-heading-slot:not(:has(.c-docbar-doc-title)) {
-	flex: 1 1 auto;
+/* The edit form hugs its text as the name does, through the input's `size`. The
+   minimum keeps it usable in a tight bar. The name's weight sits on the segment,
+   which the form replaces, so it is repeated here; the padding plus the form's
+   border lines the text up with the name's. */
+.c-docbar-heading-slot:has(.c-inline-edit-form),
+.c-docbar-sub:has(.c-inline-edit-form) {
+	min-width: 8rem;
+}
+
+.c-docbar-main .c-inline-edit-form {
+	width: auto;
+	font-size: var(--text-base);
+	font-weight: 600;
+}
+
+.c-docbar-main .c-inline-edit-input {
+	flex: 0 1 auto;
+	padding: 0 2px;
 }
 
 .c-docbar-title,
@@ -2705,15 +2760,14 @@ dialog.c-modal.c-bottom-sheet-modal {
 	font-weight: 600;
 	text-align: start;
 	border-radius: var(--radius-control);
-	cursor: pointer;
 }
 
-/* `--col-container-low` and not `--col-em-container`: the latter is an
-   emphasis *foreground* token (L20 light / L80 dark), so as a background it
-   paints dark-on-dark in light mode and light-on-light in dark mode. This is
-   the hover idiom opalui itself uses for `.c-menu-item` and toolbar buttons. */
+/* Hints that the name is a field. A shadow and not an outline, so a hovered button
+   keeps its keyboard focus ring; inset because the slot clips overflow. */
 .c-docbar-title-button:hover:not(:disabled) {
-	background: var(--col-container-low);
+	background: var(--col-inset);
+	box-shadow: inset 0 0 0 1px var(--col-outline);
+	cursor: text;
 }
 
 /* An icon and not a text `›`, matching the files breadcrumb: a glyph would
@@ -2761,7 +2815,7 @@ dialog.c-modal.c-bottom-sheet-modal {
    share buttons, an app's own, and the `DocBarMenu` trigger. Needed because OpalUI
    nests `.icon` and `.sm` under `.c-button` — a `variant="link"` button renders
    `.c-link` and drops both silently, so the row otherwise mixes bare 16px glyphs (built-ins), bare 20px ones
-   (apps passing `size={20}`) and one full 40px plate (the menu trigger).
+   (apps passing `size={20}`) and one full 36px plate (the menu trigger).
 
    `min-width` rather than `width`: a text action would grow instead of squashing. */
 .c-docbar-actions .c-link {
@@ -2888,55 +2942,65 @@ body.dark .c-id-color {
 /* ==========================================================================
    Segmented — a settings control, not a tab bar
 
-   The visual difference from `.c-tab` carries the semantic one: a shared border
-   and hairline dividers make the options read as one control with one answer,
-   where an underline bar reads as a place you navigate to. `overflow: hidden`
-   is what rounds the two end items against the shared radius, so the items
-   themselves need no per-end corner rules.
+   The visual difference from `.c-tab` carries the semantic one: a recessed track
+   holding one raised tile reads as one control with one answer, where an underline
+   bar reads as a place you navigate to.
+
+   `--segmented-item` is the tile height: the matching `--size-*` less the track's
+   2px padding on both sides, so the control lines up with a button of its size.
    ========================================================================== */
 .c-segmented {
+	--segmented-item: calc(var(--size-md) - 4px);
 	display: inline-flex;
 	/* A definite cross size, so a flex or grid parent's `align-items: stretch` does not
 	   blow the control out to the container width and leave its buttons packed to one
 	   side — `inline-flex` alone does not survive blockification as a flex item. */
 	width: fit-content;
-	border: 1px solid lch(from var(--col-on) l c h / 0.18);
+	/* The gap keeps adjacent pressed tiles apart in a multi-toggle */
+	gap: 2px;
+	padding: 2px;
 	border-radius: var(--radius-control, 8px);
+	/* Lets the control shrink in a flex row. A tile's shadow has faded out by the track edge. */
 	overflow: hidden;
-	background: var(--col-inset);
+	/* A black overlay rather than a surface token, so the track is darker than whatever it
+	   sits on: toolbar, panel or form. Dark surfaces need far more alpha to show it. */
+	background: light-dark(
+		lch(from var(--col-neutral) 0 0 h / 0.14),
+		lch(from var(--col-neutral) 0 0 h / 0.5)
+	);
 }
 
 .c-segmented-item {
 	appearance: none;
 	background: transparent;
 	border: none;
+	border-radius: calc(var(--radius-control, 8px) - 2px);
 	color: inherit;
-	padding: 0.3rem 0.75rem;
+	padding: 0.125rem 0.75rem;
 	min-width: 5rem;
-	min-height: var(--min-touch-target, 36px);
+	min-height: var(--segmented-item);
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
 	gap: 0.375rem;
 	text-align: center;
-	font-size: 0.85rem;
+	font-size: var(--text-sm);
 	cursor: pointer;
-	border-right: 1px solid lch(from var(--col-on) l c h / 0.12);
 	transition: background-color 120ms ease;
-}
-
-.c-segmented > .c-segmented-item:last-child {
-	border-right: none;
 }
 
 .c-segmented-item:hover:not([aria-checked='true'], [aria-pressed='true']) {
 	background: lch(from var(--col-on) l c h / 0.06);
 }
 
+/* A real outline, not a box-shadow ring, so the selection survives forced-colors mode */
 .c-segmented-item[aria-checked='true'],
 .c-segmented-item[aria-pressed='true'] {
-	background: var(--col-primary);
-	color: var(--col-on-primary);
+	background: var(--col-raised);
+	color: var(--col-primary);
+	box-shadow: var(--shadow-sm);
+	outline: 1px solid lch(from var(--col-on) l c h / 0.12);
+	outline-offset: -1px;
 }
 
 /* Inset, because the group clips its own overflow — an outward outline on the
@@ -2951,28 +3015,35 @@ body.dark .c-id-color {
 	cursor: not-allowed;
 }
 
-/* Icon-only items: square, no text minimum */
-.c-segmented-item.icon {
-	min-width: var(--min-touch-target, 36px);
+.c-segmented.sm {
+	--segmented-item: calc(var(--size-sm) - 4px);
+}
+.c-segmented.sm > .c-segmented-item {
 	padding-inline: 0.5rem;
 }
-
-.c-segmented.sm > .c-segmented-item {
-	min-height: 1.75rem;
-	padding: 0.15rem 0.5rem;
-	font-size: var(--text-sm, 0.8rem);
-}
-.c-segmented.sm > .c-segmented-item:not(.icon) {
+.c-segmented.sm:not(.fill) > .c-segmented-item:not(.icon) {
 	min-width: 3.5rem;
 }
-.c-segmented.sm > .c-segmented-item.icon {
-	min-width: 1.75rem;
+
+.c-segmented.lg {
+	--segmented-item: calc(var(--size-lg) - 4px);
+}
+.c-segmented.lg > .c-segmented-item {
+	padding-inline: 1rem;
+	font-size: 1rem;
 }
 
-.c-segmented.lg > .c-segmented-item {
-	min-height: 2.75rem;
-	padding: 0.5rem 1rem;
-	font-size: 1rem;
+/* Icon-only items: square, no text minimum */
+.c-segmented > .c-segmented-item.icon {
+	min-width: var(--segmented-item);
+	padding-inline: 0;
+}
+
+/* After `.sm`, which it has to beat at equal specificity. The default size with the track's padding. */
+@media (pointer: coarse) {
+	.c-segmented:not(.lg) {
+		--segmented-item: calc(var(--size-md) - 4px);
+	}
 }
 
 .c-segmented.fill {
@@ -2986,22 +3057,14 @@ body.dark .c-id-color {
 	padding-inline: 0.25rem;
 }
 
-/* Grid layout (icon pickers): cells separated by a 1px gap showing the border colour */
+/* Grid layout (icon pickers): the same track and tiles, wrapped into rows */
 .c-segmented.grid {
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(var(--segmented-min, 2.5rem), 1fr));
-	gap: 1px;
 	width: auto;
-	background: lch(from var(--col-on) l c h / 0.12);
 }
 .c-segmented.grid > .c-segmented-item {
 	min-width: 0;
-	border-right: none;
-	background: var(--col-container);
-}
-.c-segmented.grid > .c-segmented-item[aria-checked='true'],
-.c-segmented.grid > .c-segmented-item[aria-pressed='true'] {
-	background: var(--col-primary);
 }
 
 /* ==========================================================================
@@ -3567,7 +3630,7 @@ dialog.c-modal.c-spotlight {
 		cursor: pointer;
 	}
 	&:focus-visible {
-		outline: 2px solid var(--col-accent);
+		outline: 2px solid var(--col-focus);
 		outline-offset: 2px;
 	}
 }
@@ -3604,7 +3667,7 @@ dialog.c-modal.c-spotlight {
 		outline: 2px solid var(--col-primary);
 	}
 	&:has(.c-surface-link:focus-visible) {
-		outline: 2px solid var(--col-accent);
+		outline: 2px solid var(--col-focus);
 	}
 }
 
@@ -3669,6 +3732,40 @@ dialog.c-modal.c-spotlight {
 	.c-file-tile-actions {
 		opacity: 1;
 	}
+}
+
+/* A starred tile keeps its star in sight at rest */
+.c-file-tile-actions:has(.star-toggle.active) {
+	opacity: 1;
+}
+
+/* Star toggle on a ghost Button: faint outline when off, accent fill when on. Shape carries the
+   state, so the pressed background goes. max() lifts the light theme's L35 accent, keeps dark's. */
+.c-button.ghost.star-toggle {
+	color: lch(from var(--col-on-container) l c h / 0.5);
+}
+
+.c-button.ghost.star-toggle.active {
+	color: lch(from var(--col-accent) max(l, 50) c h);
+	background: none;
+}
+
+/* Removal on a ghost Button: a neutral trash that only turns red under the pointer. */
+.c-button.ghost.danger-hover:hover:not(:disabled) {
+	color: var(--col-error);
+}
+
+/* A long label must not squash the nav icon. */
+.c-nav-item > svg {
+	flex-shrink: 0;
+}
+
+/* Trailing hint on a Nav.Item: keeps its width up to half the row, the label truncates first.
+   Faded by opacity so it follows the row colour on hover and on the selected row. */
+.nav-hint {
+	flex-shrink: 0;
+	max-width: 50%;
+	opacity: 0.7;
 }
 
 /* ============================================================================

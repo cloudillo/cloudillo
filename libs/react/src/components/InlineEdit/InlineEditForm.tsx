@@ -3,13 +3,16 @@
 
 import * as React from 'react'
 
+import { useLibTranslation } from '../../i18n.js'
 import { IcCancel, IcConfirm } from '../../icons.js'
 import { createComponent, mergeClasses } from '../utils.js'
 
 export interface InlineEditFormProps
 	extends Omit<React.HTMLAttributes<HTMLFormElement>, 'onSubmit'> {
 	value: string
+	/** Gets a changed, non-empty, trimmed value, on submit. */
 	onSave: (value: string) => void
+	/** Esc and the cancel button, and a submit with an unchanged value. */
 	onCancel: () => void
 	placeholder?: string
 	autoFocus?: boolean
@@ -35,12 +38,23 @@ export const InlineEditForm = createComponent<HTMLFormElement, InlineEditFormPro
 			saveIcon = <IcConfirm />,
 			cancelIcon = <IcCancel />,
 			inputClassName,
+			onKeyDown,
+			onClick,
+			onDoubleClick,
 			...props
 		},
 		ref
 	) => {
+		const { t } = useLibTranslation()
 		const [editValue, setEditValue] = React.useState(value)
 		const inputRef = React.useRef<HTMLInputElement>(null)
+
+		// As opened, like `editValue`: a remote rename must not read as an edit, or Enter
+		// on the untouched field would write the old name back.
+		const startValue = React.useRef(value)
+
+		const trimmed = editValue.trim()
+		const unchanged = trimmed === startValue.current.trim()
 
 		React.useEffect(() => {
 			if (autoFocus && inputRef.current) {
@@ -51,71 +65,68 @@ export const InlineEditForm = createComponent<HTMLFormElement, InlineEditFormPro
 			}
 		}, [autoFocus, selectOnFocus])
 
-		const handleSubmit = React.useCallback(
-			(evt: React.FormEvent) => {
-				evt.preventDefault()
-				evt.stopPropagation()
-				if (editValue.trim()) {
-					onSave(editValue.trim())
-				}
-			},
-			[editValue, onSave]
-		)
-
-		const handleCancel = React.useCallback(
-			(evt: React.MouseEvent) => {
-				evt.preventDefault()
-				evt.stopPropagation()
-				onCancel()
-			},
-			[onCancel]
-		)
-
-		const handleKeyDown = React.useCallback(
-			(evt: React.KeyboardEvent) => {
-				if (evt.key === 'Escape') {
-					evt.preventDefault()
-					evt.stopPropagation()
-					onCancel()
-				}
-			},
-			[onCancel]
-		)
-
-		const handleClick = React.useCallback((evt: React.MouseEvent) => {
+		function cancel(evt: React.SyntheticEvent) {
+			evt.preventDefault()
 			evt.stopPropagation()
-		}, [])
+			onCancel()
+		}
 
-		const buttonPadding = size === 'small' ? 'p-1' : 'p-2'
+		function handleSubmit(evt: React.FormEvent) {
+			evt.preventDefault()
+			evt.stopPropagation()
+			if (!trimmed) return
+			if (unchanged) onCancel()
+			else onSave(trimmed)
+		}
+
+		function handleKeyDown(evt: React.KeyboardEvent<HTMLFormElement>) {
+			onKeyDown?.(evt)
+			if (evt.key === 'Escape') cancel(evt)
+		}
+
+		function handleClick(evt: React.MouseEvent<HTMLFormElement>) {
+			onClick?.(evt)
+			evt.stopPropagation()
+		}
+
+		function handleDoubleClick(evt: React.MouseEvent<HTMLFormElement>) {
+			onDoubleClick?.(evt)
+			evt.stopPropagation()
+		}
 
 		return (
 			<form
-				ref={ref}
-				className={mergeClasses('c-inline-edit-form', 'c-input-group', className)}
-				onSubmit={handleSubmit}
-				onClick={handleClick}
 				{...props}
+				ref={ref}
+				className={mergeClasses('c-inline-edit-form', size === 'small' && 'sm', className)}
+				onSubmit={handleSubmit}
+				onKeyDown={handleKeyDown}
+				onClick={handleClick}
+				onDoubleClick={handleDoubleClick}
 			>
 				<input
 					ref={inputRef}
-					className={mergeClasses('c-input', inputClassName)}
+					className={mergeClasses('c-inline-edit-input', inputClassName)}
 					type="text"
+					// Sizes the field to its text where the CSS lets it, as in the DocBar
+					size={Math.max(editValue.length, 12)}
 					value={editValue}
 					onChange={(e) => setEditValue(e.target.value)}
-					onKeyDown={handleKeyDown}
 					placeholder={placeholder}
 				/>
 				<button
-					className={mergeClasses('c-button', 'primary', buttonPadding)}
+					className="c-button ghost sm icon primary"
 					type="submit"
-					disabled={!editValue.trim()}
+					disabled={!trimmed}
+					aria-label={t('OK')}
 				>
 					{saveIcon}
 				</button>
 				<button
-					className={mergeClasses('c-button', 'secondary', buttonPadding)}
+					className="c-button ghost sm icon"
 					type="button"
-					onClick={handleCancel}
+					onClick={cancel}
+					aria-label={t('Cancel')}
 				>
 					{cancelIcon}
 				</button>

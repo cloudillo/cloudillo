@@ -135,7 +135,6 @@ function TitleSegment({
 	if (editing && canRename) {
 		return (
 			<InlineEditForm
-				className="flex-fill"
 				value={value}
 				size="small"
 				onSave={handleSave}

@@ -10,6 +10,7 @@ export * from './embed-render.js'
 export * from './embed-view.js'
 export * from './file-utils.js'
 export * from './iframe-sandbox.js'
+export * from './import-text.js'
 export * from './jwt.js'
 // Message bus (unified communication layer)
 export * from './message-bus/index.js'

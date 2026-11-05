@@ -38,6 +38,22 @@
 	src: url('/fonts/roboto/Roboto-BoldItalic.ttf') format('truetype');
 }
 
+/* Roboto UI: variable, for on-screen UI text only. Documents use the static Roboto above. */
+@font-face {
+	font-family: 'Roboto UI';
+	font-style: normal;
+	font-weight: 100 900;
+	font-display: swap;
+	src: url('/fonts/roboto/RobotoUI-Variable.woff2') format('woff2');
+}
+@font-face {
+	font-family: 'Roboto UI';
+	font-style: italic;
+	font-weight: 100 900;
+	font-display: swap;
+	src: url('/fonts/roboto/RobotoUI-VariableItalic.woff2') format('woff2');
+}
+
 /* Open Sans */
 @font-face {
 	font-family: 'Open Sans';

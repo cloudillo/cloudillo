@@ -4,6 +4,7 @@
  * Font Download Script
  * Downloads the full (non-subset) upstream TTFs from github.com/google/fonts and makes them static
  * with fonttools. The same TTFs serve browser CSS (precompressed by the build), typeset and PDF.
+ * Roboto also gets a variable woff2 for on-screen UI text only (`UI_FONT`, family `Roboto UI`).
  *
  * Usage:
  *   node download-fonts.js          # Download missing fonts
@@ -11,7 +12,17 @@
  */
 
 import { execFileSync } from 'child_process'
-import { existsSync, mkdirSync, readdirSync, rmdirSync, unlinkSync, writeFileSync } from 'fs'
+import { createHash } from 'node:crypto'
+import {
+	existsSync,
+	mkdirSync,
+	readdirSync,
+	readFileSync,
+	rmdirSync,
+	rmSync,
+	unlinkSync,
+	writeFileSync
+} from 'fs'
 import { dirname, join } from 'path'
 import { fileURLToPath } from 'url'
 
@@ -93,7 +104,7 @@ function getLocalFilename(baseName, weight, isItalic, ext) {
 	return `${baseName}-${weightName}${isItalic ? 'Italic' : ''}.${ext}`
 }
 
-// Pinned google/fonts commit: bumping it changes the TTFs, so run `download:force` after.
+// Pinned google/fonts commit: a bump must update `UI_FONT.sha256`, then run `download:force`.
 const UPSTREAM_REV = 'bd8f81ddb5c74d5c8897b36ad88b440266245103'
 const UPSTREAM_BASE = `https://raw.githubusercontent.com/google/fonts/${UPSTREAM_REV}`
 
@@ -152,9 +163,9 @@ async function downloadFile(url, destPath) {
 /**
  * Check if Python with fonttools is available
  */
-function checkPython() {
+function checkPython(code = 'from fontTools.varLib import instancer') {
 	try {
-		execFileSync('python3', ['-c', 'from fontTools.varLib import instancer'], {
+		execFileSync('python3', ['-c', code], {
 			encoding: 'utf-8',
 			stdio: ['pipe', 'pipe', 'pipe']
 		})
@@ -180,6 +191,66 @@ function convertVariableToStatic(inputTTF, outputTTF, weight, isItalic) {
 	} catch (error) {
 		console.log(`  Python conversion failed: ${error.message}`)
 		return false
+	}
+}
+
+// Not in FONT_SPECS: these files stay out of the TTF count, metrics, typeset and PDF
+const UI_FONT = {
+	family: 'Roboto',
+	dir: 'roboto',
+	files: { normal: 'RobotoUI-Variable.woff2', italic: 'RobotoUI-VariableItalic.woff2' },
+	// Of the upstream variable TTFs at `UPSTREAM_REV`: a bump of that must update these.
+	sha256: {
+		normal: 'd7598e12c5dbef095ff8272cfc55da0250bd07fbdecbac8a530b9b277872a134',
+		italic: '9725a847af6b460ffca162ae66d20dad48b01876137947180b42d7dcd7887182'
+	}
+}
+
+/**
+ * Build the UI font's missing woff2 files (all of them with `force`, overwriting in place).
+ * Never fails the run: postinstall must survive a missing brotli or no network, and without these
+ * files `Roboto UI` falls back to the static Roboto.
+ */
+async function ensureUiFont(force) {
+	const fontDir = join(FONTS_DIR, UI_FONT.dir)
+	const todo = Object.entries(UI_FONT.files).filter(
+		([, file]) => force || !existsSync(join(fontDir, file))
+	)
+	if (!todo.length) return
+
+	if (!checkPython('from fontTools.ttLib.woff2 import haveBrotli; assert haveBrotli')) {
+		console.warn(`${UI_FONT.family} UI woff2 not built: it needs Python fonttools and brotli.`)
+		return
+	}
+
+	const tempDir = join(fontDir, '.temp')
+	try {
+		mkdirSync(tempDir, { recursive: true })
+		const upstream = await fetchUpstreamFonts(UI_FONT.family)
+		for (const [style, file] of todo) {
+			const src = upstream.find((u) => u.style === style && u.variable)
+			if (!src) throw new Error(`no upstream variable TTF for ${style}`)
+
+			const tempTTFPath = join(tempDir, `upstream-${file}.ttf`)
+			await downloadFile(src.url, tempTTFPath)
+			const sha256 = createHash('sha256').update(readFileSync(tempTTFPath)).digest('hex')
+			if (sha256 !== UI_FONT.sha256[style]) {
+				throw new Error(`checksum mismatch for the ${style} upstream TTF: ${sha256}`)
+			}
+			execFileSync(
+				'python3',
+				[CONVERT_SCRIPT, tempTTFPath, join(fontDir, file), 'variable'],
+				{
+					encoding: 'utf-8',
+					stdio: ['pipe', 'pipe', 'pipe']
+				}
+			)
+			console.log(`  Created UI woff2: ${file}`)
+		}
+	} catch (error) {
+		console.warn(`${UI_FONT.family} UI woff2 failed: ${error.message}`)
+	} finally {
+		rmSync(tempDir, { recursive: true, force: true })
 	}
 }
 
@@ -320,12 +391,13 @@ async function main() {
 	console.log(`Force re-download: ${force}`)
 	console.log('')
 
-	// WOFF2 is no longer generated: drop leftovers from older installs so they don't ship
+	// Only the UI font is woff2: drop leftovers from older installs so they don't ship
+	const uiFiles = Object.values(UI_FONT.files)
 	for (const spec of FONT_SPECS) {
 		const dir = join(FONTS_DIR, spec.dir)
 		if (!existsSync(dir)) continue
 		for (const file of readdirSync(dir)) {
-			if (file.endsWith('.woff2')) unlinkSync(join(dir, file))
+			if (file.endsWith('.woff2') && !uiFiles.includes(file)) unlinkSync(join(dir, file))
 		}
 	}
 
@@ -336,6 +408,9 @@ async function main() {
 			console.warn(`  license for ${spec.family}: ${e.message}`)
 		)
 	}
+
+	// Before the TTF early return: existing installs have every TTF and still need these
+	await ensureUiFont(force || cleanOld)
 
 	const todo = force || cleanOld ? FONT_SPECS : FONT_SPECS.filter((spec) => !isFontComplete(spec))
 	if (!todo.length) {

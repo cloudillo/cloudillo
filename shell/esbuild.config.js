@@ -40,6 +40,12 @@ function copyFonts() {
 	// Copy all font directories
 	cpSync(fontsSource, fontsDest, { recursive: true })
 	console.log('Fonts copied to dist/fonts/')
+
+	if (!existsSync(join(fontsDest, 'roboto', 'RobotoUI-Variable.woff2'))) {
+		console.warn(
+			'Roboto UI woff2 missing, so the UI falls back to static Roboto: run `pnpm download` in libs/fonts (needs Python fonttools and brotli)'
+		)
+	}
 }
 
 /**

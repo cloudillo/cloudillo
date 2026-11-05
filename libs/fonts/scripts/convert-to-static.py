@@ -7,13 +7,18 @@ the variable axes to specific values. This is necessary because jsPDF
 requires static fonts with format 4/12 cmap tables, but variable fonts
 use format 14 cmap tables which jsPDF doesn't support.
 
+With `variable` in place of a weight it writes a woff2 instead: `wght` stays
+an axis, every other axis is pinned to its default. That needs brotli.
+
 Usage:
     python3 convert-to-static.py <input.ttf> <output.ttf> <weight> [italic]
+    python3 convert-to-static.py <input.ttf> <output.woff2> variable
 
 Examples:
     python3 convert-to-static.py Roboto-Variable.ttf Roboto-Regular.ttf 400
     python3 convert-to-static.py Roboto-Variable.ttf Roboto-Bold.ttf 700
     python3 convert-to-static.py Roboto-Variable.ttf Roboto-Italic.ttf 400 italic
+    python3 convert-to-static.py Roboto-Variable.ttf RobotoUI-Variable.woff2 variable
 """
 
 import sys
@@ -103,6 +108,21 @@ def convert_variable_to_static(input_path, output_path, weight=400, italic=False
         return False
 
 
+def convert_variable_to_woff2(input_path, output_path):
+    """Save a variable font as woff2, keeping `wght` and pinning every other axis to its default."""
+    font = TTFont(input_path, recalcTimestamp=False)
+    axis_limits = {
+        axis.axisTag: axis.defaultValue
+        for axis in font['fvar'].axes
+        if axis.axisTag != 'wght'
+    }
+    print(f"  Pinning axes: {axis_limits}")
+    instancer.instantiateVariableFont(font, axis_limits, inplace=True)
+    font.flavor = 'woff2'
+    font.save(output_path)
+    font.close()
+
+
 def main():
     if len(sys.argv) < 4:
         print("Usage: convert-to-static.py <input.ttf> <output.ttf> <weight> [italic]")
@@ -120,6 +140,12 @@ def main():
 
     input_file = sys.argv[1]
     output_file = sys.argv[2]
+
+    if sys.argv[3] == 'variable':
+        convert_variable_to_woff2(input_file, output_file)
+        print(f"  Created woff2: {output_file} ({os.path.getsize(output_file):,} bytes)")
+        sys.exit(0)
+
     weight = int(sys.argv[3])
     italic = len(sys.argv) > 4 and sys.argv[4].lower() == 'italic'
 

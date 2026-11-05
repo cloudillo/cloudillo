@@ -13,10 +13,11 @@ import {
 	Button,
 	EmptyState,
 	HBox,
+	IcAdd,
+	IcDelete,
 	IcEdit,
 	IcOpenExternal,
 	IconText,
-	IcRemove,
 	IcWarning,
 	Input,
 	Panel,
@@ -498,11 +499,13 @@ export function SiteMountsPanel({
 					)}
 				</TableCell>
 				<TableCell label="" align="end">
-					<HBox gap={1} justify="end">
+					<HBox gap={2} justify="end">
 						{/* An `href` Button, not an onClick: this is a navigation. It
 						    renders a real anchor, so middle-click and "copy link" come
 						    for free, and it keeps the SPA up. With no href it is inert. */}
 						<Button
+							variant="ghost"
+							size="sm"
 							href={href}
 							disabled={!href}
 							aria-label={t('Open in the notes app')}
@@ -510,6 +513,8 @@ export function SiteMountsPanel({
 						/>
 						{options.isRoot && (
 							<Button
+								variant="ghost"
+								size="sm"
 								disabled={disabled}
 								aria-label={t('Change the root document')}
 								onClick={onChooseRoot}
@@ -520,6 +525,8 @@ export function SiteMountsPanel({
 						    out is how the home page is cleared, and a row nothing can
 						    remove is a row that cannot be fixed. */}
 						<Button
+							variant="ghost"
+							size="sm"
 							disabled={disabled}
 							aria-label={
 								options.isRoot ? t('Stop serving at /') : t('Remove from the site')
@@ -531,7 +538,8 @@ export function SiteMountsPanel({
 									? onRemove(docFileId, options.isRoot)
 									: setPending(undefined)
 							}
-							icon={<IcRemove />}
+							className="danger-hover"
+							icon={<IcDelete />}
 						/>
 					</HBox>
 				</TableCell>
@@ -544,7 +552,12 @@ export function SiteMountsPanel({
 			title={t('Pages')}
 			actions={
 				(!!rows.length || pending) && (
-					<Button disabled={!isLeader || !!pending} onClick={onAdd}>
+					<Button
+						size="sm"
+						icon={<IcAdd />}
+						disabled={!isLeader || !!pending}
+						onClick={onAdd}
+					>
 						{t('Add a document')}
 					</Button>
 				)

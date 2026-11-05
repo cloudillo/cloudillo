@@ -844,7 +844,7 @@ export function Omnibox() {
 						<Button
 							variant="ghost"
 							size="sm"
-							icon={<IcClose size={14} />}
+							icon={<IcClose />}
 							// Same blur guard as the close button: keep the input focused
 							// so the dropdown is still there when the click lands.
 							onMouseDown={(e) => e.preventDefault()}

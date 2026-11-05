@@ -11,6 +11,7 @@ import {
 	IcUpload,
 	Menu,
 	MenuDivider,
+	MenuHeader,
 	MenuItem,
 	useAuth,
 	useDialog,
@@ -25,14 +26,15 @@ import { useNavigate } from 'react-router-dom'
 import { useContextAwareApi, useCtx } from '../../../context/index.js'
 import { appPath } from '../../../routes.js'
 
-const createItems = (t: TFunction): { app: AppId; db?: boolean; label: string }[] => [
-	{ app: 'quillo', label: t('Quillo text document') },
-	{ app: 'calcillo', label: t('Calcillo spreadsheet document') },
-	{ app: 'ideallo', label: t('Ideallo whiteboard document') },
-	{ app: 'prezillo', label: t('Prezillo presentation document') },
-	{ app: 'pagillo', label: t('Pagillo publication') },
-	{ app: 'notillo', db: true, label: t('Notillo wiki') },
-	{ app: 'scanillo', db: true, label: t('Scanillo document scanner') }
+/** `label` is the document type; `name` is the app, a brand name, so it is not translated */
+const createItems = (t: TFunction): { app: AppId; db?: boolean; label: string; name: string }[] => [
+	{ app: 'quillo', label: t('Text document'), name: 'Quillo' },
+	{ app: 'calcillo', label: t('Spreadsheet'), name: 'Calcillo' },
+	{ app: 'ideallo', label: t('Whiteboard'), name: 'Ideallo' },
+	{ app: 'prezillo', label: t('Presentation'), name: 'Prezillo' },
+	{ app: 'pagillo', label: t('Publication'), name: 'Pagillo' },
+	{ app: 'notillo', db: true, label: t('Wiki'), name: 'Notillo' },
+	{ app: 'scanillo', db: true, label: t('Document scanner'), name: 'Scanillo' }
 ]
 
 interface CreateMenuProps {
@@ -116,7 +118,7 @@ export function CreateMenu({
 							data-tour="files-create"
 						/>
 					) : (
-						<Button color="primary" icon={<IcAdd />} data-tour="files-create">
+						<Button color="primary" size="sm" icon={<IcAdd />} data-tour="files-create">
 							{t('New')}
 						</Button>
 					)
@@ -124,20 +126,26 @@ export function CreateMenu({
 			>
 				{onCreateFolder && (
 					<MenuItem
-						icon={<IcCreateFolder />}
+						icon={<IcCreateFolder size={16} />}
 						label={t('New folder')}
 						onClick={onCreateFolder}
 					/>
 				)}
 				{onUpload && (
-					<MenuItem icon={<IcUpload />} label={t('Upload files')} onClick={picker.open} />
+					<MenuItem
+						icon={<IcUpload size={16} />}
+						label={t('Upload files')}
+						onClick={picker.open}
+					/>
 				)}
 				{(onCreateFolder || onUpload) && <MenuDivider />}
-				{createItems(t).map(({ app, db, label }) => (
+				<MenuHeader>{t('New document')}</MenuHeader>
+				{createItems(t).map(({ app, db, label, name }) => (
 					<MenuItem
 						key={app}
-						icon={<AppIcon app={app} size="sm" />}
+						icon={<AppIcon app={app} width={16} height={16} />}
 						label={label}
+						trailing={name}
 						onClick={() => create(app, db)}
 					/>
 				))}

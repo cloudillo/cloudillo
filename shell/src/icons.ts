@@ -73,6 +73,7 @@ export {
 	PiFolderLock as IcManaged,
 	PiFolderOpen as IcBrowse,
 	PiFolderOpen as IcOpen,
+	PiFolderStarFill as IcFolderStarred,
 	PiFolders as IcFilesApp,
 	PiGhost as IcGhost,
 	PiGlobeSimple as IcWebsite,

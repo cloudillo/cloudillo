@@ -17,7 +17,15 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { useCurrentContextIdTag } from '../../../context/index.js'
-import { IcLive, IcPinned, IcProcessing, IcReadOnly, IcStar, IcUnsynced } from '../../../icons.js'
+import {
+	IcLive,
+	IcPinned,
+	IcProcessing,
+	IcReadOnly,
+	IcStar,
+	IcUnstar,
+	IcUnsynced
+} from '../../../icons.js'
 import {
 	type File,
 	type FileOps,
@@ -165,7 +173,8 @@ export const ItemGrid = React.memo(function ItemGrid({
 				<Button
 					variant="ghost"
 					size="sm"
-					icon={<IcStar />}
+					className="star-toggle"
+					icon={isStarred ? <IcUnstar /> : <IcStar />}
 					pressed={isStarred}
 					onClick={handleStarClick}
 					aria-label={isStarred ? t('Unstar') : t('Star')}
@@ -202,7 +211,7 @@ export const ItemGrid = React.memo(function ItemGrid({
 						<InlineEditForm
 							value={renameFileName}
 							onSave={(newName) => fileOps.doRenameFile(file.entryId, newName)}
-							onCancel={() => fileOps.setRenameFileName(undefined)}
+							onCancel={() => fileOps.renameFile(undefined)}
 							size="small"
 						/>
 					) : (

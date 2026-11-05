@@ -11,6 +11,7 @@ import {
 	SortableList,
 	Text,
 	useApi,
+	useDialog,
 	useToast
 } from '@cloudillo/react'
 import * as React from 'react'
@@ -33,6 +34,7 @@ export function AppMenuSettings() {
 	const { t, i18n } = useTranslation()
 	const { api } = useApi()
 	const { error: toastError } = useToast()
+	const dialog = useDialog()
 	const [appConfig, setAppConfig] = useAppConfig()
 
 	const allItems = React.useMemo(() => getAllMenuItems(), [])
@@ -104,6 +106,13 @@ export function AppMenuSettings() {
 	}
 
 	const handleReset = React.useCallback(async () => {
+		const confirmed = await dialog.confirm(
+			t('Go back to the default menu?'),
+			t('Your arrangement of the app menu is replaced by the default one.'),
+			{ confirmLabel: t('Reset') }
+		)
+		if (!confirmed) return
+
 		const prevConfig = appConfig
 		// Reset to static default menu
 		setAppConfig(withoutDisabledApps(defaultAppConfig))
@@ -122,7 +131,7 @@ export function AppMenuSettings() {
 			if (prevConfig) setAppConfig(prevConfig)
 			toastError(t('Failed to reset menu configuration.'))
 		}
-	}, [api, appConfig, setAppConfig, toastError, t])
+	}, [api, appConfig, dialog, setAppConfig, toastError, t])
 
 	const itemLabel = (item: MenuItem) => item.trans?.[i18n.language] || item.label
 
@@ -166,7 +175,7 @@ export function AppMenuSettings() {
 			title={t('App menu')}
 			actions={
 				<Button size="sm" icon={<IcReset />} onClick={handleReset}>
-					{t('Reset')}
+					{t('Default menu')}
 				</Button>
 			}
 		>

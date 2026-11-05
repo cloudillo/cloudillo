@@ -25,6 +25,7 @@ import {
 	Field,
 	HBox,
 	IcAdd,
+	IcClose,
 	IcDelete,
 	IcEdit,
 	IcRefresh,
@@ -348,7 +349,8 @@ function SigningKeysPanel() {
 							key.status === 'V' && (
 								<Button
 									variant="ghost"
-									color="error"
+									size="sm"
+									className="danger-hover"
 									icon={<IcDelete />}
 									aria-label={t('Revoke')}
 									onClick={() => revokeKey(key.keyId)}
@@ -553,8 +555,7 @@ function useReauth(description?: string): [React.ReactNode, ReauthPrompt] {
 				<ActionBar>
 					<Button onClick={() => finish(undefined)}>{t('Cancel')}</Button>
 					{!refused && browserSupportsWebAuthn() && (
-						<Button onClick={onPasskey}>
-							<IcPasskey />
+						<Button icon={<IcPasskey />} onClick={onPasskey}>
 							{t('Use passkey')}
 						</Button>
 					)}
@@ -822,18 +823,26 @@ function EditApiKeyModal({ open, apiKey, onClose, onSaved }: EditApiKeyModalProp
 								: t('No expiration — the key is valid until revoked.')
 						}
 					>
-						<HBox gap={2} align="center">
+						<InputGroup>
 							<Input
 								type="date"
-								className="flex-fill"
+								className="flex-fill pe-4"
 								value={expiresAtInput}
 								min={expiresAtToDateInput(Math.floor(Date.now() / 1000))}
 								onChange={(e) => setExpiresAtInput(e.target.value)}
 							/>
 							{expiresAtInput && (
-								<Button onClick={() => setExpiresAtInput('')}>{t('Clear')}</Button>
+								// biome-ignore lint/plugin/no-raw-intrinsic: ds-allow: .c-input-clear has no component
+								<button
+									type="button"
+									className="c-input-clear"
+									aria-label={t('Clear expiry')}
+									onClick={() => setExpiresAtInput('')}
+								>
+									<IcClose />
+								</button>
 							)}
-						</HBox>
+						</InputGroup>
 					</Field>
 
 					<ScopeChecklist
@@ -1344,7 +1353,8 @@ export function SecuritySettings() {
 									trailing={
 										<Button
 											variant="ghost"
-											color="error"
+											size="sm"
+											className="danger-hover"
 											icon={<IcDelete />}
 											aria-label={t('Delete passkey')}
 											onClick={() => deletePasskey(pk.credentialId)}
@@ -1507,16 +1517,18 @@ export function SecuritySettings() {
 										</>
 									}
 									trailing={
-										<HBox gap={1}>
+										<HBox gap={2}>
 											<Button
 												variant="ghost"
+												size="sm"
 												icon={<IcEdit />}
 												aria-label={t('Edit API key')}
 												onClick={() => setEditingKey(key)}
 											/>
 											<Button
 												variant="ghost"
-												color="error"
+												size="sm"
+												className="danger-hover"
 												icon={<IcDelete />}
 												aria-label={t('Delete API key')}
 												onClick={() =>

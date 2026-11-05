@@ -10,11 +10,11 @@ import { useContextAwareApi, useCtx, useCurrentContextIdTag } from '../../../con
 import {
 	IcBrowse,
 	IcFilesApp,
+	IcFolderStarred,
 	IcManaged,
 	IcPost,
 	IcRoom,
-	IcTrash,
-	IcUnstar
+	IcTrash
 } from '../../../icons.js'
 import { ctxBase, feedPath, filesPath, roomsPath } from '../../../routes.js'
 import { channelTarget } from '../audience.js'
@@ -114,7 +114,8 @@ export const Sidebar = React.memo(function Sidebar({
 			return [
 				{
 					entryId: folder.entryId,
-					label: hint ? `${folder.fileName} · ${hint}` : folder.fileName,
+					label: folder.fileName,
+					hint,
 					href
 				}
 			]
@@ -136,12 +137,19 @@ export const Sidebar = React.memo(function Sidebar({
 					onClick={() => onRoomChange(null)}
 				/>
 				{starredLinks.length > 0 && (
-					<Nav.Section label={t('Starred')}>
+					<Nav.Section label={t('Starred folders')}>
 						{starredLinks.map((link) => (
 							<Nav.Item
 								key={link.entryId}
-								icon={<IcUnstar />}
+								icon={<IcFolderStarred />}
 								label={link.label}
+								badge={
+									link.hint && (
+										<Text className="nav-hint" truncate title={link.hint}>
+											{link.hint}
+										</Text>
+									)
+								}
 								active={browsing && currentFolderId === link.entryId}
 								href={link.href}
 							/>

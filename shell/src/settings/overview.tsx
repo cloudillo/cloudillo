@@ -253,11 +253,7 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 								leading={<IcPasskey size={24} />}
 								title={t('Add a Passkey')}
 								subtitle={t('Login faster with fingerprint or face ID')}
-								trailing={
-									<Button variant="soft" href={`${basePath}/security`}>
-										{t('Add')}
-									</Button>
-								}
+								href={`${basePath}/security`}
 							/>
 						)}
 					</List>
@@ -317,7 +313,7 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 							'Clear cached files and reload. Use if the app behaves unexpectedly.'
 						)}
 						trailing={
-							<Button color="secondary" onClick={handleResetCache}>
+							<Button variant="soft" onClick={handleResetCache}>
 								{t('Reset')}
 							</Button>
 						}
@@ -330,11 +326,7 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 								'Re-scan your files and posts. Use if search results are missing or stale.'
 							)}
 							trailing={
-								<Button
-									color="secondary"
-									onClick={handleReindex}
-									loading={reindexing}
-								>
+								<Button variant="soft" onClick={handleReindex} loading={reindexing}>
 									{t('Rebuild')}
 								</Button>
 							}
@@ -349,7 +341,7 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 							)}
 							trailing={
 								<Button
-									color="secondary"
+									variant="soft"
 									onClick={handleOptimizeDb}
 									loading={optimizing}
 								>

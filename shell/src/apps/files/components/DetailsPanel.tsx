@@ -29,7 +29,7 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { useCurrentContextIdTag } from '../../../context/index.js'
-import { IcStar } from '../../../icons.js'
+import { IcStar, IcUnstar } from '../../../icons.js'
 import { useFileAccess } from '../hooks/useFileAccess.js'
 import { type FileOwnerScopeOverride, useFileOwnerScope } from '../hooks/useFileOwnerScope.js'
 import type { File, FileOps } from '../types.js'
@@ -366,7 +366,8 @@ export function DetailsPanel({
 					)}
 					<Button
 						variant="ghost"
-						icon={<IcStar />}
+						className="star-toggle"
+						icon={file.userData?.starred ? <IcUnstar /> : <IcStar />}
 						pressed={!!file.userData?.starred}
 						aria-label={file.userData?.starred ? t('Starred') : t('Star')}
 						onClick={() => fileOps.toggleStarred?.(file.entryId)}

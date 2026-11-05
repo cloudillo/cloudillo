@@ -28,7 +28,7 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { useCurrentContextIdTag } from '../../../context/index.js'
-import { IcPinned, IcProcessing, IcReadOnly, IcStar, IcUnsynced } from '../../../icons.js'
+import { IcPinned, IcProcessing, IcReadOnly, IcStar, IcUnstar, IcUnsynced } from '../../../icons.js'
 import { useAppConfig } from '../../../utils.js'
 import { isViewerSupported, triggerFileDownload } from '../../viewer/MediaViewer.js'
 import type { File, FileOps, ViewMode } from '../types.js'
@@ -238,7 +238,7 @@ export const ItemCard = React.memo(function ItemCard({
 					<InlineEditForm
 						value={renameFileName}
 						onSave={(newName) => fileOps.doRenameFile(file.entryId, newName)}
-						onCancel={() => fileOps.setRenameFileName(undefined)}
+						onCancel={() => fileOps.renameFile(undefined)}
 						size="small"
 					/>
 				) : (
@@ -328,8 +328,8 @@ export const ItemCard = React.memo(function ItemCard({
 						<Button
 							variant="ghost"
 							size="sm"
-							className={isStarred ? undefined : 'sm-hide'}
-							icon={<IcStar />}
+							className={isStarred ? 'star-toggle' : 'star-toggle sm-hide'}
+							icon={isStarred ? <IcUnstar /> : <IcStar />}
 							pressed={isStarred}
 							onClick={handleStarClick}
 							aria-label={isStarred ? t('Unstar') : t('Star')}

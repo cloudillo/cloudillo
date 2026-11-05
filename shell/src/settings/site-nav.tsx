@@ -7,11 +7,12 @@ import {
 	Button,
 	HBox,
 	IcAdd,
+	IcDelete,
+	IcDropdown,
 	IcLink,
 	IcMoveDown,
 	IcMoveUp,
 	IconText,
-	IcRemove,
 	IcWarning,
 	Input,
 	InputGroup,
@@ -564,11 +565,11 @@ export function SiteNavPanel({
 					</VBox>
 				}
 				actions={
-					<>
+					<HBox gap={2}>
 						{/* Dragging the row is a pointer gesture; these are how the list is
 						    reordered with a single tap, and how a screen reader does it. */}
 						<Button
-							variant="link"
+							variant="ghost"
 							size="sm"
 							id={moveId(pos.index, 'up')}
 							disabled={disabled || pos.index === 0}
@@ -580,7 +581,7 @@ export function SiteNavPanel({
 							icon={<IcMoveUp />}
 						/>
 						<Button
-							variant="link"
+							variant="ghost"
 							size="sm"
 							id={moveId(pos.index, 'down')}
 							disabled={disabled || pos.index >= siblings.length - 1}
@@ -597,6 +598,8 @@ export function SiteNavPanel({
 							renderPicker(
 								pos.index,
 								<Button
+									variant="ghost"
+									size="sm"
 									disabled={
 										disabled ||
 										!!picker ||
@@ -607,12 +610,15 @@ export function SiteNavPanel({
 								/>
 							)}
 						<Button
+							variant="ghost"
+							size="sm"
 							disabled={disabled}
 							aria-label={t('Remove')}
 							onClick={() => removeEntry(pos)}
-							icon={<IcRemove />}
+							className="danger-hover"
+							icon={<IcDelete />}
 						/>
-					</>
+					</HBox>
 				}
 			>
 				{children.length
@@ -727,11 +733,13 @@ export function SiteNavPanel({
 						{renderPicker(
 							null,
 							<Button
+								icon={<IcAdd />}
 								disabled={
 									!isLeader || saving || !!picker || items.length >= MAX_NAV_ITEMS
 								}
 							>
 								{t('Add item')}
+								<IcDropdown />
 							</Button>
 						)}
 						<Button

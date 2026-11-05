@@ -30,7 +30,7 @@ import { useAtom } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { IcBrowse, IcFilesApp, IcRecent, IcRoom, IcStar } from '../../../icons.js'
+import { IcBrowse, IcFilesApp, IcRecent, IcRoom, IcStar, IcUnstar } from '../../../icons.js'
 import { displayModeAtom, type FilesSortField, sortAtom } from '../atoms.js'
 import {
 	countActiveFilters,
@@ -118,8 +118,9 @@ function SheetGroup({ label, children }: { label: string; children: React.ReactN
 
 /**
  * The Files filter bar: scope chip, Recent/Starred, Type, Access, pinned extras + `⋯`,
- * Tags, Clear; then a second row with Sort (left) and List/Grid (right). All filter state is in
- * the URL (`useFilesFilters`). Below ~720px of content width the bar collapses to
+ * Tags, Clear; then Sort and List/Grid at the end of the row, wrapping together to a right-aligned
+ * second row when they don't fit (on phones they always have their own row). All filter state is
+ * in the URL (`useFilesFilters`). Below ~720px of content width the bar collapses to
  * `[scope] [Filters · n] [Tags]`, the rest moving into a Filters sheet, plus a scrolling row of
  * the active filters.
  */
@@ -231,7 +232,7 @@ export function FilterBar({ roomName, folderName }: { roomName: string; folderNa
 				{t('Recent')}
 			</Tag>
 			<Tag
-				icon={<IcStar />}
+				icon={filters.starred ? <IcUnstar /> : <IcStar />}
 				pressed={filters.starred}
 				onClick={() => setFilter({ starred: !filters.starred })}
 			>
@@ -501,7 +502,6 @@ export function FilterBar({ roomName, folderName }: { roomName: string; folderNa
 							)}
 							<ToolbarDivider />
 							{tagFilter}
-							<ToolbarSpacer />
 							{canClear && (
 								<Button variant="ghost" size="sm" onClick={clearAll}>
 									{t('Clear')}
@@ -509,13 +509,22 @@ export function FilterBar({ roomName, folderName }: { roomName: string; folderNa
 							)}
 						</>
 					)}
+					{/* ms-auto, not a spacer: a spacer stays behind on row 1 when this group wraps */}
+					{!isMobile && (
+						<HBox gap={1} className="ms-auto" role="group" aria-label={t('View')}>
+							{sortControl}
+							{layoutControl}
+						</HBox>
+					)}
 				</Toolbar>
 				{activeRow}
-				<Toolbar autoHide={isMobile} aria-label={t('View')}>
-					{sortControl}
-					<ToolbarSpacer />
-					{layoutControl}
-				</Toolbar>
+				{isMobile && (
+					<Toolbar autoHide aria-label={t('View')}>
+						{sortControl}
+						<ToolbarSpacer />
+						{layoutControl}
+					</Toolbar>
+				)}
 			</VBox>
 			{narrow && sheet}
 			{filters.type === 'image' && (

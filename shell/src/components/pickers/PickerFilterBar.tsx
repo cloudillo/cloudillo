@@ -19,7 +19,7 @@ import {
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { IcAttached, IcBrowse, IcManaged, IcRecent, IcStar } from '../../icons.js'
+import { IcAttached, IcBrowse, IcManaged, IcRecent, IcStar, IcUnstar } from '../../icons.js'
 import { PickerFilterChips } from './PickerFilterChips.js'
 import type { PickerViewMode } from './types.js'
 
@@ -85,7 +85,11 @@ export function PickerFilterBar({
 						/>
 					)}
 					<SegmentedItem value="recent" icon={IcRecent} label={t('Recent files')} />
-					<SegmentedItem value="starred" icon={IcStar} label={t('Starred files')} />
+					<SegmentedItem
+						value="starred"
+						icon={viewMode === 'starred' ? IcUnstar : IcStar}
+						label={t('Starred files')}
+					/>
 				</Segmented>
 
 				<SearchInput

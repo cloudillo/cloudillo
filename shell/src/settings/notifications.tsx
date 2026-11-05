@@ -337,7 +337,7 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 					)}
 				</Text>
 				<Button
-					color="secondary"
+					variant="soft"
 					className="mt-2 mb-2"
 					onClick={() => {
 						const firstSound = Object.values(NOTIFICATION_SOUNDS)[0]

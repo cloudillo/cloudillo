@@ -217,9 +217,9 @@ export function SiteSettings() {
 							}
 						: prev
 				)
-				toastSuccess(t('Rolled back to the previous version.'))
+				toastSuccess(t('Restored the previous version.'))
 			} catch (_err) {
-				toastError(t('Failed to roll back.'))
+				toastError(t('Failed to restore the version.'))
 			} finally {
 				setRollingBack(undefined)
 			}
@@ -374,7 +374,7 @@ export function SiteSettings() {
 				description={
 					publishedDocs.length
 						? t(
-								'Each document keeps the version being served and the one before it. Rolling back swaps them, and rolling back again puts it right.'
+								'Each document keeps the version being served and the one before it. Restoring swaps them, and restoring again puts it right.'
 							)
 						: undefined
 				}
@@ -471,13 +471,13 @@ export function SiteSettings() {
 													{t('Download')}
 												</Button>
 												<Button
-													color="secondary"
+													variant="soft"
 													disabled={
 														!isLeader || rollingBack === doc.docFileId
 													}
 													onClick={() => onRollback(doc.docFileId)}
 												>
-													{t('Roll back')}
+													{t('Restore this version')}
 												</Button>
 											</VBox>
 										) : (

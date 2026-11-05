@@ -272,6 +272,9 @@ export function FilesApp() {
 	// Rename state
 	const [renameFileId, setRenameFileId] = React.useState<string | undefined>()
 	const [renameFileName, setRenameFileName] = React.useState<string | undefined>()
+	// Read after the await: the user may have opened another rename by then.
+	const renameIdRef = React.useRef(renameFileId)
+	renameIdRef.current = renameFileId
 
 	// Filter visibility (mobile)
 	const [showFilter, setShowFilter] = React.useState<boolean>(false)
@@ -558,8 +561,10 @@ export function FilesApp() {
 				// purpose, so the user can retry or cancel.
 				try {
 					await api.files.update(entryId, { fileName })
-					setRenameFileId(undefined)
-					setRenameFileName(undefined)
+					if (renameIdRef.current === entryId) {
+						setRenameFileId(undefined)
+						setRenameFileName(undefined)
+					}
 					patchFile(entryId, { fileName })
 					setStarVersion((v) => v + 1)
 				} catch (err) {

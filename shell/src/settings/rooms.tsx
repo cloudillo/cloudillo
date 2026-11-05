@@ -1,17 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: MPL-2.0
 
-import {
-	Button,
-	Field,
-	HBox,
-	NativeSelect,
-	Panel,
-	Text,
-	useAuth,
-	useDialog,
-	VBox
-} from '@cloudillo/react'
+import { Field, NativeSelect, Panel, Text, useAuth, useDialog, VBox } from '@cloudillo/react'
 import { useAtomValue } from 'jotai'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -94,15 +84,7 @@ export function RoomsSettings() {
 						{t('Only leaders can change who can create rooms.')}
 					</Text>
 				)}
-				{canEdit ? (
-					<Link to={roomsPath(base)}>{t('Manage rooms →')}</Link>
-				) : (
-					<HBox>
-						<Button color="primary" href={roomsPath(base)}>
-							{t('Create or manage rooms')}
-						</Button>
-					</HBox>
-				)}
+				<Link to={roomsPath(base)}>{t('Manage rooms ›')}</Link>
 			</VBox>
 		</Panel>
 	)

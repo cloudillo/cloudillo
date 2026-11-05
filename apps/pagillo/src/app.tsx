@@ -82,6 +82,7 @@ import { SpellOverlay } from './editor/SpellOverlay'
 import { TextMenu } from './editor/TextMenu'
 import { useUndo } from './editor/undo'
 import { type BoundaryKind, useEditor } from './editor/useEditor'
+import { useMarkdownImport } from './editor/useMarkdownImport'
 import { userWords } from './editor/user-words'
 import { appLabel } from './embeds/record'
 import { EmbedRendersContext, useEmbedRenders } from './embeds/useEmbedRenders'
@@ -444,6 +445,18 @@ export function PagilloApp() {
 		})
 		return () => cancelAnimationFrame(id)
 	}, [layout.pending, layout.pages])
+	const goSection = (id: string, story: string) => {
+		// Caret first: its reveal scroll would cancel ours.
+		editor.select({ story, anchor: 0, head: 0 })
+		const key = pageKey(id, 0)
+		pendingScroll.current = undefined
+		requestAnimationFrame(() => {
+			// A new section has no page yet: scroll after layout.
+			if (document.getElementById(pageDomId(key))) scrollToPage(key, undefined, false, 1 / 3)
+			else pendingScroll.current = { key, sec: id }
+		})
+	}
+	const mdImport = useMarkdownImport({ yDoc, doc, editor, undo, toast, empty, onGo: goSection })
 
 	if (error) {
 		return <EmptyState icon={<IcPagillo />} title={t('Connection Error')} />
@@ -706,6 +719,7 @@ export function PagilloApp() {
 
 	return (
 		<div className="c-vbox pagillo-app">
+			{mdImport.input}
 			<AppDocBar awareness={awareness} provider={provider} onUserClick={remote.scrollTo}>
 				{touchOnly && writer && !touchEdit && !layout.readOnlyReason && (
 					<Button
@@ -756,6 +770,7 @@ export function PagilloApp() {
 						onInsertEmbed={
 							canLayout ? (inline) => void frames.insertEmbed(inline) : undefined
 						}
+						onInsertMarkdown={mdImport.insertAtCaret}
 						inlineImageOff={!!layoutEdit || !!frames.sel}
 						marks={frames.view.marks}
 						onToggleMarks={() => frames.setView({ marks: !frames.view.marks })}
@@ -780,7 +795,11 @@ export function PagilloApp() {
 				<EngineStopped message={layout.failed} />
 			) : empty ? (
 				writer && !layout.readOnlyReason ? (
-					<TemplateGallery {...panels} />
+					<TemplateGallery
+						{...panels}
+						importName={mdImport.pendingName}
+						onApplied={mdImport.applied}
+					/>
 				) : (
 					<EmptyState
 						fill
@@ -826,19 +845,9 @@ export function PagilloApp() {
 										current={current}
 										caretStory={editor.sel?.story}
 										editable={canLayout}
-										onGo={(id, story) => {
-											// Caret first: its reveal scroll would cancel ours.
-											editor.select({ story, anchor: 0, head: 0 })
-											const key = pageKey(id, 0)
-											pendingScroll.current = undefined
-											requestAnimationFrame(() => {
-												// A new section has no page yet: scroll after layout.
-												if (document.getElementById(pageDomId(key)))
-													scrollToPage(key, undefined, false, 1 / 3)
-												else pendingScroll.current = { key, sec: id }
-											})
-										}}
+										onGo={goSection}
 										onSettings={(id, el) => setSecPop({ id, el })}
+										onImportMarkdown={mdImport.importSection}
 									/>
 								) : (
 									<PagesRail

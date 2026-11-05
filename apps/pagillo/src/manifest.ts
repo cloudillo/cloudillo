@@ -20,6 +20,9 @@ export const manifest: AppManifest = {
 			mimeType: 'cloudillo/pagillo',
 			actions: ['view', 'edit', 'create'],
 			priority: 'primary',
+			importFrom: [
+				{ mimeType: 'text/markdown', label: 'Markdown', extensions: ['.md', '.markdown'] }
+			],
 			storeTp: 'CRDT',
 			formatVersion: '1.0.0'
 		}

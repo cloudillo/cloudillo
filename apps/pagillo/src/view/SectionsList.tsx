@@ -45,6 +45,8 @@ export interface SectionsListProps {
 	onGo(id: string, story: string): void
 	/** "Section settings…": open the section popover anchored to `el`. */
 	onSettings(id: string, el: HTMLElement): void
+	/** "Import Markdown below…": new section at `index` with `like`'s page setup. */
+	onImportMarkdown?(like: string, index: number): void
 }
 
 export function SectionsList({
@@ -55,7 +57,8 @@ export function SectionsList({
 	caretStory,
 	editable,
 	onGo,
-	onSettings
+	onSettings,
+	onImportMarkdown
 }: SectionsListProps) {
 	const { t } = useTranslation()
 	const removeSection = useRemoveSection(yDoc, doc)
@@ -264,6 +267,12 @@ export function SectionsList({
 						label={t('Insert section below')}
 						onClick={() => insert(mi + 1, menu.id)}
 					/>
+					{onImportMarkdown && (
+						<MenuItem
+							label={t('Import Markdown below…')}
+							onClick={() => onImportMarkdown(menu.id, mi + 1)}
+						/>
+					)}
 					<MenuItem
 						label={t('Duplicate')}
 						onClick={() => {

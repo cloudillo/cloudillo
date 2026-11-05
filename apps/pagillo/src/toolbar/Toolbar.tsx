@@ -113,6 +113,8 @@ export interface ToolbarProps extends Cmd.CommandCtx {
 	onInsertTextBox?(): void
 	/** Embed… inline at the caret (`true`), else on the page in view. Absent = no layout rights. */
 	onInsertEmbed?(inline: boolean): void
+	/** Pick a Markdown file and insert it at the caret. */
+	onInsertMarkdown?(): void
 	/** Inline image refused (Edit layout, a frame selected). */
 	inlineImageOff?: boolean
 	/** Show hidden characters is on; with `onToggleMarks`, shows the ¶ toggle. */
@@ -137,6 +139,7 @@ export function Toolbar({
 	onInsertImage,
 	onInsertTextBox,
 	onInsertEmbed,
+	onInsertMarkdown,
 	inlineImageOff,
 	marks,
 	onToggleMarks
@@ -357,7 +360,17 @@ export function Toolbar({
 						onClick={() => onInsertEmbed(!off && !inlineImageOff)}
 					/>
 				)}
-				{(onInsertImage || onInsertTextBox || onInsertEmbed) && <MenuDivider />}
+				{onInsertMarkdown && (
+					<MenuItem
+						label={t('Markdown file…')}
+						disabled={off}
+						title={off ? needCaret : undefined}
+						onClick={onInsertMarkdown}
+					/>
+				)}
+				{(onInsertImage || onInsertTextBox || onInsertEmbed || onInsertMarkdown) && (
+					<MenuDivider />
+				)}
 				<SubMenuItem label={t('Field')} disabled={off} title={off ? needCaret : undefined}>
 					<MenuItem label={t('Date (fixed)…')} onClick={askDate} />
 					<MenuItem

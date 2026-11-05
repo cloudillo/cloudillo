@@ -7,6 +7,7 @@
  */
 
 import {
+	Alert,
 	Button,
 	HBox,
 	IcBook,
@@ -46,9 +47,13 @@ const ICONS: Record<TemplateId, typeof IcFile> = {
 export interface TemplateGalleryProps {
 	yDoc: Y.Doc
 	doc: YPagilloDocument
+	/** File waiting for a template. */
+	importName?: string
+	/** This gallery's template went in; not called when a collaborator's got there first. */
+	onApplied?(): void
 }
 
-export function TemplateGallery({ yDoc, doc }: TemplateGalleryProps) {
+export function TemplateGallery({ yDoc, doc, importName, onApplied }: TemplateGalleryProps) {
 	const { t, i18n } = useTranslation()
 	const [id, setId] = React.useState<TemplateId>('simple')
 	const [size, setSize] = React.useState<PagePreset>(() =>
@@ -57,13 +62,20 @@ export function TemplateGallery({ yDoc, doc }: TemplateGalleryProps) {
 	const [orientation, setOrientation] = React.useState<Orientation>('portrait')
 
 	// false = a collaborator applied one first; the `secs` observer in app.tsx closes us either way.
-	const create = () =>
-		applyTemplate(yDoc, doc, id, { size, orientation, lang: i18n.language, t: (s) => t(s) })
+	const create = () => {
+		const opts = { size, orientation, lang: i18n.language, t: (s: string) => t(s) }
+		if (applyTemplate(yDoc, doc, id, opts)) onApplied?.()
+	}
 
 	return (
 		<div className="flex-fill p-4 pagillo-gallery">
 			<Panel title={t('Choose a template')} padding={4} className="pagillo-gallery-card">
 				<VBox gap={3} className="mt-3">
+					{importName && (
+						<Alert compact>
+							{t('Importing {{name}}: choose a template', { name: importName })}
+						</Alert>
+					)}
 					<Segmented
 						layout="grid"
 						value={id}

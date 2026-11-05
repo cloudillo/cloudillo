@@ -277,9 +277,15 @@ const span = (v: unknown) => {
  * lists with nesting), bold/italic/underline/strike, safe links and colours; tables become
  * quill-table-better cell lines (fresh row / cell ids; a table nested in a cell flattens into
  * that cell's paragraphs). Fonts, sizes and images are dropped; map them when the pasted look
- * must survive (fonts must be bundled).
+ * must survive (fonts must be bundled). A `<p>` in a list item or quote keeps that bullet / quote.
+ * `opts` is for Markdown import, never paste: `codeFont` marks inline `<code>` with that font;
+ * `lineBreak` keeps `<br>` inside the paragraph as U+2028 instead of ending it.
  */
-export function htmlToDelta(doc: YPagilloDocument, html: string): DeltaOp[] {
+export function htmlToDelta(
+	doc: YPagilloDocument,
+	html: string,
+	opts?: { codeFont?: string; lineBreak?: boolean }
+): DeltaOp[] {
 	const map = styleMap(doc)
 	const parsed = new DOMParser().parseFromString(html, 'text/html')
 	const ops: DeltaOp[] = []
@@ -326,13 +332,14 @@ export function htmlToDelta(doc: YPagilloDocument, html: string): DeltaOp[] {
 		const el = node as HTMLElement
 		const tag = el.tagName.toUpperCase()
 		if (SKIP.has(tag)) return
-		if (tag === 'BR') return void endLine(block)
+		if (tag === 'BR') return void (opts?.lineBreak ? text('\u2028', marks) : endLine(block))
 
 		const m = { ...marks }
 		if (tag === 'B' || tag === 'STRONG') m.bold = true
 		if (tag === 'I' || tag === 'EM') m.italic = true
 		if (tag === 'U' || tag === 'INS') m.underline = true
 		if (tag === 'S' || tag === 'STRIKE' || tag === 'DEL') m.strike = true
+		if (tag === 'CODE' && !pre && opts?.codeFont) m.font = opts.codeFont
 		if (tag === 'A') {
 			const href = safeLink(el.getAttribute('href'))
 			if (href) m.link = href
@@ -384,7 +391,10 @@ export function htmlToDelta(doc: YPagilloDocument, html: string): DeltaOp[] {
 			}
 		} else if (key) {
 			if (open) endLine(block)
-			inner = { key, cell: block.cell }
+			inner =
+				tag === 'P' && (block.list || block.key === 'quote')
+					? block
+					: { key, cell: block.cell }
 			if (tag === 'LI') {
 				// Quill 2 exports every list as <ol> with `data-list`; indent = nesting or ql-indent-N.
 				const ql = el.getAttribute('data-list')

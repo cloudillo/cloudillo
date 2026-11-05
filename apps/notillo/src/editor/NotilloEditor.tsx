@@ -2,15 +2,11 @@
 // SPDX-License-Identifier: MPL-2.0
 
 import type { Block } from '@blocknote/core'
-import {
-	filterSuggestionItems,
-	SideMenuExtension,
-	SuggestionMenu,
-	UniqueID
-} from '@blocknote/core/extensions'
+import { SideMenuExtension, SuggestionMenu, UniqueID } from '@blocknote/core/extensions'
 import { BlockNoteView } from '@blocknote/mantine'
 import {
 	BlockColorsItem,
+	BlockPopover,
 	type DefaultReactSuggestionItem,
 	DragHandleMenu,
 	FormattingToolbar,
@@ -19,10 +15,16 @@ import {
 	RemoveBlockItem,
 	SideMenu,
 	SideMenuController,
+	type SideMenuProps,
 	SuggestionMenuController,
+	useBlockNoteEditor,
 	useComponentsContext,
 	useCreateBlockNote,
-	useExtensionState
+	useDictionary,
+	useEditorState,
+	useExtension,
+	useExtensionState,
+	usePortalElement
 } from '@blocknote/react'
 import { Extension as TiptapExtension } from '@tiptap/core'
 import { Plugin as ProseMirrorPlugin } from '@tiptap/pm/state'
@@ -36,7 +38,7 @@ import {
 	getImageVariantForDisplaySize,
 	parseSiteFileRef
 } from '@cloudillo/core'
-import { friendlyError, usePresence, useToast } from '@cloudillo/react'
+import { Button, friendlyError, IcAdd, IcDragHandle, usePresence, useToast } from '@cloudillo/react'
 import type { RtdbClient, RtdbPresence } from '@cloudillo/rtdb'
 
 import { useBlockLocks } from '../hooks/useBlockLocks.js'
@@ -51,8 +53,11 @@ import { shortId } from '../rtdb/ids.js'
 import { createPage } from '../rtdb/page-ops.js'
 import type { PageRecord } from '../rtdb/types.js'
 import { foldDiacritics, searchPages } from '../utils/search.js'
+import { focusDocumentEdge } from './focus-edge.js'
 import { IndexToolbarItems } from './IndexToolbar.js'
+import { hu } from './locales/hu.js'
 import { NotilloEditorProvider } from './NotilloEditorContext.js'
+import { PageTitle } from './PageTitle.js'
 import { asBaseEditor, type NotilloEditor as NotilloEditorType, notilloSchema } from './schema.js'
 import { notilloThemeOverrides } from './theme.js'
 import { useMediaHandler } from './useMediaHandler.js'
@@ -159,6 +164,116 @@ function CommentBlockMenuItem({
 	)
 }
 
+// BlockNote's two side-menu buttons with Phosphor glyphs: the stock ones take no icon
+// prop. Module-level for a stable identity, as `NotilloFormattingToolbar` below explains.
+function NotilloAddBlockButton() {
+	const components = useComponentsContext()
+	const dict = useDictionary()
+	const editor = useBlockNoteEditor()
+	const suggestionMenu = useExtension(SuggestionMenu)
+	const block = useExtensionState(SideMenuExtension, {
+		selector: (s) => s?.block
+	})
+
+	if (!block || !components) return null
+
+	return (
+		<components.SideMenu.Button
+			className="bn-button"
+			label={dict.side_menu.add_block_label}
+			icon={<IcAdd size={24} />}
+			onClick={() => {
+				const isEmpty = Array.isArray(block.content) && block.content.length === 0
+				const target = isEmpty
+					? block
+					: editor.insertBlocks([{ type: 'paragraph' }], block, 'after')[0]
+				editor.setTextCursorPosition(target)
+				suggestionMenu.openSuggestionMenu('/')
+			}}
+		/>
+	)
+}
+
+// The side menu follows the pointer, so on touch the caret's empty line gets its own `+`.
+// It sits at the line's end, clear of that menu, which iOS still shows on a tap. The caret
+// is already there, so opening is all it does. Focus is required because the cursor
+// position outlives it, and code blocks are out because `SuggestionMenu` ignores them.
+function NotilloTouchAddButton() {
+	const dict = useDictionary()
+	const editor = useBlockNoteEditor()
+	const suggestionMenu = useExtension(SuggestionMenu)
+	const menuOpen = useExtensionState(SuggestionMenu, { selector: (s) => s?.show })
+	const emptyBlockId = useEditorState({
+		selector: () => {
+			if (!editor.isFocused()) return undefined
+			const { selection } = editor.prosemirrorView.state
+			if (!selection.empty || selection.$from.parent.type.spec.code) return undefined
+			const { block } = editor.getTextCursorPosition()
+			return Array.isArray(block.content) && block.content.length === 0 ? block.id : undefined
+		}
+	})
+	const blockId = menuOpen ? undefined : emptyBlockId
+
+	return (
+		<BlockPopover
+			blockId={blockId}
+			useFloatingOptions={{ open: !!blockId, placement: 'right' }}
+			useDismissProps={{ enabled: false }}
+			focusManagerProps={{ disabled: true }}
+			elementProps={{
+				// Keeps the caret, and with it the on-screen keyboard.
+				onMouseDownCapture: (e) => e.preventDefault(),
+				style: { zIndex: 20 }
+			}}
+		>
+			<Button
+				variant="ghost"
+				className="notillo-touch-add"
+				// Without it the click lands 200ms late, past the keyboard's user gesture.
+				immediate
+				icon={<IcAdd />}
+				aria-label={dict.side_menu.add_block_label}
+				onClick={() => suggestionMenu.openSuggestionMenu('/')}
+			/>
+		</BlockPopover>
+	)
+}
+
+function NotilloDragHandleButton({ dragHandleMenu: BlockMenu = DragHandleMenu }: SideMenuProps) {
+	const components = useComponentsContext()
+	const dict = useDictionary()
+	const portalElement = usePortalElement()
+	const sideMenu = useExtension(SideMenuExtension)
+	const block = useExtensionState(SideMenuExtension, {
+		selector: (s) => s?.block
+	})
+
+	if (!block || !components) return null
+
+	return (
+		<components.Generic.Menu.Root
+			onOpenChange={(open: boolean) => {
+				if (open) sideMenu.freezeMenu()
+				else sideMenu.unfreezeMenu()
+			}}
+			position="left"
+			portalElement={portalElement}
+		>
+			<components.Generic.Menu.Trigger>
+				<components.SideMenu.Button
+					className="bn-button"
+					label={dict.side_menu.drag_handle_label}
+					draggable
+					onDragStart={(e) => sideMenu.blockDragStart(e, block)}
+					onDragEnd={sideMenu.blockDragEnd}
+					icon={<IcDragHandle size={24} />}
+				/>
+			</components.Generic.Menu.Trigger>
+			<BlockMenu />
+		</components.Generic.Menu.Root>
+	)
+}
+
 // The stock toolbar plus the `index` block's settings controls, which render
 // themselves away unless a single `index` block is selected. Module-level so its
 // identity is stable: one that changed every render would re-render `BlockNoteView`
@@ -195,6 +310,9 @@ interface NotilloEditorProps {
 	 */
 	homePageId?: string
 	onSelectPage: (pageId: string) => void
+	onRename: (title: string) => Promise<boolean>
+	/** The page just created, if any; `PageTitle` takes it on mount. */
+	justCreatedRef: React.RefObject<string | undefined>
 	onTagClick?: (tag: string) => void
 	onEditorReady?: (editor: NotilloEditorType) => void
 	onCommentBlock?: (blockId: string) => void
@@ -239,6 +357,8 @@ export const NotilloEditor = React.memo(
 		pages,
 		homePageId,
 		onSelectPage,
+		onRename,
+		justCreatedRef,
 		onTagClick,
 		onEditorReady,
 		onCommentBlock,
@@ -251,7 +371,7 @@ export const NotilloEditor = React.memo(
 		embedTitle,
 		textScale
 	}: NotilloEditorProps) {
-		const { t } = useTranslation()
+		const { t, i18n } = useTranslation()
 		const containerWidthRef = React.useRef(900)
 
 		const resolveFileUrl = React.useCallback(
@@ -290,6 +410,10 @@ export const NotilloEditor = React.memo(
 
 		const editor = useCreateBlockNote({
 			schema: notilloSchema,
+			// Read once, with the other options: a language switch reaches the editor on
+			// the next page open, because recreating it here would pull it out from under
+			// the sync hooks. `undefined` is BlockNote's English.
+			dictionary: (i18n.resolvedLanguage || i18n.language)?.startsWith('hu') ? hu : undefined,
 			// biome-ignore lint/suspicious/noExplicitAny: BlockNote initialContent type boundary with custom schema
 			initialContent: initialBlocks.length > 0 ? (initialBlocks as any) : undefined,
 			resolveFileUrl,
@@ -366,8 +490,16 @@ export const NotilloEditor = React.memo(
 					}),
 					wikiLinkTrigger
 				]
-			}
+			},
+			// BlockNote ships no empty-document text, so an empty page stays blank until
+			// it is focused. Worded like its focused default, which takes over on focus.
+			placeholders: { emptyDocument: t("Enter text or type '/' for commands") }
 		})
+
+		const focusEdge = React.useCallback(
+			(edge: 'start' | 'end') => focusDocumentEdge(editor as NotilloEditorType, edge),
+			[editor]
+		)
 
 		// Filled after commit, not during render: the only reader is the trigger
 		// plugin's `handleTextInput`, which needs a mounted editor to fire at all.
@@ -566,6 +698,20 @@ export const NotilloEditor = React.memo(
 					const tagName = tag.dataset.tag
 					if (tagName) onTagClick?.(tagName)
 				}
+
+				// The blank space under the content. A drag that ends there is a text
+				// selection to keep, and the side margins beside the blocks are not it.
+				if (
+					!readOnly &&
+					el?.contains(target) &&
+					target.matches('.notillo-editor, .notillo-sheet, .bn-container, .bn-editor') &&
+					document.getSelection()?.isCollapsed !== false
+				) {
+					const blocks = el.querySelector('.bn-block-group')
+					if (blocks && e.clientY > blocks.getBoundingClientRect().bottom) {
+						focusEdge('end')
+					}
+				}
 			}
 
 			function handleAuxClick(e: MouseEvent) {
@@ -588,7 +734,7 @@ export const NotilloEditor = React.memo(
 				window.removeEventListener('click', handleClick, true)
 				window.removeEventListener('auxclick', handleAuxClick, true)
 			}
-		}, [onSelectPage, onTagClick, readOnly])
+		}, [onSelectPage, onTagClick, readOnly, focusEdge])
 
 		// Backed by the same matcher the sidebar and command palette use, so
 		// `@`/`[[` see every page — including collapsed-branch and unfiled ones —
@@ -710,10 +856,14 @@ export const NotilloEditor = React.memo(
 		}, [onCommentBlock, t])
 
 		const customSideMenu = React.useMemo(() => {
-			if (!customDragHandleMenu) return undefined
 			// biome-ignore lint/correctness/noComponentHookFactories: useMemo keeps identity stable across renders
 			return function NotilloSideMenu() {
-				return <SideMenu dragHandleMenu={customDragHandleMenu} />
+				return (
+					<SideMenu>
+						<NotilloAddBlockButton />
+						<NotilloDragHandleButton dragHandleMenu={customDragHandleMenu} />
+					</SideMenu>
+				)
 			}
 		}, [customDragHandleMenu])
 
@@ -764,7 +914,7 @@ export const NotilloEditor = React.memo(
 		return (
 			<div
 				ref={editorRef}
-				className="notillo-editor"
+				className={embedded ? 'notillo-editor notillo-embedded' : 'notillo-editor'}
 				style={
 					embedded && !getAppBus().pickView
 						? {
@@ -777,41 +927,55 @@ export const NotilloEditor = React.memo(
 				}
 			>
 				{hideCss && <style>{hideCss}</style>}
-				<NotilloEditorProvider value={editorContext}>
-					<BlockNoteView
-						editor={editor}
-						editable={!readOnly}
-						theme={darkMode ? 'dark' : 'light'}
-						slashMenu={false}
-						filePanel={false}
-						formattingToolbar={false}
-						sideMenu={!customSideMenu}
-					>
-						{customSideMenu && <SideMenuController sideMenu={customSideMenu} />}
-						<FormattingToolbarController formattingToolbar={NotilloFormattingToolbar} />
-						<SuggestionMenuController
-							triggerCharacter="/"
-							getItems={async (query) =>
-								filterSuggestionItems(
-									getSlashMenuItems(editor as NotilloEditorType),
-									query
-								)
-							}
+				<div className="notillo-sheet">
+					{!embedded && (
+						<PageTitle
+							pageId={pageId}
+							title={pages.get(pageId)?.title ?? ''}
+							readOnly={readOnly}
+							justCreatedRef={justCreatedRef}
+							onRename={onRename}
+							onEnter={() => focusEdge('start')}
 						/>
-						<SuggestionMenuController
-							triggerCharacter="@"
-							getItems={async (query) => getWikiLinkItems(query)}
-						/>
-						<SuggestionMenuController
-							triggerCharacter={WIKI_LINK_TRIGGER}
-							getItems={async (query) => getWikiLinkItems(query)}
-						/>
-						<SuggestionMenuController
-							triggerCharacter="#"
-							getItems={async (query) => getTagItems(query)}
-						/>
-					</BlockNoteView>
-				</NotilloEditorProvider>
+					)}
+					<NotilloEditorProvider value={editorContext}>
+						<BlockNoteView
+							editor={editor}
+							editable={!readOnly}
+							theme={darkMode ? 'dark' : 'light'}
+							slashMenu={false}
+							filePanel={false}
+							formattingToolbar={false}
+							sideMenu={false}
+						>
+							<SideMenuController sideMenu={customSideMenu} />
+							{!readOnly && window.matchMedia?.('(pointer: coarse)').matches && (
+								<NotilloTouchAddButton />
+							)}
+							<FormattingToolbarController
+								formattingToolbar={NotilloFormattingToolbar}
+							/>
+							<SuggestionMenuController
+								triggerCharacter="/"
+								getItems={async (query) =>
+									getSlashMenuItems(editor as NotilloEditorType, query)
+								}
+							/>
+							<SuggestionMenuController
+								triggerCharacter="@"
+								getItems={async (query) => getWikiLinkItems(query)}
+							/>
+							<SuggestionMenuController
+								triggerCharacter={WIKI_LINK_TRIGGER}
+								getItems={async (query) => getWikiLinkItems(query)}
+							/>
+							<SuggestionMenuController
+								triggerCharacter="#"
+								getItems={async (query) => getTagItems(query)}
+							/>
+						</BlockNoteView>
+					</NotilloEditorProvider>
+				</div>
 			</div>
 		)
 	},

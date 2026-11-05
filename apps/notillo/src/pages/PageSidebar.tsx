@@ -4,17 +4,19 @@
 import { dedupePresenceUsers, type PresenceEntry } from '@cloudillo/core'
 import {
 	ActionSheet,
+	ActionSheetDivider,
 	ActionSheetItem,
 	AvatarGroup,
 	Button,
 	IcAdd,
 	IcClear,
-	IcDelete,
 	IcHome,
 	IcMore,
 	IcPin,
+	InlineEditForm,
 	LoadingSpinner,
 	Menu,
+	MenuDivider,
 	MenuItem,
 	Modal,
 	PresenceAvatar,
@@ -29,7 +31,7 @@ import type { RtdbClient } from '@cloudillo/rtdb'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { IcAddPage, IcPage } from '../icons.js'
+import { IcPage } from '../icons.js'
 import {
 	buildChildIndex,
 	collectDescendants,
@@ -50,6 +52,11 @@ type PageWithId = PageRecord & { id: string }
 
 /** Faces shown on a page row before the group collapses into a `+N` chip. */
 const PAGE_PRESENCE_MAX = 3
+
+/** Keeps a row's own touch and right-click from reaching the row it is nested in. */
+function stopBubble(e: React.SyntheticEvent) {
+	e.stopPropagation()
+}
 
 /**
  * Who else is on this page, as a stack of faces on its sidebar row.
@@ -93,7 +100,9 @@ interface PageSidebarProps {
 	onExpand: (pageId: string) => void
 	onToggleExpand: (pageId: string) => void
 	activePageId: string | undefined
-	onSelectPage: (pageId: string) => void
+	onSelectPage: (pageId: string, opts?: { justCreated?: boolean }) => void
+	/** Reports a failure itself; resolves to whether the write went through. */
+	onRenamePage: (pageId: string, title: string) => Promise<boolean>
 	userId: string
 	readOnly: boolean
 	tags: Set<string>
@@ -152,6 +161,7 @@ export function PageSidebar({
 	onToggleExpand,
 	activePageId,
 	onSelectPage,
+	onRenamePage,
 	userId,
 	readOnly,
 	tags,
@@ -186,13 +196,15 @@ export function PageSidebar({
 	const [menuOpen, setMenuOpen] = React.useState(false)
 	const menuRef = React.useRef<HTMLDivElement>(null)
 
-	// Page context menu state (right-click / long-press)
+	// Page context menu state (⋯ button / right-click / long-press)
 	const [ctxMenu, setCtxMenu] = React.useState<{
 		x: number
 		y: number
 		pageId: string
 		pageTitle: string
 	} | null>(null)
+	// The page whose tree row is showing the rename field.
+	const [renamingId, setRenamingId] = React.useState<string | null>(null)
 	const longPressTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
 	const longPressTriggeredRef = React.useRef(false)
 	// Timestamp of the last touchstart anywhere on a page row. Used to
@@ -295,6 +307,9 @@ export function PageSidebar({
 	// resolves, so a second click would otherwise pass the guard and start an
 	// overlapping cascade.
 	const deletingRef = React.useRef(false)
+	// Pages appear only once the write lands, so a second activation before then
+	// would make a second page.
+	const creatingRef = React.useRef(false)
 	// Abandoning the sidebar mid-run stops the cascade rather than keeping it
 	// committing against a client the user has left behind.
 	const deleteAbortRef = React.useRef<AbortController | null>(null)
@@ -310,20 +325,25 @@ export function PageSidebar({
 	}, [dialog, t])
 
 	const handleCreatePage = React.useCallback(async () => {
-		if (deleting) return
+		if (deleting || creatingRef.current) return
+		creatingRef.current = true
 		try {
 			const id = await createPage(client, userId, t('New Page'), ROOT_PARENT)
-			onSelectPage(id)
+			onSelectPage(id, { justCreated: true })
 		} catch (err) {
 			console.error('[Notillo] Create page failed:', err)
 			await tellCreateFailed()
+		} finally {
+			creatingRef.current = false
 		}
 	}, [client, userId, onSelectPage, deleting, t, tellCreateFailed])
 
 	const handleCreateSubpage = React.useCallback(
-		async (e: React.MouseEvent, parentPageId: string) => {
-			e.stopPropagation()
-			if (deleting) return
+		async (parentPageId: string) => {
+			// The home page's children are the top level, so that is where one lands.
+			if (parentPageId === homePage?.id) return handleCreatePage()
+			if (deleting || creatingRef.current) return
+			creatingRef.current = true
 			try {
 				// The child's archetype is what the parent says its children are, so
 				// adding a post under a blog page is one step rather than two.
@@ -335,18 +355,30 @@ export function PageSidebar({
 					childKindFor(pages.get(parentPageId))
 				)
 				onExpand(parentPageId)
-				onSelectPage(id)
+				onSelectPage(id, { justCreated: true })
 			} catch (err) {
 				console.error('[Notillo] Create subpage failed:', err)
 				await tellCreateFailed()
+			} finally {
+				creatingRef.current = false
 			}
 		},
-		[client, userId, pages, onSelectPage, onExpand, deleting, t, tellCreateFailed]
+		[
+			client,
+			userId,
+			pages,
+			homePage,
+			handleCreatePage,
+			onSelectPage,
+			onExpand,
+			deleting,
+			t,
+			tellCreateFailed
+		]
 	)
 
 	const handleDeletePage = React.useCallback(
-		async (e: React.MouseEvent, pageId: string) => {
-			e.stopPropagation()
+		async (pageId: string) => {
 			if (deleting || deletingRef.current) return
 			deletingRef.current = true
 			try {
@@ -405,6 +437,27 @@ export function PageSidebar({
 		[client, deleting, dialog, t]
 	)
 
+	// Focus goes down with the rename field, so it returns to the row — after the
+	// commit, and only if it fell to the body.
+	const closeRename = React.useCallback((pageId: string) => {
+		setRenamingId(null)
+		requestAnimationFrame(() => {
+			if (document.activeElement !== document.body) return
+			document
+				.querySelector<HTMLElement>(`[data-tree-item-id="${CSS.escape(pageId)}"]`)
+				?.focus()
+		})
+	}, [])
+
+	// By page id: a row can be any page, not just the open one.
+	const handleRenamePage = React.useCallback(
+		async (pageId: string, title: string) => {
+			closeRename(pageId)
+			await onRenamePage(pageId, title)
+		},
+		[closeRename, onRenamePage]
+	)
+
 	// The home page's own local UI state. `homeExpanded` is not part of the parent's
 	// `expanded` set on purpose: the home row is the root of the whole tree, so it
 	// starts open, and the shared set means the opposite — absent is collapsed.
@@ -431,7 +484,7 @@ export function PageSidebar({
 			// what gets it past `setHome`'s "is this page real" guard: the page map is
 			// the last snapshot, which cannot contain a page this new.
 			await onSetHome(id, { justCreated: true })
-			onSelectPage(id)
+			onSelectPage(id, { justCreated: true })
 		} catch (err) {
 			console.error('[Notillo] Create home page failed:', err)
 			await tellCreateFailed()
@@ -553,16 +606,12 @@ export function PageSidebar({
 
 	/**
 	 * One row of the tree. `opts` is what the home row needs and no ordinary page
-	 * does — see `renderHomeRow`, which is this function with four things swapped.
+	 * does — see `renderHomeRow`, which is this function with three things swapped.
 	 */
 	interface PageRowOptions {
 		icon?: React.ReactNode
-		/** A chip after the title. */
-		badge?: React.ReactNode
 		/** The home row cannot be dragged: there is nothing above it to drag to. */
 		draggable?: boolean
-		/** The `+` button. Default: add a subpage of this page. */
-		add?: { title: string; onClick: (e: React.MouseEvent) => void }
 		/** Expansion state and children, when they are not the tree's own. */
 		expanded?: boolean
 		onToggle?: () => void
@@ -588,7 +637,11 @@ export function PageSidebar({
 		const pageTitle = page.title || t('Untitled')
 		const deleteProgress = deleting?.pageId === page.id ? deleting : null
 		const pageUsers = presenceByPage.get(page.id)
-		const draggable = !readOnly && (opts.draggable ?? true)
+		const renaming = page.id === renamingId
+		const draggable = !readOnly && !renaming && (opts.draggable ?? true)
+		// The `+` row marks where a new subpage will land, so that spot has to be on
+		// screen: a collapsed page with children has none.
+		const showGhost = !readOnly && page.id === activePageId && (isExpanded || !hasChildren)
 
 		return (
 			<TreeItem
@@ -596,11 +649,12 @@ export function PageSidebar({
 				id={page.id}
 				aria-busy={deleteProgress ? true : undefined}
 				depth={depth}
-				expanded={isExpanded}
+				// `hasChildren` stays false on a leaf: no toggle, only the `+` row under it.
+				expanded={isExpanded || showGhost}
 				selected={page.id === activePageId}
 				hasChildren={hasChildren}
 				allowDropInside={!readOnly}
-				icon={opts.icon ?? (page.icon ? <span>{page.icon}</span> : <IcPage />)}
+				icon={opts.icon ?? (page.icon && <span>{page.icon}</span>)}
 				label={
 					// The faces go in the label rather than in `actions`, which only
 					// becomes visible on hover — "someone is on this page" is exactly
@@ -609,10 +663,26 @@ export function PageSidebar({
 					// the label would cut the outline that draws each face's identity
 					// ring.
 					<>
-						<span className="page-tree-title" title={pageTitle}>
-							{pageTitle}
-						</span>
-						{opts.badge}
+						{renaming ? (
+							<InlineEditForm
+								size="small"
+								aria-label={t('Rename')}
+								value={page.title || ''}
+								placeholder={t('Untitled')}
+								onSave={(title) => handleRenamePage(page.id, title)}
+								onCancel={() => closeRename(page.id)}
+							/>
+						) : (
+							// On the title, not the row: a row holds its child rows, so a
+							// double-click would bubble to every ancestor.
+							<span
+								className="page-tree-title"
+								title={pageTitle}
+								onDoubleClick={readOnly ? undefined : () => setRenamingId(page.id)}
+							>
+								{pageTitle}
+							</span>
+						)}
 						{pageUsers && <PagePresence users={pageUsers} guestLabel={t('Guest')} />}
 					</>
 				}
@@ -625,10 +695,24 @@ export function PageSidebar({
 					onSelectPage(page.id)
 				}}
 				onToggle={opts.onToggle ?? (() => onToggleExpand(page.id))}
-				onContextMenu={(e: React.MouseEvent) =>
-					handlePageContextMenu(e, page.id, pageTitle)
+				onKeyDown={(e: React.KeyboardEvent) => {
+					// Keys from nested rows and from the rename field bubble through here.
+					if (e.key === 'F2' && e.target === e.currentTarget && !readOnly) {
+						e.preventDefault()
+						setRenamingId(page.id)
+					}
+				}}
+				// While renaming, the field keeps its native menu and long-press.
+				onContextMenu={
+					renaming
+						? stopBubble
+						: (e: React.MouseEvent) => handlePageContextMenu(e, page.id, pageTitle)
 				}
-				onTouchStart={(e: React.TouchEvent) => handleTouchStart(e, page.id, pageTitle)}
+				onTouchStart={
+					renaming
+						? stopBubble
+						: (e: React.TouchEvent) => handleTouchStart(e, page.id, pageTitle)
+				}
 				onTouchEnd={handleTouchEnd}
 				onTouchMove={handleTouchEnd}
 				onTouchCancel={handleTouchEnd}
@@ -644,25 +728,24 @@ export function PageSidebar({
 							{deleteProgress.total > 20 &&
 								`${deleteProgress.done}/${deleteProgress.total}`}
 						</span>
-					) : !readOnly ? (
-						<>
-							<button
-								className="page-tree-action"
-								onClick={
-									opts.add?.onClick ?? ((e) => handleCreateSubpage(e, page.id))
-								}
-								title={opts.add?.title ?? t('Add subpage')}
-							>
-								<IcAddPage />
-							</button>
-							<button
-								className="page-tree-delete"
-								onClick={(e) => handleDeletePage(e, page.id)}
-								title={t('Delete page')}
-							>
-								<IcDelete />
-							</button>
-						</>
+					) : !readOnly && !renaming ? (
+						<button
+							className="page-tree-action"
+							aria-haspopup="menu"
+							aria-label={t('More actions')}
+							title={t('More actions')}
+							onClick={(e) => {
+								const rect = e.currentTarget.getBoundingClientRect()
+								setCtxMenu({
+									x: rect.left,
+									y: rect.bottom,
+									pageId: page.id,
+									pageTitle
+								})
+							}}
+						>
+							<IcMore />
+						</button>
 					) : undefined
 				}
 			>
@@ -675,29 +758,52 @@ export function PageSidebar({
 								? renderPage(child, depth + 1, {}, new Set(seen).add(page.id))
 								: null
 						}))}
+				{showGhost && renderGhostRow(page, depth + 1)}
 			</TreeItem>
+		)
+	}
+
+	/**
+	 * The `+` row after a page's last child, where a new subpage will land. A tree item
+	 * rather than a button so the arrow keys reach it. Under the home row it means a new
+	 * top-level page, which `handleCreateSubpage` sees to.
+	 */
+	function renderGhostRow(parent: PageWithId, depth: number) {
+		const label = parent.id === homePage?.id ? t('New page') : t('Add subpage')
+		return (
+			<TreeItem
+				id={`ghost:${parent.id}`}
+				className="page-tree-ghost"
+				aria-label={label}
+				depth={depth}
+				icon={<IcAdd />}
+				label={<span className="page-tree-title">{label}</span>}
+				isDraggable={false}
+				isDroppable={false}
+				onSelect={() => void handleCreateSubpage(parent.id)}
+				// Otherwise these reach the parent row, and a long-press here opens its menu.
+				onContextMenu={stopBubble}
+				onTouchStart={stopBubble}
+			/>
 		)
 	}
 
 	/**
 	 * The home page, pinned above the tree with the top-level pages as its children.
 	 *
-	 * An ordinary row with four things swapped: the house icon and a `/` chip instead
-	 * of a slug, no dragging (there is nothing above it to drag to), a `+` that adds a
-	 * top-level page rather than one of its own subpages, and the top level as its
-	 * children. Everything else — the long-press guard, the touch handlers,
-	 * the delete progress — is `renderPage`'s, once.
+	 * An ordinary row with three things swapped: the house icon, whose tooltip says it
+	 * is served at the root, no dragging (there is nothing above it to drag to), and the
+	 * top level as its children. Everything else — the long-press guard, the touch
+	 * handlers, the delete progress — is `renderPage`'s, once.
 	 */
 	function renderHomeRow(home: PageWithId) {
 		return renderPage(home, 0, {
-			icon: <IcHome />,
-			badge: (
-				<span className="c-badge xs" title={t('Served at your site’s root')}>
-					/
+			icon: (
+				<span title={t('Served at your site’s root')}>
+					<IcHome />
 				</span>
 			),
 			draggable: false,
-			add: { title: t('New page'), onClick: handleCreatePage },
 			hasChildren: topLevelPages.length > 0,
 			expanded: homeExpanded,
 			onToggle: () => setHomeExpanded((open) => !open),
@@ -754,11 +860,14 @@ export function PageSidebar({
 				className="c-hbox align-items-center g-2 px-3 py-2"
 				style={{ borderBottom: '1px solid var(--col-outline)' }}
 			>
-				<span className="font-semibold text-sm flex-fill">{t('Pages')}</span>
+				<span className="font-semibold text-base flex-fill">{t('Pages')}</span>
 				{!readOnly && (
 					<>
 						<Button
 							size="sm"
+							variant="soft"
+							color="primary"
+							className="notillo-sidebar-add"
 							onClick={handleCreatePage}
 							title={t('New page')}
 							icon={<IcAdd />}
@@ -767,6 +876,7 @@ export function PageSidebar({
 						<div ref={menuRef} style={{ position: 'relative' }}>
 							<Button
 								size="sm"
+								variant="ghost"
 								onClick={() => setMenuOpen(!menuOpen)}
 								title={t('More actions')}
 								icon={<IcMore />}
@@ -910,7 +1020,7 @@ export function PageSidebar({
 									className={`c-tag tag-cloud-item${isActive ? ' accent' : ''}`}
 									onClick={() => onToggleTag(tag)}
 								>
-									# {tag}
+									#{tag}
 									{count > 0 && <span className="c-badge xs">{count}</span>}
 								</button>
 							)
@@ -923,29 +1033,41 @@ export function PageSidebar({
 					// Same items either way — only the chrome around them differs, so
 					// the item list is built once and the row component picked.
 					const Item = isMobile ? ActionSheetItem : MenuItem
+					const Divider = isMobile ? ActionSheetDivider : MenuDivider
 					const items = [
-						onImportMarkdown && {
-							label: t('Import Markdown as child page'),
-							run: () => onImportMarkdown(ctxMenu.pageId)
-						},
+						// Synchronous on purpose: the menu gives focus back while it closes,
+						// and the field's autofocus has to come after that.
+						{ label: t('Rename'), run: () => setRenamingId(ctxMenu.pageId) },
+						{ label: t('Add subpage'), run: () => handleCreateSubpage(ctxMenu.pageId) },
 						// The home row cannot be dragged either: there is nothing above it.
 						ctxMenu.pageId !== homePage?.id && {
 							label: t('Move to…'),
 							run: () => setMovePickerId(ctxMenu.pageId)
 						},
+						onImportMarkdown && {
+							label: t('Import Markdown as child page'),
+							run: () => onImportMarkdown(ctxMenu.pageId)
+						},
 						homeAction && { label: homeAction.label, run: homeAction.run }
 					].filter((item) => !!item)
-					const rows = items.map((item) => (
+					const row = (label: string, run: () => unknown, danger?: boolean) => (
 						<Item
-							key={item.label}
-							label={item.label}
+							key={label}
+							label={label}
+							danger={danger}
 							onClick={() => {
-								const { run } = item
 								setCtxMenu(null)
 								void run()
 							}}
 						/>
-					))
+					)
+					const rows = (
+						<>
+							{items.map((item) => row(item.label, item.run))}
+							<Divider />
+							{row(t('Delete'), () => handleDeletePage(ctxMenu.pageId), true)}
+						</>
+					)
 					return isMobile ? (
 						<ActionSheet
 							isOpen={true}

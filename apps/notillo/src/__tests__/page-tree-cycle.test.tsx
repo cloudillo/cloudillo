@@ -36,13 +36,16 @@ const icons = await import('@cloudillo/react/icons')
 jest.unstable_mockModule('@cloudillo/react', () => ({
 	...icons,
 	ActionSheet: passthrough,
+	ActionSheetDivider: () => <hr />,
 	ActionSheetItem: passthrough,
 	AvatarGroup: passthrough,
 	Button: ({ children }: { children?: React.ReactNode }) => (
 		<button type="button">{children}</button>
 	),
+	InlineEditForm: () => <input />,
 	LoadingSpinner: () => <span />,
 	Menu: passthrough,
+	MenuDivider: () => <hr />,
 	MenuItem: passthrough,
 	Modal: passthrough,
 	PresenceAvatar: () => <span />,
@@ -105,6 +108,7 @@ function renderSidebar() {
 				onToggleExpand={() => {}}
 				activePageId="p1"
 				onSelectPage={() => {}}
+				onRenamePage={async () => true}
 				userId="me.example"
 				readOnly={false}
 				tags={new Set()}

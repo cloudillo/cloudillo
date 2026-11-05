@@ -166,7 +166,7 @@ function ExpandedThread({
 						onClick={handleReply}
 						disabled={!replyText.trim() || submitting}
 						title={t('Send')}
-						icon={<IcSend size={14} />}
+						icon={<IcSend />}
 						aria-label={t('Send')}
 					/>
 				</div>
@@ -509,7 +509,7 @@ export const ThreadList = React.forwardRef<ThreadListHandle, ThreadListProps>(fu
 				/>
 				<div className="comment-input-actions">
 					<Button size="sm" onClick={handleSubmit} disabled={!text.trim() || submitting}>
-						<IcSend size={14} /> {t('Send')}
+						<IcSend /> {t('Send')}
 					</Button>
 					<Button variant="link" size="sm" onClick={handleCancel}>
 						{t('Cancel')}

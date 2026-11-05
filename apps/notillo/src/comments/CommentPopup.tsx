@@ -173,7 +173,7 @@ function PopupThread({
 						onClick={handleReply}
 						disabled={!replyText.trim() || submitting}
 						title={t('Send')}
-						icon={<IcSend size={14} />}
+						icon={<IcSend />}
 						aria-label={t('Send')}
 					/>
 				</div>

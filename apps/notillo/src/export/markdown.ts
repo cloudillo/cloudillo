@@ -1,8 +1,40 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: MPL-2.0
 
+import { isVideoUrl } from '@blocknote/core'
+import { escapeHtml, parseSiteFileRef, safeHref, stripFrontMatter } from '@cloudillo/core'
+import { Marked } from 'marked'
+
 import type { NotilloEditor } from '../editor/schema.js'
+import { attr } from '../publish/render/escape.js'
 import { downloadBlob } from './download.js'
+
+/**
+ * BlockNote's own Markdown parser turns every newline into a line break, so a hard-wrapped
+ * paragraph comes in one row at a time. `marked` follows CommonMark: a soft break stays a
+ * newline in the HTML, which `tryParseHTMLToBlocks` collapses to a space.
+ */
+const markdownParser = new Marked({
+	async: false,
+	renderer: {
+		// BlockNote's parser made a video block of `![name](x.mp4)`, and our export writes that.
+		image({ href, title, text }) {
+			if (!isVideoUrl(href)) return false
+			const name = text || title || undefined
+			return `<video${attr('src', href)}${attr('data-name', name)}${attr('data-url', href)} controls></video>`
+		},
+		// marked's own output ends in a newline, which would stay in the code block.
+		code({ text, lang }) {
+			const language = lang?.match(/\S+/)?.[0]
+			const cls = language ? `language-${language}` : undefined
+			return `<pre><code${attr('class', cls)}>${escapeHtml(text)}</code></pre>`
+		},
+		// marked's own output ends in a space, which a loose item keeps at the start of its text.
+		checkbox({ checked }) {
+			return `<input type="checkbox" disabled${checked ? ' checked' : ''}>`
+		}
+	}
+})
 
 export async function exportMarkdown(editor: NotilloEditor, title: string) {
 	const md = await editor.blocksToMarkdownLossy(editor.document)
@@ -100,14 +132,49 @@ function processInlineContent(content: any[], titleToId: Map<string, string>): a
 	return result
 }
 
+const MEDIA_BLOCKS = new Set(['image', 'video', 'audio', 'file'])
+
+/**
+ * As the publisher does (`renderImage`), refuse a media block by its address. It leaves a
+ * paragraph behind, so the import does not lose it silently; the label never shows the URL.
+ * A `documentEmbed` is always refused: Markdown has no way to make one, and only `pickDocument`
+ * applies its access checks.
+ */
+function replaceUnsafeMedia(
+	// biome-ignore lint/suspicious/noExplicitAny: BlockNote block types are schema-dependent
+	blocks: any[],
+	label: (name: string) => string,
+	counter: { refused: number }
+	// biome-ignore lint/suspicious/noExplicitAny: BlockNote block types are schema-dependent
+): any[] {
+	return blocks.map((block) => {
+		const { type, props } = block
+		const children = block.children && replaceUnsafeMedia(block.children, label, counter)
+		const safe =
+			type !== 'documentEmbed' &&
+			(!MEDIA_BLOCKS.has(type) ||
+				!props?.url ||
+				parseSiteFileRef(props.url) ||
+				safeHref(props.url))
+		if (safe) return children ? { ...block, children } : block
+		counter.refused++
+		return { type: 'paragraph', content: label(props.caption || props.name || ''), children }
+	})
+}
+
+/** `mediaLabel` gets the name of a refused media block, or `''`, and returns its stand-in text. */
 export async function importMarkdown(
 	editor: NotilloEditor,
 	markdown: string,
-	pages?: Map<string, PageInfo>
-) {
-	const blocks = await editor.tryParseMarkdownToBlocks(markdown)
+	pages: Map<string, PageInfo> | undefined,
+	mediaLabel: (name: string) => string
+): Promise<{ refusedMedia: number }> {
+	const counter = { refused: 0 }
+	const html = markdownParser.parse(stripFrontMatter(markdown)) as string
+	const blocks = replaceUnsafeMedia(editor.tryParseHTMLToBlocks(html), mediaLabel, counter)
 	const resolved = pages ? resolveWikiLinks(blocks, pages) : blocks
 	editor.replaceBlocks(editor.document, resolved)
+	return { refusedMedia: counter.refused }
 }
 
 // vim: ts=4

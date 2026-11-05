@@ -38,7 +38,11 @@ jest.unstable_mockModule('@cloudillo/react', () => ({
 	),
 	// The match offsets are not what this suite reads; the row's text is.
 	Highlight: ({ text }: { text: string }) => <>{text}</>,
-	LoadingSpinner: () => <span />
+	LoadingSpinner: () => <span />,
+	SearchInput: React.forwardRef<
+		HTMLInputElement,
+		React.ComponentProps<'input'> & { shortcut?: string }
+	>(({ shortcut: _shortcut, ...props }, ref) => <input ref={ref} {...props} />)
 }))
 
 const { PageSearchPanel } = await import('../pages/PageSearchPanel.js')
@@ -47,7 +51,14 @@ function titleHit(id: string, title: string): SearchResult {
 	return { id, title, kind: 'title', path: [] }
 }
 
-function render(props: { pending: boolean; results: SearchResult[] }) {
+function render(props: {
+	pending: boolean
+	results: SearchResult[]
+	tags?: Set<string>
+	activeTags?: Set<string>
+	onSearchChange?: (query: string) => void
+	onToggleTag?: (tag: string) => void
+}) {
 	const container = document.createElement('div')
 	document.body.append(container)
 	const root = createRoot(container)
@@ -61,7 +72,7 @@ function render(props: { pending: boolean; results: SearchResult[] }) {
 				activePageId={undefined}
 				onSelectPage={() => {}}
 				searchQuery="alpha"
-				onSearchChange={() => {}}
+				onSearchChange={props.onSearchChange ?? (() => {})}
 				filteredResults={props.results}
 				resultsTruncated={false}
 				isFiltering={true}
@@ -70,10 +81,10 @@ function render(props: { pending: boolean; results: SearchResult[] }) {
 				focusSearchSeq={0}
 				onSearchActivate={() => {}}
 				recentPageIds={[]}
-				tags={new Set()}
+				tags={props.tags ?? new Set()}
 				tagCounts={new Map()}
-				activeTags={new Set()}
-				onToggleTag={() => {}}
+				activeTags={props.activeTags ?? new Set()}
+				onToggleTag={props.onToggleTag ?? (() => {})}
 				onClearTags={() => {}}
 				onCreateFailed={async () => {}}
 				renderTree={() => null}
@@ -82,6 +93,10 @@ function render(props: { pending: boolean; results: SearchResult[] }) {
 	})
 	return {
 		has: (testId: string) => container.querySelector(`[data-testid="${testId}"]`) !== null,
+		clickRow(title: string) {
+			const row = container.querySelector<HTMLElement>(`[title="${title}"]`)
+			act(() => row?.click())
+		},
 		unmount() {
 			act(() => root.unmount())
 			container.remove()
@@ -105,6 +120,38 @@ describe('PageSearchPanel content-search progress', () => {
 		expect(view.has('no-results')).toBe(false)
 
 		view.unmount()
+	})
+})
+
+describe('PageSearchPanel tag rows', () => {
+	function pickTag(activeTags: Set<string>) {
+		const onSearchChange = jest.fn<(query: string) => void>()
+		const onToggleTag = jest.fn<(tag: string) => void>()
+		const view = render({
+			pending: false,
+			results: [],
+			tags: new Set(['alpha']),
+			activeTags,
+			onSearchChange,
+			onToggleTag
+		})
+		view.clickRow('#alpha')
+		view.unmount()
+		return { onSearchChange, onToggleTag }
+	}
+
+	it('swaps the typed query for the tag filter', () => {
+		const { onSearchChange, onToggleTag } = pickTag(new Set())
+
+		expect(onSearchChange).toHaveBeenCalledWith('')
+		expect(onToggleTag).toHaveBeenCalledWith('alpha')
+	})
+
+	it('keeps the query when turning an active tag off', () => {
+		const { onSearchChange, onToggleTag } = pickTag(new Set(['alpha']))
+
+		expect(onSearchChange).not.toHaveBeenCalled()
+		expect(onToggleTag).toHaveBeenCalledWith('alpha')
 	})
 })
 

@@ -7,7 +7,8 @@ import {
 	getAppBus,
 	getDocWsUrl,
 	getFileUrl,
-	parseSiteFileRef
+	parseSiteFileRef,
+	readImportFile
 } from '@cloudillo/core'
 import type { CommentThread } from '@cloudillo/react'
 import {
@@ -68,6 +69,7 @@ import { useCommentIndicators } from './hooks/useCommentIndicators.js'
 import { useContentSearch } from './hooks/useContentSearch.js'
 import { useDocSettings } from './hooks/useDocSettings.js'
 import { useHomePage } from './hooks/useHomePage.js'
+import { useImportPush } from './hooks/useImportPush.js'
 import { useNotillo } from './hooks/useNotillo.js'
 import { usePageBlocks } from './hooks/usePageBlocks.js'
 import { useTags } from './hooks/useTags.js'
@@ -130,10 +132,14 @@ function resolveNavPage(
 }
 
 export function NotilloApp() {
-	const { t } = useTranslation()
+	const { t, i18n } = useTranslation()
+	// `<html lang>` follows the UI language: `hyphens: auto` on the tree titles needs it.
+	React.useEffect(() => {
+		document.documentElement.lang = i18n.resolvedLanguage || i18n.language
+	}, [i18n.resolvedLanguage, i18n.language])
 	const notillo = useNotillo()
 	const dialog = useDialog()
-	const { error: toastError } = useToast()
+	const { error: toastError, warning: toastWarning } = useToast()
 	const canWrite = notillo.access === 'write'
 	const canComment = notillo.access !== 'read'
 	// One live map of every page feeds the tree, wiki-links, search and the `@`
@@ -254,68 +260,33 @@ export function NotilloApp() {
 		{ markdown: string; pageId: string; source: 'shell' | 'local' } | undefined
 	>()
 
-	// Store raw import payload in state so the processing effect re-runs
-	// whenever a new payload arrives (even after client is already ready).
-	const [importPayload, setImportPayload] = React.useState<{
-		markdown: string
-		fileName: string
-	} | null>(null)
-
-	// Register import handler early (no dependency on client)
-	React.useEffect(() => {
-		const bus = getAppBus()
-		return bus.onImportData(async (payload) => {
-			if (payload.sourceMimeType === 'text/markdown') {
-				const bytes = Uint8Array.from(atob(payload.data), (c) => c.charCodeAt(0))
-				const markdown = new TextDecoder().decode(bytes)
-				setImportPayload({ markdown, fileName: payload.fileName })
-			} else {
-				bus.notifyImportComplete(
-					false,
-					`Unsupported import type: ${payload.sourceMimeType}`
-				)
-			}
-		})
-	}, [])
+	useImportPush({
+		client: notillo.client,
+		idTag: notillo.idTag,
+		onCreated(pageId, markdown) {
+			setPendingImport({ markdown, pageId, source: 'shell' })
+			setActivePageId(pageId)
+		}
+	})
 
 	// Guard against double importMarkdown calls from handleEditorReady re-firing
 	const importRunningRef = React.useRef(false)
-
-	// Process import payload once client is ready
-	React.useEffect(() => {
-		if (!notillo.client || !notillo.idTag || !importPayload) return
-		const payload = importPayload
-
-		let cancelled = false
-		const bus = getAppBus()
-		;(async () => {
-			try {
-				const title = payload.fileName.replace(/\.[^.]+$/, '') || 'Imported'
-				const pageId = await createPage(notillo.client!, notillo.idTag!, title, ROOT_PARENT)
-				if (cancelled) return
-				setPendingImport({ markdown: payload.markdown, pageId, source: 'shell' })
-				setActivePageId(pageId)
-				setImportPayload(null)
-			} catch (err) {
-				if (cancelled) return
-				console.error('[Notillo] Markdown import failed:', err)
-				bus.notifyImportComplete(
-					false,
-					err instanceof Error ? err.message : 'Import failed'
-				)
-				setImportPayload(null)
-			}
-		})()
-		return () => {
-			cancelled = true
-		}
-	}, [notillo.client, notillo.idTag, importPayload])
 
 	// Reset editor ref when active page changes
 	React.useEffect(() => {
 		editorRef.current = null
 		importRunningRef.current = false
 	}, [activePageId])
+
+	const importInto = React.useCallback(
+		async (editor: NotilloEditor, markdown: string) => {
+			const { refusedMedia: n } = await importMarkdown(editor, markdown, pages, (name) =>
+				name ? t('[Media: {{name}}]', { name }) : t('[Media]')
+			)
+			if (n > 0) toastWarning(t('Media not imported: {{n}}', { n }))
+		},
+		[pages, t, toastWarning]
+	)
 
 	const handleEditorReady = React.useCallback(
 		(editor: NotilloEditor) => {
@@ -326,7 +297,7 @@ export function NotilloApp() {
 				!importRunningRef.current
 			) {
 				importRunningRef.current = true
-				importMarkdown(editor, pendingImport.markdown, pages)
+				importInto(editor, pendingImport.markdown)
 					.then(() => {
 						importRunningRef.current = false
 						if (pendingImport.source === 'shell') {
@@ -340,14 +311,14 @@ export function NotilloApp() {
 						if (pendingImport.source === 'shell') {
 							getAppBus().notifyImportComplete(
 								false,
-								err instanceof Error ? err.message : 'Import failed'
+								err instanceof Error ? err.message : t('Import failed')
 							)
 						}
 						setPendingImport(undefined)
 					})
 			}
 		},
-		[pendingImport, activePageId, pages]
+		[pendingImport, activePageId, importInto, t]
 	)
 
 	const resolveFileUrl = React.useCallback(
@@ -446,27 +417,37 @@ export function NotilloApp() {
 		pagesRef.current = pages
 	}, [pages])
 
-	const handleSelectPage = React.useCallback((pageId: string) => {
-		setActivePageId(pageId)
-		setShowFilter(false)
-		setRecentPageIds((prev) =>
-			[pageId, ...prev.filter((id) => id !== pageId)].slice(0, RECENT_PAGE_LIMIT)
-		)
+	// Hand-over from page creation to `PageTitle`. `createPage` resolves before the
+	// snapshot brings the page in, so this has to outlive several renders until the
+	// editor mounts. The title takes it once, so no later remount can steal focus; a
+	// plain select drops it.
+	const justCreatedRef = React.useRef<string | undefined>(undefined)
 
-		const { ancestorIds } = getAncestorIds(pageId, pagesRef.current)
-		if (!ancestorIds.length) return
-		setExpanded((prev) => {
-			const next = new Set(prev)
-			let changed = false
-			for (const id of ancestorIds) {
-				if (!next.has(id)) {
-					next.add(id)
-					changed = true
+	const handleSelectPage = React.useCallback(
+		(pageId: string, opts?: { justCreated?: boolean }) => {
+			justCreatedRef.current = opts?.justCreated ? pageId : undefined
+			setActivePageId(pageId)
+			setShowFilter(false)
+			setRecentPageIds((prev) =>
+				[pageId, ...prev.filter((id) => id !== pageId)].slice(0, RECENT_PAGE_LIMIT)
+			)
+
+			const { ancestorIds } = getAncestorIds(pageId, pagesRef.current)
+			if (!ancestorIds.length) return
+			setExpanded((prev) => {
+				const next = new Set(prev)
+				let changed = false
+				for (const id of ancestorIds) {
+					if (!next.has(id)) {
+						next.add(id)
+						changed = true
+					}
 				}
-			}
-			return changed ? next : prev
-		})
-	}, [])
+				return changed ? next : prev
+			})
+		},
+		[]
+	)
 
 	// A page can vanish under us — deleted here, or by a collaborator. Clearing the
 	// selection lets the auto-select effect below pick a new page.
@@ -664,22 +645,29 @@ export function NotilloApp() {
 	// `resolveTree` applies, so the panel and the container cannot disagree.
 	const atContainerRoot = !!activePage && isTopLevel(activePage.parentPageId, homePageId)
 
-	// The page title is edited in the DocBar's second crumb, so the rename lands
-	// here rather than in a header of its own.
-	const handleRenamePage = React.useCallback(
-		async (title: string) => {
-			if (!notillo.client || !activePageId) return
+	// Every rename lands here: the sidebar's rows, and through `handleRenamePage` the rest.
+	const renamePage = React.useCallback(
+		async (pageId: string, title: string) => {
+			if (!notillo.client) return false
 			try {
-				await updatePage(notillo.client, activePageId, { title })
+				await updatePage(notillo.client, pageId, { title })
+				return true
 			} catch (err) {
 				// The editor closes and the crumb snaps back to the old title on
 				// its own. Without this the only trace of a refused write — offline,
 				// or another editor holding the lock — is a console rejection.
 				console.error('[Notillo] Page rename failed:', err)
 				toastError(t('Could not rename the page'))
+				return false
 			}
 		},
-		[notillo.client, activePageId, t, toastError]
+		[notillo.client, t, toastError]
+	)
+
+	// Title edits from the DocBar's second crumb and `PageTitle` above the editor.
+	const handleRenamePage = React.useCallback(
+		async (title: string) => (activePageId ? renamePage(activePageId, title) : false),
+		[activePageId, renamePage]
 	)
 
 	// Share handlers
@@ -1111,8 +1099,8 @@ export function NotilloApp() {
 			if (!confirmed) return
 
 			try {
-				const markdown = await file.text()
-				await importMarkdown(editorRef.current, markdown, pages)
+				const markdown = await readImportFile(file)
+				await importInto(editorRef.current, markdown)
 			} catch (err) {
 				await dialog.tell(
 					t('Import error'),
@@ -1120,7 +1108,7 @@ export function NotilloApp() {
 				)
 			}
 		},
-		[dialog, pages, t]
+		[dialog, importInto, t]
 	)
 
 	// Import markdown as child/sibling page — parentPageId stored in ref
@@ -1144,7 +1132,7 @@ export function NotilloApp() {
 			e.target.value = ''
 
 			try {
-				const markdown = await file.text()
+				const markdown = await readImportFile(file)
 				// Extract title from first heading or filename
 				const headingMatch = markdown.match(/^#\s+(.+)$/m)
 				const title =
@@ -1256,7 +1244,9 @@ export function NotilloApp() {
 									emptyLabel: t('Untitled'),
 									icon: activePage.icon,
 									canRename: canWrite,
-									onRename: handleRenamePage
+									onRename: async (title: string) => {
+										await handleRenamePage(title)
+									}
 								}
 							: undefined
 					}
@@ -1398,6 +1388,7 @@ export function NotilloApp() {
 									onToggleExpand={toggleExpand}
 									activePageId={activePageId}
 									onSelectPage={handleSelectPage}
+									onRenamePage={renamePage}
 									userId={notillo.idTag}
 									readOnly={!canWrite}
 									tags={tags}
@@ -1487,6 +1478,8 @@ export function NotilloApp() {
 									pages={pages}
 									homePageId={homePageId}
 									onSelectPage={handleSelectPage}
+									onRename={handleRenamePage}
+									justCreatedRef={justCreatedRef}
 									onTagClick={handleToggleTag}
 									onEditorReady={handleEditorReady}
 									onCommentBlock={canComment ? handleCommentBlock : undefined}

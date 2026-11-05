@@ -125,7 +125,7 @@ export function CommentItem({ comment, isOwn, readOnly, onEdit, onDelete }: Comm
 					/>
 					<div className="comment-input-actions">
 						<Button size="sm" onClick={handleSave}>
-							<IcConfirm size={14} /> {t('Save')}
+							<IcConfirm /> {t('Save')}
 						</Button>
 						<Button variant="link" size="sm" onClick={handleCancel}>
 							{t('Cancel')}

@@ -11,7 +11,7 @@
  * run on every keystroke of a search whose results are covering it.
  */
 
-import { Button, IcClear, IcSearch, IcTag, LoadingSpinner } from '@cloudillo/react'
+import { Button, IcClear, IcTag, LoadingSpinner, SearchInput } from '@cloudillo/react'
 import type { RtdbClient } from '@cloudillo/rtdb'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -29,6 +29,7 @@ import { SearchResultRow } from './SearchResultRow.js'
 
 const SEARCH_DEBOUNCE_MS = 200
 const MAX_TAG_RESULTS = 8
+const SEARCH_SHORTCUT = /mac/i.test(navigator.platform || '') ? '⌘K' : 'Ctrl K'
 
 type FlatItem = { kind: 'page'; result: SearchResult } | { kind: 'tag'; tag: string }
 
@@ -113,7 +114,7 @@ export function PageSearchPanel({
 	// while the input has focus: a keystroke landing between the debounce timer
 	// firing and this effect would be overwritten by the older committed query.
 	// Every in-app path that changes `searchQuery` with the box focused
-	// (`clearSearch`, `selectResult`) sets `searchInput` itself.
+	// (`clearSearch`, `selectResult`, `selectTag`) sets `searchInput` itself.
 	React.useEffect(() => {
 		if (searchInputRef.current === document.activeElement) return
 		setSearchInput((current) => (current.trim() === searchQuery.trim() ? current : searchQuery))
@@ -149,6 +150,16 @@ export function PageSearchPanel({
 			onSelectPage(pageId)
 		},
 		[clearSearch, onSelectPage]
+	)
+
+	// Picking a tag swaps the typed text for the filter. Turning an active tag off
+	// keeps the query, or the user would drop out of the results to the tree.
+	const selectTag = React.useCallback(
+		(tag: string) => {
+			if (!activeTags.has(tag)) clearSearch()
+			onToggleTag(tag)
+		},
+		[activeTags, clearSearch, onToggleTag]
 	)
 
 	// ── Result groups, over one flat index space so the cursor stays meaningful ──
@@ -261,9 +272,9 @@ export function PageSearchPanel({
 	const runItem = React.useCallback(
 		(item: FlatItem) => {
 			if (item.kind === 'page') selectResult(item.result.id)
-			else onToggleTag(item.tag)
+			else selectTag(item.tag)
 		},
-		[selectResult, onToggleTag]
+		[selectResult, selectTag]
 	)
 
 	const handleSearchKeyDown = React.useCallback(
@@ -319,46 +330,35 @@ export function PageSearchPanel({
 	return (
 		<div className="c-vbox fill">
 			<div className="px-3 py-1" role="search">
-				<div className="c-input-group">
-					<IcSearch className="c-input-icon" />
-					<input
-						ref={searchInputRef}
-						className="c-input notillo-search-input"
-						type="search"
-						role="combobox"
-						aria-autocomplete="list"
-						aria-expanded={listboxRendered}
-						aria-controls={listboxRendered ? 'notillo-sidebar-results' : undefined}
-						// Gated on the listbox: the recent-pages list only renders while
-						// the box has focus, so arrowing through it and then blurring
-						// would leave this pointing at an id no longer in the DOM.
-						aria-activedescendant={
-							listboxRendered && resultCursor >= 0
-								? `notillo-sidebar-result-${resultCursor}`
-								: undefined
-						}
-						aria-label={t('Search pages')}
-						placeholder={t('Search pages...')}
-						value={searchInput}
-						onChange={(e) => setSearchInput(e.target.value)}
-						onFocus={() => {
-							setSearchFocused(true)
-							onSearchActivate()
-						}}
-						onBlur={() => setSearchFocused(false)}
-						onKeyDown={handleSearchKeyDown}
-					/>
-					{searchInput && (
-						<button
-							className="c-input-clear"
-							type="button"
-							onClick={clearSearch}
-							title={t('Clear search')}
-						>
-							<IcClear />
-						</button>
-					)}
-				</div>
+				<SearchInput
+					ref={searchInputRef}
+					shortcut={SEARCH_SHORTCUT}
+					role="combobox"
+					aria-autocomplete="list"
+					aria-expanded={listboxRendered}
+					aria-controls={listboxRendered ? 'notillo-sidebar-results' : undefined}
+					// Gated on the listbox: the recent-pages list only renders while
+					// the box has focus, so arrowing through it and then blurring
+					// would leave this pointing at an id no longer in the DOM.
+					aria-activedescendant={
+						listboxRendered && resultCursor >= 0
+							? `notillo-sidebar-result-${resultCursor}`
+							: undefined
+					}
+					aria-label={t('Search pages')}
+					placeholder={t('Search pages')}
+					value={searchInput}
+					// The clear button commits at once, not after the debounce.
+					onChange={(e) =>
+						e.target.value ? setSearchInput(e.target.value) : clearSearch()
+					}
+					onFocus={() => {
+						setSearchFocused(true)
+						onSearchActivate()
+					}}
+					onBlur={() => setSearchFocused(false)}
+					onKeyDown={handleSearchKeyDown}
+				/>
 			</div>
 			<div className="fill overflow-y-auto py-2">
 				{isFiltering ? (
@@ -372,7 +372,7 @@ export function PageSearchPanel({
 									onClick={() => onToggleTag(tag)}
 									title={t('Remove tag filter')}
 								>
-									# {tag}
+									#{tag}
 									<IcClear />
 								</button>
 							))}
@@ -471,6 +471,7 @@ export function PageSearchPanel({
 							<div
 								id="notillo-sidebar-results"
 								role="listbox"
+								data-cursor={cursorSource}
 								onMouseDown={(e) => e.preventDefault()}
 							>
 								{titleHits.length > 0 && (
@@ -565,7 +566,7 @@ export function PageSearchPanel({
 																)}
 															</>
 														}
-														onSelect={() => onToggleTag(tag)}
+														onSelect={() => selectTag(tag)}
 														onPointerEnter={() => {
 															setCursorSource('pointer')
 															setCursorKey(`t:${tag}`)
@@ -590,6 +591,7 @@ export function PageSearchPanel({
 									id="notillo-sidebar-results"
 									role="listbox"
 									aria-label={t('Recent pages')}
+									data-cursor={cursorSource}
 									onMouseDown={(e) => e.preventDefault()}
 								>
 									{recentItems.map((item, i) =>

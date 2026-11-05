@@ -22,6 +22,16 @@ body,
 
 /* TreeView styles now live in @cloudillo/react (components.css) */
 
+/* The tonal header `+`: a soft button still lifts on hover, this one only darkens. */
+.notillo-sidebar-add.c-button:not([disabled], [aria-disabled='true']):is(:hover, :active) {
+	transform: none;
+	box-shadow: none;
+}
+
+.notillo-sidebar-add.c-button:hover:not([disabled], [aria-disabled='true']) {
+	background: lch(from var(--col-container-primary) calc(l - 4) c h);
+}
+
 /* Row action buttons. Deliberately NOT scoped under `.page-tree`: also used by the flat
    `.tag-filtered-page` rows, so the name is a prefix, not a descendant of `.page-tree`. */
 .page-tree-action {
@@ -40,43 +50,17 @@ body,
 	color: var(--col-primary);
 }
 
-.page-tree-delete {
-	background: none;
-	border: none;
-	cursor: pointer;
-	color: var(--col-on-surface);
-	padding: 0.25rem;
-	border-radius: var(--radius-sm);
-	display: flex;
-	align-items: center;
-	font-size: 0.875rem;
-}
-
-.page-tree-delete:hover {
-	color: var(--col-error);
-}
-
-/* ── Search input ──
-   `.c-input-icon` / `.c-input-clear` come from @cloudillo/react
-   (components.css), imported in app.tsx. */
-
-.notillo-search-input {
-	width: 100%;
-}
-
-/* Suppress WebKit's own clear button — we render our own. */
-.notillo-search-input::-webkit-search-cancel-button {
-	display: none;
-}
-
 /* ── Search results ── */
 
+/* The tree's row arithmetic (`.page-tree .c-tree-item-row`): a one-line row is exactly
+   the touch target, and the icon and badges stay on the first line of a taller one. */
 .notillo-search-result {
+	--row-pad: calc((var(--min-touch-target, 44px) - var(--notillo-title-line) * 1rem) / 2);
 	display: flex;
 	align-items: flex-start;
 	gap: var(--space-1);
 	width: 100%;
-	padding: var(--space-1) var(--space-2);
+	padding: var(--row-pad) var(--space-2);
 	border: none;
 	border-radius: var(--radius-sm);
 	background: transparent;
@@ -88,16 +72,24 @@ body,
 
 .notillo-search-result:hover,
 .notillo-search-result.active {
-	background: var(--col-container-high);
+	background: lch(from var(--col-on-surface) l c h / 0.08);
 }
 
 .notillo-search-result.current {
 	background: var(--col-container-primary);
 }
 
-.notillo-search-result:focus-visible {
-	outline: 2px solid var(--col-primary);
+/* Hovering sets `.active` too, so the outline is scoped to a keyboard-driven cursor. It
+   is an outline because `.current`'s background overrides the cursor's. */
+.notillo-search-result:focus-visible,
+[data-cursor='keyboard'] .notillo-search-result.active {
+	outline: 2px solid var(--col-focus);
 	outline-offset: -2px;
+}
+
+.notillo-search-result.current .notillo-search-result-title {
+	color: var(--col-on-container-primary);
+	font-weight: 600;
 }
 
 .notillo-search-result-icon {
@@ -105,7 +97,7 @@ body,
 	align-items: center;
 	min-height: calc(var(--notillo-title-line) * 1em);
 	opacity: 0.7;
-	font-size: 0.9rem;
+	font-size: 1rem;
 }
 
 .notillo-search-result-body {
@@ -122,13 +114,13 @@ body,
 	overflow: hidden;
 	line-height: var(--notillo-title-line);
 	word-break: break-word;
-	font-size: 0.9rem;
+	font-size: 1rem;
 }
 
 .notillo-search-result-path,
 .notillo-search-result-snippet {
 	font-size: 0.75rem;
-	color: color-mix(in lch, var(--col-on-surface), transparent 35%);
+	color: color-mix(in lch, var(--col-on-surface), transparent 20%);
 	overflow: hidden;
 	word-break: break-word;
 }
@@ -469,10 +461,23 @@ body,
 }
 
 .tag-clear-btn:hover {
-	color: var(--col-error);
+	background: lch(from var(--col-on-surface) l c h / 0.08);
 }
 
 /* ── Page Tree: 2-line titles ── */
+
+.page-tree {
+	--c-tree-indent: 24px;
+	--c-tree-indent-base: 4px;
+	--row-btn: 1.75rem;
+	/* The strip the row's ⋯ button covers at the title's end. */
+	--row-actions-w: var(--row-btn);
+}
+
+/* `c-vbox` would space top-level rows 8px apart while nested ones sit flush. */
+.page-tree.c-vbox {
+	gap: 0;
+}
 
 /* Rows grow with the label; top-align keeps chevron/icon/actions on the first line.
    The touch target comes from padding rather than min-height, which would pin a
@@ -485,21 +490,122 @@ body,
 	padding: var(--row-pad) var(--space-1);
 }
 
+/* Hover is an overlay, so it stays translucent; the open page is the stronger state.
+   A row under a drop keeps `.drop-inside`'s own background. */
+.page-tree .c-tree-item:not(.drop-inside) > .c-tree-item-row:hover {
+	background: lch(from var(--col-on-surface) l c h / 0.08);
+}
+
+.page-tree .c-tree-item.selected > .c-tree-item-row:hover {
+	background: lch(from var(--col-container-primary) calc(l - 4) c h);
+}
+
+.page-tree .c-tree-item.selected > .c-tree-item-row .page-tree-title {
+	color: var(--col-on-container-primary);
+	font-weight: 600;
+}
+
 .page-tree .c-tree-item-toggle,
-.page-tree .c-tree-item-icon,
-.page-tree .c-tree-item-actions {
+.page-tree .c-tree-item-icon {
 	min-height: calc(var(--notillo-title-line) * 1em);
 }
 
-/* The label is the row's flex line: clipped title on the left, faces on the
-   right. `overflow` stays visible here — the identity ring is an `outline`,
-   which paints outside the avatar's border box and would be cut. */
+/* A 24×44 target with the caret on the first line: the negative margins take back
+   the row padding, so a two-line row keeps the same target at the same place. */
+.page-tree .c-tree-item-toggle {
+	width: 24px;
+	height: var(--min-touch-target, 44px);
+	margin-block: calc(-1 * var(--row-pad));
+}
+
+.page-tree .c-tree-item-toggle svg {
+	width: 1rem;
+	height: 1rem;
+}
+
+.page-tree .c-tree-item-icon {
+	opacity: 1;
+}
+
+/* The label dissolves so title, actions and faces are siblings on the row's flex
+   line, and `order` puts the actions before the faces: the buttons then sit on the
+   title's end and never on the faces, which must stay visible on the open page. */
 .page-tree .c-tree-item-label {
-	display: flex;
-	align-items: flex-start;
-	gap: var(--space-1);
-	min-width: 0;
-	overflow: visible;
+	display: contents;
+}
+
+/* Buttons taller than the first line overhang into the row's padding, as the faces do. */
+.page-tree .c-tree-item-actions {
+	order: 1;
+	align-items: center;
+	min-height: var(--row-btn);
+	margin-block: calc((var(--notillo-title-line) * 1em - var(--row-btn)) / 2);
+}
+
+.page-tree .c-tree-item-actions > * {
+	flex: none;
+}
+
+.page-tree .page-tree-action {
+	justify-content: center;
+	width: var(--row-btn);
+	height: var(--row-btn);
+	padding: 0;
+	font-size: 1rem;
+}
+
+/* With a pointer the buttons reserve no space: a zero-width box overflowing leftwards
+   over the title (`margin` cancels the row gap before it). Without one they stay in
+   flow, always visible, in space of their own. */
+@media (hover: hover) {
+	.page-tree .c-tree-item-actions {
+		position: relative; /* above the title, which `mask-image` makes a stacking context */
+		justify-content: flex-end;
+		width: 0;
+		margin-inline-start: calc(-1 * var(--space-1));
+	}
+
+	/* A mask rather than a painted gradient: there is no opaque colour to fade to, the
+	   hover background is translucent and so is the panel under it on the glass theme. */
+	.page-tree
+		:is(
+			.c-tree-item-row:hover,
+			.c-tree-item-row:focus-within,
+			.c-tree-item:focus-visible > .c-tree-item-row,
+			.c-tree-item.selected > .c-tree-item-row
+		):has(> .c-tree-item-actions)
+		.page-tree-title {
+		mask-image: linear-gradient(
+			to left,
+			transparent var(--row-actions-w),
+			black calc(var(--row-actions-w) + 1.5rem)
+		);
+	}
+}
+
+/* The rename field stands in for the title, so it fills the row (the label is
+   `display: contents`) and overhangs the padding: the row keeps its height. */
+.page-tree .c-inline-edit-form {
+	flex: 1;
+	margin-block: calc((var(--notillo-title-line) * 1em - var(--size-sm)) / 2);
+}
+
+.page-tree .c-tree-item.selected > .c-tree-item-row .c-inline-edit-input {
+	font-weight: 600;
+}
+
+/* The `+` row where a new subpage will land: quieter than a page until pointed at. */
+.page-tree-ghost > .c-tree-item-row {
+	color: lch(from var(--col-on-surface) l c h / 0.7);
+}
+
+.page-tree-ghost > .c-tree-item-row:hover {
+	color: var(--col-on-surface);
+}
+
+.page-tree-ghost .c-tree-item-icon svg {
+	width: 1rem;
+	height: 1rem;
 }
 
 /* The home slot with nothing in it. Dashed rather than solid: it is a place for a
@@ -518,6 +624,7 @@ body,
 	overflow: hidden;
 	line-height: var(--notillo-title-line);
 	word-break: break-word;
+	hyphens: auto;
 	white-space: normal;
 }
 
@@ -529,6 +636,7 @@ body,
 .page-tree-presence {
 	--page-tree-face: 1.5rem;
 
+	order: 2;
 	flex-shrink: 0;
 	align-self: flex-start;
 	margin-block: calc((var(--notillo-title-line) * 1em - var(--page-tree-face)) / 2);
@@ -633,8 +741,73 @@ body,
 
 /* ── Suggestion menus (slash, wiki-link, tag) ── */
 
+/* `.bn-root` sets its own family; `components.css` L42 is the UI stack this repeats. */
 .notillo-editor .bn-suggestion-menu {
 	overscroll-behavior: contain;
+	font-family: 'Roboto UI', 'Roboto', sans-serif;
+}
+
+.notillo-editor .bn-mantine .bn-suggestion-menu-label {
+	font-size: 0.75rem;
+	font-weight: 500;
+}
+
+/* No tile behind the icon. The `@`, `[[` and `#` menus share this markup. */
+.notillo-editor .bn-mt-suggestion-menu-item-section {
+	color: var(--bn-colors-menu-text);
+}
+
+.notillo-editor .bn-mt-suggestion-menu-item-section[data-position='left'] {
+	background-color: transparent;
+	padding: 0;
+}
+
+/* BlockNote gives hover and the keyboard selection one rule. Split them, as the tree
+   does: hover is a faint overlay, the selected item the stronger state, also on hover. */
+.notillo-editor .bn-mantine .bn-suggestion-menu-item:hover {
+	background-color: lch(from var(--col-on-surface) l c h / 0.08);
+}
+
+.notillo-editor .bn-mantine .bn-suggestion-menu-item[aria-selected='true'] {
+	background-color: var(--col-container-primary);
+}
+
+.notillo-editor
+	.bn-suggestion-menu-item[aria-selected='true']
+	:is(
+		.bn-mt-suggestion-menu-item-title,
+		.bn-mt-suggestion-menu-item-subtitle,
+		.bn-mt-suggestion-menu-item-section
+	) {
+	color: var(--col-on-container-primary);
+}
+
+/* ── Side menu ── */
+
+/* BlockNote's light default, #cfcfcf, all but vanishes on the panel. Set here because
+   `.bn-root` redefines the variable, so `notilloThemeOverrides` on the wrapper never lands. */
+.notillo-editor .bn-root.bn-container {
+	--bn-colors-side-menu: lch(from var(--col-on-surface) l c h / 0.6);
+}
+
+/* BlockNote forces 22px, off the 16/24 icon scale. */
+.notillo-editor .bn-side-menu .mantine-UnstyledButton-root:not(.mantine-Menu-item) svg {
+	flex: none;
+	height: 24px;
+	width: 24px;
+}
+
+/* Touch `+`, placed right of the block and pulled back onto the line's end. */
+.notillo-editor .notillo-touch-add {
+	--btn-height: 2.75rem;
+	translate: -100%;
+}
+
+/* The Hungarian placeholder is wider than a phone: wrap it before the `+`. */
+@media (pointer: coarse) {
+	.notillo-editor .bn-block-content:has(.ProseMirror-trailingBreak:only-child)::after {
+		max-width: calc(100% - 2.75rem);
+	}
 }
 
 /* ── Editor ── */
@@ -647,13 +820,77 @@ body,
 	overflow: visible;
 }
 
+/* The page: one box behind the title and the blocks, down to the viewport's end on a short
+   page. A flex item rather than `min-height: 100%`, which `.notillo-editor`'s height does not
+   resolve. The colours are BlockNote's `--bn-colors-editor-background`, written out because
+   that variable is set on `.bn-root`, below this box. */
+.notillo-editor:not(.notillo-embedded) {
+	display: flex;
+	flex-direction: column;
+}
+
+.notillo-editor:not(.notillo-embedded) .notillo-sheet {
+	flex: 1 0 auto;
+	box-sizing: border-box;
+	width: 100%;
+	max-width: 900px;
+	margin-inline: auto;
+	background: light-dark(#fff, #1f1f1f);
+	border-radius: var(--border-radius-lg, 0.5rem);
+}
+
 .notillo-editor .bn-container {
 	max-width: 900px;
 	margin: 0 auto;
 }
 
+/* The last line can scroll up to mid-screen. The space sits inside `.bn-container`
+   because `.c-fcd-content-scroll > .fill` shrinks `.notillo-editor` to the viewport, so
+   padding there adds no scroll room. `.notillo-sheet` paints the page, and `.bn-editor`
+   stays transparent on top of it: its own box would end in the middle of a short page
+   and start under the title. */
+.notillo-editor:not(.notillo-embedded) .bn-editor {
+	padding-block-end: 45vh;
+	background: transparent;
+}
+
+/* Lighter than typed text. BlockNote's rule, which leaves the colour alone. */
+.notillo-editor .bn-block-content:has(.ProseMirror-trailingBreak:only-child)::after {
+	color: color-mix(in lch, var(--col-on-container), transparent 45%);
+}
+
+/* Same box as the blocks below: `.bn-container`'s width, `.bn-editor`'s inline padding.
+   Without `field-sizing` the field stays one row and scrolls, as an input would. */
+.notillo-editor .notillo-page-title {
+	display: block;
+	box-sizing: border-box;
+	width: 100%;
+	max-width: 900px;
+	margin: 0 auto;
+	padding-block: 2rem 0.5rem;
+	padding-inline: 54px;
+	border: none;
+	outline: none;
+	background: transparent;
+	color: var(--col-on-container);
+	font: inherit;
+	font-size: 2rem;
+	font-weight: 600;
+	line-height: 1.25;
+	overflow: hidden;
+	overflow-wrap: anywhere;
+	resize: none;
+	field-sizing: content;
+}
+
+.notillo-editor .notillo-page-title::placeholder {
+	color: color-mix(in lch, var(--col-on-container), transparent 45%);
+	opacity: 1;
+}
+
 @media (width < 48rem) {
-	.notillo-editor .bn-editor {
+	.notillo-editor .bn-editor,
+	.notillo-editor .notillo-page-title {
 		padding-inline-end: 12px;
 	}
 }

@@ -31,9 +31,9 @@ export interface ContactEditorProps {
 	open: boolean
 	onClose: () => void
 	addressBooks: AddressBookOutput[]
-	defaultAddressBookId?: number
+	defaultAddressBookId?: string
 	contact?: ContactOutput
-	onSave: (abId: number, data: ContactInput) => Promise<void>
+	onSave: (abId: string, data: ContactInput) => Promise<void>
 }
 
 interface DraftTypedValue extends TypedValue {
@@ -158,7 +158,7 @@ export function ContactEditor({
 	onSave
 }: ContactEditorProps) {
 	const { t } = useTranslation()
-	const [abId, setAbId] = React.useState<number | undefined>(defaultAddressBookId)
+	const [abId, setAbId] = React.useState<string | undefined>(defaultAddressBookId)
 	const [n, setN] = React.useState<ContactName>(emptyName())
 	const [fn, setFn] = React.useState('')
 	const [emails, setEmails] = React.useState<DraftTypedValue[]>([])
@@ -190,7 +190,7 @@ export function ContactEditor({
 			addressBooks: books,
 			toDraft: mkDraft
 		} = openResetRef.current
-		setAbId(c?.abId ?? defId ?? books[0]?.abId)
+		setAbId(c?.abId ?? defId ?? books[0]?.id)
 		setN(c?.n ?? emptyName())
 		setFn(c?.fn ?? '')
 		setEmails(mkDraft(c?.emails))
@@ -282,12 +282,9 @@ export function ContactEditor({
 
 				{!isEdit && (
 					<Field label={t('Address book')}>
-						<NativeSelect
-							value={abId ?? ''}
-							onChange={(e) => setAbId(Number(e.target.value))}
-						>
+						<NativeSelect value={abId ?? ''} onChange={(e) => setAbId(e.target.value)}>
 							{addressBooks.map((book) => (
-								<option key={book.abId} value={book.abId}>
+								<option key={book.id} value={book.id}>
 									{book.name}
 								</option>
 							))}

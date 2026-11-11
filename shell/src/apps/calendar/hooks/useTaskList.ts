@@ -48,16 +48,16 @@ export function useTaskList(options: UseTaskListOptions): UseTaskListResult {
 		() => calendars.filter((c) => calendarSupports(c.components, 'VTODO')),
 		[calendars]
 	)
-	const taskCalendarsKey = taskCalendars.map((c) => c.calId).join(',')
+	const taskCalendarsKey = taskCalendars.map((c) => c.id).join(',')
 
 	const fetchPage = React.useCallback(
 		async function fetchPage(_cursor: string | null, limit: number) {
 			if (!api || taskCalendars.length === 0) {
-				return { items: [] as ListedTask[], nextCursor: null, hasMore: false }
+				return { items: [] as ListedTask[] }
 			}
 			const items: ListedTask[] = []
 			for (const cal of taskCalendars) {
-				const result = await api.calendars.listObjects(cal.calId, {
+				const result = await api.calendars.listObjects(cal.id, {
 					component: 'VTODO',
 					q: trimmedSearch,
 					limit
@@ -76,7 +76,7 @@ export function useTaskList(options: UseTaskListOptions): UseTaskListResult {
 				if (b.dtend) return 1
 				return b.updatedAt.localeCompare(a.updatedAt)
 			})
-			return { items, nextCursor: null, hasMore: false }
+			return { items }
 		},
 		[api, taskCalendars, trimmedSearch]
 	)

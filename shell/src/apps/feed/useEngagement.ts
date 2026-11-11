@@ -11,7 +11,7 @@
  * server for each action's raw signed JWS so the dialog can verify signatures.
  */
 
-import type { ApiClient, ListActionsQuery } from '@cloudillo/core'
+import { type ApiClient, fetchAll, type ListActionsQuery } from '@cloudillo/core'
 import { useApi } from '@cloudillo/react'
 import type { ActionView } from '@cloudillo/types'
 import * as React from 'react'
@@ -22,27 +22,12 @@ import { reactionTypes } from './reactions.js'
 /**
  * Drain every page of an action-list query via cursor pagination. `list` only
  * returns the first page, so a popular post would silently truncate its
- * reactor/reposter list. We accumulate pages until `hasMore` is false, with a
- * safety cap (logged when hit — see the "no silent caps" guidance).
+ * reactor/reposter list. Capped at 10 pages of 100; `fetchAll` throws when the cap is hit.
  */
-async function listAll(client: ApiClient, query: ListActionsQuery): Promise<ActionView[]> {
-	const acc: ActionView[] = []
-	let cursor: string | null = null
-	const CAP = 1000
-	do {
-		const { data, cursorPagination } = await client.actions.listPaginated({
-			...query,
-			cursor: cursor ?? undefined,
-			limit: 100
-		})
-		acc.push(...data)
-		cursor = cursorPagination?.hasMore ? cursorPagination.nextCursor : null
-		if (acc.length >= CAP) {
-			console.warn('useEngagement: engagement list capped at', CAP, query.type)
-			break
-		}
-	} while (cursor)
-	return acc
+function listAll(client: ApiClient, query: ListActionsQuery): Promise<ActionView[]> {
+	return fetchAll((cursor) => client.actions.listPaginated({ ...query, cursor, limit: 100 }), {
+		maxPages: 10
+	})
 }
 
 export interface ReactionGroup {
@@ -100,14 +85,14 @@ export function useEngagement(
 					listAll(client, {
 						type: 'REACT',
 						subject: subjectActionId,
-						status: 'A',
-						includeTokens: true
+						status: 'active',
+						include: ['tokens']
 					}),
 					listAll(client, {
 						type: 'REPOST',
 						subject: subjectActionId,
-						status: 'A',
-						includeTokens: true
+						status: 'active',
+						include: ['tokens']
 					})
 				])
 				if (cancelled) return

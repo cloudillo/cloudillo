@@ -5,7 +5,7 @@
  * Unified engagement dialog: lists the individual users behind a post's
  * reaction chips and repost counter, loaded from the audience tenant. Each row
  * shows a signature-verification status. Logged in, the home node verifies every
- * row whose issuer it already knows in one batch (`POST /actions/verify`); the rest, and
+ * row whose issuer it already knows in one batch (`POST /action-verifications`); the rest, and
  * every row for a guest, get a Verify button (a guest verifies in the browser).
  */
 
@@ -64,7 +64,7 @@ import {
 // the rest mirror VerifyStatus.
 type RowStatus = 'unavailable' | 'unchecked' | 'pending' | VerifyStatus
 
-/** Most tokens per `POST /actions/verify` (backend cap). */
+/** Most tokens per `POST /action-verifications` (backend cap). */
 const VERIFY_CHUNK = 100
 
 /**
@@ -146,7 +146,7 @@ export function EngagementDialog({
 			if (!token) return 'unavailable'
 			const issuerIdTag = action.issuer.idTag
 			// Cheap integrity bind before any crypto.
-			if (!(await tokenMatchesAction(token, action.actionId))) return 'invalid'
+			if (!(await tokenMatchesAction(token, action.id))) return 'invalid'
 			let keys = getCachedProfileKeys(issuerIdTag)
 			if (!keys) {
 				try {
@@ -168,7 +168,7 @@ export function EngagementDialog({
 		async (action: ActionView): Promise<RowStatus> => {
 			const token = action.token
 			if (!token) return 'unavailable'
-			if (!(await tokenMatchesAction(token, action.actionId))) return 'invalid'
+			if (!(await tokenMatchesAction(token, action.id))) return 'invalid'
 			try {
 				const [res] = await homeApi!.actions.verify([token], { sync: true })
 				return serverStatus(res, token, expectFor(action))
@@ -186,7 +186,7 @@ export function EngagementDialog({
 		const all = [...reactions, ...reposts]
 		if (!all.length) return
 
-		setStatuses(new Map(all.map((a) => [a.actionId, a.token ? 'pending' : 'unavailable'])))
+		setStatuses(new Map(all.map((a) => [a.id, a.token ? 'pending' : 'unavailable'])))
 
 		let cancelled = false
 		;(async () => {
@@ -194,8 +194,8 @@ export function EngagementDialog({
 			const bad: string[] = []
 			for (const a of all) {
 				if (!a.token) continue
-				if (await tokenMatchesAction(a.token, a.actionId)) rows.push(a)
-				else bad.push(a.actionId)
+				if (await tokenMatchesAction(a.token, a.id)) rows.push(a)
+				else bad.push(a.id)
 			}
 			if (cancelled) return
 			if (bad.length) {
@@ -217,7 +217,7 @@ export function EngagementDialog({
 				setStatuses((prev) => {
 					const next = new Map(prev)
 					chunk.forEach((a, j) => {
-						next.set(a.actionId, serverStatus(res[j], a.token!, expectFor(a)))
+						next.set(a.id, serverStatus(res[j], a.token!, expectFor(a)))
 					})
 					return next
 				})
@@ -234,19 +234,16 @@ export function EngagementDialog({
 		if (!open || loading || homeTag) return
 		setStatuses(
 			new Map(
-				[...reactions, ...reposts].map((a) => [
-					a.actionId,
-					a.token ? 'unchecked' : 'unavailable'
-				])
+				[...reactions, ...reposts].map((a) => [a.id, a.token ? 'unchecked' : 'unavailable'])
 			)
 		)
 	}, [open, loading, reactions, reposts, homeTag])
 
 	const onVerify = React.useCallback(
 		async (action: ActionView) => {
-			setStatuses((prev) => new Map(prev).set(action.actionId, 'pending'))
+			setStatuses((prev) => new Map(prev).set(action.id, 'pending'))
 			const status = homeTag ? await syncAndVerify(action) : await fetchKeysAndVerify(action)
-			setStatuses((prev) => new Map(prev).set(action.actionId, status))
+			setStatuses((prev) => new Map(prev).set(action.id, status))
 		},
 		[homeTag, syncAndVerify, fetchKeysAndVerify]
 	)
@@ -298,10 +295,10 @@ export function EngagementDialog({
 				<List scroll>
 					{rows.map((action) => (
 						<EngagementRow
-							key={action.actionId}
+							key={action.id}
 							action={action}
 							audienceTag={audienceTag}
-							status={statuses.get(action.actionId) ?? 'unavailable'}
+							status={statuses.get(action.id) ?? 'unavailable'}
 							emoji={showEmoji ? getReactionEmoji(action.subType ?? '') : undefined}
 							onVerify={onVerify}
 							onClose={onClose}

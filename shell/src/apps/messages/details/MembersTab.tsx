@@ -81,7 +81,7 @@ export function MembersTab({
 			api.actions.list({
 				type: 'SUBS',
 				subject: conversation.id,
-				status: 'C'
+				status: 'confirmation'
 			}) as Promise<ActionView[]>
 		)
 			.then((res) => {
@@ -91,7 +91,7 @@ export function MembersTab({
 						profile: subs.issuer,
 						role: 'observer',
 						status: 'requested',
-						actionId: subs.actionId,
+						actionId: subs.id,
 						joinedAt: String(subs.createdAt)
 					}))
 				)

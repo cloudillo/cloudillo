@@ -68,13 +68,13 @@ export function FileViewerApp() {
 							? getClientFor(contextIdTag, { auth: 'preferred' })
 							: null
 					let file = localApi
-						? (await localApi.files.list({ fileId }).catch(() => []))[0]
+						? (await localApi.files.list({ contentId: fileId }).catch(() => []))[0]
 						: undefined
 					if (!file) {
 						// `preferred` never returns null — it falls back to an
 						// unauthenticated client (see context/hooks.ts getClientFor).
 						const ownerApi = getClientFor(idTag, { auth: 'preferred' })!
-						file = (await ownerApi.files.list({ fileId }))[0]
+						file = (await ownerApi.files.list({ contentId: fileId }))[0]
 					}
 					if (!file) {
 						setState({ status: 'error', message: t('File not found') })

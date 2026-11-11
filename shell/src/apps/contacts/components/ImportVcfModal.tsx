@@ -33,7 +33,7 @@ export interface ImportVcfModalProps {
 	open: boolean
 	onClose: () => void
 	addressBooks: AddressBookOutput[]
-	defaultAddressBookId?: number
+	defaultAddressBookId?: string
 	/** Called after a successful import so the parent can refresh the contact list. */
 	onImported: (result: ImportContactsResult) => void
 }
@@ -61,7 +61,7 @@ export function ImportVcfModal({
 	const { t } = useTranslation()
 	const { api } = useContextAwareApi()
 
-	const [abId, setAbId] = React.useState<number | undefined>(defaultAddressBookId)
+	const [abId, setAbId] = React.useState<string | undefined>(defaultAddressBookId)
 	const [conflict, setConflict] = React.useState<ImportConflictMode>('skip')
 	const [file, setFile] = React.useState<File | undefined>()
 	const [vcardText, setVcardText] = React.useState<string>('')
@@ -77,7 +77,7 @@ export function ImportVcfModal({
 	React.useEffect(() => {
 		if (!open) return
 		const { defaultAddressBookId: defId, addressBooks: books } = openResetRef.current
-		setAbId(defId ?? books[0]?.abId)
+		setAbId(defId ?? books[0]?.id)
 		setConflict('skip')
 		setFile(undefined)
 		setVcardText('')
@@ -231,10 +231,10 @@ export function ImportVcfModal({
 							<NativeSelect
 								value={abId ?? ''}
 								disabled={noBooks}
-								onChange={(e) => setAbId(Number(e.target.value))}
+								onChange={(e) => setAbId(e.target.value)}
 							>
 								{addressBooks.map((book) => (
-									<option key={book.abId} value={book.abId}>
+									<option key={book.id} value={book.id}>
 										{book.name}
 									</option>
 								))}

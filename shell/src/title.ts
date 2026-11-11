@@ -8,7 +8,7 @@
  * The document segment comes from this atom. Ownership is simple:
  *
  *  - **Shell (default):** when a file-backed document opens, the shell fetches
- *    its `fileName` via `api.files.list({ fileId })` and writes it here so a
+ *    its `fileName` via `api.files.list({ contentId: fileId })` and writes it here so a
  *    title appears immediately.
  *  - **App (takes over):** if an app pushes a title via the `app:title.push`
  *    message (see `AppMessageBus.setTitle`), it sets `appManaged` and from then

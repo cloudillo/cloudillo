@@ -108,7 +108,8 @@ export function DetailsPanel({
 	const isAdmin = myRole === 'admin'
 
 	const run = (patch: ReaderStatePatch) => prefs && a.run(patch)
-	const mute = (notify: 'T' | 'M' | null, hours?: number) => prefs && a.mute(notify, hours)
+	const mute = (notify: 'mentions' | 'none' | null, hours?: number) =>
+		prefs && a.mute(notify, hours)
 
 	const tabs: DetailsTab[] = [
 		...(isGroup

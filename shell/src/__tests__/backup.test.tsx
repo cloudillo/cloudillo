@@ -15,8 +15,8 @@ import { mockCloudilloReact, mockI18n, mockRealCore } from './helpers/mocks.js'
 
 const STATUS: BackupStatus = {
 	running: false,
-	last: { at: 1_700_000_000, ok: true, bytes: 2048 },
-	snapshots: [{ name: 'snap-1.tar.zst', createdAt: 1_700_000_000, bytes: 1536 }]
+	last: { at: '2023-11-14T22:13:20Z', ok: true, bytes: 2048 },
+	snapshots: [{ name: 'snap-1.tar.zst', createdAt: '2023-11-14T22:13:20Z', bytes: 1536 }]
 }
 
 const api = {

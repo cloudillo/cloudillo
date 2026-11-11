@@ -5,7 +5,7 @@
  * The server-side id of this browser's push subscription.
  *
  * Persisted because unsubscribing usually happens in a LATER session than subscribing, and the
- * DELETE endpoint keys on the numeric id the POST returned - not on the browser endpoint URL, so
+ * DELETE endpoint keys on the id the POST returned - not on the browser endpoint URL, so
  * it cannot be re-derived from the PushSubscription object, and there is no GET endpoint to ask
  * the server for it.
  *
@@ -15,7 +15,7 @@
 
 const STORAGE_KEY = 'notify.pushSubscriptionId'
 
-function load(): Record<string, number> {
+function load(): Record<string, string> {
 	try {
 		const stored = localStorage.getItem(STORAGE_KEY)
 		if (stored) return JSON.parse(stored)
@@ -25,7 +25,7 @@ function load(): Record<string, number> {
 	return {}
 }
 
-function save(ids: Record<string, number>): void {
+function save(ids: Record<string, string>): void {
 	try {
 		localStorage.setItem(STORAGE_KEY, JSON.stringify(ids))
 	} catch (e) {
@@ -33,11 +33,11 @@ function save(ids: Record<string, number>): void {
 	}
 }
 
-export function savePushSubscriptionId(idTag: string, id: number): void {
+export function savePushSubscriptionId(idTag: string, id: string): void {
 	save({ ...load(), [idTag]: id })
 }
 
-export function loadPushSubscriptionId(idTag: string): number | undefined {
+export function loadPushSubscriptionId(idTag: string): string | undefined {
 	return load()[idTag]
 }
 

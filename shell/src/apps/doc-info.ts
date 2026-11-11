@@ -36,7 +36,7 @@ export async function fetchRow(client: ApiClient | null, fileId: string): Promis
 	// its token arrives — reporting `{}` there reads as "no such row".
 	if (!client) return { failed: true }
 	try {
-		const files = await client.files.list({ fileId })
+		const files = await client.files.list({ contentId: fileId })
 		return { row: files[0] }
 	} catch (err) {
 		// A genuine 404 is a legitimate answer (a foreign document never pinned

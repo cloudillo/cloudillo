@@ -51,29 +51,19 @@ export function nowSeconds(): number {
 	return Math.floor(Date.now() / 1000)
 }
 
-// Normalize an `ActionView.createdAt` to epoch seconds. The list endpoint
-// (`GET /actions`) serializes timestamps as ISO 8601 strings (e.g.
-// "2026-06-14T23:16:06Z"), while watermarks and WS payloads are numeric epoch
-// seconds — so every comparison against the watermark must funnel through here.
-// Returns 0 for missing/unparseable values.
-export function createdAtToSeconds(createdAt: string | number | undefined): number {
-	if (typeof createdAt === 'number') return createdAt
-	if (typeof createdAt === 'string') {
-		// All-digit string → numeric epoch seconds; else ISO 8601.
-		if (/^\d+$/.test(createdAt)) return Number(createdAt)
-		const ms = Date.parse(createdAt)
-		return Number.isNaN(ms) ? 0 : Math.floor(ms / 1000)
-	}
-	return 0
+// An ISO 8601 wire timestamp (`ActionView.createdAt` etc.) as epoch seconds, the
+// unit of the local read watermarks — every comparison against a watermark
+// funnels through here. Returns 0 for missing/unparseable values.
+export function createdAtToSeconds(createdAt: string | undefined): number {
+	if (!createdAt) return 0
+	const ms = Date.parse(createdAt)
+	return Number.isNaN(ms) ? 0 : Math.floor(ms / 1000)
 }
 
 // Timestamp the feed read-tracking keys off of. All feeds order/track by
 // ingestion time (received_at) so late-federated posts surface at the top and
 // are correctly unread; falls back to createdAt when received_at is missing.
-export function feedReadTs(action: {
-	createdAt?: string | number
-	receivedAt?: string | number
-}): number {
+export function feedReadTs(action: { createdAt?: string; receivedAt?: string }): number {
 	const r = createdAtToSeconds(action.receivedAt)
 	if (r > 0) return r
 	// A 0 return means "no usable timestamp" → callers treat the post as already
@@ -124,10 +114,11 @@ export function seedCommunityFromHome(
 	// Persist forward-only so the carryover survives reload (the probe otherwise
 	// re-seeds feed:<idTag> from the community's backend feedState.readAt). Backend
 	// readAt is itself forward-only, so a redundant lower write is a harmless no-op.
-	api?.readerState.patch('P:POST', idTag, { readAt: toIso(home) }).catch(() => {})
+	api?.readerState.patch('P:POST', idTag, { readAt: secondsToIso(home) }).catch(() => {})
 }
 
-function toIso(seconds: number): string {
+/** Unix seconds → ISO 8601 string, the wire time format. Throws on NaN/Infinity. */
+export function secondsToIso(seconds: number): string {
 	return new Date(seconds * 1000).toISOString()
 }
 
@@ -185,13 +176,13 @@ export function useReadMarker(scopeKey: string, seed?: number): UseReadMarker {
 
 	const writeMarker = React.useCallback(
 		(position: number) => {
-			// `toIso` throws synchronously on NaN/Infinity, past the `.catch` below.
+			// `secondsToIso` throws synchronously on NaN/Infinity, past the `.catch` below.
 			if (!Number.isFinite(position) || position <= 0) return
 			// The backend keys every watermark to the reader's own `reader_state`
 			// row. A guest has no row on this node, so the write can't be
 			// attributed to anyone — don't issue it.
 			if (!api || !key || !auth?.idTag) return
-			api.readerState.patch(kind, key, { readAt: toIso(position) }).catch(() => {
+			api.readerState.patch(kind, key, { readAt: secondsToIso(position) }).catch(() => {
 				/* own-node write is best-effort; the watermark also lives in-memory */
 			})
 		},
@@ -590,9 +581,9 @@ export function useGlobalUnreadProbe(): void {
 					? undefined
 					: await client.actions.listPaginated({
 							type: ['POST', 'REPOST'],
-							status: ['A'],
-							...(community ? { audience: idTag } : {}),
-							createdAfter: new Date(since * 1000).toISOString(),
+							status: ['active'],
+							...(community ? { audienceIdTag: idTag } : {}),
+							createdAfter: secondsToIso(since),
 							excludeOwnIssuer: true,
 							sort: 'received',
 							sortDir: 'asc',
@@ -602,11 +593,10 @@ export function useGlobalUnreadProbe(): void {
 				// keep the community dot lit until handled, whatever the feed watermark.
 				const knocks = community
 					? await client.actions
-							.listPaginated({ type: 'SUBS', status: ['C'], limit: 1 })
+							.listPaginated({ type: 'SUBS', status: ['confirmation'], limit: 1 })
 							.catch(() => null)
 					: undefined
-				const found = (r?: typeof res | null) =>
-					!!r && (r.data.length > 0 || r.cursorPagination?.hasMore === true)
+				const found = (r?: typeof res | null) => !!r && (r.data.length > 0 || !!r.meta.next)
 				// A failed knock query is unknown, not zero: keep the prior value and
 				// leave lastProbed unset so the next probe retries.
 				if (knocks === null && !found(res)) return
@@ -653,7 +643,7 @@ export function useGlobalUnreadProbe(): void {
 	ownIdTagRef.current = ownIdTag
 	const pendingAudiencesRef = React.useRef<Set<string>>(new Set())
 	const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
-	useWsBus({ cmds: ['ACTION'] }, function handleAction(msg) {
+	useWsBus({ types: ['action'] }, function handleAction(msg) {
 		const action = msg.data as ActionView
 		// SUBS: a join/knock routed to a community (audience) may change its knock dot.
 		if (action.type === 'SUBS') {

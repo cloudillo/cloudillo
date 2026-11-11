@@ -6,7 +6,7 @@ import type { CalendarObjectListItem, CalendarObjectOutput, CalendarOutput } fro
 export type CalendarView = 'month' | 'week' | 'day' | 'agenda' | 'tasks'
 
 export interface SelectedObjectRef {
-	calId: number
+	calId: string
 	uid: string
 	/** ISO-8601 start of the specific occurrence the user clicked — only set for
 	 *  recurring events. Allows the scope dialog to show "on {date}" accurately
@@ -23,7 +23,7 @@ export interface SelectedObjectRef {
 export interface EventOccurrence {
 	/** Stable per-occurrence id (uid + start timestamp). */
 	id: string
-	calId: number
+	calId: string
 	uid: string
 	etag: string
 	title: string

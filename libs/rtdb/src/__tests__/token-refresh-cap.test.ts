@@ -72,9 +72,13 @@ class FakeWebSocket {
 	 */
 	send(data?: string): void {
 		if (!data) return
-		const msg = JSON.parse(data) as { type: string; id: number }
+		const msg = JSON.parse(data) as { type: string; id: string }
 		if (msg.type === 'subscribe') {
-			this.frame({ type: 'subscribeResult', id: msg.id, subscriptionId: `sub-${msg.id}` })
+			this.frame({
+				type: 'subscribeResult',
+				id: msg.id,
+				data: { subscriptionId: `sub-${msg.id}` }
+			})
 		}
 	}
 
@@ -132,7 +136,7 @@ describe('4401 token-refresh cap', () => {
 		// replenish the budget on every single attempt.
 		script = (ws) => {
 			ws.open()
-			ws.frame({ type: 'pong', id: 1 })
+			ws.frame({ type: 'pong', id: '1', data: {} })
 			ws.closeWith(4401)
 		}
 		const refreshToken = jest.fn(async () => 'fresh-token')
@@ -155,7 +159,7 @@ describe('4401 token-refresh cap', () => {
 	it('rejects a write sent after the cap instead of queueing it forever', async () => {
 		script = (ws) => {
 			ws.open()
-			ws.frame({ type: 'pong', id: 1 })
+			ws.frame({ type: 'pong', id: '1', data: {} })
 			ws.closeWith(4401)
 		}
 		const manager = createManager(async () => 'fresh-token')
@@ -174,7 +178,7 @@ describe('4401 token-refresh cap', () => {
 	it('spaces the post-refresh reconnect by the backoff instead of retrying at once', async () => {
 		script = (ws) => {
 			ws.open()
-			ws.frame({ type: 'pong', id: 1 })
+			ws.frame({ type: 'pong', id: '1', data: {} })
 			ws.closeWith(4401)
 		}
 		const refreshToken = jest.fn(async () => 'fresh-token')

@@ -104,7 +104,9 @@ export function useDocInfo(resId: string | undefined, appToken?: string): DocInf
 	// the shell is invisible here rather than costing every open app a round trip.
 	const targetFileId = resId ? (fileIdFromResId(resId) ?? resId) : undefined
 	const refreshVersion =
-		fileViewUpdate && fileViewUpdate.file.fileId === targetFileId ? fileViewUpdate.version : 0
+		fileViewUpdate && fileViewUpdate.file.contentId === targetFileId
+			? fileViewUpdate.version
+			: 0
 
 	React.useEffect(
 		function resolveRows() {
@@ -261,14 +263,14 @@ export function useDocInfo(resId: string | undefined, appToken?: string): DocInf
 					// The resolver is re-registered synchronously on the render where
 					// `resId` changes, but the three refs above are only rewritten
 					// once `resolveRows`' fetch returns. In that window they still
-					// describe the PREVIOUS document, and `current.fileId` would aim
+					// describe the PREVIOUS document, and `current.contentId` would aim
 					// the rename at it.
 					if (current?.resId !== resId) return { ok: false, error: 'Document not ready' }
 					if (!current.canRename || !api || !row) {
 						return { ok: false, error: 'Rename not permitted' }
 					}
 					try {
-						await api.files.update(row.entryId, { fileName })
+						await api.files.update(row.id, { fileName })
 					} catch (err) {
 						console.error('[DocInfo] Rename failed', err)
 						return {

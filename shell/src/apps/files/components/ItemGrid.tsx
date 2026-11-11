@@ -81,8 +81,8 @@ export const ItemGrid = React.memo(function ItemGrid({
 	const contextIdTag = useCurrentContextIdTag()
 	const { t } = useTranslation()
 
-	const isFolder = file.fileTp === 'FLDR'
-	const isRenaming = renameFileName !== undefined && file.entryId === renameFileId
+	const isFolder = file.fileType === 'FLDR'
+	const isRenaming = renameFileName !== undefined && file.id === renameFileId
 
 	// Check if file has a thumbnail/variant
 	const hasThumbnail = file.variantId && contextIdTag
@@ -91,8 +91,8 @@ export const ItemGrid = React.memo(function ItemGrid({
 	// instead of a broken thumbnail until FileIdGeneratorTask finalizes its id.
 	const isProcessing = isFileProcessing(file)
 	const thumbSrc =
-		!isProcessing && (hasThumbnail || isImage) && contextIdTag && file.fileId
-			? getFileUrl(contextIdTag, file.variantId || file.fileId, 'vis.tn')
+		!isProcessing && (hasThumbnail || isImage) && contextIdTag && file.contentId
+			? getFileUrl(contextIdTag, file.variantId || file.contentId, 'vis.tn')
 			: undefined
 
 	function handleClick(evt: React.MouseEvent) {
@@ -103,7 +103,7 @@ export const ItemGrid = React.memo(function ItemGrid({
 		if (isFolder) {
 			onDoubleClick?.(file)
 		} else {
-			fileOps.openFile(file.entryId, toAppAccess(file.accessLevel))
+			fileOps.openFile(file.id, toAppAccess(file.accessLevel))
 		}
 	}
 
@@ -121,13 +121,13 @@ export const ItemGrid = React.memo(function ItemGrid({
 	const isManagedView = viewMode === 'managed' || file.parentId === MANAGED_FOLDER_ID
 	const isPinned = file.userData?.pinned ?? false
 	const isStarred = file.userData?.starred ?? false
-	const isLive = file.fileTp === 'CRDT' || file.fileTp === 'RTDB'
+	const isLive = file.fileType === 'CRDT' || file.fileType === 'RTDB'
 	const smartTimestamp = getSmartTimestamp(file)
-	const isDirect = !file.visibility || file.visibility === 'D'
+	const isDirect = !file.visibility || file.visibility === 'direct'
 
 	function handleStarClick(evt: React.MouseEvent) {
 		evt.stopPropagation()
-		fileOps.toggleStarred?.(file.entryId)
+		fileOps.toggleStarred?.(file.id)
 	}
 
 	const meta = (
@@ -159,8 +159,8 @@ export const ItemGrid = React.memo(function ItemGrid({
 				{/* Direct is the default, so only a wider visibility earns an icon */}
 				{!isDirect && (
 					<Icon
-						as={getVisibilityIcon(file.visibility ?? null)}
-						label={getVisibilityLabel(t, file.visibility ?? null)}
+						as={getVisibilityIcon(file.visibility ?? 'unknown')}
+						label={getVisibilityLabel(t, file.visibility ?? 'unknown')}
 					/>
 				)}
 			</HBox>
@@ -198,7 +198,7 @@ export const ItemGrid = React.memo(function ItemGrid({
 	// (hand-fly, ContextMenu, keyboard shortcuts), double-click and context menu.
 	return (
 		<VBox
-			data-file-id={file.entryId}
+			data-file-id={file.id}
 			data-source-context={contextIdTag ?? undefined}
 			onDoubleClick={handleDoubleClick}
 			onContextMenu={handleContextMenu}
@@ -210,7 +210,7 @@ export const ItemGrid = React.memo(function ItemGrid({
 					isRenaming ? (
 						<InlineEditForm
 							value={renameFileName}
-							onSave={(newName) => fileOps.doRenameFile(file.entryId, newName)}
+							onSave={(newName) => fileOps.doRenameFile(file.id, newName)}
 							onCancel={() => fileOps.renameFile(undefined)}
 							size="small"
 						/>
@@ -221,7 +221,7 @@ export const ItemGrid = React.memo(function ItemGrid({
 				onClick={isRenaming ? undefined : handleClick}
 				src={thumbSrc}
 				alt={file.fileName}
-				contentType={iconContentType(file.contentType, file.fileTp)}
+				contentType={iconContentType(file.contentType, file.fileType)}
 				meta={meta}
 				actions={actions}
 			/>

@@ -59,8 +59,8 @@ import { rateLimitMessage } from './utils.js'
 // ============================================================================
 
 export interface LoginInitData {
-	qrLogin: { sessionId: string; secret: string }
-	webAuthn: boolean
+	qr: { sessionId: string; secret: string }
+	passkeys: boolean
 	maskedEmail?: string
 }
 
@@ -141,7 +141,7 @@ export function webAuthnErrorMessage(err: unknown, t: TFunction): string | undef
 	console.warn('WebAuthn login failed:', err)
 	const banMsg = rateLimitMessage(err, t)
 	if (banMsg) return banMsg
-	// The challenge endpoint 404s when the account holds no passkey — login-init said
+	// The challenge endpoint 404s when the account holds no passkey — login init said
 	// it did, so it was removed in between.
 	if (err instanceof FetchError && err.httpStatus === 404) {
 		return t('No passkey is registered for this account.')
@@ -309,10 +309,10 @@ export function LoginForm() {
 	const [forgotStatus, setForgotStatus] = React.useState<'idle' | 'loading' | 'success'>('idle')
 	const [forgotError, setForgotError] = React.useState<string | undefined>()
 
-	// Use pre-fetched WebAuthn data from login-init context
+	// Use pre-fetched WebAuthn data from login init context
 	const loginInitData = useLoginInit()
 
-	// Auto-attempt WebAuthn login. login-init only tells us whether passkeys exist;
+	// Auto-attempt WebAuthn login. login init only tells us whether passkeys exist;
 	// the challenge itself is minted below, at prompt time.
 	// loginInitData === undefined means "still loading from layout" — wait.
 	React.useEffect(
@@ -327,8 +327,8 @@ export function LoginForm() {
 
 			setWebAuthnAttempted(true)
 
-			if (!loginInitData?.webAuthn) {
-				// `null` means boot's `setLoginInitData(null)` ran because login-init
+			if (!loginInitData?.passkeys) {
+				// `null` means boot's `setLoginInitData(null)` ran because login init
 				// threw — not that the tenant has no passkeys — so leave
 				// `hasPasskeys` undefined and let the manual button survive.
 				if (loginInitData) setHasPasskeys(false)
@@ -336,7 +336,7 @@ export function LoginForm() {
 			}
 			setHasPasskeys(true)
 			;(async () => {
-				// `false`, not `remember`: this prompt fires the moment login-init resolves
+				// `false`, not `remember`: this prompt fires the moment login init resolves
 				// and the window has focus, before the checkbox can be ticked, and the
 				// `webAuthnAttempted` latch stops the effect ever re-running with a newer
 				// value. "Remember me" with a passkey goes through the manual button below.
@@ -376,13 +376,7 @@ export function LoginForm() {
 			console.error('Login failed:', err)
 			const banMsg = rateLimitMessage(err, t)
 			if (banMsg) setError(banMsg)
-			else if (
-				err instanceof FetchError &&
-				// E-AUTH-NOPERM also covers other denials on the login path; a
-				// distinct code (E-AUTH-BADPASS in cloudillo-auth handler.rs) would make it exact
-				(err.httpStatus === 401 ||
-					(err.httpStatus === 403 && err.apiErrorCode === 'E-AUTH-NOPERM'))
-			) {
+			else if (err instanceof FetchError && err.is('E-AUTH-BADPASSWORD')) {
 				setError(t('Incorrect password. Try again or reset it.'))
 			} else setError(friendlyError(t, err))
 		}

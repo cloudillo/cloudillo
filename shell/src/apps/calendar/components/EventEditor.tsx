@@ -31,7 +31,7 @@ import { RecurrenceBuilder } from './RecurrenceBuilder.js'
 export interface EventEditorProps {
 	open: boolean
 	calendars: CalendarOutput[]
-	defaultCalendarId?: number
+	defaultCalendarId?: string
 	event?: CalendarObjectOutput
 	draft?: { start: string; end: string; allDay: boolean } | null
 	/** 0 = Sunday, 1 = Monday. Forwarded to the RecurrenceBuilder's weekday
@@ -39,7 +39,7 @@ export interface EventEditorProps {
 	 *  Omit to inherit the locale default. */
 	firstDayOfWeek?: 0 | 1
 	onClose: () => void
-	onSave: (calId: number, data: CalendarObjectInput) => Promise<void>
+	onSave: (calId: string, data: CalendarObjectInput) => Promise<void>
 }
 
 const DURATION_PRESETS = [15, 30, 45, 60, 90, 120, 180, 240, 480] as const
@@ -109,7 +109,7 @@ export function EventEditor({
 }: EventEditorProps) {
 	const { t, i18n } = useTranslation()
 
-	const [calId, setCalId] = React.useState<number | undefined>(defaultCalendarId)
+	const [calId, setCalId] = React.useState<string | undefined>(defaultCalendarId)
 	const [summary, setSummary] = React.useState('')
 	const [location, setLocation] = React.useState('')
 	const [description, setDescription] = React.useState('')
@@ -306,12 +306,12 @@ export function EventEditor({
 					/>
 					<NativeSelect
 						value={calId ?? ''}
-						onChange={(e) => setCalId(Number(e.target.value))}
+						onChange={(e) => setCalId(e.target.value)}
 						aria-label={t('Calendar')}
 					>
 						<option value="">{t('Pick a calendar')}</option>
 						{calendars.map((c) => (
-							<option key={c.calId} value={c.calId}>
+							<option key={c.id} value={c.id}>
 								{c.name}
 							</option>
 						))}

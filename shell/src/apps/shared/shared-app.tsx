@@ -39,7 +39,7 @@ export function renderSharedApp(file: FileView, opts: RenderSharedAppOpts): Reac
 	const app = appConfig?.apps.find((a) => a.id === appId)
 	if (!app) return null
 
-	const resId = `${idTag}:${file.fileId}`
+	const resId = `${idTag}:${file.contentId}`
 	return (
 		<MicrofrontendContainer
 			className="w-100 h-100"

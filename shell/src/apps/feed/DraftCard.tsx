@@ -53,7 +53,7 @@ export function DraftCard({
 	// Re-entry guard for all three writes; also the Publish button's busy state.
 	const [busy, setBusy] = React.useState(false)
 
-	const isScheduled = draft.status === 'S'
+	const isScheduled = draft.status === 'scheduled'
 	// For scheduled drafts, the backend stores publish_at in created_at
 	const publishAt = isScheduled ? new Date(draft.createdAt) : undefined
 	const isOverdue = isScheduled && publishAt && publishAt.getTime() < Date.now()
@@ -84,7 +84,7 @@ export function DraftCard({
 
 		setBusy(true)
 		try {
-			const res = await api.actions.publish(draft.actionId)
+			const res = await api.actions.publish(draft.id)
 			onPublished(res)
 		} catch (e) {
 			console.error('Failed to publish draft', e)
@@ -99,7 +99,7 @@ export function DraftCard({
 
 		setBusy(true)
 		try {
-			const res = await api.actions.cancel(draft.actionId)
+			const res = await api.actions.cancel(draft.id)
 			onUnscheduled(res)
 		} catch (e) {
 			console.error('Failed to unschedule', e)
@@ -123,8 +123,8 @@ export function DraftCard({
 
 		setBusy(true)
 		try {
-			await api.actions.delete(draft.actionId)
-			onDeleted(draft.actionId)
+			await api.actions.delete(draft.id)
+			onDeleted(draft.id)
 		} catch (e) {
 			console.error('Failed to delete draft', e)
 			toast.error(friendlyError(t, e))

@@ -6,6 +6,9 @@ import * as T from '@symbion/runtype'
 export * from './badges.js'
 export * from './format-version.js'
 
+/** RFC 3339 timestamp, the one wire encoding of every REST/WS time (tokens keep Unix seconds). */
+export const tIsoTime = T.string
+
 /** A fileId as it may appear in a resId: one path segment, and nothing that could be
  *  read as a path. The leading class excludes '.', so '.', '..' and '.foo' are all out
  *  while dots inside an id stay legal; ':' is legal after the first character because
@@ -45,12 +48,13 @@ export function isIdTag(idTag: string | undefined): idTag is string {
 	return !!idTag && idTag.length <= 253 && ID_TAG_RE.test(idTag)
 }
 
-// Profile connection status: true = connected, 'R' = request pending, undefined = not connected
-export const tProfileConnectionStatus = T.union(T.boolean, T.literal('R'))
+// Profile connection status: true = connected; a pending request reads as false (wire is boolean)
+export const tProfileConnectionStatus = T.boolean
 export type ProfileConnectionStatus = T.TypeOf<typeof tProfileConnectionStatus>
 
-// Profile status: A = Active, B = Blocked, M = Muted, S = Suspended
-export const tProfileStatus = T.literal('A', 'B', 'M', 'S')
+export const tProfileStatus = T.literal('active', 'blocked', 'muted', 'suspended', 'banned').catch(
+	'unknown'
+)
 export type ProfileStatus = T.TypeOf<typeof tProfileStatus>
 
 // Per-profile trust preference for proxy-token authentication on passive reads.
@@ -207,48 +211,47 @@ export interface SkillsContent {
 
 // The reader's own follow state about one thing (`reader_state` row, owner-only,
 // never federated). `kind` is `P:MSG` / `P:POST` (ref = idTag) or `A:<type>`
-// (ref = actionId). Timestamps are ISO 8601 (epoch seconds accepted too).
+// (ref = actionId). Timestamps are ISO 8601.
 // `profile` is only present on `GET /reader-state?include=ref` for `P:*` rows.
 export interface ReaderState {
 	kind: string
 	ref: string
-	readAt?: string | number
-	lastAt?: string | number
+	readAt?: string
+	lastAt?: string
 	lastId?: string
 	unread?: number
-	mentionedAt?: string | number
-	/** 'W' all | 'T' mentions | 'M' none; unknown → treat as 'W' */
+	mentionedAt?: string
+	/** 'all' | 'mentions' | 'none'; unknown → treat as 'all' */
 	notify?: string
-	notifyUntil?: string | number
+	notifyUntil?: string
 	pinned?: boolean
 	archived?: boolean
 	ignoreAll?: boolean
 	unreadFlag?: boolean
-	createdAt?: string | number
-	updatedAt?: string | number
+	createdAt?: string
+	updatedAt?: string
 	profile?: Profile
 	action?: ActionView
 	last?: ActionView
 }
-const tTimestamp = T.union(T.string, T.number)
 // `kind` (open-ended `A:<type>`) and `notify` stay `T.string` on purpose: a literal union would
 // fail the whole row when the backend adds a value. Consumers must default unknown values.
 export const tReaderState: T.Type<ReaderState> = T.struct({
 	kind: T.string,
 	ref: T.string,
-	readAt: T.optional(tTimestamp),
-	lastAt: T.optional(tTimestamp),
+	readAt: T.optional(tIsoTime),
+	lastAt: T.optional(tIsoTime),
 	lastId: T.optional(T.string),
 	unread: T.optional(T.number),
-	mentionedAt: T.optional(tTimestamp),
+	mentionedAt: T.optional(tIsoTime),
 	notify: T.optional(T.string),
-	notifyUntil: T.optional(tTimestamp),
+	notifyUntil: T.optional(tIsoTime),
 	pinned: T.optional(T.boolean),
 	archived: T.optional(T.boolean),
 	ignoreAll: T.optional(T.boolean),
 	unreadFlag: T.optional(T.boolean),
-	createdAt: T.optional(tTimestamp),
-	updatedAt: T.optional(tTimestamp),
+	createdAt: T.optional(tIsoTime),
+	updatedAt: T.optional(tIsoTime),
 	profile: T.optional(T.lazy((): T.Type<Profile> => tProfile)),
 	action: T.optional(T.lazy((): T.Type<ActionView> => tActionView)),
 	last: T.optional(T.lazy((): T.Type<ActionView> => tActionView))
@@ -293,7 +296,7 @@ const tEmbeddedReaderState = T.optional(new EmbeddedReaderStateType())
 export const tProfile = T.struct({
 	idTag: T.string,
 	name: T.optional(T.string),
-	type: T.optional(T.literal('person', 'community')),
+	type: T.optional(T.literal('person', 'community').catch('unknown')),
 	profilePic: T.optional(T.string),
 	status: T.optional(tProfileStatus),
 	connected: T.optional(tProfileConnectionStatus),
@@ -336,15 +339,39 @@ export const tActionType = T.literal(
 export type ActionType = T.TypeOf<typeof tActionType>
 
 export const tActionStatus = T.literal(
-	'P', // Pending (draft/unpublished)
-	'A', // Active (default when NULL - published/finalized)
-	'D', // Deleted (soft delete)
-	'C', // Created (pending approval - e.g. connection requests)
-	'N', // New (notification - awaiting user acknowledgment)
-	'R', // Draft (saved but not yet published)
-	'S' // Scheduled (draft with confirmed publish time)
-)
+	'active', // published/finalized (default)
+	'confirmation', // awaiting the user's accept/reject (e.g. connection requests)
+	'notification', // awaiting user acknowledgment
+	'deleted', // soft delete
+	'draft', // saved but not yet published
+	'scheduled', // draft with confirmed publish time
+	'pending', // awaiting local processing (e.g. media)
+	'verifying', // inbound, signature check in progress
+	'failed' // processing failed
+).catch('unknown')
 export type ActionStatus = T.TypeOf<typeof tActionStatus>
+
+// Action visibility words on the wire (ActionView, POST/PATCH /actions, `?visibility=`).
+// `direct` (audience only) is never accepted as a list filter.
+export const tActionVisibility = T.literal(
+	'public',
+	'verified',
+	'secondDegree',
+	'followers',
+	'connected',
+	'subscribed',
+	'direct'
+)
+export type ActionVisibility = T.TypeOf<typeof tActionVisibility>
+
+// Action flags (all three required on input; the server reads a missing value as
+// `{reactions: true, comments: true, open: false}`).
+export const tActionFlags = T.struct({
+	reactions: T.boolean,
+	comments: T.boolean,
+	open: T.boolean
+})
+export type ActionFlags = T.TypeOf<typeof tActionFlags>
 
 export const tAction = T.struct({
 	actionId: T.string,
@@ -371,11 +398,11 @@ export const tNewAction = T.struct({
 	content: T.optional(T.unknown),
 	attachments: T.optional(T.array(T.string)),
 	subject: T.optional(T.string),
-	expiresAt: T.optional(T.number),
-	visibility: T.optional(T.string), // 'P' = Public, 'C' = Connected, 'F' = Followers
-	flags: T.optional(T.string), // Action flags (e.g. 'O' = open group on CONV)
-	draft: T.optional(T.boolean), // true = save as draft (status 'R')
-	publishAt: T.optional(T.number), // Unix timestamp for scheduled publishing
+	expiresAt: T.optional(tIsoTime),
+	visibility: T.optional(tActionVisibility),
+	flags: T.optional(tActionFlags), // e.g. `open` = CONV joinable without invitation
+	draft: T.optional(T.boolean), // true = save as draft (status 'draft')
+	publishAt: T.optional(tIsoTime), // Scheduled publishing time
 	hat: T.optional(T.string), // Community idTag the issuer acts on behalf of
 	channel: T.optional(T.string) // Room name (bare, or `@tenant~name`)
 })
@@ -384,9 +411,9 @@ export type NewAction = T.TypeOf<typeof tNewAction>
 // Profile info embedded in actions (subset of Profile)
 export const tProfileInfo = T.struct({
 	idTag: T.string,
-	name: T.optional(T.string),
+	name: T.string,
 	profilePic: T.optional(T.string),
-	type: T.optional(T.literal('person', 'community'))
+	type: T.literal('person', 'community').catch('unknown')
 })
 export type ProfileInfo = T.TypeOf<typeof tProfileInfo>
 
@@ -394,7 +421,7 @@ export type ProfileInfo = T.TypeOf<typeof tProfileInfo>
 // (A plain `T.TypeOf<typeof tActionView>` cannot type a self-referential
 // runtype — TS would infer `any`.)
 export interface ActionView {
-	actionId: string
+	id: string
 	type: string
 	subType?: string
 	parentId?: string
@@ -405,7 +432,7 @@ export interface ActionView {
 	channel?: string
 	content?: unknown
 	attachments?: Array<{
-		fileId: string
+		contentId: string
 		dim?: [number, number] | null
 		localVariants?: string[]
 	}>
@@ -415,27 +442,25 @@ export interface ActionView {
 	// shares). Populated by the backend listing path so the client can render
 	// the embedded original card without a second fetch.
 	subjectAction?: ActionView
-	createdAt: string | number
+	createdAt: string
 	// Local ingestion time on the serving node (when this action arrived/was
-	// inserted), as ISO 8601 or epoch seconds. The home feed orders and tracks
+	// inserted), as ISO 8601. The home feed orders and tracks
 	// reads by this so late-federated posts (old createdAt, recent arrival)
 	// surface correctly; single-context feeds fall back to createdAt. Absent on
 	// relationship/system rows the backend doesn't stamp.
-	receivedAt?: string | number
-	expiresAt?: string | number
+	receivedAt?: string
+	expiresAt?: string
 	status?: ActionStatus
 	// Raw signed JWS for this action. Absent on normal feed/list payloads;
-	// populated only when the list query requests it (includeTokens), so a
+	// populated only when the list query requests it (include=tokens), so a
 	// viewer can verify the action signature client-side.
 	token?: string
 	stat?: {
 		ownReaction?: string
 		reactions?: string
-		// Last-comment timestamp. Served as ISO 8601 strings (like createdAt);
-		// accept numeric epoch seconds too and normalize on the client
-		// (createdAtToSeconds). The unread comment dot is
-		// `lastCommentAt > readerState.readAt`.
-		lastCommentAt?: string | number
+		// Last-comment timestamp, ISO 8601 (like createdAt). The unread comment
+		// dot is `lastCommentAt > readerState.readAt`.
+		lastCommentAt?: string
 		commentCount?: number // Total comment count, federated as STAT `c`
 		reposts?: number // Total active reposts of this action
 		// Map keyed by audienceTag → repostActionId, listing every active REPOST
@@ -443,17 +468,17 @@ export interface ActionView {
 		// ✓-badges and the per-target "undo repost" affordance.
 		ownRepostIds?: Record<string, string>
 	}
-	visibility?: string
-	// Action flags string serialized by the backend (e.g. CONV 'O' = open group,
-	// joinable without invitation). `is_open` = flags.contains('O').
-	flags?: string
+	visibility?: ActionVisibility | 'unknown'
+	// CONV `open` = open group, joinable without invitation.
+	flags?: ActionFlags
 	// Reader's own `A:<type>` reader-state row (read watermark, notify level,
 	// …; private, never federated). Absent = no row (not subscribed).
 	readerState?: ReaderState
-	x?: unknown // Extensible metadata (x.role for SUBS, etc.)
+	extra?: unknown // Extensible metadata (extra.role for SUBS, etc.)
+	deliveryError?: string
 }
 export const tActionView: T.Type<ActionView> = T.struct({
-	actionId: T.string,
+	id: T.string,
 	type: T.string,
 	subType: T.optional(T.string),
 	parentId: T.optional(T.string),
@@ -466,7 +491,7 @@ export const tActionView: T.Type<ActionView> = T.struct({
 	attachments: T.optional(
 		T.array(
 			T.struct({
-				fileId: T.string,
+				contentId: T.string,
 				dim: T.optional(T.union(T.tuple(T.number, T.number), T.nullValue)),
 				localVariants: T.optional(T.array(T.string)) // Locally available variants: ["vis.tn", "vis.sd", ...]
 			})
@@ -475,24 +500,25 @@ export const tActionView: T.Type<ActionView> = T.struct({
 	subject: T.optional(T.string),
 	subjectProfile: T.optional(tProfileInfo),
 	subjectAction: T.optional(T.lazy((): T.Type<ActionView> => tActionView)),
-	createdAt: T.union(T.string, T.number),
-	receivedAt: T.optional(T.union(T.string, T.number)),
-	expiresAt: T.optional(T.union(T.string, T.number)),
+	createdAt: tIsoTime,
+	receivedAt: T.optional(tIsoTime),
+	expiresAt: T.optional(tIsoTime),
 	status: T.optional(tActionStatus),
 	stat: T.optional(
 		T.struct({
 			ownReaction: T.optional(T.string),
 			reactions: T.optional(T.string),
-			lastCommentAt: T.optional(T.union(T.string, T.number)),
+			lastCommentAt: T.optional(tIsoTime),
 			commentCount: T.optional(T.number),
 			reposts: T.optional(T.number),
 			ownRepostIds: T.optional(T.record(T.string))
 		})
 	),
-	visibility: T.optional(T.string),
-	flags: T.optional(T.string),
+	visibility: T.optional(tActionVisibility.catch('unknown')),
+	flags: T.optional(tActionFlags),
 	readerState: tEmbeddedReaderState,
-	x: T.optional(T.unknown),
+	extra: T.optional(T.unknown),
+	deliveryError: T.optional(T.string),
 	token: T.optional(T.string)
 })
 
@@ -917,7 +943,7 @@ export type SiteIslandRules = T.TypeOf<typeof tSiteIslandRules>
 // -----------------------------------------------
 // `tContentTypeHandler.navParam` says how a *document's* parts are deep-linked
 // through the declaring app. The declaration below says how a *static file's*
-// parts are addressed when there is no app in the loop: an `objTp: 'F'` search
+// parts are addressed when there is no app in the loop: a `kind: 'file'` search
 // hit carries a `partId` — a site container's page, a PDF's page — and the
 // client resolves it through the hit's `contentType`. So the search crate keeps
 // no content-type table of its own, and making a new format part-addressable is
@@ -1012,7 +1038,7 @@ export const tAppManifest = T.struct({
 	// document format it declares — see `tContentTypeHandler.formatVersion`.
 	version: T.string,
 	kind: tAppKind,
-	// Publisher id_tag, recorded as the `publisherTag` of every doc format this
+	// Publisher id_tag, recorded as the `publisherIdTag` of every doc format this
 	// manifest declares. Omitted by the apps this build ships, for which the
 	// backend defaults to `cloudillo.org`.
 	publisher: T.optional(T.string),
@@ -1068,9 +1094,9 @@ export type AppManifest = T.TypeOf<typeof tAppManifest>
 // ============================================
 
 // What kind of object a hit points at.
-//   F = file, D = a part inside a document, A = action, P = profile
-export const tSearchObjType = T.literal('F', 'D', 'A', 'P')
-export type SearchObjType = T.TypeOf<typeof tSearchObjType>
+//   doc = a part inside a document
+export const tSearchKind = T.literal('file', 'doc', 'action', 'profile').catch('unknown')
+export type SearchKind = T.TypeOf<typeof tSearchKind>
 
 /**
  * A highlighted range within a snippet, as **UTF-16 code-unit** offsets — the
@@ -1090,9 +1116,9 @@ export type SearchMatch = T.TypeOf<typeof tSearchMatch>
 // resolves, `sitePath` is a link to the path itself. One rule, every part type.
 // Absent fields are omitted by the server, never sent as null.
 export const tSearchHit = T.struct({
-	objTp: tSearchObjType,
-	// fileId, actionId or idTag, depending on `objTp`. For `'D'` it is the
-	// containing document's fileId.
+	kind: tSearchKind,
+	// file id, action id or idTag, depending on `kind`. For `'doc'` it is the
+	// containing document's file id.
 	objId: T.string,
 	// Deep-link key within the document — for notillo, the page id.
 	partId: T.optional(T.string),
@@ -1124,9 +1150,9 @@ export type SearchHit = T.TypeOf<typeof tSearchHit>
 export const tSearchQuery = T.struct({
 	q: T.string,
 	// Comma-separated subset of `file,doc,action,profile`.
-	type: T.optional(T.string),
+	kind: T.optional(T.string),
 	// Confine the search to one document and its parts.
-	fileId: T.optional(T.string),
+	contentId: T.optional(T.string),
 	contentType: T.optional(T.string),
 	// Comma-separated tags, AND-combined. Applied inside the full-text match
 	// rather than to its results, so a text+tag query cannot lose a hit that
@@ -1136,24 +1162,25 @@ export const tSearchQuery = T.struct({
 	// peer idTag (DM).
 	conv: T.optional(T.string),
 	limit: T.optional(T.number),
-	offset: T.optional(T.number)
+	// Opaque cursor from the previous page's `next`.
+	cursor: T.optional(T.string)
 })
 export type SearchQuery = T.TypeOf<typeof tSearchQuery>
 
 // A registered document-format manifest, as returned by `GET /api/doc-formats`.
 export const tDocFormat = T.struct({
 	contentType: T.string,
-	publisherTag: T.string,
+	publisherIdTag: T.string,
 	appName: T.string,
 	formatVersion: T.optional(T.number),
-	storeTp: T.optional(T.string),
+	storeType: T.optional(T.string),
 	navParam: T.optional(T.string),
 	// Same validator as `tContentTypeHandler.search`. Both tiers were already
 	// checked against the backend's own copy of these rules — a tenant row at PUT,
 	// a bundled default at registry load — so enforcing the schema here rejects
 	// only what would have failed at use anyway.
 	search: T.optional(tIndexRules),
-	x: T.optional(T.unknown),
+	extra: T.optional(T.unknown),
 	updatedAt: T.string,
 	// Which tier the listing resolved this from: `'tenant'` for a row this tenant
 	// owns (deletable, reverting to the bundled default) or `'bundled'` for what
@@ -1213,16 +1240,16 @@ export function safeHref(href: unknown): string | undefined {
 // It lives in the *validator* rather than only in the editor that writes it because a
 // nav target is painted into an `href` server-side, on the site owner's own origin,
 // before any JS runs — so "the settings form checked it" is not a property of the
-// stored value. `PATCH /api/sites` is reachable by any leader with a token.
+// stored value. `PATCH /api/site` is reachable by any leader with a token.
 //
 // The decoded value is the trimmed one `safeHref` returns, so a target only ever
 // reaches storage in the form the allowlist judged.
 //
 // **What it costs, stated plainly**: refusing a target refuses the value it sits in.
-// On the *write* side that is the point — `PATCH /api/sites` carries `SiteNavItem[]`
+// On the *write* side that is the point — `PATCH /api/site` carries `SiteNavItem[]`
 // and a list with one unvouchable target is one nobody should store. On the *read*
 // side it was too much: `T.array` fails whole, so a target that reached storage out
-// of band made `GET /api/sites` fail its response decode, including for the settings
+// of band made `GET /api/site` fail its response decode, including for the settings
 // page an owner would go to in order to delete it. The read fields go through
 // `tSiteNavList` below instead, which drops the entry and keeps the list.
 //
@@ -1330,7 +1357,7 @@ export function normalizeSiteNav(entries: unknown[]): SiteNavItem[] {
 // left un-vouchable is dropped, not the whole list. `T.array(tSiteNavItem)` fails
 // whole, and the page an owner would use to delete a bad entry reads through this
 // same response — so refusing it locked them out of the only repair. The writer side
-// is unchanged: `PATCH /api/sites` still carries `SiteNavItem[]`.
+// is unchanged: `PATCH /api/site` still carries `SiteNavItem[]`.
 //
 // A class for the same reason `tSiteNavTarget` is one: `T.string.matches()` registers
 // an async *validator*, which `T.decode` does not run, and every consumer here
@@ -1398,7 +1425,7 @@ export const tSiteDoc = T.struct({
 })
 export type SiteDoc = T.TypeOf<typeof tSiteDoc>
 
-// The answer of both `GET /api/sites` and `PATCH /api/sites`.
+// The answer of both `GET /api/site` and `PATCH /api/site`.
 //
 // `site: null` means the tenant has never configured a site — distinct from a record with
 // no `/` row in `docs`, which is a site that exists and serves nothing yet.
@@ -1413,7 +1440,7 @@ export const tSiteConfig = T.struct({
 })
 export type SiteConfig = T.TypeOf<typeof tSiteConfig>
 
-// The body of `POST /api/sites/mounts` — bind one document of the calling tenant to
+// The body of `POST /api/site/mounts` — bind one document of the calling tenant to
 // one site path, creating the row if it does not exist yet. Same tenant only: the
 // server resolves `docFileId` tenant-scoped, so another tenant's document does not
 // resolve at all. Writing this never disturbs what is currently served.
@@ -1423,20 +1450,20 @@ export const tSiteMountRequest = T.struct({
 })
 export type SiteMountRequest = T.TypeOf<typeof tSiteMountRequest>
 
-// The body of `DELETE /api/sites/mounts` — take a document out of the site. Allowed
-// even while it is serving; its containers simply become unreferenced and are reaped.
+// The argument of `DELETE /api/site/mounts/{mountId}` (the doc file id goes in the path, no
+// body) — take a document out of the site. Allowed even while it is serving; its containers simply become unreferenced and are reaped.
 export const tSiteUnmountRequest = T.struct({
 	docFileId: T.string
 })
 export type SiteUnmountRequest = T.TypeOf<typeof tSiteUnmountRequest>
 
-// Both mount endpoints answer with the whole config, like `PATCH /api/sites` does:
+// Both mount endpoints answer with the whole config, like `PATCH /api/site` does:
 // a mount write is a site-configuration write, and the settings page needs the new
 // list rather than the one row it changed.
 export const tSiteMountResult = tSiteConfig
 export type SiteMountResult = SiteConfig
 
-// One published page, as `GET /api/sites/pages` lists it for the navigation editor's
+// One published page, as `GET /api/site/pages` lists it for the navigation editor's
 // target picker. `path` is SITE-ABSOLUTE: the server applies the mount prefix, because a
 // manifest path is container-relative and only the server knows which mount served that
 // container. `archetype` is the page's layout — `page` or `post` in this build, and an
@@ -1449,12 +1476,12 @@ export const tSitePage = T.struct({
 })
 export type SitePage = T.TypeOf<typeof tSitePage>
 
-// The answer of `GET /api/sites/pages`. Read on demand when the picker opens, never
+// The answer of `GET /api/site/pages`. Read on demand when the picker opens, never
 // cached: the server opens one container per mount to build it.
 export const tSitePagesResult = T.array(tSitePage)
 export type SitePagesResult = T.TypeOf<typeof tSitePagesResult>
 
-// The body of `POST /api/sites/publish`. Both ids name files of the calling tenant:
+// The body of `POST /api/site/publish`. Both ids name files of the calling tenant:
 // `docFileId` the Notillo document the container was built from, `containerFileId` the
 // managed zip the shell has just uploaded. The container's bytes are not re-sent — the
 // server reads `_site/manifest.json` back out of the stored blob.
@@ -1464,7 +1491,7 @@ export const tSitePublishRequest = T.struct({
 })
 export type SitePublishRequest = T.TypeOf<typeof tSitePublishRequest>
 
-// The answer of `POST /api/sites/publish` — the `site_doc` row as it stands after the
+// The answer of `POST /api/site/publish` — the `site_doc` row as it stands after the
 // generation flip, so `publishedFileId` echoes the container just committed and
 // `previousFileId` names the one it displaced. `tSiteDoc` rather than a bespoke struct:
 // it is the row that changed, and reusing it keeps this endpoint's answer decodable by
@@ -1472,7 +1499,7 @@ export type SitePublishRequest = T.TypeOf<typeof tSitePublishRequest>
 export const tSitePublishResult = tSiteDoc
 export type SitePublishResult = SiteDoc
 
-// The body of `POST /api/sites/rollback`. Only the document is named: a `site_doc` row
+// The body of `POST /api/site/rollback`. Only the document is named: a `site_doc` row
 // keeps exactly two generations and rollback exchanges them, so there is no version to
 // address. Because the swap is symmetric it is its own inverse — calling it twice puts
 // the document back where it started, which is what makes a rollback undoable once.
@@ -1481,7 +1508,7 @@ export const tSiteRollbackRequest = T.struct({
 })
 export type SiteRollbackRequest = T.TypeOf<typeof tSiteRollbackRequest>
 
-// The answer of `POST /api/sites/rollback` — the `site_doc` row after the swap, so
+// The answer of `POST /api/site/rollback` — the `site_doc` row after the swap, so
 // `publishedFileId` names the container put back in service and `previousFileId` the one
 // just displaced. `tSiteDoc` rather than a bespoke struct, for the reason above
 // `tSitePublishResult`: it is the row that changed.

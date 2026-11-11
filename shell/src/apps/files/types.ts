@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: MPL-2.0
 
-import type { ApiClient } from '@cloudillo/core'
+import type { ApiClient, FileVisibility } from '@cloudillo/core'
 
 export interface FileUserData {
 	accessedAt?: string
@@ -10,15 +10,15 @@ export interface FileUserData {
 	starred?: boolean
 }
 
-// File visibility levels: D=Direct (owner only), P=Public, V=Verified, 2=2nd degree, F=Followers, C=Connected
-export type FileVisibility = 'D' | 'P' | 'V' | '2' | 'F' | 'C' | null
+// File visibility words (wire vocabulary); 'direct' = owner only.
+export type { FileVisibility }
 
 export interface File {
-	/** Placement id: selection, row keys, rename/move/trash/star/tags/visibility/shares. */
-	entryId: string
+	/** Entry (placement) id: selection, row keys, rename/move/trash/star/tags/visibility/shares. */
+	id: string
 	/** Content id: resId, file URLs, variants, app open. `null` for local folders; the upstream
 	 *  folder id for a remote folder. */
-	fileId: string | null
+	contentId: string | null
 	fileName: string
 	/** The profile with owner authority. Falls back to the serving tenant, so effectively always
 	 *  present — NOT a cross-context signal, use `upstream` for that. */
@@ -33,7 +33,7 @@ export interface File {
 		name?: string
 		profilePic?: string
 	}
-	fileTp?: string
+	fileType?: string
 	/** Room the file was posted in (`name` or `@tenant~name`); absent = open floor. */
 	channel?: string
 	contentType: string
@@ -47,30 +47,31 @@ export interface File {
 	parentId?: string | null
 	/** See `FileAccessLevel` in ./utils — 'admin' is write plus share management.
 	 *  Compare with `canWrite()`, never `=== 'write'`. */
-	accessLevel?: 'read' | 'comment' | 'write' | 'admin' | 'none'
-	visibility?: FileVisibility
+	accessLevel?: 'read' | 'comment' | 'write' | 'admin' | 'none' | 'unknown'
+	/** `'unknown'`: a level newer than this client; never a request value. */
+	visibility?: FileVisibility | 'unknown'
 	parentName?: string
 	path?: { id: string; name: string }[]
 	brokenAt?: string
-	brokenReason?: 'revoked' | 'deleted' | 'unreachable'
-	status?: 'P' | 'A'
+	brokenReason?: 'revoked' | 'deleted' | 'unreachable' | 'unknown'
+	status?: 'active' | 'pending' | 'deleted' | 'unknown'
 }
 
 /** A file still being processed/transcoded has only a temporary `@<f_id>` id and a
- *  pending ('P') status; its variants 404 until FileIdGeneratorTask finalizes it.
+ *  'pending' status; its variants 404 until FileIdGeneratorTask finalizes it.
  *  Only stored blobs go through transcode/variant generation — folders and live
- *  docs (CRDT/RTDB) also start with a temp id / 'P' status but never need
+ *  docs (CRDT/RTDB) also start with a temp id / 'pending' status but never need
  *  processing, so they must not be treated as such. */
-export function isFileProcessing(file: Pick<File, 'fileId' | 'status' | 'fileTp'>): boolean {
-	if (file.fileTp && file.fileTp !== 'BLOB') return false
-	return !!file.fileId?.startsWith('@') || file.status === 'P'
+export function isFileProcessing(file: Pick<File, 'contentId' | 'status' | 'fileType'>): boolean {
+	if (file.fileType && file.fileType !== 'BLOB') return false
+	return !!file.contentId?.startsWith('@') || file.status === 'pending'
 }
 
 export interface FileView extends File {
 	actions: undefined
 }
 
-/** Every id here is an `entryId` — ops look up the row; content ids are read off it. */
+/** Every id here is an entry `id` — ops look up the row; content ids are read off it. */
 export interface FileOps {
 	setFile?: (file: File) => void
 	openFile: (entryId: string, access?: 'read' | 'comment' | 'write') => void

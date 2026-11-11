@@ -11,6 +11,7 @@ import {
 	liveEdgeConvAtom,
 	nowSeconds,
 	readPositionAtom,
+	secondsToIso,
 	unreadCountAtom
 } from '../../../read-position.js'
 import { useWsBus } from '../../../ws-bus.js'
@@ -92,7 +93,7 @@ export function useConversationUnread(conversations: Conversation[] | undefined)
 		return () => clearTimeout(timer)
 	}, [conversations, tick])
 
-	useWsBus({ cmds: ['ACTION'] }, function handleAction(m) {
+	useWsBus({ types: ['action'] }, function handleAction(m) {
 		const a = m.data as ActionView
 		if (a.type === 'CONV' && a.subType === 'UPD') {
 			if (conversations?.some((c) => c.id === a.subject)) reload()
@@ -187,7 +188,7 @@ export function useConversationUnread(conversations: Conversation[] | undefined)
 					c.id in readThrough
 						? {
 								...applyConvPatch(c, {
-									readAt: new Date(readThrough[c.id] * 1000).toISOString()
+									readAt: secondsToIso(readThrough[c.id])
 								}),
 								unreadCount: 0
 							}

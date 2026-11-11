@@ -290,7 +290,7 @@ export function CommunityMap() {
 	if (syncing) subtitle = t('Syncing…')
 	else if (map?.syncedAt) {
 		subtitle = t('Last synced {{time}}', {
-			time: new Date(map.syncedAt * 1000).toLocaleString()
+			time: new Date(map.syncedAt).toLocaleString()
 		})
 	} else if (map) subtitle = t('Never synced')
 

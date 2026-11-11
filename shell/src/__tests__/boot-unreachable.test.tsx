@@ -49,7 +49,9 @@ async function bootWithProbe(probe: () => Promise<unknown>) {
 	}))
 	jest.unstable_mockModule('@cloudillo/core', () => ({
 		createApiClient: () => ({
-			auth: { loginInit: async () => ({ status: 'anonymous' }) }
+			auth: {
+				loginInit: async () => ({ qr: { sessionId: 's', secret: 'x' }, passkeys: false })
+			}
 		}),
 		setApiToken: () => {},
 		isContextKey: (key: unknown) => typeof key === 'string',

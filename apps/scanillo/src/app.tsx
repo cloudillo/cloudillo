@@ -1021,10 +1021,10 @@ export function ScanilloApp() {
 
 		for (const entry of tempIdEntries) {
 			api.files
-				.list({ fileId: entry.tempId })
+				.list({ contentId: entry.tempId })
 				.then((files) => {
-					if (files.length > 0 && files[0].fileId !== entry.tempId) {
-						updatePage(entry.pageId, { [entry.field]: files[0].fileId }).catch(
+					if (files.length > 0 && files[0].contentId !== entry.tempId) {
+						updatePage(entry.pageId, { [entry.field]: files[0].contentId }).catch(
 							console.error
 						)
 					} else {
@@ -1295,7 +1295,7 @@ export function ScanilloApp() {
 					'image/jpeg',
 					{ rootId: scanillo.fileId }
 				)
-			).fileId
+			).contentId
 		}
 		const originalFileId = opts.existingOriginalFileId ?? entry.originalFileId!
 
@@ -1308,22 +1308,25 @@ export function ScanilloApp() {
 			// Legacy pages (no entryId) only know the content id: same content ⇒ nothing to delete
 			const oldEntryId =
 				oldPage?.entryId ??
-				(oldPage?.fileId !== uploaded.fileId ? oldPage?.fileId : undefined)
+				(oldPage?.fileId !== uploaded.contentId ? oldPage?.fileId : undefined)
 
 			await updatePage(opts.sourcePageId, {
-				fileId: uploaded.fileId,
-				entryId: uploaded.entryId,
+				fileId: uploaded.contentId,
+				entryId: uploaded.id,
 				originalFileId,
 				filter,
 				filterStrength,
 				rotation,
 				cropPoints,
-				...(uploaded.dim && { width: uploaded.dim[0], height: uploaded.dim[1] })
+				...(uploaded.extra?.dim && {
+					width: uploaded.extra.dim[0],
+					height: uploaded.extra.dim[1]
+				})
 			})
 			pageId = opts.sourcePageId
 
 			// Delete old edited variant (not the original)
-			if (oldEntryId && oldEntryId !== uploaded.entryId && scanillo.ownerTag) {
+			if (oldEntryId && oldEntryId !== uploaded.id && scanillo.ownerTag) {
 				const delApi = createApiClient({
 					idTag: scanillo.ownerTag,
 					authToken: scanillo.token
@@ -1332,12 +1335,12 @@ export function ScanilloApp() {
 			}
 		} else {
 			pageId = await addPage(
-				uploaded.fileId,
+				uploaded.contentId,
 				`scan-${Date.now()}.jpg`,
 				'image/jpeg',
-				uploaded.dim,
+				uploaded.extra?.dim,
 				{
-					entryId: uploaded.entryId,
+					entryId: uploaded.id,
 					originalFileId,
 					filter,
 					filterStrength,
@@ -1349,8 +1352,8 @@ export function ScanilloApp() {
 
 		// Register pending temp IDs for resolution
 		if (pageId) {
-			if (uploaded.fileId.startsWith('@')) {
-				pendingTempIds.current.set(uploaded.fileId, { pageId, field: 'fileId' })
+			if (uploaded.contentId.startsWith('@')) {
+				pendingTempIds.current.set(uploaded.contentId, { pageId, field: 'fileId' })
 			}
 			if (originalFileId.startsWith('@')) {
 				pendingTempIds.current.set(originalFileId, { pageId, field: 'originalFileId' })

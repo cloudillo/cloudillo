@@ -146,7 +146,7 @@ export function NewChatDialog({ onClose, onOpenDirect, onCreated, target }: NewC
 							...policy
 						}
 					})
-					convId = conv.actionId
+					convId = conv.id
 				} catch (err) {
 					if (!isForbidden(err)) throw err
 					setRefused(true)
@@ -157,11 +157,11 @@ export function NewChatDialog({ onClose, onOpenDirect, onCreated, target }: NewC
 			}
 			const conv = await api.actions.create({
 				type: 'CONV',
-				// 'O' = open (joinable without invitation); no flags keeps it invite-only.
-				flags: access === 'open' ? 'O' : undefined,
+				// open = joinable without invitation; closed keeps it invite-only.
+				flags: { reactions: true, comments: true, open: access === 'open' },
 				content: { name: groupName, description: description.trim() || undefined }
 			})
-			await invite(api, conv.actionId, groupName)
+			await invite(api, conv.id, groupName)
 		} catch (err) {
 			console.error('Failed to create group', err)
 			setError(true)

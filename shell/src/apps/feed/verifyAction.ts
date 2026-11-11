@@ -162,7 +162,7 @@ export function claimsMatch(token: string, expect: VerifyExpect): boolean {
 	return true
 }
 
-/** A home-node `POST /actions/verify` result: the signature checked there, the claims here on the
+/** A home-node `POST /action-verifications` result: the signature checked there, the claims here on the
  * same token bytes, and the server's issuer must be the token's. */
 export function homeVerified(
 	res: VerifyTokenResult | undefined,

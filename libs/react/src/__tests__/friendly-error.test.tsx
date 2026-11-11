@@ -60,10 +60,10 @@ describe('friendlyError', () => {
 		['E-FILE-QUOTA', QUOTA],
 		['E-RATE-LIMITED', RATE],
 		['E-RATE-BANNED', RATE],
-		['E-FILE-SRCUNREACH', REMOTE],
+		['E-FILE-SOURCEUNREACHABLE', REMOTE],
 		['E-NET-TIMEOUT', REMOTE],
-		['E-NET-ERROR', REMOTE],
-		['E-VAL-INVALID', INVALID]
+		['E-NET-UPSTREAM', REMOTE],
+		['E-CORE-INVALID', INVALID]
 	])('maps apiErrorCode %s before the status', (code, msg) => {
 		expect(friendlyError(t, fetchErr(400, code))).toBe(msg)
 	})
@@ -75,7 +75,6 @@ describe('friendlyError', () => {
 		[409, 'This was changed in the meantime. Reload and try again.'],
 		[413, 'This is too large to upload.'],
 		[429, RATE],
-		[507, QUOTA],
 		[500, 'Something went wrong on the server. Try again later.'],
 		[503, 'Something went wrong on the server. Try again later.'],
 		[418, GENERIC]
@@ -97,7 +96,7 @@ describe('friendlyError', () => {
 	})
 
 	it('never shows the backend descr', () => {
-		for (const status of [400, 401, 403, 404, 409, 413, 429, 500, 507]) {
+		for (const status of [400, 401, 403, 404, 409, 413, 429, 500]) {
 			expect(friendlyError(t, fetchErr(status))).not.toContain('SQL boom')
 		}
 		expect(friendlyError(t, fetchErr(400, 'E-SOMETHING-ELSE'))).not.toContain('SQL boom')

@@ -71,7 +71,7 @@ export function useRoomActions(
 			api.actions
 				.list({
 					type: 'SUBS',
-					issuer: me,
+					issuerIdTag: me,
 					subject: subjectsKey.split(',').map((name) => makeChannel(idTag, name))
 				})
 				.then((list) => {
@@ -79,7 +79,7 @@ export function useRoomActions(
 					setKnocked(
 						new Set(
 							list
-								.filter((a) => !a.subType && a.status !== 'D' && a.subject)
+								.filter((a) => !a.subType && a.status !== 'deleted' && a.subject)
 								.map((a) => a.subject as string)
 						)
 					)

@@ -64,7 +64,7 @@ describe('fromCommunity / fromPerson', () => {
 })
 
 describe('connIdsKey', () => {
-	const of = (...ids: string[]) => ids.map((actionId) => ({ actionId }) as ActionView)
+	const of = (...ids: string[]) => ids.map((actionId) => ({ id: actionId }) as ActionView)
 
 	it('ignores server order', () => {
 		expect(connIdsKey(of('b', 'a'))).toBe(connIdsKey(of('a', 'b')))

@@ -99,7 +99,7 @@ function renderHandoff(loginInit: React.ContextType<typeof LoginInitContext> = u
 	handOffMfa({ mfaToken: 't' })
 	return renderLogin(HANDOFF, loginInit)
 }
-const PASSKEYS = { qrLogin: { sessionId: 's', secret: 'x' }, webAuthn: true }
+const PASSKEYS = { qr: { sessionId: 's', secret: 'x' }, passkeys: true }
 
 /** Password step → code step */
 async function toCodeStep() {

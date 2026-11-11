@@ -31,12 +31,12 @@ export function DraftsPanel({ onEdit, onPublished }: DraftsPanelProps) {
 			try {
 				const result = await api.actions.listPaginated({
 					type: 'POST',
-					status: ['R', 'S']
+					status: ['draft', 'scheduled']
 				})
 				// Sort: scheduled first (by createdAt ascending), then drafts (by createdAt desc)
 				const sorted = result.data.sort((a, b) => {
-					const aScheduled = a.status === 'S'
-					const bScheduled = b.status === 'S'
+					const aScheduled = a.status === 'scheduled'
+					const bScheduled = b.status === 'scheduled'
 					if (aScheduled !== bScheduled) return aScheduled ? -1 : 1
 					if (aScheduled && bScheduled) {
 						// Both scheduled: sort by createdAt ascending (publish_at is stored in created_at)
@@ -63,16 +63,16 @@ export function DraftsPanel({ onEdit, onPublished }: DraftsPanelProps) {
 	}, [api, reloadKey])
 
 	function handleDeleted(actionId: string) {
-		setDrafts((prev) => prev.filter((d) => d.actionId !== actionId))
+		setDrafts((prev) => prev.filter((d) => d.id !== actionId))
 	}
 
 	function handlePublished(action: ActionView) {
-		setDrafts((prev) => prev.filter((d) => d.actionId !== action.actionId))
+		setDrafts((prev) => prev.filter((d) => d.id !== action.id))
 		onPublished(action)
 	}
 
 	function handleUnscheduled(action: ActionView) {
-		setDrafts((prev) => prev.map((d) => (d.actionId === action.actionId ? action : d)))
+		setDrafts((prev) => prev.map((d) => (d.id === action.id ? action : d)))
 	}
 
 	if (isLoading) {
@@ -102,7 +102,7 @@ export function DraftsPanel({ onEdit, onPublished }: DraftsPanelProps) {
 		<VBox gap={1}>
 			{drafts.map((draft) => (
 				<DraftCard
-					key={draft.actionId}
+					key={draft.id}
 					draft={draft}
 					onEdit={onEdit}
 					onPublished={handlePublished}

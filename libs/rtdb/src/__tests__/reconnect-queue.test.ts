@@ -64,7 +64,7 @@ function txIds(socket: MockWebSocket): unknown[] {
 }
 
 function answer(socket: MockWebSocket, id: unknown): void {
-	socket.simulateMessage({ id, type: 'transactionResult', results: [] })
+	socket.simulateMessage({ id, type: 'transactionResult', data: { results: [] } })
 }
 
 /** Observe a promise without awaiting it. */

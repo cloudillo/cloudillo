@@ -28,6 +28,7 @@ import {
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { fileVisibilityFromChar } from '../../apps/files/utils.js'
 import { useApiContext } from '../../context/index.js'
 import type { MediaPickerResult } from '../../context/media-picker-atom.js'
 import { type Aspect, ImageUpload } from '../../image.js'
@@ -174,16 +175,18 @@ export function MediaPickerUploadTab({
 					signal: abortController.signal
 				})
 
-				if (result?.fileId) {
+				if (result?.contentId) {
 					// Apply visibility setting to the uploaded file
-					await api.files.update(result.entryId, { visibility })
+					await api.files.update(result.id, {
+						visibility: fileVisibilityFromChar(visibility)
+					})
 
 					setUploadState('complete')
 					onUploadComplete({
-						fileId: result.fileId,
+						fileId: result.contentId,
 						fileName: name,
 						contentType: contentType,
-						dim: result.dim,
+						dim: result.extra?.dim,
 						visibility: visibility
 					})
 				} else {

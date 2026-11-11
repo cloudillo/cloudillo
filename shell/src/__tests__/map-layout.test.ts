@@ -20,7 +20,7 @@ function map(communities: string[], edges: [string, string][]): PartnerMap {
 		communities: communities.map(c),
 		partners: partners.map(c),
 		edges: edges.map(([community, partner]) => ({ community, partner })),
-		syncedAt: 1,
+		syncedAt: 'T1',
 		syncing: false
 	}
 }
@@ -151,16 +151,16 @@ describe('partnersByCommunity', () => {
 
 describe('keepPolling', () => {
 	it('keeps polling while syncing', () => {
-		expect(keepPolling({ syncing: true, syncedAt: 1 }, 1, 5)).toBe(true)
+		expect(keepPolling({ syncing: true, syncedAt: 'T1' }, 'T1', 5)).toBe(true)
 	})
 
 	it('stops once syncedAt moved and the sync is done', () => {
-		expect(keepPolling({ syncing: false, syncedAt: 2 }, 1, 1)).toBe(false)
+		expect(keepPolling({ syncing: false, syncedAt: 'T2' }, 'T1', 1)).toBe(false)
 	})
 
 	it('keeps polling an unchanged syncedAt until MAX_REFETCHES', () => {
-		expect(keepPolling({ syncing: false, syncedAt: 1 }, 1, 3)).toBe(true)
-		expect(keepPolling({ syncing: false, syncedAt: 1 }, 1, MAX_REFETCHES)).toBe(false)
+		expect(keepPolling({ syncing: false, syncedAt: 'T1' }, 'T1', 3)).toBe(true)
+		expect(keepPolling({ syncing: false, syncedAt: 'T1' }, 'T1', MAX_REFETCHES)).toBe(false)
 	})
 
 	it('treats an undefined baseline as a never-synced null', () => {
@@ -172,7 +172,7 @@ describe('keepPolling', () => {
 	})
 
 	it('stops at MAX_REFETCHES even while syncing', () => {
-		expect(keepPolling({ syncing: true, syncedAt: 1 }, 1, MAX_REFETCHES)).toBe(false)
+		expect(keepPolling({ syncing: true, syncedAt: 'T1' }, 'T1', MAX_REFETCHES)).toBe(false)
 	})
 })
 

@@ -20,7 +20,7 @@ export interface UsePendingInvites {
 }
 
 // Incoming group invitations where the current user is the invitee (INVT
-// status 'C', audience = me), with the CONV embedded (`subjectAction`) when known.
+// status 'confirmation', audience = me), with the CONV embedded (`subjectAction`) when known.
 export function usePendingInvites(): UsePendingInvites {
 	const { api } = useApi()
 	const [auth] = useAuth()
@@ -38,9 +38,9 @@ export function usePendingInvites(): UsePendingInvites {
 					// the audience filter replaces the former client-side pass.
 					const invites = await api.actions.list({
 						type: 'INVT',
-						status: 'C', // Only pending confirmations
-						audience: auth.idTag,
-						includeSubject: true
+						status: 'confirmation', // Only pending confirmations
+						audienceIdTag: auth.idTag,
+						include: ['subject']
 					})
 					if (ac.signal.aborted) return
 					setPendingInvites(invites as ActionView[])
@@ -61,17 +61,17 @@ export function usePendingInvites(): UsePendingInvites {
 	// Live incoming invites: the initial load fires once per (auth, api), so mirror
 	// useConversationUnread's WS pattern to surface a freshly received INVT without a
 	// remount/reload. Low-frequency → no debounce; deduped by actionId.
-	useWsBus({ cmds: ['ACTION'] }, function handleInvite(m) {
+	useWsBus({ types: ['action'] }, function handleInvite(m) {
 		const a = m.data as ActionView
 		if (
 			a.type !== 'INVT' ||
 			a.subType === 'DEL' ||
-			a.status !== 'C' ||
+			a.status !== 'confirmation' ||
 			a.audience?.idTag !== auth?.idTag
 		)
 			return
 		setPendingInvites((prev) => {
-			if (prev?.some((i) => i.actionId === a.actionId)) return prev
+			if (prev?.some((i) => i.id === a.id)) return prev
 			return [a, ...(prev ?? [])]
 		})
 	})
@@ -79,8 +79,8 @@ export function usePendingInvites(): UsePendingInvites {
 	const acceptInvite = React.useCallback(
 		async function acceptInvite(invite: ActionView): Promise<string | undefined> {
 			if (!api || !auth) return undefined
-			await api.actions.accept(invite.actionId)
-			setPendingInvites((prev) => prev?.filter((i) => i.actionId !== invite.actionId))
+			await api.actions.accept(invite.id)
+			setPendingInvites((prev) => prev?.filter((i) => i.id !== invite.id))
 			return invite.subject
 		},
 		[api, auth]
@@ -89,8 +89,8 @@ export function usePendingInvites(): UsePendingInvites {
 	const rejectInvite = React.useCallback(
 		async function rejectInvite(invite: ActionView): Promise<void> {
 			if (!api) return
-			await api.actions.reject(invite.actionId)
-			setPendingInvites((prev) => prev?.filter((i) => i.actionId !== invite.actionId))
+			await api.actions.reject(invite.id)
+			setPendingInvites((prev) => prev?.filter((i) => i.id !== invite.id))
 		},
 		[api]
 	)

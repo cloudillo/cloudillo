@@ -113,7 +113,7 @@ export function PartnerCommunities({
  */
 // `/me/full` partners honour `partners_public`, so a community hiding them shows
 // members an empty list. Upgrade: `getClientFor(idTag).profiles.list({ type: 'community',
-// connected: true })` once the backend lets members read it.
+// connection: 'connected' })` once the backend lets members read it.
 export function PartnerCommunityPage() {
 	const { t } = useTranslation()
 	const { api } = useApi()

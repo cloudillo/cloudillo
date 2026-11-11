@@ -385,7 +385,7 @@ function storedBlock(
 }
 
 /** Everything private, which is the case the gate exists to catch. */
-const allPrivate = async () => ({ visibility: 'C' as const, fileName: 'secret' })
+const allPrivate = async () => ({ visibility: 'connected' as const, fileName: 'secret' })
 
 describe('buildPublishReport — references the gate has to see', () => {
 	it('should collect an embedded document', async () => {
@@ -435,7 +435,7 @@ describe('buildPublishReport — references the gate has to see', () => {
 		const client = fakeClientWithBlocks([page('p1', { ti: 'About', image: 'f-img' })], [])
 		const report = await buildPublishReport({
 			client,
-			fetchFileInfo: async () => ({ visibility: 'P' as const })
+			fetchFileInfo: async () => ({ visibility: 'public' as const })
 		})
 
 		expect(report.refs).toHaveLength(1)

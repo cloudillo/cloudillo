@@ -57,7 +57,7 @@ export function InvitationsList({
 			const rs = (await client.actions.list({
 				type: 'INVT',
 				subject: '@' + communityIdTag,
-				status: ['C', 'P', 'A']
+				status: ['confirmation', 'pending', 'active']
 			})) as ActionView[]
 			const pending = rs.filter(
 				(a) => !(a.audience?.idTag && connectedMemberTags.has(a.audience.idTag))
@@ -83,11 +83,11 @@ export function InvitationsList({
 		if (!confirmed) return
 		const client = getClientFor(communityIdTag, { explicit: true })
 		if (!client) return
-		setBusyId(action.actionId)
+		setBusyId(action.id)
 		try {
-			await client.actions.delete(action.actionId)
+			await client.actions.delete(action.id)
 			toast.success(t('Invitation revoked'))
-			setInvitations((prev) => prev?.filter((r) => r.actionId !== action.actionId))
+			setInvitations((prev) => prev?.filter((r) => r.id !== action.id))
 			onChange()
 		} catch (err) {
 			console.error('Failed to revoke invitation', err)
@@ -105,11 +105,11 @@ export function InvitationsList({
 	return (
 		<List variant="divided" aria-label={t('Invitations')}>
 			{invitations.map((action) => {
-				const busy = busyId === action.actionId
+				const busy = busyId === action.id
 				const invitee = action.audience
 				return (
 					<ListItem
-						key={action.actionId}
+						key={action.id}
 						leading={invitee && <ProfilePicture profile={invitee} />}
 						title={invitee ? invitee.name || invitee.idTag : t('(unknown)')}
 						subtitle={

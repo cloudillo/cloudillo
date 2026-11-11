@@ -95,7 +95,7 @@ export interface BuildContainerOptions {
 	 */
 	fetchDescriptor?: (fileId: string) => Promise<string | undefined>
 	/**
-	 * Resolves idTags to their public profiles, i.e. `GET /profiles/batch` — the one
+	 * Resolves idTags to their public profiles, i.e. `GET /profile-lookups` — the one
 	 * `/profiles/*` route a file-scoped token may call. Omitted, every byline still
 	 * publishes, showing the idTag and no avatar.
 	 */

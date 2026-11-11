@@ -12,12 +12,6 @@ describe('isLiveInvite', () => {
 		expect(isLiveInvite(undefined, NOW)).toBe(true)
 	})
 
-	it('reads a number as Unix seconds', () => {
-		expect(isLiveInvite(NOW / 1000 + 60, NOW)).toBe(true)
-		expect(isLiveInvite(NOW / 1000 - 60, NOW)).toBe(false)
-		expect(isLiveInvite(NOW / 1000, NOW)).toBe(false)
-	})
-
 	it('reads a string as an ISO date', () => {
 		expect(isLiveInvite('2026-06-02T00:00:00Z', NOW)).toBe(true)
 		expect(isLiveInvite('2026-05-31T00:00:00Z', NOW)).toBe(false)

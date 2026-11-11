@@ -177,11 +177,18 @@ export async function loadSiteFragment(pathname: string): Promise<SiteFragment> 
  * breadcrumbs and provenance but no nav row is a strict improvement on no bar.
  */
 function readSiteContext(res: Response): SiteBootSeed | undefined {
-	const mountPath = res.headers.get('X-Cloudillo-Site-Mount')
-	const idTag = res.headers.get('X-Cloudillo-Site-Owner')
+	const mountPath = res.headers.get('Cloudillo-Site-Mount')
+	const idTag = res.headers.get('Cloudillo-Site-Owner')
 	if (!mountPath || !idTag) return undefined
+	// The name is percent-encoded UTF-8 (headers are ASCII); a malformed one shows no name.
+	let name = ''
+	try {
+		name = decodeURIComponent(res.headers.get('Cloudillo-Site-Owner-Name') || '')
+	} catch {
+		name = ''
+	}
 	return {
-		owner: { idTag, name: res.headers.get('X-Cloudillo-Site-Owner-Name') || '' },
+		owner: { idTag, name },
 		site: { host: window.location.host, mountPath, docFileId: '' },
 		nav: []
 	}

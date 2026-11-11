@@ -83,16 +83,16 @@ export const ItemCard = React.memo(function ItemCard({
 	const [appConfig] = useAppConfig()
 	const toast = useToast()
 
-	const isFolder = file.fileTp === 'FLDR'
+	const isFolder = file.fileType === 'FLDR'
 	const isInTrash = viewMode === 'trash' || file.parentId === TRASH_FOLDER_ID
 	const isManagedView = viewMode === 'managed' || file.parentId === MANAGED_FOLDER_ID
-	const isRenaming = renameFileName !== undefined && file.entryId === renameFileId
+	const isRenaming = renameFileName !== undefined && file.id === renameFileId
 
 	function handleDoubleClick(_evt: React.MouseEvent) {
 		if (isFolder) {
 			onDoubleClick?.(file)
 		} else {
-			fileOps.openFile(file.entryId, toAppAccess(file.accessLevel))
+			fileOps.openFile(file.id, toAppAccess(file.accessLevel))
 		}
 	}
 
@@ -118,7 +118,7 @@ export const ItemCard = React.memo(function ItemCard({
 		longPressTriggered.current = false
 		longPressTimer.current = window.setTimeout(() => {
 			longPressTriggered.current = true
-			fileOps.openFile(file.entryId, 'read')
+			fileOps.openFile(file.id, 'read')
 		}, 500)
 	}
 
@@ -135,8 +135,8 @@ export const ItemCard = React.memo(function ItemCard({
 			return
 		}
 		const idTag = contextIdTag ?? auth?.idTag
-		if (idTag && file.fileId)
-			triggerFileDownload(idTag, file.fileId, file.fileName, () =>
+		if (idTag && file.contentId)
+			triggerFileDownload(idTag, file.contentId, file.fileName, () =>
 				toast.error(t('Download failed. Please try again.'))
 			)
 	}
@@ -153,13 +153,13 @@ export const ItemCard = React.memo(function ItemCard({
 		} else if (downloadOnly) {
 			downloadFile()
 		} else {
-			fileOps.openFile(file.entryId, toAppAccess(file.accessLevel))
+			fileOps.openFile(file.id, toAppAccess(file.accessLevel))
 		}
 	}
 
 	const isPinned = file.userData?.pinned ?? false
 	const isStarred = file.userData?.starred ?? false
-	const isLive = file.fileTp === 'CRDT' || file.fileTp === 'RTDB'
+	const isLive = file.fileType === 'CRDT' || file.fileType === 'RTDB'
 	// Download-only: a stored blob with no registered viewer for its content type.
 	// These get a download icon/action instead of the misleading "view" eye.
 	const hasAppHandler = !!appConfig?.mime[file.contentType]
@@ -169,7 +169,7 @@ export const ItemCard = React.memo(function ItemCard({
 		file.accessLevel !== 'none' &&
 		!hasAppHandler &&
 		!isViewerSupported(file.contentType) &&
-		(!file.fileTp || file.fileTp === 'BLOB')
+		(!file.fileType || file.fileType === 'BLOB')
 	const smartTimestamp = getSmartTimestamp(file)
 	const isProcessing = isFileProcessing(file)
 	const isBroken = !!file.brokenAt
@@ -185,10 +185,10 @@ export const ItemCard = React.memo(function ItemCard({
 
 	function handleStarClick(evt: React.MouseEvent) {
 		evt.stopPropagation()
-		fileOps.toggleStarred?.(file.entryId)
+		fileOps.toggleStarred?.(file.id)
 	}
 
-	const isDirect = !file.visibility || file.visibility === 'D'
+	const isDirect = !file.visibility || file.visibility === 'direct'
 	// Prefer the upstream node — on a mirrored (pinned/placed) row it is the
 	// meaningful "from where" signal, and it is never the active context.
 	// Otherwise attribute to the owner.
@@ -201,7 +201,7 @@ export const ItemCard = React.memo(function ItemCard({
 			className={className}
 			size="sm"
 			selected={selected}
-			data-file-id={file.entryId}
+			data-file-id={file.id}
 			data-source-context={contextIdTag ?? undefined}
 			onClick={
 				isRenaming
@@ -227,7 +227,7 @@ export const ItemCard = React.memo(function ItemCard({
 						}
 					>
 						<FileTypeIcon
-							contentType={iconContentType(file.contentType, file.fileTp)}
+							contentType={iconContentType(file.contentType, file.fileType)}
 							size="md"
 						/>
 					</BadgeAnchor>
@@ -237,7 +237,7 @@ export const ItemCard = React.memo(function ItemCard({
 				isRenaming ? (
 					<InlineEditForm
 						value={renameFileName}
-						onSave={(newName) => fileOps.doRenameFile(file.entryId, newName)}
+						onSave={(newName) => fileOps.doRenameFile(file.id, newName)}
 						onCancel={() => fileOps.renameFile(undefined)}
 						size="small"
 					/>
@@ -270,8 +270,8 @@ export const ItemCard = React.memo(function ItemCard({
 						{/* Direct is the default, so only a wider visibility earns an icon */}
 						{!isDirect && (
 							<Icon
-								as={getVisibilityIcon(file.visibility ?? null)}
-								label={getVisibilityLabel(t, file.visibility ?? null)}
+								as={getVisibilityIcon(file.visibility ?? 'unknown')}
+								label={getVisibilityLabel(t, file.visibility ?? 'unknown')}
 							/>
 						)}
 					</HBox>

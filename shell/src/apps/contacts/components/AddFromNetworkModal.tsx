@@ -27,8 +27,8 @@ export interface AddFromNetworkModalProps {
 	open: boolean
 	onClose: () => void
 	addressBooks: AddressBookOutput[]
-	defaultAddressBookId?: number
-	onAdd: (abId: number, data: ContactInput) => Promise<void>
+	defaultAddressBookId?: string
+	onAdd: (abId: string, data: ContactInput) => Promise<void>
 }
 
 export function AddFromNetworkModal({
@@ -43,7 +43,7 @@ export function AddFromNetworkModal({
 	const [query, setQuery] = React.useState('')
 	const [results, setResults] = React.useState<Profile[]>([])
 	const [searching, setSearching] = React.useState(false)
-	const [abId, setAbId] = React.useState<number | undefined>(defaultAddressBookId)
+	const [abId, setAbId] = React.useState<string | undefined>(defaultAddressBookId)
 	const [submitting, setSubmitting] = React.useState<string | undefined>()
 	const [error, setError] = React.useState<string | undefined>()
 
@@ -54,7 +54,7 @@ export function AddFromNetworkModal({
 	React.useEffect(() => {
 		if (!open) return
 		const { defaultAddressBookId: defId, addressBooks: books } = openResetRef.current
-		setAbId(defId ?? books[0]?.abId)
+		setAbId(defId ?? books[0]?.id)
 		setQuery('')
 		setResults([])
 		setError(undefined)
@@ -126,12 +126,9 @@ export function AddFromNetworkModal({
 				)}
 
 				<Field label={t('Address book')}>
-					<NativeSelect
-						value={abId ?? ''}
-						onChange={(e) => setAbId(Number(e.target.value))}
-					>
+					<NativeSelect value={abId ?? ''} onChange={(e) => setAbId(e.target.value)}>
 						{addressBooks.map((book) => (
-							<option key={book.abId} value={book.abId}>
+							<option key={book.id} value={book.id}>
 								{book.name}
 							</option>
 						))}

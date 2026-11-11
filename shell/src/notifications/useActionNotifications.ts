@@ -214,13 +214,13 @@ export function useActionNotifications() {
 		[t, playSound, toast, location.pathname, auth?.idTag]
 	)
 
-	useWsBus({ cmds: ['ACTION'] }, (msg) => {
+	useWsBus({ types: ['action'] }, (msg) => {
 		// Stay silent during onboarding: invites/connections are handled inline
 		// in the wizard, so a toast or sound here only distracts the new user.
 		if (location.pathname.startsWith('/onboarding/')) return
 		const action = msg.data as ActionView
 		// Play sounds for active notifications (not drafts or deleted)
-		if (!action.status || ['N', 'C', 'A'].includes(action.status)) {
+		if (!action.status || ['notification', 'confirmation', 'active'].includes(action.status)) {
 			notify(action)
 		}
 	})

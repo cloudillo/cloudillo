@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: MPL-2.0
 
-import type { TenantView } from '@cloudillo/core'
+import { fetchAll, type TenantView } from '@cloudillo/core'
 import {
 	Alert,
 	Button,
@@ -26,7 +26,7 @@ import { HOME_BASE, settingsPath, siteAdminPath } from '../routes.js'
 import { useSettings } from '../settings/settings.js'
 
 interface Ref {
-	refId: string
+	id: string
 	type: string
 	description?: string
 	createdAt: Date
@@ -56,7 +56,7 @@ export function AdminOverview() {
 				setLoading(true)
 				try {
 					const [tenantsRes, refsRes] = await Promise.all([
-						api!.admin.listTenants(),
+						fetchAll((cursor) => api!.admin.listTenants({ cursor })),
 						api!.refs.list({ type: 'register' })
 					])
 					setTenants(tenantsRes || [])

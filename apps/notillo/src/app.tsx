@@ -718,7 +718,7 @@ export function NotilloApp() {
 	// reserved slugs apply and is shown in the dialog, so the gate resolves it
 	// once and both consumers read the same answer.
 	const [publishMountPath, setPublishMountPath] = React.useState<string | undefined>()
-	// Whether the site serves this document at all. `POST /api/sites/publish`
+	// Whether the site serves this document at all. `POST /api/site/publish`
 	// refuses a document with no mount row, and the mount table is site settings —
 	// there is no way to add one from here. Learning that after a full
 	// build and upload is the worst moment to learn it, so the action is simply
@@ -860,11 +860,11 @@ export function NotilloApp() {
 					...(homePageId !== undefined && { homePageId }),
 					fetchFileInfo: async (fileId) => {
 						const file = await api.files.getMetadata(fileId)
-						// `null` and absent both mean "not public" to the gate.
+						// `null`, absent and a newer node's `'unknown'` all mean "not public" to the gate.
 						return {
-							visibility: file.visibility ?? undefined,
+							visibility: file.visibility === 'unknown' ? undefined : file.visibility,
 							fileName: file.fileName,
-							entryId: file.entryId
+							entryId: file.id
 						}
 					}
 				})
@@ -901,7 +901,7 @@ export function NotilloApp() {
 			// The placement readers resolve; a content id may name several
 			if (!ref.entryId) return
 			try {
-				await siteApi().files.update(ref.entryId, { visibility: 'P' })
+				await siteApi().files.update(ref.entryId, { visibility: 'public' })
 			} catch (err) {
 				console.error('[Notillo] Could not make the file public:', err)
 				toastError(t('Could not make that file public.'))

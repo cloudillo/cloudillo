@@ -17,9 +17,9 @@ const STORE = 'actions'
  */
 function extractActionIndexFields(a: ActionView): Record<string, unknown> {
 	return {
-		actionId: a.actionId,
+		actionId: a.id,
 		type: a.type,
-		status: a.status ?? 'A',
+		status: a.status ?? 'active',
 		audienceTag: a.audience?.idTag ?? '',
 		createdAt: typeof a.createdAt === 'string' ? a.createdAt : String(a.createdAt)
 	}
@@ -34,7 +34,7 @@ export async function cacheActions(contextIdTag: string, actions: ActionView[]):
 		actions.map((a) => ({
 			indexFields: { ...extractActionIndexFields(a), contextIdTag },
 			payload: a,
-			cacheKey: `${contextIdTag}:${a.actionId}`
+			cacheKey: `${contextIdTag}:${a.id}`
 		}))
 	)
 }

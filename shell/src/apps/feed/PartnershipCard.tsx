@@ -17,7 +17,7 @@ export interface PartnershipCardProps {
 }
 
 /** The partner (B) of a PTNR action, falling back to the bare idTag. */
-function partnerOf(action: ActionView) {
+function partnerOf(action: ActionView): { idTag: string; name?: string; profilePic?: string } {
 	return action.subjectProfile ?? { idTag: (action.subject ?? '').replace(/^@/, '') }
 }
 

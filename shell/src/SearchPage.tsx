@@ -41,7 +41,6 @@ import {
 	FTS_DEBOUNCE_MS,
 	FTS_GUEST_TYPES,
 	FTS_MAX_LIMIT,
-	FTS_MAX_OFFSET,
 	FTS_MAX_QUERY,
 	FTS_PAGE_SIZE,
 	FTS_TYPES
@@ -135,32 +134,21 @@ export function SearchPage() {
 	const fetchPage = React.useCallback(
 		async (cursor: string | null, limit: number, signal?: AbortSignal) => {
 			const epoch = totalEpoch.current
-			if (!api || !q) return { items: [] as SearchHit[], nextCursor: null, hasMore: false }
-			const offset = cursor ? Number(cursor) : 0
-			if (offset > FTS_MAX_OFFSET) {
-				return { items: [] as SearchHit[], nextCursor: null, hasMore: false }
-			}
+			if (!api || !q) return { items: [] as SearchHit[] }
 			const res = await api.search.queryPaginated(
 				{
 					q,
 					// Never `''` — the query serialiser keeps empty strings, and an
-					// empty `type` means "match nothing" to the server.
-					type: type || undefined,
+					// empty `kind` means "match nothing" to the server.
+					kind: type || undefined,
 					limit: Math.min(limit, FTS_MAX_LIMIT),
-					offset
+					cursor: cursor ?? undefined
 				},
 				{ signal }
 			)
-			const next = offset + res.data.length
-			if (offset === 0 && epoch === totalEpoch.current) setTotal(res.pagination?.total)
-			return {
-				items: res.data,
-				nextCursor: String(next),
-				hasMore:
-					res.data.length > 0 &&
-					next < (res.pagination?.total ?? next) &&
-					next <= FTS_MAX_OFFSET
-			}
+			// `total` comes only on the first page; the server stops `next` at its offset cap
+			if (!cursor && epoch === totalEpoch.current) setTotal(res.meta.total)
+			return { items: res.data, next: res.meta.next }
 		},
 		[api, q, type]
 	)
@@ -279,7 +267,7 @@ export function SearchPage() {
 							if (!target) return null
 							return (
 								<SearchResultRow
-									key={`${hit.objTp}:${hit.objId}:${hit.partId ?? ''}`}
+									key={`${hit.kind}:${hit.objId}:${hit.partId ?? ''}`}
 									hit={hit}
 									contextIdTag={contextIdTag}
 									href={target}

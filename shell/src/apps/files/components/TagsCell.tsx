@@ -28,7 +28,7 @@ export const TagsCell = React.memo(function TagsCell({
 	async function listTags(prefix: string) {
 		if (!api) return
 		const res = await api.tags.list({ prefix })
-		return res?.tags
+		return res
 	}
 
 	async function addTag(tag: string) {

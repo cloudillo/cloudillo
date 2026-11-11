@@ -101,7 +101,7 @@ export interface FileOwnerScopeOverride {
  * just the client: the api and the standing that gates it are decided together or not at all.
  */
 export function useFileOwnerScope(
-	file: ScopedFile & Pick<File, 'entryId' | 'fileId'>,
+	file: ScopedFile & Pick<File, 'id' | 'contentId'>,
 	override?: FileOwnerScopeOverride
 ): FileOwnerScope {
 	const { getTokenFor, getClientFor } = useApiContext()
@@ -203,7 +203,7 @@ export function useFileOwnerScope(
 			api,
 			isCrossOwner: derived.isCrossOwner,
 			upstreamIdTag: derived.upstreamIdTag,
-			scopedId: derived.isCrossOwner ? (file.fileId ?? undefined) : file.entryId,
+			scopedId: derived.isCrossOwner ? (file.contentId ?? undefined) : file.id,
 			scopeIdTag: derived.scopeIdTag,
 			profileSrcTag: derived.profileSrcTag,
 			scopeRoles: derived.scopeRoles,
@@ -214,7 +214,7 @@ export function useFileOwnerScope(
 			canManageFile: derived.canManageFile,
 			resolving: derived.resolving
 		}
-	}, [derived, override, ownerState.api, contextApi, file.fileId, file.entryId])
+	}, [derived, override, ownerState.api, contextApi, file.contentId, file.id])
 }
 
 // vim: ts=4

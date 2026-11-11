@@ -156,7 +156,7 @@ export function initMediaHandlers(bus: ShellMessageBus): void {
 					console.log('[Media] Media picker result:', result)
 
 					// Register pending temp ID if it's a temporary ID (starts with @)
-					// This enables resolution when FILE_ID_GENERATED event arrives
+					// This enables resolution when fileIdGenerated event arrives
 					if (result.fileId.startsWith('@')) {
 						registerPendingTempId(result.fileId, appWindow)
 					}

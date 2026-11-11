@@ -12,9 +12,16 @@ import type { TFunction } from 'i18next'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
-export type Visibility = 'P' | 'C' | 'F'
+import { busVisibility, fileVisibilityFromChar } from '../files/utils.js'
 
+export type Visibility = 'public' | 'connected' | 'followers'
+
+// `VisibilitySelect` speaks the profile-section chars; posts speak words.
 const FEED_VISIBILITY: VisibilityCode[] = ['F', 'C', 'P']
+
+function isPostVisibility(v: string): v is Visibility {
+	return v === 'public' || v === 'connected' || v === 'followers'
+}
 
 interface VisibilityOption {
 	value: Visibility
@@ -24,9 +31,9 @@ interface VisibilityOption {
 }
 
 export const getVisibilityOptions = (t: TFunction): VisibilityOption[] => [
-	{ value: 'F', label: t('Followers'), icon: IcFollowers, color: 'var(--col-primary)' },
-	{ value: 'C', label: t('Connected'), icon: IcConnection, color: 'var(--col-warning)' },
-	{ value: 'P', label: t('Public'), icon: IcPublic, color: 'var(--col-success)' }
+	{ value: 'followers', label: t('Followers'), icon: IcFollowers, color: 'var(--col-primary)' },
+	{ value: 'connected', label: t('Connected'), icon: IcConnection, color: 'var(--col-warning)' },
+	{ value: 'public', label: t('Public'), icon: IcPublic, color: 'var(--col-success)' }
 ]
 
 export function getVisibilityMeta(
@@ -37,20 +44,20 @@ export function getVisibilityMeta(
 	return getVisibilityOptions(t).find((o) => o.value === visibility)
 }
 
-/** Who will see a post, relative to its owner (P/F/C is evaluated against the post's owner). */
+/** Who will see a post, relative to its owner (public/followers/connected is evaluated against the post's owner). */
 export function postAudienceSummary(
 	t: TFunction,
 	target: { kind: 'me' | 'community'; name?: string; idTag: string },
 	visibility: Visibility
 ): string {
-	if (visibility === 'P') return t('Visible to anyone')
+	if (visibility === 'public') return t('Visible to anyone')
 	if (target.kind === 'me') {
-		return visibility === 'F'
+		return visibility === 'followers'
 			? t('Visible to your followers')
 			: t('Visible to your connections')
 	}
 	const name = target.name || target.idTag
-	return visibility === 'F'
+	return visibility === 'followers'
 		? t('Visible to followers of {{name}}', { name })
 		: t('Visible to members of {{name}}', { name })
 }
@@ -68,8 +75,11 @@ export const VisibilitySelector = React.memo(function VisibilitySelector({
 	const { t } = useTranslation()
 	return (
 		<VisibilitySelect
-			value={value}
-			onChange={(v) => onChange(v as Visibility)}
+			value={busVisibility(value) as VisibilityCode}
+			onChange={(v) => {
+				const w = fileVisibilityFromChar(v)
+				if (isPostVisibility(w)) onChange(w)
+			}}
 			options={FEED_VISIBILITY}
 			aria-label={t('Visibility')}
 		/>

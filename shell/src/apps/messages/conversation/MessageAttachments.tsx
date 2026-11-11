@@ -48,13 +48,13 @@ export function MessageAttachments({ attachments, subType, idTag }: MessageAttac
 	// MediaViewer takes a FileView, which the attachment doesn't carry: look it up.
 	function openImage(att: Attachment) {
 		api?.files
-			.getMetadata(att.fileId)
+			.getMetadata(att.contentId)
 			.then(setViewer)
 			.catch((err) => {
 				console.error('Failed to open image', err)
 				const url = getFileUrl(
 					serving,
-					att.fileId,
+					att.contentId,
 					getOptimalImageVariant('fullscreen', att.localVariants)
 				)
 				if (url) window.open(url, '_blank', 'noopener')
@@ -72,7 +72,7 @@ export function MessageAttachments({ attachments, subType, idTag }: MessageAttac
 		return (
 			<VBox gap={1} className="mb-1">
 				{attachments.map((att) => (
-					<FileCard key={att.fileId} att={att} idTag={serving} onOpen={setViewer} />
+					<FileCard key={att.contentId} att={att} idTag={serving} onOpen={setViewer} />
 				))}
 				{viewerNode}
 			</VBox>
@@ -91,14 +91,14 @@ export function MessageAttachments({ attachments, subType, idTag }: MessageAttac
 				{shown.map((att, i) => {
 					const tile = (
 						<Image
-							key={att.fileId}
+							key={att.contentId}
 							role="button"
 							tabIndex={0}
 							alt={t('Image {{n}}', { n: i + 1 })}
 							className="cursor-pointer"
 							src={getFileUrl(
 								serving,
-								att.fileId,
+								att.contentId,
 								getOptimalImageVariant('preview', att.localVariants)
 							)}
 							style={
@@ -117,7 +117,7 @@ export function MessageAttachments({ attachments, subType, idTag }: MessageAttac
 					)
 					return i === MAX_TILES - 1 && more > 0 ? (
 						<BadgeAnchor
-							key={att.fileId}
+							key={att.contentId}
 							position="bottom-end"
 							badge={<Badge size="lg">{`+${more}`}</Badge>}
 						>
@@ -147,7 +147,7 @@ export function useAttachmentFile(
 		if (!api) return
 		let cancelled = false
 		api.files
-			.getMetadata(att.fileId)
+			.getMetadata(att.contentId)
 			.then((m) => {
 				if (!cancelled) setMeta(m)
 			})
@@ -155,10 +155,10 @@ export function useAttachmentFile(
 		return () => {
 			cancelled = true
 		}
-	}, [api, att.fileId])
+	}, [api, att.contentId])
 
 	const name = meta?.fileName ?? t('Attachment')
-	const download = () => triggerFileDownload(idTag, att.fileId, name)
+	const download = () => triggerFileDownload(idTag, att.contentId, name)
 	const open = () => (meta && isViewerSupported(meta.contentType) ? onOpen(meta) : download())
 	return { meta, name, download, open }
 }
@@ -186,7 +186,7 @@ function FileCard({
 				previewVariants(att)
 					? getFileUrl(
 							idTag,
-							att.fileId,
+							att.contentId,
 							getOptimalImageVariant('preview', att.localVariants)
 						)
 					: undefined

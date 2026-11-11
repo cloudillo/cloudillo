@@ -45,8 +45,8 @@ export class MockWebSocket {
 	onerror: ((event: Event) => void) | null = null
 	onmessage: ((event: MessageEvent) => void) | null = null
 
-	/** Every frame the manager sent, already JSON-parsed. */
-	sent: Array<Record<string, unknown>> = []
+	/** Every frame the manager sent, already JSON-parsed (`{id, type, data}`). */
+	sent: Array<{ id: string; type: string; data: Record<string, unknown> }> = []
 
 	constructor(public url: string) {}
 

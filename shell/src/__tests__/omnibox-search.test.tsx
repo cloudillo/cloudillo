@@ -37,7 +37,7 @@ let calls: SearchCall[] = []
 /** Resolved by the test; a call left pending stands in for a slow server. */
 let searchResponse: (call: SearchCall) => Promise<unknown> = async () => ({
 	data: [],
-	pagination: { total: 0 }
+	meta: { total: 0 }
 })
 
 // Module-level constants, never fresh literals per call: a hook handing back a new
@@ -229,7 +229,7 @@ beforeEach(() => {
 	jest.useFakeTimers()
 	navigated = []
 	calls = []
-	searchResponse = async () => ({ data: [], pagination: { total: 0 } })
+	searchResponse = async () => ({ data: [], meta: { total: 0 } })
 	warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
 	errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
 })
@@ -277,8 +277,8 @@ describe('one request per settled query', () => {
 
 	it('answers a repeated query from the cache instead of the server', async () => {
 		searchResponse = async () => ({
-			data: [{ objTp: 'F', objId: 'f1', title: 'Cached hit', appId: 'quillo' }],
-			pagination: { total: 1 }
+			data: [{ kind: 'file', objId: 'f1', title: 'Cached hit', appId: 'quillo' }],
+			meta: { total: 1 }
 		})
 		openEmpty()
 
@@ -435,8 +435,8 @@ describe('recent searches', () => {
 
 	it('records the query behind a hit that was opened', async () => {
 		searchResponse = async () => ({
-			data: [{ objTp: 'F', objId: 'f1', title: 'Q3 plan', appId: 'quillo' }],
-			pagination: { total: 1 }
+			data: [{ kind: 'file', objId: 'f1', title: 'Q3 plan', appId: 'quillo' }],
+			meta: { total: 1 }
 		})
 		const store = createStore()
 		store.set(toggleOmniboxAtom)
@@ -557,14 +557,14 @@ describe('published site pages', () => {
 		searchResponse = async () => ({
 			data: [
 				{
-					objTp: 'F',
+					kind: 'file',
 					objId: 'container1',
 					title: 'Hello',
 					contentType: SITE_MIME,
 					partId: '/blog/hello'
 				}
 			],
-			pagination: { total: 1 }
+			meta: { total: 1 }
 		})
 		const store = createStore()
 		store.set(toggleOmniboxAtom)

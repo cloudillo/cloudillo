@@ -178,7 +178,7 @@ export interface RtdbClientOptions {
 		maxReconnectDelay?: number
 		debug?: boolean
 		/**
-		 * Opt into the presence channel (`?presence=1` on the socket URL).
+		 * Opt into the presence channel (`?presence=true` on the socket URL).
 		 *
 		 * Connection-level and fixed for the socket's lifetime, so it must be set
 		 * here rather than at `client.presence()` time. Without it the server
@@ -280,92 +280,69 @@ export const tPresenceEvent = T.taggedUnion('action')({
 export type PresenceWireEntry = T.TypeOf<typeof tPresenceWireEntry>
 export type PresenceEvent = T.TypeOf<typeof tPresenceEvent>
 
+// Every server frame is `{id: string, type, data}`; responses echo the request id,
+// pushes (`change`, `presenceChange`) carry a fresh random id.
+const frame = <K extends string, D>(type: K, data: T.Type<D>) =>
+	T.struct({ type: T.literal(type), id: T.string, data })
+const tEmpty = T.struct({})
+
 export const tServerMessage = T.taggedUnion('type')({
-	queryResult: T.struct({
-		type: T.literal('queryResult'),
-		id: T.number,
-		data: T.array(T.unknown)
-	}),
-	getResult: T.struct({
-		type: T.literal('getResult'),
-		id: T.number,
-		data: T.nullable(T.unknown)
-	}),
-	subscribeResult: T.struct({
-		type: T.literal('subscribeResult'),
-		id: T.number,
-		subscriptionId: T.string
-	}),
-	unsubscribeResult: T.struct({
-		type: T.literal('unsubscribeResult'),
-		id: T.number
-	}),
-	createIndexResult: T.struct({
-		type: T.literal('createIndexResult'),
-		id: T.number
-	}),
-	change: T.struct({
-		type: T.literal('change'),
-		id: T.optional(T.union(T.number, T.string)),
-		subscriptionId: T.string,
-		event: tChangeEvent
-	}),
-	transactionResult: T.struct({
-		type: T.literal('transactionResult'),
-		id: T.number,
-		results: T.array(
-			T.struct({
-				ref: T.nullable(T.string),
-				id: T.nullable(T.string)
-			})
-		)
-	}),
-	lockResult: T.struct({
-		type: T.literal('lockResult'),
-		id: T.number,
-		locked: T.boolean,
-		holder: T.optional(T.string),
-		mode: T.optional(T.union(T.literal('soft'), T.literal('hard')))
-	}),
-	unlockResult: T.struct({
-		type: T.literal('unlockResult'),
-		id: T.number
-	}),
-	error: T.struct({
-		type: T.literal('error'),
-		id: T.optional(T.union(T.number, T.string)),
-		code: T.number,
-		message: T.string,
-		details: T.optional(T.unknown)
-	}),
-	presenceResult: T.struct({
-		type: T.literal('presenceResult'),
-		id: T.number,
-		/** The state was neither stored nor broadcast — resend it. */
-		throttled: T.optional(T.boolean)
-	}),
-	// Unsolicited, so its id is a random *string* the server minted
-	// (`RtdbMessage::new`) and never correlates to a pending request. Declaring
-	// this member is what keeps presence working at all: `handleMessage` logs and
-	// drops anything the union cannot decode.
-	presenceChange: T.struct({
-		type: T.literal('presenceChange'),
-		id: T.optional(T.union(T.number, T.string)),
-		event: tPresenceEvent
-	}),
-	pong: T.struct({
-		type: T.literal('pong'),
-		id: T.number
-	})
+	queryResult: frame('queryResult', T.array(T.unknown)),
+	getResult: frame('getResult', T.nullable(T.unknown)),
+	subscribeResult: frame('subscribeResult', T.struct({ subscriptionId: T.string })),
+	unsubscribeResult: frame('unsubscribeResult', tEmpty),
+	createIndexResult: frame('createIndexResult', T.unknown),
+	change: frame('change', T.struct({ subscriptionId: T.string, event: tChangeEvent })),
+	transactionResult: frame(
+		'transactionResult',
+		T.struct({
+			results: T.array(
+				T.struct({
+					ref: T.nullable(T.string),
+					id: T.nullable(T.string)
+				})
+			)
+		})
+	),
+	lockResult: frame(
+		'lockResult',
+		T.struct({
+			locked: T.boolean,
+			holder: T.optional(T.string),
+			mode: T.optional(T.union(T.literal('soft'), T.literal('hard')))
+		})
+	),
+	unlockResult: frame('unlockResult', tEmpty),
+	/** Same object as the REST `error` body; `code` is an `E-…` registry code. */
+	error: frame(
+		'error',
+		T.struct({
+			code: T.string,
+			message: T.string,
+			details: T.optional(T.unknown)
+		})
+	),
+	/** `throttled`: the state was neither stored nor broadcast — resend it. */
+	presenceResult: frame('presenceResult', T.struct({ throttled: T.optional(T.boolean) })),
+	// Declaring this member is what keeps presence working at all: `handleMessage`
+	// logs and drops anything the union cannot decode.
+	presenceChange: frame('presenceChange', T.struct({ event: tPresenceEvent })),
+	pong: frame('pong', tEmpty)
 })
 
-// Client message types (what we send to server)
 export type ServerMessage = T.TypeOf<typeof tServerMessage>
 
+/** A request as the client builds it; `send` moves every field but `type` into `data`. */
 export interface ClientMessage {
-	id?: number
 	type: string
 	[key: string]: unknown
+}
+
+/** A client frame on the wire. */
+export interface WireFrame {
+	id: string
+	type: string
+	data: Record<string, unknown>
 }
 
 export interface QueryMessage extends ClientMessage {

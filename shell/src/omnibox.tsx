@@ -353,7 +353,7 @@ export function Omnibox() {
 						q,
 						// The server strips `'P'` for a guest anyway; asking for the
 						// narrower set keeps the count and the page consistent.
-						type: profilesEnabled ? undefined : FTS_GUEST_TYPES.join(','),
+						kind: profilesEnabled ? undefined : FTS_GUEST_TYPES.join(','),
 						limit: FTS_DROPDOWN_LIMIT
 					},
 					{ signal: ctrl.signal }
@@ -361,11 +361,11 @@ export function Omnibox() {
 				if (cancelled) return
 				cacheRef.current?.set(key, {
 					hits: res.data || [],
-					total: res.pagination?.total
+					total: res.meta.total
 				})
 				setFtsLoading(false)
 				setHits(res.data || [])
-				setHitTotal(res.pagination?.total)
+				setHitTotal(res.meta.total)
 			} catch (err) {
 				if (cancelled || (err as Error)?.name === 'AbortError') return
 				// Silent: an untrusted foreign community answers 401 and a toast per

@@ -59,16 +59,20 @@ function useRoster(client: ApiClient, channel: string, name: string) {
 			;(async function () {
 				try {
 					const [knocks, roster, invites, people] = await Promise.all([
-						client.actions.list({ type: 'SUBS', subject: channel, status: 'C' }),
+						client.actions.list({
+							type: 'SUBS',
+							subject: channel,
+							status: 'confirmation'
+						}),
 						client.channels.members(name),
 						// As in community invitations: the host copy rests at 'A', so acceptance shows up
 						// as membership, filtered out below.
 						client.actions.list({
 							type: 'INVT',
 							subject: channel,
-							status: ['C', 'P', 'A']
+							status: ['confirmation', 'pending', 'active']
 						}),
-						client.profiles.list({ type: 'person' })
+						client.profiles.listAll({ type: 'person' })
 					])
 					if (cancelled) return
 					const memberSet = new Set(roster)
@@ -266,7 +270,7 @@ export function RoomRoster({ client, room, channel }: RoomRosterProps) {
 					<List variant="divided">
 						{requests.map((a) => (
 							<ListItem
-								key={a.actionId}
+								key={a.id}
 								leading={
 									a.issuer && (
 										<PersonHover idTag={a.issuer.idTag}>
@@ -281,11 +285,11 @@ export function RoomRoster({ client, room, channel }: RoomRosterProps) {
 										<Button
 											variant="ghost"
 											color="success"
-											disabled={busy === a.actionId}
+											disabled={busy === a.id}
 											onClick={() =>
 												run(
-													a.actionId,
-													() => client.actions.accept(a.actionId),
+													a.id,
+													() => client.actions.accept(a.id),
 													t('Failed to accept request')
 												)
 											}
@@ -295,11 +299,11 @@ export function RoomRoster({ client, room, channel }: RoomRosterProps) {
 										<Button
 											variant="ghost"
 											color="error"
-											disabled={busy === a.actionId}
+											disabled={busy === a.id}
 											onClick={() =>
 												run(
-													a.actionId,
-													() => client.actions.reject(a.actionId),
+													a.id,
+													() => client.actions.reject(a.id),
 													t('Failed to decline request')
 												)
 											}
@@ -365,7 +369,7 @@ export function RoomRoster({ client, room, channel }: RoomRosterProps) {
 							const idTag = invitee?.idTag
 							return (
 								<ListItem
-									key={a.actionId}
+									key={a.id}
 									leading={
 										invitee && (
 											<PersonHover idTag={invitee.idTag}>

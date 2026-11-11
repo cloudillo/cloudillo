@@ -48,7 +48,7 @@ export function ImageMosaic({ attachments, idTag }: ImageMosaicProps) {
 						src:
 							getFileUrl(
 								idTag,
-								im.fileId,
+								im.contentId,
 								getOptimalImageVariant('fullscreen', im.localVariants)
 							) ?? BLANK_IMAGE_SRC,
 						width: im.dim?.[0] || 100,
@@ -71,7 +71,7 @@ export function ImageMosaic({ attachments, idTag }: ImageMosaicProps) {
 				onClick={() => setLbIndex(n)}
 				src={getFileUrl(
 					idTag!,
-					att.fileId,
+					att.contentId,
 					getOptimalImageVariant('preview', att.localVariants)
 				)}
 				aspect={aspectOf(att)}

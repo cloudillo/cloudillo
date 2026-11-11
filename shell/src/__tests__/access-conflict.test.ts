@@ -13,7 +13,7 @@ import { jest } from '@jest/globals'
 import { classifyOutcome, refreshFileDeduped, suffixToAccess } from '../apps/access-conflict.js'
 
 function file(props: Partial<FileView> = {}): FileView {
-	return { fileId: 'f1', ...props } as FileView
+	return { contentId: 'f1', ...props } as FileView
 }
 
 describe('suffixToAccess', () => {
@@ -102,7 +102,7 @@ describe('refreshFileDeduped', () => {
 	})
 
 	it('keys the dedup by fileId', async () => {
-		const { api, fn } = stubApi(async (fileId) => file({ fileId }))
+		const { api, fn } = stubApi(async (fileId) => file({ contentId: fileId }))
 		await Promise.all([refreshFileDeduped(api, 'f1'), refreshFileDeduped(api, 'f2')])
 		expect(fn).toHaveBeenCalledTimes(2)
 	})

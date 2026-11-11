@@ -30,14 +30,14 @@ function bdg(o: {
 	exp: number
 }): ActionView {
 	return {
-		actionId: `a${o.created}${o.level}`,
+		id: `a${o.created}${o.level}`,
 		type: 'BDG',
 		subType: o.slot ?? 'PAT',
 		issuer: { ...comm, idTag: o.issuer ?? comm.idTag },
 		audience: { idTag: o.audience ?? 'ada.example', name: 'Ada', type: 'person' },
 		content: { b: o.level },
-		createdAt: o.created,
-		expiresAt: o.exp
+		createdAt: new Date(o.created * 1000).toISOString(),
+		expiresAt: new Date(o.exp * 1000).toISOString()
 	} as ActionView
 }
 
@@ -73,7 +73,7 @@ describe('addShownBadge', () => {
 		const update = jest.fn(async (_key: string, _body: { value: string[] }) => ({}))
 		const api = {
 			actions: {
-				listPaginated: async () => ({ data: received, cursorPagination: undefined })
+				listPaginated: async () => ({ data: received, meta: {} })
 			},
 			settings: { get: async () => ({ value: shown }), update }
 		} as unknown as ApiClient

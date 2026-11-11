@@ -57,9 +57,7 @@ export function refLifecycle(ref: Pick<Ref, 'expiresAt' | 'count'>, now: Date): 
 /**
  * The user-facing message for a failed ref mutation.
  *
- * The codes that actually arrive are the generic ones in cloudillo-rs
- * crates/cloudillo-types/src/error.rs — there is no ref-specific error code, so branching on one
- * (as this UI once did on `E-FILE-ACCESS_LEVEL_FORBIDDEN`) never fires.
+ * Branches on the cloudillo-rs error registry codes (crates/cloudillo-types/src/error.rs).
  *
  * Takes a `t`-like lookup rather than a TFunction so it needs no i18n runtime to test.
  */
@@ -67,10 +65,10 @@ export function shareLinkErrorMessage(err: unknown, t: (key: string) => string):
 	if (err instanceof FetchError) {
 		// The grant ceiling: `ensure_grant_within` caps every mint and widen at the caller's own
 		// access level.
-		if (err.apiErrorCode === 'E-AUTH-NOPERM') {
+		if (err.apiErrorCode === 'E-FILE-ACCESSLEVEL') {
 			return t('You cannot create a link with more access than you hold on this file.')
 		}
-		if (err.apiErrorCode === 'E-VAL-INVALID') {
+		if (err.apiErrorCode === 'E-CORE-INVALID') {
 			console.error('Share link rejected', err.descr)
 			return t('The server rejected these link settings.')
 		}

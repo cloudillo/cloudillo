@@ -66,8 +66,9 @@ function validateBackendUrlValue(url: string, t: (key: string) => string): strin
 
 // Status badge configuration
 const STATUS_CONFIG: Record<ProxySiteStatus, { color: 'success' | 'error'; label: string }> = {
-	A: { color: 'success', label: 'Active' },
-	D: { color: 'error', label: 'Disabled' }
+	active: { color: 'success', label: 'Active' },
+	disabled: { color: 'error', label: 'Disabled' },
+	unknown: { color: 'error', label: 'Unknown' }
 }
 
 function StatusBadge({ status }: { status: ProxySiteStatus }) {
@@ -425,7 +426,7 @@ function EditProxySiteModal({
 }: EditProxySiteModalProps) {
 	const { t } = useTranslation()
 	const { api } = useApi()
-	const [status, setStatus] = React.useState<ProxySiteStatus>('A')
+	const [status, setStatus] = React.useState<ProxySiteStatus>('active')
 	const [backendUrl, setBackendUrl] = React.useState('')
 	const [type, setType] = React.useState<ProxyType>('basic')
 	const [draft, setDraft] = React.useState<ConfigDraft>(draftFromSite)
@@ -459,14 +460,14 @@ function EditProxySiteModal({
 		setError(undefined)
 
 		const data: UpdateProxySiteRequest = {
-			status,
+			status: status === 'unknown' ? undefined : status,
 			backendUrl,
 			type,
 			...(type === 'advanced' ? { config: configFromDraft(draft) } : {})
 		}
 
 		try {
-			const result = await api.admin.updateProxySite(site.siteId, data)
+			const result = await api.admin.updateProxySite(site.id, data)
 			onUpdated(result)
 			onClose()
 		} catch (err: unknown) {
@@ -512,8 +513,8 @@ function EditProxySiteModal({
 				<List variant="divided">
 					<SwitchRow
 						label={t('Enabled')}
-						checked={status === 'A'}
-						onChange={(e) => setStatus(e.target.checked ? 'A' : 'D')}
+						checked={status === 'active'}
+						onChange={(e) => setStatus(e.target.checked ? 'active' : 'disabled')}
 					/>
 				</List>
 
@@ -618,9 +619,9 @@ export function ProxySites() {
 
 	// Status counts
 	const counts = React.useMemo(() => {
-		const c = { A: 0, D: 0 }
+		const c = { active: 0, disabled: 0 }
 		for (const s of sites) {
-			if (s.status in c) c[s.status]++
+			if (s.status !== 'unknown') c[s.status]++
 		}
 		return c
 	}, [sites])
@@ -635,7 +636,7 @@ export function ProxySites() {
 	}
 
 	function handleUpdated(updated: ProxySiteData) {
-		setSites((prev) => prev.map((s) => (s.siteId === updated.siteId ? updated : s)))
+		setSites((prev) => prev.map((s) => (s.id === updated.id ? updated : s)))
 	}
 
 	async function handleDelete(site: ProxySiteData) {
@@ -649,8 +650,8 @@ export function ProxySites() {
 		if (!confirmed) return
 
 		try {
-			await api!.admin.deleteProxySite(site.siteId)
-			setSites((prev) => prev.filter((s) => s.siteId !== site.siteId))
+			await api!.admin.deleteProxySite(site.id)
+			setSites((prev) => prev.filter((s) => s.id !== site.id))
 			setShowEditModal(false)
 		} catch (err: unknown) {
 			if (err instanceof Error) {
@@ -668,7 +669,7 @@ export function ProxySites() {
 		if (!confirmed) return
 
 		try {
-			await api!.admin.renewProxySiteCert(site.siteId)
+			await api!.admin.renewProxySiteCert(site.id)
 			// Reload list to get updated cert info
 			const result = await api!.admin.listProxySites()
 			setSites(result || [])
@@ -717,11 +718,11 @@ export function ProxySites() {
 						<SegmentedItem value="">
 							{t('All')} ({sites.length})
 						</SegmentedItem>
-						<SegmentedItem value="A">
-							{t('Active')} ({counts.A})
+						<SegmentedItem value="active">
+							{t('Active')} ({counts.active})
 						</SegmentedItem>
-						<SegmentedItem value="D">
-							{t('Disabled')} ({counts.D})
+						<SegmentedItem value="disabled">
+							{t('Disabled')} ({counts.disabled})
 						</SegmentedItem>
 					</Segmented>
 				</VBox>
@@ -739,7 +740,8 @@ export function ProxySites() {
 							search
 								? t('No proxy sites matching "{{query}}"', { query: search })
 								: t('No {{status}} proxy sites', {
-										status: statusFilter === 'A' ? t('active') : t('disabled')
+										status:
+											statusFilter === 'active' ? t('active') : t('disabled')
 									})
 						}
 						actions={
@@ -769,7 +771,7 @@ export function ProxySites() {
 				<VBox gap={2}>
 					{filteredSites.map((site) => (
 						<ProxySiteCard
-							key={site.siteId}
+							key={site.id}
 							site={site}
 							onEdit={handleEdit}
 							onDelete={handleDelete}

@@ -11,7 +11,7 @@
  *     site:mount.req { docFileId } -> shell answers the configured mount path
  *       -> flush debounced writes -> read p/* + b/* -> serialize -> zip
  *       -> site:publish.req { blob, docFileId }
- *       -> shell uploads as a managed file and calls POST /api/sites/publish
+ *       -> shell uploads as a managed file and calls POST /api/site/publish
  *
  * The mount lookup comes first because the container bakes absolute site paths and
  * cannot be relinked afterwards. The path is read, never declared.
@@ -71,7 +71,7 @@ export interface PublishSiteResult {
 }
 
 /**
- * `GET /profiles/batch` rejects more than this many distinct idTags outright
+ * `GET /profile-lookups` rejects more than this many distinct idTags outright
  * rather than truncating, so the caller batches. A document with more than 64
  * distinct bylines is unlikely, but silently losing every byline past the cap
  * would be invisible until someone read the published page.
@@ -137,7 +137,7 @@ export async function publishSite(opts: PublishSiteOptions): Promise<PublishSite
 	const bus = getAppBus()
 	const api = createApiClient({ idTag: opts.ownerIdTag, authToken: bus.accessToken })
 
-	// `/profiles/batch` is the one `/profiles/*` route that accepts a file-scoped
+	// `/profile-lookups` is the one profile route that accepts a file-scoped
 	// token, which is all Notillo has — see its doc comment in `api-client.ts`.
 	const fetchProfiles = async (idTags: string[]): Promise<PublicProfile[]> => {
 		const batches: Promise<PublicProfile[]>[] = []

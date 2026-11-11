@@ -9,7 +9,7 @@
  * community's own `/me` keys.
  */
 
-import type { ApiClient, ProfileKeys, VerifyTokenResult } from '@cloudillo/core'
+import { type ApiClient, fetchAll, type ProfileKeys, type VerifyTokenResult } from '@cloudillo/core'
 import { type CommunityBadgeData, useApi, useAuth } from '@cloudillo/react'
 import {
 	type ActionView,
@@ -42,9 +42,9 @@ export interface ReceivedBadge extends CommunityBadgeData {
 	key: string
 }
 
-/** Unix seconds of an action timestamp (number: already seconds). */
-function unixSecs(t: string | number): number {
-	return typeof t === 'number' ? t : dayjs(t).unix()
+/** Unix seconds of an ISO action timestamp. */
+function unixSecs(t: string): number {
+	return dayjs(t).unix()
 }
 
 /** A `BDG` action as a badge, expired or not; `undefined` when it is not a known one. */
@@ -71,24 +71,17 @@ export function badgeFromAction(action: ActionView): ReceivedBadge | undefined {
 /** Every current (`N`/`A`) `BDG` action matching `filter`, all pages. */
 export async function listBadgeActions(
 	api: ApiClient,
-	filter: { issuer?: string; audience?: string }
+	filter: { issuerIdTag?: string; audienceIdTag?: string }
 ): Promise<ActionView[]> {
-	const out: ActionView[] = []
-	let cursor: string | undefined
-	do {
-		const res = await api.actions.listPaginated({
+	return fetchAll((cursor) =>
+		api.actions.listPaginated({
 			type: 'BDG',
-			status: ['N', 'A'],
+			status: ['notification', 'active'],
 			...filter,
 			limit: 200,
 			cursor
 		})
-		out.push(...(res.data as ActionView[]))
-		cursor = res.cursorPagination?.hasMore
-			? (res.cursorPagination.nextCursor ?? undefined)
-			: undefined
-	} while (cursor)
-	return out
+	)
 }
 
 /**
@@ -124,7 +117,7 @@ export function latestBadges(
 
 /** Received, live badges of `idTag`, one per `community:slot` (see `latestBadges`). */
 export async function listReceivedBadges(api: ApiClient, idTag: string): Promise<ReceivedBadge[]> {
-	const actions = await listBadgeActions(api, { audience: idTag })
+	const actions = await listBadgeActions(api, { audienceIdTag: idTag })
 	return [...(latestBadges(actions).get(idTag)?.values() ?? [])]
 }
 
@@ -250,7 +243,7 @@ export interface VerifiedBadges {
  * Verified, unexpired badges of `ownerIdTag`, in token (owner) order; invalid tokens are dropped.
  *
  * Logged in: the home node verifies the signatures with its cached issuer keys and profiles
- * (`POST /actions/verify`), in one batch. Issuers it doesn't know yet wait for `verifyAll`,
+ * (`POST /action-verifications`), in one batch. Issuers it doesn't know yet wait for `verifyAll`,
  * which syncs them one token at a time — the owner picks the issuer hosts.
  *
  * Guest: every issuer waits for `verifyAll`, which fetches its keys, name and picture with an

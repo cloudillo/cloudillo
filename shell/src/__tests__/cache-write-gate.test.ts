@@ -32,8 +32,8 @@ jest.unstable_mockModule('../cache/file-cache.js', () => ({ cacheFiles }))
 jest.unstable_mockModule('../cache/action-cache.js', () => ({ cacheActions }))
 jest.unstable_mockModule('../cache/encrypted-store.js', () => ({ evictIfNeeded }))
 
-const FILES = [{ fileId: 'f1', owner: { idTag: 'a.example' } } as unknown as FileView]
-const ACTIONS = [{ actionId: 'a1', type: 'POST' } as unknown as ActionView]
+const FILES = [{ contentId: 'f1', owner: { idTag: 'a.example' } } as unknown as FileView]
+const ACTIONS = [{ id: 'a1', type: 'POST' } as unknown as ActionView]
 
 /**
  * Fresh copy of sync.ts per case: `writeQueue` and `maybeEvict`'s `lastEvictAt`

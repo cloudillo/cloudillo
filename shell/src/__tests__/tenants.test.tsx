@@ -22,14 +22,14 @@ const tenant = (idTag: string, extra: Partial<TenantView> = {}): TenantView => (
 	idTag,
 	name: idTag,
 	type: 'person',
-	status: 'A',
-	createdAt: 0,
+	status: 'active',
+	createdAt: '1970-01-01T00:00:00Z',
 	...extra
 })
 
 const api = {
 	admin: {
-		listTenants: jest.fn<() => Promise<TenantView[]>>(),
+		listTenants: jest.fn<() => Promise<{ data: TenantView[]; meta: { next?: string } }>>(),
 		suspendTenant: jest.fn(async (_idTag: string) => {}),
 		resumeTenant: jest.fn(async (_idTag: string) => {}),
 		setTenantExpiry: jest.fn(async (_idTag: string, _at: number | null) => {}),
@@ -71,11 +71,15 @@ describe('isTenantExpired', () => {
 	const now = Math.floor(Date.now() / 1000)
 
 	it('is expired once expiresAt has passed', () => {
-		expect(isTenantExpired(tenant(BOB, { expiresAt: now - 60 }))).toBe(true)
+		expect(
+			isTenantExpired(tenant(BOB, { expiresAt: new Date((now - 60) * 1000).toISOString() }))
+		).toBe(true)
 	})
 
 	it('is not expired before expiresAt or without one', () => {
-		expect(isTenantExpired(tenant(BOB, { expiresAt: now + 3600 }))).toBe(false)
+		expect(
+			isTenantExpired(tenant(BOB, { expiresAt: new Date((now + 3600) * 1000).toISOString() }))
+		).toBe(false)
 		expect(isTenantExpired(tenant(BOB))).toBe(false)
 	})
 })
@@ -83,7 +87,7 @@ describe('isTenantExpired', () => {
 describe('Tenants row actions', () => {
 	beforeEach(() => {
 		for (const fn of Object.values(api.admin)) fn.mockClear()
-		api.admin.listTenants.mockResolvedValue([tenant(ME), tenant(BOB)])
+		api.admin.listTenants.mockResolvedValue({ data: [tenant(ME), tenant(BOB)], meta: {} })
 		dialog.confirm.mockClear()
 		dialog.tell.mockClear()
 	})
@@ -107,17 +111,23 @@ describe('Tenants row actions', () => {
 	it('suspends, then shows the reloaded row as suspended', async () => {
 		renderTenants()
 		const item = await menuItem(BOB, 'Suspend')
-		api.admin.listTenants.mockResolvedValue([tenant(ME), tenant(BOB, { suspendedAt: 1 })])
+		api.admin.listTenants.mockResolvedValue({
+			data: [tenant(ME), tenant(BOB, { suspendedAt: '1970-01-01T00:00:01Z' })],
+			meta: {}
+		})
 		fireEvent.click(item)
 		await screen.findByText('Suspended')
 		expect(api.admin.suspendTenant).toHaveBeenCalledWith(BOB)
 	})
 
 	it('resumes a suspended tenant', async () => {
-		api.admin.listTenants.mockResolvedValue([tenant(ME), tenant(BOB, { suspendedAt: 1 })])
+		api.admin.listTenants.mockResolvedValue({
+			data: [tenant(ME), tenant(BOB, { suspendedAt: '1970-01-01T00:00:01Z' })],
+			meta: {}
+		})
 		renderTenants()
 		const item = await menuItem(BOB, 'Resume')
-		api.admin.listTenants.mockResolvedValue([tenant(ME), tenant(BOB)])
+		api.admin.listTenants.mockResolvedValue({ data: [tenant(ME), tenant(BOB)], meta: {} })
 		fireEvent.click(item)
 		await waitFor(() => expect(screen.queryByText('Suspended')).toBeNull())
 		expect(api.admin.resumeTenant).toHaveBeenCalledWith(BOB)
@@ -133,7 +143,10 @@ describe('Tenants row actions', () => {
 		const loads = api.admin.listTenants.mock.calls.length
 		fireEvent.submit(form)
 		await waitFor(() =>
-			expect(api.admin.setTenantExpiry).toHaveBeenCalledWith(BOB, dayjs('2099-01-02').unix())
+			expect(api.admin.setTenantExpiry).toHaveBeenCalledWith(
+				BOB,
+				dayjs('2099-01-02').toISOString()
+			)
 		)
 		await waitFor(() => expect(api.admin.listTenants).toHaveBeenCalledTimes(loads + 1))
 	})

@@ -26,7 +26,7 @@ import * as React from 'react'
 import { PersonActionsContext } from './components/Person/PersonActionsContext.js'
 
 /**
- * `GET /profiles/batch` rejects (400) beyond this many distinct tags rather than
+ * `GET /profile-lookups` rejects (400) beyond this many distinct tags rather than
  * truncating, so chunk instead of slicing — a dropped tag would be asked for
  * again on every roster change.
  */

@@ -9,7 +9,12 @@
  */
 
 import type { FileView } from '@cloudillo/core'
-import { getFileUrl, VISIBILITY_ORDER, type Visibility } from '@cloudillo/core'
+import {
+	type FileVisibility as CoreFileVisibility,
+	getFileUrl,
+	VISIBILITY_ORDER,
+	type Visibility
+} from '@cloudillo/core'
 import {
 	Alert,
 	Breadcrumbs,
@@ -38,23 +43,23 @@ import { useTranslation } from 'react-i18next'
 import { canManageFile, canManageShares } from '../../apps/files/utils.js'
 import { activeContextAtom, contextRolesAtom, useApiContext } from '../../context/index.js'
 import type { MediaPickerResult } from '../../context/media-picker-atom.js'
+import { busVisibility, fileVisibilityFromChar } from '../../apps/files/utils.js'
 import { isPermissionError } from '../../utils.js'
 import { PickerFilterBar, usePickerBrowse } from '../pickers/index.js'
 
-// File visibility type (matches API response)
-type FileVisibility = 'D' | 'P' | 'V' | '2' | 'F' | 'C' | null
+type FileVisibility = CoreFileVisibility | 'unknown'
 
 /**
  * Get visibility icon for a file
  */
 function getVisibilityIcon(visibility: FileVisibility): React.ReactNode | null {
 	switch (visibility) {
-		case 'D':
-		case null:
+		case 'direct':
+		case 'unknown': // newer-node level: badge it, no badge reads as public
 			return <IcNoAccess size={12} />
-		case 'F':
+		case 'followers':
 			return <IcFollowers size={12} />
-		case 'C':
+		case 'connected':
 			return <IcConnection size={12} />
 		default:
 			return null // No badge for public files
@@ -66,14 +71,13 @@ function getVisibilityIcon(visibility: FileVisibility): React.ReactNode | null {
  */
 function getVisibilityLabel(visibility: FileVisibility): string {
 	switch (visibility) {
-		case 'D':
-		case null:
+		case 'direct':
 			return 'Private'
-		case 'F':
+		case 'followers':
 			return 'Followers only'
-		case 'C':
+		case 'connected':
 			return 'Connected only'
-		case 'P':
+		case 'public':
 			return 'Public'
 		default:
 			return 'Unknown'
@@ -101,7 +105,7 @@ interface MediaPickerBrowseTabProps {
  * Check if a file is public (can be used in external context)
  */
 function isPublicFile(file: FileView): boolean {
-	return file.visibility === 'P'
+	return file.visibility === 'public'
 }
 
 /**
@@ -109,7 +113,7 @@ function isPublicFile(file: FileView): boolean {
  */
 function matchesMediaType(file: FileView, mediaType?: string): boolean {
 	if (!mediaType) return true
-	if (file.fileTp === 'FLDR') return true // Always show folders
+	if (file.fileType === 'FLDR') return true // Always show folders
 
 	const contentType = file.contentType || ''
 	if (mediaType.endsWith('/*')) {
@@ -242,9 +246,7 @@ export function MediaPickerBrowseTab({
 				// restrictive rung.
 				const { visibility } = await api.files.getMetadata(documentFileId)
 				if (!cancelled) {
-					setResolvedDocVisibility(
-						visibility === 'P' || visibility === 'C' ? visibility : 'F'
-					)
+					setResolvedDocVisibility(busVisibility(visibility) ?? 'F')
 				}
 			} catch {
 				// Visibility check is optional
@@ -266,17 +268,15 @@ export function MediaPickerBrowseTab({
 		(file: FileView) =>
 			requirePublic
 				? !isPublicFile(file)
-				: !!isExternalContext &&
-					!isPublicFile(file) &&
-					!accessibleFileIds.has(file.entryId),
+				: !!isExternalContext && !isPublicFile(file) && !accessibleFileIds.has(file.id),
 		[requirePublic, isExternalContext, accessibleFileIds]
 	)
 
 	// Handle folder navigation
 	const handleFolderClick = useCallback(
 		(file: FileView) => {
-			setCurrentFolderId(file.entryId)
-			setBreadcrumbs((prev) => [...prev, { id: file.entryId, name: file.fileName }])
+			setCurrentFolderId(file.id)
+			setBreadcrumbs((prev) => [...prev, { id: file.id, name: file.fileName }])
 		},
 		[setCurrentFolderId, setBreadcrumbs]
 	)
@@ -294,7 +294,7 @@ export function MediaPickerBrowseTab({
 	// Handle file selection
 	const handleFileClick = useCallback(
 		(file: FileView) => {
-			if (file.fileTp === 'FLDR') {
+			if (file.fileType === 'FLDR') {
 				handleFolderClick(file)
 				return
 			}
@@ -302,16 +302,18 @@ export function MediaPickerBrowseTab({
 			if (isBlocked(file)) return
 
 			// Get actual file visibility from API response
-			const fileVisibility: Visibility = (file.visibility as Visibility) || 'F'
+			// `undefined` where the bus has no such level (direct, unknown, …); apps get that
+			// as-is, only the warning comparison falls back to 'F'.
+			const fileVisibility: Visibility | undefined = busVisibility(file.visibility)
 			const needsWarning =
 				resolvedDocVisibility &&
-				VISIBILITY_ORDER[fileVisibility] > VISIBILITY_ORDER[resolvedDocVisibility]
+				VISIBILITY_ORDER[fileVisibility ?? 'F'] > VISIBILITY_ORDER[resolvedDocVisibility]
 
 			const result: MediaPickerResult = {
-				fileId: file.fileId,
+				fileId: file.contentId,
 				fileName: file.fileName,
 				contentType: file.contentType,
-				dim: file.x?.dim,
+				dim: file.extra?.dim,
 				visibility: fileVisibility,
 				visibilityAcknowledged: false
 			}
@@ -328,19 +330,19 @@ export function MediaPickerBrowseTab({
 	// Handle double click
 	const handleFileDoubleClick = useCallback(
 		(file: FileView) => {
-			if (file.fileTp === 'FLDR') {
+			if (file.fileType === 'FLDR') {
 				handleFolderClick(file)
 				return
 			}
 
 			if (isBlocked(file)) return
 
-			const fileVisibility: Visibility = (file.visibility as Visibility) || 'F'
+			const fileVisibility: Visibility | undefined = busVisibility(file.visibility)
 			const result: MediaPickerResult = {
-				fileId: file.fileId,
+				fileId: file.contentId,
 				fileName: file.fileName,
 				contentType: file.contentType,
-				dim: file.x?.dim,
+				dim: file.extra?.dim,
 				visibility: fileVisibility,
 				visibilityAcknowledged: showVisibilityWarning
 			}
@@ -369,17 +371,18 @@ export function MediaPickerBrowseTab({
 			setUpdatingFileId(fileId)
 			try {
 				await api.files.createShare(entryId, {
-					subjectType: 'F',
+					subjectType: 'file',
 					subjectId: documentFileId,
-					permission: 'R'
+					permission: 'read'
 				})
 
 				// Track that this file is now accessible
 				setAccessibleFileIds((prev) => new Set(prev).add(entryId))
 
 				// Auto-select the file that was just granted access
-				const fileVisibility: Visibility =
-					(files.find((f) => f.fileId === fileId)?.visibility as Visibility) || 'F'
+				const fileVisibility: Visibility | undefined = busVisibility(
+					files.find((f) => f.contentId === fileId)?.visibility
+				)
 				if (selectedFile?.fileId === fileId) {
 					setShowVisibilityWarning(false)
 					onSelect({
@@ -420,7 +423,7 @@ export function MediaPickerBrowseTab({
 
 			setUpdatingFileId(fileId)
 			try {
-				await api.files.update(entryId, { visibility: 'P' })
+				await api.files.update(entryId, { visibility: 'public' })
 
 				// Refetch files to update the list
 				refetchFiles()
@@ -467,7 +470,7 @@ export function MediaPickerBrowseTab({
 	const handleFileAccessAction = useCallback(
 		(fileId: string, fileName: string, contentType: string) => {
 			// Shares and updates live on entries; the handlers stay keyed by content id for onSelect
-			const entryId = files.find((f) => f.fileId === fileId)?.entryId ?? fileId
+			const entryId = files.find((f) => f.contentId === fileId)?.id ?? fileId
 			if (documentFileId && !requirePublic) {
 				handleGrantDocumentAccess(fileId, entryId, fileName, contentType)
 			} else {
@@ -491,7 +494,7 @@ export function MediaPickerBrowseTab({
 						}),
 				{ confirmLabel: fileAccessActionLabel }
 			)
-			if (ok) handleFileAccessAction(file.fileId, file.fileName, file.contentType)
+			if (ok) handleFileAccessAction(file.contentId, file.fileName, file.contentType)
 		},
 		[dialog, fileAccessActionLabel, documentFileId, requirePublic, handleFileAccessAction, t]
 	)
@@ -554,7 +557,7 @@ export function MediaPickerBrowseTab({
 						'This file is {{visibility}}. Some viewers may not be able to see this media.',
 						{
 							visibility: t(
-								getVisibilityLabel(selectedFile.visibility as FileVisibility)
+								getVisibilityLabel(fileVisibilityFromChar(selectedFile.visibility))
 							)
 						}
 					)}
@@ -571,17 +574,17 @@ export function MediaPickerBrowseTab({
 				<VBox gap={2} fill scroll>
 					<Grid min="7.5rem" gap={2}>
 						{filteredFiles.map((file) => {
-							const isFolder = file.fileTp === 'FLDR'
+							const isFolder = file.fileType === 'FLDR'
 							// Non-public in an external context (folders always navigate)
 							const isFileDisabled = isBlocked(file) && !isFolder
-							const visibilityIcon = getVisibilityIcon(file.visibility ?? null)
+							const visibilityIcon = getVisibilityIcon(file.visibility)
 							// Offering an action the server will refuse just
 							// produces a broken embed — show the lock inert.
 							const unlockable = canUnlock(file)
 
 							return (
 								<VBox
-									key={file.entryId}
+									key={file.id}
 									onDoubleClick={() => handleFileDoubleClick(file)}
 								>
 									<FileTile
@@ -591,10 +594,10 @@ export function MediaPickerBrowseTab({
 										}
 										src={
 											isImage(file) && idTag
-												? getFileUrl(idTag, file.fileId, 'vis.tn')
+												? getFileUrl(idTag, file.contentId, 'vis.tn')
 												: undefined
 										}
-										selected={selectedFile?.fileId === file.fileId}
+										selected={selectedFile?.fileId === file.contentId}
 										onClick={() => handleFileClick(file)}
 										meta={
 											isFileDisabled ? (
@@ -605,11 +608,7 @@ export function MediaPickerBrowseTab({
 												visibilityIcon &&
 												!isFolder && (
 													<IconText icon={visibilityIcon}>
-														{t(
-															getVisibilityLabel(
-																file.visibility ?? null
-															)
-														)}
+														{t(getVisibilityLabel(file.visibility))}
 													</IconText>
 												)
 											)
@@ -619,7 +618,7 @@ export function MediaPickerBrowseTab({
 												<Button
 													size="sm"
 													icon={<IcNoAccess />}
-													loading={updatingFileId === file.fileId}
+													loading={updatingFileId === file.contentId}
 													disabled={!unlockable}
 													disabledReason={t(
 														'You do not have permission to share this file.'

@@ -88,6 +88,7 @@ import {
 	useBottomDwell,
 	useReadMarker,
 	useReadPositionTracker,
+	secondsToIso,
 	useScrollEngaged
 } from '../read-position.js'
 import { ctxBase, feedPath, filesPath, profilePath, roomsPath } from '../routes.js'
@@ -129,7 +130,7 @@ interface PostAction extends ActionView {
 	stat?: {
 		ownReaction?: string
 		reactions?: string
-		lastCommentAt?: string | number
+		lastCommentAt?: string
 		commentCount?: number
 	}
 }
@@ -217,7 +218,7 @@ function NewComment({
 			type: 'CMNT',
 			content,
 			audienceTag,
-			parentId: parentAction.actionId,
+			parentId: parentAction.id,
 			hat: hatFor(audienceTag)
 		}
 
@@ -283,7 +284,7 @@ function SubComments({
 				.filter((action) => action.type == 'CMNT' && action.parentId == parentId)
 				.map((action) => (
 					<VBox
-						key={action.actionId}
+						key={action.id}
 						ref={register}
 						data-read-ts={createdAtToSeconds(action.createdAt)}
 					>
@@ -381,7 +382,7 @@ function Comments({ parentAction, onCommentAdded, ...props }: CommentsProps) {
 
 	const audienceIdTag = actionContextTag(parentAction)
 	const isCrossNode = !!audienceIdTag && audienceIdTag !== contextIdTag
-	const isGated = parentAction.visibility !== undefined && parentAction.visibility !== 'P'
+	const isGated = parentAction.visibility !== undefined && parentAction.visibility !== 'public'
 
 	const [audienceApi, setAudienceApi] = React.useState<ApiClient | null>(null)
 	const [tokenStatus, setTokenStatus] = React.useState<CommentsTokenStatus>('pending')
@@ -434,7 +435,7 @@ function Comments({ parentAction, onCommentAdded, ...props }: CommentsProps) {
 	// Thread comment read-watermark (the action's `A:<type>` reader-state row), seeded
 	// from the server value and advanced forward-only via PATCH /reader-state/A/<id>.
 	const seedReadAt = createdAtToSeconds(parentAction.readerState?.readAt)
-	const { advanceTo } = useReadMarker(`thread:${parentAction.actionId}`, seedReadAt)
+	const { advanceTo } = useReadMarker(`thread:${parentAction.id}`, seedReadAt)
 
 	React.useEffect(() => {
 		if (!readApi) return
@@ -443,7 +444,7 @@ function Comments({ parentAction, onCommentAdded, ...props }: CommentsProps) {
 		;(async function getComments() {
 			try {
 				const actions = await readApi.actions.list({
-					parentId: parentAction.actionId,
+					parentId: parentAction.id,
 					type: 'CMNT'
 				})
 				if (cancelled) return
@@ -462,7 +463,7 @@ function Comments({ parentAction, onCommentAdded, ...props }: CommentsProps) {
 		return function cleanup() {
 			cancelled = true
 		}
-	}, [readApi, contextAuthenticated, parentAction.actionId, showTrustPrompt, advanceTo])
+	}, [readApi, contextAuthenticated, parentAction.id, showTrustPrompt, advanceTo])
 
 	function onSubmit(action: ActionView) {
 		setComments([...comments, action])
@@ -489,7 +490,7 @@ function Comments({ parentAction, onCommentAdded, ...props }: CommentsProps) {
 			)}
 			<SubComments
 				comments={comments}
-				parentId={parentAction.actionId}
+				parentId={parentAction.id}
 				srcTag={audienceIdTag}
 				register={registerComment}
 			/>
@@ -526,7 +527,7 @@ function RepostControl({ original, onQuote }: RepostControlProps) {
 	// Public-only gate + hide for own posts + require sign-in. The original is
 	// always a non-REPOST (callers pass the unwrapped subject), so this single
 	// visibility check is sufficient.
-	if (!auth?.token || original.visibility !== 'P' || original.issuer.idTag === selfTag) {
+	if (!auth?.token || original.visibility !== 'public' || original.issuer.idTag === selfTag) {
 		return null
 	}
 
@@ -595,7 +596,7 @@ function Post({
 	// While the post is pending, the file still lives on the issuer's
 	// server — it hasn't been replicated to the audience or any other
 	// tenant yet. Override every other idTag source for that case.
-	const fileIdTag = action.status === 'P' ? action.issuer.idTag : (srcTag ?? contextIdTag)
+	const fileIdTag = action.status === 'pending' ? action.issuer.idTag : (srcTag ?? contextIdTag)
 	const [tab, setTab] = React.useState<undefined | 'CMNT' | 'LIKE' | 'SHRE'>(undefined)
 	// Home node (`auth.idTag`), by the issuer's tag — never from the embedded `ProfileInfo`.
 	const issuerBadges = useProfileBadges(action.issuer.idTag)
@@ -607,8 +608,8 @@ function Post({
 	// (a pure boost engages its original), which is derived after an early return.
 	const threadKey = `thread:${
 		action.type === 'REPOST' && !action.content && action.subjectAction
-			? action.subjectAction.actionId
-			: action.actionId
+			? action.subjectAction.id
+			: action.id
 	}`
 	const threadReadAt = useAtomValue(
 		React.useMemo(() => selectAtom(readPositionAtom, (p) => p[threadKey] ?? 0), [threadKey])
@@ -650,7 +651,8 @@ function Post({
 	const isProcessingMedia =
 		action.subType === 'VIDEO' &&
 		!!action.attachments?.some((att) => !hasPlayableVariant(att.localVariants))
-	const isInFlight = action.status === 'P' || action.status === 'S' || isProcessingMedia
+	const isInFlight =
+		action.status === 'pending' || action.status === 'scheduled' || isProcessingMedia
 
 	function onTabClick(clicked: 'CMNT' | 'LIKE' | 'SHRE') {
 		if (clicked == tab) {
@@ -664,7 +666,7 @@ function Post({
 	// engaged action id. The overlay applies the patch to every occurrence of
 	// that id in the tree, so standalone and embedded copies stay in sync.
 	function patchEngageStat(stat: Partial<ActionStat>) {
-		onPatchStat(engageAction.actionId, stat)
+		onPatchStat(engageAction.id, stat)
 	}
 
 	async function onReactClick(reaction: string) {
@@ -676,7 +678,7 @@ function Post({
 			type: 'REACT',
 			subType: isRemove ? 'DEL' : reaction,
 			audienceTag: actionContextTag(engageAction),
-			subject: engageAction.actionId
+			subject: engageAction.id
 		}
 		try {
 			await api.actions.create(ra)
@@ -871,7 +873,7 @@ function Post({
 						</VBox>
 						{isInFlight && (
 							<Badge color="primary">
-								{action.status === 'S'
+								{action.status === 'scheduled'
 									? t('Scheduled')
 									: isProcessingMedia
 										? t('Processing')
@@ -952,7 +954,7 @@ function Post({
 					)}
 					{engagementTab !== undefined && (
 						<EngagementDialog
-							subjectActionId={engageAction.actionId}
+							subjectActionId={engageAction.id}
 							audienceTag={actionContextTag(engageAction)}
 							initialTab={engagementTab}
 							open={engagementTab !== undefined}
@@ -995,7 +997,7 @@ export const ActionComp = React.memo(function ActionComp({
 					className={className}
 					action={action}
 					onPatchStat={onPatchStat}
-					onDelete={onDelete ? () => onDelete(action.actionId) : undefined}
+					onDelete={onDelete ? () => onDelete(action.id) : undefined}
 					hideAudience={hideAudience}
 					srcTag={srcTag}
 					width={width}
@@ -1324,15 +1326,16 @@ function sourceToQuery(
 			// No audienceType filter — show issuer's posts across all audiences (personal + community).
 			return myIdTag ? { issuer: myIdTag } : {}
 		case 'direct':
-			return { audienceType: 'personal', visibility: 'D' }
+			// The server refuses `direct` as a filter; the feed keeps only direct rows client-side.
+			// A page can come back short or empty; add a server filter if it bites.
+			return { audienceType: 'personal' }
 		case 'people':
 			// Broadcasts from individuals — Followers + Connected.
-			// Backend must accept multi-value visibility (see api-types.ts).
-			return { audienceType: 'personal', visibility: ['F', 'C'] }
+			return { audienceType: 'personal', visibility: ['followers', 'connected'] }
 		case 'communities':
 			return { audienceType: 'community', audience: narrowToCommunity }
 		case 'public':
-			return { visibility: 'P' }
+			return { visibility: 'public' }
 		case 'following':
 			return { subscribed: true }
 	}
@@ -1513,7 +1516,7 @@ export function FeedApp() {
 
 	// Use infinite scroll hook for feed
 	const {
-		posts: feed,
+		posts: sourceFeed,
 		isLoading,
 		isLoadingMore,
 		error,
@@ -1538,6 +1541,13 @@ export function FeedApp() {
 		channel,
 		enabled: !!api?.idTag
 	})
+	const feed = React.useMemo(
+		() =>
+			sourceFilter === 'direct'
+				? sourceFeed?.filter((p) => p.visibility === 'direct')
+				: sourceFeed,
+		[sourceFeed, sourceFilter]
+	)
 
 	// Unread (chronological, oldest-first) feed for the Unread tab.
 	const {
@@ -1674,7 +1684,7 @@ export function FeedApp() {
 	)
 
 	// Handle STAT and POST updates from WebSocket
-	useWsBus({ cmds: ['ACTION'] }, function handleAction(msg) {
+	useWsBus({ types: ['action'] }, function handleAction(msg) {
 		const action = msg.data as ActionView
 
 		if (action.type === 'STAT') {
@@ -1702,7 +1712,8 @@ export function FeedApp() {
 						...(prev[parentId] ?? {}),
 						reactions: content.r,
 						commentCount: content.c,
-						lastCommentAt: content.ct,
+						lastCommentAt:
+							content.ct === undefined ? undefined : secondsToIso(content.ct),
 						reposts: content.rp
 					}
 				}
@@ -1711,12 +1722,12 @@ export function FeedApp() {
 		}
 
 		if (action.type === 'POST') {
-			const inFeed = feedRef.current.some((p) => p.actionId === action.actionId)
+			const inFeed = feedRef.current.some((p) => p.id === action.id)
 			if (!inFeed) return
 			setFeedUpdates((prev) => ({
 				...prev,
-				[action.actionId]: {
-					...(prev[action.actionId] ?? {}),
+				[action.id]: {
+					...(prev[action.id] ?? {}),
 					attachments: action.attachments,
 					subType: action.subType
 					// intentionally NOT merging status — the issuer flips
@@ -1736,16 +1747,16 @@ export function FeedApp() {
 			const activate = (actionId: string) =>
 				setFeedUpdates((prev) => ({
 					...prev,
-					[actionId]: { ...(prev[actionId] ?? {}), status: 'A' }
+					[actionId]: { ...(prev[actionId] ?? {}), status: 'active' }
 				}))
 			for (const p of feedRef.current) {
-				if (p.status !== 'P' || p.audience?.idTag !== action.issuer.idTag) continue
-				if (p.actionId === subject) activate(p.actionId)
-				else if (p.actionId.startsWith('@')) {
+				if (p.status !== 'pending' || p.audience?.idTag !== action.issuer.idTag) continue
+				if (p.id === subject) activate(p.id)
+				else if (p.id.startsWith('@')) {
 					api?.actions
-						.get(p.actionId)
+						.get(p.id)
 						.then((a) => {
-							if (a.actionId === subject) activate(p.actionId)
+							if (a.id === subject) activate(p.id)
 						})
 						.catch(() => {
 							/* stays pending until the next refetch */
@@ -1800,7 +1811,7 @@ export function FeedApp() {
 	const mergedFeed = React.useMemo(() => {
 		// Layer the engaged-id stat overlay onto one action.
 		function applyStatOverlay(a: ActionView): ActionView {
-			const o = statOverlay[a.actionId]
+			const o = statOverlay[a.id]
 			if (!o) return a
 			return { ...a, stat: { ...a.stat, ...o } }
 		}
@@ -1809,10 +1820,10 @@ export function FeedApp() {
 			collapsePartnerships(feed)
 				// The focused post is pinned above the list; drop it here so it is not
 				// shown twice.
-				.filter((post) => !deletedIds.has(post.actionId) && post.actionId !== focusedId)
+				.filter((post) => !deletedIds.has(post.id) && post.id !== focusedId)
 				.map((post) => {
 					// POST overlay (attachments/subType), top-level only.
-					const update = feedUpdates[post.actionId]
+					const update = feedUpdates[post.id]
 					const base = update ? ({ ...post, ...update } as ActionView) : post
 					// Stat overlay applied to the top-level action AND its subjectAction.
 					const withSelf = applyStatOverlay(base)
@@ -1959,7 +1970,7 @@ export function FeedApp() {
 					reposts: prevReposts + 1,
 					ownRepostIds: {
 						...action.subjectAction?.stat?.ownRepostIds,
-						[action.audience?.idTag ?? auth?.idTag ?? '']: action.actionId
+						[action.audience?.idTag ?? auth?.idTag ?? '']: action.id
 					}
 				})
 			}
@@ -2227,7 +2238,7 @@ export function FeedApp() {
 							<>
 								{collapsePartnerships(unreadPosts).map((post) => (
 									<VBox
-										key={post.actionId}
+										key={post.id}
 										ref={registerReadTracker}
 										data-read-ts={feedReadTs(post)}
 									>
@@ -2371,7 +2382,7 @@ export function FeedApp() {
 									</HBox>
 								)}
 								{mergedFeed.map((action, i) => (
-									<React.Fragment key={action.actionId}>
+									<React.Fragment key={action.id}>
 										{/* Suppress the divider at index 0 (nothing unread above
 										    it) and at -1 (no in-list boundary: all read or all
 										    unread); only render it as a real mid-list boundary. */}

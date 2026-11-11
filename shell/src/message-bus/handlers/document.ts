@@ -170,7 +170,7 @@ export async function ensureFileLinkShare(
 	contextIdTag: string | undefined,
 	target: { fileId: string; entryId?: string },
 	sourceFileId: string,
-	permission: 'R' | 'W' = 'R',
+	permission: 'read' | 'write' = 'read',
 	exact = false,
 	createIfMissing = true
 ): Promise<boolean> {
@@ -181,20 +181,20 @@ export async function ensureFileLinkShare(
 			return false
 		}
 		const entryId = target.entryId ?? target.fileId
-		// Upsert per (file, subject): the picker/link paths ask for 'R' only on a fresh share
-		// (re-linking must not drop an editable embed's 'W'); doc:grant sets it either way.
+		// Upsert per (file, subject): the picker/link paths ask for 'read' only on a fresh share
+		// (re-linking must not drop an editable embed's 'write'); doc:grant sets it either way.
 		const shares = await api.files.listShares(entryId)
-		const share = shares.find((s) => s.subjectType === 'F' && s.subjectId === sourceFileId)
+		const share = shares.find((s) => s.subjectType === 'file' && s.subjectId === sourceFileId)
 		if (share) {
-			if (!exact && permission === 'R') return true
-			if (share.permission[0] === permission) return true
+			if (!exact && permission === 'read') return true
+			if (share.permission === permission) return true
 			await api.files.updateShare(entryId, share.id, { permission })
 			return true
 		}
 		// Nothing to downgrade; creating a share is doc:link's job, behind its disclosure
 		if (!createIfMissing) return true
 		await api.files.createShare(entryId, {
-			subjectType: 'F',
+			subjectType: 'file',
 			subjectId: sourceFileId,
 			permission
 		})
@@ -455,7 +455,7 @@ export function initDocumentHandlers(bus: ShellMessageBus): void {
 				!(await ensureFileLinkShare(
 					bus,
 					contextIdTag,
-					{ fileId, entryId: meta.entryId },
+					{ fileId, entryId: meta.id },
 					sourceFileId
 				))
 			) {
@@ -522,9 +522,9 @@ export function initDocumentHandlers(bus: ShellMessageBus): void {
 			const ok = await ensureFileLinkShare(
 				bus,
 				contextIdTag,
-				{ fileId, entryId: meta.entryId },
+				{ fileId, entryId: meta.id },
 				sourceFileId,
-				access === 'write' ? 'W' : 'R',
+				access === 'write' ? 'write' : 'read',
 				true,
 				access === 'write'
 			)

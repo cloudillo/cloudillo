@@ -14,7 +14,9 @@ import {
 	resolveAccessLevel,
 	shareGrantCeiling,
 	toAppAccess,
-	toSharePermChar,
+	getVisibilityDropdownOptions,
+	getVisibilityLabel,
+	toSharePerm,
 	visibilityRank
 } from '../apps/files/utils.js'
 
@@ -30,8 +32,8 @@ const OTHER = 'bob.example'
  */
 function file(owner?: string, upstream?: string): File {
 	return {
-		entryId: 'e1',
-		fileId: 'f1',
+		id: 'e1',
+		contentId: 'f1',
 		fileName: 'doc',
 		contentType: 'text/plain',
 		createdAt: '2026-01-01T00:00:00Z',
@@ -190,7 +192,9 @@ describe('canManageShares', () => {
 	it('cannot see an admin grant once the cross-context scope has stripped the level', () => {
 		const stripped = { ...file(OTHER, OTHER), accessLevel: undefined }
 		expect(canManageShares(stripped, ME, [])).toBe(false)
-		expect(hasAdminGrant([{ subjectType: 'U', subjectId: ME, permission: 'A' }], ME)).toBe(true)
+		expect(
+			hasAdminGrant([{ subjectType: 'user', subjectId: ME, permission: 'admin' }], ME)
+		).toBe(true)
 	})
 })
 
@@ -376,11 +380,11 @@ describe('canReadShares', () => {
 })
 
 describe('isAdminPerm', () => {
-	it("recognises only 'A'", () => {
-		expect(isAdminPerm('A')).toBe(true)
-		expect(isAdminPerm('W')).toBe(false)
-		expect(isAdminPerm('C')).toBe(false)
-		expect(isAdminPerm('R')).toBe(false)
+	it("recognises only 'admin'", () => {
+		expect(isAdminPerm('admin')).toBe(true)
+		expect(isAdminPerm('write')).toBe(false)
+		expect(isAdminPerm('comment')).toBe(false)
+		expect(isAdminPerm('read')).toBe(false)
 		expect(isAdminPerm(undefined)).toBe(false)
 	})
 })
@@ -394,30 +398,30 @@ describe('isAdminPerm', () => {
 describe('hasAdminGrant', () => {
 	type GrantEntry = NonNullable<Parameters<typeof hasAdminGrant>[0]>[number]
 
-	function entry(subjectId: string, permission: string, subjectType = 'U'): GrantEntry {
+	function entry(subjectId: string, permission: string, subjectType = 'user'): GrantEntry {
 		return { subjectType, subjectId, permission } as GrantEntry
 	}
 
-	it("finds our own 'A' entry", () => {
-		expect(hasAdminGrant([entry(OTHER, 'W'), entry(ME, 'A')], ME)).toBe(true)
+	it("finds our own 'admin' entry", () => {
+		expect(hasAdminGrant([entry(OTHER, 'write'), entry(ME, 'admin')], ME)).toBe(true)
 	})
 
 	it('rejects a plain write grant for the same user', () => {
-		expect(hasAdminGrant([entry(ME, 'W')], ME)).toBe(false)
+		expect(hasAdminGrant([entry(ME, 'write')], ME)).toBe(false)
 	})
 
-	it("rejects an 'A' entry belonging to someone else", () => {
-		expect(hasAdminGrant([entry(OTHER, 'A')], ME)).toBe(false)
+	it("rejects an 'admin' entry belonging to someone else", () => {
+		expect(hasAdminGrant([entry(OTHER, 'admin')], ME)).toBe(false)
 	})
 
-	it("ignores a non-'U' subject holding 'A'", () => {
-		// File-share entries ('F') name a document, not a person
-		expect(hasAdminGrant([entry(ME, 'A', 'F')], ME)).toBe(false)
+	it("ignores a non-'user' subject holding 'admin'", () => {
+		// File-share entries ('file') name a document, not a person
+		expect(hasAdminGrant([entry(ME, 'admin', 'file')], ME)).toBe(false)
 	})
 
 	it('is false with nothing to judge', () => {
 		expect(hasAdminGrant(undefined, ME)).toBe(false)
-		expect(hasAdminGrant([entry(ME, 'A')], undefined)).toBe(false)
+		expect(hasAdminGrant([entry(ME, 'admin')], undefined)).toBe(false)
 	})
 })
 
@@ -465,25 +469,25 @@ describe('toAppAccess', () => {
 
 // Mirrors the backend's fail-safe `AccessLevel::from_perm_char`: `tShareEntry.permission` stays a
 // plain string so one corrupt row cannot fail the decode of the whole share list.
-describe('toSharePermChar', () => {
+describe('toSharePerm', () => {
 	it('passes the vocabulary through unchanged', () => {
-		expect(toSharePermChar('R')).toBe('R')
-		expect(toSharePermChar('C')).toBe('C')
-		expect(toSharePermChar('W')).toBe('W')
-		expect(toSharePermChar('A')).toBe('A')
+		expect(toSharePerm('read')).toBe('read')
+		expect(toSharePerm('comment')).toBe('comment')
+		expect(toSharePerm('write')).toBe('write')
+		expect(toSharePerm('admin')).toBe('admin')
 	})
 
-	it("normalizes anything else to 'R'", () => {
-		expect(toSharePermChar('X')).toBe('R')
-		expect(toSharePermChar('')).toBe('R')
-		expect(toSharePermChar('write')).toBe('R')
-		expect(toSharePermChar(undefined)).toBe('R')
-		expect(toSharePermChar(null)).toBe('R')
-		expect(toSharePermChar(7)).toBe('R')
+	it("normalizes anything else to 'read'", () => {
+		expect(toSharePerm('X')).toBe('read')
+		expect(toSharePerm('')).toBe('read')
+		expect(toSharePerm('W')).toBe('read')
+		expect(toSharePerm(undefined)).toBe('read')
+		expect(toSharePerm(null)).toBe('read')
+		expect(toSharePerm(7)).toBe('read')
 	})
 
 	it('accepts a String object, as the runtype decoder can produce', () => {
-		expect(toSharePermChar(new String('A'))).toBe('A')
+		expect(toSharePerm(new String('admin'))).toBe('admin')
 	})
 })
 
@@ -493,22 +497,48 @@ describe('toSharePermChar', () => {
  * post's on this one function. Nothing in the type system pins the two together, so this does.
  */
 describe('visibilityRank', () => {
-	it.each(['P', 'C', 'F'])('places the post visibility %s on the file ladder', (v) => {
-		expect(visibilityRank(v)).toBeGreaterThanOrEqual(0)
-	})
+	it.each(['public', 'connected', 'followers'])(
+		'places the post visibility %s on the file ladder',
+		(v) => {
+			expect(visibilityRank(v)).toBeGreaterThanOrEqual(0)
+		}
+	)
 
 	it('orders public above followers above connected above direct', () => {
-		expect(visibilityRank('P')).toBeGreaterThan(visibilityRank('F'))
-		expect(visibilityRank('F')).toBeGreaterThan(visibilityRank('C'))
-		expect(visibilityRank('C')).toBeGreaterThan(visibilityRank(null))
+		expect(visibilityRank('public')).toBeGreaterThan(visibilityRank('followers'))
+		expect(visibilityRank('followers')).toBeGreaterThan(visibilityRank('connected'))
+		expect(visibilityRank('connected')).toBeGreaterThan(visibilityRank('direct'))
 	})
 
-	it("normalises 'D' onto the same rung as null", () => {
-		expect(visibilityRank('D')).toBe(visibilityRank(null))
+	it('places the backend-only rungs where the backend does', () => {
+		expect(visibilityRank('secondDegree')).toBeGreaterThan(visibilityRank('followers'))
+		expect(visibilityRank('secondDegree')).toBeLessThan(visibilityRank('verified'))
+		expect(visibilityRank('subscribed')).toBeGreaterThan(visibilityRank('direct'))
+		expect(visibilityRank('subscribed')).toBeLessThan(visibilityRank('connected'))
 	})
 
-	it.each([undefined, 'X'])('refuses to place %s', (v) => {
+	it.each([undefined, null, 'X', 'P', 'unknown'])('refuses to place %s', (v) => {
 		expect(visibilityRank(v)).toBe(-1)
+	})
+})
+
+describe('visibility labels and picker', () => {
+	const t = ((s: string) => s) as unknown as Parameters<typeof getVisibilityLabel>[0]
+
+	it('labels subscribed and secondDegree as themselves, not Direct', () => {
+		expect(getVisibilityLabel(t, 'subscribed')).toBe('Subscribers')
+		expect(getVisibilityLabel(t, 'secondDegree')).toBe('Second degree')
+		expect(getVisibilityLabel(t, 'unknown')).toBe('Direct')
+	})
+
+	it('offers only the 5 settable rungs', () => {
+		expect(getVisibilityDropdownOptions(t).map((o) => o.value)).toEqual([
+			'direct',
+			'connected',
+			'followers',
+			'verified',
+			'public'
+		])
 	})
 })
 

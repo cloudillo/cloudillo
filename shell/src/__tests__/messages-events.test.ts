@@ -18,23 +18,23 @@ function a(
 	over: Partial<ActionView> = {}
 ): ActionView {
 	return {
-		actionId,
+		id: actionId,
 		type,
-		createdAt,
+		createdAt: new Date(createdAt * 1000).toISOString(),
 		issuer: { idTag: 'x.test', name: 'X' },
 		...over
 	} as ActionView
 }
 
-const ids = (rows: ActionView[]) => rows.map((r) => r.actionId)
+const ids = (rows: ActionView[]) => rows.map((r) => r.id)
 
 describe('isConvEvent', () => {
 	it.each([
 		['CONV', undefined, undefined, true],
 		['CONV', 'UPD', undefined, true],
-		['SUBS', undefined, 'A', true],
-		['SUBS', undefined, 'D', true],
-		['SUBS', undefined, 'C', false],
+		['SUBS', undefined, 'active', true],
+		['SUBS', undefined, 'deleted', true],
+		['SUBS', undefined, 'confirmation', false],
 		['SUBS', 'DEL', undefined, true],
 		['SUBS', 'ROLE', undefined, true],
 		['SUBS', 'UPD', undefined, false],
@@ -55,7 +55,7 @@ describe('splitPage / mergeEvents', () => {
 			a('m1', 'MSG', 3, { subType: 'TEXT' }),
 			a('u1', 'MSG', 3, { subType: 'UPD' }),
 			a('s1', 'SUBS', 2),
-			a('k1', 'SUBS', 2, { status: 'C' } as Partial<ActionView>)
+			a('k1', 'SUBS', 2, { status: 'confirmation' } as Partial<ActionView>)
 		])
 		expect(ids(page.msgs)).toEqual(['m1'])
 		expect(ids(page.events)).toEqual(['s1'])

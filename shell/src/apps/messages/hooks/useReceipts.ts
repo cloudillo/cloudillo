@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: MPL-2.0
 
+import { fetchAll } from '@cloudillo/core'
 import { useApi, useAuth } from '@cloudillo/react'
 import type { ActionView, ProfileInfo } from '@cloudillo/types'
 import * as React from 'react'
@@ -58,26 +59,18 @@ export function useReceipts(conversation: Conversation | undefined): Receipt[] {
 		setReceipts([])
 		if (!api || !convId) return
 		let cancelled = false
-		;(async function () {
-			const rows: ActionView[] = []
-			let cursor: string | undefined
-			// at most 10 pages of 200 RCPTs (one per reader, so 2000 readers);
-			// raise the cap if groups ever grow past that.
-			for (let page = 0; page < 10 && !cancelled; page++) {
-				const res = await api.actions.listPaginated({
+		// at most 10 pages of 200 RCPTs (one per reader, so 2000 readers);
+		// raise the cap if groups ever grow past that.
+		fetchAll(
+			(cursor) =>
+				api.actions.listPaginated({
 					type: 'RCPT',
-					...(isGroup ? { subject: convId } : { involved: convId }),
+					...(isGroup ? { subject: convId } : { involvedIdTag: convId }),
 					limit: 200,
 					cursor
-				})
-				rows.push(...res.data)
-				cursor = res.cursorPagination?.hasMore
-					? (res.cursorPagination.nextCursor ?? undefined)
-					: undefined
-				if (!cursor) break
-			}
-			return rows
-		})()
+				}),
+			{ maxPages: 10 }
+		)
 			.then((rows) => {
 				if (cancelled) return
 				const fetched = rows
@@ -94,7 +87,7 @@ export function useReceipts(conversation: Conversation | undefined): Receipt[] {
 	}, [api, convId, isGroup, me])
 
 	// A live RCPT supersedes that reader's older one (key RCPT:{conv}:{audience}:{issuer}).
-	useWsBus({ cmds: ['ACTION'] }, (m) => {
+	useWsBus({ types: ['action'] }, (m) => {
 		const a = m.data as ActionView
 		if (!convId || a.issuer?.idTag === me || !isConvRcpt(a, convId, isGroup)) return
 		const r = toReceipt(a)
@@ -127,7 +120,7 @@ export function receiptPoints(
 	function pointOf(ts: number, own?: boolean): number {
 		for (let i = msg!.length - 1; i >= 0; i--) {
 			const m = msg![i]
-			if (!m || m.actionId === m.tempId) continue
+			if (!m || m.id === m.tempId) continue
 			if (own && m.issuer.idTag !== ownIdTag) continue
 			if (at(i) <= ts) return i
 		}
@@ -136,11 +129,11 @@ export function receiptPoints(
 	if (!isGroup) {
 		const peerReadAt = Math.max(...receipts.map((r) => r.readAt))
 		const i = pointOf(peerReadAt, true)
-		return { byMsg, seenId: i >= 0 ? msg[i]?.actionId : undefined }
+		return { byMsg, seenId: i >= 0 ? msg[i]?.id : undefined }
 	}
 	for (const r of receipts) {
 		const i = pointOf(r.readAt)
-		const id = i >= 0 ? msg[i]?.actionId : undefined
+		const id = i >= 0 ? msg[i]?.id : undefined
 		if (!id) continue
 		byMsg.set(id, [...(byMsg.get(id) ?? []), r.profile])
 	}

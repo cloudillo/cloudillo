@@ -56,15 +56,15 @@ export function QrLoginPanel({ className }: { className?: string }) {
 		}
 	}, [api])
 
-	// Use pre-fetched data from login-init context.
+	// Use pre-fetched data from login init context.
 	// loginInitData === undefined means "still loading from layout" — wait.
 	React.useEffect(
 		function initFromContext() {
 			if (auth) return
 
 			if (loginInitData) {
-				setSessionId(loginInitData.qrLogin.sessionId)
-				setSecret(loginInitData.qrLogin.secret)
+				setSessionId(loginInitData.qr.sessionId)
+				setSecret(loginInitData.qr.secret)
 				setState('showing')
 			}
 		},
@@ -115,7 +115,8 @@ export function QrLoginPanel({ className }: { className?: string }) {
 							setState('expired')
 							return
 						}
-						// status === 'pending' → wait before re-polling
+						// 'pending' or 'unknown' (newer node) → wait before re-polling; the
+						// session still ends in 'expired' server-side.
 						await new Promise((r) => setTimeout(r, 1000))
 					} catch (err) {
 						if (cancelled) return

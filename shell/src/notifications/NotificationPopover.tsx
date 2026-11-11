@@ -123,26 +123,26 @@ export function NotificationPopover() {
 						<List scroll>
 							{sortedNotifications.map((action) => (
 								<NotificationItem
-									key={action.actionId}
+									key={action.id}
 									action={action}
 									onClick={() => {
 										setOpen(false)
 										navigate(allPath)
 									}}
 									onAccept={
-										action.status === 'C'
+										action.status === 'confirmation'
 											? action.type === 'PRINVT'
 												? handlePrinvtAccept
 												: handleInvtAccept
 											: undefined
 									}
 									onReject={
-										action.status === 'C' && action.type !== 'PRINVT'
+										action.status === 'confirmation' && action.type !== 'PRINVT'
 											? rejectNotification
 											: undefined
 									}
 									onDismiss={
-										action.status !== 'C'
+										action.status !== 'confirmation'
 											? dismissNotification
 											: action.type === 'PRINVT'
 												? acceptNotification

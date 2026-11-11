@@ -23,10 +23,10 @@ const t = ((s: string) => s) as unknown as TFunction
 
 function action(fields: Partial<ActionView>): ActionView {
 	return {
-		actionId: 'a1',
+		id: 'a1',
 		type: 'POST',
 		issuer: { idTag: 'x.tld' },
-		createdAt: 0,
+		createdAt: '1970-01-01T00:00:00Z',
 		...fields
 	} as ActionView
 }
@@ -37,15 +37,26 @@ function community(roles: string[]): ActiveContext {
 
 describe('collapsePartnerships', () => {
 	it('keeps the first PTNR of each unordered pair, and every other action', () => {
-		const ab = action({ actionId: '1', type: 'PTNR', issuer: { idTag: 'a' }, subject: '@b' })
-		const ba = action({ actionId: '2', type: 'PTNR', issuer: { idTag: 'b' }, subject: '@a' })
-		const ac = action({ actionId: '3', type: 'PTNR', issuer: { idTag: 'a' }, subject: '@c' })
-		const post = action({ actionId: '4' })
-		expect(collapsePartnerships([ab, post, ba, ac]).map((a) => a.actionId)).toEqual([
-			'1',
-			'4',
-			'3'
-		])
+		const ab = action({
+			id: '1',
+			type: 'PTNR',
+			issuer: { idTag: 'a', name: 'a', type: 'community' },
+			subject: '@b'
+		})
+		const ba = action({
+			id: '2',
+			type: 'PTNR',
+			issuer: { idTag: 'b', name: 'b', type: 'community' },
+			subject: '@a'
+		})
+		const ac = action({
+			id: '3',
+			type: 'PTNR',
+			issuer: { idTag: 'a', name: 'a', type: 'community' },
+			subject: '@c'
+		})
+		const post = action({ id: '4' })
+		expect(collapsePartnerships([ab, post, ba, ac]).map((a) => a.id)).toEqual(['1', '4', '3'])
 	})
 })
 

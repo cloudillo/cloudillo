@@ -322,17 +322,17 @@ function ConnectNotification({
 	const { api } = useApi()
 	const content = inviteMessage(action)
 
-	const actionable = action.status === 'C' && action.subType !== 'DEL'
+	const actionable = action.status === 'confirmation' && action.subType !== 'DEL'
 
 	async function onAccept() {
-		if (!api || !action?.actionId) return
-		await api.actions.accept(action.actionId)
+		if (!api || !action?.id) return
+		await api.actions.accept(action.id)
 		onActionHandled?.(action)
 	}
 
 	async function onReject() {
-		if (!api || !action?.actionId) return
-		await api.actions.reject(action.actionId)
+		if (!api || !action?.id) return
+		await api.actions.reject(action.id)
 		onActionHandled?.(action)
 	}
 
@@ -344,7 +344,7 @@ function ConnectNotification({
 			title={
 				action.subType === 'DEL'
 					? t('User disconnected, or refused to connect')
-					: action.status === 'C'
+					: action.status === 'confirmation'
 						? t('Wants to connect')
 						: t('is now a connection')
 			}
@@ -379,18 +379,18 @@ function FileShareNotification({
 	if (!content) return null
 
 	async function onAccept() {
-		if (!api || !action?.actionId) return
-		await api.actions.accept(action.actionId)
+		if (!api || !action?.id) return
+		await api.actions.accept(action.id)
 		onActionHandled?.(action)
 	}
 
 	async function onReject() {
-		if (!api || !action?.actionId) return
-		await api.actions.reject(action.actionId)
+		if (!api || !action?.id) return
+		await api.actions.reject(action.id)
 		onActionHandled?.(action)
 	}
 
-	const actionable = action.status === 'C'
+	const actionable = action.status === 'confirmation'
 
 	return (
 		<NotificationCard
@@ -438,10 +438,10 @@ function InviteNotification({
 			: (rawContent as { role?: string; message?: string; groupName?: string } | undefined)
 
 	async function onAccept() {
-		if (!api || !action?.actionId) return
+		if (!api || !action?.id) return
 
 		// Accept the invitation
-		await api.actions.accept(action.actionId)
+		await api.actions.accept(action.id)
 		onActionHandled?.(action)
 
 		if (communityIdTag) {
@@ -459,12 +459,12 @@ function InviteNotification({
 	}
 
 	async function onReject() {
-		if (!api || !action?.actionId) return
-		await api.actions.reject(action.actionId)
+		if (!api || !action?.id) return
+		await api.actions.reject(action.id)
 		onActionHandled?.(action)
 	}
 
-	const actionable = action.status === 'C'
+	const actionable = action.status === 'confirmation'
 
 	return (
 		<NotificationCard
@@ -525,11 +525,11 @@ function ProfileInviteNotification({
 					| { refId?: string; inviteUrl?: string; nodeName?: string; message?: string }
 					| undefined)
 
-	const actionable = action.status === 'C'
+	const actionable = action.status === 'confirmation'
 
 	async function onAccept() {
-		if (!api || !action?.actionId) return
-		await api.actions.accept(action.actionId)
+		if (!api || !action?.id) return
+		await api.actions.accept(action.id)
 		onActionHandled?.(action)
 
 		// Navigate to community creation with invite pre-selected
@@ -543,8 +543,8 @@ function ProfileInviteNotification({
 	}
 
 	async function onReject() {
-		if (!api || !action?.actionId) return
-		await api.actions.reject(action.actionId)
+		if (!api || !action?.id) return
+		await api.actions.reject(action.id)
 		onActionHandled?.(action)
 	}
 
@@ -637,8 +637,11 @@ export function Notifications() {
 	const [showFilter, setShowFilter] = React.useState<boolean>(false)
 	const [filter, setFilter] = React.useState<NotificationFilter>('unread')
 	// "All" refetches with 'A' (Active/historical) included; every other filter
-	// (incl. Unread and the type filters) loads the actionable/unread set ['C','N'].
-	const loadStatus = filter === 'all' ? ['A', 'C', 'N'] : ['C', 'N']
+	// (incl. Unread and the type filters) loads the actionable/unread set (confirmation, notification).
+	const loadStatus =
+		filter === 'all'
+			? ['active', 'confirmation', 'notification']
+			: ['confirmation', 'notification']
 	const {
 		notifications,
 		setNotifications,
@@ -658,7 +661,7 @@ export function Notifications() {
 		function onLoadNotifications() {
 			if (!api || !auth?.idTag) return
 			// `loadNotifications` identity tracks the status set (statusKey), so
-			// switching to/from "All" refetches; type filters that share ['C','N']
+			// switching to/from "All" refetches; type filters that share (confirmation, notification)
 			// reuse the already-loaded set without a refetch.
 			loadNotifications()
 		},
@@ -668,7 +671,7 @@ export function Notifications() {
 	// Called after accept/reject — backend already updated, just remove from local state
 	function onActionHandled(action: ActionView) {
 		setNotifications((n) => ({
-			notifications: n.notifications.filter((a) => a.actionId !== action.actionId)
+			notifications: n.notifications.filter((a) => a.id !== action.id)
 		}))
 	}
 
@@ -731,7 +734,7 @@ export function Notifications() {
 									<>
 										<DrawerToggle onClick={() => setShowFilter(true)} />
 										{notifications.notifications.some(
-											(a) => a.status === 'N'
+											(a) => a.status === 'notification'
 										) && (
 											<Button
 												variant="ghost"
@@ -782,7 +785,7 @@ export function Notifications() {
 								<List variant="divided" aria-label={bucket.group}>
 									{bucket.items.map((action) => (
 										<Notification
-											key={action.actionId}
+											key={action.id}
 											action={action}
 											onActionHandled={onActionHandled}
 											onDismiss={dismissNotification}

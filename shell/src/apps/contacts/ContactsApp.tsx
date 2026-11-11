@@ -140,13 +140,13 @@ export function ContactsApp() {
 
 	async function handleSaveBook(data: { name: string; description?: string }) {
 		if (bookBeingEdited) {
-			await updateBook(bookBeingEdited.abId, {
+			await updateBook(bookBeingEdited.id, {
 				name: data.name,
 				description: data.description ?? null
 			})
 		} else {
 			const created = await createBook(data)
-			if (created) setSelection(created.abId)
+			if (created) setSelection(created.id)
 		}
 	}
 
@@ -154,13 +154,13 @@ export function ContactsApp() {
 		// The sidebar fires this with `void`, so a rejection here would be a
 		// silent unhandled rejection — report it instead.
 		try {
-			await removeBook(book.abId)
+			await removeBook(book.id)
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : t('Failed to delete address book'))
 			return
 		}
-		if (selection === book.abId) setSelection('all')
-		if (selectedRef?.abId === book.abId) setSelectedRef(null)
+		if (selection === book.id) setSelection('all')
+		if (selectedRef?.abId === book.id) setSelectedRef(null)
 	}
 
 	function openCreateContact() {
@@ -174,7 +174,7 @@ export function ContactsApp() {
 		setContactEditorOpen(true)
 	}
 
-	async function handleSaveContact(abId: number, data: ContactInput) {
+	async function handleSaveContact(abId: string, data: ContactInput) {
 		if (!api) throw new Error(t('Not connected'))
 		if (editingContact) {
 			const updated = await api.contacts.replaceContact(
@@ -192,7 +192,7 @@ export function ContactsApp() {
 		list.refresh()
 	}
 
-	async function handleAddFromNetwork(abId: number, data: ContactInput) {
+	async function handleAddFromNetwork(abId: string, data: ContactInput) {
 		if (!api) throw new Error(t('Not connected'))
 		const created = await api.contacts.createContact(abId, data)
 		setSelectedRef({ abId: created.abId, uid: created.uid })
@@ -217,7 +217,7 @@ export function ContactsApp() {
 		}
 	}
 
-	const defaultBookId = typeof selection === 'number' ? selection : addressBooks[0]?.abId
+	const defaultBookId = selection !== 'all' ? selection : addressBooks[0]?.id
 
 	// A failed list is not an empty list — without this the 403 a non-leader
 	// gets in a community context renders as the "create your first address
@@ -227,9 +227,7 @@ export function ContactsApp() {
 	// No "New contact" at all until there is a book to put it in.
 	const canCreateContact = !booksLoading && !booksError && addressBooks.length > 0
 	const selectedBookName =
-		selection === 'all'
-			? t('All contacts')
-			: addressBooks.find((b) => b.abId === selection)?.name
+		selection === 'all' ? t('All contacts') : addressBooks.find((b) => b.id === selection)?.name
 
 	return (
 		<>

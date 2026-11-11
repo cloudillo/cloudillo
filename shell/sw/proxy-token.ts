@@ -162,9 +162,11 @@ export async function ensureProxyToken(
 	}
 
 	debug('PROXY TOKEN miss', idTag, targetTag)
-	const res = await fetch(`https://cl-o.${idTag}/api/auth/proxy-token?idTag=${targetTag}`, {
+	const res = await fetch(`https://cl-o.${idTag}/api/auth/proxy-token`, {
+		method: 'POST',
 		credentials: 'include',
-		headers: { Authorization: `Bearer ${authToken}` }
+		headers: { Authorization: `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+		body: JSON.stringify({ idTag: targetTag })
 	})
 	// Log the status only — never the body (see the LOGGING RULE in shell/sw/index.ts).
 	if (!res.ok) {

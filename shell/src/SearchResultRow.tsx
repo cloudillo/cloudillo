@@ -39,11 +39,11 @@ export const SearchResultRow = React.forwardRef<HTMLLIElement, SearchResultRowPr
 	function SearchResultRow({ hit, compact, contextIdTag, ...props }, ref) {
 		const { t } = useTranslation()
 
-		const isProfile = hit.objTp === 'P'
+		const isProfile = hit.kind === 'profile'
 		const title = hit.title || (isProfile ? hit.objId : t('Untitled'))
 		// A profile's only useful meta is its handle, and even that is noise for a profile
 		// with no display name — the title already fell back to the tag. `ownerTag` on a
-		// 'P' row is the profile's own tag, so `objId` says the same thing more plainly.
+		// 'profile' row is the profile's own tag, so `objId` says the same thing more plainly.
 		const meta = isProfile
 			? hit.title
 				? `@${hit.objId}`
@@ -61,7 +61,7 @@ export const SearchResultRow = React.forwardRef<HTMLLIElement, SearchResultRowPr
 		// a folder, a CRDT/RTDB doc, a blob still being processed — 404s and falls
 		// back to the type icon.
 		const thumbUrl =
-			!isProfile && hit.objTp !== 'A' && thumbHost
+			!isProfile && hit.kind !== 'action' && hit.kind !== 'unknown' && thumbHost
 				? getFileUrl(thumbHost, hit.objId, 'vis.tn')
 				: undefined
 
@@ -71,7 +71,7 @@ export const SearchResultRow = React.forwardRef<HTMLLIElement, SearchResultRowPr
 		let icon: React.ReactNode
 		if (isProfile) {
 			icon = <ProfilePicture profile={{ profilePic: hit.profilePic }} srcTag={hit.objId} />
-		} else if (hit.objTp === 'A') {
+		} else if (hit.kind === 'action') {
 			icon = <IcPost width={24} height={24} />
 		} else {
 			const Icon = getFileIcon(hit.contentType ?? '', undefined)

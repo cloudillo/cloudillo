@@ -42,10 +42,11 @@ export function searchHitTarget(
 	contextIdTag?: string,
 	partAddressing?: PartAddressing
 ): string | null {
-	if (!hit.objId) return null
+	// `'unknown'`: a hit kind from a newer node - no route we could trust.
+	if (!hit.objId || hit.kind === 'unknown') return null
 
-	if (hit.objTp === 'P') return profilePath(base, hit.objId)
-	if (hit.objTp === 'A') return feedPath(base, hit.objId)
+	if (hit.kind === 'profile') return profilePath(base, hit.objId)
+	if (hit.kind === 'action') return feedPath(base, hit.objId)
 
 	// A page inside a published site container: the index writes the site-absolute path
 	// into `partId`, so the hit navigates straight there — no manifest lookup, and no
@@ -68,7 +69,7 @@ export function searchHitTarget(
 		return path?.startsWith('/') ? path : null
 	}
 
-	// 'F' file / 'D' document part.
+	// 'file' / 'doc' document part.
 	// `hit.appId` is a bare app id; `appConfig.mime[ct]` is a `/app/<appId>` path, so
 	// the fallback keeps only its last segment — as `FilesApp.openFile` does.
 	const appId = hit.appId || mimeMap?.[hit.contentType ?? '']?.split('/').pop()

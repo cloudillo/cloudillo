@@ -17,7 +17,7 @@ const nodeProfiles = new Map<string, NodeProfile>()
 const answerFromNode = async (idTags: string[]): Promise<NodeProfile[]> =>
 	idTags.map((tag) => nodeProfiles.get(tag)).filter((p): p is NodeProfile => !!p)
 
-/** Every chunk `GET /profiles/batch` was asked for, oldest first. */
+/** Every chunk `GET /profile-lookups` was asked for, oldest first. */
 const batchCalls: string[][] = []
 
 let getBatchImpl: (idTags: string[]) => Promise<NodeProfile[]> = answerFromNode
@@ -109,16 +109,18 @@ describe('profile cache', () => {
 	})
 
 	it('keeps only unexpired, catalog-valid badges', () => {
-		const now = Date.now() / 1000
+		// BadgeView `exp` is ISO on the wire; decodeBadges floors it to Unix seconds.
+		const now = Math.floor(Date.now() / 1000)
+		const iso = (s: number) => new Date(s * 1000).toISOString()
 		const community = { idTag: 'comm.example', name: 'Comm', type: 'community' }
 		const live = { community, slot: 'STD', level: 'verified', exp: now + 3600 }
 		const badges = liveBadges({
 			idTag: '@ada.example',
 			badges: [
-				live,
-				{ community, slot: 'PAT', level: 'gold', exp: now - 1 },
-				{ community, slot: 'PAT', level: 'platinum', exp: now + 3600 },
-				{ community, slot: 'XYZ', level: 'verified', exp: now + 3600 }
+				{ ...live, exp: iso(live.exp) },
+				{ community, slot: 'PAT', level: 'gold', exp: iso(now - 1) },
+				{ community, slot: 'PAT', level: 'platinum', exp: iso(now + 3600) },
+				{ community, slot: 'XYZ', level: 'verified', exp: iso(now + 3600) }
 			]
 		})
 		// The unread `type` is dropped, not a reason to reject the badge.
@@ -131,9 +133,10 @@ describe('profile cache', () => {
 			community: { idTag: 'comm.example' },
 			slot: 'STD',
 			level: 'verified',
-			exp: Date.now() / 1000 + 3600
+			exp: Math.floor(Date.now() / 1000) + 3600
 		}
-		expect(liveBadges({ idTag: '@ada.example', badges: [live] })).toEqual([live])
+		const wire = { ...live, exp: new Date(live.exp * 1000).toISOString() }
+		expect(liveBadges({ idTag: '@ada.example', badges: [wire] })).toEqual([live])
 	})
 
 	it('invalidateProfile refetches only that tag', async () => {

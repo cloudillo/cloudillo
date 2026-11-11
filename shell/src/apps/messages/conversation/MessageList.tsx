@@ -139,20 +139,19 @@ export function MessageList({
 	const { t, i18n } = useTranslation()
 	const grouped = React.useMemo(() => groupMessages(msg || []), [msg])
 	// Reply quotes resolve their original from the window when it is loaded.
-	const byId = React.useMemo(() => new Map((msg || []).map((m) => [m.actionId, m])), [msg])
+	const byId = React.useMemo(() => new Map((msg || []).map((m) => [m.id, m])), [msg])
 	const placed = React.useMemo(
 		() => placeEvents(msg || [], events || [], { hasOlder, atLive }),
 		[msg, events, hasOlder, atLive]
 	)
 	const memberOf = React.useMemo(() => {
 		const bySubs = new Map<string, Profile>()
-		for (const e of events || [])
-			if ((e.type as string) === 'SUBS') bySubs.set(e.actionId, e.issuer)
+		for (const e of events || []) if ((e.type as string) === 'SUBS') bySubs.set(e.id, e.issuer)
 		for (const m of members || []) bySubs.set(m.actionId, m.profile)
 		return (subsId: string) => bySubs.get(subsId)
 	}, [events, members])
 	const eventLine = (e: ActionView) => (
-		<EventLine key={e.actionId} event={e} convId={convId} memberOf={memberOf} />
+		<EventLine key={e.id} event={e} convId={convId} memberOf={memberOf} />
 	)
 
 	return (
@@ -183,7 +182,7 @@ export function MessageList({
 					{grouped.map((g, i) => {
 						const local = g.action.issuer.idTag === ownIdTag
 						return (
-							<React.Fragment key={g.action.tempId ?? g.action.actionId}>
+							<React.Fragment key={g.action.tempId ?? g.action.id}>
 								{g.newDay && (
 									<Divider
 										label={dayLabel(
@@ -204,17 +203,14 @@ export function MessageList({
 								)}
 								{placed.before[i].map(eventLine)}
 								{/* biome-ignore lint/plugin/no-raw-intrinsic: ds-allow: display:contents jump anchor around the bubble */}
-								<div
-									data-msg-id={g.action.actionId}
-									style={{ display: 'contents' }}
-								>
+								<div data-msg-id={g.action.id} style={{ display: 'contents' }}>
 									<MessageBubble
 										register={register}
 										action={g.action}
 										local={local}
 										showSender={isGroup && g.showSender && !local}
 										showTimestamp={grouped[i + 1]?.showSender ?? true}
-										highlighted={highlightId === g.action.actionId}
+										highlighted={highlightId === g.action.id}
 										replyTarget={
 											g.action.subject
 												? byId.get(g.action.subject)
@@ -233,8 +229,8 @@ export function MessageList({
 								</div>
 								{receipts && (
 									<ReadReceipts
-										readers={receipts.byMsg.get(g.action.actionId)}
-										seen={receipts.seenId === g.action.actionId}
+										readers={receipts.byMsg.get(g.action.id)}
+										seen={receipts.seenId === g.action.id}
 										local={local}
 									/>
 								)}

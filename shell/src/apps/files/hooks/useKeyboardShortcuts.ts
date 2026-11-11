@@ -43,7 +43,7 @@ export function useKeyboardShortcuts({
 				}
 
 				const currentIndex = selectedFile
-					? files.findIndex((f) => f.entryId === selectedFile.entryId)
+					? files.findIndex((f) => f.id === selectedFile.id)
 					: -1
 
 				function scrollToFile(entryId: string) {
@@ -56,7 +56,7 @@ export function useKeyboardShortcuts({
 
 				function getPageSize(entryId?: string): number {
 					const DEFAULT_PAGE_SIZE = 10
-					const id = entryId || files[0]?.entryId
+					const id = entryId || files[0]?.id
 					if (!id) return DEFAULT_PAGE_SIZE
 
 					const el = document.querySelector(
@@ -83,11 +83,11 @@ export function useKeyboardShortcuts({
 						if (currentIndex > 0) {
 							const file = files[currentIndex - 1]
 							onSelectFile(file)
-							scrollToFile(file.entryId)
+							scrollToFile(file.id)
 						} else if (files.length > 0 && currentIndex === -1) {
 							const file = files[files.length - 1]
 							onSelectFile(file)
-							scrollToFile(file.entryId)
+							scrollToFile(file.id)
 						}
 						break
 
@@ -96,11 +96,11 @@ export function useKeyboardShortcuts({
 						if (currentIndex < files.length - 1) {
 							const file = files[currentIndex + 1]
 							onSelectFile(file)
-							scrollToFile(file.entryId)
+							scrollToFile(file.id)
 						} else if (files.length > 0 && currentIndex === -1) {
 							const file = files[0]
 							onSelectFile(file)
-							scrollToFile(file.entryId)
+							scrollToFile(file.id)
 						}
 						break
 
@@ -109,7 +109,7 @@ export function useKeyboardShortcuts({
 						if (files.length > 0) {
 							const file = files[0]
 							onSelectFile(file)
-							scrollToFile(file.entryId)
+							scrollToFile(file.id)
 						}
 						break
 
@@ -118,7 +118,7 @@ export function useKeyboardShortcuts({
 						if (files.length > 0) {
 							const file = files[files.length - 1]
 							onSelectFile(file)
-							scrollToFile(file.entryId)
+							scrollToFile(file.id)
 						}
 						break
 
@@ -128,13 +128,13 @@ export function useKeyboardShortcuts({
 							if (currentIndex === -1) {
 								const file = files[0]
 								onSelectFile(file)
-								scrollToFile(file.entryId)
+								scrollToFile(file.id)
 							} else {
-								const pageSize = getPageSize(selectedFile?.entryId)
+								const pageSize = getPageSize(selectedFile?.id)
 								const newIndex = Math.min(currentIndex + pageSize, files.length - 1)
 								const file = files[newIndex]
 								onSelectFile(file)
-								scrollToFile(file.entryId)
+								scrollToFile(file.id)
 							}
 						}
 						break
@@ -145,13 +145,13 @@ export function useKeyboardShortcuts({
 							if (currentIndex === -1) {
 								const file = files[files.length - 1]
 								onSelectFile(file)
-								scrollToFile(file.entryId)
+								scrollToFile(file.id)
 							} else {
-								const pageSize = getPageSize(selectedFile?.entryId)
+								const pageSize = getPageSize(selectedFile?.id)
 								const newIndex = Math.max(currentIndex - pageSize, 0)
 								const file = files[newIndex]
 								onSelectFile(file)
-								scrollToFile(file.entryId)
+								scrollToFile(file.id)
 							}
 						}
 						break
@@ -168,11 +168,11 @@ export function useKeyboardShortcuts({
 					case 'Enter':
 						if (selectedFile) {
 							e.preventDefault()
-							if (selectedFile.fileTp === 'FLDR') {
+							if (selectedFile.fileType === 'FLDR') {
 								onEnterFolder(selectedFile)
 							} else {
 								fileOps.openFile(
-									selectedFile.entryId,
+									selectedFile.id,
 									toAppAccess(selectedFile.accessLevel)
 								)
 							}
@@ -182,14 +182,14 @@ export function useKeyboardShortcuts({
 					case 'Delete':
 						if (selectedFile && !e.shiftKey) {
 							e.preventDefault()
-							fileOps.doDeleteFile(selectedFile.entryId)
+							fileOps.doDeleteFile(selectedFile.id)
 						}
 						break
 
 					case 'F2':
 						if (selectedFile) {
 							e.preventDefault()
-							fileOps.renameFile(selectedFile.entryId)
+							fileOps.renameFile(selectedFile.id)
 						}
 						break
 

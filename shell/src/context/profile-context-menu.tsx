@@ -70,15 +70,15 @@ export interface ProfileContextMenuProps {
 	onChangeIdentity?: () => void
 }
 
-type StatusChange = 'A' | 'B' | 'M'
+type StatusChange = 'active' | 'blocked' | 'muted'
 
 function restoreLabel(t: TFunction, s: ProfileStatus): string {
 	switch (s) {
-		case 'B':
+		case 'blocked':
 			return t('Unblock')
-		case 'S':
+		case 'suspended':
 			return t('Unsuspend')
-		case 'M':
+		case 'muted':
 			return t('Unmute')
 		default:
 			return t('Restore to Active')
@@ -197,14 +197,15 @@ export function ProfileContextMenu({
 	}
 
 	const handleRestore = () =>
-		applyStatus('A', t('Profile restored'), t('Failed to restore profile'))
-	const handleBlock = () => applyStatus('B', t('Profile blocked'), t('Failed to block profile'))
-	const handleMute = () => applyStatus('M', t('Profile muted'), t('Failed to mute profile'))
+		applyStatus('active', t('Profile restored'), t('Failed to restore profile'))
+	const handleBlock = () =>
+		applyStatus('blocked', t('Profile blocked'), t('Failed to block profile'))
+	const handleMute = () => applyStatus('muted', t('Profile muted'), t('Failed to mute profile'))
 
-	const currentStatus = target.status ?? 'A'
-	const showRestore = currentStatus !== 'A'
-	const showBlock = !isOwnProfile && currentStatus !== 'B'
-	const showMute = !isOwnProfile && currentStatus !== 'M' && currentStatus !== 'B'
+	const currentStatus = target.status ?? 'active'
+	const showRestore = currentStatus !== 'active'
+	const showBlock = !isOwnProfile && currentStatus !== 'blocked'
+	const showMute = !isOwnProfile && currentStatus !== 'muted' && currentStatus !== 'blocked'
 
 	const menuContent = (
 		<>
@@ -285,7 +286,7 @@ export function ProfileContextMenu({
 				</>
 			)}
 			{(showRestore || showMute || showBlock) && <Divider />}
-			{showRestore && target.status && (
+			{showRestore && target.status && target.status !== 'unknown' && (
 				<Item
 					icon={<IcRestore />}
 					label={restoreLabel(t, target.status)}

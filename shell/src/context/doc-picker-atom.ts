@@ -59,8 +59,8 @@ export interface DocPickerResult {
 	/** The viewer may write this row — what a live-document feed post requires
 	 *  (`canPost` in shell/src/apps/doc-info.ts). Absent when the surface cannot decide. */
 	canWrite?: boolean
-	/** The file's visibility (`'P'` = public); drives the embed permission disclosure */
-	visibility?: string | null
+	/** The file's visibility (`'public'` = public); drives the embed permission disclosure */
+	visibility?: string
 	/** View chosen in the pick-view pane; absent = whole document */
 	nav?: string
 }

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: MPL-2.0
 
-import { errorMessage, type TenantView } from '@cloudillo/core'
+import { errorMessage, fetchAll, type TenantView } from '@cloudillo/core'
 import {
 	ActionBar,
 	Alert,
@@ -40,19 +40,19 @@ import { useTranslation } from 'react-i18next'
 
 import { IcActive, IcAdmin, IcApiKey, IcPasskey, IcSchedule, IcSuspended } from '../icons.js'
 import { siteAdminPath } from '../routes.js'
-import { formatBytes, formatUnixTime } from '../utils.js'
+import { formatBytes, formatIsoTime } from '../utils.js'
 
-/** Login is refused once `expiresAt` (unix seconds) is reached */
+/** Login is refused once `expiresAt` is reached */
 export function isTenantExpired(tenant: TenantView) {
-	return tenant.expiresAt !== undefined && tenant.expiresAt * 1000 <= Date.now()
+	return tenant.expiresAt !== undefined && Date.parse(tenant.expiresAt) <= Date.now()
 }
 
-/** Suspended / expired (admin account state) win over the `status` letter */
+/** Suspended / expired (admin account state) win over `status` */
 export function TenantStatusBadge({ tenant }: { tenant: TenantView }) {
 	const { t } = useTranslation()
 	if (tenant.suspendedAt !== undefined) return <Badge color="error">{t('Suspended')}</Badge>
 	if (isTenantExpired(tenant)) return <Badge color="error">{t('Expired')}</Badge>
-	const isActive = tenant.status === 'A'
+	const isActive = tenant.status === 'active'
 	return (
 		<Badge color={isActive ? 'success' : 'warning'}>
 			{isActive ? t('Active') : (tenant.status ?? t('Unknown'))}
@@ -67,11 +67,11 @@ function ExpiryDialog({
 }: {
 	tenant: TenantView
 	onClose: () => void
-	onSave: (expiresAt: number | null) => void
+	onSave: (expiresAt: string | null) => void
 }) {
 	const { t } = useTranslation()
 	const [date, setDate] = React.useState(
-		tenant.expiresAt !== undefined ? formatUnixTime(tenant.expiresAt) : ''
+		tenant.expiresAt !== undefined ? formatIsoTime(tenant.expiresAt) : ''
 	)
 
 	return (
@@ -84,7 +84,7 @@ function ExpiryDialog({
 				{ idTag: tenant.idTag }
 			)}
 			onClose={onClose}
-			onSubmit={() => date && onSave(dayjs(date).unix())}
+			onSubmit={() => date && onSave(dayjs(date).toISOString())}
 			footer={
 				<ActionBar>
 					{tenant.expiresAt !== undefined && (
@@ -174,7 +174,7 @@ function TenantRow({
 					<Text size="sm" emphasis="muted">
 						{' '}
 						{t('Expires {{date}}', {
-							date: formatUnixTime(tenant.expiresAt)
+							date: formatIsoTime(tenant.expiresAt)
 						})}
 					</Text>
 				)}
@@ -260,22 +260,27 @@ export function Tenants() {
 	const [error, setError] = React.useState<string | undefined>()
 	const [expiryFor, setExpiryFor] = React.useState<TenantView | undefined>()
 
+	// Bumped per load; only the latest one may write state, so a slow older search can't
+	// overwrite the results of the query typed after it.
+	const reqSeq = React.useRef(0)
+
 	// Load tenants on mount and when search changes
 	const loadTenants = React.useCallback(
 		debounce(async (q?: string) => {
 			if (!auth || !api) return
+			const seq = ++reqSeq.current
 			setLoading(true)
 			setError(undefined)
 			try {
-				const res = await api.admin.listTenants(q ? { q } : undefined)
-				if (Array.isArray(res)) {
-					setTenants(res)
-				}
+				const rows = await fetchAll((cursor) => api.admin.listTenants({ q, cursor }))
+				if (seq === reqSeq.current) setTenants(rows)
 			} catch (err: unknown) {
 				console.error('Failed to load tenants:', err)
-				setError(err instanceof Error ? err.message : t('Failed to load tenants'))
+				if (seq === reqSeq.current) {
+					setError(err instanceof Error ? err.message : t('Failed to load tenants'))
+				}
 			} finally {
-				setLoading(false)
+				if (seq === reqSeq.current) setLoading(false)
 			}
 		}, 300),
 		[auth, api, t]
@@ -387,7 +392,7 @@ export function Tenants() {
 		}
 	}
 
-	async function handleSetExpiry(idTag: string, expiresAt: number | null) {
+	async function handleSetExpiry(idTag: string, expiresAt: string | null) {
 		if (!api) return
 		setExpiryFor(undefined)
 		try {

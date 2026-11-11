@@ -56,10 +56,7 @@ describe('DocumentReference', () => {
 
 	describe('get', () => {
 		it('should fetch existing document', async () => {
-			mockWs.send.mockResolvedValue({
-				type: 'getResult',
-				data: { title: 'Test Post', author: 'alice' }
-			})
+			mockWs.send.mockResolvedValue({ title: 'Test Post', author: 'alice' })
 
 			const snapshot = await docRef.get()
 
@@ -69,10 +66,7 @@ describe('DocumentReference', () => {
 		})
 
 		it('should return non-existing snapshot for missing document', async () => {
-			mockWs.send.mockResolvedValue({
-				type: 'getResult',
-				data: null
-			})
+			mockWs.send.mockResolvedValue(null)
 
 			const snapshot = await docRef.get()
 
@@ -81,10 +75,7 @@ describe('DocumentReference', () => {
 		})
 
 		it('should send get message', async () => {
-			mockWs.send.mockResolvedValue({
-				type: 'getResult',
-				data: null
-			})
+			mockWs.send.mockResolvedValue(null)
 
 			await docRef.get()
 

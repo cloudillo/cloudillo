@@ -57,7 +57,7 @@ import { dateInputToExpiryIso, formatRefDate, parseRefDate } from '../utils/pars
 // ============================================================================
 
 interface Ref {
-	refId: string
+	id: string
 	type: string
 	description?: string
 	createdAt: Date
@@ -120,7 +120,7 @@ function RegistrationInviteCard({
 }: RegistrationInviteCardProps) {
 	const { t } = useTranslation()
 	const [qrCode, setQrCode] = React.useState<string | undefined>()
-	const url = `https://${location.host}/register/${invite.refId}`
+	const url = `https://${location.host}/register/${invite.id}`
 	const available = !!invite.count && (!invite.expiresAt || invite.expiresAt > new Date())
 
 	return (
@@ -183,7 +183,7 @@ function RegistrationInviteCard({
 						<Field
 							orientation="horizontal"
 							label={t('Label')}
-							id={`invite-desc-${invite.refId}`}
+							id={`invite-desc-${invite.id}`}
 						>
 							<Input
 								value={editDraft.description}
@@ -198,7 +198,7 @@ function RegistrationInviteCard({
 						<Field
 							orientation="horizontal"
 							label={t('Expires')}
-							id={`invite-expires-${invite.refId}`}
+							id={`invite-expires-${invite.id}`}
 						>
 							<Input
 								type="date"
@@ -228,7 +228,7 @@ function RegistrationInviteCard({
 						<Field
 							orientation="horizontal"
 							label={t('Max uses')}
-							id={`invite-count-${invite.refId}`}
+							id={`invite-count-${invite.id}`}
 						>
 							<Input
 								type="number"
@@ -424,7 +424,7 @@ function RegistrationInvites() {
 			count: ref.count ? String(ref.count) : '',
 			unlimitedCount: !ref.count
 		})
-		setEditingRefId(ref.refId)
+		setEditingRefId(ref.id)
 	}
 
 	function cancelEdit() {
@@ -479,10 +479,10 @@ function RegistrationInvites() {
 		}
 
 		try {
-			const updated = await api.refs.update(ref.refId, patch)
+			const updated = await api.refs.update(ref.id, patch)
 			setRefs((refs) =>
 				refs?.map((r) =>
-					r.refId === ref.refId
+					r.id === ref.id
 						? {
 								...updated,
 								createdAt: new Date(updated.createdAt),
@@ -523,7 +523,7 @@ function RegistrationInvites() {
 			toast.error(friendlyError(t, err))
 			return
 		}
-		setRefs((refs) => refs?.filter((ref) => ref.refId !== refId))
+		setRefs((refs) => refs?.filter((ref) => ref.id !== refId))
 		if (editingRefId === refId) cancelEdit()
 	}
 
@@ -614,15 +614,15 @@ function RegistrationInvites() {
 
 			{refs?.map((ref) => (
 				<RegistrationInviteCard
-					key={ref.refId}
+					key={ref.id}
 					invite={ref}
-					isEditing={editingRefId === ref.refId}
+					isEditing={editingRefId === ref.id}
 					editDraft={editDraft}
 					onEditDraftChange={setEditDraft}
 					onBeginEdit={() => beginEdit(ref)}
 					onCancelEdit={cancelEdit}
 					onSaveEdit={() => saveEdit(ref)}
-					deleteRef={() => deleteRef(ref.refId)}
+					deleteRef={() => deleteRef(ref.id)}
 				/>
 			))}
 			{!showForm && (
@@ -641,7 +641,7 @@ function RegistrationInvites() {
 // ============================================================================
 
 interface CommunityInviteRef {
-	refId: string
+	id: string
 	type: string
 	description?: string
 	createdAt: Date
@@ -664,7 +664,7 @@ function CommunityInviteCard({
 
 	return (
 		<Card
-			title={invite.description || invite.refId}
+			title={invite.description || invite.id}
 			actions={
 				<HBox gap={2} align="center">
 					<Badge color={isAvailable ? 'success' : 'warning'}>
@@ -722,7 +722,7 @@ function CommunityInvites() {
 
 	async function listProfiles(q: string): Promise<Profile[] | undefined> {
 		if (!api || !q) return []
-		return api.profiles.list({ connected: true, q })
+		return api.profiles.list({ connection: 'connected', q })
 	}
 
 	async function sendInvite() {
@@ -739,11 +739,11 @@ function CommunityInvites() {
 			// Add the new invite to the list
 			setInvites((prev) => [
 				{
-					refId: res.refId,
+					id: res.refId,
 					type: 'profile.invite',
 					description: res.targetIdTag,
 					createdAt: new Date(),
-					expiresAt: res.expiresAt ? new Date(res.expiresAt * 1000) : undefined,
+					expiresAt: res.expiresAt ? new Date(res.expiresAt) : undefined,
 					count: 1
 				},
 				...(prev || [])
@@ -774,7 +774,7 @@ function CommunityInvites() {
 
 		try {
 			await api.refs.delete(refId)
-			setInvites((prev) => prev?.filter((inv) => inv.refId !== refId))
+			setInvites((prev) => prev?.filter((inv) => inv.id !== refId))
 		} catch (err) {
 			console.error('Error deleting community invite:', err)
 			await dialog.tell(t('Failed to delete invitation'), errorMessage(err))
@@ -830,9 +830,9 @@ function CommunityInvites() {
 
 			{invites?.map((invite) => (
 				<CommunityInviteCard
-					key={invite.refId}
+					key={invite.id}
 					invite={invite}
-					onDelete={() => deleteInvite(invite.refId)}
+					onDelete={() => deleteInvite(invite.id)}
 				/>
 			))}
 			{invites && invites.length === 0 && !showForm && (

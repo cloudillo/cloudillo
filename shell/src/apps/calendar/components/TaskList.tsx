@@ -43,7 +43,7 @@ export function TaskList({ tasks, calendars, isLoading, error, onToggleComplete 
 	}
 
 	const fmtDate = new Intl.DateTimeFormat(i18n.language, { month: 'short', day: 'numeric' })
-	const calById = new Map(calendars.map((c) => [c.calId, c]))
+	const calById = new Map(calendars.map((c) => [c.id, c]))
 
 	return (
 		<Panel padding={2} className="flex-fill h-min-0 overflow-y-auto">

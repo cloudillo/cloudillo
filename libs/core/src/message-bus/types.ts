@@ -1434,7 +1434,7 @@ export type SitePublishRes = T.TypeOf<typeof tSitePublishRes>
  *
  * A container bakes absolute site paths at build time, so the publisher must know
  * its own mount path *before* it builds. It cannot read it: the mount
- * table is `/api/sites`, which is `require_leader`, and the app's token is scoped
+ * table is `/api/site`, which is `require_leader`, and the app's token is scoped
  * `file:<fileId>`. So the shell answers, from the same site config the settings
  * page edits.
  *

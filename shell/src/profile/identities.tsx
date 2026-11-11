@@ -56,8 +56,14 @@ import { PeopleHeader } from './people-header.js'
 import { parseRelFilter, type RelFilter } from './rel-filter.js'
 import { describeRelationship } from './relationship.js'
 
-type ProfileStatusCode = 'A' | 'B' | 'M' | 'S'
-const VALID_STATUS_CODES = new Set<ProfileStatusCode>(['A', 'B', 'M', 'S'])
+type ProfileStatusCode = 'active' | 'blocked' | 'muted' | 'suspended' | 'banned'
+const VALID_STATUS_CODES = new Set<ProfileStatusCode>([
+	'active',
+	'blocked',
+	'muted',
+	'suspended',
+	'banned'
+])
 
 // Defensive parser for the `?status=` query param. Drops malformed/unknown
 // values (e.g. stale `?status=all` URLs from the previous Tabs UI) so the
@@ -74,11 +80,8 @@ function parseStatusList(raw: unknown): ProfileStatusCode[] {
 function ProfileConnectionIcon({ profile }: { profile: Profile }) {
 	const { t } = useTranslation()
 	const rel = describeRelationship(profile)
-	// Check for exactly true (connected) vs 'R' (pending request)
 	if (profile.connected === true)
 		return <Icon as={IcConnection} color="success" label={t('Connected')} />
-	if (profile.connected === 'R')
-		return <Icon as={IcConnection} color="warning" label={t('Connection requested')} />
 	if (rel.mutual) return <Icon as={IcMutual} color="success" label={t('Mutual')} />
 	if (rel.following) return <Icon as={IcFollowing} color="success" label={t('Following')} />
 	if (rel.followsYou) return <Icon as={IcFollowers} color="secondary" label={t('Follows you')} />
@@ -87,19 +90,19 @@ function ProfileConnectionIcon({ profile }: { profile: Profile }) {
 
 export function ProfileStatusBadge({ profile }: { profile: Profile }) {
 	const { t } = useTranslation()
-	if (profile.status === 'B')
+	if (profile.status === 'blocked')
 		return (
 			<Badge size="xs" className="align-self-center" color="error">
 				{t('Blocked')}
 			</Badge>
 		)
-	if (profile.status === 'S')
+	if (profile.status === 'suspended')
 		return (
 			<Badge size="xs" className="align-self-center" color="warning">
 				{t('Suspended')}
 			</Badge>
 		)
-	if (profile.status === 'M')
+	if (profile.status === 'muted')
 		return (
 			<Badge size="xs" className="align-self-center" color="secondary">
 				{t('Muted')}
@@ -110,10 +113,10 @@ export function ProfileStatusBadge({ profile }: { profile: Profile }) {
 
 const getStatusFilters = (t: TFunction) =>
 	[
-		{ value: 'A', label: t('Active'), icon: IcPerson },
-		{ value: 'M', label: t('Muted'), icon: IcMute },
-		{ value: 'S', label: t('Suspended'), icon: IcSuspended },
-		{ value: 'B', label: t('Blocked'), icon: IcBlock },
+		{ value: 'active', label: t('Active'), icon: IcPerson },
+		{ value: 'muted', label: t('Muted'), icon: IcMute },
+		{ value: 'suspended', label: t('Suspended'), icon: IcSuspended },
+		{ value: 'blocked', label: t('Blocked'), icon: IcBlock },
 		{ value: 'all', label: t('All statuses'), icon: IcAll }
 	] as const
 
@@ -128,9 +131,11 @@ function FilterBar({ variant }: { variant: 'person' | 'community' }) {
 	const statusList = parseStatusList(qs.status)
 	const statusFilter: string =
 		statusList.length === 0
-			? 'A'
+			? 'active'
 			: statusList.length === 4 &&
-					(['A', 'B', 'M', 'S'] as const).every((s) => statusList.includes(s))
+					(['active', 'blocked', 'muted', 'suspended'] as const).every((s) =>
+						statusList.includes(s)
+					)
 				? 'all'
 				: statusList.length === 1
 					? statusList[0]
@@ -152,8 +157,8 @@ function FilterBar({ variant }: { variant: 'person' | 'community' }) {
 	}
 	function statusHref(v: string): string {
 		const sp = new URLSearchParams(location.search)
-		if (v === 'A') sp.delete('status')
-		else if (v === 'all') sp.set('status', 'A,B,M,S')
+		if (v === 'active') sp.delete('status')
+		else if (v === 'all') sp.set('status', 'active,blocked,muted,suspended')
 		else sp.set('status', v)
 		return withSearch(sp)
 	}
@@ -399,10 +404,10 @@ export function PersonListPage({ idTag }: { idTag?: string }) {
 			;(async function () {
 				try {
 					const statusList = parseStatusList(parseQS(location.search).status)
-					const profiles = await api!.profiles.list({
+					const profiles = await api!.profiles.listAll({
 						type: 'person',
 						...(statusList.length ? { status: statusList } : {}),
-						...(rel === 'connected' ? { connected: true } : {}),
+						...(rel === 'connected' ? { connection: 'connected' as const } : {}),
 						...(rel === 'followed' ? { following: true } : {}),
 						...(rel === 'followers' ? { follower: true } : {})
 					})
@@ -582,10 +587,10 @@ function HomeCommunityListPage() {
 			;(async function () {
 				try {
 					const statusList = parseStatusList(parseQS(location.search).status)
-					const profiles = await api!.profiles.list({
+					const profiles = await api!.profiles.listAll({
 						type: 'community',
 						...(statusList.length ? { status: statusList } : {}),
-						...(rel === 'connected' ? { connected: true } : {}),
+						...(rel === 'connected' ? { connection: 'connected' as const } : {}),
 						...(rel === 'followed' ? { following: true } : {})
 					})
 					if (!cancelled) setProfiles(profiles)
@@ -647,7 +652,7 @@ function HomeCommunityListPage() {
 					{auth &&
 						usableInvites.map(({ invite, refId }) => (
 							<Alert
-								key={invite.actionId}
+								key={invite.id}
 								color="info"
 								className="mb-2"
 								title={t("You're invited to create a community")}

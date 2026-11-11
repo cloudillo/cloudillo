@@ -22,7 +22,7 @@ const HOME = 'user.example.com'
 
 let navigated: string[] = []
 let profileResults: Array<{ idTag: string; name?: string }> = []
-let searchResponse: () => Promise<unknown> = async () => ({ data: [], pagination: { total: 0 } })
+let searchResponse: () => Promise<unknown> = async () => ({ data: [], meta: { total: 0 } })
 let authState: { idTag: string; roles?: string[] } | null = { idTag: HOME }
 
 // Every hook return below is a module-level constant, never a fresh literal per
@@ -131,7 +131,7 @@ beforeEach(() => {
 	navigated = []
 	profileResults = []
 	authState = { idTag: HOME }
-	searchResponse = async () => ({ data: [], pagination: { total: 0 } })
+	searchResponse = async () => ({ data: [], meta: { total: 0 } })
 	warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
 })
 
@@ -202,8 +202,8 @@ describe('the menu element and aria-expanded agree', () => {
 
 	it('is expanded once there are rows', async () => {
 		searchResponse = async () => ({
-			data: [{ objTp: 'F', objId: 'f1', title: 'Budget', appId: 'quillo' }],
-			pagination: { total: 1 }
+			data: [{ kind: 'file', objId: 'f1', title: 'Budget', appId: 'quillo' }],
+			meta: { total: 1 }
 		})
 		renderOmnibox()
 

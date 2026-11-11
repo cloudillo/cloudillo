@@ -78,13 +78,13 @@ export function useAppToken({
 				onAccessConflictRef.current?.({ kind: 'unsupported' })
 				return
 			}
-			const rows = await currentApi.files.list({ fileId })
+			const rows = await currentApi.files.list({ contentId: fileId })
 			const ref = rows.find((f) => f.upstream?.idTag === host)
 			if (!ref) {
 				onAccessConflictRef.current?.({ kind: 'unsupported' })
 				return
 			}
-			const updated = await refreshFileDeduped(currentApi, ref.entryId)
+			const updated = await refreshFileDeduped(currentApi, ref.id)
 			const outcome = classifyOutcome(updated, accessSuffix)
 			if (onAccessConflictRef.current) {
 				await onAccessConflictRef.current(outcome)

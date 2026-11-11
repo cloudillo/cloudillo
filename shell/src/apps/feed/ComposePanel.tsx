@@ -53,7 +53,7 @@ import { ImageUpload } from '../../image.js'
 import { roleLabels } from '../../profile/role-labels.js'
 import { handAtom } from '../../state/hand.js'
 import { fetchRow } from '../doc-info.js'
-import { canManageFile, visibilityRank } from '../files/utils.js'
+import { canManageFile, fileVisibilityFromChar, visibilityRank } from '../files/utils.js'
 import { RoomPicker, useEnterableRooms } from '../shared/RoomPicker.js'
 import { AudienceSelector, type AudienceTarget } from './AudienceSelector.js'
 import type { DocPostIntent } from './doc-post-intent.js'
@@ -172,6 +172,7 @@ export function HatComposeStrip({ audienceTag }: { audienceTag: string | undefin
 					hat={{
 						idTag: hat.idTag,
 						name: hat.name ?? hat.idTag,
+						type: 'community',
 						profilePic: hat.profilePic
 					}}
 				/>{' '}
@@ -217,7 +218,7 @@ export function ComposePanel({
 	const isQuote = !!quotedAction
 	const hatFor = useHatFor()
 	const [content, setContent] = React.useState('')
-	const [visibility, setVisibility] = React.useState<Visibility>('F')
+	const [visibility, setVisibility] = React.useState<Visibility>('followers')
 	const [attachedDoc, setAttachedDoc] = React.useState<LiveDocRef | undefined>()
 	const [docRow, setDocRow] = React.useState<FileView | undefined>()
 
@@ -319,7 +320,7 @@ export function ComposePanel({
 		onFiles: onFile
 	})
 	const initialMediaTriggered = React.useRef(false)
-	const draftIdRef = React.useRef<string | undefined>(draft?.actionId)
+	const draftIdRef = React.useRef<string | undefined>(draft?.id)
 	const saveTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 	const savedFadeRef = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 	const submittingRef = React.useRef(false)
@@ -327,7 +328,7 @@ export function ComposePanel({
 	const imageUpload = useImageUpload()
 	const attachmentIdsKey = imageUpload.attachmentIds.join(',')
 
-	const isEditingScheduled = draft?.status === 'S'
+	const isEditingScheduled = draft?.status === 'scheduled'
 
 	const [emojiPickerOpen, setEmojiPickerOpen] = React.useState(false)
 	const savedRangeRef = React.useRef<Range | null>(null)
@@ -339,7 +340,7 @@ export function ComposePanel({
 		saveStatusRef.current?.setStatus(undefined)
 
 		if (draft) {
-			draftIdRef.current = draft.actionId
+			draftIdRef.current = draft.id
 			// An LDOC draft carries the doc reference in `content`; the editable
 			// text is its `.text` field, not the object.
 			const draftDoc = parseLiveDocContent(draft.content)
@@ -352,10 +353,13 @@ export function ComposePanel({
 			} else if (typeof draft.content === 'string') {
 				setContent(draft.content)
 			}
-			if (draft.visibility && ['P', 'C', 'F'].includes(draft.visibility)) {
+			if (
+				draft.visibility &&
+				['public', 'connected', 'followers'].includes(draft.visibility)
+			) {
 				setVisibility(draft.visibility as Visibility)
 			}
-			if (draft.status === 'S') {
+			if (draft.status === 'scheduled') {
 				// For scheduled drafts, the backend stores publish_at in created_at
 				setScheduleDate(new Date(draft.createdAt))
 				setShowSchedule(true)
@@ -363,7 +367,7 @@ export function ComposePanel({
 			// Pre-fill attachments
 			if (draft.attachments?.length) {
 				imageUpload.initAttachments(
-					draft.attachments.map((a) => a.fileId),
+					draft.attachments.map((a) => a.contentId),
 					inferAttachmentType(draft.subType)
 				)
 			}
@@ -420,11 +424,13 @@ export function ComposePanel({
 			try {
 				const setting = await api.settings.get('profile.default_visibility')
 				const value = setting?.value
-				if (typeof value === 'string' && ['P', 'C', 'F'].includes(value)) {
-					setVisibility(value as Visibility)
+				// The setting is stored as a char ('P' | 'C' | 'F').
+				const word = typeof value === 'string' ? fileVisibilityFromChar(value) : undefined
+				if (word === 'public' || word === 'connected' || word === 'followers') {
+					setVisibility(word)
 				}
 			} catch (_e) {
-				// Use default 'F' if setting not found
+				// Use default 'followers' if setting not found
 			}
 		})()
 	}, [api, draft])
@@ -447,9 +453,7 @@ export function ComposePanel({
 
 			const subType = getSubType()
 			const postContent = buildPostContent()
-			const publishAtUnix = scheduleDate
-				? Math.floor(scheduleDate.getTime() / 1000)
-				: undefined
+			const publishAt = scheduleDate?.toISOString()
 
 			saveStatusRef.current?.setStatus('saving')
 			try {
@@ -459,7 +463,7 @@ export function ComposePanel({
 						subType,
 						attachments: buildPostAttachments(),
 						visibility,
-						publishAt: publishAtUnix,
+						publishAt: scheduleDate?.toISOString(),
 						channel: roomChannel ?? null
 					})
 				} else {
@@ -474,13 +478,13 @@ export function ComposePanel({
 								: undefined,
 						visibility,
 						draft: true,
-						publishAt: publishAtUnix,
+						publishAt,
 						channel: roomChannel,
 						hat: hatFor(audienceTarget.idTag)
 					}
 					const res = await api.actions.create(action)
 					if (!submittingRef.current) {
-						draftIdRef.current = res.actionId
+						draftIdRef.current = res.id
 					}
 				}
 				saveStatusRef.current?.setStatus('saved')
@@ -644,7 +648,7 @@ export function ComposePanel({
 	async function widenDocument() {
 		if (!docApi || !attachedDoc || !docRow) return
 		try {
-			await docApi.files.update(docRow.entryId, { visibility })
+			await docApi.files.update(docRow.id, { visibility })
 			setDocRow((row) => (row ? { ...row, visibility } : row))
 		} catch (e) {
 			console.error('Failed to widen document visibility', e)
@@ -739,7 +743,7 @@ export function ComposePanel({
 			try {
 				const repost: NewAction = {
 					type: 'REPOST',
-					subject: quotedAction.actionId,
+					subject: quotedAction.id,
 					// Always set an explicit audience (own idTag for the own wall);
 					// the audience-header card is suppressed when it equals the issuer.
 					audienceTag: repostAudienceTag,
@@ -758,7 +762,8 @@ export function ComposePanel({
 					subjectAction: quotedAction,
 					audience: {
 						idTag: repostAudienceTag,
-						name: audienceTarget.name,
+						name: audienceTarget.name ?? repostAudienceTag,
+						type: 'unknown',
 						profilePic: audienceTarget.profilePic
 					}
 				})
@@ -787,7 +792,7 @@ export function ComposePanel({
 
 		const subType = getSubType()
 		const postContent = buildPostContent()
-		const publishAtUnix = scheduleDate ? Math.floor(scheduleDate.getTime() / 1000) : undefined
+		const publishAt = scheduleDate?.toISOString()
 
 		try {
 			if (draftIdRef.current) {
@@ -797,11 +802,11 @@ export function ComposePanel({
 					subType,
 					attachments: buildPostAttachments(),
 					visibility,
-					publishAt: publishAtUnix,
+					publishAt,
 					channel: roomChannel ?? null
 				})
-				if (publishAtUnix) {
-					await api.actions.publish(draftIdRef.current, { publishAt: publishAtUnix })
+				if (publishAt) {
+					await api.actions.publish(draftIdRef.current, { publishAt })
 				} else {
 					await api.actions.publish(draftIdRef.current)
 				}
@@ -816,14 +821,14 @@ export function ComposePanel({
 					attachments: buildPostAttachments(),
 					audienceTag,
 					visibility,
-					publishAt: publishAtUnix,
+					publishAt,
 					channel: roomChannel,
 					hat: hatFor(audienceTag)
 				}
 				const res = await api.actions.create(action)
-				if (publishAtUnix) {
-					await api.actions.publish(res.actionId, { publishAt: publishAtUnix })
-					const updated = await api.actions.get(res.actionId)
+				if (publishAt) {
+					await api.actions.publish(res.id, { publishAt })
+					const updated = await api.actions.get(res.id)
 					onSubmit?.(updated)
 				} else {
 					onSubmit?.(res)

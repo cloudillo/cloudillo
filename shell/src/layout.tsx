@@ -226,16 +226,16 @@ function Header({ inert }: { inert?: boolean }) {
 		return () => window.removeEventListener('keydown', handleKeyDown)
 	}, [setSearch, toggleOmnibox, auth, singleKeyShortcuts])
 
-	useWsBus({ cmds: ['ACTION'] }, function handleAction(msg) {
+	useWsBus({ types: ['action'] }, function handleAction(msg) {
 		// During onboarding the user handles incoming invites/connections inline
 		// in the wizard; mirroring them into the notification bell is confusing
 		// and can divert the flow. Skip ingestion until onboarding finishes — the
 		// bell is reloaded fresh on completion (see Extras.finish).
 		if (location.pathname.startsWith('/onboarding/')) return
 		const action = msg.data as ActionView
-		if (action.status == 'N' || action.status == 'C')
+		if (action.status == 'notification' || action.status == 'confirmation')
 			setNotifications((n) => {
-				if (n.notifications.some((a) => a.actionId === action.actionId)) return n
+				if (n.notifications.some((a) => a.id === action.id)) return n
 				return { notifications: [action, ...n.notifications] }
 			})
 	})

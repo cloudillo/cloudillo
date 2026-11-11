@@ -152,7 +152,7 @@ export function DocumentPicker() {
 	// before a non-public one is handed back.
 	const disclose = useCallback(
 		(file: DocPickerResult) => {
-			if (state.options?.sourceFileId && file.visibility !== 'P') {
+			if (state.options?.sourceFileId && file.visibility !== 'public') {
 				setPendingFile(file)
 			} else {
 				closeDocPicker(file)

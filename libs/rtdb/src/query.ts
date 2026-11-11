@@ -135,14 +135,13 @@ export class Query<T = unknown> {
 			message.select = this.selectFields
 		}
 
-		const response = await this.ws.send<{ data: Array<Record<string, unknown>> }>(message)
+		// `queryResult.data` is the result array itself
+		const rows = await this.ws.send<Array<Record<string, unknown>>>(message)
 
-		const documents = ((response as { data: Array<Record<string, unknown>> }).data || []).map(
-			(item: Record<string, unknown>) => ({
-				id: String(item.id || ''),
-				data: item as unknown
-			})
-		)
+		const documents = (rows || []).map((item: Record<string, unknown>) => ({
+			id: String(item.id || ''),
+			data: item as unknown
+		}))
 
 		return new QuerySnapshotImpl<T>(documents as Array<{ id: string; data: unknown }>)
 	}

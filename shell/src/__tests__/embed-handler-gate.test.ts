@@ -56,8 +56,8 @@ const relayedFrom = (nonce: string) => ({ relayed: true, relayedFrom: `_embed:${
 async function captureFetch(fn: () => Promise<void>): Promise<string[]> {
 	const urls: string[] = []
 	const realFetch = globalThis.fetch
-	globalThis.fetch = (async (url: string) => {
-		urls.push(url)
+	globalThis.fetch = (async (url: string, init?: RequestInit) => {
+		urls.push(`${url} ${init?.body ?? ''}`)
 		throw new Error('offline')
 	}) as typeof fetch
 	try {
@@ -332,7 +332,8 @@ describe('the embed guard on the picker and nested-embed handlers', () => {
 		)
 
 		expect(urls).toHaveLength(1)
-		expect(urls[0]).toMatch(/via=f9&scope=file:f2:R/)
+		expect(urls[0]).toContain('/api/auth/access-token')
+		expect(urls[0]).toContain('"via":"f9","scope":"file:f2:R"')
 	})
 
 	// The source is the stamped instance's document, so a child cannot name a sibling's
@@ -698,7 +699,7 @@ describe('the embed guard on the picker and nested-embed handlers', () => {
 	})
 })
 
-type Share = { id: number; subjectType: string; subjectId: string; permission: string }
+type Share = { id: string; subjectType: string; subjectId: string; permission: string }
 
 /** An api on the context node itself, so `getContextApi` hands it back unchanged */
 function fakeApi(shares: Share[] = [], meta: Record<string, unknown> = {}) {
@@ -706,19 +707,20 @@ function fakeApi(shares: Share[] = [], meta: Record<string, unknown> = {}) {
 		idTag: 'home.example',
 		files: {
 			getMetadata: jest.fn(async (fileId: string) => ({
-				fileId,
+				id: fileId,
+				contentId: fileId,
 				fileName: `${fileId}.doc`,
 				contentType: 'cloudillo/quillo',
 				...meta
 			})),
 			listShares: jest.fn(async (_entryId: string) => shares),
 			createShare: jest.fn(async (_entryId: string, _share: unknown) => ({})),
-			updateShare: jest.fn(async (_entryId: string, _id: number, _patch: unknown) => ({}))
+			updateShare: jest.fn(async (_entryId: string, _id: string, _patch: unknown) => ({}))
 		}
 	}
 }
 
-const writeShare: Share = { id: 7, subjectType: 'F', subjectId: 'f1', permission: 'W' }
+const writeShare: Share = { id: '7', subjectType: 'file', subjectId: 'f1', permission: 'write' }
 
 describe('doc:link.req and the file-link share', () => {
 	let warn: ReturnType<typeof jest.spyOn>
@@ -795,23 +797,26 @@ describe('doc:link.req and the file-link share', () => {
 	})
 
 	// A public file is still disclosed: the share outlives a later visibility change
-	it.each([undefined, 'P'])('shares after the disclosure (visibility %s)', async (visibility) => {
-		const api = fakeApi([], { visibility })
-		const bus = createBus({ resId: 'home.example:f1' }, api)
+	it.each([undefined, 'public'])(
+		'shares after the disclosure (visibility %s)',
+		async (visibility) => {
+			const api = fakeApi([], { visibility })
+			const bus = createBus({ resId: 'home.example:f1' }, api)
 
-		await bus.send('doc:link.req', link)
+			await bus.send('doc:link.req', link)
 
-		expect(confirm).toHaveBeenCalledWith('f2.doc')
-		expect(api.files.createShare).toHaveBeenCalledWith('f2', {
-			subjectType: 'F',
-			subjectId: 'f1',
-			permission: 'R'
-		})
-		expect(bus.responses[0]).toMatchObject({
-			ok: true,
-			data: { fileId: 'f2', appId: 'quillo', fileName: 'f2.doc' }
-		})
-	})
+			expect(confirm).toHaveBeenCalledWith('f2.doc')
+			expect(api.files.createShare).toHaveBeenCalledWith('f2', {
+				subjectType: 'file',
+				subjectId: 'f1',
+				permission: 'read'
+			})
+			expect(bus.responses[0]).toMatchObject({
+				ok: true,
+				data: { fileId: 'f2', appId: 'quillo', fileName: 'f2.doc' }
+			})
+		}
+	)
 
 	it('links an image file (canvas paste from another board) with no app', async () => {
 		const api = fakeApi([], { contentType: 'image/png' })
@@ -820,9 +825,9 @@ describe('doc:link.req and the file-link share', () => {
 		await bus.send('doc:link.req', { ...link, ref: 'cl:file/home.example:f2' })
 
 		expect(api.files.createShare).toHaveBeenCalledWith('f2', {
-			subjectType: 'F',
+			subjectType: 'file',
 			subjectId: 'f1',
-			permission: 'R'
+			permission: 'read'
 		})
 		expect(bus.responses[0]).toMatchObject({ ok: true, data: { fileId: 'f2' } })
 		expect(bus.responses[0].data?.appId).toBeUndefined()
@@ -851,9 +856,9 @@ describe('doc:link.req and the file-link share', () => {
 		const { api, bus } = await grant('write', [])
 
 		expect(api.files.createShare).toHaveBeenCalledWith('f2', {
-			subjectType: 'F',
+			subjectType: 'file',
 			subjectId: 'f1',
-			permission: 'W'
+			permission: 'write'
 		})
 		expect(bus.responses[0]).toMatchObject({ type: 'doc:grant.res', ok: true })
 	})
@@ -869,7 +874,7 @@ describe('doc:link.req and the file-link share', () => {
 	it('downgrades an existing write share on a read grant', async () => {
 		const { api } = await grant('read', [writeShare])
 
-		expect(api.files.updateShare).toHaveBeenCalledWith('f2', 7, { permission: 'R' })
+		expect(api.files.updateShare).toHaveBeenCalledWith('f2', '7', { permission: 'read' })
 	})
 })
 

@@ -87,15 +87,15 @@ export function CreateMenu({
 				parentId: currentFolderId || undefined,
 				channel: currentFolderId ? undefined : channel
 			})
-			if (res?.fileId) {
-				await api.files.update(res.entryId, {
+			if (res?.contentId) {
+				await api.files.update(res.id, {
 					fileName: (fileName ||
 						(db ? t('Untitled database') : t('Untitled document'))) as string
 				})
 
 				// Real idTag: belongs in the resId's owner half, never the context segment.
 				const ownerTag = contextIdTag || auth?.idTag
-				navigate(appPath(urlCtx, app, `${ownerTag}:${res.fileId}`))
+				navigate(appPath(urlCtx, app, `${ownerTag}:${res.contentId}`))
 			}
 		} catch (err) {
 			console.error('[Files] create failed', err)

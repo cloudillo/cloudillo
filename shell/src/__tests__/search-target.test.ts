@@ -9,7 +9,7 @@ import { searchHitTarget } from '../search-target.js'
 const COMM = ctxBase('comm.tld', 'home.tld')
 const COMMUNITY = ctxBase('community.tld', 'home.tld')
 
-function hit(patch: Partial<SearchHit> & Pick<SearchHit, 'objTp' | 'objId'>): SearchHit {
+function hit(patch: Partial<SearchHit> & Pick<SearchHit, 'kind' | 'objId'>): SearchHit {
 	return { updatedAt: '2026-01-01T00:00:00Z', score: 1, ...patch }
 }
 
@@ -17,20 +17,20 @@ const MIME = { 'cloudillo/quillo': '/app/quillo' }
 
 describe('searchHitTarget', () => {
 	it('maps a profile hit', () => {
-		expect(searchHitTarget(hit({ objTp: 'P', objId: 'alice.tld' }), HOME_BASE)).toBe(
+		expect(searchHitTarget(hit({ kind: 'profile', objId: 'alice.tld' }), HOME_BASE)).toBe(
 			'/~/profile/alice.tld'
 		)
 	})
 
 	it('maps an action hit to the feed permalink', () => {
-		expect(searchHitTarget(hit({ objTp: 'A', objId: 'act123' }), HOME_BASE)).toBe(
+		expect(searchHitTarget(hit({ kind: 'action', objId: 'act123' }), HOME_BASE)).toBe(
 			'/~/app/feed/act123'
 		)
 	})
 
 	it('maps a file hit with an explicit appId', () => {
 		const target = searchHitTarget(
-			hit({ objTp: 'F', objId: 'f1', appId: 'quillo', ownerTag: 'bob.org' }),
+			hit({ kind: 'file', objId: 'f1', appId: 'quillo', ownerTag: 'bob.org' }),
 			HOME_BASE
 		)
 		expect(target).toBe('/~/app/quillo/bob.org:f1')
@@ -38,7 +38,12 @@ describe('searchHitTarget', () => {
 
 	it('falls back to the mime map when appId is absent', () => {
 		const target = searchHitTarget(
-			hit({ objTp: 'F', objId: 'f1', contentType: 'cloudillo/quillo', ownerTag: 'bob.org' }),
+			hit({
+				kind: 'file',
+				objId: 'f1',
+				contentType: 'cloudillo/quillo',
+				ownerTag: 'bob.org'
+			}),
 			HOME_BASE,
 			MIME
 		)
@@ -47,7 +52,7 @@ describe('searchHitTarget', () => {
 
 	it('falls back to the built-in viewer when no app claims the type', () => {
 		const target = searchHitTarget(
-			hit({ objTp: 'F', objId: 'f1', contentType: 'application/zip', ownerTag: 'bob.org' }),
+			hit({ kind: 'file', objId: 'f1', contentType: 'application/zip', ownerTag: 'bob.org' }),
 			HOME_BASE,
 			MIME
 		)
@@ -57,7 +62,7 @@ describe('searchHitTarget', () => {
 	it('falls back to the viewer when there is no contentType at all', () => {
 		// The owner half is the real idTag, never the path's `~`: it is what
 		// `mintAppToken` proxies to, and `~` is not a tenant.
-		expect(searchHitTarget(hit({ objTp: 'F', objId: 'f1' }), HOME_BASE, MIME, 'me.tld')).toBe(
+		expect(searchHitTarget(hit({ kind: 'file', objId: 'f1' }), HOME_BASE, MIME, 'me.tld')).toBe(
 			'/~/app/view/me.tld:f1'
 		)
 	})
@@ -65,7 +70,7 @@ describe('searchHitTarget', () => {
 	it('appends the nav param for a document part hit', () => {
 		const target = searchHitTarget(
 			hit({
-				objTp: 'D',
+				kind: 'doc',
 				objId: 'f1',
 				appId: 'notillo',
 				ownerTag: 'bob.org',
@@ -79,7 +84,7 @@ describe('searchHitTarget', () => {
 
 	it('omits the query when a document part hit has no navParam', () => {
 		const target = searchHitTarget(
-			hit({ objTp: 'D', objId: 'f1', appId: 'notillo', ownerTag: 'bob.org', partId: 'p3' }),
+			hit({ kind: 'doc', objId: 'f1', appId: 'notillo', ownerTag: 'bob.org', partId: 'p3' }),
 			HOME_BASE
 		)
 		expect(target).toBe('/~/app/notillo/bob.org:f1')
@@ -88,7 +93,7 @@ describe('searchHitTarget', () => {
 	it('omits the query when a document part hit has no partId', () => {
 		const target = searchHitTarget(
 			hit({
-				objTp: 'D',
+				kind: 'doc',
 				objId: 'f1',
 				appId: 'notillo',
 				ownerTag: 'bob.org',
@@ -100,7 +105,7 @@ describe('searchHitTarget', () => {
 	})
 
 	it('defaults ownerTag to the context idTag', () => {
-		const h = hit({ objTp: 'F', objId: 'f1', appId: 'quillo' })
+		const h = hit({ kind: 'file', objId: 'f1', appId: 'quillo' })
 		expect(searchHitTarget(h, COMM, MIME, 'comm.tld')).toBe('/@comm.tld/app/quillo/comm.tld:f1')
 		// With no context idTag to hand there is no owner to name. The URL context is
 		// not a fallback: it may be `~`, and `~` is never a tenant.
@@ -108,9 +113,9 @@ describe('searchHitTarget', () => {
 	})
 
 	it('keeps a community context instead of rewriting it to home', () => {
-		const h = hit({ objTp: 'F', objId: 'f1', appId: 'quillo', ownerTag: 'bob.org' })
+		const h = hit({ kind: 'file', objId: 'f1', appId: 'quillo', ownerTag: 'bob.org' })
 		expect(searchHitTarget(h, COMMUNITY)).toBe('/@community.tld/app/quillo/bob.org:f1')
-		expect(searchHitTarget(hit({ objTp: 'P', objId: 'alice.tld' }), COMMUNITY)).toBe(
+		expect(searchHitTarget(hit({ kind: 'profile', objId: 'alice.tld' }), COMMUNITY)).toBe(
 			'/@community.tld/profile/alice.tld'
 		)
 	})
@@ -121,7 +126,7 @@ describe('searchHitTarget', () => {
 	// app receives byte-identical values.
 	it('encodes ids while keeping the owner:file colon literal', () => {
 		const target = searchHitTarget(
-			hit({ objTp: 'F', objId: 'a/b:c', appId: 'quillo', ownerTag: 'x/y' }),
+			hit({ kind: 'file', objId: 'a/b:c', appId: 'quillo', ownerTag: 'x/y' }),
 			HOME_BASE
 		)
 		expect(target).toBe('/~/app/quillo/x%2Fy:a%2Fb:c')
@@ -130,7 +135,7 @@ describe('searchHitTarget', () => {
 	it('encodes the nav param value', () => {
 		const target = searchHitTarget(
 			hit({
-				objTp: 'D',
+				kind: 'doc',
 				objId: 'f1',
 				appId: 'notillo',
 				ownerTag: 'bob.org',
@@ -144,7 +149,7 @@ describe('searchHitTarget', () => {
 
 	it('encodes a hostile appId rather than letting it add path segments', () => {
 		const target = searchHitTarget(
-			hit({ objTp: 'F', objId: 'f1', appId: '../../evil', ownerTag: 'bob.org' }),
+			hit({ kind: 'file', objId: 'f1', appId: '../../evil', ownerTag: 'bob.org' }),
 			HOME_BASE
 		)
 		expect(target).toBe('/~/app/..%2F..%2Fevil/bob.org:f1')
@@ -157,7 +162,7 @@ describe('searchHitTarget', () => {
 	it('links a site page hit straight to its published path', () => {
 		const target = searchHitTarget(
 			hit({
-				objTp: 'F',
+				kind: 'file',
 				objId: 'container1',
 				contentType: 'application/vnd.cloudillo.site+zip',
 				partId: '/blog/hello'
@@ -175,7 +180,7 @@ describe('searchHitTarget', () => {
 		// page — a bare path would resolve against this shell's own origin (the reader's node) instead.
 		const target = searchHitTarget(
 			hit({
-				objTp: 'F',
+				kind: 'file',
 				objId: 'container1',
 				appId: 'notillo',
 				contentType: 'application/vnd.cloudillo.site+zip',
@@ -193,7 +198,7 @@ describe('searchHitTarget', () => {
 		// We never navigate away from the app, so a remote page keeps its resId route.
 		const target = searchHitTarget(
 			hit({
-				objTp: 'F',
+				kind: 'file',
 				objId: 'container1',
 				contentType: 'application/vnd.cloudillo.site+zip',
 				ownerTag: 'bob.org',
@@ -210,7 +215,7 @@ describe('searchHitTarget', () => {
 	it('ignores the site branch when the type declares no part addressing', () => {
 		const target = searchHitTarget(
 			hit({
-				objTp: 'F',
+				kind: 'file',
 				objId: 'container1',
 				contentType: 'application/zip',
 				partId: '/blog/hello'
@@ -227,7 +232,7 @@ describe('searchHitTarget', () => {
 		(partId) => {
 			const target = searchHitTarget(
 				hit({
-					objTp: 'F',
+					kind: 'file',
 					objId: 'container1',
 					contentType: 'application/vnd.cloudillo.site+zip',
 					partId
@@ -242,7 +247,7 @@ describe('searchHitTarget', () => {
 	)
 
 	it('returns null without an objId', () => {
-		expect(searchHitTarget(hit({ objTp: 'F', objId: '' }), HOME_BASE)).toBeNull()
+		expect(searchHitTarget(hit({ kind: 'file', objId: '' }), HOME_BASE)).toBeNull()
 	})
 })
 

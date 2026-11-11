@@ -84,7 +84,7 @@ export function useEventRange(options: UseEventRangeOptions): UseEventRangeResul
 	// Key on every field consumed inside the effect so the dep array stays a
 	// string (stable across unrelated re-renders) rather than the array ref.
 	const calendarsKey = React.useMemo(
-		() => calendars.map((c) => `${c.calId}:${c.color ?? ''}`).join(','),
+		() => calendars.map((c) => `${c.id}:${c.color ?? ''}`).join(','),
 		[calendars]
 	)
 
@@ -104,13 +104,13 @@ export function useEventRange(options: UseEventRangeOptions): UseEventRangeResul
 
 			Promise.allSettled(
 				calendars.map(async (cal) => {
-					const res = await api.calendars.listObjects(cal.calId, {
+					const res = await api.calendars.listObjects(cal.id, {
 						component: 'VEVENT',
 						start: startIso,
 						end: endIso,
 						q: trimmedSearch,
 						limit: 500,
-						includeExceptions: true
+						include: ['exceptions']
 					})
 					return { cal, items: res.data }
 				})
@@ -208,7 +208,7 @@ export function useEventRange(options: UseEventRangeOptions): UseEventRangeResul
 											all.push({
 												// Keep master's coId in the stable id so the
 												// occurrence doesn't "jump" when an override appears.
-												id: makeOccurrenceId(item.coId, item.uid, dt),
+												id: makeOccurrenceId(item.id, item.uid, dt),
 												calId: item.calId,
 												uid: item.uid,
 												etag: override.etag,
@@ -241,7 +241,7 @@ export function useEventRange(options: UseEventRangeOptions): UseEventRangeResul
 												ovStart.getTime() !== dt.getTime()
 											) {
 												all.push({
-													id: `${makeOccurrenceId(item.coId, item.uid, dt)}-ghost`,
+													id: `${makeOccurrenceId(item.id, item.uid, dt)}-ghost`,
 													calId: item.calId,
 													uid: item.uid,
 													etag: item.etag,
@@ -262,7 +262,7 @@ export function useEventRange(options: UseEventRangeOptions): UseEventRangeResul
 											}
 										} else {
 											all.push({
-												id: makeOccurrenceId(item.coId, item.uid, dt),
+												id: makeOccurrenceId(item.id, item.uid, dt),
 												calId: item.calId,
 												uid: item.uid,
 												etag: item.etag,
@@ -349,8 +349,8 @@ export function useEventRange(options: UseEventRangeOptions): UseEventRangeResul
 
 function masterToOccurrence(
 	item: {
-		coId: number
-		calId: number
+		id: string
+		calId: string
 		uid: string
 		etag: string
 		summary?: string
@@ -365,7 +365,7 @@ function masterToOccurrence(
 	recurring: boolean
 ): EventOccurrence {
 	return {
-		id: makeOccurrenceId(item.coId, item.uid, start),
+		id: makeOccurrenceId(item.id, item.uid, start),
 		calId: item.calId,
 		uid: item.uid,
 		etag: item.etag,
@@ -406,7 +406,7 @@ function hashToShortId(input: string): string {
 /** Deterministic 10-char base64url id per (coId, uid, occurrence-start).
  *  Including `coId` ensures distinct server records render distinctly even
  *  when a backend sync glitch gives two records the same iCal UID. */
-function makeOccurrenceId(coId: number, uid: string, start: Date): string {
+function makeOccurrenceId(coId: string, uid: string, start: Date): string {
 	return hashToShortId(`${coId}:${uid}@${start.getTime()}`)
 }
 

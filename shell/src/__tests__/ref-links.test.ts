@@ -26,7 +26,7 @@ const NOW = new Date('2026-07-31T12:00:00Z')
 
 function ref(over: Partial<Ref> = {}): Ref {
 	return {
-		refId: 'r1abcdef',
+		id: 'r1abcdef',
 		type: 'share.file',
 		createdAt: '2026-01-01T00:00:00Z',
 		...over
@@ -35,7 +35,7 @@ function ref(over: Partial<Ref> = {}): Ref {
 
 /** What a share READER gets back: the digest in place of the credential. */
 function redacted(over: Partial<Ref> = {}): Ref {
-	return ref({ refId: 'r1~9f8e7d', redacted: true, ...over })
+	return ref({ id: 'r1~9f8e7d', redacted: true, ...over })
 }
 
 describe('isRefRedacted', () => {
@@ -119,8 +119,7 @@ describe('refLifecycle', () => {
 })
 
 /*
- * `E-FILE-ACCESS_LEVEL_FORBIDDEN`, which ShareDialog used to branch on, exists nowhere in
- * cloudillo-rs. These are the codes that actually arrive (crates/cloudillo-types/src/error.rs).
+ * Codes from the cloudillo-rs error registry (crates/cloudillo-types/src/error.rs).
  */
 describe('shareLinkErrorMessage', () => {
 	const t = (key: string) => key
@@ -130,19 +129,19 @@ describe('shareLinkErrorMessage', () => {
 	}
 
 	it('explains the grant ceiling on a 403', () => {
-		expect(shareLinkErrorMessage(apiError('E-AUTH-NOPERM', 403), t)).toBe(
+		expect(shareLinkErrorMessage(apiError('E-FILE-ACCESSLEVEL', 403), t)).toBe(
 			'You cannot create a link with more access than you hold on this file.'
 		)
 	})
 
 	it('blames the settings on a validation refusal', () => {
-		expect(shareLinkErrorMessage(apiError('E-VAL-INVALID', 400), t)).toBe(
+		expect(shareLinkErrorMessage(apiError('E-CORE-INVALID', 400), t)).toBe(
 			'The server rejected these link settings.'
 		)
 	})
 
 	it('falls back to the generic message for anything else', () => {
-		expect(shareLinkErrorMessage(apiError('E-SRV-INTERNAL', 500), t)).toBe(
+		expect(shareLinkErrorMessage(apiError('E-CORE-INTERNAL', 500), t)).toBe(
 			'Failed to create share link'
 		)
 		expect(shareLinkErrorMessage(new Error('network down'), t)).toBe(

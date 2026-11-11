@@ -34,7 +34,7 @@ const PAGE_SIZE = 15
 
 // Updater-side dedup: refs lag a render, so same-tick double deliveries pass the ref checks
 function pushNew(prev: ActionView[], action: ActionView): ActionView[] {
-	return prev.some((p) => p.actionId === action.actionId) ? prev : [action, ...prev]
+	return prev.some((p) => p.id === action.id) ? prev : [action, ...prev]
 }
 
 export function useFeedPosts(options: UseFeedPostsOptions = {}) {
@@ -63,33 +63,32 @@ export function useFeedPosts(options: UseFeedPostsOptions = {}) {
 	const rawFetchPage = React.useCallback(
 		async (cursor: string | null, limit: number) => {
 			if (!api) {
-				return { items: [] as ActionView[], nextCursor: null, hasMore: false }
+				return { items: [] as ActionView[] }
 			}
 
 			const result = await api.actions.listPaginated({
 				type: ['POST', 'REPOST', 'PTNR'],
 				// Active only — exclude soft-deleted/draft
-				status: ['A'],
-				audience,
+				status: ['active'],
+				audienceIdTag: audience,
 				audienceType,
 				tag,
-				search,
+				q: search,
 				visibility,
-				issuer,
+				issuerIdTag: issuer,
 				subscribed,
 				sort,
 				channel,
 				// Embed each REPOST's original in subjectAction so EmbeddedPostCard
 				// renders without a second fetch.
-				includeSubject: true,
+				include: ['subject'],
 				cursor: cursor ?? undefined,
 				limit
 			})
 
 			return {
 				items: result.data,
-				nextCursor: result.cursorPagination?.nextCursor ?? null,
-				hasMore: result.cursorPagination?.hasMore ?? false
+				next: result.meta.next
 			}
 		},
 		// visibility may be an array; key on the joined string for stable identity
@@ -158,7 +157,7 @@ export function useFeedPosts(options: UseFeedPostsOptions = {}) {
 	channelRef.current = channel
 
 	// Handle WebSocket updates for real-time posts
-	useWsBus({ cmds: ['ACTION'] }, function handleAction(msg) {
+	useWsBus({ types: ['action'] }, function handleAction(msg) {
 		const action = msg.data as ActionView
 
 		// Home feed: drop live arrivals addressed to a community the reader opted
@@ -179,15 +178,13 @@ export function useFeedPosts(options: UseFeedPostsOptions = {}) {
 			case 'POST':
 			case 'PTNR': {
 				// Check if post already exists in the feed (read from refs to avoid stale closure)
-				const existsInFeed = postsRef.current.some((p) => p.actionId === action.actionId)
-				const existsInNewPosts = newPostsRef.current.some(
-					(p) => p.actionId === action.actionId
-				)
+				const existsInFeed = postsRef.current.some((p) => p.id === action.id)
+				const existsInNewPosts = newPostsRef.current.some((p) => p.id === action.id)
 
 				if (
 					!existsInFeed &&
 					!existsInNewPosts &&
-					(!action.status || action.status === 'A')
+					(!action.status || action.status === 'active')
 				) {
 					// Buffer new posts for "X new posts" banner
 					setNewPosts((prev) => pushNew(prev, action))
@@ -195,12 +192,10 @@ export function useFeedPosts(options: UseFeedPostsOptions = {}) {
 				break
 			}
 			case 'REPOST': {
-				const existsInFeed = postsRef.current.some((p) => p.actionId === action.actionId)
-				const existsInNewPosts = newPostsRef.current.some(
-					(p) => p.actionId === action.actionId
-				)
+				const existsInFeed = postsRef.current.some((p) => p.id === action.id)
+				const existsInNewPosts = newPostsRef.current.some((p) => p.id === action.id)
 				if (existsInFeed || existsInNewPosts) break
-				if (action.status && action.status !== 'A') break
+				if (action.status && action.status !== 'active') break
 				// The WS push omits the embedded original (subjectAction is hydrated
 				// only in the list path), so fetch it before buffering — otherwise the
 				// banner reveal would render a hollow repost wrapper.
@@ -216,10 +211,10 @@ export function useFeedPosts(options: UseFeedPostsOptions = {}) {
 					.get(subjectId)
 					.then((subject) => {
 						// Re-check dedup after the await; a refetch or echo may have landed.
-						if (postsRef.current.some((p) => p.actionId === action.actionId)) {
+						if (postsRef.current.some((p) => p.id === action.id)) {
 							return
 						}
-						if (newPostsRef.current.some((p) => p.actionId === action.actionId)) {
+						if (newPostsRef.current.some((p) => p.id === action.id)) {
 							return
 						}
 						setNewPosts((prev) => pushNew(prev, { ...action, subjectAction: subject }))
@@ -239,8 +234,8 @@ export function useFeedPosts(options: UseFeedPostsOptions = {}) {
 	const showNewPosts = React.useCallback(() => {
 		if (newPosts.length > 0) {
 			// A buffered post may have meanwhile landed in the list via refetch
-			const ids = new Set(postsRef.current.map((p) => p.actionId))
-			const fresh = newPosts.filter((p) => !ids.has(p.actionId))
+			const ids = new Set(postsRef.current.map((p) => p.id))
+			const fresh = newPosts.filter((p) => !ids.has(p.id))
 			if (fresh.length) prepend(fresh)
 			setNewPosts([])
 		}

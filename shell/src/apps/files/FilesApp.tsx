@@ -222,8 +222,8 @@ export function FilesApp() {
 			}
 
 			// Folders second
-			const aFolder = a.fileTp === 'FLDR' ? 1 : 0
-			const bFolder = b.fileTp === 'FLDR' ? 1 : 0
+			const aFolder = a.fileType === 'FLDR' ? 1 : 0
+			const bFolder = b.fileType === 'FLDR' ? 1 : 0
 			if (aFolder !== bFolder) return bFolder - aFolder
 
 			// Default: keep original order (from API)
@@ -239,13 +239,13 @@ export function FilesApp() {
 			entryId: string,
 			patch: Partial<File> | ((file: File) => Partial<File>)
 		) {
-			if (!fileListData.getData().some((f) => f.entryId === entryId)) {
+			if (!fileListData.getData().some((f) => f.id === entryId)) {
 				// Not in this list — only a refetch can show what changed.
 				fileListData.refresh()
 				return
 			}
 			// Merged against the CURRENT row inside the updater, not against the render-time
-			// snapshot: a FILE_ID_GENERATED or fileViewUpdateAtom patch landing while the API
+			// snapshot: a fileIdGenerated or fileViewUpdateAtom patch landing while the API
 			// call was in flight would otherwise be rolled back.
 			fileListData.setFileData(entryId, (current) => ({
 				...current,
@@ -321,7 +321,7 @@ export function FilesApp() {
 
 	const onDoubleClickFile = React.useCallback(
 		function onDoubleClickFile(file: File) {
-			if (file.fileTp === 'FLDR') {
+			if (file.fileType === 'FLDR') {
 				enterFolder(file)
 			}
 		},
@@ -332,7 +332,7 @@ export function FilesApp() {
 		function onContextMenuFile(file: File, position: ContextMenuPosition) {
 			// If clicked file is not already selected, make it the only selection
 			// This ensures context menu operations target the right file(s)
-			if (!multiSelect.isSelected(file.entryId)) {
+			if (!multiSelect.isSelected(file.id)) {
 				multiSelect.handleClick(file, {
 					ctrlKey: false,
 					metaKey: false,
@@ -444,7 +444,7 @@ export function FilesApp() {
 		async function confirmRestore(entryIds: string[]): Promise<boolean> {
 			const data = fileListData.getData()
 			const orphaned = entryIds.some((id) => {
-				const ch = data.find((f) => f.entryId === id)?.channel
+				const ch = data.find((f) => f.id === id)?.channel
 				return widensAudience(porch, contextIdTag ?? '', ch, ch ?? null)
 			})
 			if (!orphaned) return true
@@ -486,7 +486,7 @@ export function FilesApp() {
 			access?: 'read' | 'comment' | 'write',
 			params?: string
 		) {
-			if (!file.fileId) return // local folders have no content id, so no resId
+			if (!file.contentId) return // local folders have no content id, so no resId
 			// `contextIdTag` is still OUR context while remote-browsing — that is a query
 			// param, not a context switch — so the browsed node has to be passed explicitly.
 			const srcIdTag = fileSrcIdTag(file, {
@@ -501,16 +501,16 @@ export function FilesApp() {
 					query[k] = v
 				}
 			}
-			navigate(appPath(urlContextIdTag, appName, `${srcIdTag}:${file.fileId}`, query))
+			navigate(appPath(urlContextIdTag, appName, `${srcIdTag}:${file.contentId}`, query))
 		}
 
 		return {
 			setFile: function setFile(file: File) {
-				fileListData.setFileData(file.entryId, file)
+				fileListData.setFileData(file.id, file)
 			},
 
 			openFile: function openFile(entryId?: string, access?: 'read' | 'comment' | 'write') {
-				const file = fileListData.getData()?.find((f) => f.entryId === entryId)
+				const file = fileListData.getData()?.find((f) => f.id === entryId)
 				if (!file) return
 				if (isFileProcessing(file)) {
 					toast.warning(
@@ -522,13 +522,13 @@ export function FilesApp() {
 				if (app) {
 					const appName = app.split('/').pop()!
 					navigateToFile(file, appName, access)
-				} else if (!file.fileTp || file.fileTp === 'BLOB') {
+				} else if (!file.fileType || file.fileType === 'BLOB') {
 					// Unknown binary: open the built-in viewer, which shows a Download fallback
 					navigateToFile(file, 'view', access)
 				} else {
 					// CRDT/RTDB docs with no handler: leave as-is (handled elsewhere as
 					// "Unsupported file type")
-					console.warn('[FilesApp] openFile: no app for', file.contentType, file.fileTp)
+					console.warn('[FilesApp] openFile: no app for', file.contentType, file.fileType)
 				}
 			},
 
@@ -538,7 +538,7 @@ export function FilesApp() {
 				access?: 'read' | 'comment' | 'write',
 				params?: string
 			) {
-				const file = fileListData.getData()?.find((f) => f.entryId === entryId)
+				const file = fileListData.getData()?.find((f) => f.id === entryId)
 				if (file) {
 					navigateToFile(file, appId, access, params)
 				} else {
@@ -547,7 +547,7 @@ export function FilesApp() {
 			},
 
 			renameFile: function renameFile(entryId?: string) {
-				const file = fileListData.getData()?.find((f) => f.entryId === entryId)
+				const file = fileListData.getData()?.find((f) => f.id === entryId)
 				setRenameFileId(entryId)
 				setRenameFileName(file?.fileName || '')
 			},
@@ -579,8 +579,8 @@ export function FilesApp() {
 
 			doDeleteFile: async function doDeleteFile(entryId: string) {
 				if (!api) return
-				const file = fileListData.getData()?.find((f) => f.entryId === entryId)
-				const isFolder = file?.fileTp === 'FLDR'
+				const file = fileListData.getData()?.find((f) => f.id === entryId)
+				const isFolder = file?.fileType === 'FLDR'
 
 				// Owner-only: probe share entries to warn about active embeds / share links.
 				// Per PRD non-goal, user/community grants ('U') are excluded — revocation cascades naturally.
@@ -589,9 +589,9 @@ export function FilesApp() {
 					try {
 						const shares = await api.files.listShares(entryId)
 						const list = Array.isArray(shares) ? shares : []
-						const embeds = list.filter((e) => e.subjectType === 'F').length
+						const embeds = list.filter((e) => e.subjectType === 'file').length
 						const links = list.filter(
-							(e) => e.subjectType !== 'F' && e.subjectType !== 'U'
+							(e) => e.subjectType !== 'file' && e.subjectType !== 'user'
 						).length
 						if (embeds > 0 || links > 0) {
 							warning = t(
@@ -676,7 +676,7 @@ export function FilesApp() {
 
 			toggleStarred: async function toggleStarred(entryId: string) {
 				if (!api) return
-				const file = fileListData.getData()?.find((f) => f.entryId === entryId)
+				const file = fileListData.getData()?.find((f) => f.id === entryId)
 				const starred = !(file?.userData?.starred ?? false)
 				try {
 					await api.files.setStarred(entryId, starred)
@@ -693,7 +693,7 @@ export function FilesApp() {
 
 			togglePinned: async function togglePinned(entryId: string) {
 				if (!api) return
-				const file = fileListData.getData()?.find((f) => f.entryId === entryId)
+				const file = fileListData.getData()?.find((f) => f.id === entryId)
 				const pinned = !(file?.userData?.pinned ?? false)
 				try {
 					await api.files.setPinned(entryId, pinned)
@@ -837,7 +837,7 @@ export function FilesApp() {
 			doDuplicateFile: async function doDuplicateFile(entryId: string) {
 				if (!api) return
 
-				const file = fileListData.getData()?.find((f) => f.entryId === entryId)
+				const file = fileListData.getData()?.find((f) => f.id === entryId)
 				const defaultName = t('Copy of {{name}}', { name: file?.fileName || '' })
 
 				const fileName = await dialog.askText(
@@ -879,7 +879,7 @@ export function FilesApp() {
 					patchFile(entryId, {
 						fileName: r.fileName,
 						contentType: r.contentType,
-						fileTp: r.fileTp,
+						fileType: r.fileType,
 						tags: r.tags,
 						preset: r.preset,
 						// Only when the response actually carries one: it is the per-user
@@ -1171,11 +1171,11 @@ export function FilesApp() {
 								<Grid min="8rem" gap={3} className="p-2" data-file-grid>
 									{files.map((file) => (
 										<ItemGrid
-											key={file.entryId}
-											selected={multiSelect.isSelected(file.entryId)}
+											key={file.id}
+											selected={multiSelect.isSelected(file.id)}
 											file={file}
 											isDirty={dirtyDocIds.has(
-												`${contextIdTag}:${file.fileId}`
+												`${contextIdTag}:${file.contentId}`
 											)}
 											onClick={onClickFile}
 											onDoubleClick={onDoubleClickFile}
@@ -1196,11 +1196,11 @@ export function FilesApp() {
 								<List variant="divided">
 									{files.map((file) => (
 										<ItemCard
-											key={file.entryId}
-											selected={multiSelect.isSelected(file.entryId)}
+											key={file.id}
+											selected={multiSelect.isSelected(file.id)}
 											file={file}
 											isDirty={dirtyDocIds.has(
-												`${contextIdTag}:${file.fileId}`
+												`${contextIdTag}:${file.contentId}`
 											)}
 											onClick={onClickFile}
 											onDoubleClick={onDoubleClickFile}

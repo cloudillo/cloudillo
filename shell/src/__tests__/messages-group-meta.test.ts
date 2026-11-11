@@ -14,7 +14,7 @@ const t = (k: string) => k
 
 const conv = (over: Partial<ActionView> = {}) =>
 	({
-		actionId: 'a1~conv',
+		id: 'a1~conv',
 		type: 'CONV',
 		issuer: { idTag: 'owner' },
 		content: { name: 'G' },
@@ -22,15 +22,21 @@ const conv = (over: Partial<ActionView> = {}) =>
 	}) as ActionView
 
 const subs = (id: string, idTag: string, over: Partial<ActionView> = {}) =>
-	({ actionId: id, type: 'SUBS', issuer: { idTag }, createdAt: 1, ...over }) as ActionView
+	({
+		id: id,
+		type: 'SUBS',
+		issuer: { idTag },
+		createdAt: '1970-01-01T00:00:01Z',
+		...over
+	}) as ActionView
 
 const invt = (id: string, idTag: string, over: Partial<ActionView> = {}) =>
 	({
-		actionId: id,
+		id,
 		type: 'INVT',
 		issuer: { idTag: 'owner' },
 		audience: { idTag },
-		createdAt: 2,
+		createdAt: '1970-01-01T00:00:02Z',
 		...over
 	}) as ActionView
 
@@ -69,7 +75,7 @@ describe('buildGroupMeta', () => {
 		const r = buildGroupMeta(
 			conv(),
 			[
-				subs('s1', 'alice', { x: { role: 'admin' } } as Partial<ActionView>),
+				subs('s1', 'alice', { extra: { role: 'admin' } } as Partial<ActionView>),
 				subs('s2', 'bob')
 			],
 			[invt('i1', 'carol')],
@@ -92,7 +98,7 @@ describe('buildGroupMeta', () => {
 			conv({
 				issuer: { idTag: 'comm', type: 'community' } as ActionView['issuer'],
 				content: {},
-				flags: 'O'
+				flags: { reactions: true, comments: true, open: true }
 			}),
 			[],
 			[],

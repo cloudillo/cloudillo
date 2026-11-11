@@ -60,8 +60,8 @@ export const GallerySidebar = React.memo(function GallerySidebar({
 
 			;(async function () {
 				try {
-					const res = await api.tags.list({ withCounts: true, limit: 10 })
-					setTags(res.tags)
+					const res = await api.tags.list({ include: ['counts'], limit: 10 })
+					setTags(res)
 				} catch {
 					// Ignore errors loading tags
 				}

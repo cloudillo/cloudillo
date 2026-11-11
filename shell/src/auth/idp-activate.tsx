@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: MPL-2.0
 
+import { FetchError } from '@cloudillo/core'
 import { Alert, List, ListItem, LoadingSpinner, Logo, Text, useApi } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -43,10 +44,14 @@ export function IdpActivate() {
 				setState('success')
 			} catch (err) {
 				setState('error')
-				if (err instanceof Error) {
-					if (err.message.includes('expired') || err.message.includes('not found')) {
+				if (err instanceof FetchError) {
+					if (
+						err.is('E-REF-EXPIRED') ||
+						err.is('E-REF-USED') ||
+						err.is('E-CORE-NOTFOUND')
+					) {
 						setError(t('This activation link has expired or is no longer valid.'))
-					} else if (err.message.includes('not in Pending')) {
+					} else if (err.is('E-IDP-NOTPENDING')) {
 						setError(t('This identity has already been activated.'))
 					} else {
 						setError(err.message)

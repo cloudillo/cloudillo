@@ -8,7 +8,7 @@ import type { Awareness } from 'y-protocols/awareness'
 
 /**
  * What the DOCUMENT's node knows about each idTag. Stands in for
- * `GET /profiles/batch`; a tag absent here is one the node never mirrored.
+ * `GET /profile-lookups`; a tag absent here is one the node never mirrored.
  */
 const nodeProfiles = new Map<string, { idTag: string; name?: string; profilePic?: string }>()
 
@@ -18,7 +18,7 @@ type NodeProfile = { idTag: string; name?: string; profilePic?: string }
 const answerFromNode = async (idTags: string[]): Promise<NodeProfile[]> =>
 	idTags.map((tag) => nodeProfiles.get(tag)).filter((p): p is NodeProfile => !!p)
 
-/** Every chunk `GET /profiles/batch` was asked for, oldest first. */
+/** Every chunk `GET /profile-lookups` was asked for, oldest first. */
 const batchCalls: string[][] = []
 
 /** Swap in per test to make the lookup fail, hang, or split. */

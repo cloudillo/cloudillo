@@ -31,7 +31,7 @@ function getActionText(
 	switch (type) {
 		case 'CONN':
 			if (subType === 'DEL') return t('Disconnected')
-			if (status === 'C') return t('Wants to connect')
+			if (status === 'confirmation') return t('Wants to connect')
 			return t('is now a connection')
 		case 'FSHR':
 			return t('Shared a file')
@@ -113,7 +113,9 @@ export function NotificationItem({
 
 	return (
 		<ListItem
-			className={action.status === 'C' ? 'c-notification-item-actionable' : undefined}
+			className={
+				action.status === 'confirmation' ? 'c-notification-item-actionable' : undefined
+			}
 			onClick={onClick ? () => onClick(action) : undefined}
 			leading={
 				// ProfilePicture forwards no ref, so the HBox is the trigger

@@ -22,7 +22,8 @@ const DB_NAME = DATA_CACHE_DB
 // so every `ownerIdTag` index entry written before this is filed under a tenant no reader
 // queries. v5: `files` cache key moved from fileId to entryId (placement), so old rows would
 // duplicate their re-keyed replacements. v6: `files` gains the `by-owner-file` index.
-const DB_VERSION = 6
+// v7: `files` payload is the 1.0 FileView. v8: `actions` payload is the 1.0 ActionView.
+const DB_VERSION = 8
 
 // Fraction of the origin's *quota* above which eviction switches to its aggressive target.
 // Relative, not an absolute byte ceiling: most of the origin's bytes are the SW blob cache and
@@ -102,8 +103,14 @@ function openDB(): Promise<IDBDatabase> {
 		// tenant no reader queries. Drop and recreate; it repopulates on the next list call.
 		// v4 → v5: cache key `${tenant}:${fileId}` → `${tenant}:${entryId}`; same drop-and-refill.
 		// v5 → v6: new `by-owner-file` index; the store is only (re)built when absent, so drop it.
-		if (oldVersion < 6 && db.objectStoreNames.contains('files')) {
+		// v6 → v7: payload is the 1.0 FileView (`id` / `contentId` / `fileType` / `extra`).
+		if (oldVersion < 7 && db.objectStoreNames.contains('files')) {
 			db.deleteObjectStore('files')
+		}
+
+		// v7 → v8: `actions` payload is the 1.0 ActionView (`id`, ISO `createdAt`, word visibility/status).
+		if (oldVersion < 8 && db.objectStoreNames.contains('actions')) {
+			db.deleteObjectStore('actions')
 		}
 
 		for (const config of STORE_CONFIGS) {

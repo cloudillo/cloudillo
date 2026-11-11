@@ -29,7 +29,7 @@ export function useSearchReindexNotifications() {
 	const { t } = useTranslation()
 	const { toast } = useToast()
 
-	useWsBus({ cmds: ['SEARCH_REINDEX_DONE'] }, (msg) => {
+	useWsBus({ types: ['searchReindexDone'] }, (msg) => {
 		if (msg === lastHandled) return
 		lastHandled = msg
 		const data = (msg.data ?? {}) as ReindexDoneData

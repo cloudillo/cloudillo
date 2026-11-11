@@ -17,16 +17,15 @@ export interface GalleryFilterState {
 }
 
 export interface Photo {
-	fileId: string
+	contentId: string
 	variantId?: string
 	fileName: string
 	contentType: string
 	createdAt: string
 	preset: string
 	tags?: string[]
-	x?: {
+	extra?: {
 		dim?: [number, number]
-		caption?: string
 	}
 }
 

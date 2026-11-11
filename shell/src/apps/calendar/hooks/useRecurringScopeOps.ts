@@ -24,20 +24,20 @@ export type ScopePrompt =
 	| {
 			kind: 'save'
 			occurrenceStart: string
-			calId: number
+			calId: string
 			uid: string
 			data: CalendarObjectInput
 	  }
 	| {
 			kind: 'delete'
 			occurrenceStart: string
-			calId: number
+			calId: string
 			uid: string
 	  }
 	| {
 			kind: 'dragresize'
 			occurrenceStart: string
-			calId: number
+			calId: string
 			uid: string
 			occId: string
 			patch: { start: string; end: string; allDay: boolean }
@@ -133,7 +133,7 @@ export function useRecurringScopeOps({
 	 *  network / 5xx / auth failures don't silently degrade to replaceObject and
 	 *  potentially stomp on data. */
 	const getExceptionOrNull = React.useCallback(
-		async (calId: number, uid: string, rid: string): Promise<CalendarObjectOutput | null> => {
+		async (calId: string, uid: string, rid: string): Promise<CalendarObjectOutput | null> => {
 			if (!api) throw new Error(t('Not connected'))
 			try {
 				return await api.calendars.getException(calId, uid, rid)

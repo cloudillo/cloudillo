@@ -27,11 +27,11 @@ import { useTranslation } from 'react-i18next'
 
 export interface CalendarSidebarProps {
 	calendars: CalendarOutput[]
-	visible: Set<number> | null
+	visible: Set<string> | null
 	currentDate: string
 	/** 0 = Sunday, 1 = Monday; undefined = locale default */
 	firstDayOfWeek?: 0 | 1
-	onToggle: (calId: number) => void
+	onToggle: (calId: string) => void
 	onEdit: (cal: CalendarOutput) => void
 	onDelete: (cal: CalendarOutput) => Promise<void>
 	onCreate: () => void
@@ -120,10 +120,10 @@ export function CalendarSidebar({
 
 				<List>
 					{calendars.map((cal) => {
-						const isVisible = visible === null || visible.has(cal.calId)
+						const isVisible = visible === null || visible.has(cal.id)
 						return (
 							<ListItem
-								key={cal.calId}
+								key={cal.id}
 								leading={<ColorDot color={cal.color || 'var(--col-primary)'} />}
 								title={
 									<Text truncate emphasis={isVisible ? undefined : 'muted'}>
@@ -146,7 +146,7 @@ export function CalendarSidebar({
 								trailing={
 									<Toggle
 										checked={isVisible}
-										onChange={() => onToggle(cal.calId)}
+										onChange={() => onToggle(cal.id)}
 										aria-label={t('Show {{name}}', { name: cal.name })}
 									/>
 								}

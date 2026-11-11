@@ -12,8 +12,8 @@ export interface UseCalendarsResult {
 	error: Error | null
 	refresh: () => void
 	create: (data: CalendarCreate) => Promise<CalendarOutput | undefined>
-	update: (calId: number, data: CalendarPatch) => Promise<CalendarOutput | undefined>
-	remove: (calId: number) => Promise<void>
+	update: (calId: string, data: CalendarPatch) => Promise<CalendarOutput | undefined>
+	remove: (calId: string) => Promise<void>
 }
 
 export function useCalendars(): UseCalendarsResult {
@@ -66,7 +66,7 @@ export function useCalendars(): UseCalendarsResult {
 	)
 
 	const update = React.useCallback(
-		async function update(calId: number, data: CalendarPatch) {
+		async function update(calId: string, data: CalendarPatch) {
 			if (!api) return undefined
 			const updated = await api.calendars.updateCalendar(calId, data)
 			refresh()
@@ -76,7 +76,7 @@ export function useCalendars(): UseCalendarsResult {
 	)
 
 	const remove = React.useCallback(
-		async function remove(calId: number) {
+		async function remove(calId: string) {
 			if (!api) return
 			await api.calendars.deleteCalendar(calId)
 			refresh()

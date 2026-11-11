@@ -40,7 +40,7 @@ export function ReplyQuote({ subjectId, target, onJump }: ReplyQuoteProps) {
 	}, [api, subjectId, target])
 
 	const quoted = target ?? fetched ?? undefined
-	const gone = fetched === null || !!quoted?.x?.deletedBy || quoted?.content === null
+	const gone = fetched === null || !!quoted?.extra?.deletedBy || quoted?.content === null
 	const excerpt = gone
 		? t('Message deleted')
 		: (typeof quoted?.content === 'string' ? quoted.content.split('\n')[0] : '') ||

@@ -43,7 +43,7 @@ export interface ConvActions {
 	togglePin: () => void
 	toggleRead: () => void
 	toggleArchive: () => void
-	mute: (notify: 'T' | 'M' | null, hours?: number) => void
+	mute: (notify: 'mentions' | 'none' | null, hours?: number) => void
 	leave: () => void
 }
 
@@ -121,9 +121,9 @@ export function MuteMenuItems({
 		[t('For 1 week'), 24 * 7],
 		[t('Until I turn it back on'), undefined]
 	]
-	const levels: [string, 'T' | 'M'][] = [
-		[t('Mentions only'), 'T'],
-		[t('Nothing'), 'M']
+	const levels: [string, 'mentions' | 'none'][] = [
+		[t('Mentions only'), 'mentions'],
+		[t('Nothing'), 'none']
 	]
 	return (
 		<>

@@ -65,7 +65,7 @@ export function MediaTab({ convId, idTag, onJump }: MediaTabProps) {
 			try {
 				const res = await api.actions.listPaginated({
 					type: 'MSG',
-					...(isGroupId(convId) ? { parentId: convId } : { involved: convId }),
+					...(isGroupId(convId) ? { parentId: convId } : { involvedIdTag: convId }),
 					attachments: true,
 					sort: 'created',
 					sortDir: 'desc',
@@ -77,7 +77,7 @@ export function MediaTab({ convId, idTag, onJump }: MediaTabProps) {
 					(a) => a.subType !== 'DEL' && a.subType !== 'UPD' && a.attachments?.length
 				)
 				setActions((prev) => (after ? [...(prev ?? []), ...page] : page))
-				setCursor(res.cursorPagination?.nextCursor ?? undefined)
+				setCursor(res.meta.next)
 			} catch (err) {
 				console.error('Failed to load conversation media', err)
 				if (gen === genRef.current) setError(true)
@@ -96,18 +96,18 @@ export function MediaTab({ convId, idTag, onJump }: MediaTabProps) {
 	}, [load])
 
 	function jump(action: ActionView) {
-		onJump(action.actionId, createdAtToSeconds(action.createdAt))
+		onJump(action.id, createdAtToSeconds(action.createdAt))
 	}
 
 	function openImage(att: Attachment) {
 		api?.files
-			.getMetadata(att.fileId)
+			.getMetadata(att.contentId)
 			.then(setViewer)
 			.catch((err) => {
 				console.error('Failed to open image', err)
 				const url = getFileUrl(
 					idTag,
-					att.fileId,
+					att.contentId,
 					getOptimalImageVariant('fullscreen', att.localVariants)
 				)
 				if (url) window.open(url, '_blank', 'noopener')
@@ -155,7 +155,7 @@ export function MediaTab({ convId, idTag, onJump }: MediaTabProps) {
 					<Grid gap={1} style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
 						{images.map(({ att, action }, i) => (
 							<BadgeAnchor
-								key={`${action.actionId}:${att.fileId}`}
+								key={`${action.id}:${att.contentId}`}
 								position="bottom-end"
 								badge={
 									<Button
@@ -173,7 +173,7 @@ export function MediaTab({ convId, idTag, onJump }: MediaTabProps) {
 									className="cursor-pointer"
 									src={getFileUrl(
 										idTag,
-										att.fileId,
+										att.contentId,
 										getOptimalImageVariant('preview', att.localVariants)
 									)}
 									style={{ width: '100%', aspectRatio: '1', objectFit: 'cover' }}
@@ -197,7 +197,7 @@ export function MediaTab({ convId, idTag, onJump }: MediaTabProps) {
 					</Heading>
 					{files.map(({ att, action }) => (
 						<FileRow
-							key={`${action.actionId}:${att.fileId}`}
+							key={`${action.id}:${att.contentId}`}
 							att={att}
 							idTag={idTag}
 							onOpen={setViewer}

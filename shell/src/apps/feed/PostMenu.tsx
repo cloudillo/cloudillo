@@ -20,12 +20,12 @@ import { useTranslation } from 'react-i18next'
 
 import { IcMute, IcTrack, IcWatch } from '../../icons.js'
 
-type SubLevel = 'W' | 'T' | 'M'
+type SubLevel = 'all' | 'mentions' | 'none'
 
-/** A stored notify level; an unknown (newer) one reads as 'W' */
+/** A stored notify level; an unknown (newer) one reads as 'all' */
 function subLevel(notify: string | undefined): SubLevel | null {
 	if (!notify) return null
-	return notify === 'T' || notify === 'M' ? notify : 'W'
+	return notify === 'mentions' || notify === 'none' ? notify : 'all'
 }
 
 export interface PostMenuProps {
@@ -59,7 +59,7 @@ export function PostMenu({ action, onDelete }: PostMenuProps) {
 		pendingRef.current = true
 		setSubLevel(newLevel)
 		try {
-			await api.readerState.patch('A', action.actionId, { notify: newLevel })
+			await api.readerState.patch('A', action.id, { notify: newLevel })
 		} catch (e) {
 			console.error('Failed to update subscription', e)
 			setSubLevel(prev) // revert on failure
@@ -79,7 +79,7 @@ export function PostMenu({ action, onDelete }: PostMenuProps) {
 		if (!confirmed) return
 
 		try {
-			await api.actions.delete(action.actionId)
+			await api.actions.delete(action.id)
 			onDelete?.()
 		} catch (e) {
 			console.error('Failed to delete post', e)
@@ -98,20 +98,20 @@ export function PostMenu({ action, onDelete }: PostMenuProps) {
 			<MenuItem
 				icon={<IcWatch />}
 				label={t('Watching')}
-				selected={notifyLevel === 'W'}
-				onClick={() => handleSubscribe('W')}
+				selected={notifyLevel === 'all'}
+				onClick={() => handleSubscribe('all')}
 			/>
 			<MenuItem
 				icon={<IcTrack />}
 				label={t('Tracking')}
-				selected={notifyLevel === 'T'}
-				onClick={() => handleSubscribe('T')}
+				selected={notifyLevel === 'mentions'}
+				onClick={() => handleSubscribe('mentions')}
 			/>
 			<MenuItem
 				icon={<IcMute />}
 				label={t('Muted')}
-				selected={notifyLevel === 'M'}
-				onClick={() => handleSubscribe('M')}
+				selected={notifyLevel === 'none'}
+				onClick={() => handleSubscribe('none')}
 			/>
 			{isOwn && <MenuDivider />}
 			{isOwn && (

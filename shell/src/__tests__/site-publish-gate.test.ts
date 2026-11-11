@@ -53,7 +53,7 @@ function createClient(idTag: string, mountPath = '/blog') {
 		files: {
 			uploadBlob: jest.fn(async (_preset: string, fileName: string) => {
 				uploads.push(fileName)
-				return { fileId: `c1~${idTag}` }
+				return { contentId: `c1~${idTag}` }
 			})
 		},
 		site: {

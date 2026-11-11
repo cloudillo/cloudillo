@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: MPL-2.0
 
-import { FetchError, type TenantView } from '@cloudillo/core'
+import { fetchAll, type TenantView } from '@cloudillo/core'
 import {
 	Badge,
 	Button,
@@ -22,10 +22,11 @@ import { useTranslation } from 'react-i18next'
 import { useParams } from 'react-router-dom'
 
 import { IcAdmin } from '../icons.js'
-import { formatBytes, formatUnixTime } from '../utils.js'
+import { formatBytes, formatIsoTime } from '../utils.js'
 import { TenantStatusBadge } from './tenants.js'
 
 const STORAGE_KEY = 'limits.max_storage_gb'
+const GIB = 2 ** 30
 
 export function TenantDetail() {
 	const { t } = useTranslation()
@@ -60,7 +61,9 @@ export function TenantDetail() {
 				try {
 					// No dedicated GET /admin/tenants/:idTag yet — list-then-filter
 					// keeps the page working without a second backend round-trip.
-					const tenants = await api.admin.listTenants({ q: idTag })
+					const tenants = await fetchAll((cursor) =>
+						api.admin.listTenants({ q: idTag, cursor })
+					)
 					if (cancelled) return
 					const match = tenants.find((tn) => tn.idTag === idTag)
 					if (!match) {
@@ -69,6 +72,11 @@ export function TenantDetail() {
 						return
 					}
 					setTenant(match)
+					if (match.storageQuotaOverride !== undefined) {
+						const gb = match.storageQuotaOverride / GIB
+						setTenantStorageGb(gb)
+						setStorageInput(String(gb))
+					}
 				} catch (err) {
 					console.error('Failed to load tenant', err)
 					if (!cancelled) toastError(t('Failed to load tenant. Please try again.'))
@@ -81,40 +89,18 @@ export function TenantDetail() {
 		[api, idTag, t, toastError]
 	)
 
+	// The per-tenant override comes with the TenantView (`storageQuotaOverride`, bytes).
 	React.useEffect(
-		function loadStorageOverride() {
+		function loadStorageDefault() {
 			if (!api || !idTag) return
 			let cancelled = false
 			;(async function () {
-				const [globalRes, tenantRes] = await Promise.allSettled([
-					api.settings.get(STORAGE_KEY, { level: 'global' }),
-					api.settings.get(STORAGE_KEY, { level: 'tenant', tenant: idTag })
-				])
-				if (cancelled) return
-
-				if (
-					globalRes.status === 'fulfilled' &&
-					typeof globalRes.value?.value === 'number'
-				) {
-					setGlobalStorageGb(globalRes.value.value)
-				} else if (globalRes.status === 'rejected') {
-					console.error('Failed to load global storage default', globalRes.reason)
-					toastError(t('Failed to load setting. Please try again.'))
-				}
-
-				if (
-					tenantRes.status === 'fulfilled' &&
-					typeof tenantRes.value?.value === 'number'
-				) {
-					setTenantStorageGb(tenantRes.value.value)
-					setStorageInput(String(tenantRes.value.value))
-				} else if (
-					tenantRes.status === 'rejected' &&
-					!(tenantRes.reason instanceof FetchError && tenantRes.reason.httpStatus === 404)
-				) {
-					// 404 means "no override at this level" — anything else is a real failure.
-					console.error('Failed to load tenant storage override', tenantRes.reason)
-					toastError(t('Failed to load setting. Please try again.'))
+				try {
+					const res = await api.settings.get(STORAGE_KEY, { level: 'global' })
+					if (!cancelled && typeof res?.value === 'number') setGlobalStorageGb(res.value)
+				} catch (err) {
+					console.error('Failed to load global storage default', err)
+					if (!cancelled) toastError(t('Failed to load setting. Please try again.'))
 				}
 			})()
 			return function () {
@@ -155,12 +141,11 @@ export function TenantDetail() {
 
 		storageDebounceRef.current = setTimeout(async function () {
 			try {
-				await api.settings.update(
-					STORAGE_KEY,
-					{ value: parsed },
-					{ level: 'tenant', tenant: idTag }
-				)
-				if (mountedRef.current) setTenantStorageGb(parsed)
+				const res = await api.admin.setTenantStorageQuota(idTag, Math.round(parsed * GIB))
+				if (mountedRef.current) {
+					setTenant(res)
+					setTenantStorageGb(parsed)
+				}
 			} catch (err) {
 				console.error('Failed to save storage quota', err)
 				if (mountedRef.current) toastError(t('Failed to save setting. Please try again.'))
@@ -179,8 +164,9 @@ export function TenantDetail() {
 		setStorageInputError(undefined)
 		setStorageBusy(true)
 		try {
-			await api.settings.delete(STORAGE_KEY, { level: 'tenant', tenant: idTag })
+			const res = await api.admin.setTenantStorageQuota(idTag, null)
 			if (mountedRef.current) {
+				setTenant(res)
 				setTenantStorageGb(undefined)
 				setStorageInput('')
 			}
@@ -220,7 +206,7 @@ export function TenantDetail() {
 					{tenant?.expiresAt !== undefined && (
 						<Text size="sm" emphasis="muted">
 							{t('Expires {{date}}', {
-								date: formatUnixTime(tenant.expiresAt)
+								date: formatIsoTime(tenant.expiresAt)
 							})}
 						</Text>
 					)}

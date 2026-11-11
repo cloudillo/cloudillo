@@ -82,8 +82,8 @@ function doPickUp(opts: PickUpOpts) {
 	const ctxIdTag = opts.activeContextIdTag
 	const items: FileHandItem[] = opts.selectedFiles.map((f) => ({
 		type: 'file' as const,
-		id: f.entryId,
-		fileId: f.fileId,
+		id: f.id,
+		fileId: f.contentId,
 		// The node holding the blob: the upstream node for a mirrored row, else the serving context
 		idTag: f.upstream?.idTag ?? ctxIdTag,
 		sourceContext: ctxIdTag,
@@ -95,7 +95,7 @@ function doPickUp(opts: PickUpOpts) {
 				: f.parentId,
 		sourceChannel: f.channel ? absChannel(f.channel, ctxIdTag) : null,
 		label: f.fileName,
-		fileTp: f.fileTp,
+		fileTp: f.fileType,
 		contentType: f.contentType,
 		brokenAt: f.brokenAt,
 		inTrash: opts.inTrash,
@@ -190,7 +190,7 @@ export function ContextMenu({
 	const count = selectedFiles.length
 	const isSingleSelect = count === 1
 	const file = isSingleSelect ? selectedFiles[0] : clickedFile
-	const isFolder = file.fileTp === 'FLDR'
+	const isFolder = file.fileType === 'FLDR'
 	const isTrashView = viewMode === 'trash'
 	const isManagedView = viewMode === 'managed'
 
@@ -205,7 +205,7 @@ export function ContextMenu({
 		onClose()
 	}
 
-	const selectedFileIds = selectedFiles.map((f) => f.entryId)
+	const selectedFileIds = selectedFiles.map((f) => f.id)
 
 	// Get handlers for "Open with" submenu
 	const handlers = isSingleSelect && !isFolder ? getHandlersForContentType(file.contentType) : []
@@ -236,7 +236,7 @@ export function ContextMenu({
 	const scopeRoles = isCrossOwner ? [] : (activeContext?.roles ?? [])
 	const canShare = isSingleSelect && canManageShares(scopedFile, auth?.idTag, scopeRoles)
 	const canManage = isSingleSelect && canManageFile(scopedFile, auth?.idTag, scopeRoles)
-	const currentVisibility = getVisibilityOption(t, file.visibility ?? null)
+	const currentVisibility = getVisibilityOption(t, file.visibility ?? 'direct')
 	const visibilityDropdownOptions = getVisibilityDropdownOptions(t)
 
 	// Use different components based on mobile/desktop
@@ -273,7 +273,7 @@ export function ContextMenu({
 				label={isSingleSelect ? t('Restore') : t('Restore {{count}} items', { count })}
 				onClick={handleAction(() =>
 					isSingleSelect
-						? fileOps.doRestoreFile?.(file.entryId)
+						? fileOps.doRestoreFile?.(file.id)
 						: fileOps.doRestoreFiles?.(selectedFileIds)
 				)}
 			/>
@@ -288,7 +288,7 @@ export function ContextMenu({
 				}
 				onClick={handleAction(() =>
 					isSingleSelect
-						? fileOps.doPermanentDeleteFile?.(file.entryId)
+						? fileOps.doPermanentDeleteFile?.(file.id)
 						: fileOps.doPermanentDeleteFiles?.(selectedFileIds)
 				)}
 				danger
@@ -303,7 +303,7 @@ export function ContextMenu({
 					icon={<IcOpen />}
 					label={isFolder ? t('Open folder') : t('Open')}
 					onClick={handleAction(() =>
-						fileOps.openFile(file.entryId, toAppAccess(file.accessLevel))
+						fileOps.openFile(file.id, toAppAccess(file.accessLevel))
 					)}
 				/>
 			)}
@@ -313,7 +313,7 @@ export function ContextMenu({
 				<Item
 					icon={<IcView />}
 					label={t('View')}
-					onClick={handleAction(() => fileOps.openFile(file.entryId, 'read'))}
+					onClick={handleAction(() => fileOps.openFile(file.id, 'read'))}
 				/>
 			)}
 
@@ -329,7 +329,7 @@ export function ContextMenu({
 								label={h.manifest.name}
 								onClick={handleAction(() =>
 									fileOps.openFileWithApp?.(
-										file.entryId,
+										file.id,
 										h.manifest.id,
 										toAppAccess(file.accessLevel)
 									)
@@ -347,7 +347,7 @@ export function ContextMenu({
 								label={`${entry.manifest.name}: ${entry.mode.label}`}
 								onClick={handleAction(() => {
 									fileOps.openFileWithApp?.(
-										file.entryId,
+										file.id,
 										entry.manifest.id,
 										toAppAccess(file.accessLevel),
 										'mode=' + entry.mode.id
@@ -374,8 +374,8 @@ export function ContextMenu({
 							return
 						}
 						const idTag = contextIdTag ?? auth?.idTag
-						if (idTag && file.fileId)
-							triggerFileDownload(idTag, file.fileId, file.fileName, () =>
+						if (idTag && file.contentId)
+							triggerFileDownload(idTag, file.contentId, file.fileName, () =>
 								toast.error(t('Download failed. Please try again.'))
 							)
 					})}
@@ -416,14 +416,14 @@ export function ContextMenu({
 					>
 						{visibilityDropdownOptions.map((opt) => {
 							const VisibilityIcon = getVisibilityIcon(opt.value)
-							const isCurrentVisibility = (file.visibility ?? null) === opt.value
+							const isCurrentVisibility = (file.visibility ?? 'direct') === opt.value
 							return (
 								<Item
 									key={opt.value ?? 'null'}
 									icon={<VisibilityIcon />}
 									label={opt.label}
 									onClick={handleAction(() =>
-										fileOps.setVisibility!(file.entryId, opt.value)
+										fileOps.setVisibility!(file.id, opt.value)
 									)}
 									disabled={isCurrentVisibility}
 								/>
@@ -447,7 +447,7 @@ export function ContextMenu({
 					}
 					onClick={handleAction(() =>
 						isSingleSelect
-							? fileOps.toggleStarred?.(file.entryId)
+							? fileOps.toggleStarred?.(file.id)
 							: fileOps.toggleStarredBatch?.(selectedFileIds, !isStarred)
 					)}
 				/>
@@ -468,7 +468,7 @@ export function ContextMenu({
 					}
 					onClick={handleAction(() =>
 						isSingleSelect
-							? fileOps.togglePinned?.(file.entryId)
+							? fileOps.togglePinned?.(file.id)
 							: fileOps.togglePinnedBatch?.(selectedFileIds, !isPinned)
 					)}
 				/>
@@ -479,7 +479,7 @@ export function ContextMenu({
 				<Item
 					icon={<IcRefresh />}
 					label={t('Refresh metadata')}
-					onClick={handleAction(() => fileOps.doRefreshFile?.(file.entryId))}
+					onClick={handleAction(() => fileOps.doRefreshFile?.(file.id))}
 				/>
 			)}
 
@@ -490,7 +490,7 @@ export function ContextMenu({
 				<Item
 					icon={<IcRename />}
 					label={t('Rename')}
-					onClick={handleAction(() => fileOps.renameFile(file.entryId))}
+					onClick={handleAction(() => fileOps.renameFile(file.id))}
 				/>
 			)}
 
@@ -500,12 +500,12 @@ export function ContextMenu({
 			{!isRemoteBrowsing &&
 				!isManagedView &&
 				isSingleSelect &&
-				(file.fileTp === 'CRDT' || file.fileTp === 'RTDB') &&
+				(file.fileType === 'CRDT' || file.fileType === 'RTDB') &&
 				!file.upstream?.idTag && (
 					<Item
 						icon={<IcDuplicate />}
 						label={t('Duplicate')}
-						onClick={handleAction(() => fileOps.doDuplicateFile?.(file.entryId))}
+						onClick={handleAction(() => fileOps.doDuplicateFile?.(file.id))}
 					/>
 				)}
 
@@ -522,7 +522,7 @@ export function ContextMenu({
 					}
 					onClick={handleAction(() =>
 						isSingleSelect
-							? fileOps.doDeleteFile(file.entryId)
+							? fileOps.doDeleteFile(file.id)
 							: fileOps.doDeleteFiles?.(selectedFileIds)
 					)}
 					danger

@@ -8,7 +8,7 @@
  * The sibling suite (`search-page-context.test.tsx`) stubs `useInfiniteScroll` with a
  * frozen empty result to isolate the context-resolution chain; this one uses the
  * **real** hook and the real debounce over a mocked api client, so the fetch path
- * itself is exercised — the count's epoch guard, the offset ceiling, the "match
+ * itself is exercised — the count's epoch guard, paging by `next`, the "match
  * nothing" filter and the 401 mapping.
  *
  * `EmptyState` and `SkeletonList` record every commit they appear in, not just their
@@ -36,15 +36,15 @@ const HOME = 'user.example.com'
 
 interface SearchCall {
 	q?: string
-	type?: string
+	kind?: string
 	limit?: number
-	offset?: number
+	cursor?: string
 }
 
 let calls: SearchCall[] = []
 let respond: (call: SearchCall) => Promise<unknown> = async () => ({
 	data: [],
-	pagination: { total: 0 }
+	meta: { total: 0 }
 })
 let authState: { idTag: string } | null = { idTag: HOME }
 let searchParams = new URLSearchParams('q=test')
@@ -152,7 +152,7 @@ function deferred<T>() {
 
 function hits(count: number, from = 0) {
 	return Array.from({ length: count }, (_, i) => ({
-		objTp: 'F',
+		kind: 'file',
 		objId: `f${from + i}`,
 		title: `Hit ${from + i}`
 	}))
@@ -163,7 +163,7 @@ beforeEach(() => {
 	branches = []
 	authState = { idTag: HOME }
 	searchParams = new URLSearchParams('q=test')
-	respond = async () => ({ data: [], pagination: { total: 0 } })
+	respond = async () => ({ data: [], meta: { total: 0 } })
 })
 
 describe('the wait before the first page', () => {
@@ -179,7 +179,7 @@ describe('the wait before the first page', () => {
 		expect(branches).toContain('skeleton')
 
 		await act(async () => {
-			first.resolve({ data: [], pagination: { total: 0 } })
+			first.resolve({ data: [], meta: { total: 0 } })
 		})
 
 		expect(screen.getByTestId('empty').textContent).toBe('No results found')
@@ -201,10 +201,10 @@ describe('the result count', () => {
 		rerender(<SearchPage />)
 
 		await act(async () => {
-			stale.resolve({ data: hits(1), pagination: { total: 99 } })
+			stale.resolve({ data: hits(1), meta: { total: 99 } })
 		})
 		await act(async () => {
-			fresh.resolve({ data: hits(3), pagination: { total: 3 } })
+			fresh.resolve({ data: hits(3), meta: { total: 3 } })
 		})
 
 		expect(screen.getByText('3 results')).toBeDefined()
@@ -212,21 +212,20 @@ describe('the result count', () => {
 	})
 })
 
-describe('the offset ceiling', () => {
-	it('stops paginating rather than asking for an offset the server rejects', async () => {
-		// FTS_MAX_OFFSET is 1000: the first page lands the cursor exactly on it, the
-		// next would step past, so there must be no third request.
+describe('paging', () => {
+	it("sends the previous page's `next` as the cursor and stops when it is absent", async () => {
+		// The server drops `next` at its offset cap, so the client needs no ceiling of its own.
 		respond = async (call) =>
-			call.offset === 0
-				? { data: hits(1000), pagination: { total: 5000 } }
-				: { data: hits(20, 1000), pagination: { total: 5000 } }
+			call.cursor === undefined
+				? { data: hits(20), meta: { total: 5000, next: 'c1' } }
+				: { data: hits(20, 20), meta: {} }
 
 		render(<SearchPage />)
 		await act(async () => {})
 		expect(calls).toHaveLength(1)
 
 		await act(async () => loadMore())
-		expect(calls.map((c) => c.offset)).toEqual([0, 1000])
+		expect(calls.map((c) => c.cursor)).toEqual([undefined, 'c1'])
 
 		await act(async () => loadMore())
 		expect(calls).toHaveLength(2)
@@ -253,7 +252,7 @@ describe('a filter that names nothing the caller may see', () => {
 		render(<SearchPage />)
 		await act(async () => {})
 
-		expect(calls[0]?.type).toBe('file,doc,action')
+		expect(calls[0]?.kind).toBe('file,doc,action')
 	})
 })
 

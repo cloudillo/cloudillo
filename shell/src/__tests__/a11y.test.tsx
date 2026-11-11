@@ -45,14 +45,12 @@ const API = {
 		listApiKeys: jest.fn(async () => []),
 		getTotp: jest.fn(async () => ({ mode: 'optional', enrolled: false })),
 		listAudit: jest.fn(async () => ({
-			events: [EVENT],
-			nextCursor: null,
-			globalCategories: ['sharing'],
-			tenantCategories: []
+			data: { events: [EVENT], globalCategories: ['sharing'], tenantCategories: [] },
+			meta: {}
 		}))
 	},
 	admin: {
-		listAudit: jest.fn(async () => ({ events: [{ ...EVENT, tnId: 1 }], nextCursor: null }))
+		listAudit: jest.fn(async () => ({ data: [{ ...EVENT, tnId: 1 }], meta: {} }))
 	},
 	settings: {
 		list: jest.fn(async () => []),
@@ -117,6 +115,8 @@ jest.unstable_mockModule('../context/index.js', () => ({
 	contextRolesAtom: atom(new Map<string, string[]>()),
 	fileViewUpdateAtom: atom<{ version: number; file: unknown } | undefined>(undefined),
 	useApiContext: () => ({ getClientFor: () => null }),
+	// read-position.js (reached via useFilesFilters → secondsToIso) imports it.
+	useCommunitiesList: () => [],
 	useContextAwareApi: () => API_HOOK,
 	useContextName: () => undefined,
 	useCtx: () => CTX,
@@ -201,10 +201,10 @@ describe('accessibility (axe)', () => {
 
 	it('file list row', async () => {
 		const file = {
-			entryId: 'e1',
-			fileId: 'f1',
+			id: 'e1',
+			contentId: 'f1',
 			fileName: 'Report.pdf',
-			fileTp: 'BLOB',
+			fileType: 'BLOB',
 			contentType: 'application/pdf',
 			createdAt: '2026-01-01T10:00:00Z',
 			preset: 'default',

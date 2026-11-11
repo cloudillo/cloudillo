@@ -14,7 +14,7 @@ export const currentDateAtom = atom<string>(dayjs().format('YYYY-MM-DD'))
 export const viewModeAtom = atomWithStorage<CalendarView | null>('cloudillo:calendar-view', null)
 /** Jotai set of calendar IDs that are currently visible on the grid. `null` means
  *  "visibility hasn't been initialised yet" — initialise to all calendars on first load. */
-export const visibleCalendarsAtom = atom<Set<number> | null>(null)
+export const visibleCalendarsAtom = atom<Set<string> | null>(null)
 export const selectedObjectAtom = atom<SelectedObjectRef | null>(null)
 export const searchQueryAtom = atom<string>('')
 

@@ -83,7 +83,9 @@ async function bootAsSiteReader(siteSeed: SiteBootSeed | null) {
 	}))
 	jest.unstable_mockModule('@cloudillo/core', () => ({
 		createApiClient: () => ({
-			auth: { loginInit: async () => ({ status: 'anonymous' }) }
+			auth: {
+				loginInit: async () => ({ qr: { sessionId: 's', secret: 'x' }, passkeys: false })
+			}
 		}),
 		setApiToken: () => {},
 		isContextKey: (key: unknown) => typeof key === 'string',

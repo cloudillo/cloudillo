@@ -115,7 +115,7 @@ export function ShareCreate() {
 				setCompatibleRefs(compatible)
 
 				if (compatible.length > 0) {
-					setSelectedRefId(compatible[0].refId)
+					setSelectedRefId(compatible[0].id)
 					setMode('reuse')
 				}
 			} catch (err) {
@@ -171,7 +171,7 @@ export function ShareCreate() {
 				params: pending.options.params
 			})
 
-			const url = `${shareOrigin.href}/s/${ref.refId}`
+			const url = `${shareOrigin.href}/s/${ref.id}`
 
 			try {
 				await navigator.clipboard.writeText(url)
@@ -180,7 +180,7 @@ export function ShareCreate() {
 				toast.info(t('Share link created'))
 			}
 
-			pending.onResult({ refId: ref.refId, url })
+			pending.onResult({ refId: ref.id, url })
 		} catch (err) {
 			console.error('[ShareCreate] Failed to create share link:', err)
 			toast.error(shareLinkErrorMessage(err, t))
@@ -213,7 +213,7 @@ export function ShareCreate() {
 			)
 		},
 		...compatibleRefs.map((ref) => ({
-			value: ref.refId,
+			value: ref.id,
 			label: (
 				<HBox align="center" gap={2}>
 					<Text className="flex-fill">{ref.description || t('Shared link')}</Text>

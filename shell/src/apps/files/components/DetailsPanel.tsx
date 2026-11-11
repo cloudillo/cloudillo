@@ -152,7 +152,7 @@ export function DetailsPanel({
 	const pathCacheRef = React.useRef<Map<string, { id: string; name: string }[]>>(new Map())
 
 	const isImage = file.contentType?.startsWith('image/')
-	const isFolder = file.fileTp === 'FLDR'
+	const isFolder = file.fileType === 'FLDR'
 
 	React.useEffect(
 		function loadFilePath() {
@@ -162,7 +162,7 @@ export function DetailsPanel({
 			// same id doesn't return a path from the wrong context.
 			const cacheKey = `${ownerScope ? 'remote' : isCrossOwner ? `upstream:${upstreamIdTag}` : 'local'}:${scopedId}`
 
-			// Use path already on the file if present (from a withPath listing).
+			// Use path already on the file if present (from an include=path listing).
 			if (file.path) {
 				pathCacheRef.current.set(cacheKey, file.path)
 				setFilePath(file.path)
@@ -186,7 +186,7 @@ export function DetailsPanel({
 
 			;(async function () {
 				try {
-					const results = await api.files.list({ fileId: scopedId, withPath: true })
+					const results = await api.files.list({ contentId: scopedId, include: ['path'] })
 					if (cancelled) return
 					const fetched = results[0]?.path ?? []
 					pathCacheRef.current.set(cacheKey, fetched)
@@ -204,12 +204,12 @@ export function DetailsPanel({
 		[api, ownerScope, isCrossOwner, upstreamIdTag, scopedId, file.path]
 	)
 
-	const VisibilityIcon = getVisibilityIcon(file.visibility ?? null)
+	const VisibilityIcon = getVisibilityIcon(file.visibility ?? 'direct')
 
 	// The host that serves the thumbnail is the one holding the blob - the upstream node for a
 	// mirrored row, otherwise whichever tenant the scope points at.
 	const thumbIdTag = upstreamIdTag || scope.scopeIdTag || contextIdTag
-	const thumbId = isImage ? file.fileId : file.variantId
+	const thumbId = isImage ? file.contentId : file.variantId
 	const thumbSrc = thumbId && thumbIdTag ? getFileUrl(thumbIdTag, thumbId, 'vis.sd') : undefined
 
 	const properties: DescriptionListItem[] = [
@@ -221,7 +221,7 @@ export function DetailsPanel({
 					<Menu
 						trigger={
 							<Button variant="soft" icon={<VisibilityIcon />}>
-								{getVisibilityLabel(t, file.visibility ?? null)}
+								{getVisibilityLabel(t, file.visibility ?? 'direct')}
 								<IcDropdown />
 							</Button>
 						}
@@ -233,17 +233,13 @@ export function DetailsPanel({
 									key={opt.value ?? 'null'}
 									icon={<OptionIcon />}
 									label={opt.label}
-									checked={(file.visibility ?? null) === opt.value}
+									checked={(file.visibility ?? 'direct') === opt.value}
 									// Cross-owner rows never reach this branch: a Pin/Place row
 									// reuses the SOURCE's file_id (cloudillo-rs handler.rs:1707),
 									// so which node owns a placed row's mutable state is
 									// unresolved. Until it is, they stay read-only.
 									onClick={() =>
-										fileOps.setVisibility!(
-											file.entryId,
-											opt.value,
-											api ?? undefined
-										)
+										fileOps.setVisibility!(file.id, opt.value, api ?? undefined)
 									}
 								/>
 							)
@@ -251,7 +247,7 @@ export function DetailsPanel({
 					</Menu>
 				) : (
 					<IconText icon={<VisibilityIcon />}>
-						{getVisibilityLabel(t, file.visibility ?? null)}
+						{getVisibilityLabel(t, file.visibility ?? 'direct')}
 					</IconText>
 				)
 		},
@@ -283,7 +279,7 @@ export function DetailsPanel({
 					{
 						key: 'type',
 						term: t('Type'),
-						description: contentTypeLabel(t, file.contentType, file.fileTp)
+						description: contentTypeLabel(t, file.contentType, file.fileType)
 					}
 				]
 			: []),
@@ -313,7 +309,7 @@ export function DetailsPanel({
 			// read-only here rather than routed to the owner's node.
 			description: (
 				<TagsCell
-					entryId={file.entryId}
+					entryId={file.id}
 					tags={file.tags}
 					editable={canManage && !isCrossOwner}
 					setTags={(tags) => fileOps.setFile?.({ ...file, tags })}
@@ -331,7 +327,7 @@ export function DetailsPanel({
 						<Thumbnail src={thumbSrc} alt={file.fileName} size="lg" />
 					) : (
 						<FileTypeIcon
-							contentType={iconContentType(file.contentType, file.fileTp)}
+							contentType={iconContentType(file.contentType, file.fileType)}
 							size="lg"
 						/>
 					)}
@@ -342,7 +338,7 @@ export function DetailsPanel({
 						{(file.contentType || file.owner?.name) && (
 							<Text size="sm" emphasis="muted">
 								{[
-									contentTypeLabel(t, file.contentType, file.fileTp),
+									contentTypeLabel(t, file.contentType, file.fileType),
 									file.owner?.name
 								]
 									.filter(Boolean)
@@ -359,9 +355,7 @@ export function DetailsPanel({
 							variant="ghost"
 							icon={canWrite(file.accessLevel) ? <IcEdit /> : <IcView />}
 							aria-label={t('Open')}
-							onClick={() =>
-								fileOps.openFile(file.entryId, toAppAccess(file.accessLevel))
-							}
+							onClick={() => fileOps.openFile(file.id, toAppAccess(file.accessLevel))}
 						/>
 					)}
 					<Button
@@ -370,14 +364,14 @@ export function DetailsPanel({
 						icon={file.userData?.starred ? <IcUnstar /> : <IcStar />}
 						pressed={!!file.userData?.starred}
 						aria-label={file.userData?.starred ? t('Starred') : t('Star')}
-						onClick={() => fileOps.toggleStarred?.(file.entryId)}
+						onClick={() => fileOps.toggleStarred?.(file.id)}
 					/>
 					<Button
 						variant="ghost"
 						icon={<IcPin />}
 						pressed={!!file.userData?.pinned}
 						aria-label={file.userData?.pinned ? t('Pinned') : t('Pin')}
-						onClick={() => fileOps.togglePinned?.(file.entryId)}
+						onClick={() => fileOps.togglePinned?.(file.id)}
 					/>
 					{/* Same cross-owner exclusion as Visibility below: a placed row's file_id names
 					    a row on two nodes, so we do not offer a write we cannot route. */}
@@ -394,7 +388,7 @@ export function DetailsPanel({
 						>
 							<MenuItem
 								label={t('Rename...')}
-								onClick={() => fileOps.renameFile(file.entryId)}
+								onClick={() => fileOps.renameFile(file.id)}
 							/>
 						</Menu>
 					)}

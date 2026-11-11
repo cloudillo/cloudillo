@@ -93,11 +93,11 @@ export function AddressBookSidebar({
 				/>
 				{addressBooks.map((book) => (
 					<ListItem
-						key={book.abId}
+						key={book.id}
 						leading={<Icon as={IcAddressBook} />}
 						title={<Text truncate>{book.name}</Text>}
-						selected={selection === book.abId}
-						onClick={() => onSelect(book.abId)}
+						selected={selection === book.id}
+						onClick={() => onSelect(book.id)}
 						actions={
 							<Button
 								variant="ghost"
@@ -105,7 +105,7 @@ export function AddressBookSidebar({
 								immediate
 								aria-label={t('More actions for {{name}}', { name: book.name })}
 								aria-haspopup="menu"
-								aria-expanded={bookMenu?.book.abId === book.abId}
+								aria-expanded={bookMenu?.book.id === book.id}
 								onClick={(e) => openBookMenu(e, book)}
 								icon={<IcMore />}
 							/>

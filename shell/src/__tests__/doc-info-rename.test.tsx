@@ -29,7 +29,7 @@ const DOC_B = `${ME}:f2~bbb`
 /** Every `files.update` the hook issued: [fileId, patch]. */
 const updates: Array<[string, Record<string, unknown>]> = []
 
-/** Rows keyed by fileId, as the node would answer `files.list({ fileId })`. */
+/** Rows keyed by fileId, as the node would answer `files.list({ contentId })`. */
 const rows = new Map<string, Record<string, unknown>>()
 
 /** Resolves the pending `files.list` calls, so a fetch can be held mid-flight. */
@@ -43,7 +43,7 @@ let listCalls = 0
 
 const api = {
 	files: {
-		async list({ fileId }: { fileId: string }) {
+		async list({ contentId: fileId }: { contentId: string }) {
 			listCalls++
 			if (listFails) throw new Error('offline')
 			if (releaseList) {
@@ -116,9 +116,9 @@ const { useDocInfo } = await import('../apps/useDocInfo.js')
 
 function row(fileId: string, fileName: string) {
 	return {
-		entryId: `e:${fileId}`,
-		fileId,
-		status: 'A',
+		id: `e:${fileId}`,
+		contentId: fileId,
+		status: 'active',
 		contentType: 'cloudillo/quillo',
 		fileName,
 		createdAt: '2026-01-01T00:00:00Z',

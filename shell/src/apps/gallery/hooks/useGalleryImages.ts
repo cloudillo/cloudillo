@@ -18,14 +18,14 @@ const PAGE_SIZE = 20
 
 function convertFileToPhoto(f: FileView): Photo {
 	return {
-		fileId: f.fileId,
+		contentId: f.contentId,
 		variantId: undefined,
 		fileName: f.fileName,
 		contentType: f.contentType,
-		createdAt: typeof f.createdAt === 'string' ? f.createdAt : f.createdAt.toISOString(),
+		createdAt: f.createdAt,
 		preset: f.preset || '',
 		tags: f.tags,
-		x: f.x
+		extra: f.extra
 	}
 }
 
@@ -41,7 +41,7 @@ export function useGalleryImages(options: UseGalleryImagesOptions) {
 	const rawFetchPage = React.useCallback(
 		async (cursor: string | null, limit: number) => {
 			if (!api) {
-				return { items: [] as FileView[], nextCursor: null, hasMore: false }
+				return { items: [] as FileView[] }
 			}
 
 			const result = await api.files.listPaginated({
@@ -53,8 +53,7 @@ export function useGalleryImages(options: UseGalleryImagesOptions) {
 
 			return {
 				items: result.data,
-				nextCursor: result.cursorPagination?.nextCursor ?? null,
-				hasMore: result.cursorPagination?.hasMore ?? false
+				next: result.meta.next
 			}
 		},
 		[api, queryParamsKey]

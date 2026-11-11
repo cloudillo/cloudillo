@@ -4,7 +4,7 @@
 /**
  * A live collaborative document shared as a feed post (`POST` / `LDOC`).
  *
- * Collapsed — the default — nothing is materialized: one `api.files.list({ fileId })`
+ * Collapsed — the default — nothing is materialized: one `api.files.list({ contentId: fileId })`
  * for the title, no iframe, no CRDT/RTDB socket, no blob fetch. Clicking mounts the
  * real app **inside the card**, so the reader keeps their feed scroll position.
  */

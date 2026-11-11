@@ -150,7 +150,8 @@ describe.skip('WebSocketManager', () => {
 			await jest.advanceTimersByTimeAsync(0)
 			socket().simulateMessage({
 				type: 'pong',
-				id: 1
+				id: '1',
+				data: {}
 			})
 
 			await sendPromise
@@ -184,13 +185,13 @@ describe.skip('WebSocketManager', () => {
 			await jest.advanceTimersByTimeAsync(0)
 			socket().simulateMessage({
 				type: 'getResult',
-				id: 1,
+				id: '1',
 				data: { title: 'Test' }
 			})
 
-			const response = (await responsePromise) as { data: Record<string, unknown> }
+			const response = await responsePromise
 
-			expect(response.data).toEqual({ title: 'Test' })
+			expect(response).toEqual({ title: 'Test' })
 		})
 
 		it('should reject request with error response', async () => {
@@ -204,9 +205,8 @@ describe.skip('WebSocketManager', () => {
 			await jest.advanceTimersByTimeAsync(0)
 			socket().simulateMessage({
 				type: 'error',
-				id: 1,
-				code: 404,
-				message: 'Not found'
+				id: '1',
+				data: { code: 'E-CORE-NOTFOUND', message: 'Not found' }
 			})
 
 			await expect(responsePromise).rejects.toThrow('Not found')
@@ -230,8 +230,8 @@ describe.skip('WebSocketManager', () => {
 			// Simulate server response to avoid timeout
 			socket().simulateMessage({
 				type: 'subscribeResult',
-				id: 1,
-				subscriptionId: 'sub_1'
+				id: '1',
+				data: { subscriptionId: 'sub_1' }
 			})
 
 			// Wait for subscription to be registered
@@ -258,8 +258,8 @@ describe.skip('WebSocketManager', () => {
 			// Send subscription response - this will register the subscription
 			socket().simulateMessage({
 				type: 'subscribeResult',
-				id: 1,
-				subscriptionId: 'sub_1'
+				id: '1',
+				data: { subscriptionId: 'sub_1' }
 			})
 
 			// Wait for subscription to be fully registered
@@ -268,11 +268,14 @@ describe.skip('WebSocketManager', () => {
 			// Now send change event
 			socket().simulateMessage({
 				type: 'change',
-				subscriptionId: 'sub_1',
-				event: {
-					action: 'create',
-					path: 'posts/123',
-					data: { title: 'New Post' }
+				id: 'rnd-change',
+				data: {
+					subscriptionId: 'sub_1',
+					event: {
+						action: 'create',
+						path: 'posts/123',
+						data: { title: 'New Post' }
+					}
 				}
 			})
 
@@ -303,8 +306,8 @@ describe.skip('WebSocketManager', () => {
 			// Simulate server responses
 			socket().simulateMessage({
 				type: 'subscribeResult',
-				id: 1,
-				subscriptionId: 'sub_1'
+				id: '1',
+				data: { subscriptionId: 'sub_1' }
 			})
 
 			// Wait for first subscription to be processed
@@ -312,8 +315,8 @@ describe.skip('WebSocketManager', () => {
 
 			socket().simulateMessage({
 				type: 'subscribeResult',
-				id: 2,
-				subscriptionId: 'sub_2'
+				id: '2',
+				data: { subscriptionId: 'sub_2' }
 			})
 
 			// Wait for second subscription to be registered
@@ -341,8 +344,8 @@ describe.skip('WebSocketManager', () => {
 			// Simulate server response so subscription is registered
 			socket().simulateMessage({
 				type: 'subscribeResult',
-				id: 1,
-				subscriptionId: 'sub_1'
+				id: '1',
+				data: { subscriptionId: 'sub_1' }
 			})
 
 			// Wait for subscription to be registered
@@ -406,13 +409,13 @@ describe.skip('WebSocketManager', () => {
 			await jest.advanceTimersByTimeAsync(0)
 			socket().simulateMessage({
 				type: 'getResult',
-				id: 1,
+				id: '1',
 				data: { title: 'Test' }
 			})
 
-			const response = (await responsePromise) as { data: Record<string, unknown> }
+			const response = await responsePromise
 
-			expect(response.data).toEqual({ title: 'Test' })
+			expect(response).toEqual({ title: 'Test' })
 		})
 	})
 
@@ -452,8 +455,8 @@ describe.skip('WebSocketManager', () => {
 			// Simulate server response
 			socket().simulateMessage({
 				type: 'subscribeResult',
-				id: 1,
-				subscriptionId: 'sub_1'
+				id: '1',
+				data: { subscriptionId: 'sub_1' }
 			})
 
 			// Wait for subscription to be registered
@@ -508,7 +511,8 @@ describe.skip('WebSocketManager', () => {
 			// Simulate response to avoid timeout
 			socket().simulateMessage({
 				type: 'pong',
-				id: 1
+				id: '1',
+				data: {}
 			})
 
 			await sendPromise

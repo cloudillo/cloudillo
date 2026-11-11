@@ -25,10 +25,10 @@ function coerceStatus(raw: unknown): TaskStatus {
 export interface TaskEditorProps {
 	open: boolean
 	calendars: CalendarOutput[]
-	defaultCalendarId?: number
+	defaultCalendarId?: string
 	task?: CalendarObjectOutput
 	onClose: () => void
-	onSave: (calId: number, data: CalendarObjectInput) => Promise<void>
+	onSave: (calId: string, data: CalendarObjectInput) => Promise<void>
 }
 
 export function TaskEditor({
@@ -41,7 +41,7 @@ export function TaskEditor({
 }: TaskEditorProps) {
 	const { t } = useTranslation()
 
-	const [calId, setCalId] = React.useState<number | undefined>(defaultCalendarId)
+	const [calId, setCalId] = React.useState<string | undefined>(defaultCalendarId)
 	const [summary, setSummary] = React.useState('')
 	const [description, setDescription] = React.useState('')
 	const [due, setDue] = React.useState('')
@@ -117,13 +117,10 @@ export function TaskEditor({
 				</Field>
 
 				<Field label={t('Calendar')}>
-					<NativeSelect
-						value={calId ?? ''}
-						onChange={(e) => setCalId(Number(e.target.value))}
-					>
+					<NativeSelect value={calId ?? ''} onChange={(e) => setCalId(e.target.value)}>
 						<option value="">{t('Pick a calendar')}</option>
 						{calendars.map((c) => (
-							<option key={c.calId} value={c.calId}>
+							<option key={c.id} value={c.id}>
 								{c.name}
 							</option>
 						))}

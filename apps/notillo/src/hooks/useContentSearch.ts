@@ -118,8 +118,8 @@ export function useContentSearch({
 				const results = await api.search.query(
 					{
 						q: trimmed,
-						type: 'doc',
-						fileId,
+						kind: 'doc',
+						contentId: fileId,
 						...(tagParam && { tags: tagParam }),
 						limit: RESULT_LIMIT
 					},

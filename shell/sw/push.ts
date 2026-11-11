@@ -58,7 +58,7 @@ export function onPushSubscriptionChange(
 			const token = getAuthToken()
 			if (token) headers.set('Authorization', `Bearer ${token}`)
 
-			const res = await fetch(`https://cl-o.${idTag}/api/notifications/subscription`, {
+			const res = await fetch(`https://cl-o.${idTag}/api/notifications/subscriptions`, {
 				method: 'post',
 				headers,
 				body: JSON.stringify({

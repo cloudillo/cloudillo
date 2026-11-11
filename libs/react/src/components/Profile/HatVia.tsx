@@ -27,7 +27,8 @@ export const hatRingClass = (hat: unknown) => (hat ? 'c-hat-ring' : undefined)
  *  Without a hat it is just `name`. */
 export function HatVia({ className, hat, name, srcTag }: HatViaProps) {
 	if (!hat) return name ?? null
-	const profile = typeof hat === 'string' ? { idTag: hat } : hat
+	const profile: { idTag: string; name?: string; profilePic?: string } =
+		typeof hat === 'string' ? { idTag: hat } : hat
 	const hatEl = (
 		<span className="c-hat-via__hat">
 			<IcCommunity className="c-hat-via__icon" aria-hidden />

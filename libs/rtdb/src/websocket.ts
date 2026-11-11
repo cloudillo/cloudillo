@@ -9,6 +9,7 @@ import {
 	type AggregateOptions,
 	type ChangeEvent,
 	type ClientMessage,
+	type WireFrame,
 	type PresenceEvent,
 	type QueryFilter,
 	type RtdbClientOptions,
@@ -103,11 +104,11 @@ export class WebSocketManager {
 	private connectionId = 0
 	private errorNotified = false
 	private reconnectAttempts = 0
-	private pendingRequests = new Map<number, PendingRequest>()
+	private pendingRequests = new Map<string, PendingRequest>()
 	private subscriptions = new Map<string, Subscription>()
 	private subscriptionDetails = new Map<string, SubscriptionDetails>() // Store subscription info for reconnection
 	private pendingSubscriptionEvents = new Map<string, ChangeEvent[]>() // Buffer events that arrive before subscription is registered
-	private messageQueue: ClientMessage[] = []
+	private messageQueue: WireFrame[] = []
 	private requestId = 0
 	private pingInterval: ReturnType<typeof setInterval> | null = null
 	private reconnectTimeout: ReturnType<typeof setTimeout> | null = null
@@ -148,7 +149,7 @@ export class WebSocketManager {
 	private healthyTimer: ReturnType<typeof setTimeout> | null = null
 
 	// The last state handed to `publishPresence`, kept so `onopen` can re-publish it: the
-	// server drops a connection's roster entry when its socket dies, and the `?presence=1`
+	// server drops a connection's roster entry when its socket dies, and the `?presence=true`
 	// flag only buys back the *room*, not what we had said in it.
 	private localPresence: Record<string, unknown> | null = null
 
@@ -343,8 +344,9 @@ export class WebSocketManager {
 	}
 
 	async send<T>(message: ClientMessage): Promise<T> {
-		const id = ++this.requestId
-		const messageWithId = { ...message, id }
+		const id = String(++this.requestId)
+		const { type, ...data } = message
+		const messageWithId: WireFrame = { id, type, data }
 
 		return new Promise((resolve, reject) => {
 			const ws = this.ws
@@ -402,7 +404,7 @@ export class WebSocketManager {
 	}
 
 	/** Start request `id`'s 30s timer, unless it has one or has already settled. */
-	private armTimeout(id: number): void {
+	private armTimeout(id: string): void {
 		const pending = this.pendingRequests.get(id)
 		if (!pending || pending.timeout) return
 		pending.timeout = setTimeout(() => {
@@ -599,9 +601,7 @@ export class WebSocketManager {
 			// Any other rejection (a rate limit, an auth blip, an internal error) is
 			// transient: latching on those froze the roster for the rest of the session.
 			const unknownCommand =
-				error instanceof RtdbError &&
-				error.code === 400 &&
-				/unknown command/i.test(error.message)
+				error instanceof RtdbError && error.code === 'E-RTDB-UNKNOWNCOMMAND'
 			if (unknownCommand) {
 				this.presenceUnsupported = true
 				console.warn('[RTDB] Presence not supported by this server, disabling:', error)
@@ -641,39 +641,39 @@ export class WebSocketManager {
 
 			const message: ServerMessage = result.ok
 
-			if ('id' in message && typeof message.id === 'number' && message.id) {
-				const pending = this.pendingRequests.get(message.id)
-				if (pending) {
-					clearTimeout(pending.timeout)
-					this.pendingRequests.delete(message.id)
+			// Pushes carry a fresh random id that matches no pending request.
+			const pending = this.pendingRequests.get(message.id)
+			if (pending) {
+				clearTimeout(pending.timeout)
+				this.pendingRequests.delete(message.id)
 
-					if (message.type === 'error') {
-						const error = new RtdbError(message.message, message.code, message.details)
-						pending.reject(error)
-					} else {
-						pending.resolve(message)
-					}
+				if (message.type === 'error') {
+					const { code, message: text, details } = message.data
+					pending.reject(new RtdbError(text, code, details))
+				} else {
+					pending.resolve(message.data)
 				}
 			}
 
 			// Handle subscription changes
 			if (message.type === 'change') {
-				const sub = this.subscriptions.get(message.subscriptionId)
+				const { subscriptionId, event } = message.data
+				const sub = this.subscriptions.get(subscriptionId)
 				if (sub) {
 					try {
-						sub.callback(message.event)
+						sub.callback(event)
 					} catch (error) {
 						console.error('[RTDB] Error in subscription callback:', error)
-						console.error('[RTDB] Event:', message.event)
+						console.error('[RTDB] Event:', event)
 						sub.onError(error as Error)
 					}
 				} else {
 					// Buffer events that arrive before subscription is registered (race condition)
-					const buf = this.pendingSubscriptionEvents.get(message.subscriptionId)
+					const buf = this.pendingSubscriptionEvents.get(subscriptionId)
 					if (buf) {
-						buf.push(message.event)
+						buf.push(event)
 					} else {
-						this.pendingSubscriptionEvents.set(message.subscriptionId, [message.event])
+						this.pendingSubscriptionEvents.set(subscriptionId, [event])
 					}
 				}
 			}
@@ -681,10 +681,11 @@ export class WebSocketManager {
 			if (message.type === 'presenceChange') {
 				// `sync` is the only frame that names us, and it always precedes the
 				// rest, so by the time a join/update needs a self check this is set.
-				if (message.event.action === 'sync') this.connId = message.event.connId
+				const { event } = message.data
+				if (event.action === 'sync') this.connId = event.connId
 				for (const handler of this.presenceHandlers) {
 					try {
-						handler(message.event)
+						handler(event)
 					} catch (error) {
 						console.error('[RTDB] Error in presence handler:', error)
 					}
@@ -957,13 +958,11 @@ export class WebSocketManager {
 		// state — a subscription — that no client record points at, and its change
 		// events would pile up in `pendingSubscriptionEvents` forever. `send` registers
 		// the pending request before queueing, so a missing entry means exactly that.
-		// Frames without a numeric id carry no promise and pass through.
 		// Writes queued longer than `maxQueuedWriteAgeMs` are rejected rather than
 		// replayed onto data that has likely moved on.
 		const maxAge = this.options.maxQueuedWriteAgeMs ?? 600_000
 		const now = Date.now()
 		const queue = this.messageQueue.filter((msg) => {
-			if (typeof msg.id !== 'number') return true
 			const pending = this.pendingRequests.get(msg.id)
 			if (!pending) return false
 			if (pending.queuedAt !== undefined && now - pending.queuedAt > maxAge) {
@@ -980,7 +979,7 @@ export class WebSocketManager {
 				try {
 					this.ws.send(JSON.stringify(message))
 					// On the wire now, so a queued write's 30s starts here.
-					if (typeof message.id === 'number') this.armTimeout(message.id)
+					this.armTimeout(message.id)
 				} catch (error) {
 					this.log('Error sending queued message:', error)
 					this.messageQueue.push(message)

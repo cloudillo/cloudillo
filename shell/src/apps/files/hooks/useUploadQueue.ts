@@ -105,7 +105,7 @@ export function useUploadQueue(options?: UseUploadQueueOptions) {
 										...item,
 										status: 'complete' as const,
 										progress: 100,
-										fileId: result.fileId,
+										fileId: result.contentId,
 										existed: result.existed
 									}
 								: item

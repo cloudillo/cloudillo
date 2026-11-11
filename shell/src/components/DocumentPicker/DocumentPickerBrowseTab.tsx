@@ -134,12 +134,13 @@ export function DocumentPickerBrowseTab({
 	})
 
 	const files = embeddableOnly
-		? browsedFiles.filter((f) => f.fileTp === 'FLDR' || isEmbeddable(f.contentType))
+		? browsedFiles.filter((f) => f.fileType === 'FLDR' || isEmbeddable(f.contentType))
 		: browsedFiles
 
 	// A document this picker must not hand back.
 	const isBlocked = useCallback(
-		(file: FileView) => !!requirePublic && file.visibility !== 'P' && file.fileTp !== 'FLDR',
+		(file: FileView) =>
+			!!requirePublic && file.visibility !== 'public' && file.fileType !== 'FLDR',
 		[requirePublic]
 	)
 
@@ -162,9 +163,9 @@ export function DocumentPickerBrowseTab({
 		async (file: FileView) => {
 			if (!api) return
 
-			setUpdatingFileId(file.entryId)
+			setUpdatingFileId(file.id)
 			try {
-				await api.files.update(file.entryId, { visibility: 'P' })
+				await api.files.update(file.id, { visibility: 'public' })
 				refetchFiles()
 			} catch (err) {
 				console.error('Failed to update document visibility:', err)
@@ -185,8 +186,8 @@ export function DocumentPickerBrowseTab({
 	// Handle folder navigation
 	const handleFolderClick = useCallback(
 		(file: FileView) => {
-			setCurrentFolderId(file.entryId)
-			setBreadcrumbs((prev) => [...prev, { id: file.entryId, name: file.fileName }])
+			setCurrentFolderId(file.id)
+			setBreadcrumbs((prev) => [...prev, { id: file.id, name: file.fileName }])
 		},
 		[setCurrentFolderId, setBreadcrumbs]
 	)
@@ -204,7 +205,7 @@ export function DocumentPickerBrowseTab({
 	// Handle file selection
 	const handleFileClick = useCallback(
 		(file: FileView) => {
-			if (file.fileTp === 'FLDR') {
+			if (file.fileType === 'FLDR') {
 				handleFolderClick(file)
 				return
 			}
@@ -216,11 +217,11 @@ export function DocumentPickerBrowseTab({
 				: undefined
 
 			onSelect({
-				fileId: file.fileId,
-				entryId: file.entryId,
+				fileId: file.contentId,
+				entryId: file.id,
 				fileName: file.fileName,
 				contentType: file.contentType,
-				fileTp: file.fileTp,
+				fileTp: file.fileType,
 				appId,
 				// The node that serves the row. `localOnly: true` above means there are no
 				// mirrored rows in this listing, so the browsed node is always the answer.
@@ -235,7 +236,7 @@ export function DocumentPickerBrowseTab({
 	// Handle double click
 	const handleFileDoubleClick = useCallback(
 		(file: FileView) => {
-			if (file.fileTp === 'FLDR') {
+			if (file.fileType === 'FLDR') {
 				handleFolderClick(file)
 				return
 			}
@@ -247,11 +248,11 @@ export function DocumentPickerBrowseTab({
 				: undefined
 
 			onDoubleClick({
-				fileId: file.fileId,
-				entryId: file.entryId,
+				fileId: file.contentId,
+				entryId: file.id,
 				fileName: file.fileName,
 				contentType: file.contentType,
-				fileTp: file.fileTp,
+				fileTp: file.fileType,
 				appId,
 				// The node that serves the row. `localOnly: true` above means there are no
 				// mirrored rows in this listing, so the browsed node is always the answer.
@@ -302,17 +303,17 @@ export function DocumentPickerBrowseTab({
 
 							return (
 								<VBox
-									key={file.entryId}
+									key={file.id}
 									onDoubleClick={() => handleFileDoubleClick(file)}
 								>
 									<FileTile
 										name={file.fileName}
 										contentType={
-											file.fileTp === 'FLDR'
+											file.fileType === 'FLDR'
 												? 'cloudillo/folder'
 												: file.contentType
 										}
-										selected={selectedFile?.fileId === file.fileId}
+										selected={selectedFile?.fileId === file.contentId}
 										onClick={() => handleFileClick(file)}
 										meta={
 											blocked && (
@@ -327,7 +328,7 @@ export function DocumentPickerBrowseTab({
 											blocked && (
 												<Button
 													size="sm"
-													loading={updatingFileId === file.entryId}
+													loading={updatingFileId === file.id}
 													disabled={!unlockable}
 													disabledReason={t(
 														'You do not have permission to change this file’s visibility.'

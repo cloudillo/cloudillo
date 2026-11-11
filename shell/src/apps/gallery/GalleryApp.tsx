@@ -63,7 +63,7 @@ export function GalleryApp() {
 		reset,
 		sentinelRef
 	} = useGalleryImages({
-		apiQueryParams: fileName ? { ...apiQueryParams, fileName } : apiQueryParams
+		apiQueryParams: fileName ? { ...apiQueryParams, q: fileName } : apiQueryParams
 	})
 
 	// Convert files to photo format for the grid
@@ -71,7 +71,7 @@ export function GalleryApp() {
 		() =>
 			files?.map((f) => {
 				const idTag = contextIdTag || auth?.idTag || ''
-				const fileId = f.fileId
+				const fileId = f.contentId
 				return {
 					// Grid preview: use vis.sd (640px) for good quality thumbnails.
 					// A refused fileId becomes a blank tile rather than a dropped one, so
@@ -79,9 +79,9 @@ export function GalleryApp() {
 					src: getFileUrl(idTag, fileId, 'vis.sd') ?? BLANK_IMAGE_SRC,
 					// Lightbox fullscreen: use vis.hd (1920px) for high quality
 					fullSrc: getFileUrl(idTag, fileId, 'vis.hd'),
-					width: f.x?.dim?.[0] || 100,
-					height: f.x?.dim?.[1] || 100,
-					title: f.x?.caption || f.fileName
+					width: f.extra?.dim?.[0] || 100,
+					height: f.extra?.dim?.[1] || 100,
+					title: f.fileName
 				}
 			}),
 		[files, contextIdTag, auth?.idTag]

@@ -654,7 +654,7 @@ export function useCommunitiesList() {
 
 		try {
 			// Fetch community profiles from backend
-			const profiles = await api.profiles.list({ type: 'community' })
+			const profiles = await api.profiles.listAll({ type: 'community' })
 
 			// Convert profiles to CommunityRef format and update atom
 			setCommunities((prev) => {
@@ -1227,7 +1227,7 @@ export const fromPerson = (a: ActionView) => !fromCommunity(a)
 /** Order-independent identity of a request list, for the change check. */
 export const connIdsKey = (l: ActionView[]) =>
 	l
-		.map((a) => a.actionId)
+		.map((a) => a.id)
 		.sort()
 		.join(',')
 
@@ -1250,7 +1250,7 @@ export function usePendingConnRequests(
 	const last = React.useRef(requests)
 	const [tick, setTick] = React.useState(0)
 
-	useWsBus({ cmds: ['ACTION'] }, (msg) => {
+	useWsBus({ types: ['action'] }, (msg) => {
 		if ((msg.data as ActionView).type === 'CONN') setTick((n) => n + 1)
 	})
 
@@ -1280,8 +1280,8 @@ export function usePendingConnRequests(
 				if (!client || cancelled) return
 				const rs = await client.actions.list({
 					type: 'CONN',
-					audience: idTag,
-					status: ['C', 'P']
+					audienceIdTag: idTag,
+					status: ['confirmation', 'pending']
 				})
 				if (cancelled) return
 				const next = { of: idTag, list: rs as ActionView[] }

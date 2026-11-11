@@ -90,7 +90,7 @@ export function useTypingReceiver() {
 		[setTyping]
 	)
 
-	useWsBus({ cmds: ['ACTION'] }, function handleTyping(m) {
+	useWsBus({ types: ['action'] }, function handleTyping(m) {
 		if (handled.has(m)) return
 		handled.add(m)
 		const a = m.data as ActionView

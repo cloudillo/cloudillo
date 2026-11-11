@@ -62,8 +62,8 @@ export function PendingRequestsList({
 		try {
 			const rs = (await client.actions.list({
 				type: 'CONN',
-				audience: communityIdTag,
-				status: ['C', 'P']
+				audienceIdTag: communityIdTag,
+				status: ['confirmation', 'pending']
 			})) as ActionView[]
 			setRequests(filter ? rs.filter(filter) : rs)
 		} catch (err) {
@@ -87,11 +87,11 @@ export function PendingRequestsList({
 		if (!confirmed) return
 		const client = getClientFor(communityIdTag, { explicit: true })
 		if (!client) return
-		setBusyId(action.actionId)
+		setBusyId(action.id)
 		try {
-			await client.actions.accept(action.actionId)
+			await client.actions.accept(action.id)
 			toast.success(t('Request approved'))
-			setRequests((prev) => prev?.filter((r) => r.actionId !== action.actionId))
+			setRequests((prev) => prev?.filter((r) => r.id !== action.id))
 			onChange()
 		} catch (err) {
 			console.error('Failed to approve request', err)
@@ -110,11 +110,11 @@ export function PendingRequestsList({
 		if (!confirmed) return
 		const client = getClientFor(communityIdTag, { explicit: true })
 		if (!client) return
-		setBusyId(action.actionId)
+		setBusyId(action.id)
 		try {
-			await client.actions.reject(action.actionId)
+			await client.actions.reject(action.id)
 			toast.success(t('Request rejected'))
-			setRequests((prev) => prev?.filter((r) => r.actionId !== action.actionId))
+			setRequests((prev) => prev?.filter((r) => r.id !== action.id))
 			onChange()
 		} catch (err) {
 			console.error('Failed to reject request', err)
@@ -136,10 +136,10 @@ export function PendingRequestsList({
 			<List variant="divided" aria-label={t('Pending requests')}>
 				{requests.map((action) => {
 					const message = inviteMessage(action)
-					const busy = busyId === action.actionId
+					const busy = busyId === action.id
 					return (
 						<ListItem
-							key={action.actionId}
+							key={action.id}
 							leading={<ProfilePicture profile={action.issuer} />}
 							title={action.issuer.name || action.issuer.idTag}
 							subtitle={

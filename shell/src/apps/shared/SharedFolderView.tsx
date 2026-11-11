@@ -147,7 +147,7 @@ export function SharedFolderView({
 	// so browser back/forward and deep links work. The refId only identifies the
 	// share; ?parentId= is the current folder, ?file= an opened child.
 	const [searchParams, setSearchParams] = useSearchParams()
-	const currentFolderId = searchParams.get('parentId') || rootFile.entryId
+	const currentFolderId = searchParams.get('parentId') || rootFile.id
 	const openFileId = searchParams.get('file')
 
 	const [children, setChildren] = React.useState<FileView[]>([])
@@ -228,8 +228,8 @@ export function SharedFolderView({
 					// Folder-first: the server sorts by name only, so re-order
 					// here to match the Files app (folders before files).
 					const sorted = [...files].sort((a, b) => {
-						const aFolder = (a.fileTp || 'BLOB') === 'FLDR'
-						const bFolder = (b.fileTp || 'BLOB') === 'FLDR'
+						const aFolder = (a.fileType || 'BLOB') === 'FLDR'
+						const bFolder = (b.fileType || 'BLOB') === 'FLDR'
 						if (aFolder !== bFolder) return aFolder ? -1 : 1
 						return a.fileName.localeCompare(b.fileName)
 					})
@@ -267,8 +267,8 @@ export function SharedFolderView({
 			;(async function () {
 				try {
 					const result = await scopedApiRef.current.files.list({
-						fileId: currentFolderId,
-						withPath: true
+						contentId: currentFolderId,
+						include: ['path']
 					})
 					if (cancelled) return
 					const current = result[0]
@@ -278,10 +278,10 @@ export function SharedFolderView({
 					}
 					const chain: BreadcrumbItem[] = [
 						...(current.path ?? []).map((p) => ({ id: p.id, name: p.name })),
-						{ id: current.entryId, name: current.fileName }
+						{ id: current.id, name: current.fileName }
 					]
 					// Trim to the share root so ancestors above it are never shown.
-					const rootIdx = chain.findIndex((c) => c.id === rootFile.entryId)
+					const rootIdx = chain.findIndex((c) => c.id === rootFile.id)
 					const trimmed = rootIdx >= 0 ? chain.slice(rootIdx) : chain
 					if (cancelled) return
 					setBreadcrumbs(trimmed)
@@ -301,7 +301,7 @@ export function SharedFolderView({
 				cancelled = true
 			}
 		},
-		[currentFolderId, rootFile.entryId]
+		[currentFolderId, rootFile.id]
 	)
 
 	// Deep-link fallback: when ?file= points at a file not in the current
@@ -310,7 +310,7 @@ export function SharedFolderView({
 	// Depend on a boolean membership rather than the `children` array (whose
 	// identity changes on every revalidation) so an out-of-folder ?file= isn't
 	// re-fetched on every background refresh.
-	const openInChildren = !!openFileId && children.some((f) => f.entryId === openFileId)
+	const openInChildren = !!openFileId && children.some((f) => f.id === openFileId)
 
 	React.useEffect(
 		function fetchDeepLinkedFile() {
@@ -321,7 +321,7 @@ export function SharedFolderView({
 			}
 			;(async function () {
 				try {
-					const result = await scopedApiRef.current.files.list({ fileId: openFileId })
+					const result = await scopedApiRef.current.files.list({ contentId: openFileId })
 					if (cancelled) return
 					setFetchedOpenFile(result[0] ?? null)
 				} catch (err) {
@@ -343,12 +343,12 @@ export function SharedFolderView({
 			setSearchParams((prev) => {
 				const p = new URLSearchParams(prev)
 				p.delete('file')
-				if (folderId && folderId !== rootFile.entryId) p.set('parentId', folderId)
+				if (folderId && folderId !== rootFile.id) p.set('parentId', folderId)
 				else p.delete('parentId')
 				return p
 			})
 		},
-		[setSearchParams, rootFile.entryId]
+		[setSearchParams, rootFile.id]
 	)
 
 	const openFileInUrl = React.useCallback(
@@ -403,7 +403,7 @@ export function SharedFolderView({
 	function handleDownload(file: FileView) {
 		// No ?token= — the SW injects the installed scoped token as an
 		// Authorization header on this header-less anchor-download GET.
-		const url = getFileUrl(idTag, file.fileId)
+		const url = getFileUrl(idTag, file.contentId)
 		if (!url) {
 			toast.error(t('Download failed. Please try again.'))
 			return
@@ -413,7 +413,7 @@ export function SharedFolderView({
 
 	async function handleDelete(file: FileView) {
 		if (!canWrite) return
-		const isFolder = (file.fileTp || 'BLOB') === 'FLDR'
+		const isFolder = (file.fileType || 'BLOB') === 'FLDR'
 		const ok = await dialog.confirm(
 			isFolder ? t('Move folder to trash') : t('Move to trash'),
 			isFolder
@@ -423,7 +423,7 @@ export function SharedFolderView({
 		)
 		if (!ok) return
 		try {
-			await scopedApi.files.delete(file.entryId)
+			await scopedApi.files.delete(file.id)
 			setRefreshKey((k) => k + 1)
 		} catch (err) {
 			console.error('[SharedFolderView] Delete failed:', err)
@@ -432,9 +432,9 @@ export function SharedFolderView({
 	}
 
 	function handleOpen(file: FileView) {
-		const fileTp = file.fileTp || 'BLOB'
+		const fileTp = file.fileType || 'BLOB'
 		if (fileTp === 'FLDR') {
-			navigateToFolder(file.entryId)
+			navigateToFolder(file.id)
 			return
 		}
 		// Collaborative docs need a guest name for awareness; prompt lazily if
@@ -443,7 +443,7 @@ export function SharedFolderView({
 			setPendingAppFile(file)
 			return
 		}
-		openFileInUrl(file.entryId)
+		openFileInUrl(file.id)
 	}
 
 	// A collaborative doc was opened before we had a guest name — prompt, then
@@ -454,7 +454,7 @@ export function SharedFolderView({
 				open
 				onConfirm={(name) => {
 					setFolderGuestName(name)
-					openFileInUrl(pendingAppFile.entryId)
+					openFileInUrl(pendingAppFile.id)
 					setPendingAppFile(null)
 				}}
 				onCancel={() => setPendingAppFile(null)}
@@ -464,12 +464,12 @@ export function SharedFolderView({
 
 	// The opened child file is derived from the URL once children are loaded.
 	const openFile = openFileId
-		? (children.find((f) => f.entryId === openFileId) ?? fetchedOpenFile)
+		? (children.find((f) => f.id === openFileId) ?? fetchedOpenFile)
 		: null
 
 	// Opened a child file: render the viewer / app with a back action to the listing.
 	if (openFile) {
-		const fileTp = openFile.fileTp || 'BLOB'
+		const fileTp = openFile.fileType || 'BLOB'
 		if (fileTp === 'CRDT' || fileTp === 'RTDB') {
 			const appEl = renderSharedApp(openFile, {
 				token: scopedToken,
@@ -603,7 +603,7 @@ export function SharedFolderView({
 				<Grid min="8rem" gap={2}>
 					{children.map((file) => (
 						<FolderItem
-							key={file.entryId}
+							key={file.id}
 							file={file}
 							idTag={idTag}
 							canWrite={canWrite}
@@ -644,7 +644,7 @@ function FolderItem({
 }: FolderItemProps) {
 	const { t } = useTranslation()
 	const isImage = file.contentType.startsWith('image/')
-	const fileTp = file.fileTp || 'BLOB'
+	const fileTp = file.fileType || 'BLOB'
 	const isBlob = fileTp === 'BLOB'
 	// Normally no ?token= — the SW injects the installed scoped token on this img
 	// GET. Only build the URL once the SW holds the token, so the <img> never
@@ -652,7 +652,12 @@ function FolderItem({
 	// failed (tokenUrl set), embed the token in the URL so the thumbnail loads.
 	const thumbUrl =
 		isImage && tokenReady
-			? getFileUrl(idTag, file.fileId, 'vis.tn', tokenUrl ? { token: tokenUrl } : undefined)
+			? getFileUrl(
+					idTag,
+					file.contentId,
+					'vis.tn',
+					tokenUrl ? { token: tokenUrl } : undefined
+				)
 			: undefined
 
 	return (

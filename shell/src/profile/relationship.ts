@@ -5,7 +5,7 @@ import type { Profile } from '@cloudillo/types'
 
 /** Primary action/state shown on the relationship chip. */
 export type RelPrimary =
-	| 'blocked' // status==='B' (overrides everything)
+	| 'blocked' // status==='blocked' (overrides everything)
 	| 'pending' // connected==='R'
 	| 'connected' // person, connected===true
 	| 'member' // community, connected===true
@@ -26,18 +26,23 @@ export interface RelationshipView {
 	connected: boolean
 }
 
+/** A profile as the profile page holds it: `connected: 'pending'` is the local optimistic state
+ *  right after sending a request, or what the `connection=pending` list lookup reports on load
+ *  (the wire sends booleans only). */
+export type LocalProfile = Omit<Partial<Profile>, 'connected'> & { connected?: boolean | 'pending' }
+
 export function describeRelationship(
-	p: Pick<Profile, 'type' | 'status' | 'connected' | 'following' | 'follower'>
+	p: Pick<LocalProfile, 'type' | 'status' | 'connected' | 'following' | 'follower'>
 ): RelationshipView {
 	const isCommunity = p.type === 'community'
 	const following = !!p.following
 	const followsYou = !!p.follower
 	const connected = p.connected === true
-	const pending = p.connected === 'R'
+	const pending = p.connected === 'pending'
 	const mutual = following && followsYou
 
 	let primary: RelPrimary
-	if (p.status === 'B') primary = 'blocked'
+	if (p.status === 'blocked') primary = 'blocked'
 	else if (pending) primary = 'pending'
 	else if (connected) primary = isCommunity ? 'member' : 'connected'
 	else if (following) primary = 'following'

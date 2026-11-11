@@ -16,7 +16,7 @@
  *
  * Collaborator profiles are deliberately NOT served here: the shell can only
  * answer from this tenant's own mirror, which has never heard of a stranger
- * editing a foreign-hosted document. Apps call `GET /profiles/batch` on the
+ * editing a foreign-hosted document. Apps call `GET /profile-lookups` on the
  * document's own node instead.
  */
 

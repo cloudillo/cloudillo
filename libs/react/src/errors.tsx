@@ -50,11 +50,11 @@ export function friendlyError(t: TFunction, err: unknown): string {
 			case 'E-RATE-LIMITED':
 			case 'E-RATE-BANNED':
 				return rateLimited()
-			case 'E-FILE-SRCUNREACH':
+			case 'E-FILE-SOURCEUNREACHABLE':
 			case 'E-NET-TIMEOUT':
-			case 'E-NET-ERROR':
+			case 'E-NET-UPSTREAM':
 				return t("Couldn't reach the other server. Try again later.")
-			case 'E-VAL-INVALID':
+			case 'E-CORE-INVALID':
 				return invalid()
 		}
 		switch (err.httpStatus) {
@@ -70,8 +70,6 @@ export function friendlyError(t: TFunction, err: unknown): string {
 				return t('This is too large to upload.')
 			case 429:
 				return rateLimited()
-			case 507:
-				return quota()
 		}
 		if (err.httpStatus >= 500 && err.httpStatus <= 599) {
 			return t('Something went wrong on the server. Try again later.')

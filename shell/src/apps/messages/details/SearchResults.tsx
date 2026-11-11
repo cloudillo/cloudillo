@@ -102,7 +102,7 @@ export function SearchResults({ convId, onJump }: SearchResultsProps) {
 		const ctrl = new AbortController()
 		const timer = setTimeout(() => {
 			api.search
-				.query({ q: query, conv: convId, type: 'action' }, { signal: ctrl.signal })
+				.query({ q: query, conv: convId, kind: 'action' }, { signal: ctrl.signal })
 				.then(setHits)
 				.catch((err) => {
 					if (ctrl.signal.aborted) return

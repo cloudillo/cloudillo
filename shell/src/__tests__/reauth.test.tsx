@@ -66,7 +66,7 @@ describe('useReauth (via CreateApiKeyModal)', () => {
 	beforeEach(() => {
 		api.auth.getTotp.mockReset()
 		api.auth.createApiKey.mockReset()
-		api.auth.createApiKey.mockResolvedValue({ keyId: 1, plaintextKey: 'k' })
+		api.auth.createApiKey.mockResolvedValue({ id: '1', plaintextKey: 'k' })
 	})
 
 	it('sends the password when TOTP is off', async () => {

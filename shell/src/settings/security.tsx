@@ -327,11 +327,11 @@ function SigningKeysPanel() {
 						title={
 							<>
 								{key.keyId}{' '}
-								{key.status === 'A' ? (
+								{key.status === 'active' ? (
 									<Badge size="sm" color="success" className="ms-1">
 										{t('Active')}
 									</Badge>
-								) : key.status === 'V' ? (
+								) : key.status === 'verifyOnly' ? (
 									<Badge size="sm" className="ms-1">
 										{t('Verify-only')}
 									</Badge>
@@ -346,7 +346,7 @@ function SigningKeysPanel() {
 							date: new Date(key.createdAt).toLocaleDateString()
 						})}
 						trailing={
-							key.status === 'V' && (
+							key.status === 'verifyOnly' && (
 								<Button
 									variant="ghost"
 									size="sm"
@@ -379,8 +379,8 @@ function AuditCategoriesPanel() {
 		if (!api) return
 		api.auth.listAudit({ limit: 1 }).then(
 			(res) => {
-				setTenantCategories(res.tenantCategories)
-				setGlobalCategories(res.globalCategories)
+				setTenantCategories(res.data.tenantCategories)
+				setGlobalCategories(res.data.globalCategories)
 			},
 			(err) => {
 				// Owner-only endpoint: other users simply get no panel
@@ -700,25 +700,24 @@ interface EditApiKeyModalProps {
 	onSaved: () => void
 }
 
-// Convert Unix seconds → "YYYY-MM-DD" in the user's local timezone for <input type="date">.
-function expiresAtToDateInput(expiresAt: number | undefined): string {
+// Convert an ISO time → "YYYY-MM-DD" in the user's local timezone for <input type="date">.
+function expiresAtToDateInput(expiresAt: string | undefined): string {
 	if (!expiresAt) return ''
-	const d = new Date(expiresAt * 1000)
+	const d = new Date(expiresAt)
 	const y = d.getFullYear()
 	const m = String(d.getMonth() + 1).padStart(2, '0')
 	const day = String(d.getDate()).padStart(2, '0')
 	return `${y}-${m}-${day}`
 }
 
-// Convert "YYYY-MM-DD" → Unix seconds at end-of-day in the user's *local*
+// Convert "YYYY-MM-DD" → ISO time at end-of-day in the user's *local*
 // timezone. This matches the UX of "valid through this date where I am";
 // near the international date line the resulting instant can land on a
 // different UTC calendar day, which is acceptable as long as the server
 // compares against the timestamp (not a UTC calendar date).
-function dateInputToExpiresAt(value: string): number | null {
+function dateInputToExpiresAt(value: string): string | null {
 	if (!value) return null
-	const endOfDay = new Date(`${value}T23:59:59`)
-	return Math.floor(endOfDay.getTime() / 1000)
+	return new Date(`${value}T23:59:59`).toISOString()
 }
 
 function EditApiKeyModal({ open, apiKey, onClose, onSaved }: EditApiKeyModalProps) {
@@ -770,7 +769,7 @@ function EditApiKeyModal({ open, apiKey, onClose, onSaved }: EditApiKeyModalProp
 				reauth = await promptReauth()
 				if (!reauth) return
 			}
-			await api.auth.updateApiKey(apiKey.keyId, {
+			await api.auth.updateApiKey(apiKey.id, {
 				name: name || null,
 				scopes: finalScopes.size > 0 ? Array.from(finalScopes).join(',') : null,
 				...(expiresAtChanged && { expiresAt: dateInputToExpiresAt(expiresAtInput) }),
@@ -828,7 +827,7 @@ function EditApiKeyModal({ open, apiKey, onClose, onSaved }: EditApiKeyModalProp
 								type="date"
 								className="flex-fill pe-4"
 								value={expiresAtInput}
-								min={expiresAtToDateInput(Math.floor(Date.now() / 1000))}
+								min={expiresAtToDateInput(new Date().toISOString())}
 								onChange={(e) => setExpiresAtInput(e.target.value)}
 							/>
 							{expiresAtInput && (
@@ -1128,7 +1127,7 @@ export function SecuritySettings() {
 		}
 	}
 
-	async function deleteApiKey(keyId: number, keyPrefix: string) {
+	async function deleteApiKey(keyId: string, keyPrefix: string) {
 		if (!api) return
 
 		// Check if this is the current device's key
@@ -1208,7 +1207,7 @@ export function SecuritySettings() {
 						(k) => k.keyPrefix === currentDeviceKeyPrefix
 					)
 					if (matchingKey) {
-						await api.auth.deleteApiKey(matchingKey.keyId)
+						await api.auth.deleteApiKey(matchingKey.id)
 					}
 				} catch (err) {
 					// Dropping only the local copy would leave an active server-side
@@ -1470,7 +1469,7 @@ export function SecuritySettings() {
 							const scopes = key.scopes?.split(',').filter(Boolean)
 							return (
 								<ListItem
-									key={key.keyId}
+									key={key.id}
 									leading={<IcApiKey />}
 									title={
 										<>
@@ -1497,11 +1496,11 @@ export function SecuritySettings() {
 												</Text>
 											)}
 											{key.expiresAt &&
-												(key.expiresAt * 1000 < Date.now() ? (
+												(Date.parse(key.expiresAt) < Date.now() ? (
 													<Text color="error" className="ms-2">
 														{t('Expired {{date}}', {
 															date: new Date(
-																key.expiresAt * 1000
+																key.expiresAt
 															).toLocaleDateString()
 														})}
 													</Text>
@@ -1509,7 +1508,7 @@ export function SecuritySettings() {
 													<Text className="ms-2">
 														{t('Expires {{date}}', {
 															date: new Date(
-																key.expiresAt * 1000
+																key.expiresAt
 															).toLocaleDateString()
 														})}
 													</Text>
@@ -1531,9 +1530,7 @@ export function SecuritySettings() {
 												className="danger-hover"
 												icon={<IcDelete />}
 												aria-label={t('Delete API key')}
-												onClick={() =>
-													deleteApiKey(key.keyId, key.keyPrefix)
-												}
+												onClick={() => deleteApiKey(key.id, key.keyPrefix)}
 											/>
 										</HBox>
 									}

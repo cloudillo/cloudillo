@@ -29,14 +29,14 @@ const STORE = 'files'
  */
 export function extractFileIndexFields(f: FileView): Record<string, unknown> {
 	return {
-		entryId: f.entryId,
-		fileId: f.fileId,
+		entryId: f.id,
+		fileId: f.contentId,
 		parentId: f.parentId ?? '__root__',
-		fileTp: f.fileTp ?? 'BLOB',
+		fileTp: f.fileType ?? 'BLOB',
 		contentType: f.contentType,
 		starred: f.userData?.starred ? 1 : 0,
 		pinned: f.userData?.pinned ? 1 : 0,
-		createdAt: typeof f.createdAt === 'string' ? f.createdAt : f.createdAt.toISOString()
+		createdAt: f.createdAt
 	}
 }
 
@@ -50,7 +50,7 @@ export async function cacheFiles(scopeIdTag: string, files: FileView[]): Promise
 		files.map((f) => ({
 			indexFields: { ...extractFileIndexFields(f), ownerIdTag: scopeIdTag },
 			payload: f,
-			cacheKey: `${scopeIdTag}:${f.entryId}`
+			cacheKey: `${scopeIdTag}:${f.id}`
 		}))
 	)
 }
@@ -139,7 +139,7 @@ export async function queryCachedFiles(
 	// Client-side filter for compound fileTp
 	if (params.fileTp?.includes(',')) {
 		const types = params.fileTp.split(',')
-		results = results.filter((f) => types.includes(f.fileTp ?? 'BLOB'))
+		results = results.filter((f) => types.includes(f.fileType ?? 'BLOB'))
 	}
 
 	return results

@@ -469,8 +469,8 @@ export interface UseInfiniteScrollOptions<T> {
 		signal?: AbortSignal
 	) => Promise<{
 		items: T[]
-		nextCursor: string | null
-		hasMore: boolean
+		/** Opaque cursor of the next page (`meta.next`); absent on the last page */
+		next?: string
 		/** Set when the page came from a local cache instead of the network */
 		isOffline?: boolean
 	}>
@@ -521,12 +521,8 @@ export interface UseInfiniteScrollReturn<T> {
  * ```typescript
  * const { items, isLoading, hasMore, sentinelRef } = useInfiniteScroll({
  *   fetchPage: async (cursor, limit) => {
- *     const result = await api.files.list({ cursor, limit })
- *     return {
- *       items: result.data,
- *       nextCursor: result.cursorPagination?.nextCursor ?? null,
- *       hasMore: result.cursorPagination?.hasMore ?? false
- *     }
+ *     const result = await api.files.listPaginated({ cursor, limit })
+ *     return { items: result.data, next: result.meta.next }
  *   },
  *   pageSize: 30,
  *   deps: [folderId, sortField]
@@ -630,8 +626,8 @@ export function useInfiniteScroll<T>(
 				if (!isMountedRef.current || epochRef.current !== myEpoch) return
 
 				setItems((prev) => (isInitialLoad ? result.items : [...prev, ...result.items]))
-				setCursor(result.nextCursor)
-				setHasMore(result.hasMore)
+				setCursor(result.next ?? null)
+				setHasMore(!!result.next)
 				setIsOffline(!!result.isOffline)
 			} catch (err) {
 				if (!isMountedRef.current || epochRef.current !== myEpoch) return

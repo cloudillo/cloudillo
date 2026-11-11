@@ -260,7 +260,7 @@ export function FilesBar({
 		</>
 	)
 
-	const ids = selectedFiles.map((f) => f.entryId)
+	const ids = selectedFiles.map((f) => f.id)
 	const allStarred = selectedFiles.every((f) => f.userData?.starred)
 	const allPinned = selectedFiles.every((f) => f.userData?.pinned)
 	const selectionActions =

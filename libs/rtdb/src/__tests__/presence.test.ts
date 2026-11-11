@@ -16,18 +16,18 @@ import {
 
 class PresenceSocket extends MockWebSocket {
 	/** Request ids already answered, so `ack…` only ever answers new frames. */
-	private answered = new Set<number>()
+	private answered = new Set<string>()
 
 	/** Answer every unanswered `presence` frame the way the server would. */
 	ackPresence(opts?: { throttled?: boolean }): void {
 		for (const msg of this.presenceFrames()) {
-			const id = msg.id as number
+			const id = msg.id
 			if (this.answered.has(id)) continue
 			this.answered.add(id)
 			this.receive({
 				id,
 				type: 'presenceResult',
-				...(opts?.throttled ? { throttled: true } : {})
+				data: opts?.throttled ? { throttled: true } : {}
 			})
 		}
 	}
@@ -35,29 +35,33 @@ class PresenceSocket extends MockWebSocket {
 	/** An old server, which has no `"presence"` arm at all. */
 	rejectPresence(): void {
 		for (const msg of this.presenceFrames()) {
-			const id = msg.id as number
+			const id = msg.id
 			if (this.answered.has(id)) continue
 			this.answered.add(id)
-			this.receive({ id, type: 'error', code: 400, message: 'Unknown command: presence' })
+			this.receive({
+				id,
+				type: 'error',
+				data: { code: 'E-RTDB-UNKNOWNCOMMAND', message: 'Unknown command: presence' }
+			})
 		}
 	}
 
 	/** A server that knows the command but refused this frame — a blip, not an answer. */
-	failPresence(code: number, message: string): void {
+	failPresence(code: string, message: string): void {
 		for (const msg of this.presenceFrames()) {
-			const id = msg.id as number
+			const id = msg.id
 			if (this.answered.has(id)) continue
 			this.answered.add(id)
-			this.receive({ id, type: 'error', code, message })
+			this.receive({ id, type: 'error', data: { code, message } })
 		}
 	}
 
 	/** Push an unsolicited presence event, id a random string as the server mints it. */
 	pushPresence(event: PresenceEvent): void {
-		this.receive({ id: 'rnd-abc', type: 'presenceChange', event })
+		this.receive({ id: 'rnd-abc', type: 'presenceChange', data: { event } })
 	}
 
-	presenceFrames(): Array<Record<string, unknown>> {
+	presenceFrames() {
 		return this.sent.filter((m) => m.type === 'presence')
 	}
 }
@@ -98,7 +102,7 @@ function entryState(entry: PresenceEntry, field: string): unknown {
 describe('presence opt-in', () => {
 	it('asks for the channel in the socket url only when enabled', async () => {
 		const on = makeManager(true)
-		expect((await connectAndOpen(on, sockets)).url).toContain('presence=1')
+		expect((await connectAndOpen(on, sockets)).url).toContain('presence=true')
 
 		const off = makeManager(false)
 		expect((await connectAndOpen(off, sockets)).url).not.toContain('presence')
@@ -263,7 +267,7 @@ describe('publishing', () => {
 		await jest.advanceTimersByTimeAsync(500)
 		const frames = socket.presenceFrames()
 		expect(frames).toHaveLength(2)
-		expect((frames[1].state as Record<string, unknown>).block).toBe('b3')
+		expect((frames[1].data.state as Record<string, unknown>).block).toBe('b3')
 
 		presence.close()
 	})
@@ -305,13 +309,13 @@ describe('publishing', () => {
 
 		const frames = socket.presenceFrames()
 		expect(frames).toHaveLength(1)
-		expect((frames[0].state as Record<string, unknown>).block).toBe('b1')
+		expect((frames[0].data.state as Record<string, unknown>).block).toBe('b1')
 
 		presence.close()
 	})
 
 	it('re-publishes after a reconnect without re-subscribing', async () => {
-		// The `?presence=1` flag rides in the URL, so the server has already put us
+		// The `?presence=true` flag rides in the URL, so the server has already put us
 		// back in the room — but it has forgotten what we said in it.
 		const ws = makeManager(true)
 		const first = await connectAndOpen(ws, sockets)
@@ -327,7 +331,7 @@ describe('publishing', () => {
 
 		const frames = second.presenceFrames()
 		expect(frames).toHaveLength(1)
-		expect((frames[0].state as Record<string, unknown>).page).toBe('pg-7')
+		expect((frames[0].data.state as Record<string, unknown>).page).toBe('pg-7')
 		// Presence is connection-level; there is no such thing as a presence
 		// subscription to re-establish.
 		expect(second.sent.filter((m) => m.type === 'subscribe')).toHaveLength(0)
@@ -358,13 +362,13 @@ describe('publishing', () => {
 	})
 
 	it('keeps publishing after a rate limit or a server error', async () => {
-		// Only `400 Unknown command` says the channel is not there. A 429 or a 500 is
+		// Only `E-RTDB-UNKNOWNCOMMAND` says the channel is not there. A 429 or a 500 is
 		// this frame's problem, and latching on one froze the roster for the rest of
 		// the session.
 		const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
 		for (const [code, message] of [
-			[429, 'Too many requests'],
-			[500, 'Internal error']
+			['E-RATE-LIMITED', 'Too many requests'],
+			['E-CORE-INTERNAL', 'Internal error']
 		] as const) {
 			const ws = makeManager(true)
 			const socket = await connectAndOpen(ws, sockets)

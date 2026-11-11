@@ -3,7 +3,7 @@
 
 // A nav target is painted into an `href` server-side, on the site owner's own origin,
 // before any JS runs. The settings editor checks what an author types, but it is not
-// the only writer — `PATCH /api/sites` is reachable by any leader with a token — so
+// the only writer — `PATCH /api/site` is reachable by any leader with a token — so
 // the *validator* has to be the one that refuses a hostile target. These are the cases
 // that must never decode.
 
@@ -76,7 +76,7 @@ describe('tSiteNavItem / tSiteNavChild', () => {
 })
 
 describe('tSiteNavList', () => {
-	// The read side of the same rule: `GET /api/sites` is how an owner reaches the
+	// The read side of the same rule: `GET /api/site` is how an owner reaches the
 	// settings page that could delete a bad entry, so failing the whole response over
 	// one entry locked them out of the only repair.
 	it('should drop one unvouchable entry and keep the rest', () => {

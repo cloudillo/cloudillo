@@ -11,7 +11,7 @@
  * file, and asks the backend to commit it.
  *
  * The mount lookup (`site:mount.req`) is here for the same reason the upload is:
- * `/api/sites` is `require_leader` and the app's token is scoped to one file. The
+ * `/api/site` is `require_leader` and the app's token is scoped to one file. The
  * publisher needs the answer *before* it builds, because a container bakes absolute
  * site paths.
  *
@@ -187,7 +187,7 @@ export function initSiteHandlers(bus: ShellMessageBus): void {
 				{ as: 'managed', visibility: 'P' }
 			)
 
-			const containerFileId = uploaded.fileId
+			const containerFileId = uploaded.contentId
 			console.log('[Site] Container uploaded as', containerFileId, 'committing')
 
 			// The commit is server-side: it is the only place the pointer flip, the

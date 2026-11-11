@@ -16,27 +16,27 @@ import {
 describe('Error Classes', () => {
 	describe('RtdbError', () => {
 		it('should create error with code and message', () => {
-			const error = new RtdbError('Test error', 500, { detail: 'info' })
+			const error = new RtdbError('Test error', 'E-CORE-INTERNAL', { detail: 'info' })
 
 			expect(error.message).toBe('Test error')
-			expect(error.code).toBe(500)
+			expect(error.code).toBe('E-CORE-INTERNAL')
 			expect(error.details).toEqual({ detail: 'info' })
 			expect(error.name).toBe('RtdbError')
 			expect(error instanceof Error).toBe(true)
 		})
 
 		it('should have no details when not provided', () => {
-			const error = new RtdbError('Test', 500)
+			const error = new RtdbError('Test', 'E-CORE-INTERNAL')
 
 			expect(error.details).toBeUndefined()
 		})
 	})
 
 	describe('ConnectionError', () => {
-		it('should have code 503', () => {
+		it('should have code E-CORE-UNAVAILABLE', () => {
 			const error = new ConnectionError('Network error')
 
-			expect(error.code).toBe(503)
+			expect(error.code).toBe('E-CORE-UNAVAILABLE')
 			expect(error.name).toBe('ConnectionError')
 			expect(error.message).toBe('Network error')
 		})
@@ -55,46 +55,46 @@ describe('Error Classes', () => {
 	})
 
 	describe('AuthError', () => {
-		it('should have code 401', () => {
+		it('should have code E-AUTH-UNAUTHENTICATED', () => {
 			const error = new AuthError('Invalid token')
 
-			expect(error.code).toBe(401)
+			expect(error.code).toBe('E-AUTH-UNAUTHENTICATED')
 			expect(error.name).toBe('AuthError')
 		})
 	})
 
 	describe('PermissionError', () => {
-		it('should have code 403', () => {
+		it('should have code E-AUTH-FORBIDDEN', () => {
 			const error = new PermissionError('Access denied')
 
-			expect(error.code).toBe(403)
+			expect(error.code).toBe('E-AUTH-FORBIDDEN')
 			expect(error.name).toBe('PermissionError')
 		})
 	})
 
 	describe('NotFoundError', () => {
-		it('should have code 404', () => {
+		it('should have code E-CORE-NOTFOUND', () => {
 			const error = new NotFoundError('Document not found')
 
-			expect(error.code).toBe(404)
+			expect(error.code).toBe('E-CORE-NOTFOUND')
 			expect(error.name).toBe('NotFoundError')
 		})
 	})
 
 	describe('ValidationError', () => {
-		it('should have code 400', () => {
+		it('should have code E-CORE-INVALID', () => {
 			const error = new ValidationError('Invalid input')
 
-			expect(error.code).toBe(400)
+			expect(error.code).toBe('E-CORE-INVALID')
 			expect(error.name).toBe('ValidationError')
 		})
 	})
 
 	describe('TimeoutError', () => {
-		it('should have code 408', () => {
+		it('should have code E-NET-TIMEOUT', () => {
 			const error = new TimeoutError('Request timeout')
 
-			expect(error.code).toBe(408)
+			expect(error.code).toBe('E-NET-TIMEOUT')
 			expect(error.name).toBe('TimeoutError')
 		})
 	})
@@ -107,7 +107,7 @@ describe('Error Classes', () => {
 				throw error
 			} catch (e) {
 				expect(e instanceof RtdbError).toBe(true)
-				expect((e as RtdbError).code).toBe(404)
+				expect((e as RtdbError).code).toBe('E-CORE-NOTFOUND')
 			}
 		})
 
@@ -123,17 +123,17 @@ describe('Error Classes', () => {
 
 			errors.forEach((error) => {
 				if (error instanceof ConnectionError) {
-					expect(error.code).toBe(503)
+					expect(error.code).toBe('E-CORE-UNAVAILABLE')
 				} else if (error instanceof AuthError) {
-					expect(error.code).toBe(401)
+					expect(error.code).toBe('E-AUTH-UNAUTHENTICATED')
 				} else if (error instanceof PermissionError) {
-					expect(error.code).toBe(403)
+					expect(error.code).toBe('E-AUTH-FORBIDDEN')
 				} else if (error instanceof NotFoundError) {
-					expect(error.code).toBe(404)
+					expect(error.code).toBe('E-CORE-NOTFOUND')
 				} else if (error instanceof ValidationError) {
-					expect(error.code).toBe(400)
+					expect(error.code).toBe('E-CORE-INVALID')
 				} else if (error instanceof TimeoutError) {
-					expect(error.code).toBe(408)
+					expect(error.code).toBe('E-NET-TIMEOUT')
 				}
 			})
 		})

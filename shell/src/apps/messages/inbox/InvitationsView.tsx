@@ -52,7 +52,7 @@ function useInviteMembers(invites: ActionView[] | undefined): Map<string, Profil
 					const subs = (await api.actions.list({
 						type: 'SUBS',
 						subject,
-						status: 'A'
+						status: 'active'
 					})) as ActionView[]
 					if (ac.signal.aborted) return
 					const byGroup = new Map<string, Profile[]>()
@@ -197,7 +197,7 @@ export function InvitationsView({ invites, onAccept, onDecline, onBack }: Invita
 			{invites && invites.length > 0 ? (
 				invites.map((invite) => (
 					<InvitationCard
-						key={invite.actionId}
+						key={invite.id}
 						invite={invite}
 						members={invite.subject ? members.get(invite.subject) : undefined}
 						onAccept={onAccept}

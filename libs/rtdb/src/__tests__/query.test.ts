@@ -136,13 +136,10 @@ describe('Query', () => {
 
 	describe('get', () => {
 		it('should send query message to server', async () => {
-			mockWs.send.mockResolvedValue({
-				type: 'queryResult',
-				data: [
-					{ id: 'doc1', title: 'Post 1' },
-					{ id: 'doc2', title: 'Post 2' }
-				]
-			})
+			mockWs.send.mockResolvedValue([
+				{ id: 'doc1', title: 'Post 1' },
+				{ id: 'doc2', title: 'Post 2' }
+			])
 
 			const snapshot = await query.where('published', '==', true).limit(10).get()
 
@@ -152,10 +149,7 @@ describe('Query', () => {
 		})
 
 		it('should return empty snapshot when no results', async () => {
-			mockWs.send.mockResolvedValue({
-				type: 'queryResult',
-				data: []
-			})
+			mockWs.send.mockResolvedValue([])
 
 			const snapshot = await query.get()
 
@@ -164,10 +158,7 @@ describe('Query', () => {
 		})
 
 		it('should include filters in message', async () => {
-			mockWs.send.mockResolvedValue({
-				type: 'queryResult',
-				data: []
-			})
+			mockWs.send.mockResolvedValue([])
 
 			await query.where('published', '==', true).get()
 
@@ -176,10 +167,7 @@ describe('Query', () => {
 		})
 
 		it('should include sort order in message', async () => {
-			mockWs.send.mockResolvedValue({
-				type: 'queryResult',
-				data: []
-			})
+			mockWs.send.mockResolvedValue([])
 
 			await query.orderBy('createdAt', 'desc').get()
 
@@ -188,10 +176,7 @@ describe('Query', () => {
 		})
 
 		it('should include limit in message', async () => {
-			mockWs.send.mockResolvedValue({
-				type: 'queryResult',
-				data: []
-			})
+			mockWs.send.mockResolvedValue([])
 
 			await query.limit(5).get()
 
@@ -200,10 +185,7 @@ describe('Query', () => {
 		})
 
 		it('should include offset in message', async () => {
-			mockWs.send.mockResolvedValue({
-				type: 'queryResult',
-				data: []
-			})
+			mockWs.send.mockResolvedValue([])
 
 			await query.offset(10).get()
 
@@ -212,10 +194,7 @@ describe('Query', () => {
 		})
 
 		it('should include select in message', async () => {
-			mockWs.send.mockResolvedValue({
-				type: 'queryResult',
-				data: []
-			})
+			mockWs.send.mockResolvedValue([])
 
 			await query.select('title', 'author').get()
 
@@ -224,10 +203,7 @@ describe('Query', () => {
 		})
 
 		it('should omit select when no fields were asked for', async () => {
-			mockWs.send.mockResolvedValue({
-				type: 'queryResult',
-				data: []
-			})
+			mockWs.send.mockResolvedValue([])
 
 			// An empty projection would mean "return nothing", which no caller
 			// wants; it has to read as "return everything" instead.
@@ -241,10 +217,7 @@ describe('Query', () => {
 			// `select` is the only builder method that narrows `T`; mutating in place
 			// would leave every other reference typed `Query<T>` while the server
 			// sends it `Partial<T>` documents.
-			mockWs.send.mockResolvedValue({
-				type: 'queryResult',
-				data: []
-			})
+			mockWs.send.mockResolvedValue([])
 
 			const lite = query.select('title')
 			await query.get()
@@ -255,10 +228,7 @@ describe('Query', () => {
 		})
 
 		it('should carry the filters onto the projected copy', async () => {
-			mockWs.send.mockResolvedValue({
-				type: 'queryResult',
-				data: []
-			})
+			mockWs.send.mockResolvedValue([])
 
 			await query.where('status', '==', 'active').select('title').get()
 
@@ -268,10 +238,7 @@ describe('Query', () => {
 		})
 
 		it('should not leak a later where() between the copies', async () => {
-			mockWs.send.mockResolvedValue({
-				type: 'queryResult',
-				data: []
-			})
+			mockWs.send.mockResolvedValue([])
 
 			const lite = query.select('title')
 			lite.where('status', '==', 'active')
@@ -585,10 +552,7 @@ describe('Query', () => {
 		})
 
 		it('should carry filters into AggregateQuery', async () => {
-			mockWs.send.mockResolvedValue({
-				type: 'queryResult',
-				data: [{ group: 'rust', count: 3 }]
-			})
+			mockWs.send.mockResolvedValue([{ group: 'rust', count: 3 }])
 
 			const aggQuery = query.where('published', '==', true).aggregate('tg')
 			const snapshot = await aggQuery.get()
@@ -602,13 +566,10 @@ describe('Query', () => {
 		})
 
 		it('should send aggregate in get() message', async () => {
-			mockWs.send.mockResolvedValue({
-				type: 'queryResult',
-				data: [
-					{ group: 'rust', count: 3 },
-					{ group: 'web', count: 2 }
-				]
-			})
+			mockWs.send.mockResolvedValue([
+				{ group: 'rust', count: 3 },
+				{ group: 'web', count: 2 }
+			])
 
 			const aggQuery = query.aggregate('tg')
 			const snapshot = await aggQuery.get()
@@ -621,10 +582,7 @@ describe('Query', () => {
 		})
 
 		it('should return empty snapshot when no groups', async () => {
-			mockWs.send.mockResolvedValue({
-				type: 'queryResult',
-				data: []
-			})
+			mockWs.send.mockResolvedValue([])
 
 			const aggQuery = query.aggregate('tg')
 			const snapshot = await aggQuery.get()

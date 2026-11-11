@@ -99,9 +99,9 @@ export async function openYDoc(
 	// Build WebSocket params: token is optional (guest/read-only access)
 	// Comment users get 'read' CRDT access — they can view content but not edit it.
 	// Commenting is handled separately via RTDB, not via the CRDT document.
-	const params: Record<string, string> = {
-		access: accessLevel === 'comment' ? 'read' : accessLevel || (token ? 'write' : 'read')
-	}
+	const mode = accessLevel === 'comment' ? 'read' : accessLevel || (token ? 'write' : 'read')
+	// access= kept for pre-rename servers; drop once all nodes run the new backend
+	const params: Record<string, string> = { mode, access: mode }
 	if (token) params.token = token
 
 	// Detect offline-with-cache: no token but we have locally cached data

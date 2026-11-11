@@ -112,7 +112,7 @@ export interface MediaViewerProps {
 export function MediaViewer({ file, idTag, token, onBack, onDownload }: MediaViewerProps) {
 	const { t } = useTranslation()
 
-	const fileId = file.fileId
+	const fileId = file.contentId
 	const contentType = file.contentType
 	const isImage = contentType.startsWith('image/')
 	const isVideo = contentType.startsWith('video/')

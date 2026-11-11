@@ -45,9 +45,9 @@ const SCOPE = 'bob.org'
 
 function file(over: Partial<FileView> = {}): FileView {
 	return {
-		entryId: 'e1',
-		fileId: 'f1~abc',
-		status: 'A',
+		id: 'e1',
+		contentId: 'f1~abc',
+		status: 'active',
 		contentType: 'cloudillo/quillo',
 		fileName: 'Notes',
 		createdAt: '2026-01-01T00:00:00Z',

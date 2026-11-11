@@ -75,7 +75,7 @@ async function flush() {
 
 function hit(partId: string): SearchHit {
 	return {
-		objTp: 'D',
+		kind: 'doc',
 		objId: 'f1',
 		partId,
 		score: 1,

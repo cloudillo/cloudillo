@@ -83,10 +83,10 @@ function MessageBubbleComponent({
 	const [focused, setFocused] = React.useState(false)
 	const [menuAt, setMenuAt] = React.useState<MenuPosition | undefined>()
 
-	const deletedBy = action.x?.deletedBy
+	const deletedBy = action.extra?.deletedBy
 	const deleted = !!deletedBy || action.content === null
 	// Optimistic rows keep actionId === tempId until the server accepts them.
-	const unsent = action.tempId !== undefined && action.actionId === action.tempId
+	const unsent = action.tempId !== undefined && action.id === action.tempId
 	const actionable = !deleted && !unsent
 
 	const { handlers, swipeX } = useTouchGestures({
@@ -135,7 +135,7 @@ function MessageBubbleComponent({
 					onMenuClose={() => setMenuAt(undefined)}
 					canEdit={local}
 					canDelete={local || canModerate}
-					onReact={(key) => onReact(action.actionId, key)}
+					onReact={(key) => onReact(action.id, key)}
 					onReply={() => onReply(action)}
 					onEdit={() => onEdit(action)}
 					onDelete={() => onDelete(action)}
@@ -191,7 +191,7 @@ function MessageBubbleComponent({
 							aria-pressed={ownReaction === r.key}
 							aria-label={`${getReactionLabel(t, r.key)}: ${r.count}`}
 							disabled={!actionable}
-							onClick={() => onReact(action.actionId, r.key)}
+							onClick={() => onReact(action.id, r.key)}
 						>
 							{`${r.emoji} ${r.count}`}
 						</Button>
@@ -210,11 +210,11 @@ function MessageBubbleComponent({
 						{t('Retry')}
 					</Button>
 				)}
-				{!deleted && action.x?.editedAt && (
+				{!deleted && action.extra?.editedAt && (
 					<Text
 						size="sm"
 						emphasis="muted"
-						title={dayjs.unix(action.x.editedAt).format('MMM D, HH:mm')}
+						title={dayjs.unix(action.extra.editedAt).format('MMM D, HH:mm')}
 					>
 						{t('(edited)')}
 					</Text>

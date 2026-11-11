@@ -3,12 +3,10 @@
 
 import type { ActionView } from '@cloudillo/types'
 
-/** A PRINVT is live until its expiry: number = Unix seconds, string = ISO date.
- * No expiry, or one that does not parse, counts as live. */
-export function isLiveInvite(expiresAt: number | string | undefined, nowMs: number): boolean {
+/** A PRINVT is live until its ISO expiry. No expiry, or one that does not parse, counts as live. */
+export function isLiveInvite(expiresAt: string | undefined, nowMs: number): boolean {
 	if (expiresAt === undefined) return true
-	const ms = typeof expiresAt === 'number' ? expiresAt * 1000 : Date.parse(expiresAt)
-	return !(ms <= nowMs)
+	return !(Date.parse(expiresAt) <= nowMs)
 }
 
 /** The invite ref carried by a PRINVT action, if it has a usable one. */

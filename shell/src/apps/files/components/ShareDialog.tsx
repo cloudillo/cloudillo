@@ -56,14 +56,14 @@ import {
 	hasAdminGrant,
 	isAdminPerm,
 	levelsAboveCeiling,
-	levelToPermChar,
+	levelToPerm,
 	linkAccessToPermLevel,
 	linkGrantCeiling,
-	permCharToLevel,
-	type SharePermChar,
+	permToLevel,
+	type SharePerm,
 	type SharePermLevel,
 	sharePermLabel,
-	toSharePermChar
+	toSharePerm
 } from '../utils.js'
 import { AccessLevelMenu } from './AccessLevelMenu.js'
 import { useProfileNode } from './AccessList.js'
@@ -167,9 +167,9 @@ export function ShareDialog({
 		neverExpires: boolean
 	}>({ description: '', expiresAt: '', neverExpires: true })
 
-	// User-share entries (subjectType='U'): source of truth for per-person permission.
+	// User-share entries (subjectType='user'): source of truth for per-person permission.
 	const [userShareEntries, setUserShareEntries] = React.useState<Types.ShareEntry[]>([])
-	// File-share entries (subjectType='F'): "Used in N documents" footer.
+	// File-share entries (subjectType='file'): "Used in N documents" footer.
 	const [fileShareEntries, setFileShareEntries] = React.useState<Types.ShareEntry[]>([])
 	const [loadingEntries, setLoadingEntries] = React.useState(false)
 
@@ -201,7 +201,7 @@ export function ShareDialog({
 	}
 
 	// Backend convention: missing fileTp defaults to BLOB (immutable)
-	const isImmutable = file.fileTp === 'BLOB' || file.fileTp == null
+	const isImmutable = file.fileType === 'BLOB' || file.fileType == null
 	/*
 	 * The backend caps every mint and widen at the caller's own access (`ensure_grant_within`), so a
 	 * Read-level share manager may manage a file's shares but hand out nothing above 'read'.
@@ -275,7 +275,7 @@ export function ShareDialog({
 						// The server default is 'active', which hides expired and fully-used rows.
 						// This is the MANAGEMENT surface: a dead link the owner cannot see is one
 						// they cannot delete or extend.
-						filter: 'all'
+						status: 'all'
 					})
 					if (!cancelled) {
 						setShareRefs(refs)
@@ -295,8 +295,8 @@ export function ShareDialog({
 					if (!cancelled) setLoadingEntries(true)
 					const allEntries = await api.files.listShares(scopedId)
 					if (!cancelled) {
-						setUserShareEntries(allEntries.filter((e) => e.subjectType === 'U'))
-						setFileShareEntries(allEntries.filter((e) => e.subjectType === 'F'))
+						setUserShareEntries(allEntries.filter((e) => e.subjectType === 'user'))
+						setFileShareEntries(allEntries.filter((e) => e.subjectType === 'file'))
 						setShareAccess('granted')
 					}
 				} catch (err) {
@@ -346,9 +346,9 @@ export function ShareDialog({
 			// for federation (handled server-side). One round-trip, one source of
 			// truth.
 			const entry = await api.files.createShare(scopedId, {
-				subjectType: 'U',
+				subjectType: 'user',
 				subjectId: profile.idTag,
-				permission: levelToPermChar(perm)
+				permission: levelToPerm(perm)
 			})
 			setUserShareEntries((prev) => [
 				...prev.filter((e) => e.subjectId.toString() !== profile.idTag),
@@ -365,13 +365,13 @@ export function ShareDialog({
 	async function changePerm(idTag: string, newLevel: PermLevel) {
 		if (!api || !scopedId) return
 		const entry = userShareEntries.find(
-			(e) => e.subjectType === 'U' && e.subjectId.toString() === idTag
+			(e) => e.subjectType === 'user' && e.subjectId.toString() === idTag
 		)
 		if (!entry) return
 		// Admin grants are rendered read-only; never let one be rewritten to
 		// 'W' by a level toggle — the UI could not grant it back.
 		if (isAdminPerm(entry.permission)) return
-		const newPerm = levelToPermChar(newLevel)
+		const newPerm = levelToPerm(newLevel)
 		if (entry.permission === newPerm) return
 
 		try {
@@ -387,15 +387,15 @@ export function ShareDialog({
 		}
 	}
 
-	function permCharFor(idTag: string): SharePermChar {
+	function permFor(idTag: string): SharePerm {
 		const entry = userShareEntries.find(
-			(e) => e.subjectType === 'U' && e.subjectId.toString() === idTag
+			(e) => e.subjectType === 'user' && e.subjectId.toString() === idTag
 		)
-		return toSharePermChar(entry?.permission)
+		return toSharePerm(entry?.permission)
 	}
 
 	function levelFor(idTag: string): PermLevel {
-		return permCharToLevel(permCharFor(idTag))
+		return permToLevel(permFor(idTag))
 	}
 
 	async function requestRemovePerm(profile: Profile) {
@@ -411,7 +411,7 @@ export function ShareDialog({
 		if (!file || !api || !scopedId) return
 
 		const entry = userShareEntries.find(
-			(e) => e.subjectType === 'U' && e.subjectId.toString() === idTag
+			(e) => e.subjectType === 'user' && e.subjectId.toString() === idTag
 		)
 		if (!entry) return
 
@@ -471,7 +471,7 @@ export function ShareDialog({
 
 		try {
 			await api.refs.delete(refId)
-			setShareRefs((refs) => refs.filter((r) => r.refId !== refId))
+			setShareRefs((refs) => refs.filter((r) => r.id !== refId))
 			if (editingRefId === refId) cancelEditLink()
 			toast.success(t('Share link deleted'))
 			permissionsChanged()
@@ -491,8 +491,8 @@ export function ShareDialog({
 		if (!api) return
 		if (ref.accessLevel === newLevel) return
 		try {
-			const updated = await api.refs.update(ref.refId, { accessLevel: newLevel })
-			setShareRefs((refs) => refs.map((r) => (r.refId === ref.refId ? updated : r)))
+			const updated = await api.refs.update(ref.id, { accessLevel: newLevel })
+			setShareRefs((refs) => refs.map((r) => (r.id === ref.id ? updated : r)))
 			permissionsChanged()
 		} catch (err) {
 			console.error('Failed to update link access', err)
@@ -514,7 +514,7 @@ export function ShareDialog({
 			expiresAt: formatRefDate(ref.expiresAt) ?? '',
 			neverExpires: exp == null
 		})
-		setEditingRefId(ref.refId)
+		setEditingRefId(ref.id)
 	}
 
 	function cancelEditLink() {
@@ -546,8 +546,8 @@ export function ShareDialog({
 		}
 
 		try {
-			const updated = await api.refs.update(ref.refId, patch)
-			setShareRefs((refs) => refs.map((r) => (r.refId === ref.refId ? updated : r)))
+			const updated = await api.refs.update(ref.id, patch)
+			setShareRefs((refs) => refs.map((r) => (r.id === ref.id ? updated : r)))
 			toast.success(t('Link updated'))
 			setEditingRefId(null)
 			setEditDraft({ description: '', expiresAt: '', neverExpires: true })
@@ -558,7 +558,7 @@ export function ShareDialog({
 		}
 	}
 
-	async function requestDeleteEntry(shareId: number) {
+	async function requestDeleteEntry(shareId: string) {
 		const ok = await dialog.confirm(t('Remove link'), t('Remove this link?'), {
 			color: 'error',
 			confirmLabel: t('Remove')
@@ -566,7 +566,7 @@ export function ShareDialog({
 		if (ok) await deleteEntry(shareId)
 	}
 
-	async function deleteEntry(shareId: number) {
+	async function deleteEntry(shareId: string) {
 		if (!api || !scopedId) return
 
 		try {
@@ -621,7 +621,7 @@ export function ShareDialog({
 				size="md"
 				icon={
 					<FileTypeIcon
-						contentType={iconContentType(file.contentType, file.fileTp)}
+						contentType={iconContentType(file.contentType, file.fileType)}
 						size="md"
 						tile={false}
 					/>
@@ -708,15 +708,13 @@ export function ShareDialog({
 													trailing={
 														<Badge
 															color={
-																isAdminPerm(
-																	permCharFor(profile.idTag)
-																)
+																isAdminPerm(permFor(profile.idTag))
 																	? 'warning'
 																	: undefined
 															}
 														>
 															{sharePermLabel(
-																permCharFor(profile.idTag),
+																permFor(profile.idTag),
 																t
 															)}
 														</Badge>
@@ -752,7 +750,7 @@ export function ShareDialog({
 										// edits that would silently downgrade it. Its own
 										// 'warning' colour, matching DetailsPanel's
 										// PermChip - on 'accent' it read as an editor grant.
-										isAdminPerm(permCharFor(p.idTag)) ? (
+										isAdminPerm(permFor(p.idTag)) ? (
 											<Badge color="warning">{t('Admin')}</Badge>
 										) : (
 											<AccessLevelMenu<PermLevel>
@@ -782,7 +780,7 @@ export function ShareDialog({
 							{shareRefs.length > 0 && (
 								<List>
 									{shareRefs.map((ref) => {
-										const isEditing = editingRefId === ref.refId
+										const isEditing = editingRefId === ref.id
 										const lifecycle = refLifecycle(ref, new Date())
 										const isDead = lifecycle !== 'active'
 										const formattedExpiry = formatRefDate(ref.expiresAt)
@@ -795,7 +793,7 @@ export function ShareDialog({
 										const usable = canUseRefCredential(ref, canShare)
 										return (
 											<ListItem
-												key={ref.refId}
+												key={ref.id}
 												leading={<IcLink />}
 												title={ref.description || t('Share link')}
 												subtitle={expiryText}
@@ -816,7 +814,11 @@ export function ShareDialog({
 														    link's level cannot be changed either: the backend
 														    refuses to resurrect a fully-used ref, and widening an
 														    expired one grants nothing. */}
-														{usable && !isDead ? (
+														{/* A level from a newer node stays read-only: editing it
+														    through a 3-valued menu would overwrite it. */}
+														{usable &&
+														!isDead &&
+														ref.accessLevel !== 'unknown' ? (
 															<AccessLevelMenu<LinkLevel>
 																value={ref.accessLevel ?? 'read'}
 																onChange={(lvl) =>
@@ -830,7 +832,7 @@ export function ShareDialog({
 														) : (
 															<Badge>
 																{sharePermLabel(
-																	levelToPermChar(
+																	levelToPerm(
 																		linkAccessToPermLevel(
 																			ref.accessLevel
 																		)
@@ -863,7 +865,7 @@ export function ShareDialog({
 																		credentialUnavailable
 																	}
 																	onClick={() =>
-																		copyShareLink(ref.refId)
+																		copyShareLink(ref.id)
 																	}
 																/>
 																<Button
@@ -877,7 +879,7 @@ export function ShareDialog({
 																	}
 																	onClick={() =>
 																		setQrCodeUrl(
-																			`${shareOrigin.href}/s/${ref.refId}`
+																			`${shareOrigin.href}/s/${ref.id}`
 																		)
 																	}
 																/>
@@ -916,7 +918,7 @@ export function ShareDialog({
 																	label={t('Delete link')}
 																	onClick={() =>
 																		requestDeleteShareLink(
-																			ref.refId
+																			ref.id
 																		)
 																	}
 																/>
@@ -1138,7 +1140,7 @@ export function ShareDialog({
 													<FileTypeIcon
 														contentType={iconContentType(
 															entry.subjectContentType,
-															entry.subjectFileTp
+															entry.subjectFileType
 														)}
 														size="sm"
 														tile={false}
@@ -1146,7 +1148,7 @@ export function ShareDialog({
 												}
 												title={entry.subjectFileName || entry.subjectId}
 												subtitle={`${sharePermLabel(
-													toSharePermChar(entry.permission),
+													toSharePerm(entry.permission),
 													t
 												)}${f ? ` · ${t('Expires')} ${f}` : ''}`}
 												trailing={

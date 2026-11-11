@@ -62,6 +62,10 @@ export function formatUnixTime(secs: number, fmt = 'YYYY-MM-DD'): string {
 	return dayjs(secs * 1000).format(fmt)
 }
 
+export function formatIsoTime(iso: string, fmt = 'YYYY-MM-DD'): string {
+	return dayjs(iso).format(fmt)
+}
+
 // Thin aliases over @cloudillo/core/base64, which is the chunk-safe implementation
 // (spreading the whole array into String.fromCharCode throws on large inputs).
 export function arrayBufferToBase64(buffer: Uint8Array): string {

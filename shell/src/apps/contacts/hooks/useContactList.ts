@@ -30,7 +30,7 @@ export function useContactList(options: UseContactListOptions) {
 	const fetchPage = React.useCallback(
 		async function fetchPage(cursor: string | null, limit: number) {
 			if (!api) {
-				return { items: [] as ListedContact[], nextCursor: null, hasMore: false }
+				return { items: [] as ListedContact[] }
 			}
 
 			if (selection === 'all') {
@@ -39,14 +39,13 @@ export function useContactList(options: UseContactListOptions) {
 					q: trimmedSearch,
 					limit
 				})
-				const bookMap = new Map(addressBooks.map((b) => [b.abId, b.name]))
+				const bookMap = new Map(addressBooks.map((b) => [b.id, b.name]))
 				return {
 					items: result.data.map((c) => ({
 						...c,
 						bookName: bookMap.get(c.abId)
 					})) as ListedContact[],
-					nextCursor: result.meta.cursorPagination?.nextCursor ?? null,
-					hasMore: result.meta.cursorPagination?.hasMore ?? false
+					next: result.meta.next
 				}
 			}
 
@@ -57,8 +56,7 @@ export function useContactList(options: UseContactListOptions) {
 			})
 			return {
 				items: result.data as ListedContact[],
-				nextCursor: result.meta.cursorPagination?.nextCursor ?? null,
-				hasMore: result.meta.cursorPagination?.hasMore ?? false
+				next: result.meta.next
 			}
 		},
 		[api, selection, addressBooks, trimmedSearch]

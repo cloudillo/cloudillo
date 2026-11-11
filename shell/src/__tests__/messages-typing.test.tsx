@@ -20,7 +20,7 @@ const ME = 'me.test'
 const PEER = 'peer.test'
 const GROUP = 'a1~conv'
 
-type Handler = (m: { cmd: string; data: unknown }) => void
+type Handler = (m: { type: string; data: unknown }) => void
 let wsHandler: Handler = () => {}
 jest.unstable_mockModule('../ws-bus.js', () => ({
 	useWsBus: (_opts: unknown, h: Handler) => {
@@ -41,12 +41,12 @@ function conv(over: Partial<Conversation> = {}): Conversation {
 
 function typing(issuer: string, subject: string): ActionView {
 	return {
-		actionId: 'p1',
+		id: 'p1',
 		type: 'PRES',
 		subType: 'TYPING',
 		issuer: { idTag: issuer, name: 'Peer' },
 		subject,
-		createdAt: 1
+		createdAt: '1970-01-01T00:00:01Z'
 	} as ActionView
 }
 
@@ -112,7 +112,7 @@ describe('useTypingReceiver', () => {
 			{ wrapper }
 		)
 
-		act(() => wsHandler({ cmd: 'ACTION', data: typing(PEER, GROUP) }))
+		act(() => wsHandler({ type: 'action', data: typing(PEER, GROUP) }))
 		expect(result.current.map((t) => t.idTag)).toEqual([PEER])
 
 		act(() => {
@@ -120,7 +120,7 @@ describe('useTypingReceiver', () => {
 		})
 		expect(result.current).toEqual([])
 
-		act(() => wsHandler({ cmd: 'ACTION', data: typing(PEER, GROUP) }))
+		act(() => wsHandler({ type: 'action', data: typing(PEER, GROUP) }))
 		expect(jest.getTimerCount()).toBe(1)
 		unmount()
 		expect(jest.getTimerCount()).toBe(0)

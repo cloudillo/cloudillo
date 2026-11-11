@@ -113,14 +113,14 @@ export function useSmartUpload(options?: UseUploadQueueOptions) {
 					parentId: options?.parentId || undefined,
 					channel: options?.parentId ? undefined : options?.channel
 				})
-				if (!res?.fileId) {
+				if (!res?.contentId) {
 					console.error('[SmartUpload] Failed to create document: no fileId returned')
 					return
 				}
 
 				// Set filename (strip extension, add nothing — calcillo shows as-is)
 				const baseName = file.name.replace(/\.[^.]+$/, '')
-				await api.files.update(res.entryId, {
+				await api.files.update(res.id, {
 					fileName: baseName || t('Untitled document')
 				})
 
@@ -139,7 +139,7 @@ export function useSmartUpload(options?: UseUploadQueueOptions) {
 
 				const ownerTag = contextIdTag || auth?.idTag
 				if (!ownerTag) throw new Error('[SmartUpload] Missing owner tag for import')
-				const resId = `${ownerTag}:${res.fileId}`
+				const resId = `${ownerTag}:${res.contentId}`
 
 				setPendingImport(resId, {
 					sourceMimeType: detectedType,

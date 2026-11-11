@@ -9,11 +9,12 @@ import { useTranslation } from 'react-i18next'
 
 dayjs.extend(relativeTime)
 
-import type {
-	IdpApiKey,
-	IdpCreateApiKeyResult,
-	IdpCreateIdentityResult,
-	IdpIdentity
+import {
+	fetchAll,
+	type IdpApiKey,
+	type IdpCreateApiKeyResult,
+	type IdpCreateIdentityResult,
+	type IdpIdentity
 } from '@cloudillo/core'
 import {
 	ActionBar,
@@ -327,7 +328,7 @@ function ApiKeyDialog({
 
 	const idTag = identity.idTag
 	const idPrefix = idTag.split('.')[0]
-	const curlCommand = `curl -X PUT "https://cl-o.${idpDomain}/api/idp/identities/${idPrefix}/address" \\
+	const curlCommand = `curl -X PATCH "https://cl-o.${idpDomain}/api/idp/identities/${idPrefix}/address" \\
   -H "Authorization: Bearer ${apiKey.plaintextKey}"`
 
 	return (
@@ -434,7 +435,9 @@ function IdentityDetailsModal({
 		if (!api || !identity) return
 		setLoading(true)
 		try {
-			const keys = await api.idpManagement.listApiKeys(identity.idTag)
+			const keys = await fetchAll((cursor) =>
+				api.idpManagement.listApiKeys(identity.idTag, cursor)
+			)
 			setApiKeys(keys)
 		} catch (err) {
 			console.error('Failed to load API keys:', err)
@@ -721,7 +724,7 @@ export function IdentitiesSettings() {
 		if (!api) return
 		setLoading(true)
 		try {
-			const result = await api.idpManagement.listIdentities({})
+			const result = await fetchAll((cursor) => api.idpManagement.listIdentities({ cursor }))
 			setAllIdentities(result)
 		} catch (err) {
 			console.error('Failed to load identities:', err)
@@ -763,7 +766,7 @@ export function IdentitiesSettings() {
 			// Create a mock ApiKeyResult for the modal
 			setCreatedApiKey({
 				apiKey: {
-					id: 0,
+					id: '',
 					idTag: result.idTag,
 					keyPrefix: result.apiKey.substring(0, 8),
 					createdAt: new Date().toISOString()

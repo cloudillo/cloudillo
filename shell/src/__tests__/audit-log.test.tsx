@@ -30,7 +30,7 @@ const { AuditCategorySwitches, AuditFilters, defaultAuditFilter, toQuery, useAud
 	await import('../audit/audit-log.js')
 
 type Query = Parameters<typeof toQuery>[0]
-type Page = { events: { id: number }[]; nextCursor: number | null }
+type Page = { data: { id: number }[]; meta: { next?: string } }
 
 const EMPTY: Query = {
 	from: '',
@@ -54,34 +54,33 @@ function deferredLoad() {
 	return { load, pending }
 }
 
-const page = (ids: number[], nextCursor: number | null = null) =>
-	({ events: ids.map((id) => ({ id })), nextCursor }) as Page
+const page = (ids: number[], next?: string) =>
+	({ data: ids.map((id) => ({ id })), meta: next ? { next } : {} }) as Page
 
 describe('toQuery', () => {
 	it('defaults to today', () => {
 		const q = toQuery(defaultAuditFilter())
-		expect(q.from).toBe(dayjs().startOf('day').unix())
-		expect(q.to).toBe(dayjs().endOf('day').unix())
+		expect(q.createdAfter).toBe(dayjs().startOf('day').toISOString())
+		expect(q.createdBefore).toBe(dayjs().endOf('day').toISOString())
 	})
 
 	it('maps dates to start/end of day and blanks to undefined', () => {
 		const q = toQuery({ ...EMPTY, from: '2026-03-01', to: '2026-03-02', event: ' auth.login ' })
-		expect(q.from).toBe(dayjs('2026-03-01').startOf('day').unix())
-		expect(q.to).toBe(dayjs('2026-03-02').endOf('day').unix())
-		expect(q.to! - q.from!).toBe(2 * 86400 - 1)
+		expect(q.createdAfter).toBe(dayjs('2026-03-01').startOf('day').toISOString())
+		expect(q.createdBefore).toBe(dayjs('2026-03-02').endOf('day').toISOString())
 		expect(q.event).toBe('auth.login')
 		expect(q).toMatchObject({
 			category: undefined,
 			outcome: undefined,
-			actor: undefined,
+			actorIdTag: undefined,
 			idTag: undefined
 		})
 	})
 
 	it('leaves empty dates undefined', () => {
 		const q = toQuery(EMPTY)
-		expect(q.from).toBeUndefined()
-		expect(q.to).toBeUndefined()
+		expect(q.createdAfter).toBeUndefined()
+		expect(q.createdBefore).toBeUndefined()
 	})
 })
 
@@ -90,13 +89,13 @@ describe('useAuditLog', () => {
 		const { load, pending } = deferredLoad()
 		const query = {}
 		const { result } = renderHook(() => useAuditLog(load as never, query))
-		await act(async () => pending[0](page([1, 2], 2)))
+		await act(async () => pending[0](page([1, 2], 'c2')))
 		expect(result.current.events?.map((e) => e.id)).toEqual([1, 2])
 
 		act(() => {
 			result.current.loadMore?.()
 		})
-		expect(load).toHaveBeenLastCalledWith({ cursor: 2 })
+		expect(load).toHaveBeenLastCalledWith({ cursor: 'c2' })
 		await act(async () => pending[1](page([3])))
 		expect(result.current.events?.map((e) => e.id)).toEqual([1, 2, 3])
 		expect(result.current.loadMore).toBeUndefined()
@@ -118,7 +117,7 @@ describe('useAuditLog', () => {
 	it('clears the old rows and cursor when a new first page fails', async () => {
 		const load = jest
 			.fn<(q: unknown) => Promise<Page>>()
-			.mockResolvedValueOnce(page([1, 2], 2))
+			.mockResolvedValueOnce(page([1, 2], 'c2'))
 			.mockRejectedValueOnce(new Error('boom'))
 		const { result, rerender } = renderHook(({ q }) => useAuditLog(load as never, q), {
 			initialProps: { q: {} as object }
@@ -137,7 +136,7 @@ describe('useAuditLog', () => {
 		const { result, rerender } = renderHook(({ q }) => useAuditLog(load as never, q), {
 			initialProps: { q: {} as object }
 		})
-		await act(async () => pending[0](page([1, 2], 2)))
+		await act(async () => pending[0](page([1, 2], 'c2')))
 		expect(result.current.loadMore).toBeDefined()
 		rerender({ q: { category: 'auth' } })
 		expect(result.current.loadMore).toBeUndefined()

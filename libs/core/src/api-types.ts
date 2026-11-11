@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: MPL-2.0
 
-import { type BadgeLevel, type BadgeSlot, isBadge } from '@cloudillo/types'
+import { type BadgeLevel, type BadgeSlot, isBadge, tIsoTime } from '@cloudillo/types'
 import * as T from '@symbion/runtype'
 
 // ============================================================================
@@ -19,38 +19,35 @@ export const tApiError = T.struct({
 })
 export type ApiError = T.TypeOf<typeof tApiError>
 
-/**
- * Known error codes for type-safe error handling
- */
-export type ErrorCode =
-	| 'E-AUTH-UNAUTH' // 401 - Authentication required
-	| 'E-AUTH-NOPERM' // 403 - Permission denied
-	| 'E-CORE-NOTFOUND' // 404 - Resource not found
-	| 'E-VAL-INVALID' // 400 - Validation failed
-	| 'E-CORE-CONFLICT' // 409 - Conflict
-	| 'E-NET-TIMEOUT' // 408 - Timeout
-	| 'E-SYS-UNAVAIL' // 503 - Service unavailable
-	| 'E-CORE-DBERR' // 500 - Database error
-	| 'E-CORE-UNKNOWN' // 500 - Unknown error
-
 // Import types from @cloudillo/types
 // Re-export shared types (wire contract) from @cloudillo/types
 export * from '@cloudillo/types'
 
 // Import types used locally by the validators below
-import { type ProfileTrust, tActionView, tProfile, tReaderState } from '@cloudillo/types'
+import {
+	type ActionFlags,
+	type ActionVisibility,
+	type ProfileTrust,
+	tActionView,
+	tProfile,
+	tReaderState
+} from '@cloudillo/types'
 
 // ============================================================================
 // SHARED ENUMS
 // ============================================================================
 
-// Visibility levels for actions and files on the wire. Mirrors the server
-// enum (D=Direct, P=Public, V=Verified, 2=2nd-degree, F=Followers,
-// C=Connected). Distinct from the smaller `tVisibility` in
-// `message-bus/types.ts`, which is the app-to-shell handshake subset.
-// Keep in sync with the server-side visibility enum.
-export const tActionVisibility = T.literal('D', 'P', 'V', '2', 'F', 'C')
-export type ActionVisibility = T.TypeOf<typeof tActionVisibility>
+// File visibility words (FileView, PATCH /files/{id}); an unknown word ranks as `direct`.
+export const tFileVisibility = T.literal(
+	'public',
+	'verified',
+	'secondDegree',
+	'followers',
+	'connected',
+	'subscribed',
+	'direct'
+)
+export type FileVisibility = T.TypeOf<typeof tFileVisibility>
 
 // ============================================================================
 // AUTH ENDPOINTS
@@ -233,9 +230,10 @@ export const tRegisterVerifyResult = T.struct({
 })
 export type RegisterVerifyResult = T.TypeOf<typeof tRegisterVerifyResult>
 
-// Registration result - server returns empty object for both IDP and domain registration
-// User must verify email and set password before they can log in
-export const tRegisterResult = T.struct({})
+// Registration result (201). The user must verify email and set a password before logging in.
+export const tRegisterResult = T.struct({
+	idTag: T.string
+})
 export type RegisterResult = T.TypeOf<typeof tRegisterResult>
 
 /**
@@ -280,7 +278,7 @@ export const tIdpActivateResult = T.struct({
 export type IdpActivateResult = T.TypeOf<typeof tIdpActivateResult>
 
 // Live IDP identity status pulled by the tenant home for the active tenant
-// Returned by GET /api/profiles/me/idp-status
+// Returned by GET /api/me/idp-status
 export const tIdpStatus = T.literal('pending', 'active', 'suspended')
 export type IdpStatus = T.TypeOf<typeof tIdpStatus>
 
@@ -304,7 +302,7 @@ export const tIdpStatusResponse = T.struct({
 })
 export type IdpStatusResponse = T.TypeOf<typeof tIdpStatusResponse>
 
-// Returned by POST /api/profiles/me/resend-activation
+// Returned by POST /api/me/idp/resend
 export const tResendActivationResponse = T.struct({
 	expiresAt: T.string
 })
@@ -344,7 +342,7 @@ export type IdpIdentityList = T.TypeOf<typeof tIdpIdentityList>
 
 // IDP API Key (list item - no plaintext key)
 export const tIdpApiKey = T.struct({
-	id: T.number,
+	id: T.string,
 	idTag: T.string,
 	keyPrefix: T.string,
 	name: T.optional(T.string),
@@ -383,7 +381,7 @@ export interface CreateIdpIdentityRequest {
 export interface CreateIdpApiKeyRequest {
 	idTag: string
 	name?: string
-	expiresAt?: number
+	expiresAt?: string // ISO
 }
 
 export interface ListIdpIdentitiesQuery {
@@ -446,7 +444,7 @@ export interface ReauthRequest {
 // ============================================================================
 
 /**
- * Profile signing key. Known status codes: A = active (signs), V = verify-only, R = revoked.
+ * Profile signing key. Known statuses: active (signs), verifyOnly, revoked.
  * A plain string so a future code from the server still decodes.
  */
 export const tSigningKey = T.struct({
@@ -484,13 +482,13 @@ export type ExportStatus = T.TypeOf<typeof tExportStatus>
 
 // API key list item
 export const tApiKeyListItem = T.struct({
-	keyId: T.number,
+	id: T.string,
 	keyPrefix: T.string,
 	name: T.optional(T.string),
 	scopes: T.optional(T.string),
-	expiresAt: T.optional(T.number),
-	lastUsedAt: T.optional(T.number),
-	createdAt: T.number
+	expiresAt: T.optional(tIsoTime),
+	lastUsedAt: T.optional(tIsoTime),
+	createdAt: tIsoTime
 })
 export type ApiKeyListItem = T.TypeOf<typeof tApiKeyListItem>
 
@@ -501,7 +499,7 @@ export type ApiKeyList = T.TypeOf<typeof tApiKeyList>
 export interface CreateApiKeyRequest {
 	name?: string
 	scopes?: string
-	expiresAt?: number
+	expiresAt?: string // ISO
 	reauth?: ReauthRequest
 }
 
@@ -509,42 +507,21 @@ export interface CreateApiKeyRequest {
 export interface UpdateApiKeyRequest {
 	name?: string | null
 	scopes?: string | null
-	expiresAt?: number | null
+	expiresAt?: string | null // ISO
 	reauth?: ReauthRequest
 }
 
 // Create API key result (includes plaintext key shown only once)
 export const tCreateApiKeyResult = T.struct({
-	keyId: T.number,
+	id: T.string,
 	keyPrefix: T.string,
 	plaintextKey: T.string,
 	name: T.optional(T.string),
 	scopes: T.optional(T.string),
-	expiresAt: T.optional(T.number),
-	createdAt: T.number
+	expiresAt: T.optional(tIsoTime),
+	createdAt: tIsoTime
 })
 export type CreateApiKeyResult = T.TypeOf<typeof tCreateApiKeyResult>
-
-// ============================================================================
-// CURSOR PAGINATION
-// ============================================================================
-
-/**
- * Cursor-based pagination info returned by API
- */
-export const tCursorPaginationInfo = T.struct({
-	nextCursor: T.union(T.string, T.nullValue),
-	hasMore: T.boolean
-})
-export type CursorPaginationInfo = T.TypeOf<typeof tCursorPaginationInfo>
-
-/**
- * API response with cursor pagination
- */
-export interface PaginatedResponse<T> {
-	data: T[]
-	cursorPagination?: CursorPaginationInfo
-}
 
 // ============================================================================
 // ACTION ENDPOINTS
@@ -552,10 +529,10 @@ export interface PaginatedResponse<T> {
 
 // Request types
 export interface PublishActionRequest {
-	publishAt?: number // Unix timestamp for scheduled publish (omit for immediate)
+	publishAt?: string // ISO; scheduled publish (omit for immediate)
 }
 
-// PATCH /actions/:actionId body — drafts (status R) and scheduled (status S).
+// PATCH /actions/:id body — drafts (status R) and scheduled (status S).
 // Mirrors backend PatchActionRequest in crates/cloudillo-action/src/handler.rs.
 // Schedule edits on existing drafts/scheduled actions can pass `publishAt`
 // here (it updates the stored publish time without changing state). Use
@@ -564,33 +541,28 @@ export interface PublishActionRequest {
 export interface PatchActionRequest {
 	subType?: string
 	content?: unknown // serde_json::Value on the wire
-	attachments?: string[]
-	visibility?: ActionVisibility
-	flags?: string
-	x?: unknown
-	publishAt?: number // Unix timestamp; updates scheduled publish time
+	attachments?: string[] | null
+	visibility?: ActionVisibility | null // null / 'direct' = audience only
+	flags?: ActionFlags | null // null = server defaults
+	extra?: unknown // null clears
+	publishAt?: string | null // ISO; updates scheduled publish time, null clears
 	channel?: string | null // absolute `@tenant~name`; null = open floor (root drafts only)
-}
-
-export interface ReactionRequest {
-	type: string
-	content?: string
 }
 
 export interface ListActionsQuery {
 	type?: string | string[]
 	status?: string | string[]
-	issuer?: string
-	audience?: string
+	issuerIdTag?: string
+	audienceIdTag?: string
 	audienceType?: 'personal' | 'community'
-	involved?: string
+	involvedIdTag?: string
 	parentId?: string
 	rootId?: string
 	container?: string // a conversation's rows: children, actions naming it, and itself
 	subject?: string | string[]
-	count?: boolean // when true, /actions returns only cursorPagination.count (pre-visibility aggregate)
-	createdAfter?: string | number // strict `>` bound
-	createdBefore?: string | number // strict `<` bound
+	count?: boolean // when true, /actions returns only `total` (pre-visibility aggregate)
+	createdAfter?: string // ISO, strict `>` bound
+	createdBefore?: string // ISO, strict `<` bound
 	attachments?: boolean // only actions that carry attachments
 	sortDir?: 'asc' | 'desc' // sort order (default 'desc'); 'asc' for the Unread tab
 	// Ordering column: 'created' (default, author time) or 'received' (local
@@ -600,34 +572,24 @@ export interface ListActionsQuery {
 	subscribed?: boolean // filter: only threads the user has subscribed to
 	excludeOwnIssuer?: boolean // drop the requester's own posts (unread probe)
 	tag?: string
-	search?: string
+	q?: string
 	visibility?: string | string[]
 	cursor?: string // Cursor for pagination
-	limit?: number // Items per page (replaces _limit)
-	_limit?: number // @deprecated Use limit instead
-	// When true, the server populates each action's raw signed JWS in
-	// `ActionView.token` (opt-in; used by the engagement signature-verification
-	// path). Forwarded verbatim as the `includeTokens` query param.
-	includeTokens?: boolean
-	// When true, the server hydrates each row's `subject`-referenced action into
-	// `ActionView.subjectAction` (with full `stat`), saving a round trip — used by
-	// reposts (embedded original card) and the group list (each SUBS's CONV).
-	includeSubject?: boolean
+	limit?: number // Items per page
+	// Opt-in extras: `tokens` populates each action's raw signed JWS in `ActionView.token`
+	// (engagement signature verification); `subject` hydrates each row's `subject`-referenced
+	// action into `ActionView.subjectAction` (with full `stat`) — reposts and the group list.
+	include?: ('tokens' | 'subject')[]
 	channel?: string // Only actions posted in this room
 }
 
 // Response types
-export const tReactionResponse = T.struct({
-	reactionId: T.string
-})
-export type ReactionResponse = T.TypeOf<typeof tReactionResponse>
-
 /*
 export const tListActionsResult = T.struct({
   actions: T.array(tActionView),
 })
 */
-export const tListActionsResult = T.array(tActionView)
+export const tListActionsResult = T.array(tActionView).skipInvalid()
 export type ListActionsResult = T.TypeOf<typeof tListActionsResult>
 
 // ============================================================================
@@ -638,24 +600,24 @@ export interface ListReaderStateQuery {
 	kind?: string | string[] // e.g. 'P:MSG', 'A:CONV' (comma-joined on the wire)
 	sort?: 'lastAt'
 	limit?: number // 1..200, default 50
-	cursor?: string // opaque `nextCursor` from the previous page
+	cursor?: string // opaque `next` from the previous page
 	include?: string | string[] // 'ref' (profile/action), 'last' (last activity)
 }
 
 // Items carry `profile` (P:* rows, include=ref) and `action` / `last` when included.
-export const tListReaderStateResult = T.array(tReaderState)
+export const tListReaderStateResult = T.array(tReaderState).skipInvalid()
 export type ListReaderStateResult = T.TypeOf<typeof tListReaderStateResult>
 
 // PATCH body: absent = unchanged, null = reset. `readAt` is forward-only and
-// never null (ISO 8601 or epoch seconds). Unknown fields are rejected (400).
+// never null (ISO 8601). Unknown fields are rejected (400).
 export interface ReaderStatePatch {
-	readAt?: string | number
+	readAt?: string
 	pinned?: boolean | null
 	archived?: boolean | null
 	ignoreAll?: boolean | null
 	unreadFlag?: boolean | null
-	notify?: 'W' | 'T' | 'M' | null
-	notifyUntil?: string | number | null
+	notify?: 'all' | 'mentions' | 'none' | null
+	notifyUntil?: string | null
 }
 
 export const tInboundAction = T.struct({
@@ -675,7 +637,7 @@ export interface CreateFileRequest {
 	fileName?: string // File name (required for FLDR)
 	parentId?: string // Parent folder ID (null = root)
 	rootId?: string // Document tree root file ID
-	createdAt?: number
+	createdAt?: string // ISO
 	tags?: string
 	// Cross-context creation (Hand verbs: pin / place).
 	// Two-step flow: callers must first POST to /files/{sourceFileId}/shares on
@@ -690,7 +652,7 @@ export interface CreateFileRequest {
 export interface PatchFileRequest {
 	fileName?: string
 	parentId?: string | null // Move file to folder (null = root)
-	visibility?: ActionVisibility | null // File visibility level
+	visibility?: FileVisibility | null // File visibility level
 	/** Cross-room move; only with `parentId: null` (else 400). Absent = stay in the entry's current
 	 *  room, `null` = main room, `'@tenant~name'` = that room's root. A move into a folder sends
 	 *  no `channel`: the folder's room is inherited. */
@@ -705,69 +667,68 @@ export interface GetFileVariantSelector {
 }
 
 export interface ListFilesQuery {
-	fileId?: string // Entry id, or a content id with a single entry
-	parentId?: string // Filter by folder: null=root, "__trash__"=trash, or folder entryId
+	contentId?: string // Entry id, or a content id with a single entry
+	parentId?: string // Filter by folder: null=root, "__trash__"=trash, or folder id
 	/** Room filter, root listing only: absent = all rooms, `''` = main room, `'@tenant~name'` = that room */
 	channel?: string
-	notParentId?: string // Exclude files inside this folder. Use with fileName/global search to find matches outside the current folder.
+	notParentId?: string // Exclude files inside this folder. Use with q/global search to find matches outside the current folder.
 	rootId?: string // Filter by document tree root
 	preset?: string
-	tag?: string
 	tags?: string[] // Every listed tag must be present (AND). Comma-joined on the wire: safe, the backend forbids ',' in tag names
 	recursive?: boolean // With parentId: list the whole subtree; without: the whole room
 	/** Exposure filter, OR'ed */
 	access?: ('private' | 'audience' | 'network' | 'people' | 'link' | 'public')[]
-	status?: ('P' | 'A')[]
-	fileTp?: string // File type: 'BLOB', 'CRDT', 'RTDB', 'FLDR'
+	status?: 'pending' | 'active'
+	type?: string // File type: 'BLOB', 'CRDT', 'RTDB', 'FLDR'
 	contentType?: string
-	includeFolders?: boolean // Bypass the type filter for folder rows (keeps drill-down working in type-filtered pickers)
-	fileName?: string // Substring search in file name
+	q?: string // Substring search in file name
 	ownerIdTag?: string // Filter by owner idTag
 	notOwnerIdTag?: string // Exclude files by this owner idTag
 	localOnly?: boolean // Only locally originating files (upstream_tag IS NULL); excludes remote/federated copies
-	openedSince?: string | number // Caller's own last access (unix seconds or ISO)
-	modifiedAfter?: string | number // Inclusive (unix seconds or ISO)
-	modifiedBefore?: string | number // Exclusive (unix seconds or ISO)
+	openedAfter?: string // Caller's own last access (ISO)
+	modifiedAfter?: string // Inclusive (ISO)
+	modifiedBefore?: string // Exclusive (ISO)
 	pinned?: boolean // Filter by pinned status (user-specific)
 	starred?: boolean // Filter by starred status (user-specific)
 	sort?: 'name' | 'created' | 'modified' | 'recent' // Sort field
 	sortDir?: 'asc' | 'desc' // Sort direction
 	cursor?: string // Cursor for pagination
-	limit?: number // Items per page (replaces _limit)
-	_limit?: number // @deprecated Use limit instead
-	withParent?: boolean // Populate parentName on each item (one level)
-	withPath?: boolean // Populate path[] (root→parent). Use with fileId for single-file fetch.
+	limit?: number // Items per page
+	// `parent`: populate parentName on each item (one level); `path`: populate path[]
+	// (root→parent), use with contentId for a single-file fetch; `folders`: bypass the type
+	// filter for folder rows (keeps drill-down working in type-filtered pickers).
+	include?: ('parent' | 'path' | 'folders')[]
 }
 
 // User-specific file data (pinned, starred, per-user timestamps)
 export const tFileUserData = T.struct({
-	accessedAt: T.optional(T.union(T.string, T.date)),
-	modifiedAt: T.optional(T.union(T.string, T.date)),
+	accessedAt: T.optional(tIsoTime),
+	modifiedAt: T.optional(tIsoTime),
 	pinned: T.optional(T.boolean),
 	starred: T.optional(T.boolean),
 	// 'admin' is write, plus the right to manage the file's share set. It reaches this cached
 	// copy from `file_user_data.access_level` ('A'), so it is not a shell-only concept.
-	accessLevel: T.optional(T.literal('read', 'comment', 'write', 'admin', 'none'))
+	accessLevel: T.optional(T.literal('read', 'comment', 'write', 'admin', 'none').catch('unknown'))
 })
 export type FileUserData = T.TypeOf<typeof tFileUserData>
 
 // Response types
 export const tFileView = T.struct({
-	entryId: T.string, // Placement id: navigation, rename/move/trash, star/pin, tags, shares
-	fileId: T.nullable(T.string), // Content id: open, variants, resId; null for local folders, upstream id for a remote folder
-	parentId: T.optional(T.string), // Parent folder entryId (null = root, "__trash__" = in trash)
+	id: T.string, // Entry (placement) id: navigation, rename/move/trash, star/pin, tags, shares
+	contentId: T.nullable(T.string), // Content id: open, variants, resId; null for local folders, upstream id for a remote folder
+	parentId: T.optional(T.string), // Parent folder id (null = root, "__trash__" = in trash)
 	rootId: T.optional(T.string), // Document tree root file ID
-	status: T.literal('P', 'A'),
+	status: T.literal('active', 'pending', 'deleted').catch('unknown'),
 	preset: T.optional(T.string),
 	contentType: T.string,
 	fileName: T.string,
-	fileTp: T.optional(T.string), // 'BLOB', 'CRDT', 'RTDB', 'FLDR'
-	createdAt: T.union(T.string, T.date),
-	accessedAt: T.optional(T.union(T.string, T.date)), // Global access timestamp
-	modifiedAt: T.optional(T.union(T.string, T.date)), // Global modification timestamp
+	fileType: T.optional(T.string), // 'BLOB', 'CRDT', 'RTDB', 'FLDR'
+	createdAt: tIsoTime,
+	accessedAt: T.optional(tIsoTime), // Global access timestamp
+	modifiedAt: T.optional(tIsoTime), // Global modification timestamp
 	userData: T.optional(tFileUserData), // User-specific data (pinned, starred, etc.)
 	tags: T.optional(T.array(T.string)),
-	x: T.optional(
+	extra: T.optional(
 		T.struct({
 			dim: T.optional(T.tuple(T.number, T.number)) // Image dimensions [width, height]
 		})
@@ -795,12 +756,14 @@ export const tFileView = T.struct({
 	),
 	// 'admin' = write, plus share management. The file owner, a community leader and an explicit
 	// 'A' share grantee all resolve to it (backend `compute_file_access_levels`).
-	accessLevel: T.optional(T.literal('read', 'comment', 'write', 'admin', 'none')),
-	visibility: T.optional(T.union(tActionVisibility, T.nullValue)), // null/D=Direct, P=Public, V=Verified, 2=2nd degree, F=Followers, C=Connected
+	accessLevel: T.optional(
+		T.literal('read', 'comment', 'write', 'admin', 'none').catch('unknown')
+	),
+	visibility: tFileVisibility.catch('unknown'), // always present; 'unknown' displays as Direct, visibilityRank() gives -1 so no comparison fires
 	parentName: T.optional(T.string), // Immediate parent folder name (when withParent=true)
 	path: T.optional(T.array(T.struct({ id: T.string, name: T.string }))), // root→parent chain (when withPath=true)
-	brokenAt: T.optional(T.union(T.string, T.date)),
-	brokenReason: T.optional(T.literal('revoked', 'deleted', 'unreachable')),
+	brokenAt: T.optional(tIsoTime),
+	brokenReason: T.optional(T.literal('revoked', 'deleted', 'unreachable').catch('unknown')),
 	channel: T.optional(T.string) // Room the file belongs to
 })
 export type FileView = T.TypeOf<typeof tFileView>
@@ -819,36 +782,26 @@ export const tListFilesResult = T.struct({
   files: T.array(tFileView),
 })
 */
-export const tListFilesResult = T.array(tFileView)
+export const tListFilesResult = T.array(tFileView).skipInvalid()
 export type ListFilesResult = T.TypeOf<typeof tListFilesResult>
 
-export const tCreateFileResult = T.struct({
-	entryId: T.string,
-	fileId: T.nullable(T.string) // null for local folders; the upstream folder id for a remote folder
-})
-export type CreateFileResult = T.TypeOf<typeof tCreateFileResult>
-
 /**
- * Result of a file upload.
+ * Result of a blob upload: the new entry's `FileView` plus
  *
- * - `entryId`: the new entry (final at once, also while processing).
- * - `fileId`: content id; `@<f_id>` while processing, swapped by `FILE_ID_GENERATED`.
+ * - `contentId`: content id (non-null); `@<f_id>` while processing, swapped by `fileIdGenerated`.
  * - `thumbnailVariantId`: variant id for the generated thumbnail, when one was produced.
- * - `dim`: intrinsic [width, height] of image/video uploads, when known.
- * - `existed`: true on a content-addressed dedup hit. The answer is then a full `FileView` of a
- *   **new** entry in the upload's own location over the prior content; no new bytes were stored.
- * - `fileName`: canonical filename assigned by the server after normalization.
- * - `contentType`: canonical MIME type the server resolved for the stored content.
+ * - `existed`: true on a content-addressed dedup hit (200 instead of 201); no new bytes were stored.
+ *
+ * Image dimensions are at `extra.dim`; video/audio duration and resolution are not returned.
  */
-export const tUploadFileResult = T.struct({
-	entryId: T.string,
-	fileId: T.string,
-	thumbnailVariantId: T.optional(T.string),
-	dim: T.optional(T.tuple(T.number, T.number)),
-	existed: T.optional(T.boolean),
-	fileName: T.optional(T.string),
-	contentType: T.optional(T.string)
-})
+export const tUploadFileResult = T.intersection(
+	tFileView,
+	T.struct({
+		contentId: T.string,
+		thumbnailVariantId: T.optional(T.string),
+		existed: T.optional(T.boolean)
+	})
+)
 export type UploadFileResult = T.TypeOf<typeof tUploadFileResult>
 
 /**
@@ -857,7 +810,7 @@ export type UploadFileResult = T.TypeOf<typeof tUploadFileResult>
  *     d2,R=<rootId>;vis.sd:<variantId>:f=webp:s=12345:r=640x360;vis.md:…
  *
  * built by `descriptor::get_file_descriptor` in the backend's `cloudillo-file`
- * crate, and also sent as the `X-Cloudillo-Variants` header on a file response.
+ * crate, and also sent as the `Cloudillo-Descriptor` header on `GET /api/files/{id}?include=descriptor`.
  * `parseFileDescriptor` in `urls.ts` is the reader. This was declared as an object
  * with an `unknown` `file` field and so never decoded a real answer.
  *
@@ -868,29 +821,6 @@ export type UploadFileResult = T.TypeOf<typeof tUploadFileResult>
 export const tFileDescriptor = T.string
 export type FileDescriptor = T.TypeOf<typeof tFileDescriptor>
 
-export const tPatchFileResult = T.struct({
-	entryId: T.string,
-	fileId: T.nullable(T.string),
-	fileName: T.optional(T.string)
-})
-export type PatchFileResult = T.TypeOf<typeof tPatchFileResult>
-
-export const tDeleteFileResult = T.struct({
-	entryId: T.string,
-	fileId: T.nullable(T.string),
-	permanent: T.optional(T.boolean) // True if permanently deleted, false if moved to trash
-})
-export type DeleteFileResult = T.TypeOf<typeof tDeleteFileResult>
-
-// Restore file from trash. Without a `parentId` the entry lands at the root of its room (trash
-// keeps no original folder), or the main room when its room is gone.
-export const tRestoreFileResult = T.struct({
-	entryId: T.string,
-	fileId: T.nullable(T.string),
-	parentId: T.optional(T.nullable(T.string)) // Target folder after restore (null = root)
-})
-export type RestoreFileResult = T.TypeOf<typeof tRestoreFileResult>
-
 // Duplicate file request
 export interface DuplicateFileRequest {
 	fileName?: string
@@ -899,7 +829,7 @@ export interface DuplicateFileRequest {
 
 // Empty trash result
 export const tEmptyTrashResult = T.struct({
-	deleted_count: T.number
+	deletedCount: T.number
 })
 export type EmptyTrashResult = T.TypeOf<typeof tEmptyTrashResult>
 
@@ -909,63 +839,49 @@ export interface UpdateFileUserDataRequest {
 	starred?: boolean
 }
 
-// Update user-specific file data result
-export const tUpdateFileUserDataResult = T.struct({
-	entryId: T.string,
-	fileId: T.nullable(T.string),
-	accessedAt: T.optional(T.union(T.string, T.date)),
-	modifiedAt: T.optional(T.union(T.string, T.date)),
-	pinned: T.optional(T.boolean),
-	starred: T.optional(T.boolean)
-})
-export type UpdateFileUserDataResult = T.TypeOf<typeof tUpdateFileUserDataResult>
-
-export const tTagResult = T.struct({
-	entryId: T.string,
-	tags: T.array(T.string)
-})
-export type TagResult = T.TypeOf<typeof tTagResult>
-
 // ============================================================================
 // SHARE ENTRY ENDPOINTS
 // ============================================================================
 
 // Request types
+export type SharePermission = 'read' | 'comment' | 'write' | 'admin'
+
 export interface CreateShareEntryRequest {
-	subjectType: string // 'U' (user) | 'L' (link) | 'F' (file)
+	subjectType: 'user' | 'link' | 'file'
 	subjectId: string
-	/** A `SharePermChar` (shell/src/apps/files/utils.ts): 'R' | 'C' | 'W' | 'A'.
-	 *  'A' (admin) is only valid for subjectType 'U' — the backend rejects it otherwise. */
-	permission: string
+	/** 'admin' is only valid for subjectType 'user' — the backend rejects it otherwise. */
+	permission: SharePermission
 	expiresAt?: string // ISO timestamp
 }
 
 export interface UpdateShareEntryRequest {
-	/** A `SharePermChar`; omit = leave alone. `null` is rejected — DELETE the entry instead. */
-	permission?: string
+	/** Omit = leave alone. `null` is rejected — DELETE the entry instead. */
+	permission?: SharePermission
 	expiresAt?: string | null // ISO timestamp; null = clear
 }
 
 // Response types
 export const tShareEntry = T.struct({
-	id: T.number,
-	resourceType: T.string,
+	id: T.string,
+	resourceType: T.string, // 'file'
 	resourceId: T.string,
-	subjectType: T.string,
+	subjectType: T.string, // 'user' | 'link' | 'file'; T.string so a newer value still decodes
 	subjectId: T.string,
-	// Deliberately T.string, not a literal union of 'R'|'C'|'W'|'A': one corrupt row would fail the
-	// decode of the WHOLE share list. `toSharePermChar` (shell/src/apps/files/utils.ts) normalizes
+	// Deliberately T.string, not a literal union of SharePermission: one corrupt row would fail the
+	// decode of the WHOLE share list. `toSharePerm` (shell/src/apps/files/utils.ts) normalizes
 	// per entry instead, mirroring the backend's fail-safe `AccessLevel::from_perm_char`.
 	permission: T.string,
-	expiresAt: T.optional(T.union(T.string, T.date)),
-	createdBy: T.string,
-	createdAt: T.union(T.string, T.date),
+	expiresAt: T.optional(tIsoTime),
+	creatorIdTag: T.string,
+	createdAt: tIsoTime,
 	subjectFileName: T.optional(T.string),
 	subjectContentType: T.optional(T.string),
-	subjectFileTp: T.optional(T.string)
+	subjectFileType: T.optional(T.string)
 })
 export type ShareEntry = T.TypeOf<typeof tShareEntry>
 
+// Strict on purpose: a skipped row is a grant the owner can neither see nor revoke.
+// `permission` is already T.string (normalized by toSharePerm), so only genuinely corrupt rows fail.
 export const tListShareEntriesResult = T.array(tShareEntry)
 export type ListShareEntriesResult = T.TypeOf<typeof tListShareEntriesResult>
 
@@ -980,10 +896,10 @@ export type FileAccessSource = T.TypeOf<typeof tFileAccessSource>
 
 export const tFileAccessPerson = T.struct({
 	idTag: T.string,
-	// T.string like `tShareEntry.permission` ('R'|'C'|'W'|'A'): one bad row must not fail the decode.
+	// T.string like `tShareEntry.permission` (SharePermission): one bad row must not fail the decode.
 	// Always sent: readers get `people: []` rather than people without a permission.
 	permission: T.optional(T.string),
-	expiresAt: T.optional(T.union(T.string, T.date)),
+	expiresAt: T.optional(tIsoTime),
 	inherited: T.boolean,
 	inheritedFrom: T.optional(tFileAccessSource) // absent = direct
 })
@@ -992,8 +908,8 @@ export type FileAccessPerson = T.TypeOf<typeof tFileAccessPerson>
 export const tFileAccessLink = T.struct({
 	refId: T.string,
 	redacted: T.optional(T.literal(true)), // refId is a surrogate, not the bearer credential
-	accessLevel: T.literal('read', 'comment', 'write'),
-	expiresAt: T.optional(T.union(T.string, T.date)),
+	accessLevel: T.literal('read', 'comment', 'write').catch('unknown'),
+	expiresAt: T.optional(tIsoTime),
 	inheritedFrom: T.optional(tFileAccessSource)
 })
 export type FileAccessLink = T.TypeOf<typeof tFileAccessLink>
@@ -1013,7 +929,7 @@ export const tFileAccess = T.struct({
 			'followers',
 			'connections',
 			'subscribers'
-		),
+		).catch('unknown'),
 		channel: T.optional(
 			T.struct({
 				name: T.string,
@@ -1031,7 +947,7 @@ export const tFileAccess = T.struct({
 			items: T.optional(T.array(tFileAccessLink)) // writers and up
 		})
 	), // absent for link guests
-	callerLevel: T.literal('read', 'comment', 'write', 'admin'),
+	callerLevel: T.literal('read', 'comment', 'write', 'admin').catch('unknown'),
 	canManage: T.boolean
 })
 export type FileAccess = T.TypeOf<typeof tFileAccess>
@@ -1043,7 +959,7 @@ export type FileAccess = T.TypeOf<typeof tFileAccess>
 // Request types
 export interface ListTagsQuery {
 	prefix?: string
-	withCounts?: boolean
+	include?: 'counts'[]
 	limit?: number
 }
 
@@ -1054,9 +970,7 @@ export const tTagInfo = T.struct({
 })
 export type TagInfo = T.TypeOf<typeof tTagInfo>
 
-export const tListTagsResult = T.struct({
-	tags: T.array(tTagInfo)
-})
+export const tListTagsResult = T.array(tTagInfo)
 export type ListTagsResult = T.TypeOf<typeof tListTagsResult>
 
 // ============================================================================
@@ -1078,26 +992,26 @@ export const tReindexResult = T.struct({
 export type ReindexResult = T.TypeOf<typeof tReindexResult>
 
 /**
- * Response of POST /admin/db-maintenance. Fire-and-forget like `tReindexResult`;
- * the outcome arrives later as a `DB_MAINTENANCE_DONE` message on the WS bus.
+ * Response of POST /admin/db/maintenance. Fire-and-forget like `tReindexResult`;
+ * the outcome arrives later as a `dbMaintenanceDone` message on the WS bus.
  */
 export const tDbMaintenanceResult = T.struct({ taskId: T.number })
 export type DbMaintenanceResult = T.TypeOf<typeof tDbMaintenanceResult>
 
-/** Response of GET /admin/backup. Times are unix seconds; `last` is null before the first
+/** Response of GET /admin/backup. Times are ISO; `last` is null before the first
  *  run since the server started; `snapshots` are newest first. */
 export const tBackupStatus = T.struct({
 	running: T.boolean,
 	last: T.union(
 		T.struct({
-			at: T.number,
+			at: tIsoTime,
 			ok: T.boolean,
 			bytes: T.number,
 			error: T.optional(T.string)
 		}),
 		T.nullValue
 	),
-	snapshots: T.array(T.struct({ name: T.string, createdAt: T.number, bytes: T.number }))
+	snapshots: T.array(T.struct({ name: T.string, createdAt: tIsoTime, bytes: T.number }))
 })
 export type BackupStatus = T.TypeOf<typeof tBackupStatus>
 
@@ -1115,7 +1029,7 @@ export interface ProfilePatch {
 export interface AdminProfilePatch {
 	name?: string
 	roles?: string[]
-	status?: 'A' | 'B' | 'S' | null // Active, Blocked, Suspended
+	status?: 'active' | 'blocked' | 'suspended' | null
 	hatRoles?: string | null // Role map `peer_role:local_role,…` for this peer's hat wearers; null clears
 }
 
@@ -1123,7 +1037,7 @@ export interface AdminProfilePatch {
 // `following` flows through FOLLOW actions and `connected` through CONN actions,
 // not over this endpoint.
 export interface PatchProfileConnection {
-	status?: 'A' | 'B' | 'M' | 'S' | null
+	status?: 'active' | 'blocked' | 'muted' | 'suspended' | null
 	trust?: ProfileTrust | null
 	// Composition: hide/show a community in the merged home feed. `true` hides it,
 	// `false` shows it (the backend normalizes `false` back to the NULL = shown default).
@@ -1187,7 +1101,7 @@ export interface PatchChannelRequest {
 export const tPartnerProfile = T.struct({
 	idTag: T.string,
 	name: T.string,
-	type: T.literal('person', 'community'),
+	type: T.literal('person', 'community').catch('unknown'),
 	profilePic: T.optional(T.string)
 })
 export type PartnerProfile = T.TypeOf<typeof tPartnerProfile>
@@ -1209,10 +1123,10 @@ export type PartnerEdge = T.TypeOf<typeof tPartnerEdge>
 
 // Home node's stored graph: ring 1 = my memberships, ring 2 = their partners.
 export const tPartnerMap = T.struct({
-	communities: T.array(tPartnerProfile),
-	partners: T.array(tPartnerProfile),
-	edges: T.array(tPartnerEdge),
-	syncedAt: T.optional(T.union(T.number, T.nullValue)), // unix seconds; null = never synced
+	communities: T.array(tPartnerProfile).skipInvalid(),
+	partners: T.array(tPartnerProfile).skipInvalid(),
+	edges: T.array(tPartnerEdge).skipInvalid(),
+	syncedAt: T.optional(T.union(tIsoTime, T.nullValue)), // ISO; null = never synced
 	syncing: T.boolean
 })
 export type PartnerMap = T.TypeOf<typeof tPartnerMap>
@@ -1220,13 +1134,17 @@ export type PartnerMap = T.TypeOf<typeof tPartnerMap>
 export interface ListProfilesQuery {
 	idTag?: string
 	type?: 'person' | 'community'
-	status?: ('A' | 'B' | 'M' | 'S')[]
-	connected?: boolean | 'R'
+	status?: ('active' | 'blocked' | 'muted' | 'suspended' | 'banned')[]
+	connection?: 'connected' | 'none' | 'pending'
 	following?: boolean
 	follower?: boolean
 	q?: string
 	/** When true, returns only profiles with a non-null trust preference; when false, only profiles with no trust set. */
 	trustSet?: boolean
+	/** Page size; server default 50, max 100. */
+	limit?: number
+	/** Keyset cursor from the previous page's `meta.next`. */
+	cursor?: string
 }
 
 // Response types
@@ -1239,13 +1157,13 @@ export type ProfileKey = T.TypeOf<typeof tProfileKey>
 export const tProfileKeys = T.struct({
 	idTag: T.string,
 	name: T.optional(T.string),
-	type: T.optional(T.literal('person', 'community')),
+	type: T.optional(T.literal('person', 'community').catch('unknown')),
 	profilePic: T.optional(T.string),
 	coverPic: T.optional(T.string),
 	keys: T.array(tProfileKey),
 	settings: T.optional(
 		T.struct({
-			connectionMode: T.optional(T.literal('M', 'A', 'I')),
+			connectionMode: T.optional(T.literal('M', 'A', 'I').catch('unknown')),
 			allowFollowers: T.optional(T.boolean)
 		})
 	),
@@ -1263,7 +1181,7 @@ export function decodeBadgeTokens(v: unknown): string[] {
 	return Array.isArray(v) ? v.filter((s): s is string => typeof s === 'string') : []
 }
 
-/** One `POST /actions/verify` result, in request order. `status`: `verified | invalid | error |
+/** One `POST /action-verifications` result, in request order. `status`: `verified | invalid | error |
  * unknown` (issuer not known on the home node, no `sync`); anything else counts as `error`. */
 export const tVerifyTokenResult = T.struct({
 	status: T.string,
@@ -1271,7 +1189,7 @@ export const tVerifyTokenResult = T.struct({
 		T.struct({
 			idTag: T.string,
 			name: T.string,
-			type: T.literal('person', 'community'),
+			type: T.literal('person', 'community').catch('unknown'),
 			profilePic: T.optional(T.string)
 		})
 	)
@@ -1294,13 +1212,8 @@ export const tListProfilesResult = T.struct({
   offset: T.optional(T.number),
 })
 */
-export const tListProfilesResult = T.array(tProfile)
+export const tListProfilesResult = T.array(tProfile).skipInvalid()
 export type ListProfilesResult = T.TypeOf<typeof tListProfilesResult>
-
-export const tUpdateProfileResult = T.struct({
-	profile: tProfile
-})
-export type UpdateProfileResult = T.TypeOf<typeof tUpdateProfileResult>
 
 /**
  * Result of POST /profiles/:idTag/refresh — the backend returns a `ProfileInfo`
@@ -1310,7 +1223,7 @@ export type UpdateProfileResult = T.TypeOf<typeof tUpdateProfileResult>
 export const tProfileRefreshResult = T.struct({
 	idTag: T.string,
 	name: T.optional(T.string),
-	type: T.optional(T.literal('person', 'community')),
+	type: T.optional(T.literal('person', 'community').catch('unknown')),
 	profilePic: T.optional(T.string)
 })
 export type ProfileRefreshResult = T.TypeOf<typeof tProfileRefreshResult>
@@ -1319,7 +1232,7 @@ export type ProfileRefreshResult = T.TypeOf<typeof tProfileRefreshResult>
  * The reduced, non-sensitive profile projection an app may display.
  *
  * Every field here is already readable without authentication at that profile's
- * own node (`GET /api/me`), which is what lets `GET /profiles/batch` serve it to
+ * own node (`GET /api/me`), which is what lets `GET /profile-lookups` serve it to
  * a file-scoped token. Deliberately carries none of the tenant's relationship
  * state (`status`, `connected`, `following`, `follower`, `trust`, read
  * watermarks) — see the batch route's doc comment in `cloudillo-rs`.
@@ -1331,7 +1244,7 @@ export type ProfileRefreshResult = T.TypeOf<typeof tProfileRefreshResult>
 export const tPublicProfile = T.struct({
 	idTag: T.string,
 	name: T.optional(T.string),
-	type: T.optional(T.literal('person', 'community')),
+	type: T.optional(T.literal('person', 'community').catch('unknown')),
 	profilePic: T.optional(T.string),
 	badges: T.optional(T.unknown)
 })
@@ -1346,7 +1259,7 @@ const tProfileBadge = T.struct({
 	}),
 	slot: T.string,
 	level: T.string,
-	exp: T.number // unix seconds
+	exp: tIsoTime
 })
 
 /** One batch-served badge (cloudillo-rs `BadgeView`). */
@@ -1366,12 +1279,15 @@ export function decodeBadges(v: unknown): ProfileBadge[] {
 	if (!Array.isArray(v)) return []
 	return v.flatMap((b) => {
 		const r = T.decode(tProfileBadge, b, { unknownFields: 'drop' })
-		return T.isOk(r) && isBadge(r.ok.slot, r.ok.level) ? [r.ok as ProfileBadge] : []
+		// `exp` arrives ISO; the FE badge model is Unix seconds, shared with badge JWS tokens.
+		return T.isOk(r) && isBadge(r.ok.slot, r.ok.level)
+			? [{ ...r.ok, exp: Math.floor(Date.parse(r.ok.exp) / 1000) } as ProfileBadge]
+			: []
 	})
 }
 
-/** Result of GET /profiles/batch — only the idTags this node has mirrored. */
-export const tPublicProfileList = T.array(tPublicProfile)
+/** Result of GET /profile-lookups — only the idTags this node has mirrored. */
+export const tPublicProfileList = T.array(tPublicProfile).skipInvalid()
 export type PublicProfileList = T.TypeOf<typeof tPublicProfileList>
 
 // ============================================================================
@@ -1460,7 +1376,7 @@ export interface ListRefsQuery {
 	 * `count = 0` rows (adapters/meta-adapter-sqlite/src/reference.rs) — a management surface that
 	 * must keep dead links reachable has to ask for `'all'` explicitly.
 	 */
-	filter?: 'active' | 'used' | 'expired' | 'all'
+	status?: 'active' | 'used' | 'expired' | 'all'
 	[key: string]: string | undefined
 }
 
@@ -1469,27 +1385,27 @@ export const tAppDomainResult = T.struct({ appDomain: T.string })
 export type AppDomainResult = T.TypeOf<typeof tAppDomainResult>
 
 export const tRef = T.struct({
-	refId: T.string,
+	id: T.string,
 	type: T.string,
 	description: T.optional(T.string),
 	resourceId: T.optional(T.string),
-	accessLevel: T.optional(T.literal('read', 'comment', 'write')),
-	createdAt: T.union(T.string, T.date),
-	expiresAt: T.optional(T.union(T.string, T.date)),
+	accessLevel: T.optional(T.literal('read', 'comment', 'write').catch('unknown')),
+	createdAt: tIsoTime,
+	expiresAt: T.optional(tIsoTime),
 	count: T.optional(T.number),
 	params: T.optional(T.string),
-	/** `true` when `refId` has been replaced by an opaque digest because the caller is a share
-	 *  reader but not a manager. Absent means `refId` is the real credential. */
+	/** `true` when `id` has been replaced by an opaque digest because the caller is a share
+	 *  reader but not a manager. Absent means `id` is the real credential. */
 	redacted: T.optional(T.boolean)
 })
 export type Ref = T.TypeOf<typeof tRef>
 
 export const tRefResponse = T.struct({
-	refId: T.string,
+	id: T.string,
 	type: T.string,
 	description: T.optional(T.string),
 	resourceId: T.optional(T.string),
-	accessLevel: T.optional(T.literal('read', 'comment', 'write')),
+	accessLevel: T.optional(T.literal('read', 'comment', 'write').catch('unknown')),
 	createdAt: T.optional(T.string),
 	expiresAt: T.optional(T.string),
 	count: T.optional(T.number),
@@ -1503,9 +1419,8 @@ export type RefResponse = T.TypeOf<typeof tRefResponse>
 export const tRefAccessTokenResult = T.struct({
 	token: T.string,
 	resourceId: T.string,
-	accessLevel: T.literal('read', 'comment', 'write'),
+	accessLevel: T.literal('read', 'comment', 'write').catch('unknown'),
 	scope: T.optional(T.string),
-	expiresAt: T.optional(T.number),
 	params: T.optional(T.string)
 })
 export type RefAccessTokenResult = T.TypeOf<typeof tRefAccessTokenResult>
@@ -1569,7 +1484,7 @@ export const tInviteCommunityResult = T.struct({
 	refId: T.string,
 	inviteUrl: T.string,
 	targetIdTag: T.string,
-	expiresAt: T.optional(T.number)
+	expiresAt: T.optional(tIsoTime)
 })
 export type InviteCommunityResult = T.TypeOf<typeof tInviteCommunityResult>
 
@@ -1582,7 +1497,7 @@ export interface ListTenantsQuery {
 	status?: string
 	q?: string
 	limit?: number
-	offset?: number
+	cursor?: string
 }
 
 // Response types
@@ -1590,15 +1505,17 @@ export const tTenantView = T.struct({
 	tnId: T.number,
 	idTag: T.string,
 	name: T.string,
-	type: T.literal('person', 'community'),
+	type: T.literal('person', 'community').catch('unknown'),
 	email: T.optional(T.string),
-	status: T.optional(T.string),
+	status: T.optional(T.literal('active', 'suspended', 'purging').catch('unknown')),
 	roles: T.optional(T.array(T.string)),
 	profilePic: T.optional(T.string),
-	createdAt: T.number,
-	suspendedAt: T.optional(T.number), // unix seconds; absent = not suspended
-	expiresAt: T.optional(T.number), // unix seconds; absent = no expiry
-	storageUsed: T.optional(T.number) // bytes
+	createdAt: tIsoTime,
+	suspendedAt: T.optional(tIsoTime), // absent = not suspended
+	expiresAt: T.optional(tIsoTime), // absent = no expiry
+	storageUsed: T.optional(T.number), // bytes
+	storageQuota: T.optional(T.number), // bytes, effective quota
+	storageQuotaOverride: T.optional(T.number) // bytes; absent = no per-tenant override
 })
 export type TenantView = T.TypeOf<typeof tTenantView>
 
@@ -1617,26 +1534,26 @@ export const tPurgeTenantResponse = T.struct({
 export type PurgeTenantResponse = T.TypeOf<typeof tPurgeTenantResponse>
 
 // ============================================================================
-// AUDIT LOG ENDPOINTS (GET /auth/audit, GET /admin/audit, GET /admin/audit.csv)
+// AUDIT LOG ENDPOINTS (GET /auth/audit, GET /admin/audit, GET /admin/audit with Accept: text/csv)
 // ============================================================================
 
-/** Query for the tenant's own audit log. `from`/`to` are unix seconds, inclusive;
+/** Query for the tenant's own audit log. `createdAfter`/`createdBefore` are ISO bounds;
  *  `event` is a prefix match; `limit` 1..1000 (default 100). */
 export interface AuditListQuery {
-	from?: number
-	to?: number
+	createdAfter?: string
+	createdBefore?: string
 	category?: string
 	event?: string
 	outcome?: string
 	limit?: number
-	cursor?: number
+	cursor?: string
 }
 
 /** Site-admin query: the tenant filters plus tenant and actor scoping. */
 export interface AdminAuditListQuery extends AuditListQuery {
 	tnId?: number
 	idTag?: string
-	actor?: string
+	actorIdTag?: string
 }
 
 /** Categories a setting may enable; `auth` and `admin` are always logged. */
@@ -1656,15 +1573,11 @@ export const tAuditEvent = T.struct({
 })
 export type AuditEvent = T.TypeOf<typeof tAuditEvent>
 
-export const tAdminAuditListResult = T.struct({
-	events: T.array(tAuditEvent),
-	nextCursor: T.union(T.number, T.nullValue)
-})
+export const tAdminAuditListResult = T.array(tAuditEvent)
 export type AdminAuditListResult = T.TypeOf<typeof tAdminAuditListResult>
 
 export const tAuditListResult = T.struct({
 	events: T.array(tAuditEvent),
-	nextCursor: T.union(T.number, T.nullValue),
 	globalCategories: T.array(T.string),
 	tenantCategories: T.array(T.string)
 })
@@ -1674,8 +1587,7 @@ export type AuditListResult = T.TypeOf<typeof tAuditListResult>
 // ADMIN PROXY SITE ENDPOINTS
 // ============================================================================
 
-// Proxy site status: A=Active, D=Disabled
-export const tProxySiteStatus = T.literal('A', 'D')
+export const tProxySiteStatus = T.literal('active', 'disabled').catch('unknown')
 export type ProxySiteStatus = T.TypeOf<typeof tProxySiteStatus>
 
 // Proxy site type
@@ -1696,7 +1608,7 @@ export type ProxySiteConfig = T.TypeOf<typeof tProxySiteConfig>
 
 // Proxy site data (returned by API)
 export const tProxySiteData = T.struct({
-	siteId: T.number,
+	id: T.string,
 	domain: T.string,
 	backendUrl: T.string,
 	status: tProxySiteStatus,
@@ -1717,10 +1629,7 @@ export const tDeleteProxySiteResult = T.nullValue
 export type DeleteProxySiteResult = T.TypeOf<typeof tDeleteProxySiteResult>
 
 // Renew cert result
-export const tRenewProxySiteCertResult = T.struct({
-	siteId: T.number,
-	message: T.optional(T.string)
-})
+export const tRenewProxySiteCertResult = tProxySiteData
 export type RenewProxySiteCertResult = T.TypeOf<typeof tRenewProxySiteCertResult>
 
 // Request types for proxy site management
@@ -1741,7 +1650,7 @@ export interface CreateProxySiteRequest {
 
 export interface UpdateProxySiteRequest {
 	backendUrl?: string
-	status?: 'A' | 'D'
+	status?: 'active' | 'disabled'
 	type?: 'basic' | 'advanced'
 	config?: {
 		connectTimeoutSecs?: number
@@ -1755,27 +1664,19 @@ export interface UpdateProxySiteRequest {
 }
 
 // ============================================================================
-// LOGIN INIT (combined endpoint)
+// LOGIN INIT (POST /auth/login/init, unauthenticated only)
 // ============================================================================
 
-export const tLoginInitAuthenticated = T.struct({
-	status: T.literal('authenticated'),
-	login: tLoginResult
-})
-
-export const tLoginInitUnauthenticated = T.struct({
-	status: T.literal('unauthenticated'),
-	qrLogin: T.struct({
+export const tLoginInitResult = T.struct({
+	qr: T.struct({
 		sessionId: T.string,
 		secret: T.string
 	}),
-	// Whether the tenant has a usable passkey — the challenge itself is minted at
-	// prompt time by GET /auth/wa/login/challenge, a pre-fetched one is 120 s dead.
-	webAuthn: T.boolean,
+	// Whether the tenant has a usable passkey — the challenge itself is minted at prompt
+	// time by POST /auth/login/passkey/challenge, a pre-fetched one is 120 s dead.
+	passkeys: T.boolean,
 	maskedEmail: T.optional(T.string)
 })
-
-export const tLoginInitResult = T.union(tLoginInitAuthenticated, tLoginInitUnauthenticated)
 export type LoginInitResult = T.TypeOf<typeof tLoginInitResult>
 
 // ============================================================================
@@ -1789,7 +1690,7 @@ export const tQrLoginInitResult = T.struct({
 export type QrLoginInitResult = T.TypeOf<typeof tQrLoginInitResult>
 
 export const tQrLoginStatusResult = T.struct({
-	status: T.literal('pending', 'approved', 'denied', 'expired'),
+	status: T.literal('pending', 'approved', 'denied', 'expired').catch('unknown'),
 	login: T.optional(
 		T.struct({
 			tnId: T.optional(T.number),
@@ -1854,8 +1755,8 @@ export type ProfileOverlay = T.TypeOf<typeof tProfileOverlay>
 
 // Contact response types
 export const tContactOutput = T.struct({
-	cId: T.number,
-	abId: T.number,
+	id: T.string,
+	abId: T.string,
 	uid: T.string,
 	etag: T.string,
 	fn: T.optional(T.string),
@@ -1877,8 +1778,8 @@ export const tContactOutput = T.struct({
 export type ContactOutput = T.TypeOf<typeof tContactOutput>
 
 export const tContactListItem = T.struct({
-	cId: T.number,
-	abId: T.number,
+	id: T.string,
+	abId: T.string,
 	uid: T.string,
 	etag: T.string,
 	fn: T.optional(T.string),
@@ -1941,7 +1842,7 @@ export interface ListContactsQuery {
 
 // Address book types
 export const tAddressBookOutput = T.struct({
-	abId: T.number,
+	id: T.string,
 	name: T.string,
 	description: T.optional(T.string),
 	ctag: T.string,
@@ -2012,7 +1913,7 @@ export type Alarm = T.TypeOf<typeof tAlarm>
 
 // Calendar collection
 export const tCalendarOutput = T.struct({
-	calId: T.number,
+	id: T.string,
 	name: T.string,
 	description: T.optional(T.string),
 	color: T.optional(T.string),
@@ -2089,8 +1990,8 @@ export interface CalendarObjectInput {
 
 // Calendar object — read (unified VEVENT + VTODO shape)
 export const tCalendarObjectOutput = T.struct({
-	coId: T.number,
-	calId: T.number,
+	id: T.string,
+	calId: T.string,
 	uid: T.string,
 	etag: T.string,
 	/** `VEVENT` or `VTODO`. */
@@ -2120,8 +2021,8 @@ export const tCalendarObjectOutput = T.struct({
 export type CalendarObjectOutput = T.TypeOf<typeof tCalendarObjectOutput>
 
 export const tCalendarObjectListItem = T.struct({
-	coId: T.number,
-	calId: T.number,
+	id: T.string,
+	calId: T.string,
 	uid: T.string,
 	etag: T.string,
 	component: T.string,
@@ -2178,8 +2079,8 @@ export interface ListCalendarObjectsQuery {
 	end?: string
 	cursor?: string
 	limit?: number
-	/** Include recurrence-override rows (each with a `recurrenceId`) alongside masters. */
-	includeExceptions?: boolean
+	/** `exceptions`: include recurrence-override rows (each with a `recurrenceId`) alongside masters. */
+	include?: 'exceptions'[]
 }
 
 // vim: ts=4

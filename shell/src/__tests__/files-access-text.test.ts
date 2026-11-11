@@ -69,7 +69,10 @@ describe('accessAudienceText', () => {
 describe('sortPeople', () => {
 	const p = (idTag: string, permission: string): FileAccessPerson => ({
 		idTag,
-		permission,
+		permission:
+			({ A: 'admin', W: 'write', C: 'comment', R: 'read' } as Record<string, string>)[
+				permission
+			] ?? permission,
 		inherited: false
 	})
 

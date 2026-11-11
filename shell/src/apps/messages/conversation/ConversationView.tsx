@@ -199,24 +199,24 @@ export function ConversationView({
 		() => ({
 			pin: canPin
 				? (a) =>
-						a.actionId === a.tempId ? null : pins.isPinned(a.actionId) ? (
+						a.id === a.tempId ? null : pins.isPinned(a.id) ? (
 							<MenuItem
 								icon={<IcUnpin />}
 								label={t('Unpin')}
-								onClick={() => pins.unpin(a.actionId)}
+								onClick={() => pins.unpin(a.id)}
 							/>
 						) : (
 							<MenuItem
 								icon={<IcPin />}
 								label={t('Pin')}
-								onClick={() => pins.pin(a.actionId)}
+								onClick={() => pins.pin(a.id)}
 							/>
 						)
 				: undefined,
 			seenBy: isGroup
 				? (a) => {
 						const readers = seenBy(a, receipts)
-						if (a.actionId === a.tempId || !readers.length) return null
+						if (a.id === a.tempId || !readers.length) return null
 						return (
 							<>
 								<MenuHeader>
@@ -289,7 +289,7 @@ export function ConversationView({
 				t('The message is removed for everyone in this conversation.'),
 				{ color: 'error', confirmLabel: t('Delete') }
 			)
-			if (ok) await remove(a.actionId)
+			if (ok) await remove(a.id)
 		},
 		[remove, t]
 	)

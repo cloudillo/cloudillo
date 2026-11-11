@@ -76,7 +76,14 @@ function next(api: ApiClient | null, refId: string | undefined, location: string
 function communityInviteTarget(a: Types.ActionView): ProfileInfo | undefined {
 	if (a.type === 'INVT') {
 		if (a.subjectProfile?.type === 'community') return a.subjectProfile
-		if (a.subject?.startsWith('@')) return a.subjectProfile ?? { idTag: a.subject.slice(1) }
+		if (a.subject?.startsWith('@'))
+			return (
+				a.subjectProfile ?? {
+					idTag: a.subject.slice(1),
+					name: a.subject.slice(1),
+					type: 'community'
+				}
+			)
 		return undefined
 	}
 	if (a.audience?.type === 'community' && a.audience.idTag) return a.audience
@@ -112,8 +119,8 @@ function Invites() {
 			;(async function () {
 				try {
 					const [connList, invtList, community] = await Promise.all([
-						api.actions.list({ type: 'CONN', status: ['C'] }),
-						api.actions.list({ type: 'INVT', status: ['C'] }),
+						api.actions.list({ type: 'CONN', status: ['confirmation'] }),
+						api.actions.list({ type: 'INVT', status: ['confirmation'] }),
 						loadOnboardingCommunity(api)
 					])
 					if (cancelled) return
@@ -150,12 +157,12 @@ function Invites() {
 						// Merged, so a Back-navigation re-run keeps earlier entries.
 						const communities = { ...d.inviteCommunities }
 						for (const a of [...c, ...i]) {
-							if (merged[a.actionId] === undefined) merged[a.actionId] = true
+							if (merged[a.id] === undefined) merged[a.id] = true
 						}
 						// Only invites that name a community pin anything.
 						for (const a of [...c, ...i]) {
 							const target = communityInviteTarget(a)
-							if (target?.idTag) communities[a.actionId] = target.idTag
+							if (target?.idTag) communities[a.id] = target.idTag
 						}
 						return {
 							...d,
@@ -201,7 +208,7 @@ function Invites() {
 	function onSkip() {
 		setDraft((d) => {
 			const cleared = { ...d.invitesChecked }
-			for (const a of [...conns, ...invts]) cleared[a.actionId] = false
+			for (const a of [...conns, ...invts]) cleared[a.id] = false
 			// Both halves of the same keyed state, cleared together so they cannot drift.
 			// A later Back re-seeds the record from the loader while `invitesChecked`
 			// stays false, so nothing is pinned either way.
@@ -248,7 +255,7 @@ function Invites() {
 					<VBox gap={2}>
 						{conns.map((a) => (
 							<Checkbox
-								key={a.actionId}
+								key={a.id}
 								variant="card"
 								leading={
 									<ProfilePicture
@@ -261,8 +268,8 @@ function Invites() {
 									name: a.issuer.name || a.issuer.idTag
 								})}
 								description={a.issuer.idTag}
-								checked={!!draft.invitesChecked[a.actionId]}
-								onChange={() => toggle(a.actionId)}
+								checked={!!draft.invitesChecked[a.id]}
+								onChange={() => toggle(a.id)}
 							/>
 						))}
 					</VBox>
@@ -281,7 +288,7 @@ function Invites() {
 							if (!target) return null
 							return (
 								<Checkbox
-									key={a.actionId}
+									key={a.id}
 									variant="card"
 									leading={
 										<ProfilePicture
@@ -294,8 +301,8 @@ function Invites() {
 										name: target.name || target.idTag
 									})}
 									description={target.idTag}
-									checked={!!draft.invitesChecked[a.actionId]}
-									onChange={() => toggle(a.actionId)}
+									checked={!!draft.invitesChecked[a.id]}
+									onChange={() => toggle(a.id)}
 								/>
 							)
 						})}

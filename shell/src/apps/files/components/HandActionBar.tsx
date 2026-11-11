@@ -37,7 +37,6 @@ import {
 	audienceText,
 	confirmAudienceDialog,
 	findRoom,
-	leavesRoom,
 	reparentPatch,
 	widensAudience
 } from '../audience.js'
@@ -156,9 +155,7 @@ export function HandActionBar({
 	async function run(
 		applicable: (it: FileHandItem) => boolean,
 		fn: (it: FileHandItem) => Promise<void>,
-		success: (count: number) => string,
-		// Move/Restore cross rooms on the server, which gates other members' files to moderators
-		roomGate = false
+		success: (count: number) => string
 	): Promise<{ ok: number; failed: number }> {
 		const targets = items.filter(applicable)
 		if (targets.length === 0) return { ok: 0, failed: 0 }
@@ -209,32 +206,25 @@ export function HandActionBar({
 					: undefined
 			const failedItem = targets[results.findIndex((r) => r.status === 'rejected')]
 			let reason: string
-			if (
-				roomGate &&
-				err?.httpStatus === 403 &&
-				failedItem?.sourceContext === ctxIdTag &&
-				failedItem.sourceChannel &&
-				leavesRoom(failedItem.sourceChannel, targetChannel) &&
-				// Best-effort: the server sends a generic 403, but only a folder or someone
-				// else's file can trip the moderator gate
-				(failedItem.fileTp === 'FLDR' || failedItem.ownerIdTag !== auth?.idTag)
-			) {
+			if (err?.is('E-FILE-CROSSROOM') && failedItem?.sourceChannel) {
 				// Cross-room move gate: the subtree holds other members' files
 				reason = t("Only moderators can move other members' files out of ~{{room}}", {
 					room: parseChannel(failedItem.sourceChannel).name
 				})
-			} else if (err?.is('E-FILE-ACCESS_LEVEL_FORBIDDEN')) {
+			} else if (err?.is('E-FILE-CROSSROOM')) {
+				reason = t("Only moderators can move other members' files out of this room")
+			} else if (err?.is('E-FILE-ACCESSLEVEL')) {
 				reason = t('This access level is not allowed for this file type')
-			} else if (err?.is('E-FILE-SOURCE_FORBIDDEN')) {
+			} else if (err?.is('E-FILE-SOURCEFORBIDDEN')) {
 				reason = t("You don't have permission to share this file")
-			} else if (err?.is('E-FILE-SOURCE_NOT_FOUND')) {
+			} else if (err?.is('E-FILE-SOURCENOTFOUND')) {
 				reason = t('Source file no longer exists')
-			} else if (err?.is('E-FILE-SOURCE_UNREACHABLE')) {
+			} else if (err?.is('E-FILE-SOURCEUNREACHABLE')) {
 				reason = t('Source server is unreachable — please retry')
-			} else if (err?.is('E-FILE-ALREADY_PLACED')) {
+			} else if (err?.is('E-FILE-ALREADYPLACED')) {
 				const existingParentId =
 					typeof err.details === 'object' && err.details !== null
-						? (err.details as { existing_parent_id?: string }).existing_parent_id
+						? (err.details as { existingParentId?: string | null }).existingParentId
 						: undefined
 				reason = existingParentId
 					? t('Already placed in this context (in folder {{folder}})', {
@@ -299,7 +289,7 @@ export function HandActionBar({
 	const doPlace = async (level: AccessLevel) => {
 		if (!(await confirmAudience(applies.place, (place) => t('Place in {{place}}?', { place }))))
 			return { ok: 0, failed: 0 }
-		const perm: 'R' | 'C' | 'W' = level === 'read' ? 'R' : level === 'comment' ? 'C' : 'W'
+		const perm = level === 'read' ? 'read' : level === 'comment' ? 'comment' : 'write'
 		return run(
 			applies.place,
 			async (it) => {
@@ -316,7 +306,7 @@ export function HandActionBar({
 				await sourceApi.files.createShare(
 					it.sourceContext === auth.idTag ? it.id : it.fileId!,
 					{
-						subjectType: 'U',
+						subjectType: 'user',
 						subjectId: ctxIdTag,
 						permission: perm
 					}
@@ -346,8 +336,7 @@ export function HandActionBar({
 			async (it) => {
 				await api.files.update(it.id, reparentPatch(atRoot, currentFolderId, targetChannel))
 			},
-			success,
-			true
+			success
 		)
 	}
 

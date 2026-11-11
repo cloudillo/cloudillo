@@ -138,8 +138,8 @@ export function useAttachments(): UseAttachments {
 				if (aborts.current.get(key) === ac) {
 					patch(
 						key,
-						res?.fileId
-							? { fileId: res.fileId }
+						res?.contentId
+							? { fileId: res.contentId }
 							: { error: getUploadErrorMessage(t, undefined) }
 					)
 				}

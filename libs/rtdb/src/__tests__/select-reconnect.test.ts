@@ -19,7 +19,7 @@ class SubscribeSocket extends MockWebSocket {
 			this.receive({
 				id: msg.id,
 				type: 'subscribeResult',
-				subscriptionId: `srv-${String(msg.id)}`
+				data: { subscriptionId: `srv-${String(msg.id)}` }
 			})
 		}
 	}
@@ -45,9 +45,9 @@ function subscribeMessages(socket: MockWebSocket) {
 /** Push one server-side change onto a subscription, as the backend would. */
 function sendChange(socket: MockWebSocket, subscriptionId: string): void {
 	socket.simulateMessage({
+		id: 'rnd-change',
 		type: 'change',
-		subscriptionId,
-		event: { action: 'update', path: 'p/1', data: {} }
+		data: { subscriptionId, event: { action: 'update', path: 'p/1', data: {} } }
 	})
 }
 
@@ -81,7 +81,7 @@ describe('subscription field projection', () => {
 		)
 		await jest.advanceTimersByTimeAsync(0)
 
-		expect(subscribeMessages(socket)[0].select).toEqual(['ti', 'pp'])
+		expect(subscribeMessages(socket)[0].data.select).toEqual(['ti', 'pp'])
 	})
 
 	it('omits select when none was given', async () => {
@@ -95,7 +95,7 @@ describe('subscription field projection', () => {
 		)
 		await jest.advanceTimersByTimeAsync(0)
 
-		expect(subscribeMessages(socket)[0].select).toBeUndefined()
+		expect(subscribeMessages(socket)[0].data.select).toBeUndefined()
 	})
 
 	it('replays select when the subscription is re-established after a reconnect', async () => {
@@ -121,10 +121,10 @@ describe('subscription field projection', () => {
 
 		const replayed = subscribeMessages(second)
 		expect(replayed).toHaveLength(1)
-		expect(replayed[0].select).toEqual(['ti', 'pp'])
+		expect(replayed[0].data.select).toEqual(['ti', 'pp'])
 		// The filter has to survive alongside it, or the replay narrows to the
 		// right fields over the wrong rows.
-		expect(replayed[0].filter).toEqual({ equals: { pp: '__root__' } })
+		expect(replayed[0].data.filter).toEqual({ equals: { pp: '__root__' } })
 	})
 
 	it('sends scope on the subscribe message, and omits it when none was given', async () => {
@@ -147,10 +147,10 @@ describe('subscription field projection', () => {
 		)
 		await jest.advanceTimersByTimeAsync(0)
 
-		expect(subscribeMessages(socket)[0].scope).toBe('document')
+		expect(subscribeMessages(socket)[0].data.scope).toBe('document')
 		// An unchanged caller must produce a byte-identical frame, so an older
 		// server keeps reading it as the whole subtree.
-		expect(subscribeMessages(socket)[1].scope).toBeUndefined()
+		expect(subscribeMessages(socket)[1].data.scope).toBeUndefined()
 	})
 
 	it('replays scope when the subscription is re-established after a reconnect', async () => {
@@ -177,7 +177,7 @@ describe('subscription field projection', () => {
 
 		const replayed = subscribeMessages(second)
 		expect(replayed).toHaveLength(1)
-		expect(replayed[0].scope).toBe('document')
+		expect(replayed[0].data.scope).toBe('document')
 	})
 
 	it('unsubscribes the id the server assigned after a reconnect', async () => {
@@ -214,7 +214,7 @@ describe('subscription field projection', () => {
 
 		const cancels = second.sent.filter((m) => m.type === 'unsubscribe')
 		expect(cancels).toHaveLength(1)
-		expect(cancels[0].subscriptionId).toBe(secondId)
+		expect(cancels[0].data.subscriptionId).toBe(secondId)
 
 		// And the callback is off the live subscription, not off the dead one.
 		sendChange(second, secondId)
@@ -278,7 +278,7 @@ describe('subscription field projection', () => {
 		await jest.advanceTimersByTimeAsync(0)
 
 		const cancels = second.sent.filter((m) => m.type === 'unsubscribe')
-		expect(cancels.map((m) => m.subscriptionId)).toContain(secondId)
+		expect(cancels.map((m) => m.data.subscriptionId)).toContain(secondId)
 
 		sendChange(second, secondId)
 		expect(events).toHaveLength(0)

@@ -41,13 +41,14 @@ export class DocumentReference<T = unknown> {
 			path: normalizePath(this.path)
 		}
 
-		const response = await this.ws.send<{ data: unknown }>(message)
+		// `getResult.data` is the document itself, or null
+		const doc = await this.ws.send<unknown>(message)
 
-		if ((response as { data: unknown }).data === null) {
+		if (doc === null || doc === undefined) {
 			return new DocumentSnapshotImpl<T>(this.id, false)
 		}
 
-		return new DocumentSnapshotImpl<T>(this.id, true, (response as { data: unknown }).data as T)
+		return new DocumentSnapshotImpl<T>(this.id, true, doc as T)
 	}
 
 	async set(data: T): Promise<void> {

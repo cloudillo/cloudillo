@@ -16,8 +16,7 @@ export interface CachedRecordBase {
 // Result of a cached fetch — extends normal results with offline flag
 export interface CachedFetchResult<T> {
 	items: T[]
-	nextCursor: string | null
-	hasMore: boolean
+	next?: string
 	isOffline?: boolean
 }
 

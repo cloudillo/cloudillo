@@ -5,13 +5,13 @@
  * File ID Resolver Service
  *
  * Tracks pending temp file IDs (e.g., @123) from MediaPicker uploads and
- * resolves them to final IDs when FILE_ID_GENERATED WebSocket events arrive.
+ * resolves them to final IDs when fileIdGenerated WebSocket events arrive.
  *
  * Flow:
  * 1. MediaPicker uploads file, receives temp ID (e.g., @123)
  * 2. App stores temp ID in CRDT document
  * 3. Backend processes file, generates final ID (e.g., f1~abc123...)
- * 4. Backend broadcasts FILE_ID_GENERATED via WebSocket
+ * 4. Backend broadcasts fileIdGenerated via WebSocket
  * 5. This service forwards resolution to the app that requested it
  */
 
@@ -32,7 +32,7 @@ interface PendingTempId {
 // Map of tempId -> PendingTempId info
 const pendingTempIds = new Map<string, PendingTempId[]>()
 
-// Queue for FILE_ID_GENERATED messages that arrive before registration
+// Queue for fileIdGenerated messages that arrive before registration
 // This handles the race condition where the WebSocket message arrives before
 // the app has registered the temp ID
 interface EarlyResolution {
@@ -91,9 +91,9 @@ export function registerPendingTempId(tempId: string, appWindow: Window): void {
 }
 
 /**
- * Handle FILE_ID_GENERATED WebSocket event
+ * Handle fileIdGenerated WebSocket event
  *
- * Called by WsBus when a FILE_ID_GENERATED message is received.
+ * Called by WsBus when a fileIdGenerated message is received.
  * Forwards the resolution to all apps that are tracking this temp ID.
  *
  * @param tempId - The temporary file ID (e.g., @123)

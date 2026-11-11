@@ -33,7 +33,7 @@ export interface InboxRowProps {
 }
 
 // `14:02` today, `Mon` within the week, `21 Oct` (plus the year when not this year).
-function rowTime(ts: string | number, lang: string): string {
+function rowTime(ts: string, lang: string): string {
 	const sec = createdAtToSeconds(ts)
 	const d = new Date(sec * 1000)
 	const now = new Date()
@@ -81,7 +81,7 @@ function InboxRowComponent({ conversation: c, selected, requests }: InboxRowProp
 		)
 	} else if (m) {
 		const body =
-			m.status === 'D'
+			m.status === 'deleted'
 				? t('Message deleted')
 				: m.subType === 'IMG' ||
 						(!(typeof m.content === 'string' && m.content.trim()) &&
@@ -91,7 +91,7 @@ function InboxRowComponent({ conversation: c, selected, requests }: InboxRowProp
 						? m.content
 						: ''
 		const who =
-			m.status === 'D'
+			m.status === 'deleted'
 				? undefined
 				: m.issuer?.idTag === auth?.idTag
 					? t('You')

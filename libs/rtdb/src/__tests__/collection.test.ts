@@ -160,13 +160,10 @@ describe('CollectionReference', () => {
 
 	describe('get', () => {
 		it('should fetch all documents in collection', async () => {
-			mockWs.send.mockResolvedValue({
-				type: 'queryResult',
-				data: [
-					{ id: 'doc1', title: 'Post 1' },
-					{ id: 'doc2', title: 'Post 2' }
-				]
-			})
+			mockWs.send.mockResolvedValue([
+				{ id: 'doc1', title: 'Post 1' },
+				{ id: 'doc2', title: 'Post 2' }
+			])
 
 			const snapshot = await collRef.get()
 
@@ -175,10 +172,7 @@ describe('CollectionReference', () => {
 		})
 
 		it('should return empty snapshot for empty collection', async () => {
-			mockWs.send.mockResolvedValue({
-				type: 'queryResult',
-				data: []
-			})
+			mockWs.send.mockResolvedValue([])
 
 			const snapshot = await collRef.get()
 
@@ -218,10 +212,7 @@ describe('CollectionReference', () => {
 		it('should support nested collection paths', async () => {
 			const nestedCollRef = new CollectionReference(mockWs, 'posts/abc/comments')
 
-			mockWs.send.mockResolvedValue({
-				type: 'queryResult',
-				data: []
-			})
+			mockWs.send.mockResolvedValue([])
 
 			const snapshot = await nestedCollRef.get()
 

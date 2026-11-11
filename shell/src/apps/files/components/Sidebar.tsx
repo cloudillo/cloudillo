@@ -70,7 +70,7 @@ export const Sidebar = React.memo(function Sidebar({
 	// Starred folders across every room of the context (stars are per user); no `channel`
 	// in the query means all rooms
 	const [starred, setStarred] = React.useState<
-		{ entryId: string; fileName: string; channel?: string }[]
+		{ id: string; fileName: string; channel?: string }[]
 	>([])
 	React.useEffect(
 		function loadStarred() {
@@ -78,7 +78,7 @@ export const Sidebar = React.memo(function Sidebar({
 			let cancelled = false
 			;(async function () {
 				try {
-					const res = await api.files.list({ starred: true, fileTp: 'FLDR' })
+					const res = await api.files.list({ starred: true, type: 'FLDR' })
 					if (!cancelled) {
 						setStarred(res.sort((a, b) => a.fileName.localeCompare(b.fileName)))
 					}
@@ -108,12 +108,12 @@ export const Sidebar = React.memo(function Sidebar({
 			const href = tenant
 				? filesPath(ctxBase(tenant, auth?.idTag), {
 						...(folderRoom && { room: folderRoom }),
-						parentId: folder.entryId
+						parentId: folder.id
 					})
-				: filesPath(base, { room: folderRoom, parentId: folder.entryId })
+				: filesPath(base, { room: folderRoom, parentId: folder.id })
 			return [
 				{
-					entryId: folder.entryId,
+					id: folder.id,
 					label: folder.fileName,
 					hint,
 					href
@@ -124,7 +124,7 @@ export const Sidebar = React.memo(function Sidebar({
 
 	const browsing = viewMode === 'browse'
 	// A starred current folder owns the highlight, so its room item stays inactive
-	const starredActive = browsing && starredLinks.some((f) => f.entryId === currentFolderId)
+	const starredActive = browsing && starredLinks.some((f) => f.id === currentFolderId)
 
 	return (
 		<VBox gap={2} padding={2} className={className}>
@@ -140,7 +140,7 @@ export const Sidebar = React.memo(function Sidebar({
 					<Nav.Section label={t('Starred folders')}>
 						{starredLinks.map((link) => (
 							<Nav.Item
-								key={link.entryId}
+								key={link.id}
 								icon={<IcFolderStarred />}
 								label={link.label}
 								badge={
@@ -150,7 +150,7 @@ export const Sidebar = React.memo(function Sidebar({
 										</Text>
 									)
 								}
-								active={browsing && currentFolderId === link.entryId}
+								active={browsing && currentFolderId === link.id}
 								href={link.href}
 							/>
 						))}

@@ -3,10 +3,11 @@
 
 import type { AddressBookOutput, ContactListItem, ContactOutput } from '@cloudillo/core'
 
-export type AddressBookSelection = number | 'all'
+/** An address-book id, or 'all' */
+export type AddressBookSelection = string
 
 export interface SelectedContactRef {
-	abId: number
+	abId: string
 	uid: string
 }
 

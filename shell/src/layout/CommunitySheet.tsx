@@ -39,6 +39,7 @@ function WornHat({ onDone }: { onDone: () => void }) {
 					hat={{
 						idTag: hat.idTag,
 						name: hat.name ?? hat.idTag,
+						type: 'community',
 						profilePic: hat.profilePic
 					}}
 				/>

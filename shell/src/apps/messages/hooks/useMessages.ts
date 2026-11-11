@@ -6,7 +6,12 @@ import type { ActionView, NewAction } from '@cloudillo/types'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { createdAtToSeconds, nowSeconds, useReadMarker } from '../../../read-position.js'
+import {
+	createdAtToSeconds,
+	nowSeconds,
+	secondsToIso,
+	useReadMarker
+} from '../../../read-position.js'
 import { updateReactionCounts } from '../../feed/reactions.js'
 import { useWsBus } from '../../../ws-bus.js'
 import type {
@@ -103,23 +108,23 @@ export function markSent(
 	actionId: string
 ): ActionEvt[] | undefined {
 	return prev
-		?.filter((m) => !(m.actionId === actionId && m.tempId !== tempId))
-		.map((m) => (m.tempId === tempId ? { ...m, actionId, sendStatus: 'sent' } : m))
+		?.filter((m) => !(m.id === actionId && m.tempId !== tempId))
+		.map((m) => (m.tempId === tempId ? { ...m, id: actionId, sendStatus: 'sent' } : m))
 }
 
 // Only a still-unreconciled row: an echo that beat a client-side failure already sent it.
 export function markFailed(prev: ActionEvt[] | undefined, tempId: string): ActionEvt[] | undefined {
 	return prev?.map((m) =>
-		m.tempId === tempId && m.actionId === m.tempId ? { ...m, sendStatus: 'failed' } : m
+		m.tempId === tempId && m.id === m.tempId ? { ...m, sendStatus: 'failed' } : m
 	)
 }
 
 // `fresh` plus the unreconciled optimistic rows of `from` (sending/failed bubbles) it
 // lacks, so a window replace doesn't drop the only copy of a failed message.
 export function keepPending(fresh: ActionEvt[], from: ActionEvt[] | undefined): ActionEvt[] {
-	const ids = new Set(fresh.map((m) => m.actionId))
+	const ids = new Set(fresh.map((m) => m.id))
 	const pending = (from ?? []).filter(
-		(m) => m.tempId !== undefined && m.actionId === m.tempId && !ids.has(m.actionId)
+		(m) => m.tempId !== undefined && m.id === m.tempId && !ids.has(m.id)
 	)
 	return pending.length ? [...fresh, ...pending] : fresh
 }
@@ -156,7 +161,7 @@ function opAudience(conversation: Conversation, convId: string): string | undefi
 function convQuery(convId: string) {
 	return isGroupId(convId)
 		? { type: ['MSG', 'CONV', 'SUBS', 'INVT', 'PIN'], container: convId }
-		: { type: 'MSG', involved: convId }
+		: { type: 'MSG', involvedIdTag: convId }
 }
 
 // A list page's messages and group events. MSG:UPD / MSG:DEL rewrite their target in
@@ -168,10 +173,6 @@ export function splitPage(data: unknown): { msgs: ActionEvt[]; events: ActionVie
 		msgs: rows.filter((a) => a.type === 'MSG' && a.subType !== 'UPD' && a.subType !== 'DEL'),
 		events: rows.filter(isConvEvent)
 	}
-}
-
-function isoSec(sec: number): string {
-	return new Date(sec * 1000).toISOString()
 }
 
 // Newest incoming (non-own) message timestamp from an oldest→newest ordered list.
@@ -191,8 +192,8 @@ export function findNewestListTs(ordered: ActionEvt[]): number {
 // Join the two halves of a jump window (each oldest → newest). Their widened bounds
 // overlap on the target's second, so drop the repeated rows.
 export function mergeWindow(older: ActionEvt[], newer: ActionEvt[]): ActionEvt[] {
-	const have = new Set(older.map((m) => m.actionId))
-	return [...older, ...newer.filter((m) => !have.has(m.actionId))]
+	const have = new Set(older.map((m) => m.id))
+	return [...older, ...newer.filter((m) => !have.has(m.id))]
 }
 
 // The group header and member list from the CONV, its active SUBS and its INVTs.
@@ -216,7 +217,7 @@ export function buildGroupMeta(
 			profile: subs.issuer,
 			role: getActionRole(subs),
 			status: 'active' as MemberStatus,
-			actionId: subs.actionId,
+			actionId: subs.id,
 			joinedAt: String(subs.createdAt)
 		}))
 
@@ -233,14 +234,14 @@ export function buildGroupMeta(
 			profile: invt.audience!,
 			role: getActionRole(invt),
 			status: 'invited' as MemberStatus,
-			actionId: invt.actionId,
+			actionId: invt.id,
 			joinedAt: String(invt.createdAt)
 		}))
 
 	return {
 		members: [...activeMembers, ...invitedMembers],
 		conversation: {
-			id: convAction.actionId,
+			id: convAction.id,
 			type: 'group',
 			ownerTag: convAction.issuer.idTag,
 			communityTag:
@@ -252,8 +253,8 @@ export function buildGroupMeta(
 			joinMinRole: content?.joinMinRole,
 			profiles: activeMembers.map((m) => m.profile),
 			memberCount: activeMembers.length,
-			isOpen: convAction.flags?.includes('O') ?? false,
-			editedBy: (convAction.x as { editedBy?: string } | undefined)?.editedBy,
+			isOpen: convAction.flags?.open ?? false,
+			editedBy: (convAction.extra as { editedBy?: string } | undefined)?.editedBy,
 			stat: convAction.stat,
 			readerState: convAction.readerState
 		}
@@ -378,8 +379,8 @@ export function useMessages(convId: string | undefined): UseMessages {
 				lastChangeRef.current = 'init'
 				setMsg((prev) => (prev ? mergeWindow(ordered, prev) : ordered))
 				setEvents((prev) => mergeEvents(prev, page.events))
-				setOlderCursor(res.cursorPagination?.nextCursor ?? undefined)
-				setHasMore(res.cursorPagination?.hasMore ?? false)
+				setOlderCursor(res.meta.next)
+				setHasMore(!!res.meta.next)
 			}
 			;(async function () {
 				try {
@@ -391,7 +392,7 @@ export function useMessages(convId: string | undefined): UseMessages {
 							api.actions.list({
 								type: 'SUBS',
 								subject: convId,
-								status: 'A'
+								status: 'active'
 							}) as Promise<ActionView[]>,
 							(
 								api.actions.list({
@@ -466,7 +467,7 @@ export function useMessages(convId: string | undefined): UseMessages {
 					api.actions.list({
 						type: 'SUBS',
 						subject: convId,
-						status: 'A'
+						status: 'active'
 					}) as Promise<ActionView[]>,
 					(
 						api.actions.list({
@@ -516,12 +517,12 @@ export function useMessages(convId: string | undefined): UseMessages {
 					lastChangeRef.current = 'prepend'
 					setMsg((prev) => {
 						if (!prev) return older
-						const have = new Set(prev.map((m) => m.actionId))
-						return [...older.filter((m) => !have.has(m.actionId)), ...prev]
+						const have = new Set(prev.map((m) => m.id))
+						return [...older.filter((m) => !have.has(m.id)), ...prev]
 					})
 				}
-				setOlderCursor(res.cursorPagination?.nextCursor ?? undefined)
-				setHasMore(res.cursorPagination?.hasMore ?? false)
+				setOlderCursor(res.meta.next)
+				setHasMore(!!res.meta.next)
 			} catch (err) {
 				console.error('Failed to load older messages', err)
 			} finally {
@@ -553,8 +554,8 @@ export function useMessages(convId: string | undefined): UseMessages {
 					lastChangeRef.current = 'newer'
 					setMsg((prev) => {
 						if (!prev) return newer
-						const have = new Set(prev.map((m) => m.actionId))
-						return [...prev, ...newer.filter((m) => !have.has(m.actionId))]
+						const have = new Set(prev.map((m) => m.id))
+						return [...prev, ...newer.filter((m) => !have.has(m.id))]
 					})
 					const newest = findNewestListTs(newer)
 					const incoming = findNewestIncomingTs(newer, auth?.idTag)
@@ -563,8 +564,8 @@ export function useMessages(convId: string | undefined): UseMessages {
 				}
 				// a live message landing between this last page's query and
 				// atLive flipping true is neither listed nor appended; reopen shows it.
-				setNewerCursor(res.cursorPagination?.nextCursor ?? undefined)
-				setHasNewer(res.cursorPagination?.hasMore ?? false)
+				setNewerCursor(res.meta.next)
+				setHasNewer(!!res.meta.next)
 			} catch (err) {
 				console.error('Failed to load newer messages', err)
 			} finally {
@@ -587,7 +588,7 @@ export function useMessages(convId: string | undefined): UseMessages {
 	const jumpTo = React.useCallback(
 		async function jumpTo(actionId: string, createdAt?: number): Promise<void> {
 			if (!api || !convId) return
-			if (msgRef.current?.some((m) => m.actionId === actionId)) {
+			if (msgRef.current?.some((m) => m.id === actionId)) {
 				flashRef.current(actionId)
 				return
 			}
@@ -615,14 +616,14 @@ export function useMessages(convId: string | undefined): UseMessages {
 						...query,
 						sort: 'created',
 						sortDir: 'desc',
-						createdBefore: isoSec(ts + 1),
+						createdBefore: secondsToIso(ts + 1),
 						limit: PAGE_SIZE
 					}),
 					api.actions.listPaginated({
 						...query,
 						sort: 'created',
 						sortDir: 'asc',
-						createdAfter: isoSec(ts - 1),
+						createdAfter: secondsToIso(ts - 1),
 						limit: PAGE_SIZE
 					})
 				])
@@ -633,10 +634,10 @@ export function useMessages(convId: string | undefined): UseMessages {
 				pendingRef.current = keepPending(pendingRef.current, msgRef.current)
 				setMsg(mergeWindow(older.msgs.reverse(), newer.msgs))
 				setEvents((prev) => mergeEvents(prev, [...older.events, ...newer.events]))
-				setOlderCursor(olderRes.cursorPagination?.nextCursor ?? undefined)
-				setHasMore(olderRes.cursorPagination?.hasMore ?? false)
-				setNewerCursor(newerRes.cursorPagination?.nextCursor ?? undefined)
-				setHasNewer(newerRes.cursorPagination?.hasMore ?? false)
+				setOlderCursor(olderRes.meta.next)
+				setHasMore(!!olderRes.meta.next)
+				setNewerCursor(newerRes.meta.next)
+				setHasNewer(!!newerRes.meta.next)
 				flashRef.current(actionId)
 			} catch (err) {
 				console.error('Failed to jump to message', err)
@@ -673,8 +674,8 @@ export function useMessages(convId: string | undefined): UseMessages {
 				)
 				pendingRef.current = []
 				setEvents((prev) => mergeEvents(prev, page.events))
-				setOlderCursor(res.cursorPagination?.nextCursor ?? undefined)
-				setHasMore(res.cursorPagination?.hasMore ?? false)
+				setOlderCursor(res.meta.next)
+				setHasMore(!!res.meta.next)
 				setNewerCursor(undefined)
 				setHasNewer(false)
 				return true
@@ -689,7 +690,7 @@ export function useMessages(convId: string | undefined): UseMessages {
 	// Live actions from other clients (and our own server echo). Reconciliation
 	// of optimistic rows happens in `send`/`retry` on create-success — the server
 	// echo carries no client tempId, so it is deduped here by final actionId.
-	useWsBus({ cmds: ['ACTION'] }, function handleAction(m) {
+	useWsBus({ types: ['action'] }, function handleAction(m) {
 		const action = m.data as ActionEvt
 		if (!convId || !auth?.idTag) return
 		const subject = action.subject
@@ -697,13 +698,13 @@ export function useMessages(convId: string | undefined): UseMessages {
 		// REACT on a loaded message: refetch it for the authoritative counts and
 		// ownReaction (a changed reaction's previous type isn't on the wire).
 		if ((action.type as string) === 'REACT') {
-			if (!api || !subject || !msgRef.current?.some((x) => x.actionId === subject)) return
+			if (!api || !subject || !msgRef.current?.some((x) => x.id === subject)) return
 			api.actions
 				.get(subject)
 				.then((fresh) => {
 					if (!fresh) return
 					setMsg((prev) =>
-						prev?.map((x) => (x.actionId === subject ? { ...x, stat: fresh.stat } : x))
+						prev?.map((x) => (x.id === subject ? { ...x, stat: fresh.stat } : x))
 					)
 				})
 				.catch((err) => console.error('Failed to refresh reactions', err))
@@ -715,10 +716,10 @@ export function useMessages(convId: string | undefined): UseMessages {
 		if (isGroupId(convId) && isConvEvent(action)) {
 			const isMemberSubs = (id: string) =>
 				!!members?.some((m) => m.actionId === id) ||
-				!!events?.some((e) => e.actionId === id && (e.type as string) === 'SUBS')
+				!!events?.some((e) => e.id === id && (e.type as string) === 'SUBS')
 			const belongs =
 				action.parentId === convId ||
-				action.actionId === convId ||
+				action.id === convId ||
 				(!action.parentId && subject === convId) ||
 				((action.type as string) === 'SUBS' && !!subject && isMemberSubs(subject))
 			if (!belongs) return
@@ -735,18 +736,21 @@ export function useMessages(convId: string | undefined): UseMessages {
 			const del = action.subType === 'DEL'
 			setMsg((prev) =>
 				prev?.map((x) => {
-					if (x.actionId !== subject) return x
+					if (x.id !== subject) return x
 					return del
 						? {
 								...x,
 								content: null,
 								attachments: undefined,
-								x: { ...x.x, deletedBy: action.issuer.idTag }
+								extra: { ...x.extra, deletedBy: action.issuer.idTag }
 							}
 						: {
 								...x,
 								content: action.content,
-								x: { ...x.x, editedAt: createdAtToSeconds(action.createdAt) }
+								extra: {
+									...x.extra,
+									editedAt: createdAtToSeconds(action.createdAt)
+								}
 							}
 				})
 			)
@@ -769,7 +773,7 @@ export function useMessages(convId: string | undefined): UseMessages {
 		if (!own) setNewestListIncomingTs((p) => Math.max(p, ts))
 		setMsg((prev) => {
 			if (!prev) return [action]
-			if (prev.some((x) => x.actionId === action.actionId)) return prev
+			if (prev.some((x) => x.id === action.id)) return prev
 			// Our own message echoed back: reconcile the optimistic row rather than
 			// append. The echo carries no tempId, so match a still-unreconciled row
 			// (actionId === tempId, since reconciliation replaces actionId with the real
@@ -779,7 +783,7 @@ export function useMessages(convId: string | undefined): UseMessages {
 				const idx = prev.findIndex(
 					(x) =>
 						x.tempId !== undefined &&
-						x.actionId === x.tempId &&
+						x.id === x.tempId &&
 						(x.sendStatus === 'sending' || x.sendStatus === 'failed') &&
 						x.content === action.content
 				)
@@ -787,7 +791,7 @@ export function useMessages(convId: string | undefined): UseMessages {
 					const updated = [...prev]
 					updated[idx] = {
 						...updated[idx],
-						actionId: action.actionId,
+						id: action.id,
 						sendStatus: 'sent'
 					}
 					return updated
@@ -814,18 +818,18 @@ export function useMessages(convId: string | undefined): UseMessages {
 			if (!wasLive && !(await fetchLatest())) return false
 			const tempId = genTempId()
 			const optimistic = {
-				actionId: tempId,
+				id: tempId,
 				tempId,
 				sendStatus: 'sending',
 				type: 'MSG',
 				subType: defaultSubType(subType, attachmentIds),
 				content,
 				attachments: attachmentIds.length
-					? attachmentIds.map((id) => ({ fileId: id }))
+					? attachmentIds.map((id) => ({ contentId: id }))
 					: undefined,
 				issuer: { name: auth.name ?? '', idTag: auth.idTag, profilePic: auth.profilePic },
 				audience: undefined,
-				createdAt: nowSeconds(),
+				createdAt: new Date().toISOString(),
 				parentId: conv.type === 'group' ? convId : undefined,
 				subject: replyTo
 			} as ActionEvt
@@ -839,8 +843,8 @@ export function useMessages(convId: string | undefined): UseMessages {
 				const res = await api.actions.create(
 					buildNewAction(conv, convId, content, attachmentIds, replyTo, subType)
 				)
-				setMsg((prev) => markSent(prev, tempId, res.actionId))
-				pendingRef.current = markSent(pendingRef.current, tempId, res.actionId) ?? []
+				setMsg((prev) => markSent(prev, tempId, res.id))
+				pendingRef.current = markSent(pendingRef.current, tempId, res.id) ?? []
 				return true
 			} catch (err) {
 				console.error('Failed to send message', err)
@@ -860,15 +864,14 @@ export function useMessages(convId: string | undefined): UseMessages {
 
 	// Optimistically patch one loaded message; returns the row as it was, for revert.
 	function patchMsg(actionId: string, patch: (m: ActionEvt) => ActionEvt): ActionEvt | undefined {
-		const before = msgRef.current?.find((m) => m.actionId === actionId)
-		setMsg((prev) => prev?.map((m) => (m.actionId === actionId ? patch(m) : m)))
+		const before = msgRef.current?.find((m) => m.id === actionId)
+		setMsg((prev) => prev?.map((m) => (m.id === actionId ? patch(m) : m)))
 		return before
 	}
 	const patchMsgRef = React.useRef(patchMsg)
 	patchMsgRef.current = patchMsg
 	function restore(before: ActionEvt | undefined) {
-		if (before)
-			setMsg((prev) => prev?.map((m) => (m.actionId === before.actionId ? before : m)))
+		if (before) setMsg((prev) => prev?.map((m) => (m.id === before.id ? before : m)))
 	}
 
 	const edit = React.useCallback(
@@ -878,7 +881,7 @@ export function useMessages(convId: string | undefined): UseMessages {
 			const before = patchMsgRef.current(actionId, (m) => ({
 				...m,
 				content,
-				x: { ...m.x, editedAt: nowSeconds() }
+				extra: { ...m.extra, editedAt: nowSeconds() }
 			}))
 			try {
 				await api.actions.create({
@@ -907,7 +910,7 @@ export function useMessages(convId: string | undefined): UseMessages {
 				...m,
 				content: null,
 				attachments: undefined,
-				x: { ...m.x, deletedBy }
+				extra: { ...m.extra, deletedBy }
 			}))
 			try {
 				await api.actions.create({
@@ -930,7 +933,7 @@ export function useMessages(convId: string | undefined): UseMessages {
 		async function react(actionId: string, reaction: string): Promise<void> {
 			const conv = conversationRef.current
 			if (!api || !convId || !conv) return
-			const target = msgRef.current?.find((m) => m.actionId === actionId)
+			const target = msgRef.current?.find((m) => m.id === actionId)
 			const prevOwn = target?.stat?.ownReaction
 			const isRemove = reaction === prevOwn
 			const before = patchMsgRef.current(actionId, (m) => {
@@ -976,7 +979,7 @@ export function useMessages(convId: string | undefined): UseMessages {
 				prev?.map((m) => (m.tempId === tempId ? { ...m, sendStatus: 'sending' } : m))
 			)
 			const attachmentIds = (target.attachments || []).map((a) =>
-				typeof a === 'string' ? a : a.fileId
+				typeof a === 'string' ? a : a.contentId
 			)
 			try {
 				const res = await api.actions.create(
@@ -989,8 +992,8 @@ export function useMessages(convId: string | undefined): UseMessages {
 						target.subType
 					)
 				)
-				setMsg((prev) => markSent(prev, tempId, res.actionId))
-				pendingRef.current = markSent(pendingRef.current, tempId, res.actionId) ?? []
+				setMsg((prev) => markSent(prev, tempId, res.id))
+				pendingRef.current = markSent(pendingRef.current, tempId, res.id) ?? []
 			} catch (err) {
 				console.error('Failed to retry message', err)
 				setMsg((prev) => markFailed(prev, tempId))

@@ -13,7 +13,7 @@ import { type FileOwnerScopeOverride, useFileOwnerScope } from './useFileOwnerSc
 const accessVersionAtom = atom(0)
 
 /** Stands in at the room root, which has no entry: an empty id makes no call. */
-const NO_FILE: Pick<File, 'entryId' | 'fileId'> = { entryId: '', fileId: null }
+const NO_FILE: Pick<File, 'id' | 'contentId'> = { id: '', contentId: null }
 
 export interface FileAccessState {
 	/** `undefined` at the room root, while loading, or after an error */

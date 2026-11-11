@@ -28,12 +28,14 @@ function conv(rs: Partial<ReaderState>): Conversation {
 
 describe('readerStateFields', () => {
 	it('maps notify to a mute level, ignoring an expired notifyUntil', () => {
-		expect(readerStateFields(conv({ notify: 'T' }).readerState).muteLevel).toBe('mentions')
+		expect(readerStateFields(conv({ notify: 'mentions' }).readerState).muteLevel).toBe(
+			'mentions'
+		)
 		expect(
-			readerStateFields(conv({ notify: 'M', notifyUntil: FUTURE }).readerState)
+			readerStateFields(conv({ notify: 'none', notifyUntil: FUTURE }).readerState)
 		).toMatchObject({ muteLevel: 'none' })
 		expect(
-			readerStateFields(conv({ notify: 'M', notifyUntil: T0 }).readerState).muteLevel
+			readerStateFields(conv({ notify: 'none', notifyUntil: T0 }).readerState).muteLevel
 		).toBeUndefined()
 	})
 
@@ -48,7 +50,7 @@ describe('readerStateFields', () => {
 
 describe('applyConvPatch', () => {
 	it('mutes and unmutes', () => {
-		const muted = applyConvPatch(conv({}), { notify: 'M', notifyUntil: FUTURE })
+		const muted = applyConvPatch(conv({}), { notify: 'none', notifyUntil: FUTURE })
 		expect(muted.muteLevel).toBe('none')
 		const unmuted = applyConvPatch(muted, { notify: null, notifyUntil: null })
 		expect(unmuted.muteLevel).toBeUndefined()

@@ -10,30 +10,14 @@ import { getApiUrl } from './urls.js'
 // ============================================================================
 
 /**
- * Cursor-based pagination info from API response
- */
-export interface CursorPaginationMeta {
-	nextCursor: string | null
-	hasMore: boolean
-	count?: number // present only on count=true responses (pre-visibility aggregate)
-}
-
-/**
- * Response metadata from API envelope
+ * Envelope metadata: every `/api/**` JSON success response is `{data, next?, total?}`.
+ * `next` is the opaque cursor of the next page (absent on the last page); `total` comes
+ * only with search's first page and `count=true`. The request id is the `X-Request-ID`
+ * response header, not part of the body.
  */
 export interface ApiResponseMeta {
-	/** Unix timestamp of response */
-	time?: number
-	/** Request ID for tracing */
-	reqId?: string
-	/** Pagination info (list endpoints only) - deprecated offset-based */
-	pagination?: {
-		offset: number
-		limit: number
-		total: number
-	}
-	/** Cursor-based pagination info (list endpoints) */
-	cursorPagination?: CursorPaginationMeta
+	next?: string
+	total?: number
 }
 
 /**
@@ -82,7 +66,7 @@ export class FetchError extends Error {
 	code: string
 	descr: string
 	httpStatus: number
-	/** Structured error code from API (e.g., "E-AUTH-UNAUTH") */
+	/** Structured error code from API (e.g., "E-AUTH-UNAUTHENTICATED") */
 	apiErrorCode?: string
 	/** Optional structured payload from `ErrorResponse.error.details` (camelCase, untyped). */
 	details?: unknown
@@ -117,11 +101,13 @@ export function isSessionExpiredError(err: unknown): boolean {
 	return err instanceof FetchError && err.sessionExpired
 }
 
-/** Shape of `FetchError.details` for rate-limit errors (E-RATE-BANNED).
- *  Mirrors the camelCase payload emitted by the cloudillo-rs backend; keep in
- *  sync with that repo's rate-limit error response. */
+/** Shape of `FetchError.details` for rate-limit errors: E-RATE-BANNED carries
+ *  `remainingSecs` (null = permanent), E-RATE-LIMITED carries `level` and
+ *  `retryAfter` (seconds). Mirrors the cloudillo-rs error registry. */
 export interface RateLimitErrorDetails {
-	remainingSecs?: number
+	remainingSecs?: number | null
+	level?: string
+	retryAfter?: number
 }
 
 export interface ApiFetchOpts<R, D> {
@@ -141,25 +127,14 @@ export interface ApiFetchOpts<R, D> {
 	/** Abort the request when this signal fires (superseded search queries, unmount). */
 	signal?: AbortSignal
 }
-/**
- * Helper function to unwrap API response envelope
- * Handles both old format (direct data) and new format ({ data, time, reqId, pagination, cursorPagination })
- */
+/** Splits the `{data, next?, total?}` envelope into data and meta. */
 function unwrapResponseEnvelope(response: unknown): { data: unknown; meta: ApiResponseMeta } {
 	const res = response as Record<string, unknown>
-	// Extract metadata from envelope
 	const meta: ApiResponseMeta = {
-		time: res.time as number | undefined,
-		reqId: res.reqId as string | undefined,
-		pagination: res.pagination as ApiResponseMeta['pagination'],
-		cursorPagination: res.cursorPagination as ApiResponseMeta['cursorPagination']
+		next: typeof res.next === 'string' ? res.next : undefined,
+		total: typeof res.total === 'number' ? res.total : undefined
 	}
-
-	// Check for new envelope format - if 'data' field exists, use it
-	// Otherwise, the entire response is the data (old format)
-	const data = res.data !== undefined ? res.data : response
-
-	return { data, meta }
+	return { data: res.data, meta }
 }
 
 /**
@@ -228,11 +203,7 @@ export async function apiFetchHelper<R, D = unknown>(
 	if (res.ok) {
 		// Handle empty responses (e.g., 204 No Content)
 		if (!textRes || textRes.trim() === '') {
-			const emptyMeta: ApiResponseMeta = {
-				time: undefined,
-				reqId: undefined,
-				pagination: undefined
-			}
+			const emptyMeta: ApiResponseMeta = {}
 			return (opts.returnMeta ? { data: undefined, meta: emptyMeta } : undefined) as
 				| R
 				| ApiFetchResult<R>
@@ -250,7 +221,12 @@ export async function apiFetchHelper<R, D = unknown>(
 			throw new FetchError(`API-PARSE-JSON`, textRes, res.status)
 		}
 
-		// Unwrap envelope (handles both old and new format)
+		// The backend always wraps responses; anything else is a proxy or error page.
+		if (typeof j !== 'object' || j === null || Array.isArray(j) || !Object.hasOwn(j, 'data')) {
+			throw new FetchError('API-PARSE-JSON', textRes, res.status)
+		}
+
+		// Unwrap the {data, next?, total?} envelope
 		const { data, meta } = unwrapResponseEnvelope(j)
 
 		// If no type specified, return data as-is
@@ -259,9 +235,17 @@ export async function apiFetchHelper<R, D = unknown>(
 		}
 
 		// Validate with runtype
-		const d = T.decode(opts.type, data, { coerceDate: true, unknownFields: 'drop' })
+		const d = T.decode(opts.type, data, {
+			coerceDate: true,
+			unknownFields: 'drop',
+			onSkip: (e) =>
+				console.warn(
+					'API-SKIP-ITEM',
+					path.split('?')[0],
+					e.map((x) => `${x.path.join('.')}: ${x.error}`)
+				)
+		})
 		if (T.isErr(d)) {
-			console.log('RES:', j)
 			throw new FetchError(
 				'API-PARSE-TYPE',
 				d.err.map((err) => `${err.path.join('.')}: ${err.error}`).join(', ')

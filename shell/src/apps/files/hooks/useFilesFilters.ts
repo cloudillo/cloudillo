@@ -5,6 +5,7 @@ import type * as Types from '@cloudillo/core'
 import * as React from 'react'
 import { useSearchParams } from 'react-router-dom'
 
+import { secondsToIso } from '../../../read-position.js'
 import type { ViewMode } from '../types.js'
 import { MANAGED_FOLDER_ID, TRASH_FOLDER_ID } from '../types.js'
 
@@ -166,8 +167,8 @@ export function buildFileFilterParams(
 	if (ctx.viewMode !== 'browse') {
 		return {
 			parentId: ctx.viewMode === 'trash' ? TRASH_FOLDER_ID : MANAGED_FOLDER_ID,
-			withParent: true,
-			...(q && { fileName: q })
+			include: ['parent'],
+			...(q && { q })
 		}
 	}
 
@@ -181,7 +182,7 @@ export function buildFileFilterParams(
 		if (ctx.parentId === null && ctx.channel !== undefined) params.channel = ctx.channel
 	} else {
 		params.recursive = true
-		params.withParent = true
+		params.include = ['parent']
 		if (scope === 'room') {
 			if (ctx.shareRoot) {
 				params.parentId = ctx.shareRoot
@@ -192,10 +193,10 @@ export function buildFileFilterParams(
 		}
 	}
 
-	if (q) params.fileName = q
+	if (q) params.q = q
 	if (f.starred) params.starred = true
 	if (f.recent) {
-		params.openedSince = now - RECENT_DAYS * DAY
+		params.openedAfter = secondsToIso(now - RECENT_DAYS * DAY)
 		params.sort = 'recent'
 		params.sortDir = 'desc'
 	}
@@ -203,14 +204,14 @@ export function buildFileFilterParams(
 	if (f.access.length > 0) params.access = f.access
 	if (f.owner === 'me' && ctx.ownerIdTag) params.ownerIdTag = ctx.ownerIdTag
 	else if (f.owner === 'others' && ctx.ownerIdTag) params.notOwnerIdTag = ctx.ownerIdTag
-	if (f.modified) params.modifiedAfter = now - MODIFIED_DAYS[f.modified] * DAY
+	if (f.modified) params.modifiedAfter = secondsToIso(now - MODIFIED_DAYS[f.modified] * DAY)
 
 	if (f.type === 'image') {
 		// Drops folders too; FilterBar shows a hint
 		params.contentType = 'image/*'
 	} else if (f.type) {
 		// Folder scope keeps subfolders navigable under a type narrower
-		params.fileTp =
+		params.type =
 			scope === 'folder' && f.type !== 'folder'
 				? `${TYPE_FILE_TP[f.type]},FLDR`
 				: TYPE_FILE_TP[f.type]

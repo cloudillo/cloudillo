@@ -15,7 +15,7 @@
  * cannot compute — a file's visibility — is injected.
  */
 
-import type { ActionVisibility, ReservedReason } from '@cloudillo/core'
+import type { FileVisibility, ReservedReason } from '@cloudillo/core'
 import { parseSiteFileRef, reservedSlugReason } from '@cloudillo/core'
 import type { RtdbClient } from '@cloudillo/rtdb'
 import * as T from '@symbion/runtype'
@@ -59,7 +59,7 @@ export interface PublishRef {
 	 * are treated as not public: a reference the publisher cannot vouch for is
 	 * exactly the reference a reader will find broken.
 	 */
-	visibility?: ActionVisibility
+	visibility?: FileVisibility
 	fileName?: string
 	sites: PublishRefSite[]
 }
@@ -167,13 +167,13 @@ export interface PublishReport {
 
 export interface PublishFileInfo {
 	/**
-	 * `ActionVisibility`, not `string`. This is the blocking half of the gate — a
+	 * `FileVisibility`, not `string`. This is the blocking half of the gate — a
 	 * reference that is not `'P'` refuses the publish — and `api.files.getMetadata`
-	 * already returns the field decoded against `tActionVisibility`. Typing it
+	 * already returns the field decoded against `tFileVisibility`. Typing it
 	 * `string` here widened an already-checked value back out again, so a typo in
 	 * the comparison would have compiled and quietly published private media.
 	 */
-	visibility?: ActionVisibility
+	visibility?: FileVisibility
 	fileName?: string
 	entryId?: string
 }
@@ -500,10 +500,10 @@ export async function buildPublishReport(opts: PublishGateOptions): Promise<Publ
 
 	// With no reader injected nothing can be judged, so nothing is blocked: the
 	// gate degrades to a listing rather than refusing every publish.
-	// `'P'` is `tActionVisibility`'s Public, the one visibility a published page's
+	// `'public'` is the one visibility a published page's
 	// anonymous reader can fetch. Compared against the typed value the API already
-	// hands back rather than a local copy of the letter.
-	const blocked = opts.fetchFileInfo ? refs.filter((ref) => ref.visibility !== 'P') : []
+	// hands back rather than a local copy of the word.
+	const blocked = opts.fetchFileInfo ? refs.filter((ref) => ref.visibility !== 'public') : []
 	// A *mount path* (`/`, `/blog`), never a container entry path: `SITE_ROOT_PATH` is
 	// the container's own spelling of its root (`index`), which no mount path can equal.
 	// `DEFAULT_MOUNT_PATH` is the same `/` the publisher defaults to, so an omitted

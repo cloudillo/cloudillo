@@ -168,7 +168,7 @@ export function getCrdtUrl(idTag: string): string {
  * Callers hold a `wss://cl-o.<idTag>` base already (the RTDB client is
  * configured with one), so this is the single place the query-string encoding
  * lives. Omit `token` for an unauthenticated read — the URL then carries
- * `access=read` instead.
+ * `mode=read` (plus legacy `access=read`) instead.
  *
  * `presence` opts the socket into the presence channel. It is a connection-level
  * flag rather than a command precisely so a reconnect re-enables it for free:
@@ -181,8 +181,9 @@ export function buildRtdbUrl(
 	token?: string,
 	options?: { presence?: boolean }
 ): string {
-	const query = [token ? `token=${encodeURIComponent(token)}` : 'access=read']
-	if (options?.presence) query.push('presence=1')
+	// access= kept for pre-rename servers; drop once all nodes run the new backend
+	const query = [token ? `token=${encodeURIComponent(token)}` : 'mode=read&access=read']
+	if (options?.presence) query.push('presence=true')
 	return `${serverUrl}/ws/rtdb/${dbId}?${query.join('&')}`
 }
 
@@ -228,7 +229,7 @@ export interface FileVariant {
  *     d2,R=<rootId>;vis.sd:<variantId>:f=webp:s=12345:r=640x360;vis.md:…
  *
  * built by `descriptor::get_file_descriptor` in the backend's `cloudillo-file`
- * crate, and also sent as the `X-Cloudillo-Variants` header on a file response.
+ * crate, and also sent as the `Cloudillo-Descriptor` header on a file response.
  * `R=` is the root-file marker, not a variant; `dur=`, `br=` and `pg=` may follow
  * `r=` and are ignored here.
  *

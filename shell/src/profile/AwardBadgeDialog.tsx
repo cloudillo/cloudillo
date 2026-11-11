@@ -27,6 +27,7 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { useApiContext } from '../context/index.js'
+import { secondsToIso } from '../read-position.js'
 import type { ReceivedBadge } from './badges.js'
 
 // One minute of slack for a client clock running ahead of the server's.
@@ -109,7 +110,7 @@ export function AwardBadgeDialog({
 					subType: s,
 					audienceTag: member.idTag,
 					content: { b: levels[s] },
-					expiresAt: exp
+					expiresAt: secondsToIso(exp)
 				})
 				issued++
 				setIssuedSlots((prev) => [...prev, s])

@@ -24,21 +24,21 @@ const OTHER = 'other.test'
 
 function rcpt(over: Partial<ActionView>): ActionView {
 	return {
-		actionId: 'r1',
+		id: 'r1',
 		type: 'RCPT',
 		issuer: { idTag: PEER },
 		content: '100',
-		createdAt: 100,
+		createdAt: '1970-01-01T00:01:40Z',
 		...over
 	} as ActionView
 }
 
 function msg(actionId: string, issuer: string, createdAt: number, tempId?: string): ActionEvt {
 	return {
-		actionId,
+		id: actionId,
 		type: 'MSG',
 		issuer: { idTag: issuer },
-		createdAt,
+		createdAt: new Date(createdAt * 1000).toISOString(),
 		content: 'x',
 		tempId
 	} as unknown as ActionEvt

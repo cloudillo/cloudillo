@@ -145,14 +145,14 @@ function onFetch(evt: FetchEvent) {
 
 				// Endpoints that authenticate with their own credentials (API-key exchange,
 				// QR-login secret) and must NOT trigger the Bearer-token handshake.
-				// login-init is the shell's own "am I logged in?" probe: injecting the SW's
-				// token would answer `authenticated` for a page holding no credential of
-				// its own, rendering a logged-in shell whose file opens all fail.
+				// login/init is the shell's unauthenticated login bootstrap: injecting the
+				// SW's token would make the server refuse it (400 with a session). The QR
+				// status poll is exactly `/api/auth/login/qr/{sessionId}` — details and
+				// respond are the approving device's authenticated calls.
 				const isPreAuthPath =
 					reqUrl.pathname === '/api/auth/access-token' ||
-					reqUrl.pathname === '/api/auth/login-init' ||
-					(reqUrl.pathname.startsWith('/api/auth/qr-login/') &&
-						reqUrl.pathname.endsWith('/status'))
+					reqUrl.pathname === '/api/auth/login/init' ||
+					/^\/api\/auth\/login\/qr\/[^/]+$/.test(reqUrl.pathname)
 
 				// No token (SW restart, or the page hasn't pushed one yet): ask the page
 				// for it. Bounded wait, so a genuinely unauthenticated page doesn't hang

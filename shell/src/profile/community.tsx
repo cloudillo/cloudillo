@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 import type * as Types from '@cloudillo/core'
+import { FetchError } from '@cloudillo/core'
 import {
 	ActionBar,
 	Alert,
@@ -406,7 +407,10 @@ export function usePrinvtInvites(): { invites: ActionView[] | undefined; loading
 			if (!api) return
 			;(async function () {
 				try {
-					const actions = await api.actions.list({ type: 'PRINVT', status: ['C', 'A'] })
+					const actions = await api.actions.list({
+						type: 'PRINVT',
+						status: ['confirmation', 'active']
+					})
 					// The PRINVT action shares its ref's expiry; used refs still slip through
 					// (use_ref doesn't update the action) and are caught in onSubmit.
 					const now = Date.now()
@@ -456,7 +460,7 @@ function InviteChooserStep({ onSelectInvite }: InviteChooserStepProps) {
 						const content = invite.content as { message?: string } | undefined
 						const refId = prinvtRefId(invite)
 						return (
-							<Card key={invite.actionId}>
+							<Card key={invite.id}>
 								<HBox gap={2} align="center">
 									<ProfileCard className="flex-fill" profile={invite.issuer} />
 									<TimeFormat time={invite.createdAt} />
@@ -735,9 +739,10 @@ export function CreateCommunity() {
 			console.log('ERROR creating community:', err)
 			setProgress('error')
 			setError(err instanceof Error ? err.message : 'Community creation failed')
-			// Invite rejected ("Ref has expired" / "Ref has already been used"): drop it so
-			// Retry returns to the chooser instead of resubmitting the dead ref.
-			if (err instanceof Error && /^Ref has /.test(err.message)) setInviteRef(undefined)
+			// Invite rejected (expired or used up): drop it so Retry returns to the chooser
+			// instead of resubmitting the dead ref.
+			if (err instanceof FetchError && (err.is('E-REF-EXPIRED') || err.is('E-REF-USED')))
+				setInviteRef(undefined)
 		}
 	}
 

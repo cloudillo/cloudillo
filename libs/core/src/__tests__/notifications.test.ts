@@ -4,10 +4,10 @@
 import { ApiClient } from '../api-client'
 
 // Unchecking the push toggle only called PushSubscription.unsubscribe(), so the server kept the
-// row and kept pushing to a dead endpoint. The DELETE keys on the numeric id the POST returned -
+// row and kept pushing to a dead endpoint. The DELETE keys on the string id the POST returned -
 // there is no GET counterpart - so the path has to interpolate exactly that id.
 describe('notifications.unsubscribe', () => {
-	it('DELETEs the subscription by its numeric id', async () => {
+	it('DELETEs the subscription by its id', async () => {
 		const client = new ApiClient({ idTag: 'alice.example' })
 		// A plain assignment rather than jest.spyOn: the `jest` global is not injected under ESM
 		// and @jest/globals is not a dependency of this package. `request` is a public method and
@@ -18,9 +18,9 @@ describe('notifications.unsubscribe', () => {
 			return null
 		}) as typeof client.request
 
-		await client.notifications.unsubscribe(42)
+		await client.notifications.unsubscribe('42')
 
 		// No '/api' prefix: getApiUrl() adds it
-		expect(calls).toEqual([['DELETE', '/notifications/subscription/42']])
+		expect(calls).toEqual([['DELETE', '/notifications/subscriptions/42']])
 	})
 })

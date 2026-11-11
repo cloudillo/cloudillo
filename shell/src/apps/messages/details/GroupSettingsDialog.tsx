@@ -155,7 +155,7 @@ export function GroupSettingsDialog({
 			const res = await api.files.uploadBlob('image', file.name, file, file.type, {
 				as: 'managed'
 			})
-			if (res?.fileId) setPicture(res.fileId)
+			if (res?.contentId) setPicture(res.contentId)
 		} catch (err) {
 			console.error('Failed to upload group picture', err)
 			toast.error(t('Could not upload the picture'))
@@ -174,8 +174,8 @@ export function GroupSettingsDialog({
 				subType: 'UPD',
 				subject: conversation.id,
 				...(host && host !== auth?.idTag ? { audienceTag: host } : {}),
-				// Explicit 'o' (not ''): the host only touches the open letter when one is sent.
-				...(community ? {} : { flags: isOpen ? 'O' : 'o' }),
+				// CONV:UPD applies only `open` from the flags object; reactions/comments are kept by the host.
+				...(community ? {} : { flags: { reactions: true, comments: true, open: isOpen } }),
 				content: {
 					name: name.trim(),
 					description: description.trim() || undefined,

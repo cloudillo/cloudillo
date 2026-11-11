@@ -18,8 +18,8 @@ import type { File } from '../apps/files/types.js'
 
 function file(fileId: string): File {
 	return {
-		entryId: fileId,
-		fileId,
+		id: fileId,
+		contentId: fileId,
 		fileName: `${fileId}.txt`,
 		contentType: 'text/plain',
 		createdAt: '2026-01-01T00:00:00Z',
@@ -36,11 +36,11 @@ test('selection survives the empty tick of a refresh()', () => {
 	})
 
 	act(() => result.current.handleClick(files[1], click))
-	expect(result.current.getFirstSelected()?.fileId).toBe('f2')
+	expect(result.current.getFirstSelected()?.contentId).toBe('f2')
 
 	rerender({ files: [] })
 	rerender({ files })
-	expect(result.current.getFirstSelected()?.fileId).toBe('f2')
+	expect(result.current.getFirstSelected()?.contentId).toBe('f2')
 })
 
 test('navigating to another folder leaves nothing selected', () => {

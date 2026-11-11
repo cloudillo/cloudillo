@@ -114,8 +114,8 @@ export function usePickerBrowse({
 		let cancelled = false
 		;(async function () {
 			try {
-				const res = await api.tags.list({ withCounts: true, limit: 20 })
-				if (!cancelled) setTags(res.tags)
+				const res = await api.tags.list({ include: ['counts'], limit: 20 })
+				if (!cancelled) setTags(res)
 			} catch {
 				// Tags are optional — silent failure is acceptable
 			}
@@ -133,7 +133,7 @@ export function usePickerBrowse({
 		let cancelled = false
 		;(async function () {
 			try {
-				const entries = await api.shares.listBySubject(contextFileId, 'F')
+				const entries = await api.shares.listBySubject(contextFileId, 'file')
 				if (!cancelled && entries?.length) {
 					setConnectedFileIds(new Set(entries.map((e) => e.resourceId)))
 				}
@@ -165,7 +165,7 @@ export function usePickerBrowse({
 					const fileIdList = [...connectedFileIds]
 						.slice(0, MAX_CONNECTED_FILE_BATCH)
 						.join(',')
-					tasks.push(client.files.list({ fileId: fileIdList }))
+					tasks.push(client.files.list({ contentId: fileIdList }))
 				}
 
 				// (b) Files in this document's own tree (root_id = contextFileId)
@@ -175,7 +175,7 @@ export function usePickerBrowse({
 						limit: CONNECTED_TREE_LIMIT
 					}
 					if (contentType) treeQuery.contentType = contentType
-					if (fileTp) treeQuery.fileTp = fileTp
+					if (fileTp) treeQuery.type = fileTp
 					const treeFiles = await client.files.list(treeQuery)
 					if (treeFiles.length >= CONNECTED_TREE_LIMIT) {
 						console.warn(
@@ -192,8 +192,8 @@ export function usePickerBrowse({
 				const seen = new Set<string>()
 				const merged: FileView[] = []
 				for (const f of results.flat()) {
-					if (!seen.has(f.entryId)) {
-						seen.add(f.entryId)
+					if (!seen.has(f.id)) {
+						seen.add(f.id)
 						merged.push(f)
 					}
 				}
@@ -218,12 +218,12 @@ export function usePickerBrowse({
 	// Paginated fetch for browse/recent/starred views
 	const fetchPage = useCallback(
 		async (cursor: string | null, limit: number) => {
-			if (!api) return { items: [] as FileView[], nextCursor: null, hasMore: false }
+			if (!api) return { items: [] as FileView[] }
 
 			const query: ListFilesQuery = { cursor: cursor ?? undefined, limit }
 			if (viewMode === 'browse') {
 				query.parentId = currentFolderId || undefined
-				query.includeFolders = true // keep folder drill-down despite type filters
+				query.include = ['folders'] // keep folder drill-down despite type filters
 			} else if (viewMode === 'recent') {
 				query.sort = 'recent'
 				query.sortDir = 'desc'
@@ -232,17 +232,16 @@ export function usePickerBrowse({
 			} else if (viewMode === 'managed') {
 				query.parentId = MANAGED_FOLDER_ID
 			}
-			if (debouncedSearch) query.fileName = debouncedSearch
-			if (selectedTags.length > 0) query.tag = selectedTagsKey
+			if (debouncedSearch) query.q = debouncedSearch
+			if (selectedTags.length > 0) query.tags = selectedTags
 			if (contentType) query.contentType = contentType
-			if (fileTp) query.fileTp = fileTp
+			if (fileTp) query.type = fileTp
 			if (localOnly) query.localOnly = true
 
 			const result = await api.files.listPaginated(query)
 			return {
 				items: result.data,
-				nextCursor: result.cursorPagination?.nextCursor ?? null,
-				hasMore: result.cursorPagination?.hasMore ?? false
+				next: result.meta.next
 			}
 		},
 		[

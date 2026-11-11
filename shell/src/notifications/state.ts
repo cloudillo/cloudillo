@@ -12,7 +12,7 @@ export interface NotificationState {
 
 const notificationAtom = atom<NotificationState>({ notifications: [] })
 
-export function useNotifications(status: string[] = ['C', 'N']) {
+export function useNotifications(status: string[] = ['confirmation', 'notification']) {
 	const { api } = useApi()
 	const [notifications, setNotifications] = useAtom(notificationAtom)
 	// Key the loader on the joined status so the default array's fresh identity
@@ -30,13 +30,13 @@ export function useNotifications(status: string[] = ['C', 'N']) {
 
 	const dismissNotification = React.useCallback(
 		async function (action: ActionView) {
-			if (!api || !action.actionId) return
+			if (!api || !action.id) return
 			// Optimistically remove from state
 			setNotifications((n) => ({
-				notifications: n.notifications.filter((a) => a.actionId !== action.actionId)
+				notifications: n.notifications.filter((a) => a.id !== action.id)
 			}))
 			try {
-				await api.actions.dismiss(action.actionId)
+				await api.actions.dismiss(action.id)
 			} catch {
 				// Restore on failure
 				loadNotifications()
@@ -47,13 +47,13 @@ export function useNotifications(status: string[] = ['C', 'N']) {
 
 	const acceptNotification = React.useCallback(
 		async function (action: ActionView) {
-			if (!api || !action.actionId) return false
+			if (!api || !action.id) return false
 			// Optimistically remove from state
 			setNotifications((n) => ({
-				notifications: n.notifications.filter((a) => a.actionId !== action.actionId)
+				notifications: n.notifications.filter((a) => a.id !== action.id)
 			}))
 			try {
-				await api.actions.accept(action.actionId)
+				await api.actions.accept(action.id)
 				return true
 			} catch {
 				// Restore on failure
@@ -66,13 +66,13 @@ export function useNotifications(status: string[] = ['C', 'N']) {
 
 	const rejectNotification = React.useCallback(
 		async function (action: ActionView) {
-			if (!api || !action.actionId) return
+			if (!api || !action.id) return
 			// Optimistically remove from state
 			setNotifications((n) => ({
-				notifications: n.notifications.filter((a) => a.actionId !== action.actionId)
+				notifications: n.notifications.filter((a) => a.id !== action.id)
 			}))
 			try {
-				await api.actions.reject(action.actionId)
+				await api.actions.reject(action.id)
 			} catch {
 				// Restore on failure
 				loadNotifications()
@@ -88,13 +88,11 @@ export function useNotifications(status: string[] = ['C', 'N']) {
 			// Dismiss only 'N' (unread/awaiting-ack) items; keep actionable ('C')
 			// and historical ('A') items in state. Capture fresh toDismiss list.
 			setNotifications((n) => {
-				toDismiss = n.notifications.filter((a) => a.status === 'N')
-				return { notifications: n.notifications.filter((a) => a.status !== 'N') }
+				toDismiss = n.notifications.filter((a) => a.status === 'notification')
+				return { notifications: n.notifications.filter((a) => a.status !== 'notification') }
 			})
 			try {
-				await Promise.all(
-					toDismiss.map((a) => a.actionId && api.actions.dismiss(a.actionId))
-				)
+				await Promise.all(toDismiss.map((a) => a.id && api.actions.dismiss(a.id)))
 			} catch {
 				loadNotifications()
 			}

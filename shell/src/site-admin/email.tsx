@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: MPL-2.0
 
-import { FetchError, type SmtpDiagnostic, tSmtpDiagnostic } from '@cloudillo/core'
+import { FetchError, fetchAll, type SmtpDiagnostic, tSmtpDiagnostic } from '@cloudillo/core'
 import {
 	Alert,
 	Button,
@@ -114,7 +114,9 @@ export function EmailSettings() {
 
 					// Load current user's email as placeholder for test email
 					if (auth?.idTag) {
-						const tenants = await api.admin.listTenants({ q: auth.idTag })
+						const tenants = await fetchAll((cursor) =>
+							api.admin.listTenants({ q: auth.idTag, cursor })
+						)
 						const currentTenant = tenants.find((t) => t.idTag === auth.idTag)
 						if (currentTenant?.email) {
 							setUserEmail(currentTenant.email)

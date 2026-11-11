@@ -6,7 +6,7 @@ import type { ActionView } from '@cloudillo/types'
 import * as React from 'react'
 
 import { useContextAwareApi } from '../../context/index.js'
-import { feedReadTs } from '../../read-position.js'
+import { feedReadTs, secondsToIso } from '../../read-position.js'
 import { useWsBus } from '../../ws-bus.js'
 
 export interface UseUnreadPostsOptions {
@@ -56,34 +56,31 @@ export function useUnreadPosts(options: UseUnreadPostsOptions) {
 	const fetchPage = React.useCallback(
 		async (cursor: string | null, limit: number) => {
 			if (!api || since <= 0) {
-				return { items: [] as ActionView[], nextCursor: null, hasMore: false }
+				return { items: [] as ActionView[] }
 			}
 			const result = await api.actions.listPaginated({
 				type: ['POST', 'REPOST', 'PTNR'],
-				status: ['A'],
-				// The backend's Timestamp query-param deserializer only accepts
-				// ISO 8601 strings (a numeric epoch like "1780875798" fails to
-				// parse and yields an empty list). `since` is epoch seconds.
-				createdAfter: new Date(since * 1000).toISOString(),
+				status: ['active'],
+				// `since` is epoch seconds; the wire takes ISO 8601.
+				createdAfter: secondsToIso(since),
 				excludeOwnIssuer: true,
 				sortDir: 'asc',
 				sort,
-				audience,
+				audienceIdTag: audience,
 				audienceType,
 				tag,
-				search,
+				q: search,
 				visibility,
-				issuer,
+				issuerIdTag: issuer,
 				// Embed each REPOST's original so the unread banner's EmbeddedPostCard
 				// renders from subjectAction.
-				includeSubject: true,
+				include: ['subject'],
 				cursor: cursor ?? undefined,
 				limit
 			})
 			return {
 				items: result.data,
-				nextCursor: result.cursorPagination?.nextCursor ?? null,
-				hasMore: result.cursorPagination?.hasMore ?? false
+				next: result.meta.next
 			}
 		},
 		[api, since, audience, audienceType, tag, search, visibilityKey, issuer, sort]
@@ -117,16 +114,16 @@ export function useUnreadPosts(options: UseUnreadPostsOptions) {
 	React.useEffect(() => {
 		setLivePosts((prev) => {
 			if (prev.length === 0) return prev
-			const ids = new Set(items.map((p) => p.actionId))
-			const next = prev.filter((p) => !ids.has(p.actionId))
+			const ids = new Set(items.map((p) => p.id))
+			const next = prev.filter((p) => !ids.has(p.id))
 			return next.length === prev.length ? prev : next
 		})
 	}, [items])
 
-	useWsBus({ cmds: ['ACTION'] }, function handleAction(msg) {
+	useWsBus({ types: ['action'] }, function handleAction(msg) {
 		const action = msg.data as ActionView
 		if (action.type !== 'POST' && action.type !== 'REPOST' && action.type !== 'PTNR') return
-		if (action.status && action.status !== 'A') return
+		if (action.status && action.status !== 'active') return
 		// Own posts are always read (mirrors the server-side excludeOwnIssuer and
 		// feed.tsx's isRead); never surface them as a live unread arrival.
 		if (api?.idTag && action.issuer?.idTag === api.idTag) return
@@ -138,8 +135,8 @@ export function useUnreadPosts(options: UseUnreadPostsOptions) {
 		// Use the same timestamp the watermark tracks (receivedAt for the home
 		// feed) so a freshly-received but old-dated post isn't dropped here.
 		if (feedReadTs(action) <= since) return
-		if (itemsRef.current.some((p) => p.actionId === action.actionId)) return
-		if (liveRef.current.some((p) => p.actionId === action.actionId)) return
+		if (itemsRef.current.some((p) => p.id === action.id)) return
+		if (liveRef.current.some((p) => p.id === action.id)) return
 
 		if (action.type !== 'REPOST' || action.subjectAction) {
 			setLivePosts((prev) => [...prev, action])
@@ -153,8 +150,8 @@ export function useUnreadPosts(options: UseUnreadPostsOptions) {
 		api.actions
 			.get(subjectId)
 			.then((subject) => {
-				if (itemsRef.current.some((p) => p.actionId === action.actionId)) return
-				if (liveRef.current.some((p) => p.actionId === action.actionId)) return
+				if (itemsRef.current.some((p) => p.id === action.id)) return
+				if (liveRef.current.some((p) => p.id === action.id)) return
 				setLivePosts((prev) => [...prev, { ...action, subjectAction: subject }])
 			})
 			.catch(() => {
@@ -164,8 +161,8 @@ export function useUnreadPosts(options: UseUnreadPostsOptions) {
 
 	const posts = React.useMemo(() => {
 		if (livePosts.length === 0) return items
-		const ids = new Set(items.map((p) => p.actionId))
-		return [...items, ...livePosts.filter((p) => !ids.has(p.actionId))]
+		const ids = new Set(items.map((p) => p.id))
+		return [...items, ...livePosts.filter((p) => !ids.has(p.id))]
 	}, [items, livePosts])
 
 	return {

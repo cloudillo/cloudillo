@@ -80,8 +80,6 @@ function createCachedFetchPage<T>(
 
 				return {
 					items: cached,
-					nextCursor: null,
-					hasMore: false,
 					isOffline: true
 				}
 			} catch {

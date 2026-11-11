@@ -353,11 +353,9 @@ export async function runBootSequence(deps: BootDeps): Promise<void> {
 							idTag: ownerIdTag,
 							authToken: tokenResult.token
 						})
-						const initResult = await authApi.auth.loginInit()
-						if (initResult.status === 'authenticated') {
-							authState = { ...initResult.login }
-							await installToken(initResult.login.token)
-						}
+						const login = await authApi.auth.getLoginToken()
+						authState = { ...login }
+						await installToken(login.token)
 					}
 				} catch (err) {
 					console.error('API key auth failed:', err)
@@ -383,19 +381,12 @@ export async function runBootSequence(deps: BootDeps): Promise<void> {
 							idTag: ownerIdTag,
 							authToken: sessionToken
 						})
-						const initResult = await authApi.auth.loginInit()
-						if (initResult.status === 'authenticated') {
-							authState = { ...initResult.login }
-							await installToken(initResult.login.token)
-						} else {
-							// The server no longer honours it — drop it so it can't
-							// authorise anything else this session.
-							setCurrentAuthToken(undefined)
-							await clearAuthToken().catch(() => {})
-							if (!toasted) toastWarning(t('Session expired. Please sign in again.'))
-							toasted = true
-						}
+						const login = await authApi.auth.getLoginToken()
+						authState = { ...login }
+						await installToken(login.token)
 					} catch (err) {
+						// The server no longer honours it (401) — drop it so it can't
+						// authorise anything else this session.
 						console.warn('[Layout] session token rejected:', err)
 						setCurrentAuthToken(undefined)
 						await clearAuthToken().catch(() => {})
@@ -412,16 +403,11 @@ export async function runBootSequence(deps: BootDeps): Promise<void> {
 			if (!authState) {
 				try {
 					const initResult = await tempApi.auth.loginInit()
-					if (initResult.status === 'authenticated') {
-						authState = { ...initResult.login }
-						await installToken(initResult.login.token)
-					} else {
-						setLoginInitData({
-							qrLogin: initResult.qrLogin,
-							webAuthn: initResult.webAuthn,
-							maskedEmail: initResult.maskedEmail
-						})
-					}
+					setLoginInitData({
+						qr: initResult.qr,
+						passkeys: initResult.passkeys,
+						maskedEmail: initResult.maskedEmail
+					})
 				} catch (err) {
 					// Null (not undefined) so the login components use their fallback.
 					console.warn('[Layout] loginInit failed:', err)

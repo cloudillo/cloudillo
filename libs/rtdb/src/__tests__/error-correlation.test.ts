@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 /**
- * The client keys its pending-request map on the numeric id it sent, so an error
+ * The client keys its pending-request map on the id it sent, so an error
  * frame that echoes that id must settle the request it belongs to.
  *
  * Presence depends on this twice over: an oversized state has to come back as a
@@ -23,8 +23,8 @@ import {
 
 class ErrorSocket extends MockWebSocket {
 	/** Answer a frame the way the fixed backend does: same id, error payload. */
-	sendError(id: unknown, code: number, message: string): void {
-		this.receive({ id, type: 'error', code, message })
+	sendError(id: unknown, code: string, message: string): void {
+		this.receive({ id, type: 'error', data: { code, message } })
 	}
 }
 
@@ -61,12 +61,12 @@ describe('server error correlation', () => {
 		const failed = ws.send({ type: 'presence', state: {} }).catch((error) => error)
 		const id = socket.sent.find((m) => m.type === 'presence')?.id
 
-		socket.sendError(id, 413, 'Presence state too large')
+		socket.sendError(id, 'E-CORE-INVALID', 'Presence state too large')
 		await jest.advanceTimersByTimeAsync(0)
 
 		const error = await failed
 		expect(error).toBeInstanceOf(RtdbError)
-		expect((error as RtdbError).code).toBe(413)
+		expect((error as RtdbError).code).toBe('E-CORE-INVALID')
 		expect((error as RtdbError).message).toBe('Presence state too large')
 		// Settled long before the 30s timeout could have fired.
 		expect(ws.getPendingRequestCount()).toBe(0)

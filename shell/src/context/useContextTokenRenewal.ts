@@ -16,7 +16,7 @@
  * trust gate in `getTokenFor` already handles them by staying anonymous.
  *
  * Hatted keys (`contextKey(B, A)`) are renewed only while `(B, A)` is the active
- * context, and always by re-running the hatted handshake (`proxy-token?idTag=B&hat=A`)
+ * context, and always by re-running the hatted handshake (`POST proxy-token {idTag: B, hat: A}`)
  * — the backend refuses a param-less refresh of a hatted token. A 403/404 on that
  * handshake means the hat was revoked: `onHatRevoked` drops the key (which stops
  * its renewer) and falls back to B's next remembered hat, or bare. Never retried.

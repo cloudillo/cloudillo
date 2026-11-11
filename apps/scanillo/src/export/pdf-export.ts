@@ -116,7 +116,7 @@ async function processPage(
 async function resolveFilename(ownerTag: string, fileId: string, token?: string): Promise<string> {
 	try {
 		const api = createApiClient({ idTag: ownerTag, authToken: token })
-		const files = await api.files.list({ fileId })
+		const files = await api.files.list({ contentId: fileId })
 		if (files.length > 0 && files[0].fileName) {
 			return files[0].fileName.replace(/\.[^.]+$/, '.pdf')
 		}

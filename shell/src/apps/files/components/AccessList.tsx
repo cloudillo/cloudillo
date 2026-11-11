@@ -28,27 +28,28 @@ import { useTranslation } from 'react-i18next'
 import { floorText } from '../../../profile/role-labels.js'
 import { formatRefDate } from '../../../utils/parseRefDate.js'
 import {
-	levelToPermChar,
+	levelToPerm,
+	type SharePerm,
 	linkAccessToPermLevel,
 	sharePermLabel,
 	sharePermVariant,
-	toSharePermChar
+	toSharePerm
 } from '../utils.js'
 
-/** Renders a raw permission char, including the read-only 'A' (admin) standing this UI cannot
+/** Renders a raw permission, including the read-only 'admin' standing this UI cannot
  *  grant. Label and colour come from the same pair of helpers ShareDialog uses. */
 function PermChip({ perm }: { perm: string }) {
 	const { t } = useTranslation()
 	return <Badge color={sharePermVariant(perm)}>{sharePermLabel(perm, t)}</Badge>
 }
 
-const PERM_RANK: Record<string, number> = { A: 0, W: 1, C: 2, R: 3 }
+const PERM_RANK: Record<SharePerm, number> = { admin: 0, write: 1, comment: 2, read: 3 }
 
 /** A > W > C > R, otherwise the server's order (stable sort). The server always sends a
  *  permission (readers get no people at all); one without ranks last. */
 export function sortPeople(people: FileAccessPerson[]): FileAccessPerson[] {
 	const rank = (p: FileAccessPerson) =>
-		p.permission === undefined ? 4 : PERM_RANK[toSharePermChar(p.permission)]
+		p.permission === undefined ? 4 : PERM_RANK[toSharePerm(p.permission)]
 	return [...people].sort((a, b) => rank(a) - rank(b))
 }
 
@@ -266,7 +267,7 @@ export function AccessList({ access, onNavigateToFolder, onManage }: AccessListP
 										}
 										trailing={
 											p.permission !== undefined && (
-												<PermChip perm={toSharePermChar(p.permission)} />
+												<PermChip perm={toSharePerm(p.permission)} />
 											)
 										}
 									/>
@@ -304,7 +305,7 @@ export function AccessList({ access, onNavigateToFolder, onManage }: AccessListP
 									}
 									trailing={
 										<PermChip
-											perm={levelToPermChar(
+											perm={levelToPerm(
 												linkAccessToPermLevel(link.accessLevel)
 											)}
 										/>

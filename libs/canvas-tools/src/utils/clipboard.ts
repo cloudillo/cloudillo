@@ -199,8 +199,8 @@ export async function uploadPastedImage(
 	const res = await api.files.uploadBlob('media', pastedImageName(file.type), file, file.type, {
 		rootId: ctx.fileId
 	})
-	const [width, height] = res.dim ?? [defaultSize, defaultSize]
-	return { fileId: res.fileId, width, height }
+	const [width, height] = res.extra?.dim ?? [defaultSize, defaultSize]
+	return { fileId: res.contentId, width, height }
 }
 
 // vim: ts=4

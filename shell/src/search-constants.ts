@@ -6,17 +6,14 @@
  * `/search` page).
  *
  * The caps mirror the server's, which rejects anything over them rather than
- * clamping — so the client clamps first, and stops offering "load more" at the
- * offset ceiling instead of firing a request that 400s.
+ * clamping — so the client clamps first. The paging ceiling is the server's: it
+ * stops sending `next` there.
  */
 
 /** Server cap on the query text. */
 export const FTS_MAX_QUERY = 256
 /** Server cap on `limit`. */
 export const FTS_MAX_LIMIT = 100
-/** Server cap on `offset`. */
-export const FTS_MAX_OFFSET = 1000
-
 /** Shortest plain-text query the omnibox will send. */
 export const FTS_MIN_QUERY = 2
 /** Hits shown inline under the omnibox. */

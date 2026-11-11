@@ -52,7 +52,7 @@ export function CommunityGroupsBrowser({ communityTag, onJoined }: CommunityGrou
 
 	const [groups, setGroups] = React.useState<ActionView[]>()
 	const [counts, setCounts] = React.useState<Record<string, number>>({})
-	// The viewer's own SUBS status per CONV on the community node: 'A' joined, 'C' requested.
+	// The viewer's own SUBS status per CONV on the community node: 'active' joined, 'confirmation' requested.
 	const [mine, setMine] = React.useState<Record<string, string>>({})
 	const [error, setError] = React.useState(false)
 	const [busy, setBusy] = React.useState<string>()
@@ -72,15 +72,15 @@ export function CommunityGroupsBrowser({ communityTag, onJoined }: CommunityGrou
 				// viewer's own knocks and to moderators, so counts stay 'A'-only.
 				const subs = (await community.actions.list({
 					type: 'SUBS',
-					subject: convs.map((c) => c.actionId),
-					status: ['A', 'C']
+					subject: convs.map((c) => c.id),
+					status: ['active', 'confirmation']
 				})) as ActionView[]
 				if (!live) return
 				const n: Record<string, number> = {}
 				const own: Record<string, string> = {}
 				for (const s of subs) {
 					if (!s.subject) continue
-					if (s.status === 'A') n[s.subject] = (n[s.subject] ?? 0) + 1
+					if (s.status === 'active') n[s.subject] = (n[s.subject] ?? 0) + 1
 					if (s.issuer?.idTag === me && s.status) own[s.subject] = s.status
 				}
 				setCounts(n)
@@ -104,8 +104,9 @@ export function CommunityGroupsBrowser({ communityTag, onJoined }: CommunityGrou
 				subject: convId,
 				audienceTag: communityTag
 			})
-			if (res.status === 'D') toast.error(t('You can’t join this group'))
-			else if (res.status === 'C') setMine((prev) => ({ ...prev, [convId]: 'C' }))
+			if (res.status === 'deleted') toast.error(t('You can’t join this group'))
+			else if (res.status === 'confirmation')
+				setMine((prev) => ({ ...prev, [convId]: 'confirmation' }))
 			else onJoined(convId)
 		} catch (err) {
 			console.error('Failed to join group', err)
@@ -140,17 +141,17 @@ export function CommunityGroupsBrowser({ communityTag, onJoined }: CommunityGrou
 		<List>
 			{groups.map((g) => {
 				const c = (g.content ?? {}) as GroupContent
-				const status = mine[g.actionId]
+				const status = mine[g.id]
 				const canJoin =
 					c.join === 'role' && level >= ROLE_LEVELS[c.joinMinRole ?? 'supporter']
 				let action: React.ReactNode
-				if (status === 'A') {
+				if (status === 'active') {
 					action = (
-						<Button size="sm" onClick={() => onJoined(g.actionId)}>
+						<Button size="sm" onClick={() => onJoined(g.id)}>
 							{t('Open')}
 						</Button>
 					)
-				} else if (status === 'C') {
+				} else if (status === 'confirmation') {
 					action = (
 						<Text size="sm" emphasis="muted">
 							{t('Requested')}
@@ -161,9 +162,9 @@ export function CommunityGroupsBrowser({ communityTag, onJoined }: CommunityGrou
 						<Button
 							size="sm"
 							color={canJoin ? 'primary' : undefined}
-							loading={busy === g.actionId}
+							loading={busy === g.id}
 							disabled={!!busy}
-							onClick={() => join(g.actionId)}
+							onClick={() => join(g.id)}
 						>
 							{canJoin ? t('Join') : t('Ask to join')}
 						</Button>
@@ -171,13 +172,13 @@ export function CommunityGroupsBrowser({ communityTag, onJoined }: CommunityGrou
 				}
 				return (
 					<ListItem
-						key={g.actionId}
+						key={g.id}
 						leading={<IcGroup />}
 						title={c.name || t('Unnamed Group')}
 						subtitle={c.description}
 						meta={
-							counts[g.actionId] !== undefined &&
-							t('{{count}} members', { count: counts[g.actionId] })
+							counts[g.id] !== undefined &&
+							t('{{count}} members', { count: counts[g.id] })
 						}
 						trailing={action}
 					/>

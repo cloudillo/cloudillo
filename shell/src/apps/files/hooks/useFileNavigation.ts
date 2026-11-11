@@ -182,12 +182,12 @@ export function useFileNavigation() {
 
 					while (folderId) {
 						try {
-							const folders = await effectiveApi.files.list({ fileId: folderId })
+							const folders = await effectiveApi.files.list({ contentId: folderId })
 							if (folders.length > 0) {
 								const folder = folders[0]
 								const isRoot = folderId === shareRoot
 								folderPath.unshift({
-									id: folder.entryId,
+									id: folder.id,
 									name: folder.fileName,
 									isShareRoot: isRoot,
 									ownerName: isRoot
@@ -224,11 +224,13 @@ export function useFileNavigation() {
 
 						while (folderId) {
 							try {
-								const folders = await effectiveApi.files.list({ fileId: folderId })
+								const folders = await effectiveApi.files.list({
+									contentId: folderId
+								})
 								if (folders.length > 0) {
 									const folder = folders[0]
 									folderPath.unshift({
-										id: folder.entryId,
+										id: folder.id,
 										name: folder.fileName
 									})
 									folderId = folder.parentId || null
@@ -380,7 +382,7 @@ export function useFileNavigation() {
 
 	const enterFolder = React.useCallback(
 		function (folder: File) {
-			if (folder.fileTp !== 'FLDR') return
+			if (folder.fileType !== 'FLDR') return
 
 			// Push current location onto navigation stack
 			setNavStack((prev) => [
@@ -400,7 +402,7 @@ export function useFileNavigation() {
 			if (folder.upstream?.idTag && folder.upstream.idTag !== remoteOwner) {
 				// Entering a shared folder (new remote context or from own files) — browse mode.
 				// Our entry id is unknown upstream: browse by the upstream folder id.
-				const remoteId = folder.fileId ?? folder.entryId
+				const remoteId = folder.contentId ?? folder.id
 				const params = new URLSearchParams()
 				params.set('parentId', remoteId)
 				params.set('remoteOwner', folder.upstream.idTag)
@@ -415,14 +417,14 @@ export function useFileNavigation() {
 					navigate(
 						filesPath(ctxBase(tenant, auth?.idTag), {
 							...(folderRoom && { room: folderRoom }),
-							parentId: folder.entryId
+							parentId: folder.id
 						})
 					)
 				} else {
 					navigate({
 						search: navSearch({
 							room: folderRoom,
-							parentId: folder.entryId,
+							parentId: folder.id,
 							remoteOwner,
 							shareRoot,
 							filters: keptNarrowers

@@ -114,7 +114,7 @@ export function Composer({
 	React.useEffect(() => {
 		setContent(editing ? (editing.content ?? '') : loadDraft(convId))
 		if (editing) editorRef.current?.focus()
-	}, [editing?.actionId])
+	}, [editing?.id])
 
 	function onChange(value: string) {
 		setContent(value)
@@ -180,7 +180,7 @@ export function Composer({
 		if (editing) {
 			if (!text) return
 			sendingRef.current = true
-			const ok = await edit(editing.actionId, text).catch(() => false)
+			const ok = await edit(editing.id, text).catch(() => false)
 			sendingRef.current = false
 			// Success clears the target; the edit effect then restores the draft.
 			if (ok && convIdRef.current === sentConv) onClearTarget()
@@ -197,7 +197,7 @@ export function Composer({
 		setContent('')
 		clearDraft(sentConv)
 		// A reject takes the `!ok` restore path instead of leaving the composer locked.
-		const ok = await (replyTo ? reply(replyTo.actionId, input) : send(input)).catch(() => false)
+		const ok = await (replyTo ? reply(replyTo.id, input) : send(input)).catch(() => false)
 		sendingRef.current = false
 		if (!ok) {
 			// Put the text back, unless something new was typed meanwhile

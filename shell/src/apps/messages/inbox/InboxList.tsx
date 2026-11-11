@@ -114,7 +114,7 @@ export function InboxList({ activeId, invites, onNewChat }: InboxListProps) {
 		setRequests({})
 		if (!chipApi || !chipTag) return
 		let live = true
-		;(chipApi.actions.list({ type: 'SUBS', status: 'C' }) as Promise<ActionView[]>)
+		;(chipApi.actions.list({ type: 'SUBS', status: 'confirmation' }) as Promise<ActionView[]>)
 			.then((res) => {
 				if (!live) return
 				const n: Record<string, number> = {}

@@ -15,8 +15,8 @@ function stub({
 	incoming?: { issuer: { idTag: string } }[]
 	sent?: { idTag: string }[]
 }) {
-	const list = jest.fn(async (q: { connected: boolean | 'R' }) =>
-		q.connected === 'R' ? sent : connected ? [{ idTag: 'b.tld' }] : []
+	const list = jest.fn(async (q: { connection?: string }) =>
+		q.connection === 'pending' ? sent : connected ? [{ idTag: 'b.tld' }] : []
 	)
 	const client = {
 		profiles: { list },
@@ -31,8 +31,8 @@ describe('partnershipState', () => {
 		expect(await partnershipState(client, 'a.tld', 'b.tld')).toBe('partner')
 		expect(list).toHaveBeenCalledWith({
 			idTag: 'b.tld',
-			connected: true,
-			status: ['A', 'M', 'S']
+			connection: 'connected',
+			status: ['active', 'muted', 'suspended']
 		})
 	})
 
@@ -44,7 +44,7 @@ describe('partnershipState', () => {
 	it('reads a pending request of ours from the list endpoint', async () => {
 		const { client, list } = stub({ connected: false, sent: [{ idTag: 'b.tld' }] })
 		expect(await partnershipState(client, 'a.tld', 'b.tld')).toBe('sent')
-		expect(list).toHaveBeenCalledWith({ idTag: 'b.tld', connected: 'R' })
+		expect(list).toHaveBeenCalledWith({ idTag: 'b.tld', connection: 'pending' })
 	})
 
 	it('reports no relation as null', async () => {

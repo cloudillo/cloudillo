@@ -30,7 +30,7 @@ export function useDbMaintenanceNotifications() {
 	const { t } = useTranslation()
 	const { toast } = useToast()
 
-	useWsBus({ cmds: ['DB_MAINTENANCE_DONE'] }, (msg) => {
+	useWsBus({ types: ['dbMaintenanceDone'] }, (msg) => {
 		if (msg === lastHandled) return
 		lastHandled = msg
 		const data = (msg.data ?? {}) as DbMaintenanceDoneData

@@ -102,7 +102,7 @@ export function ObjectDetailsHeader({ object, calendars }: ObjectDetailsHeaderPr
 			</Text>
 		)
 	}
-	const cal = calendars.find((c) => c.calId === object.calId)
+	const cal = calendars.find((c) => c.id === object.calId)
 	return (
 		<>
 			{cal && <ColorDot color={cal.color || 'var(--col-primary)'} />}

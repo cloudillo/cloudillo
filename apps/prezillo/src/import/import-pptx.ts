@@ -1098,7 +1098,8 @@ async function uploadImage(
 	contentType: string,
 	ctx: ImportUploadContext
 ): Promise<{ fileId: string; dim?: [number, number] }> {
-	const url = `${getInstanceUrl(ctx.ownerTag)}/api/files/media/${encodeURIComponent(fileName)}?rootId=${encodeURIComponent(ctx.documentFileId)}`
+	const qp = new URLSearchParams({ name: fileName, rootId: ctx.documentFileId })
+	const url = `${getInstanceUrl(ctx.ownerTag)}/api/uploads/media?${qp}`
 
 	const res = await fetch(url, {
 		method: 'POST',
@@ -1115,11 +1116,11 @@ async function uploadImage(
 
 	const result = await res.json()
 	const data = result.data
-	if (!data?.fileId) {
-		throw new Error('Upload response missing fileId')
+	if (!data?.contentId) {
+		throw new Error('Upload response missing contentId')
 	}
 
-	return { fileId: data.fileId, dim: data.dim }
+	return { fileId: data.contentId, dim: data.extra?.dim }
 }
 
 /** Create an image object by uploading the image to Cloudillo storage */

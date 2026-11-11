@@ -152,8 +152,8 @@ describe('buildFileFilterParams', () => {
 			parentId: '__root__',
 			channel: '@a~x',
 			recursive: true,
-			withParent: true,
-			fileName: 'x'
+			include: ['parent'],
+			q: 'x'
 		})
 	})
 
@@ -161,45 +161,45 @@ describe('buildFileFilterParams', () => {
 		expect(build('scope=room', { channel: undefined, shareRoot: 's1' })).toEqual({
 			parentId: 's1',
 			recursive: true,
-			withParent: true
+			include: ['parent']
 		})
 	})
 
 	it('all scope: recursive with no parent or channel', () => {
 		expect(build('scope=all', { channel: '@a~x', parentId: 'f1' })).toEqual({
 			recursive: true,
-			withParent: true
+			include: ['parent']
 		})
 	})
 
 	it('trash and managed map only q', () => {
 		expect(build('q=x&starred=1&type=doc', { viewMode: 'trash' })).toEqual({
 			parentId: '__trash__',
-			withParent: true,
-			fileName: 'x'
+			include: ['parent'],
+			q: 'x'
 		})
 		expect(build('starred=1', { viewMode: 'managed' })).toEqual({
 			parentId: '__managed__',
-			withParent: true
+			include: ['parent']
 		})
 	})
 
 	it('type keeps subfolders in folder scope only', () => {
-		expect(build('type=doc').fileTp).toBe('CRDT,RTDB,FLDR')
-		expect(build('type=file').fileTp).toBe('BLOB,FLDR')
-		expect(build('type=folder').fileTp).toBe('FLDR')
-		expect(build('type=doc&scope=room').fileTp).toBe('CRDT,RTDB')
+		expect(build('type=doc').type).toBe('CRDT,RTDB,FLDR')
+		expect(build('type=file').type).toBe('BLOB,FLDR')
+		expect(build('type=folder').type).toBe('FLDR')
+		expect(build('type=doc&scope=room').type).toBe('CRDT,RTDB')
 	})
 
-	it('image filters by content type, not fileTp', () => {
+	it('image filters by content type, not type', () => {
 		const params = build('type=image')
 		expect(params.contentType).toBe('image/*')
-		expect(params.fileTp).toBeUndefined()
+		expect(params.type).toBeUndefined()
 	})
 
-	it('recent sets openedSince and the recent sort', () => {
+	it('recent sets openedAfter and the recent sort', () => {
 		expect(build('recent=1')).toMatchObject({
-			openedSince: NOW - 30 * DAY,
+			openedAfter: new Date((NOW - 30 * DAY) * 1000).toISOString(),
 			sort: 'recent',
 			sortDir: 'desc'
 		})
@@ -207,7 +207,7 @@ describe('buildFileFilterParams', () => {
 
 	it('modified, starred, tags and access', () => {
 		expect(build('modified=7d&starred=1&tags=a,b&access=link')).toMatchObject({
-			modifiedAfter: NOW - 7 * DAY,
+			modifiedAfter: new Date((NOW - 7 * DAY) * 1000).toISOString(),
 			starred: true,
 			tags: ['a', 'b'],
 			access: ['link']

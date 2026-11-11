@@ -2463,7 +2463,7 @@ export class AppMessageBus extends MessageBusBase {
 	 *
 	 * The publisher bakes absolute site paths into the container, so it has to
 	 * know its mount path before it builds one. The mount table lives behind
-	 * `/api/sites`, which a file-scoped token cannot read, so the shell answers.
+	 * `/api/site`, which a file-scoped token cannot read, so the shell answers.
 	 *
 	 * A document with no mount row yet is not an error: the answer is then the
 	 * default `/` with `mounted: false`, which is the path publishing it would

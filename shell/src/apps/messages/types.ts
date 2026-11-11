@@ -23,7 +23,7 @@ export interface MsgAction extends ActionView {
 	content: string | null
 	// In-place edit/delete markers written by the backend on MSG:UPD / MSG:DEL
 	// (`editedAt` = epoch s of the edit; `deletedBy` = deleter's idTag).
-	x?: { editedAt?: number; deletedBy?: string }
+	extra?: { editedAt?: number; deletedBy?: string }
 	// Optimistic-send fields (client-only; never sent to the server). `tempId`
 	// matches the optimistic row to its eventual create result; `sendStatus`
 	// drives the send-status indicator in `Msg` (named to avoid colliding with
@@ -66,7 +66,7 @@ export interface Conversation {
 	// Newest message (reader-state `last` embed) for the row preview.
 	lastMessage?: MsgAction
 	// Newest activity timestamp (reader-state `lastAt`; recency sort).
-	lastMessageAt?: string | number
+	lastMessageAt?: string
 	// Explicit archive pref (user action; the backend clears it on a new message).
 	archived?: boolean
 	// Left group (SUBS:DEL, no reader-state row): read-only history + "Left" badge.
@@ -99,7 +99,7 @@ export interface Conversation {
 	readerState?: ReaderState
 }
 
-// 'requested' = a knock (SUBS status 'C' on the community node), moderator+ only.
+// 'requested' = a knock (SUBS status 'confirmation' on the community node), moderator+ only.
 export type MemberStatus = 'active' | 'invited' | 'requested'
 
 export interface ConversationMember {
@@ -110,9 +110,8 @@ export interface ConversationMember {
 	joinedAt?: string
 }
 
-// Helper to extract role from action's x metadata
 export function getActionRole(action: ActionView): MemberRole {
-	const xRole = (action as ActionView & { x?: { role?: string } }).x?.role
+	const xRole = (action.extra as { role?: string } | undefined)?.role
 	return (xRole || 'member') as MemberRole
 }
 

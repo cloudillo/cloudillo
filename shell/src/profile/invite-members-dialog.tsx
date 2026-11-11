@@ -54,7 +54,7 @@ export function InviteMembersDialog({
 
 	async function listProfiles(q: string): Promise<Profile[] | undefined> {
 		if (!api || !q) return []
-		return api.profiles.list({ q, connected: true, type: 'person' })
+		return api.profiles.list({ q, connection: 'connected', type: 'person' })
 	}
 
 	async function handleSubmit() {

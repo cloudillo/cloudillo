@@ -3,6 +3,7 @@
 
 import {
 	type AdminAuditListQuery,
+	type ApiFetchResult,
 	AUDIT_OPTIONAL_CATEGORIES,
 	type AuditEvent,
 	errorMessage
@@ -34,10 +35,8 @@ import { SwitchRow } from '../settings/settings.js'
 const ALL_CATEGORIES = ['auth', 'admin', ...AUDIT_OPTIONAL_CATEGORIES]
 const ALWAYS_LOGGED = ['auth', 'admin']
 
-interface AuditPage {
-	events: AuditEvent[]
-	nextCursor: number | null
-}
+/** `GET /admin/audit` returns the events bare, `GET /auth/audit` wraps them with the categories */
+type AuditPage = ApiFetchResult<AuditEvent[] | { events: AuditEvent[] }>
 
 /**
  * Pages through an audit list endpoint. `load` and `query` must be stable (a method of the
@@ -48,25 +47,24 @@ export function useAuditLog(
 	query: AdminAuditListQuery
 ) {
 	const [events, setEvents] = React.useState<AuditEvent[]>()
-	const [nextCursor, setNextCursor] = React.useState<number | null>()
+	const [next, setNext] = React.useState<string>()
 	const [error, setError] = React.useState<string>()
 	// Only the latest request may land: drops a stale page after a filter change,
 	// an older first page, and the first of a double "Load more"
 	const seq = React.useRef(0)
 
 	const fetchPage = React.useCallback(
-		async (cursor?: number) => {
+		async (cursor?: string) => {
 			if (!load) return
 			const id = ++seq.current
 			// Hide "Load more" while a new first page loads: the old cursor belongs to the old filter
-			if (cursor === undefined) setNextCursor(undefined)
+			if (cursor === undefined) setNext(undefined)
 			try {
 				const res = await load({ ...query, cursor })
 				if (id !== seq.current) return
-				setEvents((prev) =>
-					cursor === undefined ? res.events : [...(prev ?? []), ...res.events]
-				)
-				setNextCursor(res.nextCursor)
+				const page = Array.isArray(res.data) ? res.data : res.data.events
+				setEvents((prev) => (cursor === undefined ? page : [...(prev ?? []), ...page]))
+				setNext(res.meta.next)
 				setError(undefined)
 			} catch (err) {
 				if (id !== seq.current) return
@@ -87,7 +85,7 @@ export function useAuditLog(
 	return {
 		events,
 		error,
-		loadMore: nextCursor != null ? () => fetchPage(nextCursor) : undefined
+		loadMore: next ? () => fetchPage(next) : undefined
 	}
 }
 
@@ -110,12 +108,12 @@ export function defaultAuditFilter(): AuditFilterForm {
 
 export function toQuery(f: AuditFilterForm): AdminAuditListQuery {
 	return {
-		from: f.from ? dayjs(f.from).startOf('day').unix() : undefined,
-		to: f.to ? dayjs(f.to).endOf('day').unix() : undefined,
+		createdAfter: f.from ? dayjs(f.from).startOf('day').toISOString() : undefined,
+		createdBefore: f.to ? dayjs(f.to).endOf('day').toISOString() : undefined,
 		category: f.category || undefined,
 		event: f.event.trim() || undefined,
 		outcome: f.outcome.trim() || undefined,
-		actor: f.actor.trim() || undefined,
+		actorIdTag: f.actor.trim() || undefined,
 		idTag: f.idTag.trim() || undefined
 	}
 }

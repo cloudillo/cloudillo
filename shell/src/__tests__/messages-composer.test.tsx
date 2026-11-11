@@ -17,7 +17,7 @@ import { mockCloudilloReact } from './helpers/mocks.js'
 
 const ME = 'me.test'
 
-type Handler = (m: { cmd: string; data: unknown }) => void
+type Handler = (m: { type: string; data: unknown }) => void
 let wsHandler: Handler = () => {}
 jest.unstable_mockModule('../ws-bus.js', () => ({
 	useWsBus: (_opts: unknown, h: Handler) => {
@@ -131,13 +131,13 @@ describe('attachmentRefusal', () => {
 describe('usePendingInvites', () => {
 	const invt = (actionId: string, over: Partial<ActionView> = {}) =>
 		({
-			actionId,
+			id: actionId,
 			type: 'INVT',
-			status: 'C',
+			status: 'confirmation',
 			issuer: { idTag: 'owner.test' },
 			audience: { idTag: ME },
 			subject: 'a1~conv',
-			createdAt: 1,
+			createdAt: '1970-01-01T00:00:01Z',
 			...over
 		}) as ActionView
 
@@ -147,16 +147,21 @@ describe('usePendingInvites', () => {
 		await act(async () => {})
 		expect(result.current.pendingInvites).toHaveLength(1)
 		expect(listInvites).toHaveBeenCalledWith(
-			expect.objectContaining({ type: 'INVT', status: 'C', audience: ME })
+			expect.objectContaining({ type: 'INVT', status: 'confirmation', audienceIdTag: ME })
 		)
 
-		act(() => wsHandler({ cmd: 'ACTION', data: invt('i2') }))
-		act(() => wsHandler({ cmd: 'ACTION', data: invt('i2') }))
+		act(() => wsHandler({ type: 'action', data: invt('i2') }))
+		act(() => wsHandler({ type: 'action', data: invt('i2') }))
 		// Not mine, not pending, a revocation: ignored
-		act(() => wsHandler({ cmd: 'ACTION', data: invt('i3', { audience: { idTag: 'x' } }) }))
-		act(() => wsHandler({ cmd: 'ACTION', data: invt('i4', { status: 'A' }) }))
-		act(() => wsHandler({ cmd: 'ACTION', data: invt('i5', { subType: 'DEL' }) }))
-		expect(result.current.pendingInvites?.map((i) => i.actionId)).toEqual(['i2', 'i1'])
+		act(() =>
+			wsHandler({
+				type: 'action',
+				data: invt('i3', { audience: { idTag: 'x', name: 'x', type: 'person' } })
+			})
+		)
+		act(() => wsHandler({ type: 'action', data: invt('i4', { status: 'active' }) }))
+		act(() => wsHandler({ type: 'action', data: invt('i5', { subType: 'DEL' }) }))
+		expect(result.current.pendingInvites?.map((i) => i.id)).toEqual(['i2', 'i1'])
 	})
 
 	it('flags a failed load', async () => {

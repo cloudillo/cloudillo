@@ -68,8 +68,8 @@ export function usePins(conversation: Conversation | undefined): UsePins {
 		const gen = ++loadGenRef.current
 		const rows = await api.actions.list({
 			type: 'PIN',
-			...(isGroup ? { parentId: convId } : { involved: convId }),
-			includeSubject: true,
+			...(isGroup ? { parentId: convId } : { involvedIdTag: convId }),
+			include: ['subject'],
 			limit: 50
 		})
 		// A newer load (e.g. another conversation) superseded this one
@@ -101,7 +101,7 @@ export function usePins(conversation: Conversation | undefined): UsePins {
 		load().catch((err) => console.error('Failed to load pins', err))
 	}, [load])
 
-	useWsBus({ cmds: ['ACTION'] }, (m) => {
+	useWsBus({ types: ['action'] }, (m) => {
 		const a = m.data as ActionView
 		if (convId && isConvPin(a, convId, isGroup)) {
 			load().catch((err) => console.error('Failed to reload pins', err))

@@ -63,7 +63,7 @@ export function PersonActionsProvider({ children }: { children: React.ReactNode 
 		}
 	}, [navigate, base])
 
-	// With the home token: /profiles/batch refuses an unauthenticated request, and
+	// With the home token: /profile-lookups refuses an unauthenticated request, and
 	// badges are served to the authenticated owner only. The cache is keyed by tag,
 	// so a token rotation re-renders consumers without refetching.
 	const authToken = auth?.token

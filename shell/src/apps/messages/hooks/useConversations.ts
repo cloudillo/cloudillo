@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: MPL-2.0
 
+import { fetchAll } from '@cloudillo/core'
 import { useApi, useAuth } from '@cloudillo/react'
 import type { ActionView, Profile, ReaderState } from '@cloudillo/types'
 import { atom, useAtomValue, useSetAtom } from 'jotai'
@@ -38,7 +39,7 @@ export function readerStateFields(rs: ReaderState | undefined): Partial<Conversa
 	const until = createdAtToSeconds(rs.notifyUntil)
 	const active = !until || until > nowSeconds() // an expired notifyUntil counts as unset
 	const muteLevel =
-		active && rs.notify === 'T' ? 'mentions' : active && rs.notify === 'M' ? 'none' : undefined
+		active && (rs.notify === 'mentions' || rs.notify === 'none') ? rs.notify : undefined
 	return {
 		readerState: rs,
 		lastMessageAt: rs.lastAt ?? rs.createdAt,
@@ -63,13 +64,13 @@ export function sortByRecency(list: Conversation[]): Conversation[] {
 function groupFromConv(conv: ActionView, unnamed: string, left: boolean): Conversation {
 	const content = conv.content as ConvContent | undefined
 	return {
-		id: conv.actionId,
+		id: conv.id,
 		type: 'group',
 		ownerTag: conv.issuer.idTag,
 		name: content?.name || unnamed,
 		description: content?.description,
 		profiles: [],
-		isOpen: conv.flags?.includes('O') ?? false,
+		isOpen: conv.flags?.open ?? false,
 		left: left || undefined,
 		communityTag: conv.issuer.type === 'community' ? conv.issuer.idTag : undefined,
 		stat: conv.stat,
@@ -118,33 +119,27 @@ export function useConversationsLoader(): void {
 			const unnamed = t('Unnamed Group')
 			;(async function () {
 				try {
-					const loadRows = async () => {
-						const rows: ReaderState[] = []
-						let cursor: string | undefined
-						do {
-							const res = await api.readerState.list({
-								kind: ['P:MSG', 'A:CONV'],
-								sort: 'lastAt',
-								limit: INBOX_PAGE,
-								cursor,
-								include: ['ref', 'last']
-							})
-							rows.push(...res.data)
-							cursor = res.cursorPagination?.hasMore
-								? (res.cursorPagination.nextCursor ?? undefined)
-								: undefined
-						} while (cursor && !ac.signal.aborted)
-						return rows
-					}
+					const loadRows = () =>
+						fetchAll(
+							(cursor) =>
+								api.readerState.listPaginated({
+									kind: ['P:MSG', 'A:CONV'],
+									sort: 'lastAt',
+									limit: INBOX_PAGE,
+									cursor,
+									include: ['ref', 'last']
+								}),
+							{ signal: ac.signal }
+						)
 					const [profiles, rows, subsActions] = await Promise.all([
-						api.profiles.list({ type: 'person', connected: true }),
+						api.profiles.listAll({ type: 'person', connection: 'connected' }),
 						loadRows(),
 						(
 							api.actions.list({
 								type: 'SUBS',
-								issuer: idTag,
-								status: 'A',
-								includeSubject: true
+								issuerIdTag: idTag,
+								status: 'active',
+								include: ['subject']
 							}) as Promise<ActionView[]>
 						).catch((err) => {
 							console.error('Failed to load group subscriptions', err)
@@ -179,7 +174,7 @@ export function useConversationsLoader(): void {
 					}
 
 					for (const subs of subsActions) {
-						const id = subs.subjectAction?.actionId ?? subs.subject
+						const id = subs.subjectAction?.id ?? subs.subject
 						// A reader-state row means an active membership: it wins over a
 						// SUBS:DEL left behind by a federation race.
 						if (!id || byId.has(id) || needFetch.some((f) => f.id === id)) continue
@@ -299,7 +294,7 @@ export function useConversationMembersEnrichment(): void {
 					const subsRes = (await api.actions.list({
 						type: 'SUBS',
 						subject: pending.map((g) => g.id), // A1 array subject
-						status: 'A'
+						status: 'active'
 					})) as ActionView[]
 					if (ac.signal.aborted) return
 					const byGroup = new Map<string, Profile[]>()

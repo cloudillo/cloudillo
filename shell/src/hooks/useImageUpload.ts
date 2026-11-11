@@ -120,8 +120,8 @@ export function useImageUpload(options?: UseImageUploadOptions): UseImageUploadR
 						signal: abortController.signal
 					}
 				)
-				if (result?.fileId) {
-					const fileId = result.fileId
+				if (result?.contentId) {
+					const fileId = result.contentId
 					setAttachmentIds((ids) => [...ids, fileId])
 					setAttachmentType(job.type)
 					optionsRef.current?.onUploadComplete?.(fileId)

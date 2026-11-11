@@ -1,13 +1,13 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: MPL-2.0
 
-import type { ShareEntry } from '@cloudillo/core'
+import type { ShareEntry, SharePermission } from '@cloudillo/core'
 import { IcConnection, IcFollowers, IcPublic } from '@cloudillo/react'
 import dayjs from 'dayjs'
 import type { TFunction } from 'i18next'
 import type { IconType } from 'react-icons'
 
-import { IcDirect, IcVerified } from '../../icons.js'
+import { IcCommunityMap, IcDirect, IcFeed, IcVerified } from '../../icons.js'
 import type { File, FileVisibility } from './types.js'
 
 /**
@@ -100,20 +100,54 @@ export interface VisibilityOption {
 
 // Ordered from most private to most public.
 export const getVisibilityOptions = (t: TFunction): VisibilityOption[] => [
-	{ value: null, label: t('Direct'), icon: IcDirect },
-	{ value: 'D', label: t('Direct'), icon: IcDirect },
-	{ value: 'C', label: t('Connected'), icon: IcConnection },
-	{ value: 'F', label: t('Followers'), icon: IcFollowers },
-	{ value: 'V', label: t('Verified'), icon: IcVerified },
-	{ value: 'P', label: t('Public'), icon: IcPublic }
+	{ value: 'direct', label: t('Direct'), icon: IcDirect },
+	{ value: 'subscribed', label: t('Subscribers'), icon: IcFeed },
+	{ value: 'connected', label: t('Connected'), icon: IcConnection },
+	{ value: 'followers', label: t('Followers'), icon: IcFollowers },
+	{ value: 'secondDegree', label: t('Second degree'), icon: IcCommunityMap },
+	{ value: 'verified', label: t('Verified'), icon: IcVerified },
+	{ value: 'public', label: t('Public'), icon: IcPublic }
 ]
 
 /**
- * The same rungs `getVisibilityOptions` lists, most private first — keep the two in step.
- * `null` and `'D'` are one rung (both mean Direct); `'D'` is absent here because
- * {@link visibilityRank} normalises it.
+ * The backend ladder (`VisibilityLevel` in cloudillo-rs `abac.rs`), most private first. Same
+ * rungs, same order as `getVisibilityOptions` and `VISIBILITY_ICONS` — keep all three in step.
  */
-const VISIBILITY_ORDER: FileVisibility[] = [null, 'C', 'F', 'V', 'P']
+const VISIBILITY_ORDER: FileVisibility[] = [
+	'direct',
+	'subscribed',
+	'connected',
+	'followers',
+	'secondDegree',
+	'verified',
+	'public'
+]
+
+// The app↔shell bus (`Visibility` in @cloudillo/core) still speaks visibility chars.
+const VISIBILITY_CHARS: Record<string, FileVisibility> = {
+	D: 'direct',
+	C: 'connected',
+	F: 'followers',
+	V: 'verified',
+	P: 'public'
+}
+
+/** File visibility word for a visibility char; an unrecognised char reads as `'direct'`. */
+export function fileVisibilityFromChar(c: string | undefined): FileVisibility {
+	return (c && VISIBILITY_CHARS[c]) || 'direct'
+}
+
+// The subset of the ladder the bus can express.
+const BUS_CHARS: Partial<Record<string, 'P' | 'C' | 'F'>> = {
+	public: 'P',
+	connected: 'C',
+	followers: 'F'
+}
+
+/** Bus visibility char for a file visibility word; `undefined` where the bus has no such level. */
+export function busVisibility(v: string | undefined): 'P' | 'C' | 'F' | undefined {
+	return v === undefined || !Object.hasOwn(BUS_CHARS, v) ? undefined : BUS_CHARS[v]
+}
 
 /**
  * Where a visibility sits on that ladder. `-1` for `undefined` or anything unrecognised — a
@@ -125,77 +159,79 @@ const VISIBILITY_ORDER: FileVisibility[] = [null, 'C', 'F', 'V', 'P']
  * it ranks `-1` and the access notice silently stops firing.
  */
 export function visibilityRank(v: string | null | undefined): number {
-	if (v === undefined) return -1
-	return VISIBILITY_ORDER.indexOf((v === 'D' ? null : v) as FileVisibility)
+	if (v == null) return -1
+	return VISIBILITY_ORDER.indexOf(v as FileVisibility)
 }
 
-/**
- * Get visibility option by value (normalized: null and 'D' both mean Direct)
- */
-export function getVisibilityOption(t: TFunction, visibility: FileVisibility): VisibilityOption {
-	const normalizedValue = visibility === 'D' ? null : visibility
+/** Only `'unknown'` (newer-node) falls back to Direct: never show more exposure than we know. */
+export function getVisibilityOption(
+	t: TFunction,
+	visibility: FileVisibility | 'unknown'
+): VisibilityOption {
 	const opts = getVisibilityOptions(t)
-	return opts.find((opt) => opt.value === normalizedValue) || opts[0]
+	return opts.find((opt) => opt.value === visibility) || opts[0]
 }
 
 /**
  * Get the translated label for a visibility value
  */
-export function getVisibilityLabel(t: TFunction, visibility: FileVisibility): string {
+export function getVisibilityLabel(t: TFunction, visibility: FileVisibility | 'unknown'): string {
 	return getVisibilityOption(t, visibility).label
 }
 
 // Icon mapping by visibility value (does not need translation).
-const VISIBILITY_ICONS: Record<string, IconType> = {
-	null: IcDirect,
-	D: IcDirect,
-	C: IcConnection,
-	F: IcFollowers,
-	V: IcVerified,
-	P: IcPublic
+const VISIBILITY_ICONS: Partial<Record<FileVisibility, IconType>> = {
+	direct: IcDirect,
+	subscribed: IcFeed,
+	connected: IcConnection,
+	followers: IcFollowers,
+	secondDegree: IcCommunityMap,
+	verified: IcVerified,
+	public: IcPublic
 }
 
 /**
  * Get the icon component for a visibility value
  */
-export function getVisibilityIcon(visibility: FileVisibility): IconType {
-	const key = visibility === null ? 'null' : visibility
-	return VISIBILITY_ICONS[key] || IcDirect
+export function getVisibilityIcon(visibility: FileVisibility | 'unknown'): IconType {
+	return (visibility !== 'unknown' && VISIBILITY_ICONS[visibility]) || IcDirect
 }
 
 /**
- * Visibility options for dropdown (excludes duplicate 'D' since null is the same)
+ * Visibility options for the dropdown: the settable rungs only. `subscribed` and `secondDegree`
+ * are display-only here (set elsewhere or by newer clients).
  */
 export const getVisibilityDropdownOptions = (t: TFunction): VisibilityOption[] =>
-	getVisibilityOptions(t).filter((opt) => opt.value !== 'D')
+	getVisibilityOptions(t).filter((o) => o.value !== 'subscribed' && o.value !== 'secondDegree')
 
 /** Access levels the share UI can express, as stored on `ShareEntry.permission`. */
 export type SharePermLevel = 'READ' | 'COMMENT' | 'WRITE'
 
 /** The whole `share_entries.permission` vocabulary, admin included. */
-export type SharePermChar = 'R' | 'C' | 'W' | 'A'
+export type SharePerm = SharePermission
 
 /** A file's resolved access level, as `File.accessLevel` reports it.
- *  `'admin'` is write PLUS the right to manage the file's share set. */
-export type FileAccessLevel = 'none' | 'read' | 'comment' | 'write' | 'admin'
+ *  `'admin'` is write PLUS the right to manage the file's share set. `'unknown'` is a level from
+ *  a newer node: every predicate below grants it nothing beyond read. */
+export type FileAccessLevel = 'none' | 'read' | 'comment' | 'write' | 'admin' | 'unknown'
 
 /**
- * Normalize a raw wire permission into a {@link SharePermChar}.
+ * Normalize a raw wire permission into a {@link SharePerm}.
  *
- * Unknown input reads as `'R'`, mirroring the backend's fail-safe
+ * Unknown input reads as `'read'`, mirroring the backend's fail-safe
  * `AccessLevel::from_perm_char`. `tShareEntry.permission` stays `T.string` precisely so one
  * corrupt row degrades to "viewer" here instead of failing the decode of the whole share list.
  */
-export function toSharePermChar(raw: unknown): SharePermChar {
+export function toSharePerm(raw: unknown): SharePerm {
 	const c = typeof raw === 'string' ? raw : raw?.toString()
-	return c === 'A' || c === 'W' || c === 'C' ? c : 'R'
+	return c === 'admin' || c === 'write' || c === 'comment' ? c : 'read'
 }
 
 /**
  * Write-or-better. The single comparison for "may this user change the file".
  *
  * Always use this instead of `accessLevel === 'write'`: the file's owner, a community leader and
- * an explicit `'A'` grantee all resolve to `'admin'`, and an equality test locks every one of
+ * an explicit `'admin'` grantee all resolve to `'admin'`, and an equality test locks every one of
  * them out.
  */
 export function canWrite(level: FileAccessLevel | undefined): boolean {
@@ -217,39 +253,39 @@ export function toAppAccess(level: FileAccessLevel | undefined): 'read' | 'comme
 /** A share link's access level as the permission vocabulary the read-only badge labels with.
  *  Links never carry admin — the backend rejects `'admin'` on refs. */
 export function linkAccessToPermLevel(
-	access: 'read' | 'comment' | 'write' | undefined
+	access: 'read' | 'comment' | 'write' | 'unknown' | undefined
 ): SharePermLevel {
 	if (access === 'write') return 'WRITE'
 	if (access === 'comment') return 'COMMENT'
 	return 'READ'
 }
 
-/** The editable levels' wire chars. `'A'` is deliberately absent — see {@link isAdminPerm}. */
-export function levelToPermChar(level: SharePermLevel): SharePermChar {
-	if (level === 'WRITE') return 'W'
-	if (level === 'COMMENT') return 'C'
-	return 'R'
+/** The editable levels' wire words. `'admin'` is deliberately absent — see {@link isAdminPerm}. */
+export function levelToPerm(level: SharePermLevel): SharePerm {
+	if (level === 'WRITE') return 'write'
+	if (level === 'COMMENT') return 'comment'
+	return 'read'
 }
 
 /**
- * Whether a raw `ShareEntry.permission` char is the admin standing.
+ * Whether a raw `ShareEntry.permission` is the admin standing.
  *
- * `'A'` confers share management server-side (`is_share_manager`), but the UI can neither grant
+ * `'admin'` confers share management server-side (`is_share_manager`), but the UI can neither grant
  * nor express it — the level menu is 3-valued by design. Treat such entries as read-only:
- * folding `'A'` into `'WRITE'` would let a level toggle silently overwrite the grant with `'W'`,
- * and nothing in this UI could restore it.
+ * folding `'admin'` into `'WRITE'` would let a level toggle silently overwrite the grant with
+ * `'write'`, and nothing in this UI could restore it.
  */
 export function isAdminPerm(perm: unknown): boolean {
-	return perm === 'A'
+	return perm === 'admin'
 }
 
 /**
- * Whether the signed-in user holds an explicit `'A'` (admin) share grant on this file.
+ * Whether the signed-in user holds an explicit `'admin'` share grant on this file.
  *
  * ShareDialog's fallback when `GET /files/:id/access` is unavailable (loading, error, older node):
  * on a CROSS-OWNER row {@link deriveFileOwnerScope} strips `accessLevel`, and this recovers a direct
- * grant from entries the dialog has already fetched. It scans only THIS file's own `'U'` entries,
- * so an `'A'` inherited from a parent folder is invisible to it — the access endpoint's `canManage`
+ * grant from entries the dialog has already fetched. It scans only THIS file's own `'user'`
+ * entries, so an `'admin'` inherited from a parent folder is invisible to it — the access endpoint's `canManage`
  * is the complete answer.
  */
 export function hasAdminGrant(
@@ -259,33 +295,33 @@ export function hasAdminGrant(
 	if (!authIdTag || !entries) return false
 	return entries.some(
 		(e) =>
-			e.subjectType === 'U' &&
+			e.subjectType === 'user' &&
 			e.subjectId.toString() === authIdTag &&
 			isAdminPerm(e.permission)
 	)
 }
 
-/** Map a raw permission char to an editable level. `'A'` is not one — callers
+/** Map a raw permission to an editable level. `'admin'` is not one — callers
  *  must branch on {@link isAdminPerm} first, or the admin badge turns into a
  *  "Viewer" menu that overwrites the grant on its first change. */
-export function permCharToLevel(perm: string): SharePermLevel {
-	if (perm === 'W') return 'WRITE'
-	if (perm === 'C') return 'COMMENT'
+export function permToLevel(perm: string): SharePermLevel {
+	if (perm === 'write') return 'WRITE'
+	if (perm === 'comment') return 'COMMENT'
 	return 'READ'
 }
 
-/** Human label for a raw permission char, including the admin standing. */
+/** Human label for a raw permission, including the admin standing. */
 export function sharePermLabel(perm: string, t: TFunction): string {
 	if (isAdminPerm(perm)) return t('Admin')
-	const level = permCharToLevel(perm)
+	const level = permToLevel(perm)
 	return level === 'WRITE' ? t('Editor') : level === 'COMMENT' ? t('Commenter') : t('Viewer')
 }
 
-/** Badge variant for a raw permission char. Paired with {@link sharePermLabel} so the two never
+/** Badge variant for a raw permission. Paired with {@link sharePermLabel} so the two never
  *  drift: admin gets its own colour, since on 'accent' it read as an ordinary editor grant. */
 export function sharePermVariant(perm: string): 'warning' | 'accent' | 'primary' | 'secondary' {
 	if (isAdminPerm(perm)) return 'warning'
-	const level = permCharToLevel(perm)
+	const level = permToLevel(perm)
 	return level === 'WRITE' ? 'accent' : level === 'COMMENT' ? 'primary' : 'secondary'
 }
 
@@ -367,9 +403,9 @@ export function canManageFile(
  * Callers must pass the roles they hold on the node that SERVES the row — what
  * `useFileOwnerScope` derives — never the active context's when the two differ.
  *
- * The `'A'` (admin) grant reaches us as `accessLevel === 'admin'` on same-node rows only; on
+ * The `'admin'` grant reaches us as `accessLevel === 'admin'` on same-node rows only; on
  * cross-owner ones {@link deriveFileOwnerScope} strips `accessLevel`. Two things recover it:
- * {@link hasAdminGrant}, which sees only this file's OWN `'U'` entries and is therefore blind to a
+ * {@link hasAdminGrant}, which sees only this file's OWN `'user'` entries and is therefore blind to a
  * grant inherited from a parent folder, and `GET /files/:id/access`, whose `canManage` the serving
  * node computes itself and which sees both. Entry points before the ShareDialog read a
  * cross-owner admin grant as a false negative rather than pay a probe per selection.

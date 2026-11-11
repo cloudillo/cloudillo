@@ -135,14 +135,14 @@ export function CalendarApp() {
 	React.useEffect(
 		function initVisibility() {
 			if (visibleCalendars === null && calendars.length > 0) {
-				setVisibleCalendars(new Set(calendars.map((c) => c.calId)))
+				setVisibleCalendars(new Set(calendars.map((c) => c.id)))
 			}
 		},
 		[calendars, visibleCalendars, setVisibleCalendars]
 	)
 
 	const visibleCalList = React.useMemo(
-		() => (visibleCalendars ? calendars.filter((c) => visibleCalendars.has(c.calId)) : []),
+		() => (visibleCalendars ? calendars.filter((c) => visibleCalendars.has(c.id)) : []),
 		[calendars, visibleCalendars]
 	)
 
@@ -293,9 +293,9 @@ export function CalendarApp() {
 		[api, selCalId, selUid, selOccStart, selHasOverride]
 	)
 
-	function handleToggleCalendar(calId: number) {
+	function handleToggleCalendar(calId: string) {
 		setVisibleCalendars((prev) => {
-			const next = new Set(prev ?? calendars.map((c) => c.calId))
+			const next = new Set(prev ?? calendars.map((c) => c.id))
 			if (next.has(calId)) next.delete(calId)
 			else next.add(calId)
 			return next
@@ -314,14 +314,14 @@ export function CalendarApp() {
 
 	async function handleSaveCalendar(data: CalendarCreate | CalendarPatch) {
 		if (editingCal) {
-			await updateCal(editingCal.calId, data as CalendarPatch)
+			await updateCal(editingCal.id, data as CalendarPatch)
 			toast.success(t('Calendar updated'))
 		} else {
 			const created = await createCal(data as CalendarCreate)
 			if (created) {
 				setVisibleCalendars((prev) => {
 					const next = new Set(prev ?? [])
-					next.add(created.calId)
+					next.add(created.id)
 					return next
 				})
 			}
@@ -333,7 +333,7 @@ export function CalendarApp() {
 		// The sidebar fires this with `void`, so a rejection here would be a
 		// silent unhandled rejection — report it instead.
 		try {
-			await removeCal(cal.calId)
+			await removeCal(cal.id)
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : t('Failed to delete calendar'))
 			return
@@ -341,10 +341,10 @@ export function CalendarApp() {
 		setVisibleCalendars((prev) => {
 			if (!prev) return prev
 			const next = new Set(prev)
-			next.delete(cal.calId)
+			next.delete(cal.id)
 			return next
 		})
-		if (selectedRef?.calId === cal.calId) setSelectedRef(null)
+		if (selectedRef?.calId === cal.id) setSelectedRef(null)
 		toast.success(t('Calendar deleted'))
 	}
 
@@ -386,7 +386,7 @@ export function CalendarApp() {
 		setTaskEditorOpen(true)
 	}
 
-	async function handleSaveEvent(calId: number, data: CalendarObjectInput) {
+	async function handleSaveEvent(calId: string, data: CalendarObjectInput) {
 		if (!api) throw new Error(t('Not connected'))
 		if (editingEvent) {
 			// Recurring series + the user clicked a specific occurrence → prompt for scope.
@@ -416,7 +416,7 @@ export function CalendarApp() {
 		events.refresh()
 	}
 
-	async function handleSaveTask(calId: number, data: CalendarObjectInput) {
+	async function handleSaveTask(calId: string, data: CalendarObjectInput) {
 		if (!api) throw new Error(t('Not connected'))
 		if (editingTask) {
 			const updated = await api.calendars.replaceObject(
@@ -516,7 +516,7 @@ export function CalendarApp() {
 	const noCalendars = !calsLoading && !calsError && calendars.length === 0
 	const eventCalendars = calendars.filter((c) => calendarSupports(c.components, 'VEVENT'))
 	const taskCalendars = calendars.filter((c) => calendarSupports(c.components, 'VTODO'))
-	const defaultCalId = calendars[0]?.calId
+	const defaultCalId = calendars[0]?.id
 	const canCreate = !noCalendars && !calsError
 
 	const handleViewChange = React.useCallback(

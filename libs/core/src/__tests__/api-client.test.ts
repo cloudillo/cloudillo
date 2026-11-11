@@ -1,7 +1,20 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: MPL-2.0
 
-import { FetchError } from '../api'
+import { apiFetchHelper, FetchError } from '../api'
+
+describe('apiFetchHelper envelope check', () => {
+	it.each(['null', '{"foo":1}'])('rejects a 200 body without an envelope: %s', async (body) => {
+		;(globalThis as unknown as { fetch: unknown }).fetch = async () => ({
+			ok: true,
+			status: 200,
+			text: async () => body
+		})
+		await expect(apiFetchHelper('user.example', 'GET', '/x', {})).rejects.toMatchObject({
+			code: 'API-PARSE-JSON'
+		})
+	})
+})
 
 describe('FetchError', () => {
 	it('should set code, descr and httpStatus', () => {
@@ -15,13 +28,13 @@ describe('FetchError', () => {
 
 	it('should set apiErrorCode when provided', () => {
 		const error = new FetchError(
-			'E-AUTH-UNAUTH',
+			'E-AUTH-UNAUTHENTICATED',
 			'Authentication required',
 			401,
-			'E-AUTH-UNAUTH'
+			'E-AUTH-UNAUTHENTICATED'
 		)
 
-		expect(error.apiErrorCode).toBe('E-AUTH-UNAUTH')
+		expect(error.apiErrorCode).toBe('E-AUTH-UNAUTHENTICATED')
 	})
 
 	it('should default httpStatus to 400', () => {
@@ -47,13 +60,13 @@ describe('FetchError', () => {
 		it('should not match a different code', () => {
 			const error = new FetchError('E-CORE-NOTFOUND', 'Not found', 404, 'E-CORE-NOTFOUND')
 
-			expect(error.is('E-AUTH-UNAUTH')).toBe(false)
+			expect(error.is('E-AUTH-UNAUTHENTICATED')).toBe(false)
 		})
 
 		it('should not match when apiErrorCode is undefined', () => {
 			const error = new FetchError('GENERIC-ERROR', 'Something went wrong', 500)
 
-			expect(error.is('E-CORE-UNKNOWN')).toBe(false)
+			expect(error.is('E-CORE-INTERNAL')).toBe(false)
 		})
 	})
 })

@@ -131,7 +131,7 @@ import { InviteMembersDialog } from './invite-members-dialog.js'
 import { ProfileHero } from './ProfileHero.js'
 import { PartnerCommunities } from './partner-communities.js'
 import { PeopleHeader } from './people-header.js'
-import { describeRelationship } from './relationship.js'
+import { describeRelationship, type LocalProfile } from './relationship.js'
 import { roleLabels } from './role-labels.js'
 import { TrustBanner } from './TrustBanner.js'
 import { TrustChip } from './TrustChip.js'
@@ -204,7 +204,7 @@ function RelationshipBadge({
 	localProfile,
 	profileType
 }: {
-	localProfile?: Partial<Profile>
+	localProfile?: LocalProfile
 	profileType?: 'person' | 'community'
 }) {
 	const { t } = useTranslation()
@@ -242,7 +242,7 @@ function ProfileConnectButton({
 	profileType,
 	cmds
 }: {
-	localProfile?: Partial<Profile>
+	localProfile?: LocalProfile
 	profileType?: 'person' | 'community'
 	cmds: ProfileConnectionCmds
 }) {
@@ -272,7 +272,7 @@ function ProfileFollowButton({
 	profileType,
 	cmds
 }: {
-	localProfile?: Partial<Profile>
+	localProfile?: LocalProfile
 	profileType?: 'person' | 'community'
 	cmds: ProfileConnectionCmds
 }) {
@@ -318,7 +318,7 @@ function ProfileFollowButton({
 // whichever applies. Establishing is the visible `ProfileConnectButton`.
 function relationshipMenuItems(
 	t: TFunction,
-	localProfile: Partial<Profile> | undefined,
+	localProfile: LocalProfile | undefined,
 	profileType: 'person' | 'community' | undefined,
 	cmds: ProfileConnectionCmds
 ) {
@@ -450,7 +450,7 @@ function ProfileTabs({
 interface ProfilePageProps {
 	profile: FullProfile
 	setProfile: React.Dispatch<React.SetStateAction<FullProfile | undefined>>
-	localProfile?: Partial<Profile>
+	localProfile?: LocalProfile
 	setProfileStatus?: React.Dispatch<React.SetStateAction<string | undefined>>
 	updateProfile?: (patch: ProfilePatch) => Promise<void>
 	profileCmds: ProfileConnectionCmds
@@ -610,10 +610,10 @@ export function ProfilePage({
 		request.setRequestHeader('Authorization', `Bearer ${token}`)
 
 		request.addEventListener('load', function (_e) {
-			if (request.status === 200) {
+			// 202: the profile field updates asynchronously; `contentId` is the pending id
+			if (request.status >= 200 && request.status < 300) {
 				try {
-					const res = JSON.parse(request.response)
-					const coverPic = res.fileId || res
+					const coverPic = JSON.parse(request.response).data.contentId
 					if (profile) setProfile((p) => (p ? { ...p, coverPic } : p))
 					setUploading(false)
 					setCoverUpload(undefined)
@@ -711,10 +711,10 @@ export function ProfilePage({
 		request.setRequestHeader('Authorization', `Bearer ${token}`)
 
 		request.addEventListener('load', function (_e) {
-			if (request.status === 200) {
+			// 202: the profile field updates asynchronously; `contentId` is the pending id
+			if (request.status >= 200 && request.status < 300) {
 				try {
-					const res = JSON.parse(request.response)
-					const profilePic = res.fileId || res
+					const profilePic = JSON.parse(request.response).data.contentId
 					if (profile) setProfile((p) => (p ? { ...p, profilePic } : p))
 					// Only update auth state if this is user's own profile
 					if (!isCommunity && auth?.tnId == profile.tnId)
@@ -1139,7 +1139,10 @@ export function ProfileFeed({ profile }: ProfileTabProps) {
 		function onLoadFeed() {
 			if (!api) return
 			;(async function () {
-				const actions = await api.actions.list({ type: 'POST', audience: profile.idTag })
+				const actions = await api.actions.list({
+					type: 'POST',
+					audienceIdTag: profile.idTag
+				})
 				console.log('Profile Feed res', actions)
 				setFeed(actions)
 			})()
@@ -1181,10 +1184,10 @@ export function ProfileFeed({ profile }: ProfileTabProps) {
 			if (!feed) return feed
 			return feed.map((f) => {
 				let next = f
-				if (f.actionId === actionId) {
+				if (f.id === actionId) {
 					next = { ...next, stat: { ...next.stat, ...stat } }
 				}
-				if (next.subjectAction?.actionId === actionId) {
+				if (next.subjectAction?.id === actionId) {
 					next = {
 						...next,
 						subjectAction: {
@@ -1230,7 +1233,7 @@ export function ProfileFeed({ profile }: ProfileTabProps) {
 				<VBox ref={ref} gap={1}>
 					{feed.map((action) => (
 						<ActionComp
-							key={action.actionId}
+							key={action.id}
 							action={action}
 							onPatchStat={patchStat}
 							hideAudience={profile.idTag}
@@ -1327,7 +1330,7 @@ function MemberCard({
 			onClick={handleRemove}
 		/>
 	)
-	const unsuspendItem = onUnsuspend && member.status === 'S' && (
+	const unsuspendItem = onUnsuspend && member.status === 'suspended' && (
 		<MenuItem label={t('Unsuspend')} onClick={() => onUnsuspend(member.idTag)} />
 	)
 	const hasMenu =
@@ -1485,7 +1488,7 @@ export function ProfileConnections({
 			let cancelled = false
 			;(async function () {
 				try {
-					const actions = await listBadgeActions(client, { issuer: profile.idTag })
+					const actions = await listBadgeActions(client, { issuerIdTag: profile.idTag })
 					const byMember = new Map<string, ReceivedBadge[]>()
 					for (const [tag, byKey] of latestBadges(actions)) {
 						byMember.set(tag, [...byKey.values()])
@@ -1502,14 +1505,15 @@ export function ProfileConnections({
 		[canAward, profile.idTag, refreshTick, getClientFor]
 	)
 
-	// `connected === true` is the membership signal; 'R' (request pending) and
+	// `connected === true` is the membership signal; a pending request and
 	// undefined/false are NOT members. The /profiles list also includes
 	// invited-but-unaccepted people, so the Active tab and the Invitations
 	// "accepted" derivation must filter on this.
 	// Suspended rows only for the leader, who alone can unsuspend; don't trust the server's filter.
 	const isLeader = userRoleLevel === ROLE_LEVELS.leader
 	const memberProfiles = React.useMemo(
-		() => profiles.filter((p) => p.connected === true && (isLeader || p.status !== 'S')),
+		() =>
+			profiles.filter((p) => p.connected === true && (isLeader || p.status !== 'suspended')),
 		[profiles, isLeader]
 	)
 	const connectedMemberTags = React.useMemo(
@@ -1551,9 +1555,9 @@ export function ProfileConnections({
 				try {
 					// `status` only takes effect for the leader (owner tier) — everyone
 					// else still gets A/M, so suspended members stay hidden from them.
-					const profiles = await client.profiles.list({
+					const profiles = await client.profiles.listAll({
 						type: 'person',
-						status: ['A', 'M', 'S']
+						status: ['active', 'muted', 'suspended']
 					})
 					if (!cancelled) setProfiles(profiles as Profile[])
 				} catch (err) {
@@ -1581,7 +1585,11 @@ export function ProfileConnections({
 			// under-counts: list ['C','P','A'] (revoked/declined drop out server-side) and count
 			// those whose invitee isn't a connected member yet, as the Invitations list does.
 			client.actions
-				.list({ type: 'INVT', subject: '@' + profile.idTag, status: ['C', 'P', 'A'] })
+				.list({
+					type: 'INVT',
+					subject: '@' + profile.idTag,
+					status: ['confirmation', 'pending', 'active']
+				})
 				.then((rs) => {
 					if (cancelled) return
 					const pending = (rs as ActionView[]).filter(
@@ -1630,9 +1638,9 @@ export function ProfileConnections({
 			// Explicit: a user-initiated administrative change.
 			const client = getClientFor(profile.idTag, { explicit: true })
 			if (!client) throw new Error('No API client for community')
-			await client.profiles.adminUpdate(memberIdTag, { status: 'A' })
+			await client.profiles.adminUpdate(memberIdTag, { status: 'active' })
 			setProfiles((prev) =>
-				prev.map((p) => (p.idTag === memberIdTag ? { ...p, status: 'A' } : p))
+				prev.map((p) => (p.idTag === memberIdTag ? { ...p, status: 'active' } : p))
 			)
 			toast.success(t('Member unsuspended'))
 		} catch (err) {
@@ -1931,7 +1939,7 @@ function ProfileView() {
 	const idTag = params.idTag == 'me' ? (auth?.idTag ?? api?.idTag) : params.idTag || auth?.idTag
 	const own = idTag == auth?.idTag
 	const [profile, setProfile] = React.useState<FullProfile>()
-	const [localProfile, setLocalProfile] = React.useState<Partial<Profile>>()
+	const [localProfile, setLocalProfile] = React.useState<LocalProfile>()
 	// Tick to force profile refetch after a trust decision so cached proxy-token-gated
 	// content reloads with the new auth state.
 	const [trustTick, setTrustTick] = React.useState(0)
@@ -2040,6 +2048,18 @@ function ProfileView() {
 						if (!own && idTag) {
 							rememberStoredTrust(idTag, p?.trust ?? null)
 						}
+						// `connected` is a bool on the wire, so a sent request reads `false`;
+						// the `connection=pending` filter is what still knows about it.
+						if (!own && p && p.connected !== true) {
+							api!.profiles
+								.list({ idTag: idTag!, connection: 'pending' })
+								.then((rows) => {
+									if (!cancelled && rows.length) {
+										setLocalProfile({ ...p, connected: 'pending' })
+									}
+								})
+								.catch(() => {})
+						}
 					})
 					.catch(() => {
 						if (!cancelled) setLocalProfile({})
@@ -2059,7 +2079,7 @@ function ProfileView() {
 	// Listen for connection acceptance via WsBus
 	const { loadCommunities } = useCommunitiesList()
 
-	useWsBus({ cmds: ['ACTION'] }, (msg) => {
+	useWsBus({ types: ['action'] }, (msg) => {
 		const action = msg.data as ActionView
 		if (action.type === 'CONN' && action.subType === 'ACC') {
 			// Connection accepted — update profile if we're viewing the acceptor
@@ -2084,7 +2104,7 @@ function ProfileView() {
 		? undefined
 		: async function updateProfile(patch: ProfilePatch) {
 				//console.log('updateProfile', patch)
-				let res: { profile: unknown } | undefined
+				let res: unknown
 				if (own) {
 					// Own profile: direct API call
 					res = await api?.profiles.updateOwn(patch)
@@ -2102,14 +2122,14 @@ function ProfileView() {
 						body: JSON.stringify(patch)
 					})
 					if (!response.ok) throw new Error(`Profile update failed: ${response.status}`)
-					const data = await response.json()
-					res = data.data ?? data
+					res = (await response.json()).data
 				}
 				// Use response x if available, otherwise optimistic merge
-				const responseX = (res?.profile as unknown as FullProfile)?.x
+				const updated = res as FullProfile | undefined
+				const responseX = updated?.x
 				setProfile((prev) => ({
 					...(prev as FullProfile),
-					...(res?.profile as unknown as FullProfile),
+					...updated,
 					x: responseX ?? prev?.x
 				}))
 			}
@@ -2189,7 +2209,7 @@ function ProfileView() {
 			'connect',
 			async () => {
 				await api!.actions.create(connectAction)
-				setLocalProfile((p) => (p ? { ...p, connected: autoJoin ? true : 'R' } : p))
+				setLocalProfile((p) => (p ? { ...p, connected: autoJoin ? true : 'pending' } : p))
 			},
 			autoJoin ? t('Joined {{name}}', { name: profile.name }) : t('Request sent')
 		)
@@ -2210,7 +2230,7 @@ function ProfileView() {
 			audienceTag: profile.idTag
 		}
 		const successMsg =
-			localProfile.connected === 'R'
+			localProfile.connected === 'pending'
 				? t('Request withdrawn')
 				: profile.type === 'community'
 					? t('You left {{name}}', { name: profile.name })
@@ -2226,24 +2246,24 @@ function ProfileView() {
 	}
 
 	async function onBlock() {
-		if (!profile || localProfile?.status == 'B') return
+		if (!profile || localProfile?.status == 'blocked') return
 		await run(
 			'block',
 			async () => {
-				await api!.profiles.updateConnection(profile.idTag, { status: 'B' })
-				setLocalProfile((p) => (p ? { ...p, status: 'B' } : p))
+				await api!.profiles.updateConnection(profile.idTag, { status: 'blocked' })
+				setLocalProfile((p) => (p ? { ...p, status: 'blocked' } : p))
 			},
 			t('Blocked')
 		)
 	}
 
 	async function onUnblock() {
-		if (!profile || localProfile?.status != 'B') return
+		if (!profile || localProfile?.status != 'blocked') return
 		await run(
 			'unblock',
 			async () => {
-				await api!.profiles.updateConnection(profile.idTag, { status: 'A' })
-				setLocalProfile((p) => (p ? { ...p, status: 'A' } : p))
+				await api!.profiles.updateConnection(profile.idTag, { status: 'active' })
+				setLocalProfile((p) => (p ? { ...p, status: 'active' } : p))
 			},
 			t('Unblocked')
 		)

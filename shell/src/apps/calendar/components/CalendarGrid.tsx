@@ -62,10 +62,10 @@ export function CalendarGrid({
 	const { i18n } = useTranslation()
 
 	const calColors = React.useMemo(() => {
-		const map = new Map<number, { color: string; textColor: string }>()
+		const map = new Map<string, { color: string; textColor: string }>()
 		for (const c of calendars) {
 			const color = normalizeHexColor(c.color) || 'var(--col-primary)'
-			map.set(c.calId, { color, textColor: pickContrastText(c.color) })
+			map.set(c.id, { color, textColor: pickContrastText(c.color) })
 		}
 		return map
 	}, [calendars])

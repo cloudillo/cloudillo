@@ -71,7 +71,7 @@ export function SharedResourceView() {
 					})
 
 					// Load file metadata using scoped token (a share's resourceId is an entry id)
-					const files = await scopedApi.files.list({ fileId: tokenResult.resourceId })
+					const files = await scopedApi.files.list({ contentId: tokenResult.resourceId })
 					if (files.length === 0) {
 						setState({
 							status: 'error',
@@ -83,7 +83,7 @@ export function SharedResourceView() {
 					}
 
 					const file = files[0]
-					const fileTp = file.fileTp || 'BLOB'
+					const fileTp = file.fileType || 'BLOB'
 
 					// For CRDT/RTDB files, always show guest name dialog
 					if (fileTp === 'CRDT' || fileTp === 'RTDB') {
@@ -102,10 +102,10 @@ export function SharedResourceView() {
 					// a Retry.
 					let recoverable = true
 
-					if (apiErr?.httpStatus === 404 || code === 'E-CORE-NOTFOUND') {
+					if (code === 'E-CORE-NOTFOUND' || code === 'E-REF-EXPIRED') {
 						message = t('This link has expired or does not exist')
 						recoverable = false
-					} else if (apiErr?.httpStatus === 403 || code === 'E-AUTH-NOPERM') {
+					} else if (code === 'E-REF-USED' || code === 'E-AUTH-FORBIDDEN') {
 						message = t('This link has reached its usage limit')
 						recoverable = false
 					}
@@ -124,10 +124,10 @@ export function SharedResourceView() {
 			if (state.status !== 'ready' || !api?.idTag) return
 
 			const { tokenResult, file } = state
-			const fileTp = file.fileTp || 'BLOB'
+			const fileTp = file.fileType || 'BLOB'
 			// A folder has no content id; a FLDR share never opens in an app (appId stays ''),
 			// so its entry id only stands in as the menu item's key.
-			const contentId = file.fileId ?? file.entryId
+			const contentId = file.contentId ?? file.id
 			const resId = `${api.idTag}:${contentId}`
 
 			// Only CRDT/RTDB files open in a microfrontend app, so only they
@@ -150,7 +150,9 @@ export function SharedResourceView() {
 				appId,
 				resId,
 				token: tokenResult.token,
-				accessLevel: tokenResult.accessLevel,
+				// A level from a newer node gets the least a link can grant.
+				accessLevel:
+					tokenResult.accessLevel === 'unknown' ? 'read' : tokenResult.accessLevel,
 				ownerIdTag: api.idTag,
 				guestName,
 				refId,
@@ -207,11 +209,11 @@ export function SharedResourceView() {
 	}
 
 	const { tokenResult, file } = state
-	const access = tokenResult.accessLevel
+	const access = tokenResult.accessLevel === 'unknown' ? 'read' : tokenResult.accessLevel
 	const idTag = api?.idTag || ''
 
 	// Determine display mode based on file type
-	const fileTp = file.fileTp || 'BLOB'
+	const fileTp = file.fileType || 'BLOB'
 	const contentType = file.contentType
 
 	// CRDT/RTDB files: open in microfrontend app

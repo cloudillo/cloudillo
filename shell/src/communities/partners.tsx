@@ -136,9 +136,13 @@ function describeMap(t: TFunction, s: string | null | undefined): string {
 	return rangeSentences(t, parseHatRoles(s)).join(' · ') || t('No access granted')
 }
 
-/** A hat entry only works where the partner grants our members a role; suspended rows never enter. */
+/** A hat entry only works where the partner grants our members a role. Only active, muted or
+ *  status-less rows enter: suspended, and anything a newer node adds (`'unknown'`), never do. */
 function canEnter(p: { status?: string; peerHatRoles?: string | null }): boolean {
-	return p.status !== 'S' && Object.keys(parseHatRoles(p.peerHatRoles)).length > 0
+	return (
+		(p.status === 'active' || p.status === 'muted' || p.status === undefined) &&
+		Object.keys(parseHatRoles(p.peerHatRoles)).length > 0
+	)
 }
 
 /** Today's per-role grid, behind the picker's "Custom…". */
@@ -257,9 +261,18 @@ export async function partnershipState(
 ): Promise<PartnershipState> {
 	// Same rule as the hub's partner list (`PartnersManager`), so the two can't disagree
 	const [partner, incoming, sent] = await Promise.all([
-		client.profiles.list({ idTag: target, connected: true, status: ['A', 'M', 'S'] }),
-		client.actions.list({ type: 'CONN', issuer: target, audience: from, status: ['C', 'P'] }),
-		client.profiles.list({ idTag: target, connected: 'R' })
+		client.profiles.list({
+			idTag: target,
+			connection: 'connected',
+			status: ['active', 'muted', 'suspended']
+		}),
+		client.actions.list({
+			type: 'CONN',
+			issuerIdTag: target,
+			audienceIdTag: from,
+			status: ['confirmation', 'pending']
+		}),
+		client.profiles.list({ idTag: target, connection: 'pending' })
 	])
 	if (partner?.length) return 'partner'
 	if ((incoming as ActionView[]).some((a) => a.issuer.idTag === target)) return 'incoming'
@@ -400,7 +413,10 @@ function ProposeBody({ onClose, target: fixedTarget, from, fromOptions, exclude 
 			api.profiles
 				.getRemoteFull(targetTag)
 				.then((p) => {
-					if (!cancelled) setMode(p.settings?.connectionMode)
+					if (!cancelled) {
+						const m = p.settings?.connectionMode
+						setMode(m === 'unknown' ? undefined : m)
+					}
 				})
 				.catch(() => {})
 			return () => {
@@ -657,7 +673,7 @@ function AcceptBody({
 			saved = await saveHatRoles(client, peer, hatRoles)
 		}
 		try {
-			await client.actions.accept(action.actionId)
+			await client.actions.accept(action.id)
 		} catch (err) {
 			console.error('Failed to approve partnership request', err)
 			// Not partners after all: don't leave the pre-saved map behind
@@ -717,7 +733,7 @@ function SentRequests({
 		function loadSent() {
 			let cancelled = false
 			client.profiles
-				.list({ type: 'community', connected: 'R' })
+				.list({ type: 'community', connection: 'pending' })
 				.then((list) => {
 					if (!cancelled) setSent(list ?? [])
 				})
@@ -801,7 +817,7 @@ function PartnerRow({
 			trailing={
 				<>
 					<ProfileStatusBadge profile={p} />
-					{p.status === 'S' ? (
+					{p.status === 'suspended' ? (
 						<Button
 							size="sm"
 							onClick={(e) => {
@@ -879,7 +895,11 @@ export function PartnersManager() {
 			let cancelled = false
 			client.profiles
 				// Leader-only page, so `status` applies: show unreachable (S) partners too.
-				.list({ type: 'community', connected: true, status: ['A', 'M', 'S'] })
+				.list({
+					type: 'community',
+					connection: 'connected',
+					status: ['active', 'muted', 'suspended']
+				})
 				.then((list) => {
 					if (cancelled) return
 					setPeers(list.filter((p) => p.idTag !== communityIdTag))
@@ -901,7 +921,7 @@ export function PartnersManager() {
 	async function unsuspend(peer: Profile) {
 		if (!client) return
 		try {
-			await client.profiles.adminUpdate(peer.idTag, { status: 'A' })
+			await client.profiles.adminUpdate(peer.idTag, { status: 'active' })
 			toast.success(t('Partner unsuspended'))
 			reload()
 		} catch (err) {

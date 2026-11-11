@@ -92,9 +92,10 @@ describe('SiteBar — a published page reached from a shell route', () => {
 		fetchMock.mockImplementation(async (input) =>
 			String(input).endsWith('.part.html')
 				? fragmentResponse('/blog/hello.part.html', {
-						'X-Cloudillo-Site-Mount': '/',
-						'X-Cloudillo-Site-Owner': 'alice.tld',
-						'X-Cloudillo-Site-Owner-Name': 'Alice'
+						'Cloudillo-Site-Mount': '/',
+						'Cloudillo-Site-Owner': 'alice.tld',
+						// Percent-encoded UTF-8, as the server sends it
+						'Cloudillo-Site-Owner-Name': '%C3%81lice'
 					})
 				: ({ ok: false } as unknown as Response)
 		)
@@ -106,7 +107,7 @@ describe('SiteBar — a published page reached from a shell route', () => {
 		)
 
 		await waitFor(() => {
-			expect(screen.getByText('Alice')).toBeDefined()
+			expect(screen.getByText('Álice')).toBeDefined()
 		})
 		expect(screen.getByText('Hosted by')).toBeDefined()
 		// The other consumer of the same atom: two levels below the mount is where a
@@ -141,8 +142,8 @@ describe('SiteBar — a published page reached from a shell route', () => {
 			String(input).endsWith('manifest.json')
 				? ({ ok: true, json: async () => manifest } as unknown as Response)
 				: fragmentResponse('/blog/deep/leaf.part.html', {
-						'X-Cloudillo-Site-Mount': '/',
-						'X-Cloudillo-Site-Owner': 'alice.tld'
+						'Cloudillo-Site-Mount': '/',
+						'Cloudillo-Site-Owner': 'alice.tld'
 					})
 		)
 

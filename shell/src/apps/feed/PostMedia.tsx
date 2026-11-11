@@ -54,7 +54,7 @@ export function Video({ attachments, idTag }: VideoProps) {
 
 	const posterUrl =
 		idTag && videoAtt && hasPoster
-			? getFileUrl(idTag, videoAtt.fileId, getOptimalVideoVariant('preview', variants))
+			? getFileUrl(idTag, videoAtt.contentId, getOptimalVideoVariant('preview', variants))
 			: undefined
 
 	const { activeSrc: activePoster } = useRetriedImageUrl(posterUrl)
@@ -72,7 +72,7 @@ export function Video({ attachments, idTag }: VideoProps) {
 				playable
 					? getFileUrl(
 							idTag,
-							videoAtt.fileId,
+							videoAtt.contentId,
 							getOptimalVideoVariant('fullscreen', variants)
 						)
 					: undefined
@@ -98,10 +98,10 @@ export function Document({ attachments, idTag, token }: DocumentProps) {
 	if (!idTag || !attachments?.length) return null
 
 	const docAtt = attachments[0]
-	const thumbnailUrl = getFileUrl(idTag, docAtt.fileId, 'vis.tn', { token })
+	const thumbnailUrl = getFileUrl(idTag, docAtt.contentId, 'vis.tn', { token })
 	// Pinned to the issuer's own context: the document lives there, whatever the viewer is
 	// currently browsing.
-	const viewerPath = viewPath(ctxBase(idTag, undefined), `${idTag}:${docAtt.fileId}`)
+	const viewerPath = viewPath(ctxBase(idTag, undefined), `${idTag}:${docAtt.contentId}`)
 
 	return (
 		<Link to={viewerPath} className="d-inline-block">

@@ -50,9 +50,9 @@ const DEBOUNCE_DELAYS = {
 	default: 500 // Default fallback
 }
 
-// `level` selects between the caller's own scope (tenant or global) — for cross-
-// tenant admin writes (site admin editing tenant X), call api.settings.* directly
-// with { level: 'tenant', tenant: idTag }; this hook only handles self-settings.
+// `level` selects between the caller's own scope (tenant or global). Settings are
+// never cross-tenant; a site admin sets a tenant's storage quota through
+// api.admin.setTenantStorageQuota. This hook only handles self-settings.
 // Reads and writes the home node's settings by default; `idTag` (including `null`)
 // targets that node (see `useApi`), and `context: true` targets the active context
 // (`useContextAwareApi`) — only for community-admin pages.

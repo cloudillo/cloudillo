@@ -24,7 +24,7 @@ import * as T from '@symbion/runtype'
  * The entries of one nav level that survive, in order.
  *
  * The rule itself lives in `@cloudillo/types`, beside `tSiteNavList` — the forgiving
- * type `GET /api/sites` reads its nav through — so the boot seed and the API response
+ * type `GET /api/site` reads its nav through — so the boot seed and the API response
  * cannot drift apart on what a target has to be. This is the name the shell has
  * always called it.
  */

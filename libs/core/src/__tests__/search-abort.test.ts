@@ -39,7 +39,7 @@ async function ok(data: unknown) {
 	return {
 		ok: true,
 		status: 200,
-		text: async () => JSON.stringify({ data, pagination: { total: 0 } })
+		text: async () => JSON.stringify({ data, total: 0 })
 	}
 }
 

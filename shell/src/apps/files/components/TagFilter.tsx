@@ -29,9 +29,9 @@ export function TagFilter({ selected, onChange }: TagFilterProps) {
 			if (!open || !api) return
 			let cancelled = false
 			api.tags
-				.list({ withCounts: true, limit: CLOUD_LIMIT, ...(prefix && { prefix }) })
+				.list({ include: ['counts'], limit: CLOUD_LIMIT, ...(prefix && { prefix }) })
 				.then((res) => {
-					if (!cancelled) setCloud(res.tags)
+					if (!cancelled) setCloud(res)
 				})
 				.catch(() => {
 					// The cloud is optional; the selected tags still show

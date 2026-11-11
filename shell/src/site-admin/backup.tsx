@@ -25,7 +25,7 @@ import { useTranslation } from 'react-i18next'
 
 import { IcDatabase } from '../icons.js'
 import { SettingsDenied, useSettings } from '../settings/settings.js'
-import { formatBytes, formatUnixTime } from '../utils.js'
+import { formatBytes, formatIsoTime } from '../utils.js'
 
 export function Backup() {
 	const { t } = useTranslation()
@@ -101,7 +101,7 @@ export function Backup() {
 						<Text className="flex-fill">
 							{last
 								? t('Last run: {{time}}, {{size}}', {
-										time: formatUnixTime(last.at, 'YYYY-MM-DD HH:mm'),
+										time: formatIsoTime(last.at, 'YYYY-MM-DD HH:mm'),
 										size: formatBytes(last.bytes)
 									})
 								: t('No backup has run since the server started.')}
@@ -174,7 +174,7 @@ export function Backup() {
 									<Text mono>{snap.name}</Text>
 								</TableCell>
 								<TableCell>
-									{formatUnixTime(snap.createdAt, 'YYYY-MM-DD HH:mm')}
+									{formatIsoTime(snap.createdAt, 'YYYY-MM-DD HH:mm')}
 								</TableCell>
 								<TableCell>{formatBytes(snap.bytes)}</TableCell>
 							</TableRow>

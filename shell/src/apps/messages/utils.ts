@@ -14,7 +14,7 @@ export async function listConnectedPeople(
 	exclude: (string | undefined)[]
 ): Promise<Profile[] | undefined> {
 	if (!api || !q) return []
-	const profiles = await api.profiles.list({ q, connected: true, type: 'person' })
+	const profiles = await api.profiles.list({ q, connection: 'connected', type: 'person' })
 	const skip = new Set(exclude)
 	return profiles?.filter((p) => !skip.has(p.idTag))
 }
@@ -93,7 +93,7 @@ export function isConvEvent(a: ActionView): boolean {
 		case 'CONV':
 			return !a.subType || a.subType === 'UPD'
 		case 'SUBS':
-			if (!a.subType) return !a.status || a.status === 'A' || a.status === 'D'
+			if (!a.subType) return !a.status || a.status === 'active' || a.status === 'deleted'
 			return a.subType === 'DEL' || a.subType === 'ROLE'
 		case 'INVT':
 		case 'PIN':
@@ -105,8 +105,8 @@ export function isConvEvent(a: ActionView): boolean {
 
 // Sort `add` into `prev` (oldest → newest), dropping ids already there.
 export function mergeEvents(prev: ActionView[] | undefined, add: ActionView[]): ActionView[] {
-	const have = new Set((prev || []).map((e) => e.actionId))
-	return [...(prev || []), ...add.filter((e) => !have.has(e.actionId))].sort(
+	const have = new Set((prev || []).map((e) => e.id))
+	return [...(prev || []), ...add.filter((e) => !have.has(e.id))].sort(
 		(a, b) => createdAtToSeconds(a.createdAt) - createdAtToSeconds(b.createdAt)
 	)
 }

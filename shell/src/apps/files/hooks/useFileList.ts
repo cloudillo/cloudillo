@@ -40,41 +40,9 @@ const PERM_LEVELS: Record<FilesPerm, readonly string[]> = {
 export function convertFileView(f: Types.FileView): File {
 	return {
 		...f,
-		fileId: f.fileId ?? null,
+		contentId: f.contentId ?? null,
 		preset: f.preset || '',
-		createdAt: typeof f.createdAt === 'string' ? f.createdAt : f.createdAt.toISOString(),
-		accessedAt: f.accessedAt
-			? typeof f.accessedAt === 'string'
-				? f.accessedAt
-				: f.accessedAt.toISOString()
-			: undefined,
-		modifiedAt: f.modifiedAt
-			? typeof f.modifiedAt === 'string'
-				? f.modifiedAt
-				: f.modifiedAt.toISOString()
-			: undefined,
-		brokenAt: f.brokenAt
-			? typeof f.brokenAt === 'string'
-				? f.brokenAt
-				: f.brokenAt.toISOString()
-			: undefined,
 		tags: f.tags?.filter((t) => t && t.length > 0),
-		userData: f.userData
-			? {
-					accessedAt: f.userData.accessedAt
-						? typeof f.userData.accessedAt === 'string'
-							? f.userData.accessedAt
-							: f.userData.accessedAt.toISOString()
-						: undefined,
-					modifiedAt: f.userData.modifiedAt
-						? typeof f.userData.modifiedAt === 'string'
-							? f.userData.modifiedAt
-							: f.userData.modifiedAt.toISOString()
-						: undefined,
-					pinned: f.userData.pinned,
-					starred: f.userData.starred
-				}
-			: undefined,
 		owner: f.owner ? { ...f.owner, name: f.owner.name || '' } : undefined,
 		upstream: f.upstream ? { ...f.upstream, name: f.upstream.name || '' } : undefined,
 		variantId: undefined
@@ -116,7 +84,7 @@ export function useFileList({ query, perm, permRoles, remoteApi }: UseFileListOp
 	// unfiltered items for the other dimensions.
 	const cacheQueryParams = React.useMemo(() => {
 		const params: Record<string, string | boolean> = {}
-		if (fullQuery.fileTp) params.fileTp = fullQuery.fileTp
+		if (fullQuery.type) params.fileTp = fullQuery.type
 		if (fullQuery.starred) params.starred = true
 		if (fullQuery.parentId && fullQuery.parentId !== '__root__' && !fullQuery.recursive) {
 			params.parentId = fullQuery.parentId
@@ -129,7 +97,7 @@ export function useFileList({ query, perm, permRoles, remoteApi }: UseFileListOp
 		async (cursor: string | null, limit: number) => {
 			const effectiveApi = remoteApi || api
 			if (!effectiveApi) {
-				return { items: [] as Types.FileView[], nextCursor: null, hasMore: false }
+				return { items: [] as Types.FileView[] }
 			}
 
 			const queryParams = buildQueryParams(cursor, limit)
@@ -137,8 +105,7 @@ export function useFileList({ query, perm, permRoles, remoteApi }: UseFileListOp
 
 			return {
 				items: result.data,
-				nextCursor: result.cursorPagination?.nextCursor ?? null,
-				hasMore: result.cursorPagination?.hasMore ?? false
+				next: result.meta.next
 			}
 		},
 		[api, remoteApi, buildQueryParams]
@@ -171,7 +138,7 @@ export function useFileList({ query, perm, permRoles, remoteApi }: UseFileListOp
 			// server enforces the real permission, same assumption as `shareGrantCeiling`
 			const kept = items.filter(
 				(f) =>
-					(keepFolders && f.fileTp === 'FLDR') ||
+					(keepFolders && f.fileType === 'FLDR') ||
 					allowed.includes(
 						resolveAccessLevel(f, idTag || undefined, roles ? roles.split(',') : []) ??
 							'admin'
@@ -232,30 +199,27 @@ export function useFileList({ query, perm, permRoles, remoteApi }: UseFileListOp
 		if (!fileViewUpdate) return
 		if (fileViewUpdate.version <= lastSeenVersionRef.current) return
 		lastSeenVersionRef.current = fileViewUpdate.version
-		updateItem(
-			(f) => f.entryId === fileViewUpdate.file.entryId,
-			convertFileView(fileViewUpdate.file)
-		)
+		updateItem((f) => f.id === fileViewUpdate.file.id, convertFileView(fileViewUpdate.file))
 	}, [fileViewUpdate, updateItem])
 
 	// When background processing (transcode / variant generation) finishes, the
 	// backend assigns the final content-addressed id (`f1~…`), flips status P→A,
-	// and broadcasts FILE_ID_GENERATED over /ws/bus with the temp id. Patch the
+	// and broadcasts fileIdGenerated over /ws/bus with the temp id. Patch the
 	// row in place so the thumbnail, preview and download start working without a
 	// manual refresh (refresh() would reset infinite-scroll pagination).
 	const filesRef = React.useRef(files)
 	React.useEffect(() => {
 		filesRef.current = files
 	})
-	useWsBus({ cmds: ['FILE_ID_GENERATED'] }, (msg) => {
-		const data = msg.data as { tempId?: string; fileId?: string } | undefined
-		if (!data?.tempId || !data?.fileId) return
-		const current = filesRef.current.find((f) => f.fileId === data.tempId)
+	useWsBus({ types: ['fileIdGenerated'] }, (msg) => {
+		const data = msg.data as { tempId?: string; contentId?: string } | undefined
+		if (!data?.tempId || !data?.contentId) return
+		const current = filesRef.current.find((f) => f.contentId === data.tempId)
 		if (!current) return // not in this list instance
-		updateItem((f) => f.fileId === data.tempId, {
+		updateItem((f) => f.contentId === data.tempId, {
 			...current,
-			fileId: data.fileId,
-			status: 'A'
+			contentId: data.contentId,
+			status: 'active'
 		})
 	})
 
@@ -266,7 +230,7 @@ export function useFileList({ query, perm, permRoles, remoteApi }: UseFileListOp
 			}
 
 			function setFileData(entryId: string, file: File | ((prev: File) => File)) {
-				updateItem((f) => f.entryId === entryId, file)
+				updateItem((f) => f.id === entryId, file)
 			}
 
 			function refresh() {

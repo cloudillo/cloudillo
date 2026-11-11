@@ -17,8 +17,10 @@ export interface Notification {
 	body: string
 }
 
+/** A `/ws/bus` frame: `{id, type, data}`; `type` is camelCase (`action`, `fileIdGenerated`, …). */
 export interface WsBusMsg {
-	cmd: string
+	id?: string
+	type: string
 	data?: unknown
 }
 
@@ -35,7 +37,7 @@ export function useWsBusState() {
 }
 
 interface UseWsBusOpts {
-	cmds?: string[]
+	types?: string[]
 }
 export function useWsBus(opts: UseWsBusOpts, cb: (msg: WsBusMsg) => void) {
 	const [wsBus, _setWsBus] = useWsBusState()
@@ -43,7 +45,7 @@ export function useWsBus(opts: UseWsBusOpts, cb: (msg: WsBusMsg) => void) {
 	React.useEffect(
 		function wsBusEvent() {
 			if (!wsBus.lastMsg) return
-			if (opts.cmds && !opts.cmds.includes(wsBus.lastMsg.cmd)) return
+			if (opts.types && !opts.types.includes(wsBus.lastMsg.type)) return
 			cb(wsBus.lastMsg)
 		},
 		[wsBus.lastMsg]
@@ -161,14 +163,13 @@ export function WsBusRoot({ children }: { children: React.ReactNode }) {
 
 			newWs.onmessage = function incoming(msg) {
 				const j = JSON.parse(msg.data)
-				switch (j.cmd) {
+				switch (j.type) {
 					case 'debug':
 						console.log('[WsBus] debug', j)
 						break
-					case 'FILE_ID_GENERATED':
-						// Handle file ID resolution
-						if (j.data?.tempId && j.data?.fileId) {
-							handleFileIdGenerated(j.data.tempId, j.data.fileId, j.data.rootId)
+					case 'fileIdGenerated':
+						if (j.data?.tempId && j.data?.contentId) {
+							handleFileIdGenerated(j.data.tempId, j.data.contentId)
 						}
 						break
 				}

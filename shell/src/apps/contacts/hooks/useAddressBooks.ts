@@ -12,8 +12,8 @@ export interface UseAddressBooksResult {
 	error: Error | null
 	refresh: () => void
 	create: (data: AddressBookCreate) => Promise<AddressBookOutput | undefined>
-	update: (abId: number, data: AddressBookPatch) => Promise<AddressBookOutput | undefined>
-	remove: (abId: number) => Promise<void>
+	update: (abId: string, data: AddressBookPatch) => Promise<AddressBookOutput | undefined>
+	remove: (abId: string) => Promise<void>
 }
 
 export function useAddressBooks(): UseAddressBooksResult {
@@ -66,7 +66,7 @@ export function useAddressBooks(): UseAddressBooksResult {
 	)
 
 	const update = React.useCallback(
-		async function update(abId: number, data: AddressBookPatch) {
+		async function update(abId: string, data: AddressBookPatch) {
 			if (!api) return undefined
 			const updated = await api.contacts.updateAddressBook(abId, data)
 			refresh()
@@ -76,7 +76,7 @@ export function useAddressBooks(): UseAddressBooksResult {
 	)
 
 	const remove = React.useCallback(
-		async function remove(abId: number) {
+		async function remove(abId: string) {
 			if (!api) return
 			await api.contacts.deleteAddressBook(abId)
 			refresh()

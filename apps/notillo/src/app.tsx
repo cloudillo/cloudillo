@@ -141,7 +141,7 @@ export function NotilloApp() {
 	const dialog = useDialog()
 	const { error: toastError, warning: toastWarning } = useToast()
 	const canWrite = notillo.access === 'write'
-	const canComment = notillo.access !== 'read'
+	const canComment = notillo.access === 'comment' || notillo.access === 'write'
 	// One live map of every page feeds the tree, wiki-links, search and the `@`
 	// picker. `expanded` is pure local UI state on top of it.
 	const {

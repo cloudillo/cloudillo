@@ -100,7 +100,8 @@ export interface SubscriptionOptions {
 
 export interface LockEventData {
 	userId: string
-	mode: 'soft' | 'hard'
+	/** `'unknown'`: a mode this client predates — treat it as `'hard'` (only `'soft'` is soft). */
+	mode: 'soft' | 'hard' | 'unknown'
 	connId: string
 }
 
@@ -110,7 +111,9 @@ export interface UnlockEventData {
 }
 
 export interface ChangeEvent {
-	action: 'create' | 'update' | 'delete' | 'lock' | 'unlock' | 'ready' | 'replace'
+	// 'unknown': an action this client predates. The WebSocket manager resyncs the
+	// subscription instead of delivering it, so subscribers never see it.
+	action: 'create' | 'update' | 'delete' | 'lock' | 'unlock' | 'ready' | 'replace' | 'unknown'
 	path: string
 	data?: unknown
 }
@@ -130,7 +133,8 @@ export interface SnapshotOptions {
 export interface LockResult {
 	locked: boolean
 	holder?: string
-	mode?: 'soft' | 'hard'
+	/** `'unknown'`: a mode this client predates — treat it as `'hard'` (only `'soft'` is soft). */
+	mode?: 'soft' | 'hard' | 'unknown'
 }
 
 export interface DocumentSnapshot<T = unknown> {
@@ -230,7 +234,7 @@ export const tChangeEvent = T.struct({
 		T.literal('unlock'),
 		T.literal('ready'),
 		T.literal('replace')
-	),
+	).catch('unknown'),
 	path: T.string,
 	data: T.optional(T.nullable(T.unknown))
 })
@@ -309,7 +313,8 @@ export const tServerMessage = T.taggedUnion('type')({
 		T.struct({
 			locked: T.boolean,
 			holder: T.optional(T.string),
-			mode: T.optional(T.union(T.literal('soft'), T.literal('hard')))
+			// A newer mode is 'unknown', never read as 'soft'.
+			mode: T.optional(T.union(T.literal('soft'), T.literal('hard')).catch('unknown'))
 		})
 	),
 	unlockResult: frame('unlockResult', tEmpty),
@@ -326,7 +331,8 @@ export const tServerMessage = T.taggedUnion('type')({
 	presenceResult: frame('presenceResult', T.struct({ throttled: T.optional(T.boolean) })),
 	// Declaring this member is what keeps presence working at all: `handleMessage`
 	// logs and drops anything the union cannot decode.
-	presenceChange: frame('presenceChange', T.struct({ event: tPresenceEvent })),
+	// An unknown presence action decodes to `event: null`, which `handleMessage` skips.
+	presenceChange: frame('presenceChange', T.struct({ event: tPresenceEvent.catch(null) })),
 	pong: frame('pong', tEmpty)
 })
 

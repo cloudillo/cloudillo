@@ -23,7 +23,8 @@ export function useBlockLocks(pageId: string | undefined) {
 			const { userId, mode } = event.data as LockEventData
 			setLocks((prev) => {
 				const next = new Map(prev)
-				next.set(blockId, { userId, mode })
+				// An unknown lock mode fails closed: treat it as hard.
+				next.set(blockId, { userId, mode: mode === 'soft' ? 'soft' : 'hard' })
 				return next
 			})
 		} else if (event.action === 'unlock') {

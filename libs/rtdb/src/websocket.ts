@@ -9,13 +9,13 @@ import {
 	type AggregateOptions,
 	type ChangeEvent,
 	type ClientMessage,
-	type WireFrame,
 	type PresenceEvent,
 	type QueryFilter,
 	type RtdbClientOptions,
 	type ServerMessage,
 	type SubscriptionScope,
-	tServerMessage
+	tServerMessage,
+	type WireFrame
 } from './types.js'
 
 // Token refreshes attempted for one unhealthy connection streak before the subscriptions are
@@ -48,6 +48,11 @@ type ManagerOptions = Required<
 
 /** Frames `send` will hold while offline; past this it rejects instead of queueing. */
 const MAX_QUEUED_FRAMES = 1000
+
+/** Back-to-back resyncs (an `unknown` action on every replay) before a subscription gives up */
+export const MAX_RESYNCS = 5
+/** Resyncs further apart than this start the {@link MAX_RESYNCS} budget over */
+const RESYNC_WINDOW_MS = 5 * 60_000
 
 interface PendingRequest {
 	resolve: (value: unknown) => void
@@ -92,6 +97,11 @@ interface SubscriptionDetails {
 	 * send a second one — two server-side subscriptions for one logical one.
 	 */
 	pending?: boolean
+	/** Resyncs within {@link RESYNC_WINDOW_MS} of each other; bounded by {@link MAX_RESYNCS} */
+	resyncs?: number
+	lastResyncAt?: number
+	/** Backoff before a resync's re-subscribe; cleared when the client is torn down */
+	resyncTimer?: ReturnType<typeof setTimeout>
 	callback: (event: ChangeEvent) => void
 	onError: (error: Error) => void
 }
@@ -108,6 +118,8 @@ export class WebSocketManager {
 	private subscriptions = new Map<string, Subscription>()
 	private subscriptionDetails = new Map<string, SubscriptionDetails>() // Store subscription info for reconnection
 	private pendingSubscriptionEvents = new Map<string, ChangeEvent[]>() // Buffer events that arrive before subscription is registered
+	/** Server ids being unsubscribed: their in-flight events must not be buffered forever */
+	private retiredSubscriptionIds = new Set<string>()
 	private messageQueue: WireFrame[] = []
 	private requestId = 0
 	private pingInterval: ReturnType<typeof setInterval> | null = null
@@ -334,6 +346,7 @@ export class WebSocketManager {
 			clearTimeout(this.reconnectTimeout)
 			this.reconnectTimeout = null
 		}
+		this.clearResyncTimers()
 		this.cleanupWebSocket()
 		this.connected = false
 		this.connId = undefined
@@ -460,35 +473,13 @@ export class WebSocketManager {
 				// If unsubscribe was called before the server responded,
 				// immediately tell the server to unsubscribe
 				if (cancelled) {
-					this.send({
-						type: 'unsubscribe',
-						subscriptionId: subId
-					}).catch((error) => {
-						this.log('Error unsubscribing cancelled subscription:', error)
-					})
-					this.pendingSubscriptionEvents.delete(subId)
+					this.retire(subId)
 					return
 				}
 
 				details.serverId = subId
 				this.subscriptions.set(subId, { callback, onError })
-
-				// Replay any events that arrived before the subscription was registered
-				const buffered = this.pendingSubscriptionEvents.get(subId)
-				if (buffered) {
-					this.pendingSubscriptionEvents.delete(subId)
-					for (const event of buffered) {
-						try {
-							callback(event)
-						} catch (error) {
-							console.error(
-								'[RTDB] Error in subscription callback (replayed):',
-								error
-							)
-							onError(error as Error)
-						}
-					}
-				}
+				this.replayBuffered(subId, { callback, onError })
 			})
 			.catch((error) => {
 				details.pending = false
@@ -512,18 +503,11 @@ export class WebSocketManager {
 			cancelled = true
 			// Off the record, not a variable captured here: a reconnect re-subscribes
 			// under a new id and only the record is updated.
-			const serverId = this.subscriptionDetails.get(localId)?.serverId
+			const record = this.subscriptionDetails.get(localId)
+			const serverId = record?.serverId
+			clearTimeout(record?.resyncTimer)
 			this.subscriptionDetails.delete(localId) // Remove from re-subscription list
-			if (serverId) {
-				this.subscriptions.delete(serverId)
-				this.send({
-					type: 'unsubscribe',
-					subscriptionId: serverId
-				}).catch((error) => {
-					console.error('[RTDB] Error unsubscribing:', error)
-					this.log('Error unsubscribing:', error)
-				})
-			}
+			if (serverId) this.retire(serverId)
 			// Without a server id yet, the .then() handler will send unsubscribe
 		}
 	}
@@ -629,13 +613,30 @@ export class WebSocketManager {
 			const data = JSON.parse(rawData)
 			this.log('Received:', data)
 
-			const result = T.decode(tServerMessage, data)
+			// `drop`: a newer server's extra fields must not fail the whole frame.
+			const result = T.decode(tServerMessage, data, { unknownFields: 'drop' })
 
 			if (T.isErr(result)) {
 				console.error('[RTDB] Invalid message format:', result.err)
 				console.error('[RTDB] Failed message:', data)
 				console.error('[RTDB] Raw data:', rawData)
 				this.log('Invalid message format:', result.err)
+				// A response we cannot read still settles its request, rather than leaving
+				// the caller to a 30s timeout. Pushes match no pending id and are dropped.
+				const id: unknown = data?.id
+				const pending = typeof id === 'string' ? this.pendingRequests.get(id) : undefined
+				if (pending) {
+					clearTimeout(pending.timeout)
+					this.pendingRequests.delete(id as string)
+					// The server may still have created the subscription: cancel it if its
+					// id is readable, or it streams into the buffer for the connection's life.
+					const loose: unknown = data?.data?.subscriptionId
+					if (pending.type === 'subscribe' && typeof loose === 'string')
+						this.retire(loose)
+					pending.reject(
+						new RtdbError('Undecodable response frame', 'RTDB-PARSE-FRAME', result.err)
+					)
+				}
 				return
 			}
 
@@ -660,14 +661,8 @@ export class WebSocketManager {
 				const { subscriptionId, event } = message.data
 				const sub = this.subscriptions.get(subscriptionId)
 				if (sub) {
-					try {
-						sub.callback(event)
-					} catch (error) {
-						console.error('[RTDB] Error in subscription callback:', error)
-						console.error('[RTDB] Event:', event)
-						sub.onError(error as Error)
-					}
-				} else {
+					this.deliver(subscriptionId, sub, event)
+				} else if (!this.retiredSubscriptionIds.has(subscriptionId)) {
 					// Buffer events that arrive before subscription is registered (race condition)
 					const buf = this.pendingSubscriptionEvents.get(subscriptionId)
 					if (buf) {
@@ -682,6 +677,8 @@ export class WebSocketManager {
 				// `sync` is the only frame that names us, and it always precedes the
 				// rest, so by the time a join/update needs a self check this is set.
 				const { event } = message.data
+				// A presence action this client predates: skip it, it cannot be applied.
+				if (event === null) return
 				if (event.action === 'sync') this.connId = event.connId
 				for (const handler of this.presenceHandlers) {
 					try {
@@ -737,64 +734,154 @@ export class WebSocketManager {
 				// only one of them.
 				if (details.pending) continue
 
-				this.log(`Re-subscribing to ${details.path}`)
-
-				this.send({
-					type: 'subscribe',
-					path: details.path,
-					filter: details.filter,
-					...(details.aggregate && { aggregate: details.aggregate }),
-					...(details.select?.length && { select: details.select }),
-					...(details.scope && { scope: details.scope })
-				})
-					.then((result: unknown) => {
-						const serverSubscriptionId = (result as { subscriptionId: string })
-							.subscriptionId
-						// Unsubscribed while this re-subscribe was in flight: the closure
-						// could only see the pre-reconnect id, so the id the server just
-						// assigned is ours to cancel — and the callback must not be
-						// re-registered onto it.
-						if (this.subscriptionDetails.get(localId) !== details) {
-							this.send({
-								type: 'unsubscribe',
-								subscriptionId: serverSubscriptionId
-							}).catch((error) => {
-								this.log('Error unsubscribing cancelled subscription:', error)
-							})
-							this.pendingSubscriptionEvents.delete(serverSubscriptionId)
-							return
-						}
-						// The unsubscribe closure reads this back, so it must be the new
-						// id, not the pre-reconnect one.
-						details.serverId = serverSubscriptionId
-						this.subscriptions.set(serverSubscriptionId, {
-							callback: details.callback,
-							onError: details.onError
-						})
-						this.log(
-							'Subscription re-established:',
-							serverSubscriptionId,
-							'for path:',
-							details.path
-						)
-					})
-					.catch((error) => {
-						// Same reasoning as `subscribe()`'s catch: a transport failure is
-						// not a rejection of this subscription. The record survives and
-						// the next `onopen` replays it, so notifying the consumer would
-						// report a failure that did not happen.
-						if (error instanceof ConnectionError || error instanceof TimeoutError) {
-							this.log(
-								'Re-subscribe interrupted by disconnect; will re-establish:',
-								details.path
-							)
-							return
-						}
-						console.error('[RTDB] Failed to re-establish subscription:', error)
-						details.onError(error)
-					})
+				this.resubscribe(localId, details)
 			}
 		}
+	}
+
+	/** Hand one change to its subscriber. Returns false when it resynced instead. */
+	private deliver(subId: string, sub: Subscription, event: ChangeEvent): boolean {
+		// A change action this client predates cannot be applied, and skipping it would
+		// leave the subscriber's view silently stale: start the subscription over.
+		if (event.action === 'unknown') {
+			console.warn('[RTDB] Unknown change action, resyncing subscription:', subId)
+			this.resync(subId)
+			return false
+		}
+		try {
+			sub.callback(event)
+		} catch (error) {
+			console.error('[RTDB] Error in subscription callback:', error)
+			console.error('[RTDB] Event:', event)
+			sub.onError(error as Error)
+		}
+		return true
+	}
+
+	/** Replay the events that arrived before `subId` was registered. */
+	private replayBuffered(subId: string, sub: Subscription): void {
+		const buffered = this.pendingSubscriptionEvents.get(subId)
+		if (!buffered) return
+		this.pendingSubscriptionEvents.delete(subId)
+		for (const event of buffered) {
+			if (!this.deliver(subId, sub, event)) return
+		}
+	}
+
+	/**
+	 * Drop server subscription `serverId` and subscribe again from scratch. The new
+	 * subscription's `ready` replay is a full reset for every consumer.
+	 */
+	private resync(serverId: string): void {
+		this.retire(serverId)
+		for (const [localId, details] of this.subscriptionDetails.entries()) {
+			if (details.serverId !== serverId) continue
+			details.serverId = undefined
+			// Not reset on `ready`: a replay that reaches `ready` before its `unknown`
+			// event would reset the budget every round and resync forever.
+			const now = Date.now()
+			if (now - (details.lastResyncAt ?? 0) > RESYNC_WINDOW_MS) details.resyncs = 0
+			details.lastResyncAt = now
+			const resyncs = (details.resyncs ?? 0) + 1
+			details.resyncs = resyncs
+			if (resyncs > MAX_RESYNCS) {
+				this.subscriptionDetails.delete(localId)
+				details.onError(
+					new RtdbError(
+						'Subscription kept receiving unknown change actions',
+						'RTDB-RESYNC-LIMIT'
+					)
+				)
+				continue
+			}
+			// Keeps `reestablishSubscriptions` from subscribing it a second time meanwhile
+			details.pending = true
+			const delay = Math.min(this.options.reconnectDelay * 2 ** (resyncs - 1), 30_000)
+			details.resyncTimer = setTimeout(() => {
+				details.resyncTimer = undefined
+				// Unsubscribed during the delay: that wins
+				if (this.subscriptionDetails.get(localId) !== details) return
+				this.resubscribe(localId, details)
+			}, delay)
+		}
+	}
+
+	/**
+	 * Cancel server subscription `serverId`. Its in-flight events are dropped rather
+	 * than buffered until the server acknowledges.
+	 */
+	private retire(serverId: string): void {
+		this.subscriptions.delete(serverId)
+		this.pendingSubscriptionEvents.delete(serverId)
+		this.retiredSubscriptionIds.add(serverId)
+		this.send({ type: 'unsubscribe', subscriptionId: serverId })
+			.catch((error) => this.log('Error unsubscribing:', error))
+			.finally(() => this.retiredSubscriptionIds.delete(serverId))
+	}
+
+	private clearResyncTimers(): void {
+		for (const details of this.subscriptionDetails.values()) {
+			if (details.resyncTimer === undefined) continue
+			clearTimeout(details.resyncTimer)
+			details.resyncTimer = undefined
+			// No subscribe is in flight for it: an explicit `connect()` must replay it
+			details.pending = false
+		}
+	}
+
+	/** Send `details`' subscribe again and rebind it to the id the server answers with. */
+	private resubscribe(localId: string, details: SubscriptionDetails): void {
+		this.log(`Re-subscribing to ${details.path}`)
+		// Same guard as `subscribe()`: a reconnect while this is in flight must not send
+		// a second subscribe for it.
+		details.pending = true
+
+		this.send({
+			type: 'subscribe',
+			path: details.path,
+			filter: details.filter,
+			...(details.aggregate && { aggregate: details.aggregate }),
+			...(details.select?.length && { select: details.select }),
+			...(details.scope && { scope: details.scope })
+		})
+			.then((result: unknown) => {
+				details.pending = false
+				const serverSubscriptionId = (result as { subscriptionId: string }).subscriptionId
+				// Unsubscribed while this re-subscribe was in flight: the closure could
+				// only see the previous id, so the id the server just assigned is ours to
+				// cancel — and the callback must not be re-registered onto it.
+				if (this.subscriptionDetails.get(localId) !== details) {
+					this.retire(serverSubscriptionId)
+					return
+				}
+				// The unsubscribe closure reads this back, so it must be the new id.
+				details.serverId = serverSubscriptionId
+				const sub = { callback: details.callback, onError: details.onError }
+				this.subscriptions.set(serverSubscriptionId, sub)
+				this.log(
+					'Subscription re-established:',
+					serverSubscriptionId,
+					'for path:',
+					details.path
+				)
+				this.replayBuffered(serverSubscriptionId, sub)
+			})
+			.catch((error) => {
+				details.pending = false
+				// Same reasoning as `subscribe()`'s catch: a transport failure is not a
+				// rejection of this subscription. The record survives and the next
+				// `onopen` replays it, so notifying the consumer would report a failure
+				// that did not happen.
+				if (error instanceof ConnectionError || error instanceof TimeoutError) {
+					this.log(
+						'Re-subscribe interrupted by disconnect; will re-establish:',
+						details.path
+					)
+					return
+				}
+				console.error('[RTDB] Failed to re-establish subscription:', error)
+				details.onError(error)
+			})
 	}
 
 	private handleDisconnect(code?: number, reason?: string): void {
@@ -818,6 +905,7 @@ export class WebSocketManager {
 
 		// Clear stale buffered subscription events
 		this.pendingSubscriptionEvents.clear()
+		this.retiredSubscriptionIds.clear()
 
 		// 4401 = Unauthorized, usually just an expired token: renew and reconnect (the CRDT
 		// provider in libs/crdt/src/crdt.ts does the same). Definitive and inconclusive
@@ -1067,6 +1155,7 @@ export class WebSocketManager {
 			clearTimeout(this.reconnectTimeout)
 			this.reconnectTimeout = null
 		}
+		this.clearResyncTimers()
 		this.options = { ...this.options, reconnect: false }
 		// With no socket up and none coming, queued frames would wait forever. An open
 		// socket keeps its queue: its own close rejects whatever is left.

@@ -199,7 +199,9 @@ const TYPE_CAPS: Record<ObjectType, Caps> = {
 	text: { ...NO_CAPS, stroke: true, text: true },
 	sticky: { ...NO_CAPS, fill: true, text: true, vAlign: true },
 	image: { ...NO_CAPS, stroke: true, width: true, radius: true },
-	document: { ...NO_CAPS, stroke: true, width: true, radius: true }
+	document: { ...NO_CAPS, stroke: true, width: true, radius: true },
+	// A placeholder for a type this build does not know: nothing is editable.
+	unknown: NO_CAPS
 }
 
 /** Opacity is on every type, so it is not in Caps - it simply always lives in the overflow menu. */

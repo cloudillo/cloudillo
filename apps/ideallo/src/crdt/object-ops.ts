@@ -50,7 +50,12 @@ import type {
 	StoredObject,
 	YIdealloDocument
 } from './stored-types.js'
-import { compactObject, expandObject, retireUnknownCodes } from './type-converters.js'
+import {
+	compactObject,
+	expandObject,
+	KNOWN_STORED_KEYS,
+	retireUnknownCodes
+} from './type-converters.js'
 
 /**
  * Fields that can be updated across all object variants.
@@ -388,13 +393,12 @@ export function getObject(doc: YIdealloDocument, objectId: ObjectId): IdealloObj
 const warnedUnreadable = new Set<string>()
 
 /**
- * Expand one stored record, or null when this build cannot read its type.
+ * Expand one stored record, or null when it is malformed.
  *
- * expandObject() throws on an unknown `t`, which is the right contract for a direct caller - it
- * means a programming error there. On a READ path it is the wrong one: a peer on a newer version
- * can write a record we do not understand, and one throw would blank the whole canvas instead of
- * hiding one object. The record is left untouched, so a peer that does understand it keeps
- * rendering it and an upgrade brings it back here.
+ * An unknown `t` gets an UnknownObject placeholder from expandObject(); this is the safety net
+ * for a known type with broken fields (e.g. no `xy`): one throw would blank the whole canvas
+ * instead of hiding one object. The record is left untouched, so a peer that does understand it
+ * keeps rendering it and an upgrade brings it back here.
  */
 export function tryExpandObject(
 	id: ObjectId,
@@ -418,8 +422,8 @@ export function tryExpandObject(
 /**
  * Get all objects in the document (in z-order, backmost first)
  *
- * An object whose stored `t` this build does not understand is SKIPPED, not fatal - see
- * tryExpandObject.
+ * An unknown stored `t` comes back as an UnknownObject placeholder; a malformed record is
+ * SKIPPED, not fatal - see tryExpandObject.
  */
 export function getAllObjects(doc: YIdealloDocument): IdealloObject[] {
 	const objects: IdealloObject[] = []
@@ -475,7 +479,13 @@ export function updateObject(
 		// unrecognised code be restored over it. See retireUnknownCodes.
 		unknownCodes: retireUnknownCodes(expanded.unknownCodes, updates)
 	} as IdealloObject
-	const compacted = compactObject(updated)
+	// Keep stored keys this build does not know (a newer client's fields): expand -> compact alone
+	// would drop them. Known keys are compactObject's to decide, absent ones included.
+	const kept: Record<string, unknown> = {}
+	for (const [key, value] of Object.entries(existing)) {
+		if (!KNOWN_STORED_KEYS.has(key)) kept[key] = value
+	}
+	const compacted = { ...kept, ...compactObject(updated) } as StoredObject
 
 	yDoc.transact(() => {
 		doc.o.set(objectId, compacted)

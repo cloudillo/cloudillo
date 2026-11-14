@@ -44,10 +44,9 @@ export type ObjectTypeCode =
 // 'C' collides with nothing here: the object codes are F R E L A C T P S I D M. It also appears in
 // ArrowTypeCode (circle) and RoutingCode (curved), but those are separate code spaces - not a bug.
 //
-// expandObject() still throws on an unknown `t`, but every READ path goes through
-// tryExpandObject() and skips the record instead, so a peer that does not know a code sees a
-// document with those objects missing rather than a blank canvas. A peer running 0.8.x predates
-// that guard and will still fail hard on 't: C'; anything from this release on degrades.
+// An unknown `t` expands to an UnknownObject placeholder: it keeps the raw stored record, renders
+// as a labelled box, and round-trips through compactObject(). Peers on 0.8.x predate this and
+// still fail hard on 't: C'.
 
 // Stroke style codes
 export type StrokeStyleCode = 'S' | 'D' | 'T' // Solid, Dashed, Dotted

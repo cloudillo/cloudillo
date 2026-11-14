@@ -324,5 +324,6 @@
 	"Low (7%)": "Alacsony (7%)",
 	"Medium (15%)": "Közepes (15%)",
 	"Quartile (25%)": "Negyedes (25%)",
-	"High (30%)": "Magas (30%)"
+	"High (30%)": "Magas (30%)",
+	"Unsupported object": "Nem támogatott objektum"
 }

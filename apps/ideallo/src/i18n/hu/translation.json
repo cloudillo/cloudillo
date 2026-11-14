@@ -122,5 +122,6 @@
 	"{{tool}} placed. Select tool active.": "{{tool}} elhelyezve. Kiválasztó eszköz aktív.",
 	"{{tool}} tool active.": "{{tool}} eszköz aktív.",
 	"Circle": "Kör",
-	"Width": "Szélesség"
+	"Width": "Szélesség",
+	"Unsupported object": "Nem támogatott objektum"
 }

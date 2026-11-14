@@ -36,7 +36,9 @@ export const TYPE_PAINT_RULES: Record<ObjectType, { stroke: ClearRule; fill: Cle
 	image: { stroke: true, fill: true },
 	document: { stroke: true, fill: true },
 	// The title label always stays visible, so a frame can never vanish.
-	frame: { stroke: true, fill: true }
+	frame: { stroke: true, fill: true },
+	// A placeholder for an unknown type: never clear a paint this build cannot see.
+	unknown: { stroke: false, fill: false }
 }
 
 function allows(rule: ClearRule, obj: IdealloObject): boolean {

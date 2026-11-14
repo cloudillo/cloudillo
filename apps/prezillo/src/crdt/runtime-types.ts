@@ -27,6 +27,7 @@ export type ObjectType =
 	| 'tablegrid'
 	| 'symbol'
 	| 'statevar'
+	| 'unknown' // placeholder for a stored type this client doesn't know (UnknownObject)
 
 // State variable types (extensible for future: 'time' | 'slide' | 'total-slides')
 export type StateVarType = 'users'
@@ -288,8 +289,17 @@ export interface StateVarObject extends PrezilloObjectBase {
 	varType: StateVarType // Which variable to display
 }
 
+// Placeholder for an object written by a newer client: renders as a labelled box and
+// round-trips its stored record untouched (compactObject returns `raw` with position updated)
+export interface UnknownObject extends PrezilloObjectBase {
+	type: 'unknown'
+	storedType: string // the stored `t` code this client doesn't know
+	raw: Record<string, unknown>
+}
+
 // Union of all object types
 export type PrezilloObject =
+	| UnknownObject
 	| RectObject
 	| EllipseObject
 	| LineObject

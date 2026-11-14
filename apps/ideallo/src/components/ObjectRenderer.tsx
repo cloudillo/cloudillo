@@ -7,6 +7,7 @@
  */
 
 import type { CaretPoint } from '@cloudillo/canvas-text'
+import { UnsupportedObjectPlaceholder } from '@cloudillo/canvas-tools'
 import { type EmbedViewReportPayload, getAppBus } from '@cloudillo/core'
 import { SvgViewEmbed } from '@cloudillo/react'
 import type { TFunction } from 'i18next'
@@ -22,6 +23,7 @@ import type {
 	YIdealloDocument
 } from '../crdt/index.js'
 import { getObjectYText, toObjectId } from '../crdt/index.js'
+import type { UnknownObject } from '../crdt/runtime-types.js'
 import { getRotationCenter } from '../utils/bounds.js'
 import { isPaintSet } from '../utils/paint.js'
 import { colorToCss } from '../utils/palette.js'
@@ -264,9 +266,25 @@ function renderObject(object: IdealloObject, props: RenderProps): React.ReactNod
 					)}
 				</>
 			)
+		case 'unknown':
+			return <UnsupportedObject object={object} />
 		default:
 			return null
 	}
+}
+
+/** Placeholder for an object type from a newer client */
+function UnsupportedObject({ object }: { object: UnknownObject }) {
+	const { t } = useTranslation()
+	return (
+		<UnsupportedObjectPlaceholder
+			x={object.x}
+			y={object.y}
+			width={object.width}
+			height={object.height}
+			label={t('Unsupported object')}
+		/>
+	)
 }
 
 function documentActions(object: DocumentObject, props: RenderProps) {
@@ -311,7 +329,8 @@ export function objectLabel(
 		sticky: t('Sticky note'),
 		image: t('Image'),
 		document: t('Embedded document'),
-		frame: t('Frame')
+		frame: t('Frame'),
+		unknown: t('Unsupported object')
 	}
 	const name = 'name' in object ? object.name : undefined
 	const text = (name || (doc && getObjectYText(doc, object.id)?.toString()) || '').trim()

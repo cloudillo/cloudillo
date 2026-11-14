@@ -35,7 +35,10 @@ import { getBoundsFromPoints, scalePointsIntoBounds } from '../utils/geometry.js
 
 /** Minimal document stub - the connector branch never touches txt/geo/paths */
 function makeDoc(): YIdealloDocument {
-	const yDoc = new Y.Doc()
+	return makeDocOn(new Y.Doc())
+}
+
+function makeDocOn(yDoc: Y.Doc): YIdealloDocument {
 	return {
 		o: yDoc.getMap('o'),
 		r: yDoc.getArray('r'),
@@ -806,48 +809,92 @@ describe('shape labels', () => {
 
 describe('unknown object types on the read path', () => {
 	/** A record written by a peer on a newer build, using a type code this one has never seen */
-	const FUTURE: StoredObject = { t: 'Z', xy: [0, 0] } as unknown as StoredObject
+	const FUTURE = { t: 'Z', xy: [3, 4], wh: [50, 60], zz: 'future' } as unknown as StoredObject
 
-	/** The skip is expected to warn; keep the suite output about failures only */
-	function quietly<T>(fn: () => T): T {
-		const original = console.warn
-		console.warn = () => {}
-		try {
-			return fn()
-		} finally {
-			console.warn = original
-		}
-	}
-
-	it('still throws from expandObject - a direct caller is a programming error', () => {
-		expect(() => expandObject(ID, FUTURE, makeDoc())).toThrow(/Unknown object type/)
+	it('expands to an UnknownObject placeholder that keeps the raw record', () => {
+		const obj = expandObject(ID, FUTURE, makeDoc())
+		expect(obj.type).toBe('unknown')
+		expect(obj).toMatchObject({ x: 3, y: 4, width: 50, height: 60, storedType: 'Z' })
 	})
 
-	it('is skipped by tryExpandObject rather than thrown', () => {
-		expect(quietly(() => tryExpandObject(ID, FUTURE, makeDoc()))).toBeNull()
+	it('round-trips the raw record through compactObject', () => {
+		expect(compactObject(expandObject(ID, FUTURE, makeDoc()))).toEqual(FUTURE)
 	})
 
-	// The whole point: one record a peer cannot parse must cost that object, not the document
-	it('leaves the rest of the document readable through getAllObjects', () => {
+	it('is a placeholder from tryExpandObject, not null', () => {
+		expect(tryExpandObject(ID, FUTURE, makeDoc())?.type).toBe('unknown')
+	})
+
+	// The whole point: one record a peer cannot parse must not cost the document
+	it('keeps every object readable through getAllObjects', () => {
 		const doc = makeDoc()
 		doc.o.set('good', { t: 'R', xy: [1, 2], wh: [30, 40] } as StoredObject)
 		doc.o.set('future', FUTURE)
 		doc.o.set('good2', { t: 'E', xy: [5, 6], wh: [10, 10] } as StoredObject)
 		doc.r.push(['good', 'future', 'good2'])
 
-		const objects = quietly(() => getAllObjects(doc))
+		const objects = getAllObjects(doc)
 
-		expect(objects.map((o) => o.id)).toEqual(['good', 'good2'])
-		expect(objects.map((o) => o.type)).toEqual(['rect', 'ellipse'])
+		expect(objects.map((o) => o.id)).toEqual(['good', 'future', 'good2'])
+		expect(objects.map((o) => o.type)).toEqual(['rect', 'unknown', 'ellipse'])
 	})
 
-	// getObject sits on eight render-time useMemos in app.tsx, and selection survives document
-	// updates - so a peer rewriting a SELECTED object with a code this build cannot read used to
-	// throw out of a memo and, with no error boundary, blank the canvas.
-	it('is undefined from getObject, not a throw', () => {
+	// getObject sits on render-time useMemos in app.tsx; a throw there would blank the canvas
+	it('is a placeholder from getObject, not a throw', () => {
 		const doc = makeDoc()
 		doc.o.set(ID, FUTURE)
-		expect(quietly(() => getObject(doc, ID))).toBeUndefined()
+		expect(getObject(doc, ID)?.type).toBe('unknown')
+	})
+
+	it('moves without losing the stored fields', () => {
+		const yDoc = new Y.Doc()
+		const doc = makeDocOn(yDoc)
+		doc.o.set(ID, FUTURE)
+		updateObject(yDoc, doc, ID, { x: 99 })
+		expect(doc.o.get(ID)).toEqual({ ...FUTURE, xy: [99, 4] })
+	})
+
+	it('persists opacity and pivot edits, touching nothing else', () => {
+		const yDoc = new Y.Doc()
+		const doc = makeDocOn(yDoc)
+		doc.o.set(ID, FUTURE)
+		updateObject(yDoc, doc, ID, { style: { opacity: 0.5 } } as Partial<IdealloObject>)
+		updateObject(yDoc, doc, ID, { pivotX: 0 })
+		expect(doc.o.get(ID)).toEqual({ ...FUTURE, op: 0.5, pv: [0, 0.5] })
+		expect(expandObject(ID, doc.o.get(ID)!, doc)).toMatchObject({
+			pivotX: 0,
+			style: { opacity: 0.5 }
+		})
+	})
+
+	it('leaves a record with no xy untouched when nothing moved', () => {
+		const bare = { t: 'Z', zz: 1 } as unknown as StoredObject
+		expect(compactObject(expandObject(ID, bare, makeDoc()))).toEqual(bare)
+	})
+
+	// A KNOWN type missing a required field is malformed, not unknown: skip it, don't throw
+	it('skips a malformed known-type record', () => {
+		const BROKEN = { t: 'R' } as unknown as StoredObject
+		expect(tryExpandObject(ID, BROKEN, makeDoc())).toBeNull()
+
+		const doc = makeDoc()
+		doc.o.set('good', { t: 'R', xy: [1, 2], wh: [30, 40] } as StoredObject)
+		doc.o.set('broken', BROKEN)
+		doc.r.push(['good', 'broken'])
+		expect(getAllObjects(doc).map((o) => o.id)).toEqual(['good'])
+		expect(getObject(doc, toObjectId('broken'))).toBeUndefined()
+	})
+})
+
+describe('updateObject keeps stored keys a newer client added', () => {
+	it('preserves keys outside KNOWN_STORED_KEYS on a known type', () => {
+		const yDoc = new Y.Doc()
+		const doc = makeDocOn(yDoc)
+		doc.o.set(ID, { t: 'R', xy: [1, 2], wh: [30, 40], qq: 7 } as unknown as StoredObject)
+		updateObject(yDoc, doc, ID, { x: 10 })
+		const stored = doc.o.get(ID) as unknown as Record<string, unknown>
+		expect(stored.qq).toBe(7)
+		expect(stored.xy).toEqual([10, 2])
 	})
 })
 

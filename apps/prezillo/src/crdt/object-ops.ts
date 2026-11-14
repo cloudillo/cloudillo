@@ -42,7 +42,8 @@ import {
 	compactObject,
 	compactShapeStyle,
 	compactTextStyle,
-	expandObject
+	expandObject,
+	isKnownObjectType
 } from './type-converters'
 import { getViewOrigin } from './view-layout'
 
@@ -111,7 +112,7 @@ export function addObject(
 export function createObject(
 	yDoc: Y.Doc,
 	doc: YPrezilloDocument,
-	type: PrezilloObject['type'],
+	type: Exclude<PrezilloObject['type'], 'unknown'>,
 	x: number,
 	y: number,
 	width: number,
@@ -221,6 +222,7 @@ export function createObject(
 			}
 			break
 		default:
+			// Unreachable by type: placeholders ('unknown') are never created, only expanded
 			throw new Error(`Unknown object type: ${type}`)
 	}
 
@@ -547,6 +549,15 @@ export function updateObject(
 	if (!existing) return
 
 	yDoc.transact(() => {
+		if (!isKnownObjectType(existing.t)) {
+			// Unknown types round-trip through the placeholder, which never invents xy/wh
+			doc.o.set(
+				objectId,
+				compactObject({ ...expandObject(objectId, existing), ...updates } as PrezilloObject)
+			)
+			return
+		}
+
 		// Clone existing stored object (preserves ALL data including palette refs)
 		const updated = { ...existing }
 

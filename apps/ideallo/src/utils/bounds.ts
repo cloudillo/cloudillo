@@ -35,6 +35,7 @@ export function getObjectBounds(obj: IdealloObject): Bounds {
 		case 'sticky':
 		case 'image':
 		case 'document':
+		case 'unknown':
 			return { x: obj.x, y: obj.y, width: obj.width, height: obj.height }
 		case 'polygon':
 			return getBoundsFromPoints(obj.vertices)

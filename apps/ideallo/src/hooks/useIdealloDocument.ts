@@ -8,13 +8,14 @@
 
 import { getAppBus } from '@cloudillo/core'
 import { initPresence } from '@cloudillo/crdt'
-import { useCloudilloEditor } from '@cloudillo/react'
+import { useCloudilloEditor, useDocSchemaGate } from '@cloudillo/react'
 import * as React from 'react'
 import { useY } from 'react-yjs'
 import type { Awareness } from 'y-protocols/awareness'
 import { QuillBinding } from 'y-quill'
 import * as Y from 'yjs'
 
+import { IDEALLO_SCHEMA } from '../crdt/document.js'
 import type {
 	ArrowStyle,
 	Routing,
@@ -133,17 +134,20 @@ export interface UseIdealloDocumentResult {
 const APP_NAME = 'ideallo'
 
 export function useIdealloDocument(): UseIdealloDocumentResult {
-	const cloudillo = useCloudilloEditor(APP_NAME)
+	const editor = useCloudilloEditor(APP_NAME)
 
 	// Get document structure (without initializing defaults)
-	const doc = React.useMemo(() => getOrCreateDocument(cloudillo.yDoc, false), [cloudillo.yDoc])
+	const doc = React.useMemo(() => getOrCreateDocument(editor.yDoc, false), [editor.yDoc])
 
-	// Initialize document with defaults only after sync completes
+	// Read-only until synced, and for good when the doc carries a newer schema
+	const cloudillo = useDocSchemaGate(editor, doc.m, IDEALLO_SCHEMA)
+
+	// Initialize document with defaults (and stamp the schema if writable) only after sync completes
 	React.useEffect(() => {
 		if (cloudillo.synced) {
-			getOrCreateDocument(cloudillo.yDoc, true)
+			getOrCreateDocument(cloudillo.yDoc, true, cloudillo.access === 'write')
 		}
-	}, [cloudillo.yDoc, cloudillo.synced])
+	}, [cloudillo.yDoc, cloudillo.synced, cloudillo.access])
 
 	// Observe reactive CRDT data
 	// useY uses observeDeep, so it should trigger on nested Y.Text changes too

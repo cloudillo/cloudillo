@@ -11,7 +11,11 @@
 import type { BaseTextStyle } from '@cloudillo/canvas-text'
 import { RichTextDisplay } from '@cloudillo/canvas-text'
 import type { Gradient } from '@cloudillo/canvas-tools'
-import { createLinearGradientDef, createRadialGradientDef } from '@cloudillo/canvas-tools'
+import {
+	createLinearGradientDef,
+	createRadialGradientDef,
+	UnsupportedObjectPlaceholder
+} from '@cloudillo/canvas-tools'
 import { type EmbedViewReportPayload, getAppBus } from '@cloudillo/core'
 import { SvgViewEmbed } from '@cloudillo/react'
 import type { TFunction } from 'i18next'
@@ -203,7 +207,8 @@ export function objectLabel(t: TFunction, doc: YPrezilloDocument, object: Prezil
 		pollframe: t('Poll frame'),
 		tablegrid: t('Table'),
 		symbol: t('Symbol'),
-		statevar: t('Live value')
+		statevar: t('Live value'),
+		unknown: t('Unsupported object')
 	}
 	const text = (object.name || doc.rt.get(object.id)?.toString() || '').trim()
 	return text ? `${types[object.type]}, ${text.slice(0, 120)}` : types[object.type]
@@ -730,6 +735,26 @@ export const ObjectShape = React.memo(function ObjectShape({
 					{hiddenIndicator}
 				</g>
 			)
+
+		case 'unknown': {
+			// Placeholder for an object type from a newer client
+			return (
+				<g transform={rotationTransform} opacity={objectOpacity}>
+					<UnsupportedObjectPlaceholder
+						x={x}
+						y={y}
+						width={width}
+						height={height}
+						label={t('Unsupported object')}
+						{...commonProps}
+					/>
+					{hoverOverlay}
+					{stackedOverlay}
+					{instanceIndicator}
+					{hiddenIndicator}
+				</g>
+			)
+		}
 
 		default:
 			// Fallback rectangle for unsupported types

@@ -211,7 +211,7 @@ export function useToolHandlers({
 				objectId = createObject(
 					prezillo.yDoc,
 					prezillo.doc,
-					prezillo.activeTool as PrezilloObject['type'],
+					prezillo.activeTool as Exclude<PrezilloObject['type'], 'unknown'>,
 					relX,
 					relY,
 					width,
@@ -293,7 +293,7 @@ export function useToolHandlers({
 			objectId = createObject(
 				prezillo.yDoc,
 				prezillo.doc,
-				prezillo.activeTool as PrezilloObject['type'],
+				prezillo.activeTool as Exclude<PrezilloObject['type'], 'unknown'>,
 				createX,
 				createY,
 				width,

@@ -11,6 +11,7 @@ import {
 	TEXT_ALIGN_CODE,
 	VERT_ALIGN_CODE
 } from '@cloudillo/canvas-tools'
+import { compactUnknownRecord, finiteOr, readUnknownGeometry, setIfChanged } from '@cloudillo/crdt'
 
 import type { ObjectId } from './ids.js'
 import { toObjectId } from './ids.js'
@@ -37,6 +38,7 @@ import type {
 	Style,
 	TextAlign,
 	TextObject,
+	UnknownObject,
 	VerticalAlign
 } from './runtime-types.js'
 import {
@@ -77,7 +79,7 @@ import type {
 
 // Type code mappings. There is deliberately no reverse map: 'L', 'A' and 'C' all expand to
 // `connector`, so a one-to-one Record<ObjectTypeCode, ObjectType> would be a lie.
-const TYPE_TO_TYPE_CODE: Record<ObjectType, ObjectTypeCode> = {
+const TYPE_TO_TYPE_CODE: Record<Exclude<ObjectType, 'unknown'>, ObjectTypeCode> = {
 	freehand: 'F',
 	rect: 'R',
 	ellipse: 'E',
@@ -446,6 +448,96 @@ export function storedConnectorTerminals(
 	]
 }
 
+// Unknown object types (written by a newer client) become a placeholder that keeps the raw record
+// 'L' and 'A' are legacy connector codes that expand to `connector`
+const KNOWN_TYPE_CODES: ReadonlySet<string> = new Set<string>([
+	...Object.values(TYPE_TO_TYPE_CODE),
+	'L',
+	'A'
+])
+
+type StoredKey = StoredObject extends infer U ? (U extends unknown ? keyof U : never) : never
+
+/**
+ * Every stored key this build reads or writes on an object record. updateObject keeps the keys
+ * NOT in this set (a newer client's fields) and lets compactObject decide all of these - including
+ * the read-only legacy `pts`/`ah`, which compaction drops on purpose. `satisfies` makes a key
+ * added to a stored type fail to compile until it is listed here.
+ */
+const STORED_KEY_MAP = {
+	t: 1,
+	xy: 1,
+	wh: 1,
+	r: 1,
+	pv: 1,
+	lk: 1,
+	sn: 1,
+	sc: 1,
+	fc: 1,
+	sw: 1,
+	ss: 1,
+	op: 1,
+	ff: 1,
+	fz: 1,
+	ta: 1,
+	va: 1,
+	cr: 1,
+	tid: 1,
+	gid: 1,
+	pid: 1,
+	cl: 1,
+	n: 1,
+	pts: 1,
+	ah: 1,
+	so_: 1,
+	sa: 1,
+	eo: 1,
+	ea: 1,
+	wp: 1,
+	rt: 1,
+	sar: 1,
+	ear: 1,
+	bd: 1,
+	fid: 1,
+	ct: 1,
+	aid: 1,
+	ns: 1,
+	ar: 1,
+	af: 1,
+	ed: 1
+} satisfies Record<StoredKey, 1>
+
+export const KNOWN_STORED_KEYS: ReadonlySet<string> = new Set(Object.keys(STORED_KEY_MAP))
+
+function expandUnknown(id: ObjectId, raw: Record<string, unknown>): UnknownObject {
+	return {
+		id,
+		type: 'unknown',
+		storedType: String(raw.t),
+		raw,
+		...readUnknownGeometry(raw),
+		locked: raw.lk === true,
+		snapped: raw.sn === true,
+		style: { ...DEFAULT_STYLE, opacity: finiteOr(raw.op, DEFAULT_STYLE.opacity) }
+	}
+}
+
+/** Only fields the placeholder can change are written back; everything else stays as stored */
+function compactUnknown(obj: UnknownObject): StoredObject {
+	const stored = compactUnknownRecord(obj)
+	const read = expandUnknown(obj.id, obj.raw)
+	setIfChanged(stored, 'lk', obj.locked, read.locked, (v) => v === false)
+	setIfChanged(stored, 'sn', obj.snapped, read.snapped, (v) => v === false)
+	setIfChanged(
+		stored,
+		'op',
+		obj.style.opacity,
+		read.style.opacity,
+		(v) => v === DEFAULT_STYLE.opacity
+	)
+	return stored as unknown as StoredObject
+}
+
 /**
  * Expand a stored object to runtime format
  *
@@ -458,6 +550,10 @@ export function expandObject(
 	stored: StoredObject,
 	doc: YIdealloDocument
 ): IdealloObject {
+	// Before `base`: an unknown record need not even have `xy`
+	if (!KNOWN_TYPE_CODES.has(stored.t)) {
+		return expandUnknown(id, stored as unknown as Record<string, unknown>)
+	}
 	const styleUnknown = unknownCodeBag([
 		[
 			'ss',
@@ -727,8 +823,11 @@ export function expandObject(
 				...(frame.n !== undefined ? { name: frame.n } : {})
 			} as FrameObject
 		}
-		default:
-			throw new Error(`Unknown object type: ${(stored as Record<string, unknown>).t}`)
+		default: {
+			// Unreachable by type: unknown codes return before the switch
+			const exhaustive: never = stored
+			throw new Error(`Unhandled stored type: ${(exhaustive as StoredObject).t}`)
+		}
 	}
 }
 
@@ -738,6 +837,7 @@ export function expandObject(
  * The content (text/points) is stored separately in the txt/geo maps.
  */
 export function compactObject(obj: IdealloObject): StoredObject {
+	if (obj.type === 'unknown') return compactUnknown(obj)
 	const baseStored: Partial<StoredObject> = {
 		t: TYPE_TO_TYPE_CODE[obj.type],
 		xy: [obj.x, obj.y]
@@ -961,8 +1061,11 @@ export function compactObject(obj: IdealloObject): StoredObject {
 			}
 			return stored
 		}
-		default:
-			throw new Error(`Unknown object type: ${(obj as Record<string, unknown>).type}`)
+		default: {
+			// Unreachable by type: 'unknown' returns before the switch
+			const exhaustive: never = obj
+			throw new Error(`Unhandled object type: ${(exhaustive as IdealloObject).type}`)
+		}
 	}
 }
 

@@ -41,6 +41,8 @@ export { PivotHandle } from './components/PivotHandle'
 export type { RotationHandleProps } from './components/RotationHandle'
 // Components
 export { RotationHandle } from './components/RotationHandle'
+export type { UnsupportedObjectPlaceholderProps } from './components/UnsupportedObjectPlaceholder'
+export { UnsupportedObjectPlaceholder } from './components/UnsupportedObjectPlaceholder'
 // Coordinate utilities
 export {
 	getCanvasCoordinates,

@@ -5,6 +5,7 @@
  * Document initialization and CRDT structure access
  */
 
+import { checkDocSchema, docSchemaAtLeast, stampDocSchema } from '@cloudillo/crdt'
 import * as Y from 'yjs'
 
 import type { ContainerId } from './ids'
@@ -13,18 +14,21 @@ import { DEFAULT_PALETTE } from './palette-ops'
 import { detachedObject } from './prototype-ops'
 import type {
 	ChildRef,
+	LegacyStoredView,
 	StoredContainer,
 	StoredObject,
 	StoredPalette,
 	StoredStyle,
 	StoredTemplate,
 	StoredText,
-	LegacyStoredView,
 	StoredView,
 	YPrezilloDocument
 } from './stored-types'
 import { getAbsoluteBoundsStored } from './transforms'
 import { compactPalette } from './type-converters'
+
+/** Document schema this client writes; a document stamped higher opens read-only. */
+export const PREZILLO_SCHEMA = 2
 
 /**
  * Get or create the Prezillo document structure from a Y.Doc
@@ -32,6 +36,9 @@ import { compactPalette } from './type-converters'
  * @param initializeIfEmpty If true, will initialize with default data when empty.
  *                          Set to false during initial load before sync completes.
  * @param canWrite If false, writes (notes migration, template refs, legacy layout) are skipped.
+ *
+ * Pass `initializeIfEmpty` / `canWrite` only after the provider has synced: before that the
+ * doc has no `schema` and the schema gate reads it as writable.
  */
 export function getOrCreateDocument(
 	yDoc: Y.Doc,
@@ -55,6 +62,11 @@ export function getOrCreateDocument(
 		tpo: yDoc.getMap<Y.Array<string>>('tpo')
 	}
 
+	// A document written by a newer schema is opened read-only: no init, no migration
+	if (checkDocSchema(doc.m, PREZILLO_SCHEMA) === 'ro') return doc
+	// A reader must not initialize or migrate either: those are writes too
+	if (!canWrite) return doc
+
 	// Initialize if empty (only if requested - wait for sync before initializing)
 	if (initializeIfEmpty && doc.r.length === 0) {
 		initializeDocument(yDoc, doc)
@@ -67,12 +79,13 @@ export function getOrCreateDocument(
 	// One-time gate (like ideallo's m.initialized). An older client editing after the
 	// marker is set can still write legacy `notes` or view x/y; those aren't migrated again, but
 	// readers tolerate both (getViewPositions' legacy check, the PPTX notes fallback).
-	if (initializeIfEmpty && canWrite && doc.m.get('schema') !== 2) {
+	const migrated = docSchemaAtLeast(doc.m, PREZILLO_SCHEMA)
+	if (initializeIfEmpty && !migrated) {
 		migrateNotesToYText(yDoc, doc)
 		repairTemplateRefs(yDoc, doc)
 		migrateLegacyViewLayout(yDoc, doc)
 		// No origin: stays off the undo stack, like the migrations
-		yDoc.transact(() => doc.m.set('schema', 2))
+		yDoc.transact(() => stampDocSchema(doc.m, PREZILLO_SCHEMA))
 	}
 
 	return doc

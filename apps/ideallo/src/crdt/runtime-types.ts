@@ -19,6 +19,7 @@ export type ObjectType =
 	| 'image'
 	| 'document'
 	| 'frame'
+	| 'unknown' // placeholder for a stored type this build doesn't know (UnknownObject)
 
 export type StrokeStyle = 'solid' | 'dashed' | 'dotted'
 
@@ -238,7 +239,20 @@ export interface FrameObject extends IdealloObjectBase {
 	name?: string
 }
 
+/**
+ * Placeholder for an object written by a newer client: renders as a labelled box and round-trips
+ * its stored record untouched (compactObject returns `raw` with position updated).
+ */
+export interface UnknownObject extends IdealloObjectBase {
+	type: 'unknown'
+	width: number
+	height: number
+	storedType: string // the stored `t` code this build doesn't know
+	raw: Record<string, unknown>
+}
+
 export type IdealloObject =
+	| UnknownObject
 	| FreehandObject
 	| RectObject
 	| EllipseObject

@@ -13,6 +13,7 @@ import {
 	TEXT_ALIGN_CODE,
 	VERT_ALIGN_CODE
 } from '@cloudillo/canvas-tools'
+import { compactUnknownRecord, finiteOr, readUnknownGeometry, setIfChanged } from '@cloudillo/crdt'
 
 import { toContainerId, toObjectId, toStyleId, toTemplateId, toViewId } from './ids'
 import type * as Runtime from './runtime-types'
@@ -42,7 +43,10 @@ const OBJECT_TYPE_MAP: Record<Stored.ObjectTypeCode, Runtime.ObjectType> = {
 	V: 'statevar'
 }
 
-export const OBJECT_TYPE_REVERSE: Record<Runtime.ObjectType, Stored.ObjectTypeCode> = {
+export const OBJECT_TYPE_REVERSE: Record<
+	Exclude<Runtime.ObjectType, 'unknown'>,
+	Stored.ObjectTypeCode
+> = {
 	rect: 'R',
 	ellipse: 'E',
 	line: 'L',
@@ -323,8 +327,58 @@ export function compactAnchorPoint(
 	return ANCHOR_REVERSE[runtime as Runtime.AnchorPointType]
 }
 
+// Unknown object types (written by a newer client) become a placeholder that keeps the raw record
+
+function expandUnknown(id: string, raw: Record<string, unknown>): Runtime.UnknownObject {
+	return {
+		id: toObjectId(id),
+		type: 'unknown',
+		storedType: String(raw.t),
+		raw,
+		parentId: typeof raw.p === 'string' ? toContainerId(raw.p) : undefined,
+		pageId: typeof raw.vi === 'string' ? toViewId(raw.vi) : undefined,
+		prototypeId: typeof raw.proto === 'string' ? toObjectId(raw.proto) : undefined,
+		...readUnknownGeometry(raw),
+		opacity: finiteOr(raw.o, 1),
+		visible: raw.v !== false,
+		locked: raw.k === true,
+		hidden: raw.hid === true,
+		name: typeof raw.n === 'string' ? raw.n : undefined
+	}
+}
+
+/** Only fields the placeholder can change are written back; everything else stays as stored */
+function compactUnknown(runtime: Runtime.UnknownObject): Stored.StoredObject {
+	const stored = compactUnknownRecord(runtime)
+	// A raw `p`/`vi` this client can't read (not a string) expands to undefined: keep it
+	if (runtime.parentId !== runtime.raw.p) {
+		if (runtime.parentId) stored.p = runtime.parentId
+		else if (typeof runtime.raw.p === 'string') delete stored.p
+	}
+	if (runtime.pageId !== runtime.raw.vi) {
+		if (runtime.pageId) stored.vi = runtime.pageId
+		else if (typeof runtime.raw.vi === 'string') delete stored.vi
+	}
+	// Defaults match SIMPLE_STORED_FIELDS in object-ops.ts
+	const read = expandUnknown(runtime.id, runtime.raw)
+	setIfChanged(stored, 'o', runtime.opacity, read.opacity, (v) => v === 1)
+	setIfChanged(stored, 'k', runtime.locked, read.locked, (v) => v === false)
+	setIfChanged(stored, 'v', runtime.visible, read.visible, (v) => v === true)
+	setIfChanged(stored, 'hid', runtime.hidden, read.hidden, (v) => v === false)
+	setIfChanged(stored, 'n', runtime.name, read.name, (v) => !v)
+	return stored as unknown as Stored.StoredObject
+}
+
+/** `t` is a stored type code this client understands */
+export function isKnownObjectType(t: unknown): boolean {
+	return typeof t === 'string' && Object.hasOwn(OBJECT_TYPE_MAP, t)
+}
+
 // Object conversion
 export function expandObject(id: string, stored: Stored.StoredObject): Runtime.PrezilloObject {
+	if (!isKnownObjectType(stored.t)) {
+		return expandUnknown(id, stored as unknown as Record<string, unknown>)
+	}
 	const base: Partial<Runtime.PrezilloObjectBase> = {
 		id: toObjectId(id),
 		type: OBJECT_TYPE_MAP[stored.t],
@@ -492,12 +546,16 @@ export function expandObject(id: string, stored: Stored.StoredObject): Runtime.P
 			} as Runtime.StateVarObject
 		}
 
-		default:
-			throw new Error(`Unknown object type: ${(stored as Record<string, unknown>).t}`)
+		default: {
+			// Unreachable by type: unknown codes return before the switch
+			const exhaustive: never = stored
+			throw new Error(`Unhandled stored type: ${(exhaustive as Stored.StoredObject).t}`)
+		}
 	}
 }
 
 export function compactObject(runtime: Runtime.PrezilloObject): Stored.StoredObject {
+	if (runtime.type === 'unknown') return compactUnknown(runtime)
 	const base: Partial<Stored.StoredObjectBase> = {
 		t: OBJECT_TYPE_REVERSE[runtime.type],
 		xy: [runtime.x, runtime.y],
@@ -692,6 +750,7 @@ export function compactObject(runtime: Runtime.PrezilloObject): Stored.StoredObj
 		}
 
 		default:
+			// Unreachable by type: 'unknown' returns above, every other member has a case
 			throw new Error(`Unknown object type: ${(runtime as Record<string, unknown>).type}`)
 	}
 }

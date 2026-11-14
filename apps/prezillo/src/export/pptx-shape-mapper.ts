@@ -137,6 +137,7 @@ export function addObjectToSlide(
 		case 'document':
 		case 'embed':
 		case 'statevar':
+		case 'unknown':
 			addPlaceholder(slide, object.type, { x, y, w, h, rotate })
 			break
 	}

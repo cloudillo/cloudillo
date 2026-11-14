@@ -12,7 +12,7 @@ import {
 	RENDER_ANSWER_MARGIN_MS
 } from '@cloudillo/core'
 import { initPresence } from '@cloudillo/crdt'
-import { useCloudilloEditor, useViewReport } from '@cloudillo/react'
+import { useCloudilloEditor, useDocSchemaGate, useViewReport } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { useY } from 'react-yjs'
@@ -32,7 +32,13 @@ import {
 	updatePresentingView
 } from '../awareness'
 import type { ContainerId, ObjectId, TemplateId, ViewId, YPrezilloDocument } from '../crdt'
-import { getOrCreateDocument, getTemplateIdForPrototype, getView, toViewId } from '../crdt'
+import {
+	getOrCreateDocument,
+	getTemplateIdForPrototype,
+	getView,
+	PREZILLO_SCHEMA,
+	toViewId
+} from '../crdt'
 import { renderViewSvg } from '../export/pdf-export'
 
 export interface UsePrezilloDocumentResult {
@@ -114,11 +120,14 @@ export interface UsePrezilloDocumentResult {
 const APP_NAME = 'Prezillo'
 
 export function usePrezilloDocument(): UsePrezilloDocumentResult {
-	const cloudillo = useCloudilloEditor(APP_NAME)
+	const editor = useCloudilloEditor(APP_NAME)
 	const { t } = useTranslation()
 
 	// Get document structure (without initializing defaults)
-	const doc = React.useMemo(() => getOrCreateDocument(cloudillo.yDoc, false), [cloudillo.yDoc])
+	const doc = React.useMemo(() => getOrCreateDocument(editor.yDoc, false), [editor.yDoc])
+
+	// Read-only until synced, and for good when the doc carries a newer schema
+	const cloudillo = useDocSchemaGate(editor, doc.m, PREZILLO_SCHEMA)
 
 	// Initialize document with defaults only after sync completes
 	// This ensures we don't overwrite server data

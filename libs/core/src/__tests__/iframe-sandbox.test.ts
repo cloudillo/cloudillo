@@ -16,6 +16,16 @@ describe('appSandbox', () => {
 	it('never gives an untrusted frame the same origin', () => {
 		expect(APP_SANDBOX).not.toContain('allow-same-origin')
 	})
+
+	// Hard-coded copy of the server's untrusted-app CSP: cloudillo-rs
+	// `crates/cloudillo-file/src/apkg.rs` `UNTRUSTED_APP_CSP`, which has the mirror test
+	// `untrusted_csp_matches_fe_sandbox`. Change both sides together.
+	it('matches the server untrusted-app CSP sandbox tokens', () => {
+		const UNTRUSTED_APP_CSP =
+			'sandbox allow-scripts allow-forms allow-downloads allow-popups allow-popups-to-escape-sandbox'
+		const tokens = (s: string) => s.split(/\s+/).filter(Boolean).sort()
+		expect(tokens(APP_SANDBOX)).toEqual(tokens(UNTRUSTED_APP_CSP.replace(/^sandbox\s+/, '')))
+	})
 })
 
 // vim: ts=4

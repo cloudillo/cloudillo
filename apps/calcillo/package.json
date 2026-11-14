@@ -48,7 +48,7 @@
 		"typescript": "npm:@typescript/typescript6@^6.0.2",
 		"y-indexeddb": "^9.0.12",
 		"y-websocket": "^3.1.0",
-		"yjs": "^13.6.33"
+		"yjs": "13.6.33"
 	},
 	"dependencies": {
 		"exceljs": "^4.4.0",

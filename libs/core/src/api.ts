@@ -101,6 +101,20 @@ export function isSessionExpiredError(err: unknown): boolean {
 	return err instanceof FetchError && err.sessionExpired
 }
 
+/** True when the server has no such route (`E-CORE-NOROUTE`): the endpoint is not supported by
+ *  that server's version, as opposed to a missing item. */
+export function isNoRouteError(err: unknown): boolean {
+	return err instanceof FetchError && err.is('E-CORE-NOROUTE')
+}
+
+/** Called with the `X-Cloudillo-Version` header of every `apiFetchHelper` response that has one,
+ *  along with the idTag the request went to. The shell decides which idTag is the home node. */
+let serverVersionListener: ((idTag: string, version: string) => void) | undefined
+
+export function onServerVersion(cb: ((idTag: string, version: string) => void) | undefined) {
+	serverVersionListener = cb
+}
+
 /** Shape of `FetchError.details` for rate-limit errors: E-RATE-BANNED carries
  *  `remainingSecs` (null = permanent), E-RATE-LIMITED carries `level` and
  *  `retryAfter` (seconds). Mirrors the cloudillo-rs error registry. */
@@ -197,6 +211,10 @@ export async function apiFetchHelper<R, D = unknown>(
 		body,
 		signal: opts.signal
 	})
+
+	// Optional chain: test doubles for fetch often omit headers.
+	const serverVersion = res.headers?.get('X-Cloudillo-Version')
+	if (serverVersion) serverVersionListener?.(idTag, serverVersion)
 
 	const textRes = await res.text()
 

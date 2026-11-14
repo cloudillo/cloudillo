@@ -6,6 +6,7 @@ export * from './channel.js'
 export * from './comments/index.js'
 // OpalUI Component exports (organized)
 export * from './components/index.js'
+export * from './doc-schema-gate.js'
 export * from './docbar.js'
 export * from './embed-source.js'
 export * from './errors.js'

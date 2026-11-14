@@ -1,0 +1,11 @@
+// Compat lint: `T.decode(type, value)` without an options argument rejects unknown fields,
+// so data from a newer peer fails to decode. Pass options (e.g. `{ unknownFields: 'drop' }`
+// or a shared `DECODE_OPTS`). Enabled via `overrides` in biome.jsonc, which also holds the
+// file allowlist. Exactly two arguments match; three (any options value) do not.
+// Re-check: put a bare `T.decode(T.string, 'x')` in apps/ideallo/src/grit-probe.ts, run
+// `pnpm exec biome lint` on it, expect this error, delete the file.
+language js
+
+`T.decode($type, $value)` as $call where {
+	register_diagnostic(span=$call, message="Bare `T.decode(type, value)`: pass decode options so unknown fields are tolerated.", severity="error")
+}

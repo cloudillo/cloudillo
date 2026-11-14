@@ -152,7 +152,7 @@ export const tTotpMode = T.literal('off', 'optional', 'required')
 export type TotpMode = T.TypeOf<typeof tTotpMode>
 
 export const tTotpStatus = T.struct({
-	mode: tTotpMode,
+	mode: tTotpMode.catch('unknown'), // 'unknown' is treated as 'required' (cannot disable)
 	enrolled: T.boolean
 })
 export type TotpStatus = T.TypeOf<typeof tTotpStatus>
@@ -202,7 +202,9 @@ export type TestEmailResult = T.TypeOf<typeof tTestEmailResult>
 // SmtpDiagnostic in cloudillo-rs/crates/cloudillo-email/src/sender.rs — only
 // server-derived data (no host/port/tls_mode echo).
 export const tSmtpDiagnostic = T.struct({
-	category: T.literal('auth', 'connection', 'tls', 'transient', 'permanent', 'other'),
+	category: T.literal('auth', 'connection', 'tls', 'transient', 'permanent', 'other').catch(
+		'unknown'
+	),
 	message: T.string,
 	smtpCode: T.optional(T.number),
 	smtpResponse: T.optional(T.string),
@@ -218,10 +220,10 @@ export const tRegisterVerifyResult = T.struct({
 	address: T.array(T.string),
 	identityProviders: T.array(T.string),
 	idTagError: T.optional(
-		T.union(T.literal('invalid', 'used', 'nodns', 'address'), T.literal(''))
+		T.union(T.literal('invalid', 'used', 'nodns', 'address'), T.literal('')).catch('unknown')
 	),
 	appDomainError: T.optional(
-		T.union(T.literal('invalid', 'used', 'nodns', 'address'), T.literal(''))
+		T.union(T.literal('invalid', 'used', 'nodns', 'address'), T.literal('')).catch('unknown')
 	),
 	apiAddress: T.optional(T.string),
 	apiAddressType: T.optional(T.string),
@@ -244,10 +246,10 @@ export const tVerifyProfileResult = T.struct({
 	address: T.array(T.string),
 	identityProviders: T.array(T.string),
 	idTagError: T.optional(
-		T.union(T.literal('invalid', 'used', 'nodns', 'address'), T.literal(''))
+		T.union(T.literal('invalid', 'used', 'nodns', 'address'), T.literal('')).catch('unknown')
 	),
 	appDomainError: T.optional(
-		T.union(T.literal('invalid', 'used', 'nodns', 'address'), T.literal(''))
+		T.union(T.literal('invalid', 'used', 'nodns', 'address'), T.literal('')).catch('unknown')
 	),
 	apiAddress: T.optional(T.string),
 	apiAddressType: T.optional(T.string),
@@ -329,7 +331,7 @@ export const tIdpIdentity = T.struct({
 	address: T.optional(T.string),
 	addressUpdatedAt: T.optional(T.string),
 	dyndns: T.boolean,
-	status: tIdpIdentityStatus,
+	status: tIdpIdentityStatus.catch('unknown'),
 	createdAt: T.string,
 	updatedAt: T.string,
 	expiresAt: T.string,
@@ -1110,7 +1112,7 @@ export type PartnerProfile = T.TypeOf<typeof tPartnerProfile>
 export function decodePartners(v: unknown): PartnerProfile[] {
 	if (!Array.isArray(v)) return []
 	return v.flatMap((p) => {
-		const r = T.decode(tPartnerProfile, p)
+		const r = T.decode(tPartnerProfile, p, { unknownFields: 'drop' })
 		return T.isOk(r) ? [r.ok] : []
 	})
 }
@@ -1465,10 +1467,10 @@ export const tCommunityVerifyResult = T.struct({
 	address: T.array(T.string),
 	identityProviders: T.array(T.string),
 	idTagError: T.optional(
-		T.union(T.literal('invalid', 'used', 'nodns', 'address'), T.literal(''))
+		T.union(T.literal('invalid', 'used', 'nodns', 'address'), T.literal('')).catch('unknown')
 	),
 	appDomainError: T.optional(
-		T.union(T.literal('invalid', 'used', 'nodns', 'address'), T.literal(''))
+		T.union(T.literal('invalid', 'used', 'nodns', 'address'), T.literal('')).catch('unknown')
 	)
 })
 export type CommunityVerifyResult = T.TypeOf<typeof tCommunityVerifyResult>
@@ -1612,7 +1614,7 @@ export const tProxySiteData = T.struct({
 	domain: T.string,
 	backendUrl: T.string,
 	status: tProxySiteStatus,
-	type: tProxySiteType,
+	type: tProxySiteType.catch('unknown'), // edit form maps 'unknown' to 'basic'
 	certExpiresAt: T.optional(T.string),
 	config: tProxySiteConfig,
 	createdAt: T.string,

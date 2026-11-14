@@ -29,6 +29,11 @@ export interface UseCommentsOptions {
 	access: 'read' | 'comment' | 'write'
 }
 
+/** Allow-list: a level this bundle does not know never grants commenting. */
+function canComment(access: string): boolean {
+	return access === 'comment' || access === 'write'
+}
+
 export interface UseCommentsReturn {
 	connected: boolean
 	subscribeThreads: (scope: string, callback: (threads: CommentThread[]) => void) => () => void
@@ -186,7 +191,7 @@ export function useComments(options: UseCommentsOptions): UseCommentsReturn {
 
 	const createThread = useCallback(
 		async (scope: string, anchor: string, text: string) => {
-			if (access === 'read') throw new Error('Comment access required')
+			if (!canComment(access)) throw new Error('Comment access required')
 
 			const client = await ensureClient()
 			const now = new Date().toISOString()
@@ -221,7 +226,7 @@ export function useComments(options: UseCommentsOptions): UseCommentsReturn {
 
 	const addComment = useCallback(
 		async (threadId: string, text: string): Promise<string> => {
-			if (access === 'read') throw new Error('Comment access required')
+			if (!canComment(access)) throw new Error('Comment access required')
 
 			const client = await ensureClient()
 			const now = new Date().toISOString()
@@ -249,7 +254,7 @@ export function useComments(options: UseCommentsOptions): UseCommentsReturn {
 
 	const editComment = useCallback(
 		async (commentId: string, text: string): Promise<void> => {
-			if (access === 'read') throw new Error('Comment access required')
+			if (!canComment(access)) throw new Error('Comment access required')
 
 			const client = await ensureClient()
 			const now = new Date().toISOString()
@@ -265,7 +270,7 @@ export function useComments(options: UseCommentsOptions): UseCommentsReturn {
 
 	const deleteComment = useCallback(
 		async (commentId: string, threadId: string): Promise<void> => {
-			if (access === 'read') throw new Error('Comment access required')
+			if (!canComment(access)) throw new Error('Comment access required')
 
 			const client = await ensureClient()
 			const now = new Date().toISOString()
@@ -287,7 +292,7 @@ export function useComments(options: UseCommentsOptions): UseCommentsReturn {
 
 	const setThreadStatus = useCallback(
 		async (threadId: string, status: 'open' | 'resolved'): Promise<void> => {
-			if (access === 'read') throw new Error('Comment access required')
+			if (!canComment(access)) throw new Error('Comment access required')
 
 			const client = await ensureClient()
 			const now = new Date().toISOString()

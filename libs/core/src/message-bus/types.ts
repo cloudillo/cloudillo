@@ -147,13 +147,15 @@ export const tAuthInitRes = msg('auth:init.res', {
 			neutral: T.optional(T.string),
 			language: T.optional(T.string),
 			token: T.optional(T.string),
-			access: T.optional(T.literal('read', 'comment', 'write')),
+			// Open: a newer shell may add a level; the app treats 'unknown' as read-only
+			access: T.optional(T.literal('read', 'comment', 'write').catch('unknown')),
 			tokenLifetime: T.optional(T.number),
 			displayName: T.optional(T.string),
 			navState: T.optional(T.string),
 			ancestors: T.optional(T.array(T.string)),
 			params: T.optional(T.string),
-			mode: T.optional(tEmbedMode)
+			// Open: an unknown mode boots as a plain (non-embedded) app
+			mode: T.optional(tEmbedMode.catch('unknown'))
 		})
 	),
 	error: T.optional(T.string)
@@ -249,7 +251,7 @@ export const tAuthInitPush = msg('auth:init.push', {
 		neutral: T.optional(T.string),
 		language: T.optional(T.string),
 		token: T.optional(T.string),
-		access: T.optional(T.literal('read', 'comment', 'write')),
+		access: T.optional(T.literal('read', 'comment', 'write').catch('unknown')),
 		tokenLifetime: T.optional(T.number),
 		displayName: T.optional(T.string),
 		navState: T.optional(T.string),

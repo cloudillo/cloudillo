@@ -357,7 +357,7 @@ export function buildSavePatch(
 export function parseTabConfig(x?: XMap): TabConfig | undefined {
 	if (!x?.tabConfig) return undefined
 	try {
-		const result = T.decode(tTabConfig, JSON.parse(x.tabConfig))
+		const result = T.decode(tTabConfig, JSON.parse(x.tabConfig), { unknownFields: 'drop' })
 		return T.isOk(result) ? result.ok : undefined
 	} catch {
 		return undefined

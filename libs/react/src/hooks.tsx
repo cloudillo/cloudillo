@@ -211,6 +211,7 @@ export function useCloudillo(appNameArg?: string): UseCloudillo {
 					// Offline fallback: use whatever state the bus has
 					// (may have been set by auth:init.push before timeout)
 					const bus = getAppBus()
+					bus.assumeOfflineAccess()
 					const partialState = bus.getState()
 					if (partialState.idTag) {
 						setAuth({

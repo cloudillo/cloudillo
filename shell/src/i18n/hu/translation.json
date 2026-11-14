@@ -3012,5 +3012,11 @@
 	"Create community": "Közösség létrehozása",
 	"You're invited to create a community": "Meghívást kaptál egy közösség létrehozására",
 	"Enter a community idTag or paste a link": "Írd be egy közösség idTagjét, vagy illessz be egy linket",
-	"Find a community by name or address, or paste a link someone shared with you.": "Keress közösséget név vagy cím alapján, vagy illessz be egy linket, amit valaki megosztott veled."
+	"Find a community by name or address, or paste a link someone shared with you.": "Keress közösséget név vagy cím alapján, vagy illessz be egy linket, amit valaki megosztott veled.",
+	"A new version is available": "Új verzió érhető el",
+	"Not delivered": "Nincs kézbesítve",
+	"Not delivered: their server doesn't support this": "Nincs kézbesítve: a címzett szervere ezt nem támogatja",
+	"This feature is not supported by this server.": "Ez a szerver nem támogatja ezt a funkciót.",
+	"This name cannot be used. Please try another one.": "Ez a név nem használható. Kérlek próbálj egy másikat.",
+	"This site uses a proxy type this version cannot edit. Update the client to change it.": "Ez az oldal olyan proxytípust használ, amelyet ez a verzió nem tud szerkeszteni. A módosításhoz frissítsd a klienst."
 }

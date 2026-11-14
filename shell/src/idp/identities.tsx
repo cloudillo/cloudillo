@@ -54,7 +54,8 @@ import { IcActive, IcApiKey, IcPending, IcPeople, IcSuspended } from '../icons.j
 const STATUS_CONFIG = {
 	active: { color: 'success', icon: IcActive, label: 'Active' },
 	pending: { color: 'warning', icon: IcPending, label: 'Pending' },
-	suspended: { color: 'error', icon: IcSuspended, label: 'Suspended' }
+	suspended: { color: 'error', icon: IcSuspended, label: 'Suspended' },
+	unknown: { color: undefined, icon: IcPending, label: 'Unknown' }
 } as const
 
 // Helper to format dates
@@ -72,7 +73,7 @@ function formatRelative(date: string | number): string {
 }
 
 // Status badge component
-function StatusBadge({ status }: { status: 'pending' | 'active' | 'suspended' }) {
+function StatusBadge({ status }: { status: IdpIdentity['status'] }) {
 	const { t } = useTranslation()
 	const config = STATUS_CONFIG[status]
 	const Icon = config.icon

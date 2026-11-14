@@ -372,7 +372,17 @@ export function ProviderSelectorStep({
 /////////////////
 // IdTagInput //
 /////////////////
-export type IdTagError = '' | 'invalid' | 'used' | 'nodns' | 'address' | 'network' | undefined
+// 'unknown' is an error a newer server sent that this build does not know: shown as a
+// generic refusal, never as valid.
+export type IdTagError =
+	| ''
+	| 'invalid'
+	| 'used'
+	| 'nodns'
+	| 'address'
+	| 'network'
+	| 'unknown'
+	| undefined
 
 export interface IdTagInputProps {
 	value: string
@@ -474,6 +484,14 @@ export function IdTagErrorPanel({ error, mode }: IdTagErrorPanelProps) {
 				{mode === 'idp'
 					? t('This name is already taken. Please try another one.')
 					: t('This domain is already registered with this Cloudillo instance.')}
+			</Alert>
+		)
+	}
+
+	if (error === 'unknown') {
+		return (
+			<Alert color="error" className="mt-2">
+				{t('This name cannot be used. Please try another one.')}
 			</Alert>
 		)
 	}

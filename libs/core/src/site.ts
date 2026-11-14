@@ -387,6 +387,8 @@ export type SiteManifest = T.TypeOf<typeof tSiteManifest>
  * entries one at a time below.
  */
 const tSiteManifestEnvelope = T.struct({
+	// Deliberately closed: a manifest from a newer writer (v2+) fails the decode, so
+	// `decodeSiteManifest` returns undefined rather than rendering it as v1.
 	version: T.literal(1),
 	mountPath: T.string,
 	pages: T.record(tAnyValue),

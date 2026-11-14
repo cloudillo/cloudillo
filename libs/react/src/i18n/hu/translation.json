@@ -140,6 +140,8 @@
 	"Reference copied": "Hivatkozás másolva",
 	"Failed to copy reference": "A hivatkozás másolása nem sikerült",
 	"View only": "Csak megtekintés",
+	"Read-only: newer version": "Csak olvasható: újabb verzió",
+	"This document was saved by a newer app version. Reload to edit.": "Ezt a dokumentumot az alkalmazás egy újabb verziója mentette. Töltsd újra a szerkesztéshez.",
 	"Offline · changes saved on this device": "Offline · a változások ezen az eszközön mentve",
 	"Offline · changes will sync when you reconnect": "Offline · a változások újracsatlakozáskor szinkronizálódnak",
 	"Reconnecting…": "Újracsatlakozás…",
@@ -161,5 +163,6 @@
 	"This is too large to upload.": "Ez túl nagy a feltöltéshez.",
 	"Something went wrong on the server. Try again later.": "Hiba történt a szerveren. Próbáld újra később.",
 	"Something went wrong. Try again.": "Valami hiba történt. Próbáld újra.",
-	"Couldn't load this": "Nem sikerült betölteni"
+	"Couldn't load this": "Nem sikerült betölteni",
+	"This feature is not supported by this server.": "Ez a szerver nem támogatja ezt a funkciót."
 }

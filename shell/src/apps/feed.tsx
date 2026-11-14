@@ -14,6 +14,7 @@ import {
 	DocBar,
 	EmptyState,
 	Fcd,
+	friendlyError,
 	HatVia,
 	HBox,
 	hatRingClass,
@@ -29,7 +30,6 @@ import {
 	IcSend,
 	IcTag,
 	IcVideo,
-	friendlyError,
 	LoadError,
 	LoadMoreTrigger,
 	Menu,
@@ -84,11 +84,11 @@ import {
 	INITIAL_UNREAD_WINDOW_SEC,
 	nowSeconds,
 	readPositionAtom,
+	secondsToIso,
 	unreadCountAtom,
 	useBottomDwell,
 	useReadMarker,
 	useReadPositionTracker,
-	secondsToIso,
 	useScrollEngaged
 } from '../read-position.js'
 import { ctxBase, feedPath, filesPath, profilePath, roomsPath } from '../routes.js'
@@ -883,6 +883,13 @@ function Post({
 						<PostMenu action={action} onDelete={onDelete} />
 					</HBox>
 					<VBox gap={2}>
+						{!!action.deliveryError && (
+							<Text size="sm" emphasis="muted">
+								{action.deliveryError === 'unsupported'
+									? t("Not delivered: their server doesn't support this")
+									: t('Not delivered')}
+							</Text>
+						)}
 						{!!bodyText && <RichText text={bodyText} />}
 						{!isRepost && liveDoc && <LiveDocCard docRef={liveDoc} width={width} />}
 						{!isRepost &&
@@ -1694,7 +1701,7 @@ export function FeedApp() {
 				ct: T.optional(T.number),
 				rp: T.optional(T.number)
 			})
-			const contentRes = T.decode(tStatContent, action.content)
+			const contentRes = T.decode(tStatContent, action.content, { unknownFields: 'drop' })
 			if (!T.isOk(contentRes)) return
 			const content = contentRes.ok
 			// Write only federated fields to the engaged-id overlay, keyed directly

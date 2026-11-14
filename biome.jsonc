@@ -153,6 +153,24 @@
 			// `shell/src/ui/**` is the one chrome layer allowed raw tags.
 			"includes": ["shell/src/**", "!shell/src/ui/**", "!**/__tests__/**"],
 			"plugins": ["biome-plugins/no-raw-intrinsic.grit"]
+		},
+		{
+			// Compat: runtype decodes keep unknown fields tolerant. The `!` entries are the
+			// allowlist of files with deliberate bare `T.decode(type, value)` calls.
+			// File-level allowlist (biome-ignore would edit those files); a new bare
+			// call inside a listed file goes unflagged.
+			"includes": [
+				"apps/**",
+				"libs/**",
+				"shell/**",
+				"!**/__tests__/**",
+				"!apps/notillo/src/pages/PagePropertiesPanel.tsx",
+				"!apps/notillo/src/publish/listing.ts",
+				"!apps/notillo/src/publish/render/archetypes.ts",
+				"!libs/core/src/site.ts",
+				"!libs/core/src/site-islands.ts"
+			],
+			"plugins": ["biome-plugins/no-bare-decode.grit"]
 		}
 	],
 

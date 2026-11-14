@@ -19,10 +19,10 @@ import {
 	tAuthInitReq,
 	tAuthInitRes,
 	tAuthTokenPush,
-	tAuthTokenRefreshReq,
-	tAuthTokenRefreshRes,
 	tAuthTokenReadReq,
 	tAuthTokenReadRes,
+	tAuthTokenRefreshReq,
+	tAuthTokenRefreshRes,
 	tCameraCaptureAck,
 	tCameraCaptureReq,
 	tCameraCaptureResultPush,
@@ -225,6 +225,37 @@ export function validateMessage(
 	if (!T.isOk(result)) return undefined
 
 	return { message: result.ok as CloudilloMessage, rule }
+}
+
+/** Error string a receiver answers an unknown `*.req` with (`ok:false`). */
+export const BUS_UNKNOWN_ERROR = 'E-BUS-UNKNOWN'
+
+/** Envelope fields of a well-formed frame whose `type` this bundle does not know. */
+export interface UnknownMessage {
+	type: string
+	id?: number
+	replyTo?: number
+	error?: string
+}
+
+/**
+ * A v1 Cloudillo frame whose `type` is not in the registry (a newer peer's message).
+ * `validateMessage` returns undefined for it just as for an invalid frame; this tells the two
+ * apart, so the receiver can answer an unknown request or settle the pending one it answers
+ * instead of letting it wait out its timeout. A registered type never matches here, however
+ * malformed: that stays "invalid".
+ */
+export function unknownMessage(data: unknown): UnknownMessage | undefined {
+	if (!isCloudilloMessage(data)) return undefined
+	const msg = data as Record<string, unknown>
+	if (msg.v !== PROTOCOL_VERSION || typeof msg.type !== 'string') return undefined
+	if (Object.hasOwn(MESSAGE_REGISTRY, msg.type)) return undefined
+	return {
+		type: msg.type,
+		...(typeof msg.id === 'number' && { id: msg.id }),
+		...(typeof msg.replyTo === 'number' && { replyTo: msg.replyTo }),
+		...(typeof msg.error === 'string' && { error: msg.error })
+	}
 }
 
 // vim: ts=4

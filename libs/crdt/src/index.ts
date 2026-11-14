@@ -3,7 +3,9 @@
 
 export * from './crdt.js'
 export * from './crdt-persistence.js'
+export * from './doc-schema.js'
 export * from './export-utils.js'
 export * from './presence.js'
+export * from './unknown-objects.js'
 
 // vim: ts=4

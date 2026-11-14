@@ -26,9 +26,9 @@ import { useCtx } from '../../../context/index.js'
 import { IcSent } from '../../../icons.js'
 import { createdAtToSeconds } from '../../../read-position.js'
 import { profilePath } from '../../../routes.js'
+import { useTouchGestures } from '../../../ui/touch-gestures.js'
 import { getReactionLabel, parseReactionCounts } from '../../feed/reactions.js'
 import type { ActionEvt } from '../types.js'
-import { useTouchGestures } from '../../../ui/touch-gestures.js'
 import { MessageActions, type MessageMenuSlots } from './MessageActions.js'
 import { MessageAttachments } from './MessageAttachments.js'
 import { ReplyQuote } from './ReplyQuote.js'
@@ -209,6 +209,13 @@ function MessageBubbleComponent({
 					>
 						{t('Retry')}
 					</Button>
+				)}
+				{!!action.deliveryError && (
+					<Text size="sm" emphasis="muted">
+						{action.deliveryError === 'unsupported'
+							? t("Not delivered: their server doesn't support this")
+							: t('Not delivered')}
+					</Text>
 				)}
 				{!deleted && action.extra?.editedAt && (
 					<Text

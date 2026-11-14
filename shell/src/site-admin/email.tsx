@@ -13,11 +13,11 @@ import {
 	List,
 	NativeSelect,
 	Panel,
+	PasswordInput,
 	Text,
 	useApi,
 	useAuth,
-	VBox,
-	PasswordInput
+	VBox
 } from '@cloudillo/react'
 import * as T from '@symbion/runtype'
 import * as React from 'react'
@@ -297,7 +297,7 @@ export function EmailSettings() {
 			const message = err instanceof Error ? err.message : t('Failed to send test email')
 			let diagnostic: SmtpDiagnostic | undefined
 			if (err instanceof FetchError && err.details !== undefined) {
-				const decoded = T.decode(tSmtpDiagnostic, err.details)
+				const decoded = T.decode(tSmtpDiagnostic, err.details, { unknownFields: 'drop' })
 				if (T.isOk(decoded)) {
 					diagnostic = decoded.ok
 				} else {

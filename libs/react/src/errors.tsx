@@ -56,6 +56,8 @@ export function friendlyError(t: TFunction, err: unknown): string {
 				return t("Couldn't reach the other server. Try again later.")
 			case 'E-CORE-INVALID':
 				return invalid()
+			case 'E-CORE-NOROUTE':
+				return t('This feature is not supported by this server.')
 		}
 		switch (err.httpStatus) {
 			case 401:

@@ -331,9 +331,20 @@ export function AppDocBar({
 			>
 				{/* Not `Tag`: it pulls in react-router, and this module stays router-free.
 				    Read at render time; `useDocBar` re-renders on identity changes. */}
-				{state === 'ready' && getAppBus().access === 'read' && (
-					<span className="c-tag small">{t('View only')}</span>
+				{state === 'ready' && getAppBus().accessCapped && (
+					<span
+						className="c-tag small"
+						title={t('This document was saved by a newer app version. Reload to edit.')}
+					>
+						{t('Read-only: newer version')}
+					</span>
 				)}
+				{state === 'ready' &&
+					!getAppBus().accessCapped &&
+					getAppBus().access !== 'write' &&
+					getAppBus().access !== 'comment' && (
+						<span className="c-tag small">{t('View only')}</span>
+					)}
 				{note && (
 					<span role="status" className="text-muted small">
 						{note === 'offline'

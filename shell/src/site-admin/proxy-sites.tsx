@@ -438,7 +438,7 @@ function EditProxySiteModal({
 		if (open && site) {
 			setStatus(site.status)
 			setBackendUrl(site.backendUrl)
-			setType(site.type)
+			setType(site.type === 'unknown' ? 'basic' : site.type)
 			setDraft(draftFromSite(site))
 			setError(undefined)
 			setBackendUrlError(undefined)
@@ -498,7 +498,7 @@ function EditProxySiteModal({
 					<Button onClick={onClose}>{t('Cancel')}</Button>
 					<Button
 						color="primary"
-						disabled={!isDirty || !!backendUrlError}
+						disabled={!isDirty || !!backendUrlError || site.type === 'unknown'}
 						loading={isSubmitting}
 						onClick={handleSave}
 					>
@@ -508,6 +508,13 @@ function EditProxySiteModal({
 			}
 		>
 			<VBox gap={3}>
+				{site.type === 'unknown' && (
+					<Alert color="warning">
+						{t(
+							'This site uses a proxy type this version cannot edit. Update the client to change it.'
+						)}
+					</Alert>
+				)}
 				{error && <Alert color="error">{error}</Alert>}
 
 				<List variant="divided">

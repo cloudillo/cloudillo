@@ -21,7 +21,7 @@ import { MAX_RENDER_PAGES, MAX_RENDER_SVG_SIZE, MAX_RENDER_TOTAL_SIZE } from '..
 import { parseDocRef } from '../urls.js'
 import { errorMessage, randomId } from '../utils.js'
 import { MessageBusBase, type MessageBusConfig } from './core.js'
-import { validateMessage } from './registry.js'
+import { unknownMessage, validateMessage } from './registry.js'
 import {
 	type AppReadyStage,
 	type AuthInitPush,
@@ -505,6 +505,22 @@ export function parseAppHash(hash: string): ParsedAppHash {
 }
 
 /**
+ * Access level from the shell. Absent means `'write'`, matching the shell's own default; a
+ * level this bundle does not know (from a newer shell) fails closed to `'read'`.
+ */
+function toAccess(access: string | undefined): AppState['access'] {
+	if (access === undefined) return 'write'
+	return access === 'write' || access === 'comment' ? access : 'read'
+}
+
+const ACCESS_RANK = { read: 0, comment: 1, write: 2 } as const
+
+/** Embed mode from the shell. A mode this bundle does not know boots as absent (`'view'`). */
+function toEmbedMode(mode: string | undefined): EmbedMode | undefined {
+	return mode === 'view' || mode === 'render' || mode === 'pick-view' ? mode : undefined
+}
+
+/**
  * App-side message bus for communication with shell
  *
  * Usage:
@@ -529,7 +545,8 @@ export function parseAppHash(hash: string): ParsedAppHash {
  */
 export class AppMessageBus extends MessageBusBase {
 	private state: AppState = {
-		access: 'write',
+		// Read-only until `auth:init.res` says otherwise
+		access: 'read',
 		darkMode: false,
 		theme: 'glass'
 	}
@@ -544,6 +561,10 @@ export class AppMessageBus extends MessageBusBase {
 	private lastDocInfo: DocInfo | undefined
 	private docInfoCallbacks = new Set<(info: DocInfo) => void>()
 	private identityCallbacks = new Set<() => void>()
+	/** Access level the shell granted, before {@link accessCap} */
+	private grantedAccess: AppState['access'] = 'read'
+	/** App-imposed ceiling on {@link grantedAccess} — see {@link capAccess} */
+	private accessCap?: 'read' | 'comment'
 	private themeCallbacks = new Set<(darkMode: boolean) => void>()
 	private languageCallbacks = new Set<(language: string) => void>()
 	private tokenCallbacks = new Set<(token: string | undefined) => void>()
@@ -588,6 +609,57 @@ export class AppMessageBus extends MessageBusBase {
 	/** Access level */
 	get access(): 'read' | 'comment' | 'write' {
 		return this.state.access
+	}
+
+	/** True while {@link capAccess} actually lowers the shell's grant */
+	get accessCapped(): boolean {
+		const cap = this.accessCap
+		return !!cap && ACCESS_RANK[cap] < ACCESS_RANK[this.grantedAccess]
+	}
+
+	/**
+	 * Cap the effective access level below what the shell granted (e.g. a document stamped
+	 * with a newer schema than this bundle understands). The cap survives later
+	 * `auth:init.push` grants; `undefined` removes it. Fires identity callbacks on change.
+	 *
+	 * Client-side only — the Yjs provider still holds a write-capable token, so a
+	 * local script can still write. Server enforcement: claude-docs/DOC-SCHEMA-SERVER-GATE.md.
+	 */
+	capAccess(max: 'read' | 'comment' | undefined): void {
+		this.accessCap = max
+		const access = this.cappedAccess(this.grantedAccess)
+		if (access === this.state.access) return
+		this.state.access = access
+		this.emitIdentityChange()
+	}
+
+	/**
+	 * No shell answered `auth:init` (offline, or a slow shell): edit locally rather than stay
+	 * read-only. A no-op once the shell has granted access — its answer always wins.
+	 */
+	assumeOfflineAccess(): void {
+		if (this.initialized) return
+		const access = this.cappedAccess('write')
+		if (access === this.state.access) return
+		this.state.access = access
+		this.emitIdentityChange()
+	}
+
+	/** Record `granted` as the shell's grant and return it lowered to {@link accessCap} */
+	private cappedAccess(granted: AppState['access']): AppState['access'] {
+		this.grantedAccess = granted
+		const cap = this.accessCap
+		return cap && ACCESS_RANK[cap] < ACCESS_RANK[granted] ? cap : granted
+	}
+
+	private emitIdentityChange(): void {
+		for (const cb of this.identityCallbacks) {
+			try {
+				cb()
+			} catch (err) {
+				this.logWarn('Identity callback failed:', (err as Error).message)
+			}
+		}
 	}
 
 	/** Dark mode */
@@ -745,7 +817,7 @@ export class AppMessageBus extends MessageBusBase {
 				tnId: initData.tnId,
 				roles: initData.roles,
 				accessToken: initData.token,
-				access: initData.access || 'write',
+				access: this.cappedAccess(toAccess(initData.access)),
 				darkMode: !!initData.darkMode,
 				neutral: initData.neutral,
 				language: initData.language,
@@ -756,7 +828,7 @@ export class AppMessageBus extends MessageBusBase {
 				navState: initData.navState,
 				ancestors: initData.ancestors,
 				params: initData.params,
-				mode: initData.mode
+				mode: toEmbedMode(initData.mode)
 			}
 
 			// Apply theme to document
@@ -786,7 +858,7 @@ export class AppMessageBus extends MessageBusBase {
 				tnId: msg.payload.tnId,
 				roles: msg.payload.roles,
 				accessToken: msg.payload.token,
-				access: msg.payload.access || 'write',
+				access: this.cappedAccess(toAccess(msg.payload.access)),
 				darkMode: !!msg.payload.darkMode,
 				neutral: msg.payload.neutral,
 				language: msg.payload.language,
@@ -812,15 +884,10 @@ export class AppMessageBus extends MessageBusBase {
 			if (
 				before.idTag !== this.state.idTag ||
 				before.authenticated !== this.state.authenticated ||
-				before.displayName !== this.state.displayName
+				before.displayName !== this.state.displayName ||
+				before.access !== this.state.access
 			) {
-				for (const cb of this.identityCallbacks) {
-					try {
-						cb()
-					} catch (err) {
-						this.logWarn('Identity callback failed:', (err as Error).message)
-					}
-				}
+				this.emitIdentityChange()
 			}
 
 			// The push rebuilds state wholesale, so it can carry a theme flip too.
@@ -962,7 +1029,21 @@ export class AppMessageBus extends MessageBusBase {
 
 		// Validate message (returns undefined for non-cloudillo or invalid messages)
 		const result = validateMessage(data, 'shell>app')
-		if (!result) return
+		if (!result) {
+			// A reply of a type this bundle does not know (e.g. the shell's `E-BUS-UNKNOWN`
+			// answer on a derived `*.res`) still settles its pending request, so the caller
+			// fails fast instead of waiting out the timeout.
+			const unknown = unknownMessage(data)
+			if (unknown?.replyTo !== undefined) {
+				this.handleResponse(unknown.replyTo, false, undefined, unknown.error)
+				return
+			}
+			// An init reply that fails validation would otherwise only surface as a timeout
+			if ((data as { type?: unknown } | null)?.type === 'auth:init.res') {
+				this.logError(new Error('Invalid auth:init.res from shell, dropped'), data)
+			}
+			return
+		}
 
 		const message = result.message
 		this.log('Received:', message.type)
@@ -1147,8 +1228,8 @@ export class AppMessageBus extends MessageBusBase {
 	}
 
 	/**
-	 * Subscribe to identity changes — `idTag`, `authenticated` or `displayName`
-	 * changing on a later `auth:init.push`.
+	 * Subscribe to identity changes — `idTag`, `authenticated`, `displayName` or `access`
+	 * changing on a later `auth:init.push` or a {@link capAccess} call.
 	 *
 	 * For apps that publish who they are once at startup and would otherwise keep
 	 * broadcasting a stale identity for the rest of the session. React apps reach

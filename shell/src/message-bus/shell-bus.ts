@@ -10,10 +10,12 @@
 
 import {
 	type ApiClient,
+	BUS_UNKNOWN_ERROR,
 	MESSAGE_REGISTRY,
 	MessageBusBase,
 	type MessageBusConfig,
 	PROTOCOL_VERSION,
+	unknownMessage,
 	validateMessage
 } from '@cloudillo/core'
 
@@ -327,7 +329,10 @@ export class ShellMessageBus extends MessageBusBase {
 	private handleMessage(event: MessageEvent): void {
 		// Validate message (returns undefined for non-cloudillo or invalid messages)
 		const result = validateMessage(event.data, 'app>shell')
-		if (!result) return
+		if (!result) {
+			this.answerUnknownRequest(event)
+			return
+		}
 
 		const message = result.message
 		this.log('Received:', message.type, 'from app')
@@ -366,6 +371,28 @@ export class ShellMessageBus extends MessageBusBase {
 
 		// Dispatch to registered handlers
 		this.dispatch(message, event.source)
+	}
+
+	/**
+	 * Answer a request type this shell does not know (a newer app bundle) with
+	 * `ok:false, error:'E-BUS-UNKNOWN'` on the derived `*.res` type, so the app fails fast instead
+	 * of waiting out its timeout. There is no registry rule to read `requiresAuth` from, so the
+	 * source check takes the strict path: a known, initialized app frame. Anything else is
+	 * dropped silently, as an invalid frame is.
+	 */
+	private answerUnknownRequest(event: MessageEvent): void {
+		const unknown = unknownMessage(event.data)
+		if (!unknown?.type.endsWith('.req') || unknown.id === undefined) return
+		if (!this.appTracker.validateSource(event.source, true)) return
+		this.logWarn('Unknown request type from app:', unknown.type)
+		this.sendResponse(
+			event.source as Window,
+			unknown.type.slice(0, -'.req'.length) + '.res',
+			unknown.id,
+			false,
+			undefined,
+			BUS_UNKNOWN_ERROR
+		)
 	}
 
 	// ============================================

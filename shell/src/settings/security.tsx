@@ -166,6 +166,7 @@ export function TwoFactorPanel({
 
 				{status.enrolled ? (
 					status.mode !== 'required' &&
+					status.mode !== 'unknown' &&
 					(disabling ? (
 						<>
 							<TotpCodeField value={code} onChange={setCode} />
@@ -507,7 +508,10 @@ function useReauth(description?: string): [React.ReactNode, ReauthPrompt] {
 		setRefused(undefined)
 		setOpen(true)
 		api?.auth.getTotp().then(
-			(status) => setRefused(status.enrolled || status.mode === 'required'),
+			(status) =>
+				setRefused(
+					status.enrolled || status.mode === 'required' || status.mode === 'unknown'
+				),
 			() => setRefused(false)
 		)
 		return new Promise((resolve) => {
@@ -1020,7 +1024,7 @@ export function SecuritySettings() {
 	const [stayLoggedIn, setStayLoggedIn] = React.useState(false)
 	const [totpBlocks, setTotpBlocks] = React.useState(false)
 	const onTotpStatus = React.useCallback((s: TotpStatus) => {
-		setTotpBlocks(s.enrolled || s.mode === 'required')
+		setTotpBlocks(s.enrolled || s.mode === 'required' || s.mode === 'unknown')
 	}, [])
 	const stayLoggedInBlocked = !stayLoggedIn && totpBlocks
 	const [currentDeviceKeyPrefix, setCurrentDeviceKeyPrefix] = React.useState<string | undefined>()

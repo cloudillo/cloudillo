@@ -72,6 +72,7 @@ import { CommunitySheet } from './layout/CommunitySheet.js'
 import { ContextBar } from './layout/ContextBar.js'
 import { Menu as AppMenu } from './layout/Menu.js'
 import { Toasts } from './layout/Toasts.js'
+import { UpdateBanner } from './layout/UpdateBanner.js'
 import { appConfig as APP_CONFIG } from './manifest-registry.js'
 import { getShellBus, initShellBus } from './message-bus'
 import { createShellBusConfig } from './message-bus/shell-bus-config.js'
@@ -85,7 +86,6 @@ import { useSearchReindexNotifications } from './notifications/useSearchReindexN
 import { DocumentTitleSync, Omnibox } from './omnibox.js'
 import { onboardingRoutes } from './onboarding/index.js'
 import { authedProfileRoutes, profileRoutes } from './profile/profile.js'
-import { roomsRoutes } from './rooms/index.js'
 import usePWA, {
 	clearAuthToken,
 	deleteApiKey,
@@ -94,6 +94,7 @@ import usePWA, {
 	type UsePWA
 } from './pwa.js'
 import { unreadCountAtom, useGlobalUnreadProbe } from './read-position.js'
+import { roomsRoutes } from './rooms/index.js'
 import { ContextGuard, RequireAuth } from './route-guards.js'
 import {
 	ctxBase,
@@ -758,6 +759,7 @@ export function Layout() {
 						<GuestOwnerBanner />
 						<CommunityVerifyIdpBanner />
 						<UnknownContextBanner />
+						<UpdateBanner />
 						<ShellRoutes pwa={pwa} />
 					</AppShell>
 					<DialogContainer />

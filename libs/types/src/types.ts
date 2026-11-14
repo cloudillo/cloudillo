@@ -302,7 +302,9 @@ export const tProfile = T.struct({
 	connected: T.optional(tProfileConnectionStatus),
 	following: T.optional(T.boolean),
 	follower: T.optional(T.boolean),
-	trust: T.optional(tProfileTrust),
+	// A trust value this client predates reads as null ("ask" in the UI). Never written back
+	// automatically: only an explicit user choice calls `setStoredTrust`.
+	trust: T.optional(tProfileTrust.catch(null)),
 	roles: T.optional(T.array(T.string)), // Community roles (e.g., ['leader'], ['moderator'])
 	// The owner's own `P:MSG` / `P:POST` reader-state rows for this profile
 	// (owner-only; absent for other callers or when no row exists).
@@ -820,7 +822,7 @@ export const tIndexFieldRule = T.union(
 		path: T.optional(T.string),
 		// Deprecated alias for `path`, kept because stored manifests use it.
 		field: T.optional(T.string),
-		extract: T.optional(T.literal('text', 'string')),
+		extract: T.optional(T.literal('text', 'string').catch('unknown')),
 		keys: T.optional(T.array(T.string)),
 		excludeKeys: T.optional(T.array(T.string)),
 		prefix: T.optional(T.string),
@@ -965,7 +967,7 @@ export type PartAddressingKind = T.TypeOf<typeof tPartAddressingKind>
 // drives reindexing).
 export const tPartAddressing = T.struct({
 	v: T.optional(T.number),
-	kind: tPartAddressingKind
+	kind: tPartAddressingKind.catch('unknown')
 })
 export type PartAddressing = T.TypeOf<typeof tPartAddressing>
 
@@ -1185,7 +1187,7 @@ export const tDocFormat = T.struct({
 	// Which tier the listing resolved this from: `'tenant'` for a row this tenant
 	// owns (deletable, reverting to the bundled default) or `'bundled'` for what
 	// the server build ships. Only `GET /doc-formats` sets it.
-	source: T.optional(T.literal('tenant', 'bundled'))
+	source: T.optional(T.literal('tenant', 'bundled').catch('unknown'))
 })
 export type DocFormat = T.TypeOf<typeof tDocFormat>
 
@@ -1392,7 +1394,7 @@ export const tSiteNavList: T.Type<SiteNavItem[]> = new SiteNavListType()
 // There is deliberately no host field: the site host is always the tenant's app
 // domain, which the backend derives, so a stored copy would drift.
 export const tSite = T.struct({
-	status: tSiteStatus,
+	status: tSiteStatus.catch('unknown'),
 	// The owner's explicit main navigation. EMPTY MEANS DERIVE: the site then falls back
 	// to `SiteConfig.derivedNav`, which is what every site did before this list existed.
 	// A non-empty list takes over wholesale — the two are never merged, which is what

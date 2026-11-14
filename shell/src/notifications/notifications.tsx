@@ -374,7 +374,9 @@ function FileShareNotification({
 }) {
 	const { t } = useTranslation()
 	const { api } = useApi()
-	const contentRes = T.decode(tFileShareAction.props.content, action.content)
+	const contentRes = T.decode(tFileShareAction.props.content, action.content, {
+		unknownFields: 'drop'
+	})
 	const content = T.isOk(contentRes) ? contentRes.ok : undefined
 	if (!content) return null
 

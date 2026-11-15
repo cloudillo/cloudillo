@@ -15,6 +15,7 @@ import {
 	Slider,
 	Text,
 	useApi,
+	useAuth,
 	useToast
 } from '@cloudillo/react'
 import * as React from 'react'
@@ -22,6 +23,13 @@ import { useTranslation } from 'react-i18next'
 
 import { IcRoom } from '../icons.js'
 import { useMutedRooms } from '../lib/room-mute.js'
+import {
+	ensureDeviceKey,
+	getNativeInfo,
+	isNativeApp,
+	type PushState,
+	pushApi
+} from '../native-bridge.js'
 import {
 	clearPushSubscriptionId,
 	loadPushSubscriptionId,
@@ -123,6 +131,8 @@ const NOTIFY_PREFIXES = ['notify', 'msg']
 export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 	const { t } = useTranslation()
 	const { api } = useApi()
+	const [auth] = useAuth()
+	const authIdTag = auth?.idTag
 	const { error: toastError } = useToast()
 	const { settings, onSettingChange, error, refresh } = useSettings(NOTIFY_PREFIXES)
 	const { settings: localSettings, updateSetting } = useLocalNotifySettings()
@@ -130,23 +140,54 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 	const [notificationSubscription, setNotificationSubscription] = React.useState<
 		PushSubscription | undefined
 	>()
+	const native = isNativeApp()
+	const [nativePush, setNativePush] = React.useState<PushState>()
+	const [nativePushError, setNativePushError] = React.useState<Error>()
 
-	React.useEffect(function () {
-		;(async function () {
-			const sw =
-				window.Notification?.permission === 'granted'
-					? await navigator.serviceWorker.ready
-					: undefined
-			const subscription = (await sw?.pushManager?.getSubscription()) || undefined
-			setNotificationSubscription(subscription)
-		})()
-	}, [])
+	React.useEffect(
+		function () {
+			if (native) {
+				let cancelled = false
+				// Wait for a queued device-key handoff, or `hasDeviceKey` reads stale (never rejects)
+				;(authIdTag ? ensureDeviceKey(authIdTag) : Promise.resolve())
+					// Rejects readably on an unsupported app before any push call
+					.then(() => getNativeInfo())
+					.then(() => pushApi.getState())
+					.then(
+						(s) => {
+							if (!cancelled) setNativePush(s)
+						},
+						(err: unknown) => {
+							console.error('Failed to load native push state:', err)
+							if (!cancelled)
+								setNativePushError(
+									err instanceof Error ? err : new Error(String(err))
+								)
+						}
+					)
+				return () => {
+					cancelled = true
+				}
+			}
+			;(async function () {
+				const sw =
+					window.Notification?.permission === 'granted'
+						? await navigator.serviceWorker.ready
+						: undefined
+				const subscription = (await sw?.pushManager?.getSubscription()) || undefined
+				setNotificationSubscription(subscription)
+			})()
+		},
+		[authIdTag, native]
+	)
 
 	// `onChange` cannot await, so anything thrown here would be an unhandled
 	// rejection and the toggle would just snap back with no explanation.
 	async function onPushChange(evt: React.ChangeEvent<HTMLInputElement>) {
 		try {
-			if (evt.target.checked) {
+			if (native) {
+				setNativePush(await (evt.target.checked ? pushApi.enable() : pushApi.disable()))
+			} else if (evt.target.checked) {
 				const subscription = await subscribeNotifications(api, pwa)
 				if (subscription) setNotificationSubscription(subscription)
 			} else {
@@ -187,9 +228,23 @@ export function NotificationSettings({ pwa }: { pwa: UsePWA }) {
 					<List variant="divided">
 						<SwitchRow
 							name="notify.push"
-							checked={!!notificationSubscription}
+							checked={native ? !!nativePush?.enabled : !!notificationSubscription}
 							onChange={onPushChange}
+							disabled={native && !nativePush?.hasDeviceKey}
 							label={t('Enable push notifications on this device')}
+							description={
+								nativePushError
+									? t("Couldn't load notification settings for this device")
+									: !nativePush
+										? undefined
+										: !nativePush.hasDeviceKey
+											? t('Link this device first.')
+											: nativePush.enabled && nativePush.distributors === 0
+												? t(
+														'Install a UnifiedPush distributor (e.g. ntfy) for instant notifications; otherwise new notifications are checked every 30 minutes.'
+													)
+												: undefined
+							}
 						/>
 						<SwitchRow
 							name="notify.push"

@@ -87,6 +87,16 @@ describe('canAdminContext / allowedPages', () => {
 		expect(pages).not.toContain('partners')
 		expect(pages).not.toContain('general')
 	})
+
+	it('offers the device page only inside the Android app', () => {
+		expect(allowedPages(undefined, 'me.tld')).not.toContain('device')
+		window.CloudilloNative = { postMessage() {}, onmessage: null }
+		try {
+			expect(allowedPages(undefined, 'me.tld')).toContain('device')
+		} finally {
+			delete window.CloudilloNative
+		}
+	})
 })
 
 describe('floorText', () => {

@@ -30,7 +30,9 @@ import {
 	sectionMatch,
 	settingsPath
 } from '../routes.js'
+import { isNativeApp } from '../native-bridge.js'
 import { AppearanceSettings } from './appearance.js'
+import { DeviceSettings } from './device.js'
 import { NotificationSettings } from './notifications.js'
 import { SecuritySettings } from './security.js'
 
@@ -42,6 +44,7 @@ import {
 	IcFilesApp,
 	IcGeneral,
 	IcHistory,
+	IcMobilePhone,
 	IcNotifications,
 	IcPrivacy,
 	IcProfile,
@@ -73,6 +76,7 @@ const PERSONAL_PAGES = [
 	'trust',
 	'badges',
 	'notifications',
+	'device',
 	'appearance',
 	'calendar',
 	'apps',
@@ -88,11 +92,14 @@ const PERSONAL_PAGES = [
  */
 const COMMUNITY_ADMIN_PAGES = ['general', 'privacy', 'files', 'rooms', 'site']
 
-/** The settings pages the user may open: the admin pages they hold in a community, else all. */
+/**
+ * The settings pages the user may open: the admin pages they hold in a community, else all
+ * personal ones — `device` only inside the Android app.
+ */
 export function allowedPages(community: ActiveContext | undefined, authIdTag: string | undefined) {
 	return community
 		? COMMUNITY_ADMIN_PAGES.filter((page) => canAdminContext(community, authIdTag, page))
-		: PERSONAL_PAGES
+		: PERSONAL_PAGES.filter((page) => page !== 'device' || isNativeApp())
 }
 
 const PAGE_ICONS: Record<string, React.ReactNode> = {
@@ -104,6 +111,7 @@ const PAGE_ICONS: Record<string, React.ReactNode> = {
 	trust: <IcTrust />,
 	badges: <IcTrusted />,
 	notifications: <IcNotifications />,
+	device: <IcMobilePhone />,
 	appearance: <IcAppearance />,
 	calendar: <IcCalendar />,
 	apps: <IcApps />,
@@ -189,6 +197,8 @@ function settingsTitle(t: (key: string) => string, page: string | undefined): st
 			return t('Badges')
 		case 'notifications':
 			return t('Notifications')
+		case 'device':
+			return t('This device')
 		case 'appearance':
 			return t('Appearance')
 		case 'calendar':
@@ -276,6 +286,7 @@ export function settingsRoutes(pwa: UsePWA) {
 			<Route path="trust" element={<TrustSettings />} />
 			<Route path="badges" element={<BadgeSettings />} />
 			<Route path="notifications" element={<NotificationSettings pwa={pwa} />} />
+			{isNativeApp() && <Route path="device" element={<DeviceSettings />} />}
 			<Route path="appearance" element={<AppearanceSettings />} />
 			<Route path="calendar" element={<CalendarSettings />} />
 			<Route path="apps" element={<AppMenuSettings />} />

@@ -76,6 +76,7 @@ import { UpdateBanner } from './layout/UpdateBanner.js'
 import { appConfig as APP_CONFIG } from './manifest-registry.js'
 import { getShellBus, initShellBus } from './message-bus'
 import { createShellBusConfig } from './message-bus/shell-bus-config.js'
+import { useNativeBridge } from './native-bridge.js'
 import { NotFound } from './NotFound.js'
 import { NotificationPopover } from './notifications/NotificationPopover.js'
 import { Notifications } from './notifications/notifications.js'
@@ -642,6 +643,7 @@ export function Layout() {
 	useDbMaintenanceNotifications() // Toast when a database optimization finishes
 	useGlobalUnreadProbe() // App-wide feed-unread counts for nav/sidebar dots
 	useGlobalMessageUnreadProbe() // App-wide message-unread counts for nav badge
+	useNativeBridge(auth) // Android app: device-key handoff and downloads (no-op in a browser)
 
 	React.useEffect(
 		function syncAuthTokenToSw() {

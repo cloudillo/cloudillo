@@ -120,9 +120,10 @@ export function SettingsOverview({ pwa }: SettingsOverviewProps) {
 		})()
 	}, [])
 
-	const notificationsEnabled = Notification.permission === 'granted' && !!notificationSubscription
+	const notificationsEnabled =
+		window.Notification?.permission === 'granted' && !!notificationSubscription
 	const canEnableNotifications =
-		'Notification' in window && Notification.permission !== 'denied' && pushAllowed
+		'Notification' in window && window.Notification?.permission !== 'denied' && pushAllowed
 	// Only a successful load may prompt for a passkey; unknown or failed reads as "has one".
 	const hasPasskeys = !passkeys || passkeys.length > 0
 	// Mirrors the backend's `require_leader` on POST /api/search/reindex.

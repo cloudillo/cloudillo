@@ -51,6 +51,8 @@ interface DocumentPickerBrowseTabProps {
 	requirePublic?: boolean
 	/** Hide documents no app can show as a view embed */
 	embeddableOnly?: boolean
+	/** List folders only; the open folder is the selection */
+	folderOnly?: boolean
 	idTag?: string
 	selectedFile: DocPickerResult | null
 	onSelect: (file: DocPickerResult) => void
@@ -63,6 +65,7 @@ export function DocumentPickerBrowseTab({
 	sourceFileId,
 	requirePublic,
 	embeddableOnly,
+	folderOnly,
 	idTag: idTagProp,
 	selectedFile,
 	onSelect,
@@ -103,7 +106,7 @@ export function DocumentPickerBrowseTab({
 
 	// Default to document file types so the server filters them out of the page,
 	// instead of returning all files and filtering to docs in the browser.
-	const docFileTp = fileTp ?? 'CRDT,RTDB'
+	const docFileTp = folderOnly ? 'FLDR' : (fileTp ?? 'CRDT,RTDB')
 
 	const {
 		viewMode,
@@ -191,6 +194,19 @@ export function DocumentPickerBrowseTab({
 		},
 		[setCurrentFolderId, setBreadcrumbs]
 	)
+
+	// Folder mode: the folder being shown is the pick (the Home crumb has a null id)
+	const openCrumb = breadcrumbs[breadcrumbs.length - 1]
+	React.useEffect(() => {
+		if (!folderOnly) return
+		onSelect({
+			fileId: openCrumb.id ?? '__root__',
+			fileName: openCrumb.name,
+			contentType: '',
+			fileTp: 'FLDR',
+			srcIdTag: idTag
+		})
+	}, [folderOnly, openCrumb, onSelect, idTag])
 
 	// Handle breadcrumb navigation
 	const handleBreadcrumbClick = useCallback(

@@ -152,7 +152,7 @@ export function GroupSettingsDialog({
 		if (!api || !file) return
 		setUploading(true)
 		try {
-			const res = await api.files.uploadBlob('image', file.name, file, file.type, {
+			const res = await api.files.uploadBlob('profile-picture', file.name, file, file.type, {
 				as: 'managed'
 			})
 			if (res?.contentId) setPicture(res.contentId)

@@ -131,6 +131,9 @@ export async function fetchAll<T>(
 	throw new Error(`fetchAll: more than ${maxPages} pages`)
 }
 
+/** Default upload profile; mirrors the backend's `DEFAULT_PROFILE` (cloudillo-file preset.rs). */
+export const DEFAULT_UPLOAD_PROFILE = 'standard'
+
 /**
  * Type-safe API client for Cloudillo backend
  *
@@ -569,6 +572,27 @@ export class ApiClient {
 				`/auth/login/qr/${encodeURIComponent(sessionId)}/respond`,
 				Types.tQrLoginRespondResult,
 				{ data }
+			),
+
+		// ====================================================================
+		// DEVICE PAIRING ENDPOINTS
+		// ====================================================================
+
+		/** GET /auth/pair/{sessionId}/details - Get the pairing device's info for approval */
+		getPairDetails: (sessionId: string) =>
+			this.request(
+				'GET',
+				`/auth/pair/${encodeURIComponent(sessionId)}/details`,
+				Types.tPairDetailsResult
+			),
+
+		/** POST /auth/pair/{sessionId}/respond - Approve (minting a scoped key) or deny pairing */
+		respondPair: (sessionId: string, data: Types.PairRespondRequest) =>
+			this.request(
+				'POST',
+				`/auth/pair/${encodeURIComponent(sessionId)}/respond`,
+				Types.tPairRespondResult,
+				{ data }
 			)
 	}
 
@@ -713,7 +737,9 @@ export class ApiClient {
 
 		/**
 		 * POST /uploads/{preset}?name={fileName} - Upload file blob
-		 * @param preset - File preset (e.g., "profile", "cover", "gallery")
+		 * @param preset - Upload profile (`orig`, `preview`, `standard`, `high`, `compact`, or a
+		 *   tenant-defined one) or purpose preset (`profile-picture`, `cover`, `apkg`, `site`,
+		 *   `thumbnail-only`); unknown names are rejected with 400
 		 * @param fileName - File name
 		 * @param fileData - File data (Blob, File, or ArrayBuffer)
 		 * @param contentType - Content type of the file
@@ -927,6 +953,26 @@ export class ApiClient {
 			this.request('POST', `/files/${entryId}/duplicate`, Types.tFileView, {
 				data: data ?? {}
 			}),
+
+		/** GET /files/:entryId/versions - Earlier contents of a BLOB entry, newest first */
+		versions: (entryId: string) =>
+			this.request(
+				'GET',
+				`/files/${encodeURIComponent(entryId)}/versions`,
+				Types.tVersionList
+			),
+
+		/** URL of GET /files/:entryId/versions/:fileId - one earlier content (auth via the SW) */
+		versionUrl: (entryId: string, fileId: string) =>
+			`${getInstanceUrl(this.opts.idTag)}/api/files/${encodeURIComponent(entryId)}/versions/${encodeURIComponent(fileId)}`,
+
+		/** POST /files/:entryId/versions/:fileId/restore - Make an earlier content current */
+		restoreVersion: (entryId: string, fileId: string) =>
+			this.request(
+				'POST',
+				`/files/${encodeURIComponent(entryId)}/versions/${encodeURIComponent(fileId)}/restore`,
+				Types.tFileView
+			),
 
 		/** PATCH /files/:entryId/user-data - Update user-specific file data */
 		updateUserData: (entryId: string, data: Types.UpdateFileUserDataRequest) =>

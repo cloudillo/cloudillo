@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: MPL-2.0
 
-import { createApiClient, type FileView, getFileUrl } from '@cloudillo/core'
+import { createApiClient, DEFAULT_UPLOAD_PROFILE, type FileView, getFileUrl } from '@cloudillo/core'
 import { getJwtTimes } from '@cloudillo/core/jwt'
 import {
 	Button,
@@ -378,9 +378,15 @@ export function SharedFolderView({
 			for (let i = 0; i < files.length; i++) {
 				const file = files[i]
 				try {
-					await scopedApi.files.uploadBlob('file', file.name, file, file.type, {
-						parentId: currentFolderId
-					})
+					await scopedApi.files.uploadBlob(
+						DEFAULT_UPLOAD_PROFILE,
+						file.name,
+						file,
+						file.type,
+						{
+							parentId: currentFolderId
+						}
+					)
 				} catch (err) {
 					failed.push(file.name)
 					console.error('[SharedFolderView] Upload failed:', err)

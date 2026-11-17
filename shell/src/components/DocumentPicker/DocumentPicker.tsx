@@ -119,8 +119,9 @@ export function DocumentPicker() {
 	}, [navigate])
 
 	// Reset state on open and on close, so a reopen never renders a stale step for a frame
-	// isOpen is the trigger
-	useEffect(() => {
+	// isOpen is the trigger. A layout effect: it must run before the browse tab's passive
+	// effects, or it would wipe the folder a folder-only picker reports on mount.
+	React.useLayoutEffect(() => {
 		setSelectedFile(null)
 		setPendingFile(null)
 		setStepFile(null)
@@ -175,8 +176,11 @@ export function DocumentPicker() {
 	)
 
 	const handleSelect = useCallback(() => {
-		if (selectedFile) choose(selectedFile)
-	}, [selectedFile, choose])
+		if (!selectedFile) return
+		// A folder is never embedded, so it skips the view step and the disclosure
+		if (state.options?.folderOnly) closeDocPicker(selectedFile)
+		else choose(selectedFile)
+	}, [selectedFile, choose, state.options?.folderOnly, closeDocPicker])
 
 	const handleFileSelected = useCallback((file: DocPickerResult) => {
 		setSelectedFile(file)
@@ -313,7 +317,7 @@ export function DocumentPicker() {
 				<ActionBar>
 					<Button onClick={handleCancel}>{t('Cancel')}</Button>
 					<Button color="primary" disabled={!selectedFile} onClick={handleSelect}>
-						{t('Select')}
+						{state.options?.folderOnly ? t('Select folder') : t('Select')}
 					</Button>
 				</ActionBar>
 			}
@@ -324,6 +328,7 @@ export function DocumentPicker() {
 				sourceFileId={state.options?.sourceFileId}
 				requirePublic={state.options?.requirePublic}
 				embeddableOnly={state.options?.embeddableOnly}
+				folderOnly={state.options?.folderOnly}
 				idTag={state.options?.idTag}
 				selectedFile={selectedFile}
 				onSelect={handleFileSelected}

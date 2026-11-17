@@ -1162,6 +1162,12 @@ body.theme-glass {
 	--c-inverse-bg: rgb(0 0 0 / 0.55);
 }
 
+/* .text-muted derives from --col-on, which is dark in a light theme; a themed surface
+   (Card, Panel) placed on the dark stage brings its own colours back */
+.inverse .text-muted:not(.inverse :is(.c-card, .c-panel) *) {
+	color: var(--c-inverse-muted) !important;
+}
+
 .c-empty-state.inverse :is(.c-empty-state-icon, .c-empty-state-title) {
 	color: var(--c-inverse-fg);
 }
@@ -3411,6 +3417,16 @@ dialog.c-modal.c-immersive {
 	background: #000;
 	backdrop-filter: none;
 	color: var(--c-inverse-fg);
+}
+
+/* A themed surface on the stage (a consent card) follows the page theme, not the stage's
+   forced dark scheme: light-dark() tokens and native controls inside it must match */
+.c-immersive :is(.c-card, .c-panel) {
+	color-scheme: light;
+}
+
+body.dark .c-immersive :is(.c-card, .c-panel) {
+	color-scheme: dark;
 }
 
 .c-immersive-stage {

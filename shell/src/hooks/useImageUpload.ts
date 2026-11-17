@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: MPL-2.0
 
+import { DEFAULT_UPLOAD_PROFILE } from '@cloudillo/core'
 import { useApi } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -36,7 +37,6 @@ export interface UseImageUploadReturn {
 }
 
 interface LastUpload {
-	preset: string
 	data: Blob | File
 	contentType?: string
 	type: Exclude<AttachmentType, undefined>
@@ -110,7 +110,7 @@ export function useImageUpload(options?: UseImageUploadOptions): UseImageUploadR
 
 			try {
 				const result = await api.files.uploadBlob(
-					job.preset,
+					DEFAULT_UPLOAD_PROFILE,
 					'attachment',
 					job.data,
 					job.contentType,
@@ -146,7 +146,6 @@ export function useImageUpload(options?: UseImageUploadOptions): UseImageUploadR
 	const uploadAttachment = React.useCallback(
 		(blob: Blob) =>
 			runUpload({
-				preset: 'image',
 				data: blob,
 				type: 'image',
 				clearPreview: true
@@ -157,7 +156,6 @@ export function useImageUpload(options?: UseImageUploadOptions): UseImageUploadR
 	const uploadSvg = React.useCallback(
 		(file: File) =>
 			runUpload({
-				preset: 'image',
 				data: file,
 				contentType: 'image/svg+xml',
 				type: 'image',
@@ -169,7 +167,6 @@ export function useImageUpload(options?: UseImageUploadOptions): UseImageUploadR
 	const uploadDocument = React.useCallback(
 		(file: File) =>
 			runUpload({
-				preset: 'default',
 				data: file,
 				contentType: 'application/pdf',
 				type: 'document',
@@ -181,7 +178,6 @@ export function useImageUpload(options?: UseImageUploadOptions): UseImageUploadR
 	const uploadVideo = React.useCallback(
 		(file: File) =>
 			runUpload({
-				preset: 'video',
 				data: file,
 				type: 'video',
 				clearPreview: false

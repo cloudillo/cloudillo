@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: MPL-2.0
 
+import { DEFAULT_UPLOAD_PROFILE } from '@cloudillo/core'
 import { useApi } from '@cloudillo/react'
 import type { TFunction } from 'i18next'
 import * as React from 'react'
@@ -81,16 +82,9 @@ export function attachmentRefusal(
 	}
 }
 
-function presetFor(contentType: string, isImage: boolean): string {
-	if (isImage) return 'image'
-	if (contentType.startsWith('video/')) return 'video'
-	return 'default'
-}
-
 interface Source {
 	data: Blob
 	contentType: string
-	isImage: boolean
 }
 
 let keySeq = 0
@@ -125,7 +119,7 @@ export function useAttachments(): UseAttachments {
 			})
 			try {
 				const res = await api.files.uploadBlob(
-					presetFor(src.contentType, src.isImage),
+					DEFAULT_UPLOAD_PROFILE,
 					'attachment',
 					src.data,
 					src.contentType || undefined,
@@ -178,7 +172,7 @@ export function useAttachments(): UseAttachments {
 				const isImage = isImageFile(file)
 				const contentType =
 					file.type || (file.name.toLowerCase().endsWith('.svg') ? 'image/svg+xml' : '')
-				sources.current.set(key, { data: file, contentType, isImage })
+				sources.current.set(key, { data: file, contentType })
 				return {
 					key,
 					name: file.name,

@@ -6,6 +6,7 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { IcDevice, IcReject } from '../../icons.js'
+import { browserName } from './state.js'
 
 interface ApproveQrLoginViewProps {
 	loginCode: string
@@ -63,16 +64,6 @@ export function ApproveQrLoginView({ loginCode, onDone }: ApproveQrLoginViewProp
 		}
 	}
 
-	// Parse browser name from user-agent
-	function parseBrowser(ua?: string): string {
-		if (!ua) return t('Unknown browser')
-		if (ua.includes('Firefox')) return 'Firefox'
-		if (ua.includes('Edg/')) return 'Edge'
-		if (ua.includes('Chrome')) return 'Chrome'
-		if (ua.includes('Safari')) return 'Safari'
-		return t('Unknown browser')
-	}
-
 	return (
 		<>
 			{(state === 'loading' || state === 'responding') && <LoadingSpinner inverse />}
@@ -82,7 +73,7 @@ export function ApproveQrLoginView({ loginCode, onDone }: ApproveQrLoginViewProp
 					inverse
 					icon={<IcDevice />}
 					title={t('Allow login from this device?')}
-					description={`${parseBrowser(userAgent)}${ipAddress ? ` — ${ipAddress}` : ''}`}
+					description={`${browserName(t, userAgent)}${ipAddress ? ` — ${ipAddress}` : ''}`}
 					actions={
 						<>
 							<Button

@@ -50,7 +50,7 @@ import { CameraCaptureDialog } from './components/CameraCapture/index.js'
 import { DocumentPicker } from './components/DocumentPicker/index.js'
 import { FeedPostHost } from './components/FeedPostHost.js'
 import { MediaPicker } from './components/MediaPicker/index.js'
-import { QrScannerDialog } from './components/QrScanner/index.js'
+import { PairPage, QrScannerDialog } from './components/QrScanner/index.js'
 import { ShareCreate } from './components/ShareCreate/index.js'
 import {
 	CtxProvider,
@@ -615,6 +615,7 @@ function ShellRoutes({ pwa }: { pwa: UsePWA }) {
 					{idpRoutes()}
 					{authedProfileRoutes()}
 					<Route path="notifications" element={<Notifications />} />
+					<Route path="pair/:sessionId" element={<PairPage />} />
 				</Route>
 				{/* An unknown section under a valid context — the guard above only
 				    vets segment 1. */}

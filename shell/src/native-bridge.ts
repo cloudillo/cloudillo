@@ -8,7 +8,8 @@
  * restricted to the shell's own origin. Requests are `{v:1, id, method, params}`;
  * native answers `{id, result}` / `{id, error}` or pushes `{event, data}`.
  *
- * Also runs the device-key handoff (mint a `device:<folderId>` API key for the
+ * Also runs the device-key handoff (mint a
+ * `file:<folderId>:W,notifications:read,notifications:push` API key for the
  * "Phone backup" folder and hand it to native) and answers native `download` events.
  * The device key is a secret: never logged, never kept here after the handoff.
  *
@@ -20,8 +21,9 @@ import { type AuthState, useToast } from '@cloudillo/react'
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { useApiContext } from './context/hooks.js'
 import { isValidIdTag } from '../sw/id-tag.js'
+import { useApiContext } from './context/hooks.js'
+import type { UploadProfile } from './upload-profiles.js'
 
 interface NativeObject {
 	postMessage(message: string): void
@@ -169,11 +171,8 @@ function refreshNativeInfo(): Promise<NativeInfo> {
 // Backup //
 ////////////
 
-export const BACKUP_PRESETS = ['default', 'high_quality', 'mobile', 'archive', 'orig-only'] as const
-export type BackupPreset = (typeof BACKUP_PRESETS)[number]
-
 export interface BackupGlobals {
-	defaultPreset: BackupPreset
+	defaultPreset: UploadProfile
 	defaultMobileData: boolean
 	requiresCharging: boolean
 	videosWifiOnly: boolean
@@ -190,7 +189,7 @@ export interface BackupSource {
 	kind: 'media' | 'saf'
 	name: string
 	enabled: boolean
-	preset: BackupPreset | null
+	preset: UploadProfile | null
 	mobileData: boolean | null
 	cutoffMs: number | null
 	newestFirst: boolean
@@ -226,7 +225,7 @@ export const backupApi = {
 		nativeRequest<BackupState>('backup.setGlobals', globals),
 	setSource: (params: {
 		id: string
-		preset?: BackupPreset | null
+		preset?: UploadProfile | null
 		mobileData?: boolean | null
 		newestFirst?: boolean
 	}) => nativeRequest<BackupState>('backup.setSource', params),
@@ -378,7 +377,7 @@ async function runHandoff(idTag: string, force: boolean): Promise<void> {
 	const folderId = await findOrCreateBackupFolder(api)
 	const key = await api.auth.createApiKey({
 		name: `Android: ${info.deviceName}`,
-		scopes: `device:${folderId}`
+		scopes: `file:${folderId}:W,notifications:read,notifications:push`
 	})
 	try {
 		await nativeRequest('setDeviceKey', { key: key.plaintextKey, keyId: key.id })

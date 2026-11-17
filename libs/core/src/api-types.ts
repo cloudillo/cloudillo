@@ -827,7 +827,20 @@ export type FileDescriptor = T.TypeOf<typeof tFileDescriptor>
 export interface DuplicateFileRequest {
 	fileName?: string
 	parentId?: string
+	fromVersion?: string // Content id from the entry's version history (BLOB only)
 }
+
+// One earlier content of a BLOB entry (GET /files/:id/versions)
+export const tVersionView = T.struct({
+	fileId: T.string,
+	replacedAt: tIsoTime,
+	replacedBy: T.nullable(T.string), // idTag of whoever replaced it
+	size: T.nullable(T.number)
+})
+export type VersionView = T.TypeOf<typeof tVersionView>
+
+export const tVersionList = T.array(tVersionView)
+export type VersionList = T.TypeOf<typeof tVersionList>
 
 // Empty trash result
 export const tEmptyTrashResult = T.struct({
@@ -1720,6 +1733,39 @@ export type QrLoginRespondResult = T.TypeOf<typeof tQrLoginRespondResult>
 
 export interface QrLoginRespondRequest {
 	approved: boolean
+}
+
+// ============================================================================
+// DEVICE PAIRING ENDPOINTS
+// ============================================================================
+
+export const tPairDetailsResult = T.struct({
+	deviceName: T.string,
+	userAgent: T.optional(T.nullable(T.string)),
+	ipAddress: T.optional(T.nullable(T.string)),
+	createdAt: tIsoTime
+})
+export type PairDetailsResult = T.TypeOf<typeof tPairDetailsResult>
+
+export const tPairRespondResult = T.struct({
+	status: T.string
+})
+export type PairRespondResult = T.TypeOf<typeof tPairRespondResult>
+
+export interface PairRespondRequest {
+	approved: boolean
+	/** Folder entry id, `__root__`, `~{room}` or `*` (server default `*`) */
+	target?: string
+	/** Server default `R` */
+	access?: 'R' | 'W'
+	/** Another context's id_tag → `rfile:` key; never the tenant's own */
+	contextIdTag?: string
+	/** Seconds; null = no expiry */
+	lifetimeSecs?: number | null
+	/** Upload profile name (server default `standard`) */
+	profile?: string
+	/** 6-digit code shown by the device; required on approve */
+	code?: string
 }
 
 // ============================================================================

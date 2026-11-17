@@ -8,7 +8,7 @@
  * Allows users to upload new files with optional image cropping.
  */
 
-import type { CropAspect, Visibility } from '@cloudillo/core'
+import { type CropAspect, DEFAULT_UPLOAD_PROFILE, type Visibility } from '@cloudillo/core'
 import {
 	ActionBar,
 	Alert,
@@ -169,11 +169,17 @@ export function MediaPickerUploadTab({
 				const contentType = file.type || 'application/octet-stream'
 
 				// Upload using API
-				const result = await api.files.uploadBlob('media', name, file, contentType, {
-					...(documentFileId ? { rootId: documentFileId } : {}),
-					onProgress: setProgress,
-					signal: abortController.signal
-				})
+				const result = await api.files.uploadBlob(
+					DEFAULT_UPLOAD_PROFILE,
+					name,
+					file,
+					contentType,
+					{
+						...(documentFileId ? { rootId: documentFileId } : {}),
+						onProgress: setProgress,
+						signal: abortController.signal
+					}
+				)
 
 				if (result?.contentId) {
 					// Apply visibility setting to the uploaded file

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: MPL-2.0
 
-import type { ApiClient } from '@cloudillo/core'
+import { type ApiClient, DEFAULT_UPLOAD_PROFILE } from '@cloudillo/core'
 import * as React from 'react'
 
 import { useContextAwareApi } from '../../../context/index.js'
@@ -89,7 +89,7 @@ export function useUploadQueue(options?: UseUploadQueueOptions) {
 				try {
 					// Upload the file
 					const result = await effectiveApi.files.uploadBlob(
-						'file', // preset
+						DEFAULT_UPLOAD_PROFILE, // preset
 						nextItem.file.name,
 						nextItem.file,
 						nextItem.file.type,

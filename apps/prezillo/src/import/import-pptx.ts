@@ -9,7 +9,7 @@
  * then creates views/objects via existing CRDT operations.
  */
 
-import { getInstanceUrl } from '@cloudillo/core'
+import { DEFAULT_UPLOAD_PROFILE, getInstanceUrl } from '@cloudillo/core'
 import { XMLParser } from 'fast-xml-parser'
 import JSZip from 'jszip'
 import * as Y from 'yjs'
@@ -1099,7 +1099,7 @@ async function uploadImage(
 	ctx: ImportUploadContext
 ): Promise<{ fileId: string; dim?: [number, number] }> {
 	const qp = new URLSearchParams({ name: fileName, rootId: ctx.documentFileId })
-	const url = `${getInstanceUrl(ctx.ownerTag)}/api/uploads/media?${qp}`
+	const url = `${getInstanceUrl(ctx.ownerTag)}/api/uploads/${DEFAULT_UPLOAD_PROFILE}?${qp}`
 
 	const res = await fetch(url, {
 		method: 'POST',

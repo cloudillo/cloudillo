@@ -23,11 +23,10 @@ import {
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { isQrNativeOff, setQrNativeOff } from '../components/QrScanner/state.js'
 import {
-	BACKUP_PRESETS,
 	type BackupFailure,
 	type BackupGlobals,
-	type BackupPreset,
 	type BackupSource,
 	type BackupState,
 	backupApi,
@@ -35,38 +34,23 @@ import {
 	relinkDevice,
 	useBackupState
 } from '../native-bridge.js'
+import { profileLabel, UPLOAD_PROFILES, type UploadProfile } from '../upload-profiles.js'
 import { formatBytes } from '../utils.js'
 import { SwitchRow } from './settings.js'
 
 type T = (key: string, opts?: Record<string, unknown>) => string
 
-/** A switch rather than a lookup table so `pnpm run l-scan` sees every literal key. */
-function presetLabel(t: T, preset: BackupPreset): string {
+function presetDescription(t: T, preset: UploadProfile): string {
 	switch (preset) {
-		case 'default':
-			return t('Standard')
-		case 'high_quality':
-			return t('High quality')
-		case 'mobile':
-			return t('Space saving')
-		case 'archive':
-			return t('Archive')
-		case 'orig-only':
-			return t('Original only')
-	}
-}
-
-function presetDescription(t: T, preset: BackupPreset): string {
-	switch (preset) {
-		case 'default':
+		case 'standard':
 			return t('Original kept; balanced viewing copies')
-		case 'high_quality':
+		case 'high':
 			return t('Original kept; maximum-quality copies')
-		case 'mobile':
+		case 'compact':
 			return t('No original kept; space-saving copies')
-		case 'archive':
-			return t('Original kept; minimal processing')
-		case 'orig-only':
+		case 'preview':
+			return t('Original kept; thumbnail only')
+		case 'orig':
 			return t('Original kept as-is; no processing')
 	}
 }
@@ -146,7 +130,7 @@ function SourceItem({ source, globals, run }: SourceProps) {
 	}
 
 	function onPresetChange(evt: React.ChangeEvent<HTMLSelectElement>) {
-		const preset = (evt.target.value || null) as BackupPreset | null
+		const preset = (evt.target.value || null) as UploadProfile | null
 		run(() => backupApi.setSource({ id: source.id, preset }))
 	}
 
@@ -174,7 +158,7 @@ function SourceItem({ source, globals, run }: SourceProps) {
 			</List>
 			{(source.enabled || source.kind === 'saf') && (
 				<Disclosure
-					summary={`${t('Options')} · ${presetLabel(t, effectivePreset)} · ${networkLabel(t, source.mobileData ?? globals.defaultMobileData)}`}
+					summary={`${t('Options')} · ${profileLabel(t, effectivePreset)} · ${networkLabel(t, source.mobileData ?? globals.defaultMobileData)}`}
 				>
 					<Field
 						label={t('Upload quality')}
@@ -184,12 +168,12 @@ function SourceItem({ source, globals, run }: SourceProps) {
 						<NativeSelect value={source.preset ?? ''} onChange={onPresetChange}>
 							<option value="">
 								{t('Default ({{value}})', {
-									value: presetLabel(t, globals.defaultPreset)
+									value: profileLabel(t, globals.defaultPreset)
 								})}
 							</option>
-							{BACKUP_PRESETS.map((p) => (
+							{UPLOAD_PROFILES.map((p) => (
 								<option key={p} value={p}>
-									{presetLabel(t, p)}
+									{profileLabel(t, p)}
 								</option>
 							))}
 						</NativeSelect>
@@ -236,6 +220,7 @@ export function DeviceSettings() {
 	const { state, setState, error, refresh } = useBackupState()
 	const [auth] = useAuth()
 	const idTag = auth?.idTag
+	const [qrNative, setQrNative] = React.useState(() => !isQrNativeOff())
 
 	/** Runs a bridge call; a returned full state replaces ours, anything else waits for `backup.changed`. */
 	function run(action: () => Promise<BackupState | undefined>): Promise<void> {
@@ -367,12 +352,12 @@ export function DeviceSettings() {
 					<NativeSelect
 						value={globals.defaultPreset}
 						onChange={(e) =>
-							setGlobals({ defaultPreset: e.target.value as BackupPreset })
+							setGlobals({ defaultPreset: e.target.value as UploadProfile })
 						}
 					>
-						{BACKUP_PRESETS.map((p) => (
+						{UPLOAD_PROFILES.map((p) => (
 							<option key={p} value={p}>
-								{presetLabel(t, p)}
+								{profileLabel(t, p)}
 							</option>
 						))}
 					</NativeSelect>
@@ -428,6 +413,20 @@ export function DeviceSettings() {
 				>
 					{t('Add folder')}
 				</Button>
+			</Panel>
+
+			<Panel title={t('Performance')}>
+				<List>
+					<SwitchRow
+						checked={qrNative}
+						onChange={(e) => {
+							setQrNativeOff(!e.target.checked)
+							setQrNative(e.target.checked)
+						}}
+						label={t('System QR code detector')}
+						description={t('Turn off if QR code scanning is slow')}
+					/>
+				</List>
 			</Panel>
 		</>
 	)

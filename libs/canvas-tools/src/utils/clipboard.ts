@@ -9,7 +9,7 @@
  * recognised and ignored.
  */
 
-import { createApiClient, isFileId, isIdTag } from '@cloudillo/core'
+import { createApiClient, DEFAULT_UPLOAD_PROFILE, isFileId, isIdTag } from '@cloudillo/core'
 
 export const CANVAS_CLIPBOARD_PREFIX = 'cloudillo-canvas:v1'
 
@@ -196,9 +196,15 @@ export async function uploadPastedImage(
 	defaultSize: number
 ): Promise<{ fileId: string; width: number; height: number }> {
 	const api = createApiClient({ idTag: ctx.ownerTag, authToken: ctx.token })
-	const res = await api.files.uploadBlob('media', pastedImageName(file.type), file, file.type, {
-		rootId: ctx.fileId
-	})
+	const res = await api.files.uploadBlob(
+		DEFAULT_UPLOAD_PROFILE,
+		pastedImageName(file.type),
+		file,
+		file.type,
+		{
+			rootId: ctx.fileId
+		}
+	)
 	const [width, height] = res.extra?.dim ?? [defaultSize, defaultSize]
 	return { fileId: res.contentId, width, height }
 }

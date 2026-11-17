@@ -4,6 +4,7 @@
 export type CloudilloUri =
 	| { type: 'id'; idTag: string }
 	| { type: 'qr-login'; loginCode: string }
+	| { type: 'qr-pair'; sessionId: string; code?: string }
 	| { type: 'unknown'; raw: string }
 
 export function parseCloudilloUri(uri: string): CloudilloUri | null {
@@ -22,6 +23,13 @@ export function parseCloudilloUri(uri: string): CloudilloUri | null {
 
 	if (uriType === 'qr-login' && payload) {
 		return { type: 'qr-login', loginCode: payload }
+	}
+
+	// `sid` or `sid:code`; session ids are base64url, so never contain ':'
+	if (uriType === 'qr-pair') {
+		const [sessionId, code] = payload.split(':', 2)
+		if (sessionId)
+			return code ? { type: 'qr-pair', sessionId, code } : { type: 'qr-pair', sessionId }
 	}
 
 	return { type: 'unknown', raw: uri }

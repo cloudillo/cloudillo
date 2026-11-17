@@ -1289,7 +1289,7 @@ export function ScanilloApp() {
 		if (!opts.existingOriginalFileId) {
 			entry.originalFileId ??= (
 				await api.files.uploadBlob(
-					'orig-only',
+					'orig',
 					`scan-orig-${Date.now()}.jpg`,
 					await base64ToBlob(opts.originalImageData),
 					'image/jpeg',

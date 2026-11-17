@@ -23,6 +23,8 @@ export interface DocPickerOptions {
 	requirePublic?: boolean
 	/** Offer only documents some app can show as a view embed (plus folders) */
 	embeddableOnly?: boolean
+	/** Pick a folder: list folders only and hand back the open one (`'__root__'` at Home) */
+	folderOnly?: boolean
 	/** Custom dialog title */
 	title?: string
 	/** True when opened from external app via bus protocol */

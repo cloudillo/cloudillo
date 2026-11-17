@@ -19,7 +19,7 @@ function fixture(patch: Partial<BackupState> = {}): BackupState {
 		permissions: { media: 'granted', notifications: true },
 		relinkNeeded: false,
 		globals: {
-			defaultPreset: 'default',
+			defaultPreset: 'standard',
 			defaultMobileData: false,
 			requiresCharging: false,
 			videosWifiOnly: true
@@ -63,7 +63,6 @@ mockI18n()
 
 class DeviceAccountMismatchError extends Error {}
 jest.unstable_mockModule('../native-bridge.js', () => ({
-	BACKUP_PRESETS: ['default', 'high_quality', 'mobile', 'archive', 'orig-only'],
 	backupApi,
 	relinkDevice,
 	DeviceAccountMismatchError,

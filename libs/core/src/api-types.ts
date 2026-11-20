@@ -806,6 +806,10 @@ export const tUploadFileResult = T.intersection(
 )
 export type UploadFileResult = T.TypeOf<typeof tUploadFileResult>
 
+/** `PUT /files/:id/content` (202): the new content is still processing under `pendingFileId` */
+export const tReplaceContentResult = T.struct({ entryId: T.string, pendingFileId: T.string })
+export type ReplaceContentResult = T.TypeOf<typeof tReplaceContentResult>
+
 /**
  * `GET /files/:fileId/descriptor` answers with a **string**, not an object:
  *
@@ -833,14 +837,30 @@ export interface DuplicateFileRequest {
 // One earlier content of a BLOB entry (GET /files/:id/versions)
 export const tVersionView = T.struct({
 	fileId: T.string,
-	replacedAt: tIsoTime,
-	replacedBy: T.nullable(T.string), // idTag of whoever replaced it
-	size: T.nullable(T.number)
+	replacedAt: T.optional(tIsoTime), // absent on the current row
+	// Older servers sent null, current ones omit absent fields
+	replacedBy: T.optional(T.nullable(T.string)), // idTag of whoever replaced it
+	size: T.optional(T.nullable(T.number)),
+	// Optional so an older server (without named versions) still decodes
+	savedBy: T.optional(T.nullable(T.string)), // idTag of whoever saved this content
+	savedAt: T.optional(T.nullable(tIsoTime)), // when this content was saved
+	name: T.optional(T.nullable(T.string)), // version name ("named version" in the UI)
+	namedBy: T.optional(T.nullable(T.string)),
+	namedAt: T.optional(T.nullable(tIsoTime)),
+	current: T.optional(T.boolean) // only on the current-content row (?current=true)
 })
 export type VersionView = T.TypeOf<typeof tVersionView>
 
 export const tVersionList = T.array(tVersionView)
 export type VersionList = T.TypeOf<typeof tVersionList>
+
+// Version retention policy (GET /files/:id/version-policy)
+export const tVersionPolicy = T.struct({
+	keepCount: T.number,
+	keepDays: T.number,
+	maxSizeMb: T.number
+})
+export type VersionPolicy = T.TypeOf<typeof tVersionPolicy>
 
 // Empty trash result
 export const tEmptyTrashResult = T.struct({

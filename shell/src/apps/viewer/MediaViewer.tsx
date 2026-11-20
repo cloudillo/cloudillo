@@ -54,14 +54,19 @@ export function triggerDownload(url: string, fileName: string) {
  *
  * A navigation has no client id, so the worker cannot find this tab's hat: the
  * worn hat for `idTag` rides along as `hat=` instead.
+ *
+ * With `entryId`, downloads an earlier version of that entry; `fileId` is then
+ * the version's fileId.
  */
 export function triggerFileDownload(
 	idTag: string,
 	fileId: string,
 	fileName: string,
-	onError?: () => void
+	onError?: () => void,
+	entryId?: string
 ) {
 	const params = new URLSearchParams({ idTag, fileId, name: fileName })
+	if (entryId) params.set('entryId', entryId)
 	const active = getDefaultStore().get(activeContextAtom)
 	if (active?.idTag === idTag && active.hat) params.set('hat', active.hat.idTag)
 	const iframe = document.createElement('iframe')

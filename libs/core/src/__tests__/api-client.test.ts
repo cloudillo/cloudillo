@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 import { apiFetchHelper, FetchError } from '../api'
+import { createApiClient } from '../api-client'
 
 describe('apiFetchHelper envelope check', () => {
 	it.each(['null', '{"foo":1}'])('rejects a 200 body without an envelope: %s', async (body) => {
@@ -72,3 +73,15 @@ describe('FetchError', () => {
 })
 
 // vim: ts=2
+
+describe('boolean query params', () => {
+	it('sends current=true, not 1 (the server takes only true/false)', async () => {
+		const urls: string[] = []
+		;(globalThis as unknown as { fetch: unknown }).fetch = async (url: string) => {
+			urls.push(url)
+			return { ok: true, status: 200, text: async () => '{"data":[]}' }
+		}
+		await createApiClient({ idTag: 'user.example' }).files.versions('e1', { current: true })
+		expect(urls[0]).toMatch(/\/files\/e1\/versions\?current=true$/)
+	})
+})

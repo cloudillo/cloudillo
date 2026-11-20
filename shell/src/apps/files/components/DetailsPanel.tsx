@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: MPL-2.0
 
-import { getFileUrl, type VersionView } from '@cloudillo/core'
+import { getFileUrl } from '@cloudillo/core'
 import {
 	Breadcrumbs,
 	Button,
@@ -22,7 +22,6 @@ import {
 	Panel,
 	Text,
 	Thumbnail,
-	useToast,
 	VBox
 } from '@cloudillo/react'
 import type { TFunction } from 'i18next'
@@ -31,9 +30,7 @@ import { useTranslation } from 'react-i18next'
 
 import { useCurrentContextIdTag } from '../../../context/index.js'
 import { IcStar, IcUnstar } from '../../../icons.js'
-import { formatBytes } from '../../../utils.js'
 import { useFileAccess } from '../hooks/useFileAccess.js'
-import { convertFileView } from '../hooks/useFileList.js'
 import { type FileOwnerScopeOverride, useFileOwnerScope } from '../hooks/useFileOwnerScope.js'
 import type { File, FileOps } from '../types.js'
 import {
@@ -47,6 +44,7 @@ import {
 import { AccessList } from './AccessList.js'
 import { LocationChip } from './LocationChip.js'
 import { TagsCell } from './TagsCell.js'
+import { VersionsPanel } from './VersionsPanel.js'
 
 /** Folders carry no MIME type; FileTypeIcon knows them as `cloudillo/folder`. */
 function iconContentType(contentType: string | undefined, fileTp: string | undefined) {
@@ -73,19 +71,6 @@ export function contentTypeLabel(
 	if (ct.startsWith('audio/')) return t('Audio')
 	if (ct.startsWith('text/')) return t('Text file')
 	return ct
-}
-
-/** Name parts for a "restore as copy". No ':' or '/' in the date - the name may land on a filesystem. */
-export function versionCopyParts(fileName: string, replacedAt: string) {
-	const dot = fileName.lastIndexOf('.')
-	const stem = dot > 0 ? fileName.slice(0, dot) : fileName
-	const ext = dot > 0 ? fileName.slice(dot) : ''
-	const d = new Date(replacedAt)
-	const pad = (n: number) => String(n).padStart(2, '0')
-	const date = Number.isNaN(d.getTime())
-		? replacedAt.replace(/[:/]/g, '.')
-		: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}.${pad(d.getMinutes())}`
-	return { stem, ext, date }
 }
 
 // Abbreviate deeply nested paths so they stay on one line.
@@ -145,7 +130,6 @@ export function DetailsPanel({
 	ownerScope
 }: DetailsPanelProps) {
 	const { t } = useTranslation()
-	const toast = useToast()
 	const contextIdTag = useCurrentContextIdTag()
 
 	// Which node holds this file and whose roles decide what we may do with it. Shared with the
@@ -225,76 +209,6 @@ export function DetailsPanel({
 	// owner's node, so cross-owner rows get no section (same exclusion as Visibility).
 	const showVersions =
 		file.fileType === 'BLOB' && canWrite(file.accessLevel) && !isCrossOwner && !!api
-	// undefined = loading, null = load failed
-	const [versions, setVersions] = React.useState<VersionView[] | null | undefined>(undefined)
-	const [versionBusy, setVersionBusy] = React.useState<string | undefined>(undefined)
-	const [versionsReload, setVersionsReload] = React.useState(0)
-
-	React.useEffect(
-		function loadVersions() {
-			if (!showVersions || !api) return
-			setVersions(undefined)
-			let cancelled = false
-			api.files.versions(file.id).then(
-				(list) => {
-					if (!cancelled) setVersions(list)
-				},
-				(err) => {
-					console.error('Failed to load versions', err)
-					if (!cancelled) setVersions(null)
-				}
-			)
-			return () => {
-				cancelled = true
-			}
-		},
-		// contentId: a restore or replace changes it, and with it the history list.
-		// versionsReload: bumped after a restore when there is no setFile to update contentId.
-		[api, showVersions, file.id, file.contentId, versionsReload]
-	)
-
-	async function restoreVersion(v: VersionView) {
-		if (!api) return
-		setVersionBusy(v.fileId)
-		try {
-			// No filesChanged hint follows a restore, so update the row here.
-			const restored = await api.files.restoreVersion(file.id, v.fileId)
-			// Merge without undefineds: convertFileView writes undefined keys for list-only fields
-			// the response lacks (accessLevel, tags, path, owner), which would wipe the row's values
-			if (fileOps.setFile) {
-				const fresh = Object.fromEntries(
-					Object.entries(convertFileView(restored)).filter(([, v]) => v !== undefined)
-				)
-				fileOps.setFile({ ...file, ...fresh })
-			} else setVersionsReload((n) => n + 1)
-			toast.success(t('Version restored'))
-		} catch (err) {
-			console.error('Failed to restore version', err)
-			toast.error(t('Failed to restore version'))
-		} finally {
-			setVersionBusy(undefined)
-		}
-	}
-
-	async function restoreVersionAsCopy(v: VersionView) {
-		if (!api) return
-		const { stem, ext, date } = versionCopyParts(file.fileName, v.replacedAt)
-		setVersionBusy(v.fileId)
-		try {
-			await api.files.duplicate(file.id, {
-				fileName: t('{{stem}} (as of {{date}})', { stem, date }) + ext,
-				parentId: file.parentId ?? undefined,
-				fromVersion: v.fileId
-			})
-			// FileOps has no list refresh, so the copy shows on the next list reload.
-			toast.success(t('Version restored as a copy'))
-		} catch (err) {
-			console.error('Failed to restore version as a copy', err)
-			toast.error(t('Failed to restore version as a copy'))
-		} finally {
-			setVersionBusy(undefined)
-		}
-	}
 
 	const VisibilityIcon = getVisibilityIcon(file.visibility ?? 'direct')
 
@@ -517,67 +431,7 @@ export function DetailsPanel({
 			</Panel>
 
 			{showVersions && api && (
-				<Panel title={t('Versions')} headingLevel={3}>
-					{versions === undefined ? (
-						<Text size="sm" emphasis="muted">
-							{t('Loading…')}
-						</Text>
-					) : versions === null ? (
-						<Text size="sm" emphasis="muted">
-							{t('Could not load versions. Please try again.')}
-						</Text>
-					) : versions.length === 0 ? (
-						<Text size="sm" emphasis="muted">
-							{t('No earlier versions')}
-						</Text>
-					) : (
-						<VBox gap={2}>
-							{versions.map((v) => (
-								<HBox key={v.fileId} gap={1} align="center">
-									<VBox className="flex-fill w-min-0">
-										<Text size="sm">{formatRelativeTime(v.replacedAt)}</Text>
-										<Text size="sm" emphasis="muted" className="text-truncate">
-											{[
-												v.replacedBy &&
-													t('Replaced by {{name}}', {
-														name: v.replacedBy
-													}),
-												v.size != null && formatBytes(v.size)
-											]
-												.filter(Boolean)
-												.join(' · ')}
-										</Text>
-									</VBox>
-									<Button
-										size="sm"
-										variant="ghost"
-										href={api.files.versionUrl(file.id, v.fileId)}
-										target="_blank"
-									>
-										{t('Download')}
-									</Button>
-									<Button
-										size="sm"
-										variant="ghost"
-										loading={versionBusy === v.fileId}
-										disabled={!!versionBusy}
-										onClick={() => restoreVersion(v)}
-									>
-										{t('Restore')}
-									</Button>
-									<Button
-										size="sm"
-										variant="ghost"
-										disabled={!!versionBusy}
-										onClick={() => restoreVersionAsCopy(v)}
-									>
-										{t('Restore as copy')}
-									</Button>
-								</HBox>
-							))}
-						</VBox>
-					)}
-				</Panel>
+				<VersionsPanel key={file.id} file={file} fileOps={fileOps} api={api} />
 			)}
 		</VBox>
 	)

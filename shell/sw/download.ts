@@ -16,6 +16,8 @@ import { requestTokenOnce, waitForToken } from './token-replay.js'
 // header. Comfortably above any real filename and well inside every server's
 // header-size limit even after percent-encoding.
 const MAX_FILENAME_LEN = 255
+// A URL path segment; dot-only values are out, fetch would normalize them into another path
+const PATH_SEGMENT = /^(?!\.+$)[A-Za-z0-9._~-]+$/
 
 /** Exported for its test. */
 export function contentDisposition(name: string): string {
@@ -55,6 +57,8 @@ export async function handleDownload(reqUrl: URL, clientId?: string): Promise<Re
 
 async function runDownload(reqUrl: URL, clientId?: string): Promise<Response> {
 	const fileId = reqUrl.searchParams.get('fileId')
+	// Set → fileId is an earlier version of this entry
+	const entryId = reqUrl.searchParams.get('entryId') || undefined
 	const targetTag = reqUrl.searchParams.get('idTag')
 	const name = reqUrl.searchParams.get('name') || 'download'
 	const hat = reqUrl.searchParams.get('hat') || undefined
@@ -62,7 +66,8 @@ async function runDownload(reqUrl: URL, clientId?: string): Promise<Response> {
 	// Both go straight into the upstream URL, so bound their shape before they can
 	// reshape it. fileId is a path segment; targetTag is a host name.
 	if (
-		!/^[A-Za-z0-9._~-]+$/.test(fileId) ||
+		!PATH_SEGMENT.test(fileId) ||
+		(entryId !== undefined && !PATH_SEGMENT.test(entryId)) ||
 		!isValidIdTag(targetTag) ||
 		(hat !== undefined && !isValidIdTag(hat))
 	) {
@@ -96,7 +101,9 @@ async function runDownload(reqUrl: URL, clientId?: string): Promise<Response> {
 		}
 	}
 
-	const realUrl = 'https://cl-o.' + targetTag + '/api/files/' + fileId
+	const realUrl = entryId
+		? `https://cl-o.${targetTag}/api/files/${entryId}/versions/${fileId}`
+		: `https://cl-o.${targetTag}/api/files/${fileId}`
 	const headers = new Headers()
 	if (token) headers.set('Authorization', `Bearer ${token}`)
 	const upstream = await fetch(realUrl, { headers, mode: 'cors' })

@@ -21,6 +21,7 @@ import {
 	useAuth,
 	useDebouncedValue,
 	useDialog,
+	useFilePicker,
 	useIsMobile,
 	useToast,
 	VBox
@@ -73,6 +74,7 @@ import { useFilesFilters } from './hooks/useFilesFilters.js'
 import type { File, FileOps, ViewMode } from './types.js'
 import { isFileProcessing } from './types.js'
 import { canWrite, fileSrcIdTag } from './utils.js'
+import { fileExt } from './version-format.js'
 
 export function FilesApp() {
 	const navigate = useNavigate()
@@ -201,6 +203,44 @@ export function FilesApp() {
 		// Channel of the current room; the hooks send it only at the root (folders inherit)
 		channel: isRemoteBrowsing ? undefined : roomChannel
 	})
+
+	// "Upload new version": one hidden picker shared by the Versions panel and the context menu.
+	// No `accept`: pickFiles would drop a file of another type, which is allowed (confirmed below).
+	const versionTargetRef = React.useRef<File | undefined>(undefined)
+	const versionPicker = useFilePicker({
+		multiple: false,
+		onFiles: async function onVersionPicked([picked]) {
+			const target = versionTargetRef.current
+			if (!picked || !target) return
+			if (!target.contentId) {
+				toast.error(
+					t('This file is not ready for a new version yet. Try again in a moment.')
+				)
+				return
+			}
+			// The name stays, so a .pdf holding .docx bytes is a trap worth a confirm
+			if (fileExt(picked.name).toLowerCase() !== fileExt(target.fileName).toLowerCase()) {
+				const ok = await dialog.confirm(
+					t('Replace with a different file type?'),
+					t(
+						'“{{picked}}” will be saved as a new version of “{{current}}”. The name stays the same.',
+						{ picked: picked.name, current: target.fileName }
+					),
+					{ confirmLabel: t('Upload new version') }
+				)
+				if (!ok) return
+			}
+			uploadQueue.addReplacement(picked, target.id, target.contentId)
+		}
+	})
+	const openVersionPicker = versionPicker.open
+	const pickNewVersion = React.useCallback(
+		function pickNewVersion(file: File) {
+			versionTargetRef.current = file
+			openVersionPicker() // synchronous: browsers open the picker only inside the user's click
+		},
+		[openVersionPicker]
+	)
 
 	// Clear finished uploads so the mobile FAB returns; errors stay so failures remain visible.
 	React.useEffect(() => {
@@ -505,6 +545,7 @@ export function FilesApp() {
 		}
 
 		return {
+			pickNewVersion: isRemoteBrowsing ? undefined : pickNewVersion,
 			setFile: function setFile(file: File) {
 				fileListData.setFileData(file.id, file)
 			},
@@ -915,7 +956,8 @@ export function FilesApp() {
 		porch,
 		contextName,
 		isHome,
-		filters.starred
+		filters.starred,
+		pickNewVersion
 	])
 
 	// Keyboard shortcuts
@@ -1247,6 +1289,8 @@ export function FilesApp() {
 			{canCreate && isMobile && uploadQueue.queue.length === 0 && (
 				<CreateMenu fab {...createMenuProps} />
 			)}
+
+			{versionPicker.input}
 
 			<UploadProgress
 				queue={uploadQueue.queue}

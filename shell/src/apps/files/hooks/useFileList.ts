@@ -15,9 +15,12 @@ import {
 } from '../../../context/index.js'
 import { useWsBus } from '../../../ws-bus.js'
 import { sortAtom } from '../atoms.js'
+import { convertFileView, mergeFileView } from '../file-view.js'
 import type { File } from '../types.js'
 import { resolveAccessLevel } from '../utils.js'
 import type { FilesPerm } from './useFilesFilters.js'
+
+export { convertFileView, mergeFileView }
 
 export interface UseFileListOptions {
 	/** The mapped list query (`useFilesFilters().toListQuery`), without cursor/limit/sort */
@@ -35,18 +38,6 @@ const PERM_AUTO_PAGES = 5
 const PERM_LEVELS: Record<FilesPerm, readonly string[]> = {
 	edit: ['write', 'admin'],
 	read: ['read', 'comment']
-}
-
-export function convertFileView(f: Types.FileView): File {
-	return {
-		...f,
-		contentId: f.contentId ?? null,
-		preset: f.preset || '',
-		tags: f.tags?.filter((t) => t && t.length > 0),
-		owner: f.owner ? { ...f.owner, name: f.owner.name || '' } : undefined,
-		upstream: f.upstream ? { ...f.upstream, name: f.upstream.name || '' } : undefined,
-		variantId: undefined
-	}
 }
 
 export function useFileList({ query, perm, permRoles, remoteApi }: UseFileListOptions) {
@@ -221,6 +212,31 @@ export function useFileList({ query, perm, permRoles, remoteApi }: UseFileListOp
 			contentId: data.contentId,
 			status: 'active'
 		})
+	})
+
+	// Content swaps (replace, version restore - also from other clients) keep the entry id but
+	// change its content; re-fetch the visible rows the backend names. The bus is the local
+	// tenant's, so remote-browsed rows are not ours to patch.
+	// Per entry, the latest request's sequence number: an older response landing later is dropped
+	const metaSeqRef = React.useRef(new Map<string, number>())
+	useWsBus({ types: ['filesChanged'] }, (msg) => {
+		const entries = (msg.data as { entries?: string[] } | undefined)?.entries
+		if (!api || remoteApi || !Array.isArray(entries)) return
+		for (const id of entries) {
+			if (!filesRef.current.some((f) => f.id === id)) continue
+			const seq = (metaSeqRef.current.get(id) ?? 0) + 1
+			metaSeqRef.current.set(id, seq)
+			api.files.getMetadata(id).then(
+				(view) => {
+					if (metaSeqRef.current.get(id) !== seq) return
+					updateItem(
+						(f) => f.id === id,
+						(prev) => mergeFileView(prev, view)
+					)
+				},
+				() => {} // a hint: the next list load catches up
+			)
+		}
 	})
 
 	return React.useMemo(

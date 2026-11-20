@@ -103,6 +103,9 @@ export interface FileOps {
 	setVisibility?: (entryId: string, visibility: FileVisibility, api?: ApiClient) => void
 	doDuplicateFile?: (entryId: string) => void
 	doRefreshFile?: (entryId: string) => void
+	/** Opens the file picker for a new version of a BLOB; must run inside the user's click.
+	 *  Absent while remote browsing. */
+	pickNewVersion?: (file: File) => void
 }
 
 export const VIEW_MODES = ['browse', 'trash', 'managed'] as const

@@ -13,6 +13,7 @@ import {
 	IcRefresh,
 	IcRename,
 	IcShare,
+	IcUpload,
 	IcView,
 	Menu,
 	MenuDivider,
@@ -493,6 +494,22 @@ export function ContextMenu({
 					onClick={handleAction(() => fileOps.renameFile(file.id))}
 				/>
 			)}
+
+			{/* New version - same gates as the Versions panel (BLOB, writable, not mirrored) */}
+			{!isRemoteBrowsing &&
+				!isManagedView &&
+				isSingleSelect &&
+				file.fileType === 'BLOB' &&
+				canWrite(file.accessLevel) &&
+				!file.upstream?.idTag &&
+				fileOps.pickNewVersion && (
+					<Item
+						icon={<IcUpload />}
+						label={t('Upload new version…')}
+						disabled={isFileProcessing(file)}
+						onClick={handleAction(() => fileOps.pickNewVersion?.(file))}
+					/>
+				)}
 
 			{/* Duplicate - only for single CRDT/RTDB rows that originate here. A mirrored row
 			    would create an empty record because content (CRDT/RTDB data) lives on the

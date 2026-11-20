@@ -137,6 +137,7 @@ export interface AskTextOptions extends DialogOptions {
 	placeholder?: string
 	defaultValue?: string
 	multiline?: boolean
+	maxLength?: number
 }
 
 type DialogType = 'Tell' | 'OkCancel' | 'YesNo' | 'Text'
@@ -224,6 +225,7 @@ export function DialogContainer() {
 				(dialog.multiline ? (
 					<TextArea
 						placeholder={dialog.placeholder}
+						maxLength={dialog.maxLength}
 						value={value}
 						autoFocus
 						onChange={(e) => setValue(e.target.value)}
@@ -232,6 +234,7 @@ export function DialogContainer() {
 					<Input
 						type="text"
 						placeholder={dialog.placeholder}
+						maxLength={dialog.maxLength}
 						value={value}
 						autoFocus
 						onChange={(e) => setValue(e.target.value)}

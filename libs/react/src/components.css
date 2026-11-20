@@ -3766,6 +3766,24 @@ dialog.c-modal.c-spotlight {
 	background: none;
 }
 
+/* File version rows (shell VersionsPanel): a named version gets an accent rule */
+.version-row.named {
+	border-left: 3px solid var(--col-accent);
+	padding-inline-start: 0.5rem;
+}
+
+.version-hit {
+	min-width: 24px;
+	min-height: 24px;
+}
+
+@media (pointer: coarse) {
+	.version-hit {
+		min-width: 44px;
+		min-height: 44px;
+	}
+}
+
 /* Removal on a ghost Button: a neutral trash that only turns red under the pointer. */
 .c-button.ghost.danger-hover:hover:not(:disabled) {
 	color: var(--col-error);

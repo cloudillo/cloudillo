@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: Szilárd Hajba
 // SPDX-License-Identifier: MPL-2.0
 
-import { type ApiClient, DEFAULT_UPLOAD_PROFILE } from '@cloudillo/core'
+import { type ApiClient, DEFAULT_UPLOAD_PROFILE, UploadError } from '@cloudillo/core'
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { useContextAwareApi } from '../../../context/index.js'
 
@@ -14,6 +15,8 @@ export interface UploadItem {
 	error?: string
 	fileId?: string
 	existed?: boolean
+	/** A new version of an existing BLOB entry (`files.replaceContent`), not a new file */
+	replace?: { entryId: string; expectedFileId: string }
 }
 
 export interface UseUploadQueueOptions {
@@ -27,6 +30,7 @@ export interface UseUploadQueueOptions {
 let uploadIdCounter = 0
 
 export function useUploadQueue(options?: UseUploadQueueOptions) {
+	const { t } = useTranslation()
 	const { api } = useContextAwareApi()
 	const [queue, setQueue] = React.useState<UploadItem[]>([])
 	const [isUploading, setIsUploading] = React.useState(false)
@@ -44,6 +48,24 @@ export function useUploadQueue(options?: UseUploadQueueOptions) {
 		}))
 
 		setQueue((prev) => [...prev, ...newItems])
+	}, [])
+
+	// Queue a new version of `entryId`; `expectedFileId` is its current contentId (If-Match)
+	const addReplacement = React.useCallback(function addReplacement(
+		file: globalThis.File,
+		entryId: string,
+		expectedFileId: string
+	) {
+		setQueue((prev) => [
+			...prev,
+			{
+				id: `upload-${++uploadIdCounter}`,
+				file,
+				progress: 0,
+				status: 'queued' as const,
+				replace: { entryId, expectedFileId }
+			}
+		])
 	}, [])
 
 	// Remove an item from the queue
@@ -87,6 +109,23 @@ export function useUploadQueue(options?: UseUploadQueueOptions) {
 
 			;(async function uploadFile() {
 				try {
+					if (nextItem.replace) {
+						await effectiveApi.files.replaceContent(
+							nextItem.replace.entryId,
+							nextItem.file,
+							nextItem.replace.expectedFileId,
+							{ contentType: nextItem.file.type }
+						)
+						// No onUploadComplete: no new row, and the swap lands later via filesChanged
+						setQueue((prev) =>
+							prev.map((item) =>
+								item.id === nextItem.id
+									? { ...item, status: 'complete' as const, progress: 100 }
+									: item
+							)
+						)
+						return
+					}
 					// Upload the file
 					const result = await effectiveApi.files.uploadBlob(
 						DEFAULT_UPLOAD_PROFILE, // preset
@@ -122,7 +161,14 @@ export function useUploadQueue(options?: UseUploadQueueOptions) {
 								? {
 										...item,
 										status: 'error' as const,
-										error: err instanceof Error ? err.message : 'Upload failed'
+										error:
+											err instanceof UploadError && err.status === 412
+												? t(
+														'This file changed while you were uploading. Try again.'
+													)
+												: err instanceof Error
+													? err.message
+													: 'Upload failed'
 									}
 								: item
 						)
@@ -132,7 +178,7 @@ export function useUploadQueue(options?: UseUploadQueueOptions) {
 				}
 			})()
 		},
-		[api, apiOverride, queue, parentId, channel, onUploadComplete, isUploading]
+		[api, apiOverride, queue, parentId, channel, onUploadComplete, isUploading, t]
 	)
 
 	const stats = React.useMemo(
@@ -154,6 +200,7 @@ export function useUploadQueue(options?: UseUploadQueueOptions) {
 		isUploading,
 		stats,
 		addFiles,
+		addReplacement,
 		removeItem,
 		clearCompleted,
 		clearAll

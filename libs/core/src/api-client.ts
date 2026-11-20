@@ -221,6 +221,115 @@ export class ApiClient {
 		return this.opts.authToken
 	}
 
+	/** Raw-body upload over XHR (fetch has no upload progress); rejects with UploadError,
+	 *  or DOMException('AbortError') on abort */
+	private xhrUpload<R>(
+		method: 'POST' | 'PUT',
+		url: string,
+		fileData: Blob | File | ArrayBuffer,
+		contentType: string | undefined,
+		decoder: T.Type<R>,
+		headers: Record<string, string>,
+		options?: { onProgress?: (pct: number) => void; signal?: AbortSignal }
+	): Promise<R> {
+		return new Promise<R>((resolve, reject) => {
+			const xhr = new XMLHttpRequest()
+			xhr.open(method, url)
+			const type =
+				contentType ||
+				(fileData instanceof Blob && fileData.type) ||
+				'application/octet-stream'
+			xhr.setRequestHeader('Content-Type', type)
+			for (const [k, v] of Object.entries(headers)) xhr.setRequestHeader(k, v)
+			const authToken = this.getAuthToken()
+			if (authToken) {
+				xhr.setRequestHeader('Authorization', `Bearer ${authToken}`)
+			}
+			xhr.withCredentials = true
+
+			let abortListener: (() => void) | undefined
+			let progressListener: ((e: ProgressEvent) => void) | undefined
+			const cleanup = () => {
+				if (abortListener && options?.signal) {
+					options.signal.removeEventListener('abort', abortListener)
+					abortListener = undefined
+				}
+				if (progressListener) {
+					xhr.upload.removeEventListener('progress', progressListener)
+					progressListener = undefined
+				}
+			}
+
+			if (options?.onProgress) {
+				progressListener = (e) => {
+					if (e.lengthComputable) {
+						options.onProgress!(Math.round((e.loaded / e.total) * 100))
+					}
+				}
+				xhr.upload.addEventListener('progress', progressListener)
+			}
+
+			xhr.addEventListener('load', () => {
+				cleanup()
+				if (xhr.status < 200 || xhr.status >= 300) {
+					let apiErrorCode: string | undefined
+					let detail: string | undefined
+					try {
+						const body = JSON.parse(xhr.responseText)
+						if (body && typeof body === 'object' && body.error) {
+							apiErrorCode = body.error.code
+							if (body.error.message) detail = body.error.message
+						}
+					} catch (_e) {
+						// non-JSON / no structured error — fall back to status text
+					}
+					const msg = detail || `Upload failed: ${xhr.status} ${xhr.statusText}`
+					const kind = UploadError.kindFromHttpStatus(xhr.status)
+					return reject(
+						new UploadError(kind, msg, xhr.status, xhr.statusText, apiErrorCode, detail)
+					)
+				}
+				try {
+					const result = JSON.parse(xhr.response)
+					const decoded = T.decode(decoder, result.data, {
+						coerceDate: true,
+						unknownFields: 'drop'
+					})
+					if (T.isErr(decoded)) {
+						return reject(
+							new UploadError(
+								'invalid_response',
+								`Invalid response: ${decoded.err.map((e) => e.error).join(', ')}`
+							)
+						)
+					}
+					resolve(decoded.ok)
+				} catch (err) {
+					reject(new UploadError('invalid_response', (err as Error).message))
+				}
+			})
+			xhr.addEventListener('error', () => {
+				cleanup()
+				reject(new UploadError('network', 'Network error'))
+			})
+			xhr.addEventListener('abort', () => {
+				cleanup()
+				reject(new DOMException('Aborted', 'AbortError'))
+			})
+
+			if (options?.signal) {
+				if (options.signal.aborted) {
+					xhr.abort()
+					return reject(new DOMException('Aborted', 'AbortError'))
+				}
+				abortListener = () => xhr.abort()
+				options.signal.addEventListener('abort', abortListener, { once: true })
+			}
+
+			xhr.send(fileData as Blob | ArrayBuffer)
+		})
+	}
+
 	/**
 	 * True when this client holds a token that has not expired. Pure — unlike
 	 * `getAuthToken()` it does NOT reap. React callers compute this during render
@@ -765,117 +874,51 @@ export class ApiClient {
 				signal?: AbortSignal
 			}
 		) => {
-			return new Promise<T.TypeOf<typeof Types.tUploadFileResult>>((resolve, reject) => {
-				let url = `${getInstanceUrl(this.opts.idTag)}/api/uploads/${encodeURIComponent(preset)}`
-				const qp = new URLSearchParams({ name: fileName })
-				if (options?.rootId) qp.set('rootId', options.rootId)
-				if (options?.parentId) qp.set('parentId', options.parentId)
-				if (options?.as) qp.set('as', options.as)
-				if (options?.visibility) qp.set('visibility', options.visibility)
-				if (options?.channel) qp.set('channel', options.channel)
-				url += '?' + qp.toString()
+			const qp = new URLSearchParams({ name: fileName })
+			if (options?.rootId) qp.set('rootId', options.rootId)
+			if (options?.parentId) qp.set('parentId', options.parentId)
+			if (options?.as) qp.set('as', options.as)
+			if (options?.visibility) qp.set('visibility', options.visibility)
+			if (options?.channel) qp.set('channel', options.channel)
+			return this.xhrUpload(
+				'POST',
+				`${getInstanceUrl(this.opts.idTag)}/api/uploads/${encodeURIComponent(preset)}?${qp}`,
+				fileData,
+				contentType,
+				Types.tUploadFileResult,
+				{},
+				options
+			)
+		},
 
-				const xhr = new XMLHttpRequest()
-				xhr.open('POST', url)
-				const type =
-					contentType ||
-					(fileData instanceof Blob && fileData.type) ||
-					'application/octet-stream'
-				xhr.setRequestHeader('Content-Type', type)
-				const authToken = this.getAuthToken()
-				if (authToken) {
-					xhr.setRequestHeader('Authorization', `Bearer ${authToken}`)
-				}
-				xhr.withCredentials = true
-
-				let abortListener: (() => void) | undefined
-				let progressListener: ((e: ProgressEvent) => void) | undefined
-				const cleanup = () => {
-					if (abortListener && options?.signal) {
-						options.signal.removeEventListener('abort', abortListener)
-						abortListener = undefined
-					}
-					if (progressListener) {
-						xhr.upload.removeEventListener('progress', progressListener)
-						progressListener = undefined
-					}
-				}
-
-				if (options?.onProgress) {
-					progressListener = (e) => {
-						if (e.lengthComputable) {
-							options.onProgress!(Math.round((e.loaded / e.total) * 100))
-						}
-					}
-					xhr.upload.addEventListener('progress', progressListener)
-				}
-
-				xhr.addEventListener('load', () => {
-					cleanup()
-					if (xhr.status < 200 || xhr.status >= 300) {
-						let apiErrorCode: string | undefined
-						let detail: string | undefined
-						try {
-							const body = JSON.parse(xhr.responseText)
-							if (body && typeof body === 'object' && body.error) {
-								apiErrorCode = body.error.code
-								if (body.error.message) detail = body.error.message
-							}
-						} catch (_e) {
-							// non-JSON / no structured error — fall back to status text
-						}
-						const msg = detail || `Upload failed: ${xhr.status} ${xhr.statusText}`
-						const kind = UploadError.kindFromHttpStatus(xhr.status)
-						return reject(
-							new UploadError(
-								kind,
-								msg,
-								xhr.status,
-								xhr.statusText,
-								apiErrorCode,
-								detail
-							)
-						)
-					}
-					try {
-						const result = JSON.parse(xhr.response)
-						const decoded = T.decode(Types.tUploadFileResult, result.data, {
-							coerceDate: true,
-							unknownFields: 'drop'
-						})
-						if (T.isErr(decoded)) {
-							return reject(
-								new UploadError(
-									'invalid_response',
-									`Invalid response: ${decoded.err.map((e) => e.error).join(', ')}`
-								)
-							)
-						}
-						resolve(decoded.ok)
-					} catch (err) {
-						reject(new UploadError('invalid_response', (err as Error).message))
-					}
-				})
-				xhr.addEventListener('error', () => {
-					cleanup()
-					reject(new UploadError('network', 'Network error'))
-				})
-				xhr.addEventListener('abort', () => {
-					cleanup()
-					reject(new DOMException('Aborted', 'AbortError'))
-				})
-
-				if (options?.signal) {
-					if (options.signal.aborted) {
-						xhr.abort()
-						return reject(new DOMException('Aborted', 'AbortError'))
-					}
-					abortListener = () => xhr.abort()
-					options.signal.addEventListener('abort', abortListener, { once: true })
-				}
-
-				xhr.send(fileData as Blob | ArrayBuffer)
-			})
+		/**
+		 * PUT /files/:entryId/content - Upload a new version of a BLOB entry. Async: the new
+		 * content swaps in when processing finishes (`filesChanged`); the name is kept.
+		 * `expectedFileId` is the current contentId (If-Match): 412 if it changed meanwhile.
+		 * `preset` defaults to the entry's stored one.
+		 */
+		replaceContent: (
+			entryId: string,
+			fileData: Blob | File | ArrayBuffer,
+			expectedFileId: string,
+			options?: {
+				contentType?: string
+				preset?: string
+				onProgress?: (pct: number) => void
+				signal?: AbortSignal
+			}
+		) => {
+			let url = `${getInstanceUrl(this.opts.idTag)}/api/files/${encodeURIComponent(entryId)}/content`
+			if (options?.preset) url += `?${new URLSearchParams({ preset: options.preset })}`
+			return this.xhrUpload(
+				'PUT',
+				url,
+				fileData,
+				options?.contentType,
+				Types.tReplaceContentResult,
+				{ 'If-Match': `"${expectedFileId}"` },
+				options
+			)
 		},
 
 		/** GET /variants/:variantId - Get specific file variant */
@@ -955,23 +998,51 @@ export class ApiClient {
 			}),
 
 		/** GET /files/:entryId/versions - Earlier contents of a BLOB entry, newest first */
-		versions: (entryId: string) =>
+		versions: (entryId: string, opts?: { current?: boolean }) =>
 			this.request(
 				'GET',
 				`/files/${encodeURIComponent(entryId)}/versions`,
-				Types.tVersionList
+				Types.tVersionList,
+				// `current=true` prepends the current content as a row with `current: true`
+				opts?.current ? { query: { current: true } } : undefined
 			),
 
-		/** URL of GET /files/:entryId/versions/:fileId - one earlier content (auth via the SW) */
-		versionUrl: (entryId: string, fileId: string) =>
-			`${getInstanceUrl(this.opts.idTag)}/api/files/${encodeURIComponent(entryId)}/versions/${encodeURIComponent(fileId)}`,
-
-		/** POST /files/:entryId/versions/:fileId/restore - Make an earlier content current */
-		restoreVersion: (entryId: string, fileId: string) =>
+		/**
+		 * POST /files/:entryId/versions/:fileId/restore - Make an earlier content current.
+		 * `expectedFileId` (the current content id) is sent as `If-Match`; the server answers
+		 * 412 (`FetchError.httpStatus`) when the content changed meanwhile.
+		 */
+		restoreVersion: (entryId: string, fileId: string, expectedFileId?: string) =>
 			this.request(
 				'POST',
 				`/files/${encodeURIComponent(entryId)}/versions/${encodeURIComponent(fileId)}/restore`,
-				Types.tFileView
+				Types.tFileView,
+				expectedFileId ? { headers: { 'If-Match': `"${expectedFileId}"` } } : undefined
+			),
+
+		/** PUT /files/:entryId/versions/:fileId/name - Name a version (empty name removes it) */
+		nameVersion: (entryId: string, fileId: string, name: string) =>
+			this.request(
+				'PUT',
+				`/files/${encodeURIComponent(entryId)}/versions/${encodeURIComponent(fileId)}/name`,
+				T.nullValue,
+				{ data: { name } }
+			),
+
+		/** DELETE /files/:entryId/versions/:fileId - Delete an earlier version (409 if current or named) */
+		deleteVersion: (entryId: string, fileId: string) =>
+			this.request(
+				'DELETE',
+				`/files/${encodeURIComponent(entryId)}/versions/${encodeURIComponent(fileId)}`,
+				T.nullValue
+			),
+
+		/** GET /files/:entryId/version-policy - Version retention policy */
+		versionPolicy: (entryId: string) =>
+			this.request(
+				'GET',
+				`/files/${encodeURIComponent(entryId)}/version-policy`,
+				Types.tVersionPolicy
 			),
 
 		/** PATCH /files/:entryId/user-data - Update user-specific file data */

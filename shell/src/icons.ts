@@ -24,6 +24,7 @@ export {
 	PiBellRinging as IcReminder,
 	PiBellRinging as IcWatch,
 	PiBellSlash as IcMute,
+	PiBookmarkSimple as IcNamedVersion,
 	PiBookmarkSimple as IcTrack,
 	PiBriefcase as IcWork,
 	PiBroadcast as IcLive,
